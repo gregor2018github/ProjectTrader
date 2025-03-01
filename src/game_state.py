@@ -49,17 +49,16 @@ class GameState:
         
     def update_time(self):
         self.tick_counter += 1
-        if self.tick_counter % 15 == 0:
-            if self.time_level == 1:
+        if self.time_level == 1:
                 self.date += datetime.timedelta(hours=0)
-            elif self.time_level == 2:
-                self.date += datetime.timedelta(hours=0.05)
-            elif self.time_level == 3:
+        elif self.time_level == 2:
+                self.date += datetime.timedelta(hours=0.005)
+        elif self.time_level == 3:
+                self.date += datetime.timedelta(hours=0.01)
+        elif self.time_level == 4:
                 self.date += datetime.timedelta(hours=0.1)
-            elif self.time_level == 4:
-                self.date += datetime.timedelta(hours=1)
-            elif self.time_level == 5:
-                self.date += datetime.timedelta(hours=10)
+        elif self.time_level == 5:
+            self.date += datetime.timedelta(hours=1)
                 
     def show_message(self, text):
         self.message = text
