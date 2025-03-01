@@ -47,11 +47,19 @@ class InfoWindow:
         text_rect = text.get_rect(center=(self.window_rect.centerx, self.window_rect.top + 40))
         self.screen.blit(text, text_rect)
         
-        # Draw buttons
+        # Get mouse position for hover effects
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Draw buttons with hover effects
         for button_rect, text in self.buttons:
-            pygame.draw.rect(self.screen, WHITE, button_rect)
+            # Check if mouse is hovering over this button
+            is_hovered = button_rect.collidepoint(mouse_pos)
+            button_color = GRAY if is_hovered else WHITE
+            text_color = WHITE if is_hovered else BLACK  # Change text color on hover
+            
+            pygame.draw.rect(self.screen, button_color, button_rect)
             pygame.draw.rect(self.screen, DARK_GRAY, button_rect, 2)
-            text_surface = self.font.render(text, True, BLACK)
+            text_surface = self.font.render(text, True, text_color)  # Use the new text color
             text_rect = text_surface.get_rect(center=button_rect.center)
             self.screen.blit(text_surface, text_rect)
 

@@ -12,6 +12,7 @@ class Good:
         self.show_in_charts = show_in_charts
         self.upper_bound = price * random.uniform(1.5, 3.5)
         self.lower_bound = price * random.uniform(0.05, 0.80)
+        self.hovered = False
     
     def buy(self, quantity):
         self.market_quantity -= quantity

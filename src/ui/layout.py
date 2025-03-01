@@ -57,7 +57,11 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
     buttons = {}
     
     def draw_input_field(rect, text, is_selected):
-        pygame.draw.rect(screen, WHITE, rect)
+        # Add hover effect for quantity input field
+        is_hovered = rect.collidepoint(pygame.mouse.get_pos()) 
+        bg_color = LIGHT_GRAY if is_hovered and not is_selected else WHITE
+        
+        pygame.draw.rect(screen, bg_color, rect)
         pygame.draw.rect(screen, DARK_BROWN, rect, 2)
         
         # Only draw the cursor if field is selected
@@ -77,6 +81,9 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         ('two', 390, "F3", "F4"),
         ('three', 760, "F5", "F6")
     ]
+    
+    # Get mouse position for hover effects
+    mouse_pos = pygame.mouse.get_pos()
     
     for section, x_start, buy_key, sell_key in sections:
         good_rect = pygame.Rect(x_start, screen.get_height() - 56, 150, 25)
@@ -98,18 +105,22 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
             )
         
         # Draw input fields and buttons (but not dropdowns)
-        pygame.draw.rect(screen, WHITE, good_rect)
-        pygame.draw.rect(screen, BLACK, good_rect, 2)  # Change from default to BLACK for more emphasis
+        # Add hover effect for good dropdown button
+        good_bg_color = LIGHT_GRAY if good_rect.collidepoint(mouse_pos) else WHITE
+        pygame.draw.rect(screen, good_bg_color, good_rect)
+        pygame.draw.rect(screen, BLACK, good_rect, 2)  # Keep the black border
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
                         
         # Replace simple green and red with our new button colors
         # Draw Buy button with nicer styling
-        pygame.draw.rect(screen, BUY_BUTTON, buy_rect)
+        buy_color = BUY_BUTTON_BORDER if buy_rect.collidepoint(mouse_pos) else BUY_BUTTON
+        pygame.draw.rect(screen, buy_color, buy_rect)
         pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
         
         # Draw Sell button with nicer styling
-        pygame.draw.rect(screen, SELL_BUTTON, sell_rect)
+        sell_color = SELL_BUTTON_BORDER if sell_rect.collidepoint(mouse_pos) else SELL_BUTTON
+        pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
         
         # Draw small triangle to indicate dropdown

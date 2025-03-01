@@ -27,12 +27,19 @@ class Menu:
         )
 
     def draw(self, screen):
-        # Draw menu button
-        pygame.draw.rect(screen, TAN, self.button_rect)
+        # Get mouse position for hover effect
+        mouse_pos = pygame.mouse.get_pos()
+        is_hovered = self.button_rect.collidepoint(mouse_pos)
+        
+        # Draw menu button with hover effects
+        button_color = SANDY_BROWN if is_hovered else TAN
+        text_color = WHITE if is_hovered else BLACK
+        
+        pygame.draw.rect(screen, button_color, self.button_rect)
         pygame.draw.rect(screen, DARK_BROWN, self.button_rect, 2)
         
-        # Draw "Menu" text
-        text = self.font.render("Menu", True, BLACK)
+        # Draw "Menu" text with appropriate color based on hover state
+        text = self.font.render("Menu", True, text_color)
         text_rect = text.get_rect(center=self.button_rect.center)
         screen.blit(text, text_rect)
         

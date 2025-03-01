@@ -87,10 +87,26 @@ class TimeControl:
         speed_label = self.font.render(f"Speed: {speed_names[current_time_level]}", True, DARK_BROWN)
         screen.blit(speed_label, (self.control_rect.x + 10, self.control_rect.y + 5))
         
-        # Draw buttons
-        screen.blit(self.resized_buttons['button_slower_150'], self.buttons["slower"])
-        screen.blit(self.resized_buttons['button_start_stop_150'], self.buttons["start_stop"])
-        screen.blit(self.resized_buttons['button_faster_150'], self.buttons["faster"])
+        # Get mouse position for hover effects
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Draw buttons with hover effects
+        for button_name, button_rect in self.buttons.items():
+            # Determine if button is being hovered over
+            is_hovered = button_rect.collidepoint(mouse_pos)
+            
+            # Draw the button image
+            screen.blit(self.resized_buttons[f'button_{button_name}_150'], button_rect)
+            
+            # If hovered, draw a semi-transparent dark overlay
+            if is_hovered:
+                # Create a dark overlay surface with transparency
+                overlay = pygame.Surface((button_rect.width, button_rect.height), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 80))  # Black with 80/255 alpha (more transparent)
+                screen.blit(overlay, button_rect)
+                
+                # Add a highlight border
+                pygame.draw.rect(screen, DARK_BROWN, button_rect, 2)
         
         # Draw time level indicators
         for i, rect in enumerate(self.level_rects):
