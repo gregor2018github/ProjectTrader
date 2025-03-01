@@ -1,4 +1,3 @@
-
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
@@ -28,3 +27,10 @@ TAN = (210, 180, 140)
 BEIGE = (245, 245, 220)
 PALE_BROWN = (152, 118, 84)
 DARK_ORANGE = (255, 140, 0)
+
+# Button colors
+BUY_BUTTON = (76, 175, 80)  # Softer green
+BUY_BUTTON_BORDER = (46, 125, 50)  # Darker green for border
+SELL_BUTTON = (231, 76, 60)  # Softer red
+SELL_BUTTON_BORDER = (181, 26, 10)  # Darker red for border
+BUTTON_TEXT = (255, 255, 255)  # White text for better contrast

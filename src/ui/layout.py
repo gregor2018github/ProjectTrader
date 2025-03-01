@@ -99,10 +99,18 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         
         # Draw input fields and buttons (but not dropdowns)
         pygame.draw.rect(screen, WHITE, good_rect)
+        pygame.draw.rect(screen, BLACK, good_rect, 2)  # Change from default to BLACK for more emphasis
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
-        pygame.draw.rect(screen, GREEN, buy_rect)
-        pygame.draw.rect(screen, RED, sell_rect)
+                        
+        # Replace simple green and red with our new button colors
+        # Draw Buy button with nicer styling
+        pygame.draw.rect(screen, BUY_BUTTON, buy_rect)
+        pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
+        
+        # Draw Sell button with nicer styling
+        pygame.draw.rect(screen, SELL_BUTTON, sell_rect)
+        pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
         
         # Draw small triangle to indicate dropdown
         pygame.draw.polygon(screen, DARK_GRAY, [
@@ -116,8 +124,10 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         # Separate label from value for quantity
         qty_label = main_font.render("Quantity: ", True, BLACK)
         qty_value = main_font.render(input_fields[f'quantity_{section}'], True, BLACK)
-        buy_text = main_font.render(f"Buy ({buy_key})", True, BLACK)
-        sell_text = main_font.render(f"Sell ({sell_key})", True, BLACK)
+        
+        # Use white text color for better contrast on colored buttons
+        buy_text = main_font.render(f"Buy ({buy_key})", True, BUTTON_TEXT)
+        sell_text = main_font.render(f"Sell ({sell_key})", True, BUTTON_TEXT)
         
         screen.blit(good_text, (good_rect.x + 10, good_rect.y + 5))
         # Draw quantity label and value

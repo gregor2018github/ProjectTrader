@@ -2,6 +2,12 @@ import pygame
 from ..ui.info_window import InfoWindow  # Add this import
 
 def handle_mouse_click(pos, buttons, game_state, goods, depot):
+    # Handle time control clicks
+    time_level = game_state.game.time_control.handle_click(pos, game_state.time_level)
+    if time_level is not None:
+        game_state.time_level = time_level
+        return
+
     # Handle menu clicks first
     if hasattr(game_state, 'game') and hasattr(game_state.game, 'menu'):
         menu_action = game_state.game.menu.handle_click(pos)

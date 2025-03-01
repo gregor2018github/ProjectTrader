@@ -10,6 +10,12 @@ from .config.colors import *
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC
 from .ui.depot_view import draw_depot_view  # Add this import at the top
 from .ui.menu import Menu  # Add to imports
+from .ui.time_control import TimeControl  # Add to imports
+
+# CONSTANTS
+
+MAX_FRAMES_PER_SEC = 60
+DRAW_EVERY_NTH_FRAME = 4
 
 class Game:
     def __init__(self):
@@ -48,6 +54,20 @@ class Game:
         self.last_update = 0
         
         self.menu = Menu(self.screen.get_width(), self.font)  # Add menu initialization
+        
+        # Load images for time control
+        time_control_images = {
+            'button_start_stop_150': self.images['button_start_stop_150'],
+            'button_faster_150': self.images['button_faster_150'],
+            'button_slower_150': self.images['button_slower_150']
+        }
+        
+        self.time_control = TimeControl(
+            self.screen.get_width(), 
+            self.screen.get_height(), 
+            self.font,
+            time_control_images
+        )
 
     def _initialize_goods(self):
         goods = []
@@ -77,6 +97,11 @@ class Game:
         # Load money icon
         images['money_50'] = pygame.image.load(os.path.join(PICTURES_PATH, "money_50.png"))
         
+        # Load buttons for time settings
+        images['button_start_stop_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_start_stop_150.png"))
+        images['button_faster_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_faster_150.png"))
+        images['button_slower_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_slower_150.png"))
+        
         # Load all good icons
         for good in self.goods:
             img_path = os.path.join(PICTURES_PATH, f"{good.name.lower()}_30.png")
@@ -88,20 +113,26 @@ class Game:
         running = True
         buttons = {}
         while running:
-            self.clock.tick(60)
+            # Limit to X frames per second
+            self.clock.tick(MAX_FRAMES_PER_SEC)
             current_time = pygame.time.get_ticks()
             
             if current_time - self.last_update >= self.update_delay:
                 self.last_update = current_time
-                day_changed = self.state.update()
-                for good in self.goods:
-                    good.update_price()
-                # Only update wealth when the day changes
+                hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
+
+                # update prices once per hour
+                if hour_changed:
+                    for good in self.goods:
+                        good.update_price()
+
+                # update wealth when the day changes
                 if day_changed:
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
             
-            if self.state.tick_counter % 4 == 0:
+            # Draw every Xth frame
+            if self.state.tick_counter % DRAW_EVERY_NTH_FRAME == 0:
                 # Draw base UI first
                 buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                    self.state.date, self.state.input_fields, 
@@ -117,6 +148,9 @@ class Game:
                 
                 # Draw menu
                 self.menu.draw(self.screen)
+                
+                # Draw time controls in bottom bar
+                self.time_control.draw(self.screen, self.state.time_level)
                 
                 # Draw dropdowns after everything else
                 for dropdown in self.state.dropdowns.values():
