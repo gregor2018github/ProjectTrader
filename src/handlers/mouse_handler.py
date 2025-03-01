@@ -2,6 +2,10 @@ import pygame
 from ..ui.info_window import InfoWindow  # Add this import
 
 def handle_mouse_click(pos, buttons, game_state, goods, depot):
+    # Reset hover states for all goods
+    for good in goods:
+        good.hovered = False
+
     # Handle time control clicks
     time_level = game_state.game.time_control.handle_click(pos, game_state.time_level)
     if time_level is not None:

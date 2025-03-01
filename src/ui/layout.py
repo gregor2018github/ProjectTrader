@@ -82,6 +82,12 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         ('three', 760, "F5", "F6")
     ]
     
+    # Reset hover states at the beginning of each frame
+    for good in game_state.game.goods:
+        # Only reset if not already set by chart selection boxes
+        if not hasattr(good, '_chart_hovered') or not good._chart_hovered:
+            good.hovered = False
+    
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
     
@@ -122,6 +128,22 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         sell_color = SELL_BUTTON_BORDER if sell_rect.collidepoint(mouse_pos) else SELL_BUTTON
         pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
+        
+        good_name = input_fields[f'good_{section}']
+        
+        # Check if hovering over trading UI elements
+        buy_hovered = buy_rect.collidepoint(mouse_pos)
+        sell_hovered = sell_rect.collidepoint(mouse_pos)
+        good_hovered = good_rect.collidepoint(mouse_pos)
+        is_hovered = buy_hovered or sell_hovered or good_hovered
+        
+        # If hovering over this section's elements, highlight the corresponding good
+        if is_hovered:
+            # Find the good by name and set hover state
+            for good in game_state.game.goods:
+                if good.name == good_name:
+                    good.hovered = True
+                    break
         
         # Draw small triangle to indicate dropdown
         pygame.draw.polygon(screen, DARK_GRAY, [

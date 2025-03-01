@@ -113,6 +113,10 @@ def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
 
     image_boxes = []
     for i, good in enumerate(goods):
+        # Clear chart hover flag
+        if hasattr(good, '_chart_hovered'):
+            good._chart_hovered = False
+
         box_x = select_bar.left + start_x + (i * (image_box_size + image_box_spacing))
         box_y = select_bar.top + 10
         image_box = pygame.Rect(box_x, box_y, image_box_size, image_box_size)
@@ -120,7 +124,10 @@ def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
 
         # Check if the mouse is hovering over this good's box
         is_hovered = image_box.collidepoint(mouse_pos)
-        good.hovered = is_hovered  # Update the good's hovered property
+        
+        if is_hovered:
+            good.hovered = True
+            good._chart_hovered = True  # Mark that this was set by chart hovering
         
         # Determine the box color based on state and hover
         if good.show_in_charts:
