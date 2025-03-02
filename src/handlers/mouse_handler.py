@@ -20,10 +20,53 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 game_state.info_window = InfoWindow(game_state.screen, 
                                                   "Do you want to quit?", 
                                                   ["Back", "Quit"], 
-                                                  game_state.font)
+                                                  game_state.font,
+                                                  game_state.game)  # Pass game reference
+            elif menu_action == "Demo":
+                from ..ui.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "merchant",
+                    "Greetings, traveler! I have many fine goods for sale today. "
+                    "The price of wool has gone up recently, but I can still offer "
+                    "you a good deal. What would you like to know?",
+                    ["Tell me about the market", "I'm not interested"]
+                )
+                return
             elif menu_action == "Balance":
                 # Handle balance action
                 pass
+            elif menu_action == "Map":
+                # Handle map action
+                pass
+            elif menu_action == "Settings":
+                # Handle settings action
+                pass
+            elif menu_action == "Talk Demo":
+                # Handle talk demo action
+                pass
+            return
+
+    # Handle dialogue clicks if active
+    if hasattr(game_state, 'dialogue') and game_state.dialogue:
+        result = game_state.dialogue.handle_click(pos)
+        if result:
+            if result == "Tell me about the market":
+                # Create a new follow-up dialogue
+                from ..ui.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "merchant",
+                    "The market has been busy lately. Prices are fluctuating due to "
+                    "the recent storms that disrupted shipping. I expect things to "
+                    "stabilize within a few days. Anything else you need?",
+                    ["Thank you for the information", "Goodbye"]
+                )
+            else:
+                # Close the dialogue
+                game_state.dialogue = None
             return
 
     # Handle dropdown selection first

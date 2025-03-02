@@ -13,7 +13,11 @@ class EventHandler:
             
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q and not game_state.info_window:
-                game_state.info_window = InfoWindow(game_state.screen, "Do you want to quit?", ["Back", "Quit"], game_state.font)
+                game_state.info_window = InfoWindow(game_state.screen, 
+                                                    "Do you want to quit?", 
+                                                    ["Back", "Quit"], 
+                                                    game_state.font,
+                                                    game_state.game)  # Pass game reference
             else:
                 handle_keyboard_input(event, game_state, goods, depot)
                 

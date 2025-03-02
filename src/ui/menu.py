@@ -5,7 +5,7 @@ class Menu:
     def __init__(self, screen_width, font):
         self.font = font
         self.is_open = False
-        self.items = ["Quit", "Balance", "Map", "Settings"]
+        self.items = ["Quit", "Balance", "Map", "Settings", "Demo"]
         
         # Menu button dimensions and position
         self.button_width = 100

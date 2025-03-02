@@ -61,6 +61,14 @@ class Game:
             'button_faster_150': self.images['button_faster_150'],
             'button_slower_150': self.images['button_slower_150']
         }
+
+        # load image for info window background frame
+        self.pic_info_window = pygame.image.load(os.path.join(PICTURES_PATH, "info_window_frame.png"))
+
+        # Load portraits for encountable characters
+        self.pic_portraits = {
+            "portrait_merchant": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_merchant.png"))
+        }
         
         self.time_control = TimeControl(
             self.screen.get_width(), 
@@ -164,6 +172,10 @@ class Game:
                 # Draw info window if active
                 if self.state.info_window:
                     self.state.info_window.draw()
+                    
+                # Draw dialogue if active
+                if hasattr(self.state, 'dialogue') and self.state.dialogue:
+                    self.state.dialogue.draw()
                     
                 pygame.display.update()
 
