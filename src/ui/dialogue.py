@@ -2,7 +2,7 @@ import pygame
 from ..config.colors import *
 
 class Dialogue:
-    def __init__(self, screen, game, npc, text, answers=None):
+    def __init__(self, screen, game, npc, text, answers=None, sound=None):
         """
         Initialize a dialogue with an NPC
         
@@ -12,6 +12,7 @@ class Dialogue:
             npc: string key for the NPC portrait in game.pic_portraits
             text: string of dialogue text
             answers: list of string answers (default: ["Continue", "Leave"])
+            sound: name of sound file to play (default: None)
         """
         self.screen = screen
         self.game = game
@@ -21,6 +22,10 @@ class Dialogue:
         self.font = game.font
         self.active = True
         self.result = None  # Will store the selected answer
+        
+        # Play sound if specified
+        if sound and hasattr(game, 'play_sound'):
+            game.play_sound(sound)
         
         # Calculate portrait dimensions (70% of screen height)
         screen_width, screen_height = screen.get_size()
@@ -42,7 +47,7 @@ class Dialogue:
             # Position portrait in bottom left
             self.portrait_rect = pygame.Rect(
                 0,  # Left margin
-                screen_height - portrait_height,  # - 20,  # Bottom margin
+                screen_height - portrait_height,  # Bottom position
                 portrait_width,
                 portrait_height
             )
@@ -76,7 +81,7 @@ class Dialogue:
             for i, answer in enumerate(self.answers):
                 button_rect = pygame.Rect(
                     start_x + (i * (button_width + spacing)),
-                    self.dialogue_rect.bottom - button_height - 20,
+                    self.dialogue_rect.bottom - button_height - 35,
                     button_width,
                     button_height
                 )
@@ -85,7 +90,7 @@ class Dialogue:
             # Single answer centered
             button_rect = pygame.Rect(
                 self.dialogue_rect.centerx - (button_width // 2),
-                self.dialogue_rect.bottom - button_height - 20,
+                self.dialogue_rect.bottom - button_height - 35,
                 button_width,
                 button_height
             )
@@ -121,14 +126,14 @@ class Dialogue:
         
         # Draw NPC name
         name_text = self.font.render(self.npc.capitalize(), True, DARK_BROWN)
-        self.screen.blit(name_text, (self.dialogue_rect.x + 20, self.dialogue_rect.y + 20))
+        self.screen.blit(name_text, (self.dialogue_rect.x + 60, self.dialogue_rect.y + 25))
         
         # Draw dialogue text (with word wrapping)
         self._draw_wrapped_text(
             self.text,
             pygame.Rect(
                 self.dialogue_rect.x + 20,
-                self.dialogue_rect.y + 60,
+                self.dialogue_rect.y + 70,
                 self.dialogue_rect.width - 40,
                 self.dialogue_rect.height - 150
             )
@@ -207,7 +212,7 @@ class Dialogue:
 
 
 # Helper function to create and show a dialogue
-def show_dialogue(screen, game, npc="merchant", text="Greetings, traveler!", answers=None):
+def show_dialogue(screen, game, npc="merchant", text="Greetings, traveler!", answers=None, sound=None):
     """
     Show a dialogue with an NPC
     
@@ -217,9 +222,10 @@ def show_dialogue(screen, game, npc="merchant", text="Greetings, traveler!", ans
         npc: string key for NPC portrait
         text: dialogue text
         answers: list of possible answers
+        sound: name of sound file to play
         
     Returns:
-        The selected answer
+        The dialogue instance
     """
-    dialogue = Dialogue(screen, game, npc, text, answers)
+    dialogue = Dialogue(screen, game, npc, text, answers, sound)
     return dialogue

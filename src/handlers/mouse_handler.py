@@ -28,10 +28,8 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                     game_state.screen,
                     game_state.game,
                     "merchant",
-                    "Greetings, traveler! I have many fine goods for sale today. "
-                    "The price of wool has gone up recently, but I can still offer "
-                    "you a good deal. What would you like to know?",
-                    ["Tell me about the market", "I'm not interested"]
+                    "The old trader's eyes light up with recognition as you approach his cramped but well-organized shop nestled between the cobbler and the blacksmith.",
+                    ["Approach him"]
                 )
                 return
             elif menu_action == "Balance":
@@ -52,18 +50,19 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
     if hasattr(game_state, 'dialogue') and game_state.dialogue:
         result = game_state.dialogue.handle_click(pos)
         if result:
-            if result == "Tell me about the market":
+            if result == "Approach him":
                 # Create a new follow-up dialogue
                 from ..ui.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,
                     "merchant",
-                    "The market has been busy lately. Prices are fluctuating due to "
-                    "the recent storms that disrupted shipping. I expect things to "
-                    "stabilize within a few days. Anything else you need?",
-                    ["Thank you for the information", "Goodbye"]
+                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid! Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He smiles at you. The timing of your arrival couldn't be more fortunate. This old back isn't what it used to be, and these hands... they're better suited for counting coins than carrying crates these days. Forty years I've built this trading business. Started with nothing but a cart and determination after my seafaring days ended. Your father —always the scholar— chose books over bargaining, but it seems the merchant's blood runs in your veins after all. Truth be told, I've been worried about the vultures circling. The Merchant's Guild has been eyeing my prime location, and without family to pass it to... well, now you're here. A blessing from the trade winds themselves! Tomorrow we begin your real education. Buy low, sell high is just the beginning. There are secrets to this trade that aren't written in any guild manual. With your youth and my knowledge, we'll turn this shop into the finest trading house in the harbor district!""",
+                    ["Thank you for the information", "Goodbye"],
+                    "merchant_1"  # Sound to play
                 )
+                # also play sound effect merchant_1.mp3 in the folder /assets/sound/
+                
             else:
                 # Close the dialogue
                 game_state.dialogue = None

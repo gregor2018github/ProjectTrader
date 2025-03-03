@@ -8,18 +8,20 @@ from .models.good import Good
 from .models.depot import Depot
 from .config.colors import *
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC
-from .ui.depot_view import draw_depot_view  # Add this import at the top
-from .ui.menu import Menu  # Add to imports
-from .ui.time_control import TimeControl  # Add to imports
+from .ui.depot_view import draw_depot_view
+from .ui.menu import Menu
+from .ui.time_control import TimeControl
 
 # CONSTANTS
-
 MAX_FRAMES_PER_SEC = 60
 DRAW_EVERY_NTH_FRAME = 4
 
 class Game:
     def __init__(self):
         pygame.init()
+        
+        # Initialize mixer for sound playback
+        pygame.mixer.init()
         
         # Initialize screen first
         self.screen = pygame.display.set_mode((1536, 864))
@@ -49,6 +51,9 @@ class Game:
         
         # Load images
         self.images = self._load_images()
+        
+        # Load sounds
+        self.sounds = self._load_sounds()
         
         self.update_delay = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update = 0
@@ -93,7 +98,6 @@ class Game:
             ("Pottery", 3, 3500, DARK_ORANGE, 10, False),
             ("Linen", 3, 2000, WHITE, 11, False)
         ]
-        
         for name, price, quantity, color, index, show in goods_data:
             goods.append(Good(name=name, price=price, market_quantity=quantity,
                             color=color, index=index, show_in_charts=show))
@@ -101,7 +105,6 @@ class Game:
 
     def _load_images(self):
         images = {'goods_30': {}}
-        
         # Load money icon
         images['money_50'] = pygame.image.load(os.path.join(PICTURES_PATH, "money_50.png"))
         
@@ -114,8 +117,40 @@ class Game:
         for good in self.goods:
             img_path = os.path.join(PICTURES_PATH, f"{good.name.lower()}_30.png")
             images['goods_30'][good.name] = pygame.image.load(img_path)
-            
+        
         return images
+    
+    def _load_sounds(self):
+        """Load game sound effects"""
+        sounds = {}
+        
+        # Define the sound directory
+        sound_dir = os.path.join(os.path.dirname(PICTURES_PATH), "sound")
+        
+        # Load dialogue sounds
+        for character in ["merchant"]:
+            for i in range(1, 3):  # Assuming each character has multiple sounds (1, 2, etc.)
+                sound_name = f"{character}_{i}"
+                sound_path = os.path.join(sound_dir, f"{sound_name}.mp3")
+                
+                # Only add the sound if the file exists
+                if os.path.exists(sound_path):
+                    try:
+                        sounds[sound_name] = pygame.mixer.Sound(sound_path)
+                    except Exception as e:
+                        print(f"Failed to load sound {sound_path}: {e}")
+        
+        return sounds
+        
+    def play_sound(self, sound_name):
+        """Play a sound by name"""
+        if sound_name in self.sounds:
+            try:
+                self.sounds[sound_name].play()
+            except Exception as e:
+                print(f"Failed to play sound {sound_name}: {e}")
+        else:
+            print(f"Sound {sound_name} not found")
 
     def run(self):
         running = True
@@ -164,24 +199,24 @@ class Game:
                 for dropdown in self.state.dropdowns.values():
                     if dropdown.is_open:  # Changed from checking active_dropdown
                         dropdown.draw(self.screen)
-                                                
-                # Draw message last if exists
-                if self.state.message:
-                    self._draw_message(self.state.message)
-                    
-                # Draw info window if active
-                if self.state.info_window:
-                    self.state.info_window.draw()
-                    
+
                 # Draw dialogue if active
                 if hasattr(self.state, 'dialogue') and self.state.dialogue:
                     self.state.dialogue.draw()
-                    
-                pygame.display.update()
-
+                
+                # Draw info window if active
+                if self.state.info_window:
+                    self.state.info_window.draw()
+                
+                # Draw message last if exists
+                if self.state.message:
+                    self._draw_message(self.state.message)
+                
             for event in pygame.event.get():
                 running = self.event_handler.handle_events(event, self.state, 
                                                         self.goods, self.depot, buttons)
+                
+            pygame.display.update()
 
     def _draw_message(self, message):
         # Draw message in center of screen
