@@ -73,7 +73,8 @@ class Game:
         # Load portraits for encountable characters and places
         self.pic_portraits = {
             "portrait_merchant": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_merchant.png")),
-            "portrait_harbor": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_harbor.png"))
+            "portrait_harbor": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_harbor.png")),
+            "portrait_shop": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_shop.png"))
         }
         
         self.time_control = TimeControl(

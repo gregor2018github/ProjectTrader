@@ -24,6 +24,9 @@ class Dialogue:
         self.font = game.font
         self.active = True
         self.result = None  # Will store the selected answer
+
+        # first stop all sounds that are still running
+        pygame.mixer.stop()
         
         # Play sound if specified
         if sound and hasattr(game, 'play_sound'):
@@ -127,7 +130,7 @@ class Dialogue:
             pygame.draw.rect(self.screen, DARK_GRAY, self.dialogue_rect, 2)
         
         # Draw NPC name
-        name_text = self.font.render(self.npc_name.capitalize(), True, DARK_BROWN)
+        name_text = self.font.render(self.npc_name, True, DARK_BROWN)
         self.screen.blit(name_text, (self.dialogue_rect.x + 60, self.dialogue_rect.y + 25))
         
         # Draw dialogue text (with word wrapping)

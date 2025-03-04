@@ -47,7 +47,7 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 # Handle talk demo action
                 pass
             return
-
+        
     # Handle dialogue clicks if active
     if hasattr(game_state, 'dialogue') and game_state.dialogue:
         result = game_state.dialogue.handle_click(pos)
@@ -58,14 +58,36 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,
+                    "portrait_shop",  # Use picture parameter
+                    "Story Teller",       # Use npc_name parameter
+                    """You make your way through the sleepy town and eventually enter a cramped but well-organized shop nestled between the cobbler and the blacksmith. The old trader's eyes light up with recognition as you approach.""",
+                    ["What a journey!"],
+                    "story_teller_2"  # Sound to play
+                )                
+            elif result == "What a journey!":
+                # Create a new follow-up dialogue
+                from ..ui.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
                     "portrait_merchant",  # Use picture parameter
-                    "Uncle Gared",       # Use npc_name parameter
-                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid! Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He smiles at you. The timing of your arrival couldn't be more fortunate. This old back isn't what it used to be, and these hands... they're better suited for counting coins than carrying crates these days. Forty years I've built this trading business. Started with nothing but a cart and determination after my seafaring days ended. Your father —always the scholar— chose books over bargaining, but it seems the merchant's blood runs in your veins after all. Truth be told, I've been worried about the vultures circling. The Merchant's Guild has been eyeing my prime location, and without family to pass it to... well, now you're here. A blessing from the trade winds themselves! Tomorrow we begin your real education. Buy low, sell high is just the beginning. There are secrets to this trade that aren't written in any guild manual. With your youth and my knowledge, we'll turn this shop into the finest trading house in the harbor district!""",
-                    ["Thank you for the information", "Goodbye"],
+                    "Old Merchant",       # Use npc_name parameter
+                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid!""",
+                    ["Give him a hug"],
                     "merchant_1"  # Sound to play
                 )
-                # also play sound effect merchant_1.mp3 in the folder /assets/sound/
-                
+            elif result == "Give him a hug":
+                # Create a new follow-up dialogue
+                from ..ui.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "portrait_merchant",  # Use picture parameter
+                    "Uncle Gared",        # Use npc_name parameter
+                    """Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He calmly smiles at you.""",
+                    ["I will help you!"],
+                    "story_teller_3"  # Sound to play
+                )                 
             else:
                 # Close the dialogue
                 game_state.dialogue = None
