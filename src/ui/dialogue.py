@@ -2,21 +2,23 @@ import pygame
 from ..config.colors import *
 
 class Dialogue:
-    def __init__(self, screen, game, npc, text, answers=None, sound=None):
+    def __init__(self, screen, game, picture, npc_name, text, answers=None, sound=None):
         """
         Initialize a dialogue with an NPC
         
         Args:
             screen: pygame surface to draw on
             game: reference to main game object
-            npc: string key for the NPC portrait in game.pic_portraits
+            picture: string key for the portrait image in game.pic_portraits
+            npc_name: name of the NPC to display
             text: string of dialogue text
             answers: list of string answers (default: ["Continue", "Leave"])
             sound: name of sound file to play (default: None)
         """
         self.screen = screen
         self.game = game
-        self.npc = npc
+        self.picture = picture
+        self.npc_name = npc_name
         self.text = text
         self.answers = answers or ["Continue", "Leave"]
         self.font = game.font
@@ -32,7 +34,7 @@ class Dialogue:
         portrait_height = int(screen_height * 0.7)
         
         # Get original portrait aspect ratio to maintain proportions
-        original_portrait = game.pic_portraits.get(f"portrait_{npc}", None)
+        original_portrait = game.pic_portraits.get(picture, None)
         if original_portrait:
             orig_width, orig_height = original_portrait.get_size()
             aspect_ratio = orig_width / orig_height
@@ -125,7 +127,7 @@ class Dialogue:
             pygame.draw.rect(self.screen, DARK_GRAY, self.dialogue_rect, 2)
         
         # Draw NPC name
-        name_text = self.font.render(self.npc.capitalize(), True, DARK_BROWN)
+        name_text = self.font.render(self.npc_name.capitalize(), True, DARK_BROWN)
         self.screen.blit(name_text, (self.dialogue_rect.x + 60, self.dialogue_rect.y + 25))
         
         # Draw dialogue text (with word wrapping)
@@ -212,14 +214,15 @@ class Dialogue:
 
 
 # Helper function to create and show a dialogue
-def show_dialogue(screen, game, npc="merchant", text="Greetings, traveler!", answers=None, sound=None):
+def show_dialogue(screen, game, picture="portrait_merchant", npc_name="Merchant", text="Greetings, traveler!", answers=None, sound=None):
     """
     Show a dialogue with an NPC
     
     Args:
         screen: pygame surface to draw on
         game: reference to game object
-        npc: string key for NPC portrait
+        picture: string key for portrait image
+        npc_name: name of the NPC to display
         text: dialogue text
         answers: list of possible answers
         sound: name of sound file to play
@@ -227,5 +230,5 @@ def show_dialogue(screen, game, npc="merchant", text="Greetings, traveler!", ans
     Returns:
         The dialogue instance
     """
-    dialogue = Dialogue(screen, game, npc, text, answers, sound)
+    dialogue = Dialogue(screen, game, picture, npc_name, text, answers, sound)
     return dialogue

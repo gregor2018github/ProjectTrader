@@ -70,9 +70,10 @@ class Game:
         # load image for info window background frame
         self.pic_info_window = pygame.image.load(os.path.join(PICTURES_PATH, "info_window_frame.png"))
 
-        # Load portraits for encountable characters
+        # Load portraits for encountable characters and places
         self.pic_portraits = {
-            "portrait_merchant": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_merchant.png"))
+            "portrait_merchant": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_merchant.png")),
+            "portrait_harbor": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_harbor.png"))
         }
         
         self.time_control = TimeControl(
@@ -126,20 +127,16 @@ class Game:
         
         # Define the sound directory
         sound_dir = os.path.join(os.path.dirname(PICTURES_PATH), "sound")
-        
-        # Load dialogue sounds
-        for character in ["merchant"]:
-            for i in range(1, 3):  # Assuming each character has multiple sounds (1, 2, etc.)
-                sound_name = f"{character}_{i}"
-                sound_path = os.path.join(sound_dir, f"{sound_name}.mp3")
-                
-                # Only add the sound if the file exists
-                if os.path.exists(sound_path):
-                    try:
-                        sounds[sound_name] = pygame.mixer.Sound(sound_path)
-                    except Exception as e:
-                        print(f"Failed to load sound {sound_path}: {e}")
-        
+
+        # simply load in all files in the sound directory
+        for sound_file in os.listdir(sound_dir):
+            sound_path = os.path.join(sound_dir, sound_file)
+            sound_name = os.path.splitext(sound_file)[0]
+            try:
+                sounds[sound_name] = pygame.mixer.Sound(sound_path)
+            except Exception as e:
+                print(f"Failed to load sound {sound_path}: {e}")
+    
         return sounds
         
     def play_sound(self, sound_name):

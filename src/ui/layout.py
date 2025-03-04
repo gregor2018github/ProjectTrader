@@ -57,11 +57,7 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
     buttons = {}
     
     def draw_input_field(rect, text, is_selected):
-        # Add hover effect for quantity input field
-        is_hovered = rect.collidepoint(pygame.mouse.get_pos()) 
-        bg_color = LIGHT_GRAY if is_hovered and not is_selected else WHITE
-        
-        pygame.draw.rect(screen, bg_color, rect)
+        pygame.draw.rect(screen, WHITE, rect)
         pygame.draw.rect(screen, DARK_BROWN, rect, 2)
         
         # Only draw the cursor if field is selected
@@ -81,15 +77,6 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         ('two', 390, "F3", "F4"),
         ('three', 760, "F5", "F6")
     ]
-    
-    # Reset hover states at the beginning of each frame
-    for good in game_state.game.goods:
-        # Only reset if not already set by chart selection boxes
-        if not hasattr(good, '_chart_hovered') or not good._chart_hovered:
-            good.hovered = False
-    
-    # Get mouse position for hover effects
-    mouse_pos = pygame.mouse.get_pos()
     
     for section, x_start, buy_key, sell_key in sections:
         good_rect = pygame.Rect(x_start, screen.get_height() - 56, 150, 25)
@@ -111,39 +98,11 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
             )
         
         # Draw input fields and buttons (but not dropdowns)
-        # Add hover effect for good dropdown button
-        good_bg_color = LIGHT_GRAY if good_rect.collidepoint(mouse_pos) else WHITE
-        pygame.draw.rect(screen, good_bg_color, good_rect)
-        pygame.draw.rect(screen, BLACK, good_rect, 2)  # Keep the black border
+        pygame.draw.rect(screen, WHITE, good_rect)
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
-                        
-        # Replace simple green and red with our new button colors
-        # Draw Buy button with nicer styling
-        buy_color = BUY_BUTTON_BORDER if buy_rect.collidepoint(mouse_pos) else BUY_BUTTON
-        pygame.draw.rect(screen, buy_color, buy_rect)
-        pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
-        
-        # Draw Sell button with nicer styling
-        sell_color = SELL_BUTTON_BORDER if sell_rect.collidepoint(mouse_pos) else SELL_BUTTON
-        pygame.draw.rect(screen, sell_color, sell_rect)
-        pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
-        
-        good_name = input_fields[f'good_{section}']
-        
-        # Check if hovering over trading UI elements
-        buy_hovered = buy_rect.collidepoint(mouse_pos)
-        sell_hovered = sell_rect.collidepoint(mouse_pos)
-        good_hovered = good_rect.collidepoint(mouse_pos)
-        is_hovered = buy_hovered or sell_hovered or good_hovered
-        
-        # If hovering over this section's elements, highlight the corresponding good
-        if is_hovered:
-            # Find the good by name and set hover state
-            for good in game_state.game.goods:
-                if good.name == good_name:
-                    good.hovered = True
-                    break
+        pygame.draw.rect(screen, GREEN, buy_rect)
+        pygame.draw.rect(screen, RED, sell_rect)
         
         # Draw small triangle to indicate dropdown
         pygame.draw.polygon(screen, DARK_GRAY, [
@@ -157,10 +116,8 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         # Separate label from value for quantity
         qty_label = main_font.render("Quantity: ", True, BLACK)
         qty_value = main_font.render(input_fields[f'quantity_{section}'], True, BLACK)
-        
-        # Use white text color for better contrast on colored buttons
-        buy_text = main_font.render(f"Buy ({buy_key})", True, BUTTON_TEXT)
-        sell_text = main_font.render(f"Sell ({sell_key})", True, BUTTON_TEXT)
+        buy_text = main_font.render(f"Buy ({buy_key})", True, BLACK)
+        sell_text = main_font.render(f"Sell ({sell_key})", True, BLACK)
         
         screen.blit(good_text, (good_rect.x + 10, good_rect.y + 5))
         # Draw quantity label and value
