@@ -7,6 +7,9 @@ class Depot:
             "Wheat": 0, "Wine": 0, "Beer": 0,
             "Meat": 0, "Linen": 0, "Pottery": 0,
         }
+        # FIFO queue to track purchased goods with their prices
+        self.purchase_history = {good_name: [] for good_name in self.good_stock}
+        
         self.properties = {
             "warehouses": [],
             "workshops": [],
@@ -23,13 +26,43 @@ class Depot:
         self.trades = []
         self.wealth = [money]
         self.total_stock = [0]
+        
+        # Add trade cycle tracking
+        self.trade_cycles = {
+            "total": 0,  # Total number of completed trade cycles
+            "successful": 0,  # Number of profitable trade cycles
+            "total_profit": 0,  # Cumulative profit from all trade cycles
+            "by_good": {},  # Statistics broken down by good
+        }
+        
+        # Initialize trade cycle tracking for each good
+        for good_name in self.good_stock:
+            self.trade_cycles["by_good"][good_name] = {
+                "total": 0,
+                "successful": 0,
+                "total_profit": 0,
+                "avg_profit": 0,
+                "best_profit": 0,
+                "worst_profit": 0,
+            }
 
     def buy(self, good, quantity_to_buy, game_state):
         """Buy a quantity of a good from market to depot"""
-        if self.money >= good.get_price() * quantity_to_buy:
+        total_cost = good.get_price() * quantity_to_buy
+        
+        if self.money >= total_cost:
             if good.get_quantity() >= quantity_to_buy:
-                self.money -= good.get_price() * quantity_to_buy
+                self.money -= total_cost
                 self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
+                
+                # Store purchase in FIFO queue with timestamp, price, and quantity
+                self.purchase_history[good.name].append({
+                    "timestamp": game_state.date,
+                    "price": good.get_price(),
+                    "quantity": quantity_to_buy,
+                    "total_cost": total_cost
+                })
+                
                 good.buy(quantity_to_buy)
                 self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
             else:
@@ -38,13 +71,52 @@ class Depot:
             raise Exception("You do not have enough money to buy that good.")
 
     def sell(self, good, quantity_to_sell, game_state):
-        """Sell a quantity of a good from depot to market"""
+        """Sell a quantity of a good from depot to market using FIFO method"""
         if good.name in self.good_stock:
             if self.good_stock[good.name] >= quantity_to_sell:
-                self.money += good.get_price() * quantity_to_sell
+                current_sale_price = good.get_price()
+                total_revenue = current_sale_price * quantity_to_sell
+                
+                # Add money from sale
+                self.money += total_revenue
+                
+                # Reduce stock count
                 self.good_stock[good.name] -= quantity_to_sell
+                
+                # Process the sale using FIFO
+                remaining_to_sell = quantity_to_sell
+                total_cost_of_goods_sold = 0
+                purchase_entries = self.purchase_history[good.name]
+                
+                while remaining_to_sell > 0 and purchase_entries:
+                    oldest_purchase = purchase_entries[0]
+                    
+                    if oldest_purchase["quantity"] <= remaining_to_sell:
+                        # Use the entire purchase batch
+                        quantity_used = oldest_purchase["quantity"]
+                        cost_of_goods_sold = oldest_purchase["price"] * quantity_used
+                        
+                        # Remove this purchase entry as it's fully consumed
+                        purchase_entries.pop(0)
+                    else:
+                        # Use only part of the purchase batch
+                        quantity_used = remaining_to_sell
+                        cost_of_goods_sold = oldest_purchase["price"] * quantity_used
+                        
+                        # Update the quantity in the purchase history
+                        oldest_purchase["quantity"] -= quantity_used
+                        oldest_purchase["total_cost"] = oldest_purchase["price"] * oldest_purchase["quantity"]
+                    
+                    total_cost_of_goods_sold += cost_of_goods_sold
+                    remaining_to_sell -= quantity_used
+                    
+                    # Track completed trade cycle
+                    profit = (current_sale_price - oldest_purchase["price"]) * quantity_used
+                    self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price)
+                
+                # Update the market
                 good.sell(quantity_to_sell)
-                self.record_trade(good, quantity_to_sell, good.get_price(), False, game_state)
+                self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
             else:
                 raise Exception("You do not have enough of that good to sell.")
         else:
@@ -61,6 +133,48 @@ class Depot:
             "total": price * quantity
         }
         self.trades.append(trade)
+    
+    def _record_trade_cycle(self, good_name, profit, quantity, buy_price, sell_price):
+        """Record statistics for a completed trade cycle"""
+        # Update overall statistics
+        self.trade_cycles["total"] += 1
+        self.trade_cycles["total_profit"] += profit
+        
+        if profit > 0:
+            self.trade_cycles["successful"] += 1
+        
+        # Update good-specific statistics
+        good_stats = self.trade_cycles["by_good"][good_name]
+        good_stats["total"] += 1
+        good_stats["total_profit"] += profit
+        
+        if profit > 0:
+            good_stats["successful"] += 1
+        
+        # Update average profit
+        if good_stats["total"] > 0:
+            good_stats["avg_profit"] = good_stats["total_profit"] / good_stats["total"]
+        
+        # Update best and worst profit only if quantity is same
+        profit_per_unit = profit / quantity
+        
+        if good_stats["best_profit"] < profit_per_unit or good_stats["total"] == 1:
+            good_stats["best_profit"] = profit_per_unit
+            
+        if good_stats["worst_profit"] > profit_per_unit or good_stats["total"] == 1:
+            good_stats["worst_profit"] = profit_per_unit
+            
+        # Track this specific trade cycle
+        trade_cycle = {
+            "good": good_name,
+            "quantity": quantity,
+            "buy_price": buy_price,
+            "sell_price": sell_price,
+            "profit": profit,
+            "profit_per_unit": profit_per_unit
+        }
+        
+        return trade_cycle
     
     def update_wealth(self, goods):
         """Update the wealth, consisting of money and the value of all goods in stock"""
@@ -81,3 +195,27 @@ class Depot:
         self.total_stock.append(total_stock)
         return total_stock
     
+    def get_trade_cycle_stats(self):
+        """Return summarized statistics about trade cycles"""
+        stats = {
+            "total_cycles": self.trade_cycles["total"],
+            "successful_cycles": self.trade_cycles["successful"],
+            "success_rate": (self.trade_cycles["successful"] / self.trade_cycles["total"] * 100) if self.trade_cycles["total"] > 0 else 0,
+            "total_profit": self.trade_cycles["total_profit"],
+            "best_goods": [],
+            "worst_goods": []
+        }
+        
+        # Find the best and worst performing goods
+        goods_by_profit = sorted(
+            [(name, data["avg_profit"]) for name, data in self.trade_cycles["by_good"].items() if data["total"] > 0],
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        if goods_by_profit:
+            stats["best_goods"] = goods_by_profit[:3]  # Top 3 goods
+            stats["worst_goods"] = goods_by_profit[-3:]  # Bottom 3 goods
+            
+        return stats
+
