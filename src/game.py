@@ -174,6 +174,11 @@ class Game:
             
             # Draw every Xth frame
             if self.state.tick_counter % DRAW_EVERY_NTH_FRAME == 0:
+                # Reset hover states at the beginning of each frame
+                for good in self.goods:
+                    if hasattr(good, '_external_hover') and not good._external_hover:
+                        good.hovered = False
+                
                 # Draw base UI first
                 buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                    self.state.date, self.state.input_fields, 
@@ -211,6 +216,13 @@ class Game:
                     self._draw_message(self.state.message)
                 
             for event in pygame.event.get():
+                if event.type == pygame.MOUSEMOTION:
+                    # Clear any hover states that aren't from the current frame
+                    for good in self.goods:
+                        if not hasattr(good, '_external_hover'):
+                            good._external_hover = False
+                        good._external_hover = False
+                
                 running = self.event_handler.handle_events(event, self.state, 
                                                         self.goods, self.depot, buttons)
                 

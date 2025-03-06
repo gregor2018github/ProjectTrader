@@ -5,6 +5,9 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
     # Reset hover states for all goods
     for good in goods:
         good.hovered = False
+        # Make sure we don't have any leftover tracking attributes
+        if hasattr(good, '_external_hover'):
+            good._external_hover = False
 
     # Handle time control clicks
     time_level = game_state.game.time_control.handle_click(pos, game_state.time_level)
@@ -83,7 +86,7 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                     game_state.screen,
                     game_state.game,
                     "portrait_merchant",  # Use picture parameter
-                    "Uncle Gared",        # Use npc_name parameter
+                    "Story Teller",        # Use npc_name parameter
                     """Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He calmly smiles at you.""",
                     ["I will help you!"],
                     "story_teller_3"  # Sound to play

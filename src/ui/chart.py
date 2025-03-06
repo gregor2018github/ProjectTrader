@@ -18,6 +18,11 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     max_price = max(max(good.price_history[-max_chart_size:]) for good in goods if good.show_in_charts)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
 
+    # Reset hover states for all goods (only if not set elsewhere)
+    for good in goods:
+        if not hasattr(good, '_external_hover') or not good._external_hover:
+            good.hovered = False
+
     # Store selection boxes for later use with hover effects
     image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30)
     
@@ -112,11 +117,9 @@ def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
     mouse_pos = pygame.mouse.get_pos()
 
     image_boxes = []
+    any_box_hovered = False
+    
     for i, good in enumerate(goods):
-        # Clear chart hover flag
-        if hasattr(good, '_chart_hovered'):
-            good._chart_hovered = False
-
         box_x = select_bar.left + start_x + (i * (image_box_size + image_box_spacing))
         box_y = select_bar.top + 10
         image_box = pygame.Rect(box_x, box_y, image_box_size, image_box_size)
@@ -127,7 +130,7 @@ def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
         
         if is_hovered:
             good.hovered = True
-            good._chart_hovered = True  # Mark that this was set by chart hovering
+            any_box_hovered = True
         
         # Determine the box color based on state and hover
         if good.show_in_charts:
