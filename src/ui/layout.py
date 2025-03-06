@@ -56,6 +56,9 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
     
     buttons = {}
     
+    # Get mouse position for hover effects
+    mouse_pos = pygame.mouse.get_pos()
+    
     def draw_input_field(rect, text, is_selected):
         pygame.draw.rect(screen, WHITE, rect)
         pygame.draw.rect(screen, DARK_BROWN, rect, 2)
@@ -70,6 +73,10 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
                            (cursor_x+4, rect.y + 5),
                            (cursor_x+4, rect.y + rect.height - 5),
                            2)
+    
+    # Helper function to check if mouse is hovering over a rect
+    def is_hovering(rect):
+        return rect.collidepoint(mouse_pos)
     
     # Draw input fields and buttons for all three trading sections
     sections = [
@@ -98,21 +105,27 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
             )
         
         # Draw input fields and buttons (but not dropdowns)
-        pygame.draw.rect(screen, WHITE, good_rect)
-        pygame.draw.rect(screen, DARK_BROWN, good_rect, 2)  # Add black border to good selection buttons
+        # Apply hover effect to good selection dropdown buttons
+        good_bg_color = DROPDOWN_HOVER if is_hovering(good_rect) else WHITE
+        pygame.draw.rect(screen, good_bg_color, good_rect)
+        pygame.draw.rect(screen, DARK_BROWN, good_rect, 2)
+        
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
                         
-        # Draw buy button with nicer colors and border
-        pygame.draw.rect(screen, BUY_BUTTON, buy_rect)
+        # Draw buy button with hover effect
+        buy_color = BUY_BUTTON_HOVER if is_hovering(buy_rect) else BUY_BUTTON
+        pygame.draw.rect(screen, buy_color, buy_rect)
         pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
         
-        # Draw sell button with nicer colors and border
-        pygame.draw.rect(screen, SELL_BUTTON, sell_rect)
+        # Draw sell button with hover effect
+        sell_color = SELL_BUTTON_HOVER if is_hovering(sell_rect) else SELL_BUTTON
+        pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
         
-        # Draw small triangle to indicate dropdown
-        pygame.draw.polygon(screen, DARK_GRAY, [
+        # Draw small triangle to indicate dropdown - make it darker on hover
+        triangle_color = DARK_GRAY if not is_hovering(good_rect) else BLACK
+        pygame.draw.polygon(screen, triangle_color, [
             (good_rect.right - 20, good_rect.centery - 5),
             (good_rect.right - 10, good_rect.centery - 5),
             (good_rect.right - 15, good_rect.centery + 5)
