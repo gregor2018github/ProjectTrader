@@ -18,11 +18,6 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     max_price = max(max(good.price_history[-max_chart_size:]) for good in goods if good.show_in_charts)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
 
-    # Reset hover states for all goods (only if not set elsewhere)
-    for good in goods:
-        if not hasattr(good, '_external_hover') or not good._external_hover:
-            good.hovered = False
-
     # Store selection boxes for later use with hover effects
     image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30)
     

@@ -6,7 +6,7 @@ def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_
     _draw_background(screen)
     _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30)
     _draw_middle_section(screen)
-    buttons = _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_state)
+    buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
 
 def _draw_background(screen):
@@ -49,12 +49,17 @@ def _draw_middle_section(screen):
     pygame.draw.rect(screen, SANDY_BROWN, left_middle)
     pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
 
-def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_state):
+def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state):
     bottom_bar = pygame.Rect(0, screen.get_height()-60, screen.get_width(), 60)
     pygame.draw.rect(screen, LIGHT_GRAY, bottom_bar)
     pygame.draw.rect(screen, DARK_GRAY, bottom_bar, 2)
     
     buttons = {}
+
+    # set the hovered property of all goods to False, the chart gets rendered later and will separately check if some of the chart internal buttons trigger a hover effect
+    # for now we will check if the buy or sell buttons trigger a hover effect from this layout script
+    for good in goods:
+        good.hovered = False
     
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
@@ -113,13 +118,35 @@ def _draw_bottom_bar(screen, main_font, input_fields, mouse_clicked_on, game_sta
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
                         
-        # Draw buy button with hover effect
-        buy_color = BUY_BUTTON_HOVER if is_hovering(buy_rect) else BUY_BUTTON
+        # Draw buy button 
+        if is_hovering(buy_rect):
+            # if hovered, change color of the button 
+            buy_color = BUY_BUTTON_HOVER
+            # also set the "hovered" property of the good that is linked to the button to True 
+            # find the right good object from the list of goods
+            good_name = input_fields[f'good_{section}']
+            good = next(good for good in goods if good.name == good_name)
+            good.hovered = True
+
+        else:
+            buy_color = BUY_BUTTON
+
+
         pygame.draw.rect(screen, buy_color, buy_rect)
         pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
         
-        # Draw sell button with hover effect
-        sell_color = SELL_BUTTON_HOVER if is_hovering(sell_rect) else SELL_BUTTON
+        # Draw sell button
+        if is_hovering(sell_rect):
+            # if hovered, change color of the button 
+            sell_color = SELL_BUTTON_HOVER
+            # also set the "hovered" property of the good that is linked to the button to True 
+            # find the right good object from the list of goods
+            good_name = input_fields[f'good_{section}']
+            good = next(good for good in goods if good.name == good_name)
+            good.hovered = True
+        else:
+            sell_color = SELL_BUTTON
+
         pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
         

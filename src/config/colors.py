@@ -30,10 +30,10 @@ DARK_ORANGE = (255, 140, 0)
 
 # Button colors
 BUY_BUTTON = (76, 175, 80)  # Softer green
-BUY_BUTTON_HOVER = (56, 142, 60)  # Darker shade for hover
+BUY_BUTTON_HOVER = (46, 132, 50)  # Darker shade for hover
 BUY_BUTTON_BORDER = (46, 125, 50)  # Darker green for border
 SELL_BUTTON = (231, 76, 60)  # Softer red
-SELL_BUTTON_HOVER = (192, 57, 43)  # Darker shade for hover
+SELL_BUTTON_HOVER = (182, 47, 33)  # Darker shade for hover
 SELL_BUTTON_BORDER = (181, 26, 10)  # Darker red for border
 BUTTON_TEXT = (255, 255, 255)  # White text for better contrast
-DROPDOWN_HOVER = (235, 235, 235)  # Light gray for dropdown button hover
+DROPDOWN_HOVER = (215, 215, 215)  # Light gray for dropdown button hover

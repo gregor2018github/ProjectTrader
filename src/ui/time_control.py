@@ -102,11 +102,11 @@ class TimeControl:
             if is_hovered:
                 # Create a dark overlay surface with transparency
                 overlay = pygame.Surface((button_rect.width, button_rect.height), pygame.SRCALPHA)
-                overlay.fill((0, 0, 0, 80))  # Black with 80/255 alpha (more transparent)
+                overlay.fill((0, 0, 0, 20))  # Black with 80/255 alpha (more transparent)
                 screen.blit(overlay, button_rect)
                 
                 # Add a highlight border
-                pygame.draw.rect(screen, DARK_BROWN, button_rect, 2)
+                pygame.draw.rect(screen, DARK_BROWN, button_rect, 1)
         
         # Draw time level indicators
         for i, rect in enumerate(self.level_rects):
