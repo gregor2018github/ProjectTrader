@@ -8,18 +8,57 @@ def draw_depot_view(screen, font, depot, game_state):
     x = screen.get_width() - width
     y = 60
     
-    # Create and draw main surface
+    # Draw depot container
     depot_rect = pygame.Rect(x, y, width, height)
     pygame.draw.rect(screen, BEIGE, depot_rect)
     pygame.draw.rect(screen, TAN, depot_rect, 10)
     pygame.draw.rect(screen, DARK_BROWN, depot_rect, 2)
     
-    # Draw title
+    # Draw heading with time frame
     current_day = game_state.date.strftime("%d.%m.%Y")
-    title = font.render(f"Daily Depot Statistics - {current_day}", True, DARK_BROWN)
+    heading_text = f"{game_state.depot_time_frame} Depot Statistics - {current_day}"
+    title = font.render(heading_text, True, DARK_BROWN)
     title_rect = title.get_rect(center=(x + width//2, y + 30))
     screen.blit(title, title_rect)
     
+    # Define button size and positions relative to title
+    btn_size = 30
+    margin = 10  # margin between title and buttons
+    left_btn_rect = pygame.Rect(title_rect.left - margin - btn_size, title_rect.centery - btn_size//2, btn_size, btn_size)
+    right_btn_rect = pygame.Rect(title_rect.right + margin, title_rect.centery - btn_size//2, btn_size, btn_size)
+    
+    # Determine availability based on current time frame index
+    current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
+    left_active = current_index > 0
+    right_active = current_index < len(game_state.depot_time_frames) - 1
+
+    # New button design: render only available buttons with rounded rectangles and double arrows,
+    # with arrows turning white on hover
+    button_bg_color = SANDY_BROWN
+    button_border_color = DARK_BROWN
+    default_arrow_color = DARK_BROWN
+    hover_arrow_color = WHITE
+    arrow_font = pygame.font.SysFont("RomanAntique.ttf", 24)
+    mouse_pos = pygame.mouse.get_pos()
+
+    if left_active:
+        pygame.draw.rect(screen, button_bg_color, left_btn_rect, border_radius=5)
+        pygame.draw.rect(screen, button_border_color, left_btn_rect, 2, border_radius=5)
+        left_arrow_color = hover_arrow_color if left_btn_rect.collidepoint(mouse_pos) else default_arrow_color
+        arrow_text = arrow_font.render("<<", True, left_arrow_color)
+        arrow_rect = arrow_text.get_rect(center=left_btn_rect.center)
+        screen.blit(arrow_text, arrow_rect)
+    # Do not render left button if not active
+
+    if right_active:
+        pygame.draw.rect(screen, button_bg_color, right_btn_rect, border_radius=5)
+        pygame.draw.rect(screen, button_border_color, right_btn_rect, 2, border_radius=5)
+        right_arrow_color = hover_arrow_color if right_btn_rect.collidepoint(mouse_pos) else default_arrow_color
+        arrow_text = arrow_font.render(">>", True, right_arrow_color)
+        arrow_rect = arrow_text.get_rect(center=right_btn_rect.center)
+        screen.blit(arrow_text, arrow_rect)
+    # Do not render right button if not active
+
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
     # Create a temporary surface that is tall enough (estimate: current text section starts at 0)
@@ -96,10 +135,11 @@ def draw_depot_view(screen, font, depot, game_state):
         content_y += 24
     
     # Draw section: Best & Worst Goods
-    content_y += 15
-    section_title = font.render("Performance by Good", True, DARK_BROWN)
-    content_surface.blit(section_title, (20, content_y))
-    content_y += 30
+    if cycle_stats["best_goods"] or cycle_stats["worst_goods"]:
+        content_y += 15
+        section_title = font.render("Performance by Good", True, DARK_BROWN)
+        content_surface.blit(section_title, (20, content_y))
+        content_y += 30
     
     # Draw best goods if available
     if cycle_stats["best_goods"]:
@@ -172,6 +212,9 @@ def draw_depot_view(screen, font, depot, game_state):
         thumb_y = scroll_area.y + (scroll_offset / (content_surface.get_height() - scroll_area.height)) * (scroll_area.height - thumb_height)
         thumb_rect = pygame.Rect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
         pygame.draw.rect(screen, TAN, thumb_rect)
+
+    # Store depot button rectangles for handling clicks externally
+    game_state.depot_buttons = {"left": left_btn_rect, "right": right_btn_rect}
 
 def draw_stat_row(screen, font, x, y, label, value, label_color=DARK_BROWN, value_color=BLACK):
     """Helper function to draw a row with label and value"""

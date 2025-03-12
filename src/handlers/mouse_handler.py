@@ -2,6 +2,17 @@ import pygame
 from ..ui.info_window import InfoWindow  # Add this import
 
 def handle_mouse_click(pos, buttons, game_state, goods, depot):
+    # Handle depot time frame button clicks
+    if hasattr(game_state, "depot_buttons"):
+        depot_buttons = game_state.depot_buttons
+        current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
+        if depot_buttons["left"].collidepoint(pos) and current_index > 0:
+            game_state.depot_time_frame = game_state.depot_time_frames[current_index - 1]
+            return
+        elif depot_buttons["right"].collidepoint(pos) and current_index < len(game_state.depot_time_frames) - 1:
+            game_state.depot_time_frame = game_state.depot_time_frames[current_index + 1]
+            return
+
     # Reset hover states for all goods
     for good in goods:
         good.hovered = False

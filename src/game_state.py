@@ -47,6 +47,9 @@ class GameState:
         self.last_month = 1
         self.last_year = 1500
         
+        self.depot_time_frame = "Daily"
+        self.depot_time_frames = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
+        
     def update_time(self):
         self.tick_counter += 1
         if self.time_level == 1:
