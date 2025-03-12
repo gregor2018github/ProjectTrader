@@ -20,25 +20,27 @@ def draw_depot_view(screen, font, depot, game_state):
     title_rect = title.get_rect(center=(x + width//2, y + 30))
     screen.blit(title, title_rect)
     
-    # Draw wealth information
+    # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
+    scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
+    # Create a temporary surface that is tall enough (estimate: current text section starts at 0)
+    content_surface = pygame.Surface((scroll_area.width, 1000), pygame.SRCALPHA)
+    content_surface.fill((0,0,0,0))
+    content_y = 0
+
+    # Create a smaller font for details
+    small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
+    
+    # Gather stats (wealth, actions, cycles, etc.)
     current_wealth = depot.wealth[-1]
     try: 
         start_wealth = depot.wealth[-2]
     except IndexError: 
         start_wealth = current_wealth
     wealth_change = current_wealth - start_wealth
-    
-    # Get trade statistics
     buy_actions = sum(1 for trade in depot.trades if trade["type"] == "purchase")
     sell_actions = sum(1 for trade in depot.trades if trade["type"] == "sale")
-    
-    # Create a smaller font for more detailed information
-    small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
-    
-    # Get trade cycle statistics
     cycle_stats = depot.get_trade_cycle_stats()
     
-    # Organize stats into sections
     wealth_stats = [
         ("Wealth Today", f"{current_wealth:.2f}"),
         ("Wealth Yesterday", f"{start_wealth:.2f}"),
@@ -60,83 +62,116 @@ def draw_depot_view(screen, font, depot, game_state):
         ("Total Trade Profit", f"{cycle_stats['total_profit']:.2f}")
     ]
     
-    # Draw section: Wealth Statistics
-    section_y = y + 80
-    section_title = font.render("Wealth Statistics", True, DARK_BROWN)
-    screen.blit(section_title, (x + 20, section_y))
-    section_y += 30
+    # Helper function to draw a row on a given surface at y offset
+    def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
+        label_surf = small_font.render(label, True, label_color)
+        value_surf = small_font.render(value, True, value_color)
+        surf.blit(label_surf, (20, y_pos))
+        surf.blit(value_surf, (250, y_pos))
     
+    # Draw section: Wealth Statistics
+    section_title = font.render("Wealth Statistics", True, DARK_BROWN)
+    content_surface.blit(section_title, (20, content_y))
+    content_y += 30
     for label, value in wealth_stats:
-        draw_stat_row(screen, small_font, x, section_y, label, value)
-        section_y += 24
+        draw_row(content_surface, content_y, label, value)
+        content_y += 24
     
     # Draw section: Trade Actions
-    section_y += 15
+    content_y += 15
     section_title = font.render("Trade Actions", True, DARK_BROWN)
-    screen.blit(section_title, (x + 20, section_y))
-    section_y += 30
-    
+    content_surface.blit(section_title, (20, content_y))
+    content_y += 30
     for label, value in trade_action_stats:
-        draw_stat_row(screen, small_font, x, section_y, label, value)
-        section_y += 24
+        draw_row(content_surface, content_y, label, value)
+        content_y += 24
     
     # Draw section: Trade Cycles
-    section_y += 15
+    content_y += 15
     section_title = font.render("Trade Cycles", True, DARK_BROWN)
-    screen.blit(section_title, (x + 20, section_y))
-    section_y += 30
-    
+    content_surface.blit(section_title, (20, content_y))
+    content_y += 30
     for label, value in trade_cycle_stats:
-        draw_stat_row(screen, small_font, x, section_y, label, value)
-        section_y += 24
+        draw_row(content_surface, content_y, label, value)
+        content_y += 24
     
     # Draw section: Best & Worst Goods
-    section_y += 15
+    content_y += 15
     section_title = font.render("Performance by Good", True, DARK_BROWN)
-    screen.blit(section_title, (x + 20, section_y))
-    section_y += 30
+    content_surface.blit(section_title, (20, content_y))
+    content_y += 30
     
     # Draw best goods if available
     if cycle_stats["best_goods"]:
-        draw_stat_row(screen, small_font, x, section_y, "Best Performing Goods:", "Profit/Unit")
-        section_y += 24
-        
+        draw_row(content_surface, content_y, "Best Performing Goods:", "Profit/Unit")
+        content_y += 24
         for i, (good_name, profit) in enumerate(cycle_stats["best_goods"][:3]):
             if profit > 0:
-                draw_stat_row(screen, small_font, x, section_y, f"   {i+1}. {good_name}", f"+{profit:.2f}")
-                section_y += 24
+                draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"+{profit:.2f}")
+                content_y += 24
     
     # Draw worst goods if available
     if cycle_stats["worst_goods"]:
-        section_y += 5
-        draw_stat_row(screen, small_font, x, section_y, "Worst Performing Goods:", "Profit/Unit")
-        section_y += 24
-        
+        content_y += 5
+        draw_row(content_surface, content_y, "Worst Performing Goods:", "Profit/Unit")
+        content_y += 24
         for i, (good_name, profit) in enumerate(reversed(cycle_stats["worst_goods"][-3:])):
             color = RED if profit < 0 else BLACK
-            draw_stat_row(screen, small_font, x, section_y, f"   {i+1}. {good_name}", f"{profit:.2f}", value_color=color)
-            section_y += 24
+            draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"{profit:.2f}", value_color=color)
+            content_y += 24
     
     # Draw most recent trade if available
     if depot.trades:
-        section_y += 15
+        content_y += 15
         last_trade = depot.trades[-1]
         section_title = font.render("Last Trade", True, DARK_BROWN)
-        screen.blit(section_title, (x + 20, section_y))
-        section_y += 30
+        content_surface.blit(section_title, (20, content_y))
+        content_y += 30
         
         trade_type = "Purchase" if last_trade["type"] == "purchase" else "Sale"
         trade_color = RED if last_trade["type"] == "purchase" else GREEN
         
-        draw_stat_row(screen, small_font, x, section_y, "Good", last_trade["good"])
-        section_y += 24
-        draw_stat_row(screen, small_font, x, section_y, "Type", trade_type, value_color=trade_color)
-        section_y += 24
-        draw_stat_row(screen, small_font, x, section_y, "Quantity", str(last_trade["quantity"]))
-        section_y += 24
-        draw_stat_row(screen, small_font, x, section_y, "Price", f"{last_trade['price']:.2f}")
-        section_y += 24
-        draw_stat_row(screen, small_font, x, section_y, "Total", f"{last_trade['total']:.2f}")
+        draw_row(content_surface, content_y, "Good", last_trade["good"])
+        content_y += 24
+        draw_row(content_surface, content_y, "Type", trade_type, value_color=trade_color)
+        content_y += 24
+        draw_row(content_surface, content_y, "Quantity", str(last_trade["quantity"]))
+        content_y += 24
+        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
+        content_y += 24
+        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
+        content_y += 24
+
+    # Crop the content_surface to the actual content height
+    content_surface = content_surface.subsurface(pygame.Rect(0, 0, scroll_area.width, content_y)).copy()
+    
+    # Use game_state.depot_scroll_offset if it exists, otherwise default to 0
+    scroll_offset = getattr(game_state, "depot_scroll_offset", 0)
+    # Ensure offset is within bounds.
+    if scroll_offset < 0:
+        scroll_offset = 0
+    max_offset = max(0, content_surface.get_height() - scroll_area.height)
+    if scroll_offset > max_offset:
+        scroll_offset = max_offset
+    game_state.depot_scroll_offset = scroll_offset
+
+    # Blit the visible content portion onto the screen
+    screen.set_clip(scroll_area)
+    screen.blit(content_surface, (scroll_area.x, scroll_area.y), area=pygame.Rect(0, scroll_offset, scroll_area.width, scroll_area.height))
+    screen.set_clip(None)
+    
+    # Draw scrollbar if content is taller than scroll area
+    if content_surface.get_height() > scroll_area.height:
+        scrollbar_width = 10
+        scrollbar_x = scroll_area.right
+        scrollbar_rect = pygame.Rect(scrollbar_x, scroll_area.y, scrollbar_width, scroll_area.height)
+        pygame.draw.rect(screen, LIGHT_GRAY, scrollbar_rect)  # Track
+        
+        # thumb height proportional to visible fraction
+        thumb_height = max(20, scroll_area.height * scroll_area.height / content_surface.get_height())
+        thumb_y = scroll_area.y + (scroll_offset / (content_surface.get_height() - scroll_area.height)) * (scroll_area.height - thumb_height)
+        thumb_rect = pygame.Rect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
+        pygame.draw.rect(screen, TAN, thumb_rect)
 
 def draw_stat_row(screen, font, x, y, label, value, label_color=DARK_BROWN, value_color=BLACK):
     """Helper function to draw a row with label and value"""
