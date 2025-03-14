@@ -1,4 +1,5 @@
 import pygame
+import datetime
 from ..config.colors import *
 
 def draw_depot_view(screen, font, depot, game_state):
@@ -69,21 +70,40 @@ def draw_depot_view(screen, font, depot, game_state):
     # Create a smaller font for details
     small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
     
-    # Gather stats (wealth, actions, cycles, etc.)
+    # Determine time frame period in days based on depot_time_frame
+    if game_state.depot_time_frame == "Daily":
+        period_days = 1
+    elif game_state.depot_time_frame == "Weekly":
+        period_days = 7
+    elif game_state.depot_time_frame == "Monthly":
+        period_days = 30
+    elif game_state.depot_time_frame == "Yearly":
+        period_days = 365
+    else:  # "Total"
+        period_days = None
+
+    # Calculate wealth statistics based on time frame
     current_wealth = depot.wealth[-1]
-    try: 
-        start_wealth = depot.wealth[-2]
-    except IndexError: 
-        start_wealth = current_wealth
+    if period_days is not None and len(depot.wealth) > period_days:
+        start_wealth = depot.wealth[-(period_days+1)]
+    else:
+        start_wealth = depot.wealth[0]
     wealth_change = current_wealth - start_wealth
-    buy_actions = sum(1 for trade in depot.trades if trade["type"] == "purchase")
-    sell_actions = sum(1 for trade in depot.trades if trade["type"] == "sale")
-    cycle_stats = depot.get_trade_cycle_stats()
+
+    # Filter trades by time frame for trade action stats
+    if period_days is not None:
+        delta = datetime.timedelta(days=period_days)
+        filtered_trades = [trade for trade in depot.trades if trade["timestamp"] >= game_state.date - delta]
+    else:
+        filtered_trades = depot.trades
+    buy_actions = sum(1 for trade in filtered_trades if trade["type"] == "purchase")
+    sell_actions = sum(1 for trade in filtered_trades if trade["type"] == "sale")
+    total_actions = len(filtered_trades)
     
     wealth_stats = [
         ("Wealth Today", f"{current_wealth:.2f}"),
-        ("Wealth Yesterday", f"{start_wealth:.2f}"),
-        ("Daily Profit", f"{wealth_change:.2f}"),
+        ("Wealth Start", f"{start_wealth:.2f}"),
+        ("Profit", f"{wealth_change:.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
         ("Total Stock", f"{depot.total_stock[-1]}")
     ]
@@ -91,16 +111,24 @@ def draw_depot_view(screen, font, depot, game_state):
     trade_action_stats = [
         ("Buy Actions", f"{buy_actions}"),
         ("Sell Actions", f"{sell_actions}"),
-        ("Total Actions", f"{len(depot.trades)}")
+        ("Total Actions", f"{total_actions}")
     ]
     
+    # Get trade cycle statistics filtered by time frame
+    if period_days is not None:
+        delta = datetime.timedelta(days=period_days)
+        cycle_stats = depot.get_trade_cycle_stats(game_state.date, delta)
+    else:
+        cycle_stats = depot.get_trade_cycle_stats(game_state.date, None)
+    
+    # Convert cycle_stats dictionary to a list for display
     trade_cycle_stats = [
         ("Completed Trades", f"{cycle_stats['total_cycles']}"),
         ("Successful Trades", f"{cycle_stats['successful_cycles']}"),
         ("Success Rate", f"{cycle_stats['success_rate']:.1f}%"),
         ("Total Trade Profit", f"{cycle_stats['total_profit']:.2f}")
     ]
-    
+
     # Helper function to draw a row on a given surface at y offset
     def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
         label_surf = small_font.render(label, True, label_color)

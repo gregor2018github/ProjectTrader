@@ -45,6 +45,9 @@ class Depot:
                 "best_profit": 0,
                 "worst_profit": 0,
             }
+        
+        # Add list to record individual trade cycles with their timestamp
+        self.trade_cycle_records = []
 
     def buy(self, good, quantity_to_buy, game_state):
         """Buy a quantity of a good from market to depot"""
@@ -112,7 +115,7 @@ class Depot:
                     
                     # Track completed trade cycle
                     profit = (current_sale_price - oldest_purchase["price"]) * quantity_used
-                    self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price)
+                    self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price, game_state.date)
                 
                 # Update the market
                 good.sell(quantity_to_sell)
@@ -134,8 +137,8 @@ class Depot:
         }
         self.trades.append(trade)
     
-    def _record_trade_cycle(self, good_name, profit, quantity, buy_price, sell_price):
-        """Record statistics for a completed trade cycle"""
+    def _record_trade_cycle(self, good_name, profit, quantity, buy_price, sell_price, timestamp):
+        """Record statistics for a completed trade cycle and store an individual record"""
         # Update overall statistics
         self.trade_cycles["total"] += 1
         self.trade_cycles["total_profit"] += profit
@@ -171,9 +174,11 @@ class Depot:
             "buy_price": buy_price,
             "sell_price": sell_price,
             "profit": profit,
-            "profit_per_unit": profit_per_unit
+            "profit_per_unit": profit_per_unit,
+            "timestamp": timestamp
         }
         
+        self.trade_cycle_records.append(trade_cycle)
         return trade_cycle
     
     def update_wealth(self, goods):
@@ -195,27 +200,40 @@ class Depot:
         self.total_stock.append(total_stock)
         return total_stock
     
-    def get_trade_cycle_stats(self):
-        """Return summarized statistics about trade cycles"""
-        stats = {
-            "total_cycles": self.trade_cycles["total"],
-            "successful_cycles": self.trade_cycles["successful"],
-            "success_rate": (self.trade_cycles["successful"] / self.trade_cycles["total"] * 100) if self.trade_cycles["total"] > 0 else 0,
-            "total_profit": self.trade_cycles["total_profit"],
-            "best_goods": [],
-            "worst_goods": []
-        }
+    def get_trade_cycle_stats(self, current_date, time_delta):
+        """Return summarized trade cycle statistics filtered by an optional time_delta.
+           If time_delta is provided, only trade cycles with timestamp >= (current_date - time_delta) are used.
+        """
+        if time_delta is not None:
+            start_date = current_date - time_delta
+            records = [r for r in self.trade_cycle_records if r["timestamp"] >= start_date]
+        else:
+            records = self.trade_cycle_records[:]
         
-        # Find the best and worst performing goods
-        goods_by_profit = sorted(
-            [(name, data["avg_profit"]) for name, data in self.trade_cycles["by_good"].items() if data["total"] > 0],
+        total_cycles = len(records)
+        successful_cycles = sum(1 for r in records if r["profit"] > 0)
+        total_profit = sum(r["profit"] for r in records)
+        
+        # Group profit per unit by good for aggregation
+        by_good = {}
+        for r in records:
+            name = r["good"]
+            by_good.setdefault(name, []).append(r["profit_per_unit"])
+        best_goods = sorted(
+            [(name, sum(profits)/len(profits)) for name, profits in by_good.items()],
             key=lambda x: x[1],
             reverse=True
         )
-        
-        if goods_by_profit:
-            stats["best_goods"] = goods_by_profit[:3]  # Top 3 goods
-            stats["worst_goods"] = goods_by_profit[-3:]  # Bottom 3 goods
-            
+        worst_goods = sorted(
+            [(name, sum(profits)/len(profits)) for name, profits in by_good.items()],
+            key=lambda x: x[1]
+        )
+        stats = {
+            "total_cycles": total_cycles,
+            "successful_cycles": successful_cycles,
+            "success_rate": (successful_cycles/total_cycles*100) if total_cycles > 0 else 0,
+            "total_profit": total_profit,
+            "best_goods": best_goods[:3], 
+            "worst_goods": worst_goods[:3]
+        }
         return stats
-
