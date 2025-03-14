@@ -10,14 +10,14 @@ class EventHandler:
     def handle_events(self, event, game_state, goods, depot, buttons):
         if event.type == pygame.QUIT:
             self.running = False
-            
-        elif event.type == pygame.KEYDOWN:
+
+        if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q and not game_state.info_window:
                 game_state.info_window = InfoWindow(game_state.screen, 
                                                     "Do you want to quit?", 
                                                     ["Back", "Quit"], 
                                                     game_state.font,
-                                                    game_state.game)  # Pass game reference
+                                                    game_state.game)
             else:
                 handle_keyboard_input(event, game_state, goods, depot)
                 
@@ -32,7 +32,6 @@ class EventHandler:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)
                 
         elif event.type == pygame.MOUSEWHEEL:
-            # Update depot view scroll offset on wheel event if mouse is over depot view
             screen = game_state.screen
             width = screen.get_width() // 2 - 42
             height = screen.get_height() - 120
@@ -40,7 +39,6 @@ class EventHandler:
             y = 60
             depot_rect = pygame.Rect(x, y, width, height)
             if depot_rect.collidepoint(pygame.mouse.get_pos()):
-                # Adjust scroll offset (event.y: positive means scroll up)
                 scroll_speed = 20
                 game_state.depot_scroll_offset = getattr(game_state, "depot_scroll_offset", 0) - event.y * scroll_speed
 

@@ -210,9 +210,14 @@ class Game:
                 # Draw info window if active
                 if self.state.info_window:
                     self.state.info_window.draw()
-                
-                # Draw message last if exists
-                if self.state.message:
+                # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
+                if self.state.warning:
+                    self.state.warning.update()
+                    self.state.warning.draw()
+                    if self.state.warning.timer <= 0:
+                        self.state.warning = None
+                # Draw message only if no warning is active
+                if self.state.message and not self.state.warning:
                     self._draw_message(self.state.message)
                 
             for event in pygame.event.get():

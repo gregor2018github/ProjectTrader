@@ -53,77 +53,62 @@ class Depot:
         """Buy a quantity of a good from market to depot"""
         total_cost = good.get_price() * quantity_to_buy
         
-        if self.money >= total_cost:
-            if good.get_quantity() >= quantity_to_buy:
-                self.money -= total_cost
-                self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
-                
-                # Store purchase in FIFO queue with timestamp, price, and quantity
-                self.purchase_history[good.name].append({
-                    "timestamp": game_state.date,
-                    "price": good.get_price(),
-                    "quantity": quantity_to_buy,
-                    "total_cost": total_cost
-                })
-                
-                good.buy(quantity_to_buy)
-                self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
-            else:
-                raise Exception("The market does not have enough of that good to sell.")
-        else:
-            raise Exception("You do not have enough money to buy that good.")
+        if self.money < total_cost:
+            game_state.show_warning("Not enough money.")
+            return
+        if good.get_quantity() < quantity_to_buy:
+            game_state.show_warning("Market cannot fulfill the order.")
+            return
+
+        self.money -= total_cost
+        self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
+        
+        # Store purchase in FIFO queue with timestamp, price, and quantity
+        self.purchase_history[good.name].append({
+            "timestamp": game_state.date,
+            "price": good.get_price(),
+            "quantity": quantity_to_buy,
+            "total_cost": total_cost
+        })
+        
+        good.buy(quantity_to_buy)
+        self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
 
     def sell(self, good, quantity_to_sell, game_state):
         """Sell a quantity of a good from depot to market using FIFO method"""
-        if good.name in self.good_stock:
-            if self.good_stock[good.name] >= quantity_to_sell:
-                current_sale_price = good.get_price()
-                total_revenue = current_sale_price * quantity_to_sell
-                
-                # Add money from sale
-                self.money += total_revenue
-                
-                # Reduce stock count
-                self.good_stock[good.name] -= quantity_to_sell
-                
-                # Process the sale using FIFO
-                remaining_to_sell = quantity_to_sell
-                total_cost_of_goods_sold = 0
-                purchase_entries = self.purchase_history[good.name]
-                
-                while remaining_to_sell > 0 and purchase_entries:
-                    oldest_purchase = purchase_entries[0]
-                    
-                    if oldest_purchase["quantity"] <= remaining_to_sell:
-                        # Use the entire purchase batch
-                        quantity_used = oldest_purchase["quantity"]
-                        cost_of_goods_sold = oldest_purchase["price"] * quantity_used
-                        
-                        # Remove this purchase entry as it's fully consumed
-                        purchase_entries.pop(0)
-                    else:
-                        # Use only part of the purchase batch
-                        quantity_used = remaining_to_sell
-                        cost_of_goods_sold = oldest_purchase["price"] * quantity_used
-                        
-                        # Update the quantity in the purchase history
-                        oldest_purchase["quantity"] -= quantity_used
-                        oldest_purchase["total_cost"] = oldest_purchase["price"] * oldest_purchase["quantity"]
-                    
-                    total_cost_of_goods_sold += cost_of_goods_sold
-                    remaining_to_sell -= quantity_used
-                    
-                    # Track completed trade cycle
-                    profit = (current_sale_price - oldest_purchase["price"]) * quantity_used
-                    self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price, game_state.date)
-                
-                # Update the market
-                good.sell(quantity_to_sell)
-                self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
+        if good.name not in self.good_stock:
+            game_state.show_warning(f"No {good.name} in stock.")
+            return
+        if self.good_stock[good.name] < quantity_to_sell:
+            game_state.show_warning(f"Not enough {good.name} in stock.")
+            return
+
+        current_sale_price = good.get_price()
+        total_revenue = current_sale_price * quantity_to_sell
+        self.money += total_revenue
+        self.good_stock[good.name] -= quantity_to_sell
+        remaining_to_sell = quantity_to_sell
+        total_cost_of_goods_sold = 0
+        purchase_entries = self.purchase_history[good.name]
+        
+        while remaining_to_sell > 0 and purchase_entries:
+            oldest_purchase = purchase_entries[0]
+            if oldest_purchase["quantity"] <= remaining_to_sell:
+                quantity_used = oldest_purchase["quantity"]
+                cost_of_goods_sold = oldest_purchase["price"] * quantity_used
+                purchase_entries.pop(0)
             else:
-                raise Exception("You do not have enough of that good to sell.")
-        else:
-            raise Exception("You do not have any of that good to sell.")
+                quantity_used = remaining_to_sell
+                cost_of_goods_sold = oldest_purchase["price"] * quantity_used
+                oldest_purchase["quantity"] -= quantity_used
+                oldest_purchase["total_cost"] = oldest_purchase["price"] * oldest_purchase["quantity"]
+            total_cost_of_goods_sold += cost_of_goods_sold
+            remaining_to_sell -= quantity_used
+            profit = (current_sale_price - oldest_purchase["price"]) * quantity_used
+            self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price, game_state.date)
+        
+        good.sell(quantity_to_sell)
+        self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
         
     def record_trade(self, good, quantity, price, is_purchase, game_state):
         """Record a trade for statistical purposes"""

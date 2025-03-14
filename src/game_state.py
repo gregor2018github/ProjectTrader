@@ -1,5 +1,6 @@
 import datetime
 from collections import namedtuple
+from .ui.warning_message import WarningMessage
 
 class GameState:
     def __init__(self):
@@ -29,6 +30,7 @@ class GameState:
         self.active_dropdown = None  # Stores the currently open dropdown
         self.dropdowns = {}  # Stores all dropdown instances
         self.info_window = None  # For modal dialogs like quit confirmation
+        self.warning = None      # For warning messages
         self.cursor_visible = True
         self.cursor_timer = 0
         self.cursor_blink_rate = 30
@@ -66,6 +68,9 @@ class GameState:
     def show_message(self, text):
         self.message = text
         self.message_timer = 120  # Show message for 2 seconds (120 frames at 60fps)
+        
+    def show_warning(self, text):
+        self.warning = WarningMessage(self.screen, text, self.font, self.game)  # pass game reference
         
     def update(self):
         self.update_time()
