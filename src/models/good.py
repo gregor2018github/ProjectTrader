@@ -6,7 +6,11 @@ class Good:
         self.price = price
         self.market_quantity = market_quantity
         self.price_history = [price]
-        self.color = color
+        # New color properties
+        self.color_orig = color            # Original color when game started
+        self.color_current = color         # Currently saved color
+        self.color_temp = color            # Temporary color changes from settings
+        self.color = self.color_temp       # Used for drawing; always synced to color_temp
         self.index = index
         self.base_price = price
         self.show_in_charts = show_in_charts

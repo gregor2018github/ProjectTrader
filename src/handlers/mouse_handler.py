@@ -55,8 +55,9 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 # Handle map action
                 pass
             elif menu_action == "Settings":
-                # Handle settings action
-                pass
+                from ..settings import SettingsWindow
+                game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
+                return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action
                 pass
