@@ -1,5 +1,6 @@
 import pygame
 from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK
+from .ui.color_wheel import ColorWheel  # New import
 
 class SettingsWindow:
     def __init__(self, screen, font, game=None):
@@ -48,6 +49,9 @@ class SettingsWindow:
                 entry_rect = pygame.Rect(x, y, entry_width, entry_height)
                 self.color_entries.append((good, entry_rect))
                 count += 1
+        # New properties for color wheel overlay
+        self.active_color_wheel = None  # Instance of ColorWheel if open
+        self.color_wheel_target = None    # The good whose color is being changed
 
     def draw(self):
         # Draw semi-transparent overlay
@@ -71,7 +75,9 @@ class SettingsWindow:
         
         # Draw color entries for goods
         for good, rect in self.color_entries:
-            pygame.draw.rect(self.screen, good.color_temp, rect)
+            # Ensure good.color_temp is a valid color (3-tuple)
+            color = good.color_temp if isinstance(good.color_temp, (tuple, list)) and len(good.color_temp) >= 3 else (0, 0, 0)
+            pygame.draw.rect(self.screen, color, rect)
             pygame.draw.rect(self.screen, DARK_GRAY, rect, 2)
             name_surface = self.font.render(good.name, True, BLACK)
             name_rect = name_surface.get_rect(midleft=(rect.right + 10, rect.centery))
@@ -88,17 +94,37 @@ class SettingsWindow:
             label_surface = self.font.render(label, True, text_color)
             label_rect = label_surface.get_rect(center=btn_rect.center)
             self.screen.blit(label_surface, label_rect)
+        # If a color wheel is active, draw it as an overlay.
+        if self.active_color_wheel:
+            self.active_color_wheel.draw(self.screen)
 
     def handle_click(self, pos):
-        # Check clicks on color entries first – update temporary color and sync drawing property.
+        # If a color wheel is active, delegate the click to it.
+        if self.active_color_wheel:
+            result = self.active_color_wheel.handle_click(pos)
+            # If result is None, no confirm/cancel action occurred; keep the wheel open.
+            if result is None:
+                return None
+            elif result == "cancel":
+                self.active_color_wheel = None
+                self.color_wheel_target = None
+            else:
+                # Only update if a valid color is confirmed.
+                if self.color_wheel_target:
+                    self.color_wheel_target.color_temp = result
+                    self.color_wheel_target.color = result
+                self.active_color_wheel = None
+                self.color_wheel_target = None
+            return None
+
+        # Otherwise, check if a swatch was clicked.
         for good, rect in self.color_entries:
             if rect.collidepoint(pos):
-                try:
-                    idx = self.allowed_colors.index(good.color_temp)
-                    good.color_temp = self.allowed_colors[(idx + 1) % len(self.allowed_colors)]
-                except ValueError:
-                    good.color_temp = self.allowed_colors[0]
-                good.color = good.color_temp
+                # Open the color wheel overlay centered on the settings window, with a larger radius.
+                center = (self.window_rect.centerx, self.window_rect.centery)
+                radius = 120  # Increased radius for a bigger color wheel
+                self.active_color_wheel = ColorWheel(center, radius)
+                self.color_wheel_target = good
                 return None
 
         # Check button clicks
