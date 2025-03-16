@@ -45,15 +45,28 @@ def _handle_function_key(key, game_state, goods, depot):
     if key in key_actions:
         section, action = key_actions[key]
         good_name = game_state.input_fields[f'good_{section}']
-        quantity = int(game_state.input_fields[f'quantity_{section}'])
+        try:
+            quantity = int(game_state.input_fields[f'quantity_{section}'])
+        except ValueError:
+            game_state.show_message("Invalid quantity input")
+            return
         
         for good in goods:
             if good.name == good_name:
                 try:
+                    trade_successful = False
                     if action == 'buy':
-                        depot.buy(good, quantity, game_state)
+                        trade_successful = depot.buy(good, quantity, game_state)
                     else:
-                        depot.sell(good, quantity, game_state)
+                        trade_successful = depot.sell(good, quantity, game_state)
+                    
+                    if trade_successful:
+                        game_state.money_effect_timer = 30  # effect lasts 30 frames
+                        if action == 'buy':
+                            game_state.money_effect_color = (230, 0, 0)  # red glow for buy
+                        else:
+                            game_state.money_effect_color = (0, 180, 10)  # green glow for sell
+                        game_state.button_click_effects[f'{action}_{section}'] = 10
                 except Exception as e:
                     game_state.show_message(str(e))
                 break
