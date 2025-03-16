@@ -166,10 +166,21 @@ def _handle_trade_button(button_name, game_state, goods, depot):
         quantity = int(game_state.input_fields[f'quantity_{section}'])
         for good in goods:
             if good.name == good_name:
+                # Store the result of the trade attempt
+                trade_successful = False
                 if action == 'buy':
-                    depot.buy(good, quantity, game_state)
+                    trade_successful = depot.buy(good, quantity, game_state)
                 else:
-                    depot.sell(good, quantity, game_state)
+                    trade_successful = depot.sell(good, quantity, game_state)
+                
+                # Only trigger effects if trade was successful
+                if trade_successful:
+                    game_state.money_effect_timer = 30  # effect lasts 30 frames
+                    if action == 'buy':
+                        game_state.money_effect_color = (230, 0, 0)  # red glow for buy
+                    else:
+                        game_state.money_effect_color = (0, 180, 10)  # green glow for sell
+                    game_state.button_click_effects[f'{action}_{section}'] = 10
                 break
     except (ValueError, Exception) as e:
         game_state.show_message(str(e))

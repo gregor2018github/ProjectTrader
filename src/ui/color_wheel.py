@@ -3,9 +3,9 @@ from ..config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE
 
 class ColorWheel:
     def __init__(self, center, radius, font):
+        self.font = font
         self.center = center
         self.radius = radius
-        self.font = font
         diameter = int(radius * 2)
         self.surface = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
         threshold = self.radius * 0.7  # inner region: full brightness

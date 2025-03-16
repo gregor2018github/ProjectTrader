@@ -52,6 +52,11 @@ class GameState:
         self.depot_time_frame = "Daily"
         self.depot_time_frames = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
         
+        # NEW: For money glow effect and button click animations
+        self.money_effect_timer = 0
+        self.money_effect_color = None
+        self.button_click_effects = {}
+        
     def update_time(self):
         self.tick_counter += 1
         if self.time_level == 1:
@@ -96,6 +101,21 @@ class GameState:
             self.message_timer -= 1
             if self.message_timer == 0:
                 self.message = None
+        
+        # NEW: Update money glow effect timer
+        if self.money_effect_timer > 0:
+            self.money_effect_timer -= 1
+            if self.money_effect_timer == 0:
+                self.money_effect_color = None
+
+        # NEW: Update button click effects and remove finished ones
+        remove_keys = []
+        for key in self.button_click_effects:
+            self.button_click_effects[key] -= 1
+            if self.button_click_effects[key] <= 0:
+                remove_keys.append(key)
+        for key in remove_keys:
+            del self.button_click_effects[key]
                 
         TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
         return TimeChanges(hour_changed, day_changed, week_changed, month_changed, year_changed)

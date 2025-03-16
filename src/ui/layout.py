@@ -4,7 +4,7 @@ from .dropdown import Dropdown
 
 def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, money_50, goods_images_30, game_state):
     _draw_background(screen)
-    _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30)
+    _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
@@ -12,13 +12,14 @@ def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_
 def _draw_background(screen):
     screen.fill(BEIGE)
 
-def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30):
+def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, game_state):
     top_bar = pygame.Rect(0, 0, screen.get_width(), 60)
     pygame.draw.rect(screen, LIGHT_GRAY, top_bar)
     pygame.draw.rect(screen, DARK_GRAY, top_bar, 2)
     
-    # Money display
-    money_text = main_font.render(f"Money: {round(main_depot.money, 2)}", True, BLACK)
+    # Money display with glow effect if active
+    money_color = game_state.money_effect_color if hasattr(game_state, "money_effect_color") and game_state.money_effect_color else BLACK
+    money_text = main_font.render(f"Money: {round(main_depot.money, 2)}", True, money_color)
     screen.blit(money_text, (70, 10))
     screen.blit(money_50, (10, 5))
     
@@ -149,6 +150,18 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
 
         pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
+        
+        # NEW: Draw click animation overlay on buy and sell buttons if active
+        effect = game_state.button_click_effects.get(f'buy_{section}', 0)
+        if effect:
+            effect_surf = pygame.Surface((buy_rect.width, buy_rect.height), pygame.SRCALPHA)
+            effect_surf.fill((0, 0, 0, 100))
+            screen.blit(effect_surf, (buy_rect.x, buy_rect.y))
+        effect = game_state.button_click_effects.get(f'sell_{section}', 0)
+        if effect:
+            effect_surf = pygame.Surface((sell_rect.width, sell_rect.height), pygame.SRCALPHA)
+            effect_surf.fill((0, 0, 0, 100))
+            screen.blit(effect_surf, (sell_rect.x, sell_rect.y))
         
         # Draw small triangle to indicate dropdown - make it darker on hover
         triangle_color = DARK_GRAY if not is_hovering(good_rect) else BLACK

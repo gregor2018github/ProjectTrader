@@ -55,10 +55,10 @@ class Depot:
         
         if self.money < total_cost:
             game_state.show_warning("Not enough money.")
-            return
+            return False
         if good.get_quantity() < quantity_to_buy:
             game_state.show_warning("Market cannot fulfill the order.")
-            return
+            return False
 
         self.money -= total_cost
         self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
@@ -73,15 +73,16 @@ class Depot:
         
         good.buy(quantity_to_buy)
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
+        return True
 
     def sell(self, good, quantity_to_sell, game_state):
         """Sell a quantity of a good from depot to market using FIFO method"""
         if good.name not in self.good_stock:
             game_state.show_warning(f"No {good.name} in stock.")
-            return
+            return False
         if self.good_stock[good.name] < quantity_to_sell:
             game_state.show_warning(f"Not enough {good.name} in stock.")
-            return
+            return False
 
         current_sale_price = good.get_price()
         total_revenue = current_sale_price * quantity_to_sell
@@ -109,6 +110,7 @@ class Depot:
         
         good.sell(quantity_to_sell)
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
+        return True
         
     def record_trade(self, good, quantity, price, is_purchase, game_state):
         """Record a trade for statistical purposes"""

@@ -98,7 +98,7 @@ class SettingsWindow:
         if self.active_color_wheel:
             self.active_color_wheel.draw(self.screen)
 
-    def handle_click(self, pos, font):
+    def handle_click(self, pos):
         # If a color wheel is active, delegate the click to it.
         if self.active_color_wheel:
             result = self.active_color_wheel.handle_click(pos)
@@ -120,10 +120,10 @@ class SettingsWindow:
         # Otherwise, check if a swatch was clicked.
         for good, rect in self.color_entries:
             if rect.collidepoint(pos):
-                # Open the color wheel overlay centered on the settings window, with a larger radius.
                 center = (self.window_rect.centerx, self.window_rect.centery)
                 radius = 120  # Increased radius for a bigger color wheel
-                self.active_color_wheel = ColorWheel(center, radius, font)
+                # Pass the font when creating the ColorWheel
+                self.active_color_wheel = ColorWheel(center, radius, self.font)
                 self.color_wheel_target = good
                 return None
 
