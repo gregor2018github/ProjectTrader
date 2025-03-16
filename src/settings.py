@@ -98,7 +98,7 @@ class SettingsWindow:
         if self.active_color_wheel:
             self.active_color_wheel.draw(self.screen)
 
-    def handle_click(self, pos):
+    def handle_click(self, pos, font):
         # If a color wheel is active, delegate the click to it.
         if self.active_color_wheel:
             result = self.active_color_wheel.handle_click(pos)
@@ -123,7 +123,7 @@ class SettingsWindow:
                 # Open the color wheel overlay centered on the settings window, with a larger radius.
                 center = (self.window_rect.centerx, self.window_rect.centery)
                 radius = 120  # Increased radius for a bigger color wheel
-                self.active_color_wheel = ColorWheel(center, radius)
+                self.active_color_wheel = ColorWheel(center, radius, font)
                 self.color_wheel_target = good
                 return None
 

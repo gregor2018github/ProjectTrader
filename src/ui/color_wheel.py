@@ -2,9 +2,10 @@ import math, pygame, colorsys
 from ..config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE
 
 class ColorWheel:
-    def __init__(self, center, radius):
+    def __init__(self, center, radius, font):
         self.center = center
         self.radius = radius
+        self.font = font
         diameter = int(radius * 2)
         self.surface = pygame.Surface((diameter, diameter), pygame.SRCALPHA)
         threshold = self.radius * 0.7  # inner region: full brightness
@@ -63,8 +64,8 @@ class ColorWheel:
             text_color = BLACK
         pygame.draw.rect(screen, btn_color, self.confirm_rect)
         pygame.draw.rect(screen, DARK_GRAY, self.confirm_rect, 2)
-        font = pygame.font.Font(None, 24)  # standard font
-        confirm_text = font.render("Confirm", True, text_color)
+        
+        confirm_text = self.font.render("Confirm", True, text_color)
         text_rect = confirm_text.get_rect(center=self.confirm_rect.center)
         screen.blit(confirm_text, text_rect)
 

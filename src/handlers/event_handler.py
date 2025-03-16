@@ -23,7 +23,7 @@ class EventHandler:
                 
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if game_state.info_window:
-                choice = game_state.info_window.handle_click(event.pos)
+                choice = game_state.info_window.handle_click(event.pos, game_state.font)
                 if choice == "Quit":
                     self.running = False
                 elif choice in ("Back", "Save and Close"):
