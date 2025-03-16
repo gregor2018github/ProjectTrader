@@ -19,7 +19,7 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
     
     # Draw charts for each good with hover effects
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
@@ -102,18 +102,15 @@ def _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
 
-def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
+def _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font):
     image_box_size = 50
     image_box_spacing = 10
     total_width = (image_box_size + image_box_spacing) * len(goods)
     start_x = (select_bar.width - total_width) // 2
-
-    # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
-
     image_boxes = []
-    any_box_hovered = False
-    
+    tooltips = []  # Collect tooltip info for later rendering
+
     for i, good in enumerate(goods):
         box_x = select_bar.left + start_x + (i * (image_box_size + image_box_spacing))
         box_y = select_bar.top + 10
@@ -122,24 +119,29 @@ def _draw_selection_boxes(screen, goods, select_bar, goods_images_30):
 
         # Check if the mouse is hovering over this good's box
         is_hovered = image_box.collidepoint(mouse_pos)
-        
         if is_hovered:
             good.hovered = True
-            any_box_hovered = True
-        
-        # Determine the box color based on state and hover
+
+        # Determine box color based on state and hover
         if good.show_in_charts:
-            # For active goods, use PALE_YELLOW or a slightly darker shade on hover
             color = LIGHT_BROWN if is_hovered else PALE_YELLOW
         else:
-            # For inactive goods, use GRAY or a slightly darker shade on hover
             color = DARK_GRAY if is_hovered else GRAY
-        
+
         pygame.draw.rect(screen, color, image_box)
         pygame.draw.rect(screen, DARK_BROWN, image_box, 2)
         
         if good.name in goods_images_30:
-            screen.blit(goods_images_30[good.name], 
-                       (box_x + 10, box_y + 10))
-
+            screen.blit(goods_images_30[good.name], (box_x + 10, box_y + 10))
+        
+        if is_hovered:
+            tooltips.append((good.name, mouse_pos))
+    # Render tooltips after all buttons are drawn.
+    for name, pos in tooltips:
+        tooltip_surface = main_font.render(name, True, BLACK)
+        tooltip_rect = tooltip_surface.get_rect(topleft=(pos[0] + 15, pos[1] + 10))
+        pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(4, 4))
+        pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(4, 4), 1)
+        screen.blit(tooltip_surface, tooltip_rect)
+    
     return image_boxes
