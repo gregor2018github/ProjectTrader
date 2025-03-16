@@ -64,7 +64,7 @@ def draw_depot_view(screen, font, depot, game_state):
     if not hasattr(game_state, "detail_panel"):
         from .depot_view_detail import DepotViewDetail
         game_state.detail_panel = DepotViewDetail(depot_rect)
-        game_state.detail_view = False
+        print("Created new detail panel")
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
@@ -137,17 +137,27 @@ def draw_depot_view(screen, font, depot, game_state):
 
     # Helper function to draw a row on a given surface at y offset
     def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
-        small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
-        # For "Wealth Today", render a clickable plus button and record its rect
-        if label == "Wealth Today":
-            plus_text = "+"
-            plus_surf = small_font.render(plus_text, True, label_color)
-            plus_size = small_font.size(plus_text)
-            plus_rect = pygame.Rect(20, y_pos, plus_size[0], plus_size[1])
-            surf.blit(plus_surf, (20, y_pos))
-            # Store rect in game_state for click detection
-            game_state.depot_plus_rect = plus_rect
-        label_x = 40  # shift label right to accommodate plus
+        #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
+        small_font = game_state.small_font
+        labels_without_button = ["Wealth Today", "Wealth Start", "Buy Actions", "Sell Actions", "Total Actions"]
+        if label in labels_without_button:
+            # Create a more visible button instead of just the text
+            button_size = 16
+            button_rect = pygame.Rect(20, y_pos, button_size, button_size)
+            
+            # Draw yellow button with plus sign
+            pygame.draw.rect(surf, TAN, button_rect)
+            pygame.draw.rect(surf, DARK_BROWN, button_rect, 1)
+            
+            # Add plus symbol centered in button
+            plus_surf = small_font.render("+", True, DARK_BROWN)
+            plus_rect = plus_surf.get_rect(center=button_rect.center)
+            surf.blit(plus_surf, plus_rect)
+            
+            # Store button position in content coordinates for later conversion
+            game_state.wealth_button_pos = (button_rect.x, button_rect.y, button_rect.width, button_rect.height)
+        
+        label_x = 40  # shift label right to accommodate button
         label_surf = small_font.render(label, True, label_color)
         value_surf = small_font.render(value, True, value_color)
         surf.blit(label_surf, (label_x, y_pos))
@@ -258,12 +268,25 @@ def draw_depot_view(screen, font, depot, game_state):
         thumb_rect = pygame.Rect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
         pygame.draw.rect(screen, TAN, thumb_rect)
 
+    # After cropping and calculating scroll offset, convert stored button position to screen coordinates
+    if hasattr(game_state, "wealth_button_pos"):
+        btn_x, btn_y, btn_w, btn_h = game_state.wealth_button_pos
+        # Only create clickable rect if button is actually visible in current scroll view
+        if btn_y >= scroll_offset and btn_y <= scroll_offset + scroll_area.height:
+            screen_y = scroll_area.y + (btn_y - scroll_offset)
+            screen_x = scroll_area.x + btn_x
+            game_state.depot_plus_rect = pygame.Rect(screen_x, screen_y, btn_w, btn_h)
+        else:
+            # Button is scrolled out of view, no clickable area
+            game_state.depot_plus_rect = None
+
     # Store depot button rectangles for handling clicks externally
     game_state.depot_buttons = {"left": left_btn_rect, "right": right_btn_rect}
 
-    # After all depot rendering, draw the detail panel if toggled visible.
-    if game_state.detail_panel and game_state.detail_panel.visible:
-        game_state.detail_panel.draw(screen, font)
+    # After all depot rendering, draw the detail panel if toggled visible
+    if hasattr(game_state, "detail_panel"):
+        if game_state.detail_panel.visible:
+            game_state.detail_panel.draw(screen, font)
 
 def draw_stat_row(screen, font, x, y, label, value, label_color=DARK_BROWN, value_color=BLACK):
     """Helper function to draw a row with label and value"""

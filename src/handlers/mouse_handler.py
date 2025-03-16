@@ -156,6 +156,12 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 good.toggle_display()
             return
 
+    # Check for plus button click in depot view detail area
+    if hasattr(game_state, "depot_plus_rect") and game_state.depot_plus_rect and game_state.depot_plus_rect.collidepoint(pos):
+        if hasattr(game_state, "detail_panel"):
+            game_state.detail_panel.toggle()
+        return
+
     # Reset mouse click if clicked elsewhere
     game_state.mouse_clicked_on = "none"
 

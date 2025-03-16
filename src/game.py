@@ -41,7 +41,9 @@ class Game:
         
         # Initialize font
         self.font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 24)
+        self.small_font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 19)
         self.state.font = self.font  # Set font reference in GameState
+        self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border = (50, self.screen.get_size()[1]-150)
         
         # Initialize goods
