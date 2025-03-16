@@ -15,6 +15,7 @@ from .ui.time_control import TimeControl
 # CONSTANTS
 MAX_FRAMES_PER_SEC = 60
 DRAW_EVERY_NTH_FRAME = 4
+STARTING_MONEY = 100
 
 class Game:
     def __init__(self):
@@ -47,7 +48,7 @@ class Game:
         self.goods = self._initialize_goods()
         
         # Initialize depot
-        self.depot = Depot(money=100.0)
+        self.depot = Depot(money=STARTING_MONEY)
         
         # Load images
         self.images = self._load_images()
