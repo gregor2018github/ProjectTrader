@@ -11,18 +11,18 @@ class WarningMessage:
         self.screen = screen
         self.message = message
         self.font = font
-        self.timer = 30  # Warning persists for x refreshes
-        self.fading = 10  # fade out duration
+        self.timer = 2.0  # Warning persists for 2 seconds (time-based)
+        self.fade_time = 0.5  # Fade out during the last 0.5 seconds
         self.game = game  # store game reference
 
-    def update(self):
-        self.timer -= 1
+    def update(self, delta_time=0.016):  # Default to ~60fps if no delta_time provided
+        self.timer -= delta_time
 
     def draw(self):
         # Determine dynamic alpha: if timer is within fade-out period, alpha decreases gradually.
-        if self.timer < self.fading:
-            current_alpha_background = int(128 * (self.timer / self.fading))
-            current_alpha_box = int(255 * (self.timer / self.fading))
+        if self.timer < self.fade_time:
+            current_alpha_background = int(128 * (self.timer / self.fade_time))
+            current_alpha_box = int(255 * (self.timer / self.fade_time))
         else:
             current_alpha_background = 128
             current_alpha_box = 255

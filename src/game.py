@@ -14,7 +14,6 @@ from .ui.time_control import TimeControl
 
 # CONSTANTS
 MAX_FRAMES_PER_SEC = 60
-DRAW_EVERY_NTH_FRAME = 4
 STARTING_MONEY = 100
 
 class Game:
@@ -158,7 +157,7 @@ class Game:
         buttons = {}
         while running:
             # Limit to X frames per second
-            self.clock.tick(MAX_FRAMES_PER_SEC)
+            delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
             current_time = pygame.time.get_ticks()
             
             if current_time - self.last_update >= self.update_delay:
@@ -175,53 +174,52 @@ class Game:
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
             
-            # Draw every Xth frame
-            if self.state.tick_counter % DRAW_EVERY_NTH_FRAME == 0:
-                # Reset hover states at the beginning of each frame
-                for good in self.goods:
-                    if hasattr(good, '_external_hover') and not good._external_hover:
-                        good.hovered = False
+            # Reset hover states at the beginning of each frame
+            for good in self.goods:
+                if hasattr(good, '_external_hover') and not good._external_hover:
+                    good.hovered = False
+            
+            # Draw base UI first
+            buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
+                                self.state.date, self.state.input_fields, 
+                                self.state.mouse_clicked_on, self.images['money_50'], 
+                                self.images['goods_30'], self.state)
                 
-                # Draw base UI first
-                buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
-                                   self.state.date, self.state.input_fields, 
-                                   self.state.mouse_clicked_on, self.images['money_50'], 
-                                   self.images['goods_30'], self.state)
-                   
-                # Draw chart
-                self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                  self.goods, self.images['goods_30'])
-                
-                # Draw depot view if state is active (for testing, always draw it)
-                draw_depot_view(self.screen, self.font, self.depot, self.state)
-                
-                # Draw menu
-                self.menu.draw(self.screen)
-                
-                # Draw time controls in bottom bar
-                self.time_control.draw(self.screen, self.state.time_level)
-                
-                # Draw dropdowns after everything else
-                for dropdown in self.state.dropdowns.values():
-                    if dropdown.is_open:  # Changed from checking active_dropdown
-                        dropdown.draw(self.screen)
+            # Draw chart
+            self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                self.goods, self.images['goods_30'])
+            
+            # Draw depot view if state is active (for testing, always draw it)
+            draw_depot_view(self.screen, self.font, self.depot, self.state)
+            
+            # Draw menu
+            self.menu.draw(self.screen)
+            
+            # Draw time controls in bottom bar
+            self.time_control.draw(self.screen, self.state.time_level)
+            
+            # Draw dropdowns after everything else
+            for dropdown in self.state.dropdowns.values():
+                if dropdown.is_open:  # Changed from checking active_dropdown
+                    dropdown.draw(self.screen)
 
-                # Draw dialogue if active
-                if hasattr(self.state, 'dialogue') and self.state.dialogue:
-                    self.state.dialogue.draw()
-                
-                # Draw info window if active
-                if self.state.info_window:
-                    self.state.info_window.draw()
-                # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
-                if self.state.warning:
-                    self.state.warning.update()
-                    self.state.warning.draw()
-                    if self.state.warning.timer <= 0:
-                        self.state.warning = None
-                # Draw message only if no warning is active
-                if self.state.message and not self.state.warning:
-                    self._draw_message(self.state.message)
+            # Draw dialogue if active
+            if hasattr(self.state, 'dialogue') and self.state.dialogue:
+                self.state.dialogue.draw()
+            
+            # Draw info window if active
+            if self.state.info_window:
+                self.state.info_window.draw()
+            # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
+            if self.state.warning:
+                # Update warning timer with actual elapsed time
+                self.state.warning.update(delta_time)
+                self.state.warning.draw()
+                if self.state.warning.timer <= 0:
+                    self.state.warning = None
+            # Draw message only if no warning is active
+            if self.state.message and not self.state.warning:
+                self._draw_message(self.state.message)
                 
             for event in pygame.event.get():
                 if event.type == pygame.MOUSEMOTION:

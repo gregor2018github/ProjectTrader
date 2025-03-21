@@ -69,11 +69,7 @@ class GameState:
                 self.date += datetime.timedelta(hours=0.1)
         elif self.time_level == 5:
             self.date += datetime.timedelta(hours=1)
-                
-    def show_message(self, text):
-        self.message = text
-        self.message_timer = 120  # Show message for 2 seconds (120 frames at 60fps)
-        
+  
     def show_warning(self, text):
         self.warning = WarningMessage(self.screen, text, self.font, self.game)  # pass game reference
         
@@ -102,7 +98,6 @@ class GameState:
             if self.message_timer == 0:
                 self.message = None
         
-        # NEW: Update money glow effect timer
         if self.money_effect_timer > 0:
             self.money_effect_timer -= 1
             if self.money_effect_timer == 0:
