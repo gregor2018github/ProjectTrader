@@ -1,5 +1,5 @@
 import pygame
-from ..config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE
+from ..config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT
 
 class DepotViewDetail:
     def __init__(self, depot_rect, game_state):
@@ -18,8 +18,7 @@ class DepotViewDetail:
 
     def draw(self, screen, font):
         if self.visible:
-            # Draw panel with bright yellow background and border
-            pygame.draw.rect(screen, TAN, self.rect)
+            pygame.draw.rect(screen, TAN, self.rect) # WHEAT or TAN look good
             pygame.draw.rect(screen, DARK_BROWN, self.rect, 3)
             
             # Access small font from game state (must be passed in game_state)

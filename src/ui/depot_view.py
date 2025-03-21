@@ -159,6 +159,19 @@ def draw_depot_view(screen, font, depot, game_state):
     def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
         #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
         small_font = game_state.small_font
+        
+        # Check if this row is currently selected (its detail panel is open)
+        is_selected = (hasattr(game_state, "detail_panel") and 
+                     game_state.detail_panel.visible and 
+                     game_state.detail_panel.current_statistic == label)
+        
+        # Draw a subtle gray background for the selected row
+        if is_selected:
+            row_rect = pygame.Rect(10, y_pos-4, surf.get_width()-80, 24)
+            row_separator = pygame.Rect(345, y_pos-4, 7, 24)
+            pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
+            pygame.draw.rect(surf, BEIGE, row_separator)
+        
         labels_without_button = ["Wealth Today", "Wealth Start", "Buy Actions", "Sell Actions", "Total Actions"]
         if label in labels_without_button:
             # Create a more visible button instead of just the text
@@ -181,9 +194,7 @@ def draw_depot_view(screen, font, depot, game_state):
             pygame.draw.rect(surf, DARK_BROWN, button_rect, 1)
             
             # Check if this statistic's detail panel is currently open
-            show_minus = (hasattr(game_state, "detail_panel") and 
-                         game_state.detail_panel.visible and 
-                         game_state.detail_panel.current_statistic == label)
+            show_minus = is_selected
             
             # Add plus/minus symbol centered in button with hover effect
             button_text = "-" if show_minus else "+"
@@ -201,10 +212,26 @@ def draw_depot_view(screen, font, depot, game_state):
             game_state.depot_plus_buttons[label] = (button_rect.x, button_rect.y, button_rect.width, button_rect.height)
         
         label_x = 40  # shift label right to accommodate button
-        label_surf = small_font.render(label, True, label_color)
-        value_surf = small_font.render(value, True, value_color)
-        surf.blit(label_surf, (label_x, y_pos))
-        surf.blit(value_surf, (250, y_pos))
+        
+        # Use bold effect for selected row
+        if is_selected:
+            # For bold text, render it twice with a small offset (simulating bold)
+            label_surf = small_font.render(label, True, label_color)
+            value_surf = small_font.render(value, True, value_color)
+            
+            # First render (offset by 1 pixel)
+            surf.blit(label_surf, (label_x+1, y_pos))
+            surf.blit(value_surf, (251, y_pos))
+            
+            # Second render (original position)
+            surf.blit(label_surf, (label_x, y_pos))
+            surf.blit(value_surf, (250, y_pos))
+        else:
+            # Normal rendering for non-selected rows
+            label_surf = small_font.render(label, True, label_color)
+            value_surf = small_font.render(value, True, value_color)
+            surf.blit(label_surf, (label_x, y_pos))
+            surf.blit(value_surf, (250, y_pos))
     
     # Draw section: Wealth Statistics
     section_title = font.render("Wealth Statistics", True, DARK_BROWN)
