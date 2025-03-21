@@ -17,7 +17,25 @@ def draw_depot_view(screen, font, depot, game_state):
     
     # Draw heading with time frame
     current_day = game_state.date.strftime("%d.%m.%Y")
-    heading_text = f"{game_state.depot_time_frame} Depot Statistics - {current_day}"
+    
+    # Calculate start date based on time frame
+    if game_state.depot_time_frame == "Daily":
+        start_date = game_state.date.strftime("%d.%m.%Y")
+    elif game_state.depot_time_frame == "Weekly":
+        start_date = (game_state.date - datetime.timedelta(days=6)).strftime("%d.%m.%Y")
+    elif game_state.depot_time_frame == "Monthly":
+        start_date = (game_state.date - datetime.timedelta(days=29)).strftime("%d.%m.%Y")
+    elif game_state.depot_time_frame == "Yearly":
+        start_date = (game_state.date - datetime.timedelta(days=364)).strftime("%d.%m.%Y")
+    else:  # "Total"
+        start_date = "01.01.1500"  # Game start date
+    
+    # Create heading text with date range
+    if game_state.depot_time_frame == "Total":
+        heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
+    else:
+        heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
+    
     title = font.render(heading_text, True, DARK_BROWN)
     title_rect = title.get_rect(center=(x + width//2, y + 30))
     screen.blit(title, title_rect)
@@ -63,8 +81,7 @@ def draw_depot_view(screen, font, depot, game_state):
     # Initialize detail panel if not already set
     if not hasattr(game_state, "detail_panel"):
         from .depot_view_detail import DepotViewDetail
-        game_state.detail_panel = DepotViewDetail(depot_rect)
-        print("Created new detail panel")
+        game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
@@ -72,9 +89,6 @@ def draw_depot_view(screen, font, depot, game_state):
     content_surface = pygame.Surface((scroll_area.width, 1000), pygame.SRCALPHA)
     content_surface.fill((0,0,0,0))
     content_y = 0
-
-    # Create a smaller font for details
-    small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
     
     # Determine time frame period in days based on depot_time_frame
     if game_state.depot_time_frame == "Daily":

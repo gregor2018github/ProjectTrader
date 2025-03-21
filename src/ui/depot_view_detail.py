@@ -2,12 +2,12 @@ import pygame
 from ..config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE
 
 class DepotViewDetail:
-    def __init__(self, depot_rect):
+    def __init__(self, depot_rect, game_state):
         # Place the detail panel just to the right of depot view
         self.rect = pygame.Rect(depot_rect.left + 370, depot_rect.top + 60, 300, depot_rect.height-80)
         self.visible = False
         self.current_statistic = None
-        print(f"Detail panel initialized at {self.rect}")
+        self.game_state = game_state
 
     def toggle(self):
         self.visible = not self.visible
@@ -22,7 +22,12 @@ class DepotViewDetail:
             pygame.draw.rect(screen, TAN, self.rect)
             pygame.draw.rect(screen, DARK_BROWN, self.rect, 3)
             
-            # Draw heading
+            # Access small font from game state (must be passed in game_state)
+            small_font = self.game_state.small_font
+            if hasattr(font, 'game_state') and hasattr(font.game_state, 'small_font'):
+                small_font = font.game_state.small_font
+            
+            # Draw heading with regular font
             title_text = "Wealth Details"
             if self.current_statistic:
                 title_text = f"{self.current_statistic} Details"
@@ -85,7 +90,8 @@ class DepotViewDetail:
                     "Profit: 790.00",
                 ])
             
+            # Render all detail lines with small font
             for line in lines:
-                text = font.render(line, True, BLACK)
+                text = small_font.render(line, True, BLACK)
                 screen.blit(text, (self.rect.x + 20, y_pos))
                 y_pos += line_height
