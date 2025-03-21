@@ -156,8 +156,21 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 good.toggle_display()
             return
 
-    # Check for plus button click in depot view detail area
-    if hasattr(game_state, "depot_plus_rect") and game_state.depot_plus_rect and game_state.depot_plus_rect.collidepoint(pos):
+    # Check for plus button clicks in depot view detail area
+    if hasattr(game_state, "depot_plus_rects") and game_state.depot_plus_rects:
+        for label, rect in game_state.depot_plus_rects.items():
+            if rect.collidepoint(pos):
+                if hasattr(game_state, "detail_panel"):
+                    # Check if the panel is already visible for this statistic
+                    if game_state.detail_panel.visible and game_state.detail_panel.current_statistic == label:
+                        # Close the panel if already open for this statistic
+                        game_state.detail_panel.visible = False
+                    else:
+                        # Open the detail panel with the specific label
+                        game_state.detail_panel.show_for_statistic(label)
+                return
+    # For backward compatibility
+    elif hasattr(game_state, "depot_plus_rect") and game_state.depot_plus_rect and game_state.depot_plus_rect.collidepoint(pos):
         if hasattr(game_state, "detail_panel"):
             game_state.detail_panel.toggle()
         return

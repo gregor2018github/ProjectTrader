@@ -135,6 +135,12 @@ def draw_depot_view(screen, font, depot, game_state):
         ("Total Trade Profit", f"{cycle_stats['total_profit']:.2f}")
     ]
 
+    # Use game_state.depot_scroll_offset if it exists, otherwise default to 0
+    scroll_offset = getattr(game_state, "depot_scroll_offset", 0)
+    # Ensure offset is within bounds.
+    if scroll_offset < 0:
+        scroll_offset = 0
+    
     # Helper function to draw a row on a given surface at y offset
     def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
         #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
@@ -145,17 +151,40 @@ def draw_depot_view(screen, font, depot, game_state):
             button_size = 16
             button_rect = pygame.Rect(20, y_pos, button_size, button_size)
             
-            # Draw yellow button with plus sign
-            pygame.draw.rect(surf, TAN, button_rect)
+            # Get mouse position (in content surface coordinates)
+            mouse_pos = pygame.mouse.get_pos()
+            # Convert mouse position to content surface coordinates
+            content_mouse_x = mouse_pos[0] - scroll_area.x
+            content_mouse_y = mouse_pos[1] - scroll_area.y + scroll_offset
+            
+            # Check if mouse is hovering over this button
+            button_hover = (20 <= content_mouse_x <= 20 + button_size and 
+                           y_pos <= content_mouse_y <= y_pos + button_size)
+            
+            # Draw button with plus/minus sign
+            button_bg_color = SANDY_BROWN if button_hover else TAN
+            pygame.draw.rect(surf, button_bg_color, button_rect)
             pygame.draw.rect(surf, DARK_BROWN, button_rect, 1)
             
-            # Add plus symbol centered in button
-            plus_surf = small_font.render("+", True, DARK_BROWN)
+            # Check if this statistic's detail panel is currently open
+            show_minus = (hasattr(game_state, "detail_panel") and 
+                         game_state.detail_panel.visible and 
+                         game_state.detail_panel.current_statistic == label)
+            
+            # Add plus/minus symbol centered in button with hover effect
+            button_text = "-" if show_minus else "+"
+            text_color = WHITE if button_hover else DARK_BROWN
+            plus_surf = small_font.render(button_text, True, text_color)
             plus_rect = plus_surf.get_rect(center=button_rect.center)
+            plus_rect.y -= 3  # Shift the text up, the chosen font type is leaning to the bottom
             surf.blit(plus_surf, plus_rect)
             
-            # Store button position in content coordinates for later conversion
-            game_state.wealth_button_pos = (button_rect.x, button_rect.y, button_rect.width, button_rect.height)
+            # Store all button positions in a dictionary instead of just one
+            if not hasattr(game_state, "depot_plus_buttons"):
+                game_state.depot_plus_buttons = {}
+            
+            # Store button position with label as key
+            game_state.depot_plus_buttons[label] = (button_rect.x, button_rect.y, button_rect.width, button_rect.height)
         
         label_x = 40  # shift label right to accommodate button
         label_surf = small_font.render(label, True, label_color)
@@ -235,16 +264,11 @@ def draw_depot_view(screen, font, depot, game_state):
         draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
         content_y += 24
         draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
-        content_y += 24
 
     # Crop the content_surface to the actual content height
     content_surface = content_surface.subsurface(pygame.Rect(0, 0, scroll_area.width, content_y)).copy()
     
-    # Use game_state.depot_scroll_offset if it exists, otherwise default to 0
-    scroll_offset = getattr(game_state, "depot_scroll_offset", 0)
-    # Ensure offset is within bounds.
-    if scroll_offset < 0:
-        scroll_offset = 0
+    # Update max_offset after content is created
     max_offset = max(0, content_surface.get_height() - scroll_area.height)
     if scroll_offset > max_offset:
         scroll_offset = max_offset
@@ -268,17 +292,18 @@ def draw_depot_view(screen, font, depot, game_state):
         thumb_rect = pygame.Rect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
         pygame.draw.rect(screen, TAN, thumb_rect)
 
-    # After cropping and calculating scroll offset, convert stored button position to screen coordinates
-    if hasattr(game_state, "wealth_button_pos"):
-        btn_x, btn_y, btn_w, btn_h = game_state.wealth_button_pos
-        # Only create clickable rect if button is actually visible in current scroll view
-        if btn_y >= scroll_offset and btn_y <= scroll_offset + scroll_area.height:
-            screen_y = scroll_area.y + (btn_y - scroll_offset)
-            screen_x = scroll_area.x + btn_x
-            game_state.depot_plus_rect = pygame.Rect(screen_x, screen_y, btn_w, btn_h)
-        else:
-            # Button is scrolled out of view, no clickable area
-            game_state.depot_plus_rect = None
+    # After cropping and calculating scroll offset, convert stored button positions to screen coordinates
+    if hasattr(game_state, "depot_plus_buttons"):
+        game_state.depot_plus_rects = {}  # Dictionary of clickable rectangles
+        for label, (btn_x, btn_y, btn_w, btn_h) in game_state.depot_plus_buttons.items():
+            # Only create clickable rect if button is actually visible in current scroll view
+            if btn_y >= scroll_offset and btn_y <= scroll_offset + scroll_area.height:
+                screen_y = scroll_area.y + (btn_y - scroll_offset)
+                screen_x = scroll_area.x + btn_x
+                game_state.depot_plus_rects[label] = pygame.Rect(screen_x, screen_y, btn_w, btn_h)
+
+    # For backward compatibility, keep depot_plus_rect but set it to None
+    game_state.depot_plus_rect = None
 
     # Store depot button rectangles for handling clicks externally
     game_state.depot_buttons = {"left": left_btn_rect, "right": right_btn_rect}
