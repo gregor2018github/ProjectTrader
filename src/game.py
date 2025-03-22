@@ -168,14 +168,15 @@ class Game:
                 if hour_changed:
                     for good in self.goods:
                         good.update_price()
+                        # Update chart price history hourly
+                        good.update_price_history_chart()
 
-                # update wealth, stock and price history once per day
+                # update wealth, stock and bookkeeping price history once per day
                 if day_changed:
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
                     for good in self.goods:
-                        good.update_price_history()
-
+                        good.update_price_history()  # Bookkeeping price history
             
             # Reset hover states at the beginning of each frame
             for good in self.goods:

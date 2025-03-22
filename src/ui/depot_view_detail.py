@@ -169,8 +169,6 @@ class DepotViewDetail:
             # Update last update timestamp and time frame
             self.last_update_date = current_date
             self.last_time_frame = current_time_frame
-            
-            print(f"Updated wealth statistics for {time_frame} time frame on {current_date}")
     
     def draw(self, screen, font):
         if self.visible:

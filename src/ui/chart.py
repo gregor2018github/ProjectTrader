@@ -14,8 +14,8 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0] + max_chart_size, chart_border[1]), 1)
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0], chart_border[1] + max_chart_height), 1)
 
-    # Calculate max price and draw price levels
-    max_price = max(max(good.price_history[-max_chart_size:]) for good in goods if good.show_in_charts)
+    # Calculate max price using chart history instead of bookkeeping history
+    max_price = max(max(good.price_history_chart[-max_chart_size:]) for good in goods if good.show_in_charts)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
 
     # Store selection boxes for later use with hover effects
@@ -27,17 +27,35 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     return image_boxes
 
 def _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price):
+    # Start with small increments for lower values (1-5)
     price_levels = [1, 2, 3, 4, 5]
-    max_price_level = int(max_price / 5) * 5
-    while price_levels[-1] < max_price_level:
-        price_levels.append(price_levels[-1] + 5)
+    
+    # If max_price is small, don't add higher levels
+    if max_price <= 6:
+        price_levels = [level for level in price_levels if level <= max_price]
+    else:
+        # Calculate medium tier steps (increments of 5)
+        current_level = 10
+        while current_level <= min(max_price, 50):
+            price_levels.append(current_level)
+            current_level += 5
+            
+        # For higher values, use larger steps (increments of 10)
+        if max_price > 50:
+            current_level = 60
+            while current_level <= max_price and len(price_levels) < 15:
+                price_levels.append(current_level)
+                current_level += 10
 
+    # Draw each price level within chart boundaries
     for price_level in price_levels:
-        y = chart_border[1] + ((price_level / max_price) * max_chart_height)
-        pygame.draw.line(screen, CHART_BROWN, (chart_border[0], y), 
-                        (chart_border[0] + max_chart_size, y), 1)
-        price_text = main_font.render(str(price_level), True, CHART_BROWN)
-        screen.blit(price_text, (chart_border[0] - 30, y - 10))
+        y_ratio = price_level / max_price
+        if 0 <= y_ratio <= 1:  # Only draw if within chart boundaries
+            y = chart_border[1] + (y_ratio * max_chart_height)
+            pygame.draw.line(screen, CHART_BROWN, (chart_border[0], y), 
+                            (chart_border[0] + max_chart_size, y), 1)
+            price_text = main_font.render(str(price_level), True, CHART_BROWN)
+            screen.blit(price_text, (chart_border[0] - 30, y - 10))
 
 def _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30):
     # First, separate goods into regular and hovered
@@ -53,7 +71,8 @@ def _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_hei
         _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
 def _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30):
-    price_history = good.price_history[-max_chart_size:]
+    # Use chart price history instead of bookkeeping price history
+    price_history = good.price_history_chart[-max_chart_size:]
     
     # Use thicker line if good is hovered
     line_thickness = 3 if good.hovered else 1

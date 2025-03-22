@@ -30,6 +30,19 @@ def handle_keyboard_input(event, game_state, goods, depot):
     # Handle function keys
     elif event.key in [pygame.K_F1, pygame.K_F2, pygame.K_F3, pygame.K_F4, pygame.K_F5, pygame.K_F6]:
         _handle_function_key(event.key, game_state, goods, depot)
+    # Add time control hotkeys
+    elif event.key == pygame.K_SPACE:
+        # Toggle between pause and normal speed
+        if game_state.time_level == 1:  # If paused
+            game_state.time_level = 3   # Set to normal speed
+        else:
+            game_state.time_level = 1   # Pause
+    elif event.key in [pygame.K_MINUS, pygame.K_KP_MINUS]:
+        # Slow down time (decrease level)
+        game_state.time_level = max(1, game_state.time_level - 1)
+    elif event.key in [pygame.K_PLUS, pygame.K_KP_PLUS, pygame.K_EQUALS]:
+        # Speed up time (increase level)
+        game_state.time_level = min(5, game_state.time_level + 1)
 
 
 def _handle_function_key(key, game_state, goods, depot):
