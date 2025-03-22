@@ -232,6 +232,11 @@ def draw_depot_view(screen, font, depot, game_state):
             value_surf = small_font.render(value, True, value_color)
             surf.blit(label_surf, (label_x, y_pos))
             surf.blit(value_surf, (250, y_pos))
+            
+        # Draw separator line after specific rows
+        if label in ["Total Stock", "Total Actions", "Total Trade Profit", "Total"]:
+            separator_y = y_pos + 20  # Position the line 20px below the text
+            pygame.draw.line(surf, PALE_BROWN, (20, separator_y), (surf.get_width()-60, separator_y), 1)
     
     # Draw section: Wealth Statistics
     section_title = font.render("Wealth Statistics", True, DARK_BROWN)
@@ -257,6 +262,28 @@ def draw_depot_view(screen, font, depot, game_state):
     content_y += 30
     for label, value in trade_cycle_stats:
         draw_row(content_surface, content_y, label, value)
+        content_y += 24
+
+    # Draw most recent trade if available
+    if depot.trades:
+        content_y += 15
+        last_trade = depot.trades[-1]
+        section_title = font.render("Last Trade", True, DARK_BROWN)
+        content_surface.blit(section_title, (20, content_y))
+        content_y += 30
+        
+        trade_type = "Purchase" if last_trade["type"] == "purchase" else "Sale"
+        trade_color = RED if last_trade["type"] == "purchase" else GREEN
+        
+        draw_row(content_surface, content_y, "Good", last_trade["good"])
+        content_y += 24
+        draw_row(content_surface, content_y, "Type", trade_type, value_color=trade_color)
+        content_y += 24
+        draw_row(content_surface, content_y, "Quantity", str(last_trade["quantity"]))
+        content_y += 24
+        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
+        content_y += 24
+        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
         content_y += 24
     
     # Draw section: Best & Worst Goods
@@ -284,28 +311,6 @@ def draw_depot_view(screen, font, depot, game_state):
             color = RED if profit < 0 else BLACK
             draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"{profit:.2f}", value_color=color)
             content_y += 24
-    
-    # Draw most recent trade if available
-    if depot.trades:
-        content_y += 15
-        last_trade = depot.trades[-1]
-        section_title = font.render("Last Trade", True, DARK_BROWN)
-        content_surface.blit(section_title, (20, content_y))
-        content_y += 30
-        
-        trade_type = "Purchase" if last_trade["type"] == "purchase" else "Sale"
-        trade_color = RED if last_trade["type"] == "purchase" else GREEN
-        
-        draw_row(content_surface, content_y, "Good", last_trade["good"])
-        content_y += 24
-        draw_row(content_surface, content_y, "Type", trade_type, value_color=trade_color)
-        content_y += 24
-        draw_row(content_surface, content_y, "Quantity", str(last_trade["quantity"]))
-        content_y += 24
-        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
-        content_y += 24
-        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
-        content_y += 24
 
     # add a visual closing as the last line to the content
     pygame.draw.line(content_surface, DARK_BROWN, (20, content_y+10), (345, content_y+10), 2)
