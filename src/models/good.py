@@ -5,8 +5,7 @@ class Good:
         self.name = name
         self.price = price
         self.market_quantity = market_quantity
-        self.price_history = [price]
-        # New color properties
+        self.price_history = [price]       # store price history for bookkeeping, thus only once per day
         self.color_orig = color            # Original color when game started
         self.color_current = color         # Currently saved color
         self.color_temp = color            # Temporary color changes from settings
@@ -39,6 +38,8 @@ class Good:
             mu = mu + 0.03
 
         self.price = self.price * random.normalvariate(mu, sigma)
+
+    def update_price_history(self):
         self.price_history.append(self.price)
     
     def get_price(self):
