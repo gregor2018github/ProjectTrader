@@ -305,6 +305,11 @@ def draw_depot_view(screen, font, depot, game_state):
         draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
         content_y += 24
         draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
+        content_y += 24
+
+    # add a visual closing as the last line to the content
+    pygame.draw.line(content_surface, DARK_BROWN, (20, content_y+10), (345, content_y+10), 2)
+    content_y += 20
 
     # Crop the content_surface to the actual content height
     content_surface = content_surface.subsurface(pygame.Rect(0, 0, scroll_area.width, content_y)).copy()

@@ -18,7 +18,7 @@ class DepotViewDetail:
 
     def draw(self, screen, font):
         if self.visible:
-            pygame.draw.rect(screen, TAN, self.rect) # WHEAT or TAN look good
+            pygame.draw.rect(screen, WHEAT, self.rect) # WHEAT or TAN look good
             pygame.draw.rect(screen, DARK_BROWN, self.rect, 3)
             
             # Access small font from game state (must be passed in game_state)
@@ -94,3 +94,6 @@ class DepotViewDetail:
                 text = small_font.render(line, True, BLACK)
                 screen.blit(text, (self.rect.x + 20, y_pos))
                 y_pos += line_height
+            
+            # add a visual closing as the last line to the content
+            pygame.draw.line(screen, DARK_BROWN, (self.rect.x + 20, y_pos+10), (self.rect.x + self.rect.width - 20, y_pos+10), 2)

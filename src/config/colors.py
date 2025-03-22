@@ -15,7 +15,7 @@ BRIGHT_RED = (255, 0, 0)
 STEELE_BLUE = (70, 130, 180)
 PALE_YELLOW = (255, 255, 224)
 ROSE = (255, 0, 127)
-WHEAT = (225, 215, 175)
+WHEAT = (225, 205, 175)
 
 # Medieval theme colors
 MATTE_BROWN = (128, 64, 0)
