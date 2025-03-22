@@ -8,9 +8,15 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
         current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
         if depot_buttons["left"].collidepoint(pos) and current_index > 0:
             game_state.depot_time_frame = game_state.depot_time_frames[current_index - 1]
+            # Force update of detail panel statistics
+            if hasattr(game_state, "detail_panel"):
+                game_state.detail_panel.update_statistics(force=True)
             return
         elif depot_buttons["right"].collidepoint(pos) and current_index < len(game_state.depot_time_frames) - 1:
             game_state.depot_time_frame = game_state.depot_time_frames[current_index + 1]
+            # Force update of detail panel statistics
+            if hasattr(game_state, "detail_panel"):
+                game_state.detail_panel.update_statistics(force=True)
             return
 
     # Reset hover states for all goods

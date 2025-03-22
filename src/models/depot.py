@@ -26,6 +26,7 @@ class Depot:
         self.trades = []
         self.wealth = [money]
         self.total_stock = [0]
+        self.money_history = [money]  # Add money history tracking
         
         # Add trade cycle tracking
         self.trade_cycles = {
@@ -179,6 +180,7 @@ class Depot:
                     break
                     
         self.wealth.append(total_value)
+        self.money_history.append(self.money)  # Record current money
         return total_value
     
     def update_total_stock(self):

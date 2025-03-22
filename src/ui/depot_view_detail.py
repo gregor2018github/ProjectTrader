@@ -16,6 +16,7 @@ class DepotViewDetail:
             "Wealth Start": []
         }
         self.last_update_date = None
+        self.last_time_frame = None  # Track the last time frame to detect changes
 
     def toggle(self):
         self.visible = not self.visible
@@ -25,11 +26,15 @@ class DepotViewDetail:
         self.visible = True
 
     def update_statistics(self, force=False):
-        """Update cached statistics if day has changed or force is True"""
+        """Update cached statistics if day has changed, time frame has changed, or force is True"""
         current_date = self.game_state.date.date()
+        current_time_frame = self.game_state.depot_time_frame
         
-        # Check if we need to update (new day or forced)
-        if force or self.last_update_date != current_date:
+        # Check if we need to update (new day, new time frame, or forced)
+        if (force or 
+            self.last_update_date != current_date or 
+            self.last_time_frame != current_time_frame):
+            
             depot = self.game_state.game.depot
             goods = self.game_state.game.goods
             
@@ -76,7 +81,7 @@ class DepotViewDetail:
             self.cached_stats["Wealth Start"] = []
             
             # Determine period days based on the selected time frame
-            time_frame = self.game_state.depot_time_frame
+            time_frame = current_time_frame  # Use the current time frame
             if time_frame == "Daily":
                 period_days = 1
             elif time_frame == "Weekly":
@@ -88,16 +93,18 @@ class DepotViewDetail:
             else:  # "Total"
                 period_days = None
                 
-            # Get the start wealth based on the period
+            # Get historical wealth and money values directly from records
             if period_days is not None and len(depot.wealth) > period_days:
                 start_wealth = depot.wealth[-(period_days+1)]
+                start_money = depot.money_history[-(period_days+1)]  # Use recorded money directly
             else:
                 start_wealth = depot.wealth[0]
-                
-            # For reconstructing goods at start of period, we need to check trades
+                start_money = depot.money_history[0]  # Use recorded money directly
+            
+            # Calculate start date for goods reconstruction
             start_date = self.game_state.date - datetime.timedelta(days=period_days if period_days else 0)
             
-            # Reconstruct goods quantities by applying reverse trades
+            # Reconstruct goods quantities at the start 
             start_goods = {good.name: depot.good_stock.get(good.name, 0) for good in goods}
             
             # Reverse through trades and undo them if they happened within the period
@@ -105,6 +112,7 @@ class DepotViewDetail:
             if period_days is not None:
                 period_trades = [t for t in depot.trades if t["timestamp"] >= start_date]
                 
+            # Reconstruct trades in reverse
             for trade in reversed(period_trades):
                 good_name = trade["good"]
                 qty = trade["quantity"]
@@ -116,16 +124,21 @@ class DepotViewDetail:
                     # If it was a sale, we need to increase the quantity
                     start_goods[good_name] = start_goods[good_name] + qty
             
-            # Calculate goods value at start
-            start_goods_value = 0
-            
-            # Use base prices for goods at start since we don't have historical prices
+            # Get historic prices for each good at the start of the period
+            start_prices = {}
             for good in goods:
-                start_good_price = getattr(good, "base_price", good.get_price())
-                start_goods_value += start_goods.get(good.name, 0) * start_good_price
-                
-            # Money would be total wealth minus goods value
-            start_money = start_wealth - start_goods_value
+                if period_days is not None and len(good.price_history) > period_days:
+                    start_prices[good.name] = good.price_history[-(period_days+1)]
+                else:
+                    start_prices[good.name] = good.price_history[0]
+            
+            # Calculate total goods value at start of period
+            start_goods_value = 0
+            for good in goods:
+                good_name = good.name
+                qty = start_goods.get(good_name, 0)
+                price = start_prices[good_name]
+                start_goods_value += qty * price
             
             # Add calculated stats to cache
             self.cached_stats["Wealth Start"].append(f"Total: {start_wealth:,.2f}")
@@ -142,7 +155,8 @@ class DepotViewDetail:
             for good in goods:
                 good_name = good.name
                 qty = start_goods.get(good_name, 0)
-                price = getattr(good, "base_price", good.get_price())
+                # Use the identified start price instead of base_price
+                price = start_prices[good_name]
                 total_value = qty * price
                 
                 if qty > 0 or time_frame == "Total":  # Show all goods for Total view
@@ -152,8 +166,11 @@ class DepotViewDetail:
                     self.cached_stats["Wealth Start"].append(f"      Total Value: {total_value:,.2f}")
                     self.cached_stats["Wealth Start"].append("__SEPARATOR__")
             
-            # Update last update timestamp
+            # Update last update timestamp and time frame
             self.last_update_date = current_date
+            self.last_time_frame = current_time_frame
+            
+            print(f"Updated wealth statistics for {time_frame} time frame on {current_date}")
     
     def draw(self, screen, font):
         if self.visible:
