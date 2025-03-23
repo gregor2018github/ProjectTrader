@@ -23,6 +23,8 @@ class Depot:
             "town_halls": [],
             "houses": []
         }
+        self.expenditures = 0           # current expenditures
+        self.income = 0                 # current income
 
         # BOOKKEEPING
 
@@ -33,6 +35,8 @@ class Depot:
             good_name: [0] for good_name in self.good_stock
         }
         self.trades = []                # trade tracking for bookkeeping
+        self.expenditure_history = [0]    # expenditures tracking for bookkeeping
+        self.income_history = [0]        # income tracking for bookkeeping
         # FIFO queue to track purchased goods with their prices
         self.purchase_history = {good_name: [] for good_name in self.good_stock}
 
@@ -71,6 +75,7 @@ class Depot:
 
         self.money -= total_cost
         self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
+        self.expenditures += total_cost
         
         # Store purchase in FIFO queue with timestamp, price, and quantity
         self.purchase_history[good.name].append({
@@ -97,6 +102,7 @@ class Depot:
         total_revenue = current_sale_price * quantity_to_sell
         self.money += total_revenue
         self.good_stock[good.name] -= quantity_to_sell
+        self.income += total_revenue
         remaining_to_sell = quantity_to_sell
         total_cost_of_goods_sold = 0
         purchase_entries = self.purchase_history[good.name]
@@ -191,6 +197,13 @@ class Depot:
         self.money_history.append(self.money)  # Record current money
         return total_value
     
+    def update_income_and_expenditures(self):
+        """Update the income and expenditures for the current day"""
+        self.income_history.append(self.income)
+        self.expenditure_history.append(self.expenditures)
+        self.income = 0
+        self.expenditures = 0
+    
     def update_total_stock(self):
         """Update the total stock value"""
         total_stock = sum(self.good_stock.values())
@@ -243,3 +256,4 @@ class Depot:
     def book_cost_of_living(self, cost_of_living):
         """Book the cost of living for the current day"""
         self.money -= cost_of_living
+        self.expenditures += cost_of_living

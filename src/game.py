@@ -181,8 +181,9 @@ class Game:
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
                     self.depot.update_stock_history()
+                    self.depot.update_income_and_expenditures()
                     for good in self.goods:
-                        good.update_price_history()  # Bookkeeping price history
+                        good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
             
             # Reset hover states at the beginning of each frame
             for good in self.goods:
