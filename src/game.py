@@ -6,6 +6,7 @@ from .ui.layout import draw_layout
 from .ui.chart import draw_chart
 from .models.good import Good
 from .models.depot import Depot
+from .models.player import Player
 from .config.colors import *
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC
 from .ui.depot_view import draw_depot_view
@@ -50,6 +51,9 @@ class Game:
         
         # Initialize depot
         self.depot = Depot(money=STARTING_MONEY)
+
+        # Initialize player
+        self.player = Player(name="New Player", cost_of_living=2)
         
         # Load images
         self.images = self._load_images()
@@ -173,6 +177,7 @@ class Game:
 
                 # update wealth, stock and bookkeeping price history once per day
                 if day_changed:
+                    self.depot.book_cost_of_living(self.player.daily_cost_of_living) # first pay your bread
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
                     self.depot.update_stock_history()

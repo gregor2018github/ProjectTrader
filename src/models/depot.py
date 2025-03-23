@@ -239,3 +239,7 @@ class Depot:
             "worst_goods": worst_goods[:3]
         }
         return stats
+    
+    def book_cost_of_living(self, cost_of_living):
+        """Book the cost of living for the current day"""
+        self.money -= cost_of_living
