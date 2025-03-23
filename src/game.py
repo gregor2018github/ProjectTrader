@@ -175,6 +175,7 @@ class Game:
                 if day_changed:
                     self.depot.update_wealth(self.goods)
                     self.depot.update_total_stock()
+                    self.depot.update_stock_history()
                     for good in self.goods:
                         good.update_price_history()  # Bookkeeping price history
             

@@ -1,16 +1,16 @@
 class Depot:
     def __init__(self, money):
-        self.money = money
-        self.good_stock = {
+
+        # CURRENT STATE
+
+        self.money = money              # current money
+        self.good_stock = {             # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
             "Wheat": 0, "Wine": 0, "Beer": 0,
             "Meat": 0, "Linen": 0, "Pottery": 0,
         }
-        # FIFO queue to track purchased goods with their prices
-        self.purchase_history = {good_name: [] for good_name in self.good_stock}
-        
-        self.properties = {
+        self.properties = {             # current properties
             "warehouses": [],
             "workshops": [],
             "farms": [],
@@ -23,11 +23,19 @@ class Depot:
             "town_halls": [],
             "houses": []
         }
-        self.trades = []
-        self.wealth = [money]
-        self.total_stock = [0]
-        self.money_history = [money]  # Add money history tracking
-        
+
+        # BOOKKEEPING
+
+        self.wealth = [money]           # wealth tracking for bookkeeping
+        self.money_history = [money]    # money tracking for bookkeeping
+        self.total_stock = [0]          # total stock tracking for bookkeeping
+        self.stock_history = {          # stock tracking for bookkeeping
+            good_name: [0] for good_name in self.good_stock
+        }
+        self.trades = []                # trade tracking for bookkeeping
+        # FIFO queue to track purchased goods with their prices
+        self.purchase_history = {good_name: [] for good_name in self.good_stock}
+
         # Add trade cycle tracking
         self.trade_cycles = {
             "total": 0,  # Total number of completed trade cycles
@@ -188,6 +196,11 @@ class Depot:
         total_stock = sum(self.good_stock.values())
         self.total_stock.append(total_stock)
         return total_stock
+    
+    def update_stock_history(self):
+        """Update the stock history for all goods"""
+        for good_name, quantity in self.good_stock.items():
+            self.stock_history[good_name].append(quantity)
     
     def get_trade_cycle_stats(self, current_date, time_delta):
         """Return summarized trade cycle statistics filtered by an optional time_delta.

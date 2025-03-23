@@ -5,12 +5,12 @@ class Good:
         self.name = name
         self.price = price
         self.market_quantity = market_quantity
-        self.price_history = [price]       # store price history for bookkeeping, updated daily
-        self.price_history_chart = [price] # store detailed price history for charts, updated hourly
-        self.color_orig = color            # Original color when game started
-        self.color_current = color         # Currently saved color
-        self.color_temp = color            # Temporary color changes from settings
-        self.color = self.color_temp       # Used for drawing; always synced to color_temp
+        self.price_history_daily = [price]      # store price history for bookkeeping, updated daily
+        self.price_history_hourly = [price]     # store detailed price history for charts, updated hourly
+        self.color_orig = color                 # Original color when game started
+        self.color_current = color              # Currently saved color
+        self.color_temp = color                 # Temporary color changes from settings
+        self.color = self.color_temp            # Used for drawing; always synced to color_temp
         self.index = index
         self.base_price = price
         self.show_in_charts = show_in_charts
@@ -42,11 +42,11 @@ class Good:
 
     def update_price_history(self):
         """Update the price history for bookkeeping (daily)"""
-        self.price_history.append(self.price)
+        self.price_history_daily.append(self.price)
     
     def update_price_history_chart(self):
         """Update the price history for charts (hourly)"""
-        self.price_history_chart.append(self.price)
+        self.price_history_hourly.append(self.price)
     
     def get_price(self):
         return self.price

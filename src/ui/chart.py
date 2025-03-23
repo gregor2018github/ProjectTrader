@@ -15,7 +15,7 @@ def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0], chart_border[1] + max_chart_height), 1)
 
     # Calculate max price using chart history instead of bookkeeping history
-    max_price = max(max(good.price_history_chart[-max_chart_size:]) for good in goods if good.show_in_charts)
+    max_price = max(max(good.price_history_hourly[-max_chart_size:]) for good in goods if good.show_in_charts)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
 
     # Store selection boxes for later use with hover effects
@@ -72,7 +72,7 @@ def _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_hei
 
 def _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30):
     # Use chart price history instead of bookkeeping price history
-    price_history = good.price_history_chart[-max_chart_size:]
+    price_history = good.price_history_hourly[-max_chart_size:]
     
     # Use thicker line if good is hovered
     line_thickness = 3 if good.hovered else 1
