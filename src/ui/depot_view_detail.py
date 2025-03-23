@@ -203,6 +203,11 @@ class DepotViewDetail:
             y_pos = self.rect.y + 60
             line_height = 24
             
+            # Get good icons from game instance
+            goods_images = None
+            if hasattr(self.game_state, 'game') and hasattr(self.game_state.game, 'images'):
+                goods_images = self.game_state.game.images.get('goods_30', {})
+            
             # Use cached statistics if available
             lines = []
             if self.current_statistic in self.cached_stats:
@@ -255,7 +260,24 @@ class DepotViewDetail:
                 # Remove leading spaces for rendering
                 display_line = line.lstrip()
                 
-                if ":" in display_line:
+                # Check if this line is just a good name (not indented and no colon)
+                is_good_name = indent_level == 0 and ":" not in display_line
+                
+                if is_good_name and goods_images and display_line in goods_images:
+                    # Render the good icon
+                    good_icon = goods_images[display_line]
+                    # Scale down the icon slightly if needed
+                    icon_size = 24  # Slightly smaller than the original 30px
+                    if good_icon.get_width() > icon_size:
+                        good_icon = pygame.transform.scale(good_icon, (icon_size, icon_size))
+                    
+                    # Render good icon to the left of the name
+                    screen.blit(good_icon, (self.rect.x + 20, y_pos - 5))
+                    
+                    # Render the good name with extra left padding for the icon
+                    good_text = small_font.render(display_line, True, BLACK)
+                    screen.blit(good_text, (self.rect.x + 50, y_pos))
+                elif ":" in display_line:
                     parts = display_line.split(":", 1)
                     label_part = parts[0].strip() + ":"
                     value_part = parts[1].strip()
@@ -268,6 +290,5 @@ class DepotViewDetail:
                     screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))
                 y_pos += line_height
             
-
             # add a visual closing as the last line to the content
             pygame.draw.line(screen, DARK_BROWN, (self.rect.x + 20, y_pos+10), (self.rect.x + self.rect.width - 20, y_pos+10), 2)
