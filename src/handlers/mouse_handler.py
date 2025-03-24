@@ -2,6 +2,11 @@ import pygame
 from ..ui.info_window import InfoWindow  # Add this import
 
 def handle_mouse_click(pos, buttons, game_state, goods, depot):
+    # Handle sound control clicks
+    if hasattr(game_state.game, 'sound_control'):
+        if game_state.game.sound_control.handle_click(pos, game_state.game):
+            return
+
     # Handle depot time frame button clicks
     if hasattr(game_state, "depot_buttons"):
         depot_buttons = game_state.depot_buttons

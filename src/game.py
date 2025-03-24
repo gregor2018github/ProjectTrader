@@ -12,6 +12,7 @@ from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_
 from .ui.depot_view import draw_depot_view
 from .ui.menu import Menu
 from .ui.time_control import TimeControl
+from .ui.sound_control import SoundControl  # Add import for SoundControl
 
 # CONSTANTS
 MAX_FRAMES_PER_SEC = 60
@@ -61,6 +62,9 @@ class Game:
         # Load sounds
         self.sounds = self._load_sounds()
         
+        # Load music
+        self.music_paths = self._load_music()
+        
         self.update_delay = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update = 0
         
@@ -88,6 +92,14 @@ class Game:
             self.screen.get_height(), 
             self.font,
             time_control_images
+        )
+        
+        # Initialize sound control
+        self.sound_control = SoundControl(
+            self.screen.get_width(),
+            self.screen.get_height(),
+            self.font,
+            self.images['button_sound_80']
         )
 
     def _initialize_goods(self):
@@ -120,6 +132,9 @@ class Game:
         images['button_start_stop_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_start_stop_150.png"))
         images['button_faster_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_faster_150.png"))
         images['button_slower_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_slower_150.png"))
+
+        # Load the button for toggling the sound
+        images['button_sound_80'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_sound_80.png"))
         
         # Load all good icons
         for good in self.goods:
@@ -145,6 +160,28 @@ class Game:
                 print(f"Failed to load sound {sound_path}: {e}")
     
         return sounds
+    
+    def _load_music(self):
+        """Load music tracks"""
+        music_paths = {}
+        
+        # Define the music directory
+        music_dir = os.path.join(os.path.dirname(PICTURES_PATH), "music")
+        
+        # Define the music tracks we want to load
+        music_tracks = ["song_1", "song_2", "song_3", "song_4", "song_5"]
+        
+        # Load each music track
+        for track in music_tracks:
+            for ext in [".mp3", ".ogg", ".wav"]:
+                music_path = os.path.join(music_dir, f"{track}{ext}")
+                if os.path.exists(music_path):
+                    music_paths[track] = music_path
+                    break
+            if track not in music_paths:
+                print(f"Could not find music track {track}")
+        
+        return music_paths
         
     def play_sound(self, sound_name):
         """Play a sound by name"""
@@ -208,6 +245,9 @@ class Game:
             
             # Draw time controls in bottom bar
             self.time_control.draw(self.screen, self.state.time_level)
+            
+            # Draw sound control button
+            self.sound_control.draw(self.screen)
             
             # Draw dropdowns after everything else
             for dropdown in self.state.dropdowns.values():
