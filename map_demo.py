@@ -1,3 +1,7 @@
+"""
+Demo File to test map rendering, player movement, and collision detection.
+"""
+
 import pygame
 import json
 
@@ -193,7 +197,7 @@ class Game:
         self.screen_width = 1000
         self.screen_height = 800
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
-        pygame.display.set_caption("Pokemon-Style Map")
+        pygame.display.set_caption("Map Demo")
         
         self.clock = pygame.time.Clock()
         self.running = True
