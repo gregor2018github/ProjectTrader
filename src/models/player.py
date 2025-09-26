@@ -4,6 +4,7 @@ class Player:
         self.score = 0
         self.reputation = 0
         self.daily_cost_of_living = cost_of_living
+        self.position = (0, 0)  # Default position, can be updated later
 
     def add_score(self, score):
         self.score += score
