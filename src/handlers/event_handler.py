@@ -11,6 +11,11 @@ class EventHandler:
         if event.type == pygame.QUIT:
             self.running = False
 
+        # Handle music end event to play the next song
+        if hasattr(game_state.game, 'sound_control') and event.type == game_state.game.sound_control.MUSIC_END_EVENT:
+            game_state.game.sound_control.handle_music_end_event(game_state.game)
+            return self.running
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q and not game_state.info_window:
                 game_state.info_window = InfoWindow(game_state.screen, 

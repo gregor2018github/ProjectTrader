@@ -16,7 +16,7 @@
 - [ ] Town Simulation
 
 ## Bug Fixes
-- [ ] Time progresses faster with higher frame rates, these two must 
+- [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 - [ ] 
 
