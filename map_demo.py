@@ -23,15 +23,29 @@ class Camera:
         self.y = 0
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.zoom = 1.0
     
-    def update(self, target_x, target_y, tile_size):
-        """Center camera on target (usually player)"""
-        self.x = target_x - self.screen_width // 2
-        self.y = target_y - self.screen_height // 2
+    def set_zoom(self, zoom):
+        """Update current zoom factor."""
+        self.zoom = max(0.1, float(zoom))
+    
+    def update(self, target_x, target_y, world_width, world_height):
+        """Center camera on target (usually player) respecting zoom and map bounds."""
+        half_width = (self.screen_width / self.zoom) / 2
+        half_height = (self.screen_height / self.zoom) / 2
+
+        self.x = target_x - half_width
+        self.y = target_y - half_height
+
+        max_x = max(0, world_width - (self.screen_width / self.zoom))
+        max_y = max(0, world_height - (self.screen_height / self.zoom))
+
+        self.x = max(0, min(self.x, max_x))
+        self.y = max(0, min(self.y, max_y))
     
     def apply(self, x, y):
         """Convert world coordinates to screen coordinates"""
-        return x - self.x, y - self.y
+        return (x - self.x) * self.zoom, (y - self.y) * self.zoom
 
 class GameMap:
     """Main map class that handles rendering and collision"""
@@ -40,6 +54,7 @@ class GameMap:
         self.height = height  # in tiles
         self.tile_size = tile_size
         self.tiles = [[None for _ in range(width)] for _ in range(height)]
+        self.scaled_tile_cache = {}
         
         # Load tile sprites
         self.tile_sprites = {
@@ -82,25 +97,41 @@ class GameMap:
         """Convert grid coordinates to world pixel coordinates"""
         return grid_x * self.tile_size, grid_y * self.tile_size
     
+    def _get_scaled_tile_sprite(self, tile_type, zoom):
+        base_sprite = self.tile_sprites.get(tile_type)
+        if base_sprite is None:
+            return None
+
+        zoom_key = round(float(zoom), 3)
+        cache = self.scaled_tile_cache.setdefault(zoom_key, {})
+        if tile_type not in cache:
+            if abs(zoom - 1.0) < 1e-3:
+                cache[tile_type] = base_sprite
+            else:
+                scaled_size = max(1, int(round(self.tile_size * zoom)))
+                cache[tile_type] = pygame.transform.scale(base_sprite, (scaled_size, scaled_size))
+        return cache[tile_type]
+
     def render(self, screen, camera):
         """Render visible portion of map"""
-        # Calculate which tiles are visible
-        start_x = max(0, int(camera.x) // self.tile_size)
-        start_y = max(0, int(camera.y) // self.tile_size)
-        end_x = min(self.width, (int(camera.x) + camera.screen_width) // self.tile_size + 2)
-        end_y = min(self.height, (int(camera.y) + camera.screen_height) // self.tile_size + 2)
+        world_view_width = camera.screen_width / camera.zoom
+        world_view_height = camera.screen_height / camera.zoom
+
+        start_x = max(0, int(camera.x // self.tile_size))
+        start_y = max(0, int(camera.y // self.tile_size))
+        end_x = min(self.width, int((camera.x + world_view_width) // self.tile_size) + 2)
+        end_y = min(self.height, int((camera.y + world_view_height) // self.tile_size) + 2)
         
-        # Render only visible tiles
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 tile = self.tiles[y][x]
                 if tile:
                     world_x, world_y = self.grid_to_world(x, y)
                     screen_x, screen_y = camera.apply(world_x, world_y)
-                    
-                    sprite = self.tile_sprites.get(tile['type'])
+
+                    sprite = self._get_scaled_tile_sprite(tile['type'], camera.zoom)
                     if sprite:
-                        screen.blit(sprite, (screen_x, screen_y))
+                        screen.blit(sprite, (int(screen_x), int(screen_y)))
 
 
 class DirectionalAnimator:
@@ -113,30 +144,48 @@ class DirectionalAnimator:
         self.sprite_definitions = sprite_definitions
         self.target_width = target_width
 
-        self.fallback_surface = self._load_and_scale(fallback_static)
+        self.fallback_surface = self._load_image(fallback_static)
         if self.fallback_surface is None:
             self.fallback_surface = pygame.Surface((self.target_width, self.target_width), pygame.SRCALPHA)
             self.fallback_surface.fill((255, 0, 255))
 
+        self.fallback_scaled = self._scale_to_target(self.fallback_surface)
+        if self.fallback_scaled is None:
+            self.fallback_scaled = self.fallback_surface.copy()
+
         self.frames = {}
+        self.source_frames = {}
         for direction in self.DIRECTIONS:
             config = self.sprite_definitions.get(direction, {})
-            static_surface = self._load_and_scale(config.get("static"))
+            source_static = self._load_image(config.get("static"))
+            static_surface = self._scale_to_target(source_static)
+            if source_static is None:
+                source_static = self.fallback_surface
             if static_surface is None:
-                static_surface = self.fallback_surface
+                static_surface = self.fallback_scaled
 
             move_frames = []
+            move_sources = []
             for filename in config.get("move", []):
-                frame = self._load_and_scale(filename)
+                source_frame = self._load_image(filename)
+                frame = self._scale_to_target(source_frame)
+                if source_frame:
+                    move_sources.append(source_frame)
                 if frame:
                     move_frames.append(frame)
 
             if not move_frames:
                 move_frames = [static_surface]
+            if not move_sources:
+                move_sources = [source_static]
 
             self.frames[direction] = {
                 "static": [static_surface],
                 "move": move_frames,
+            }
+            self.source_frames[direction] = {
+                "static": [source_static],
+                "move": move_sources,
             }
 
         self.current_direction = "front"
@@ -154,7 +203,7 @@ class DirectionalAnimator:
         frame = self.get_current_frame()
         return frame.get_width(), frame.get_height()
 
-    def _load_and_scale(self, filename):
+    def _load_image(self, filename):
         if not filename:
             return None
 
@@ -163,8 +212,12 @@ class DirectionalAnimator:
             return None
 
         try:
-            image = pygame.image.load(path).convert_alpha()
+            return pygame.image.load(path).convert_alpha()
         except pygame.error:
+            return None
+
+    def _scale_to_target(self, image):
+        if image is None:
             return None
 
         original_width, original_height = image.get_size()
@@ -201,6 +254,13 @@ class DirectionalAnimator:
     def get_current_frame(self):
         active_key = "move" if self.is_moving else "static"
         frames = self.frames[self.current_direction][active_key]
+        if not frames:
+            return self.fallback_scaled
+        return frames[self.current_frame_index % len(frames)]
+
+    def get_current_source_frame(self):
+        active_key = "move" if self.is_moving else "static"
+        frames = self.source_frames[self.current_direction][active_key]
         if not frames:
             return self.fallback_surface
         return frames[self.current_frame_index % len(frames)]
@@ -241,8 +301,10 @@ class Player:
         )
 
         self.sprite = self.animator.get_current_frame()
+        self.source_sprite = self.animator.get_current_source_frame()
         self.width = tile_size
         self.height = self.sprite.get_height()
+        self.scaled_sprite_cache = {}
         
         # Movement state
         self.vel_x = 0
@@ -274,6 +336,7 @@ class Player:
         direction = self._determine_direction(is_moving)
         self.animator.update(dt, direction, is_moving)
         self.sprite = self.animator.get_current_frame()
+        self.source_sprite = self.animator.get_current_source_frame()
         self.width = self.sprite.get_width()
         self.height = self.sprite.get_height()
 
@@ -319,10 +382,36 @@ class Player:
         
         return True
     
+    def _get_scaled_sprite(self, zoom):
+        zoom_key = round(float(zoom), 3)
+        cache = self.scaled_sprite_cache.setdefault(zoom_key, {})
+        base_frame = self.source_sprite or self.sprite
+        frame_id = id(base_frame)
+        if frame_id not in cache:
+            if abs(zoom - 1.0) < 1e-3:
+                cache[frame_id] = self.sprite
+            else:
+                source_width = base_frame.get_width()
+                source_height = base_frame.get_height()
+                if source_width <= 0 or source_height <= 0:
+                    cache[frame_id] = self.sprite
+                else:
+                    target_width = max(1, int(round(self.width * zoom)))
+                    target_height = max(1, int(round(self.height * zoom)))
+                    if target_width >= source_width or target_height >= source_height:
+                        cache[frame_id] = pygame.transform.scale(base_frame, (target_width, target_height))
+                    else:
+                        cache[frame_id] = pygame.transform.smoothscale(base_frame, (target_width, target_height))
+        return cache[frame_id]
+
+    def on_zoom_change(self):
+        self.scaled_sprite_cache.clear()
+    
     def render(self, screen, camera):
         """Render player"""
         screen_x, screen_y = camera.apply(self.x, self.y)
-        screen.blit(self.sprite, (int(screen_x), int(screen_y)))
+        sprite = self._get_scaled_sprite(camera.zoom)
+        screen.blit(sprite, (int(screen_x), int(screen_y)))
 
 class Game:
     """Main game class"""
@@ -338,6 +427,9 @@ class Game:
         
         # Initialize game objects
         self.camera = Camera(self.screen_width, self.screen_height)
+        self.zoom_levels = [1.0, 1.25, 1.5]
+        self.zoom_index = 0
+        self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         self.game_map = GameMap(50, 50, 32)  # 50x50 tile map
         self.player = Player(5 * 32, 5 * 32, 32)  # Start at grid position (5,5)
         
@@ -379,6 +471,8 @@ class Game:
                 self.keys_pressed.add(event.key)
             elif event.type == pygame.KEYUP:
                 self.keys_pressed.discard(event.key)
+            elif event.type == pygame.MOUSEWHEEL:
+                self.adjust_zoom(event.y)
         
         # Handle continuous movement based on currently pressed keys
         dx, dy = 0, 0
@@ -398,6 +492,25 @@ class Game:
             dy *= 0.707
         
         self.player.set_movement(dx, dy)
+
+    def adjust_zoom(self, wheel_delta):
+        """Adjust zoom level based on mouse wheel input."""
+        previous_index = self.zoom_index
+        if wheel_delta > 0:
+            self.zoom_index = min(self.zoom_index + 1, len(self.zoom_levels) - 1)
+        elif wheel_delta < 0:
+            self.zoom_index = max(self.zoom_index - 1, 0)
+
+        if self.zoom_index != previous_index:
+            new_zoom = self.zoom_levels[self.zoom_index]
+            self.camera.set_zoom(new_zoom)
+            self.player.on_zoom_change()
+            self.camera.update(
+                self.player.x + self.player.width / 2,
+                self.player.y + self.player.height / 2,
+                self.game_map.width * self.game_map.tile_size,
+                self.game_map.height * self.game_map.tile_size,
+            )
     
     def update(self):
         """Update game state"""
@@ -408,7 +521,8 @@ class Game:
         self.camera.update(
             self.player.x + self.player.width / 2,
             self.player.y + self.player.height / 2,
-            self.player.width
+            self.game_map.width * self.game_map.tile_size,
+            self.game_map.height * self.game_map.tile_size
         )  # Center on player
     
     def render(self):
