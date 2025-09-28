@@ -3,6 +3,7 @@ Demo File to test map rendering, player movement, and collision detection.
 """
 
 import os
+import random
 import pygame
 
 from src.config.constants import MAX_RECULCULATIONS_PER_SEC
@@ -55,6 +56,7 @@ class GameMap:
         self.tile_size = tile_size
         self.tiles = [[None for _ in range(width)] for _ in range(height)]
         self.scaled_tile_cache = {}
+        self.tree_images = []
         
         # Load tile sprites
         self.tile_sprites = {
@@ -63,20 +65,43 @@ class GameMap:
             'tree': pygame.Surface((tile_size, tile_size)),
             'path': pygame.Surface((tile_size, tile_size))
         }
+
+        tree_dir = os.path.join('assets', 'map_sprites', 'trees')
+        for i in range(1, 5):
+            tree_path = os.path.join(tree_dir, f'tree{i}.png')
+            if os.path.exists(tree_path):
+                try:
+                    self.tree_images.append(pygame.image.load(tree_path).convert_alpha())
+                except pygame.error:
+                    continue
         
         # Set default colors (replace with actual sprites later)
-        self.tile_sprites['grass'].fill((34, 139, 34))
+        grass_color = (34, 139, 34)
+        self.tile_sprites['grass'].fill(grass_color)
         self.tile_sprites['water'].fill((30, 144, 255))
-        self.tile_sprites['tree'].fill((0, 100, 0))
+        self.tile_sprites['tree'].fill(grass_color)
         self.tile_sprites['path'].fill((139, 69, 19))
     
-    def set_tile(self, x, y, tile_type, walkable=True):
+    def set_tile(self, x, y, tile_type, walkable=True, sprite_variant=None):
         """Set a tile at grid position"""
         if 0 <= x < self.width and 0 <= y < self.height:
-            self.tiles[y][x] = {
+            tile_data = {
                 'type': tile_type,
                 'walkable': walkable
             }
+
+            if tile_type == 'tree':
+                if self.tree_images:
+                    if sprite_variant is None:
+                        sprite_variant = random.randrange(len(self.tree_images))
+                    sprite_variant %= len(self.tree_images)
+                    tile_data['sprite_variant'] = sprite_variant
+                else:
+                    tile_data['sprite_variant'] = 0 if sprite_variant is None else sprite_variant
+            elif sprite_variant is not None:
+                tile_data['sprite_variant'] = sprite_variant
+
+            self.tiles[y][x] = tile_data
     
     def get_tile(self, x, y):
         """Get tile at grid position"""
@@ -97,20 +122,41 @@ class GameMap:
         """Convert grid coordinates to world pixel coordinates"""
         return grid_x * self.tile_size, grid_y * self.tile_size
     
-    def _get_scaled_tile_sprite(self, tile_type, zoom):
-        base_sprite = self.tile_sprites.get(tile_type)
+    def _get_scaled_tile_sprite(self, tile_type, zoom, variant=None):
+        base_sprite = None
+        variant_index = variant
+
+        if tile_type == 'tree' and self.tree_images:
+            if variant_index is None:
+                variant_index = 0
+            variant_index %= len(self.tree_images)
+            base_sprite = self.tree_images[variant_index]
+        else:
+            base_sprite = self.tile_sprites.get(tile_type)
+
         if base_sprite is None:
+            return None
+
+        base_width, base_height = base_sprite.get_width(), base_sprite.get_height()
+        if base_width <= 0 or base_height <= 0:
             return None
 
         zoom_key = round(float(zoom), 3)
         cache = self.scaled_tile_cache.setdefault(zoom_key, {})
-        if tile_type not in cache:
-            if abs(zoom - 1.0) < 1e-3:
-                cache[tile_type] = base_sprite
+        cache_key = (tile_type, variant_index)
+
+        if cache_key not in cache:
+            base_tile_width = self.tile_size * (3 if tile_type == 'tree' else 1)
+            target_width = max(1, int(round(base_tile_width * zoom)))
+            scale_ratio = target_width / float(base_width)
+            target_height = max(1, int(round(base_height * scale_ratio)))
+
+            if target_width >= base_width or target_height >= base_height:
+                cache[cache_key] = pygame.transform.scale(base_sprite, (target_width, target_height))
             else:
-                scaled_size = max(1, int(round(self.tile_size * zoom)))
-                cache[tile_type] = pygame.transform.scale(base_sprite, (scaled_size, scaled_size))
-        return cache[tile_type]
+                cache[cache_key] = pygame.transform.smoothscale(base_sprite, (target_width, target_height))
+
+        return cache.get(cache_key)
 
     def render(self, screen, camera):
         """Render visible portion of map"""
@@ -122,6 +168,8 @@ class GameMap:
         end_x = min(self.width, int((camera.x + world_view_width) // self.tile_size) + 2)
         end_y = min(self.height, int((camera.y + world_view_height) // self.tile_size) + 2)
         
+        tree_draw_queue = []
+
         for y in range(start_y, end_y):
             for x in range(start_x, end_x):
                 tile = self.tiles[y][x]
@@ -129,9 +177,27 @@ class GameMap:
                     world_x, world_y = self.grid_to_world(x, y)
                     screen_x, screen_y = camera.apply(world_x, world_y)
 
-                    sprite = self._get_scaled_tile_sprite(tile['type'], camera.zoom)
-                    if sprite:
-                        screen.blit(sprite, (int(screen_x), int(screen_y)))
+                    tile_type = tile['type']
+
+                    if tile_type == 'tree':
+                        base_sprite = self._get_scaled_tile_sprite('grass', camera.zoom)
+                        if base_sprite:
+                            screen.blit(base_sprite, (int(screen_x), int(screen_y)))
+
+                        sprite = self._get_scaled_tile_sprite(tile_type, camera.zoom, tile.get('sprite_variant'))
+                        if sprite:
+                            tile_screen_height = self.tile_size * camera.zoom
+                            tile_screen_width = self.tile_size * camera.zoom
+                            draw_x = int(screen_x - (sprite.get_width() - tile_screen_width) / 2)
+                            draw_y = int(screen_y + tile_screen_height - sprite.get_height())
+                            tree_draw_queue.append((sprite, draw_x, draw_y))
+                    else:
+                        sprite = self._get_scaled_tile_sprite(tile_type, camera.zoom, tile.get('sprite_variant'))
+                        if sprite:
+                            screen.blit(sprite, (int(screen_x), int(screen_y)))
+
+        for sprite, draw_x, draw_y in tree_draw_queue:
+            screen.blit(sprite, (draw_x, draw_y))
 
 
 class DirectionalAnimator:
@@ -453,7 +519,6 @@ class Game:
         
         # Add some trees
         for i in range(20):
-            import random
             x, y = random.randint(0, 49), random.randint(0, 49)
             if self.game_map.get_tile(x, y)['type'] == 'grass':
                 self.game_map.set_tile(x, y, 'tree', walkable=False)
