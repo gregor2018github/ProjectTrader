@@ -2,8 +2,10 @@
 Demo File to test map rendering, player movement, and collision detection.
 """
 
+import os
 import pygame
-import json
+
+from src.config.constants import MAX_RECULCULATIONS_PER_SEC
 
 class Tile:
     """Represents a single map tile"""
@@ -100,6 +102,109 @@ class GameMap:
                     if sprite:
                         screen.blit(sprite, (screen_x, screen_y))
 
+
+class DirectionalAnimator:
+    """Handles directional animations with sprite fallbacks."""
+
+    DIRECTIONS = ("front", "back", "left", "right")
+
+    def __init__(self, base_path, sprite_definitions, target_width, fallback_static):
+        self.base_path = base_path
+        self.sprite_definitions = sprite_definitions
+        self.target_width = target_width
+
+        self.fallback_surface = self._load_and_scale(fallback_static)
+        if self.fallback_surface is None:
+            self.fallback_surface = pygame.Surface((self.target_width, self.target_width), pygame.SRCALPHA)
+            self.fallback_surface.fill((255, 0, 255))
+
+        self.frames = {}
+        for direction in self.DIRECTIONS:
+            config = self.sprite_definitions.get(direction, {})
+            static_surface = self._load_and_scale(config.get("static"))
+            if static_surface is None:
+                static_surface = self.fallback_surface
+
+            move_frames = []
+            for filename in config.get("move", []):
+                frame = self._load_and_scale(filename)
+                if frame:
+                    move_frames.append(frame)
+
+            if not move_frames:
+                move_frames = [static_surface]
+
+            self.frames[direction] = {
+                "static": [static_surface],
+                "move": move_frames,
+            }
+
+        self.current_direction = "front"
+        self.is_moving = False
+        self.current_frame_index = 0
+        self.time_since_last_frame = 0.0
+
+        # Use the recalc constant as baseline and slow animation slightly for readability.
+        base_interval = 1.0 / max(1, MAX_RECULCULATIONS_PER_SEC)
+        # increase interval to make animation slower, for example base_interval * 2 is twice as base_interval * 1
+        self.frame_interval = max(base_interval * 8, 0.05)
+
+    @property
+    def current_frame_size(self):
+        frame = self.get_current_frame()
+        return frame.get_width(), frame.get_height()
+
+    def _load_and_scale(self, filename):
+        if not filename:
+            return None
+
+        path = os.path.join(self.base_path, filename)
+        if not os.path.exists(path):
+            return None
+
+        try:
+            image = pygame.image.load(path).convert_alpha()
+        except pygame.error:
+            return None
+
+        original_width, original_height = image.get_size()
+        if original_width <= 0 or original_height <= 0:
+            return None
+
+        scale_ratio = self.target_width / float(original_width)
+        scaled_height = max(1, int(round(original_height * scale_ratio)))
+        return pygame.transform.smoothscale(image, (self.target_width, scaled_height))
+
+    def update(self, dt, direction, is_moving):
+        if direction not in self.frames:
+            direction = "front"
+
+        if direction != self.current_direction or is_moving != self.is_moving:
+            self.current_direction = direction
+            self.is_moving = is_moving
+            self.current_frame_index = 0
+            self.time_since_last_frame = 0.0
+
+        self.time_since_last_frame += dt
+
+        active_key = "move" if self.is_moving else "static"
+        frames = self.frames[self.current_direction][active_key]
+
+        if len(frames) <= 1:
+            self.current_frame_index = 0
+            return
+
+        if self.time_since_last_frame >= self.frame_interval:
+            self.time_since_last_frame %= self.frame_interval
+            self.current_frame_index = (self.current_frame_index + 1) % len(frames)
+
+    def get_current_frame(self):
+        active_key = "move" if self.is_moving else "static"
+        frames = self.frames[self.current_direction][active_key]
+        if not frames:
+            return self.fallback_surface
+        return frames[self.current_frame_index % len(frames)]
+
 class Player:
     """Player character that moves around the map"""
     def __init__(self, x, y, tile_size=32):
@@ -107,19 +212,37 @@ class Player:
         self.y = y
         self.tile_size = tile_size
         self.speed = 140  # pixels per second
-        
-        # Load the player sprite from assets/map_sprites/player.png
-        self.sprite = pygame.image.load('assets/map_sprites/player.png').convert_alpha()
-        original_width, original_height = self.sprite.get_size()
-        if original_width == 0:
-            scale_height = tile_size
-        else:
-            scale_ratio = tile_size / original_width
-            scale_height = max(1, int(round(original_height * scale_ratio)))
 
+        sprite_dir = os.path.join('assets', 'map_sprites')
+        sprite_definitions = {
+            "front": {
+                "static": "player_front_static.png",
+                "move": ["player_front_move1.png", "player_front_move2.png"],
+            },
+            "back": {
+                "static": "player_back_static.png",
+                "move": ["player_back_move1.png", "player_back_move2.png"],
+            },
+            "left": {
+                "static": "player_left_static.png",
+                "move": ["player_left_move1.png", "player_left_move2.png"],
+            },
+            "right": {
+                "static": "player_right_static.png",
+                "move": ["player_right_move1.png", "player_right_move2.png"],
+            },
+        }
+
+        self.animator = DirectionalAnimator(
+            base_path=sprite_dir,
+            sprite_definitions=sprite_definitions,
+            target_width=tile_size,
+            fallback_static="player_front_static.png",
+        )
+
+        self.sprite = self.animator.get_current_frame()
         self.width = tile_size
-        self.height = scale_height
-        self.sprite = pygame.transform.smoothscale(self.sprite, (self.width, self.height))
+        self.height = self.sprite.get_height()
         
         # Movement state
         self.vel_x = 0
@@ -131,29 +254,40 @@ class Player:
         self.vel_y = dy
     
     def update(self, dt, game_map):
-        """Update player position with collision detection"""
-        if self.vel_x == 0 and self.vel_y == 0:
-            return
-        
-        # Calculate movement delta
-        move_x = self.vel_x * self.speed * dt
-        move_y = self.vel_y * self.speed * dt
-        
-        # Store original position
-        original_x = self.x
-        original_y = self.y
-        
-        # Try moving horizontally first
-        if move_x != 0:
-            new_x = self.x + move_x
-            if self.can_move_to(new_x, self.y, game_map):
-                self.x = new_x
-        
-        # Try moving vertically
-        if move_y != 0:
-            new_y = self.y + move_y
-            if self.can_move_to(self.x, new_y, game_map):
-                self.y = new_y
+        """Update player position with collision detection and animation."""
+        is_moving = self.vel_x != 0 or self.vel_y != 0
+
+        if is_moving:
+            move_x = self.vel_x * self.speed * dt
+            move_y = self.vel_y * self.speed * dt
+
+            if move_x != 0:
+                new_x = self.x + move_x
+                if self.can_move_to(new_x, self.y, game_map):
+                    self.x = new_x
+
+            if move_y != 0:
+                new_y = self.y + move_y
+                if self.can_move_to(self.x, new_y, game_map):
+                    self.y = new_y
+
+        direction = self._determine_direction(is_moving)
+        self.animator.update(dt, direction, is_moving)
+        self.sprite = self.animator.get_current_frame()
+        self.width = self.sprite.get_width()
+        self.height = self.sprite.get_height()
+
+    def _determine_direction(self, is_moving):
+        if is_moving:
+            if self.vel_y > 0:
+                return "front"
+            if self.vel_y < 0:
+                return "back"
+            if self.vel_x < 0:
+                return "left"
+            if self.vel_x > 0:
+                return "right"
+        return self.animator.current_direction
     
     def can_move_to(self, x, y, game_map):
         """Check if player can move to the given position"""
@@ -194,8 +328,8 @@ class Game:
     """Main game class"""
     def __init__(self):
         pygame.init()
-        self.screen_width = 1000
-        self.screen_height = 800
+        self.screen_width = 1400
+        self.screen_height = 1000
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))
         pygame.display.set_caption("Map Demo")
         
