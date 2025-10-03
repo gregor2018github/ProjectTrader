@@ -343,11 +343,11 @@ class Player:
         sprite_definitions = {
             "front": {
                 "static": "player_front_static.png",
-                "move": ["player_front_move1.png", "player_front_move2.png"],
+                "move": ["player_front_move1.png", "player_front_move2.png", "player_front_move3.png"]
             },
             "back": {
                 "static": "player_back_static.png",
-                "move": ["player_back_move1.png", "player_back_move2.png"],
+                "move": ["player_back_move1.png", "player_back_move2.png", "player_back_move3.png", "player_back_move4.png"],
             },
             "left": {
                 "static": "player_left_static.png",
