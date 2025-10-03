@@ -67,7 +67,7 @@ class GameMap:
         }
 
         tree_dir = os.path.join('assets', 'map_sprites', 'trees')
-        for i in range(1, 5):
+        for i in range(1, 12):  # Assume tree1.png to tree11.png
             tree_path = os.path.join(tree_dir, f'tree{i}.png')
             if os.path.exists(tree_path):
                 try:
