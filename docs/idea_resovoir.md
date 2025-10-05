@@ -1,4 +1,9 @@
 - Pokemon like map system where the player walks to places, enters buildings, and interacts with NPCs
+    - trees can grow in clusters of similar types (requeires multiple tree sprites per type)
+    - use tile to create map
+    - add base tiles like grass, road, water, etc
+    - buildings can be entered (shop, house, warehouse, guild, etc)
+    - inner views of buildings
 - player warehouse capacity (player can only hold so many items in their warehouse)
 - a pictogram main menu on the right side of the screen
     - to pictogram menu items next to each other, you can click them on both sides to decide if it opens right or left or double sided

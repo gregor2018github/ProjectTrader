@@ -6,7 +6,7 @@ import os
 import random
 import pygame
 
-from src.config.constants import MAX_RECULCULATIONS_PER_SEC
+from src.config.constants import MAX_RECULCULATIONS_PER_SEC, TILE_SIZE, PLAYER_SPEED
 
 class Tile:
     """Represents a single map tile"""
@@ -50,7 +50,7 @@ class Camera:
 
 class GameMap:
     """Main map class that handles rendering and collision"""
-    def __init__(self, width, height, tile_size=32):
+    def __init__(self, width, height, tile_size=TILE_SIZE):
         self.width = width  # in tiles
         self.height = height  # in tiles
         self.tile_size = tile_size
@@ -333,11 +333,11 @@ class DirectionalAnimator:
 
 class Player:
     """Player character that moves around the map"""
-    def __init__(self, x, y, tile_size=32):
+    def __init__(self, x, y, tile_size=TILE_SIZE):
         self.x = x  # world coordinates (float for smooth movement)
         self.y = y
         self.tile_size = tile_size
-        self.speed = 140  # pixels per second
+        self.speed = PLAYER_SPEED * TILE_SIZE / 32  # pixels per second
 
         sprite_dir = os.path.join('assets', 'map_sprites')
         sprite_definitions = {
@@ -493,11 +493,11 @@ class Game:
         
         # Initialize game objects
         self.camera = Camera(self.screen_width, self.screen_height)
-        self.zoom_levels = [1.0, 1.25, 1.5]
-        self.zoom_index = 0
+        self.zoom_levels = [0.75, 1.0, 1.25, 1.5, 1.75]
+        self.zoom_index = 1
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
-        self.game_map = GameMap(50, 50, 32)  # 50x50 tile map
-        self.player = Player(5 * 32, 5 * 32, 32)  # Start at grid position (5,5)
+        self.game_map = GameMap(50, 50, TILE_SIZE)  # 50x50 tile map
+        self.player = Player(5 * TILE_SIZE, 5 * TILE_SIZE, TILE_SIZE)  # Start at grid position (5,5)
         
         # Input handling
         self.keys_pressed = set()

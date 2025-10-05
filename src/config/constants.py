@@ -4,3 +4,5 @@ MAIN_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__f
 PICTURES_PATH = os.path.join(MAIN_PATH, "assets", "pictures")
 FONTS_PATH = os.path.join(MAIN_PATH, "assets", "fonts")
 MAX_RECULCULATIONS_PER_SEC = 60
+TILE_SIZE = 32
+PLAYER_SPEED = 120  # pixels per second
