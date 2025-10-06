@@ -1,17 +1,17 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Finish the depot view detail window
-- [ ] 
+- [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
+- [ ] Integrate the map
 - [ ] 
 
 ## In Progress
 - [ ] Market events
-- [ ] 
+- [ ] Finish the depot view detail window
 - [ ] 
 
 ## Planned Features
-- [ ] Map
+- [ ] 
 - [ ] Price influenced by Supply and Demand
 - [ ] Town Simulation
 
