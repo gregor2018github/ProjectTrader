@@ -497,6 +497,15 @@ class Game:
                     self.zoom_index = max(0, self.zoom_index - 1)
                     self.camera.set_zoom(self.zoom_levels[self.zoom_index])
                     self.player.on_zoom_change()
+            
+            elif event.type == pygame.MOUSEWHEEL:
+                if event.y > 0:
+                    self.zoom_index = min(len(self.zoom_levels) - 1, self.zoom_index + 1)
+                elif event.y < 0:
+                    self.zoom_index = max(0, self.zoom_index - 1)
+                
+                self.camera.set_zoom(self.zoom_levels[self.zoom_index])
+                self.player.on_zoom_change()
         
         # Continuous keyboard input for movement
         keys = pygame.key.get_pressed()
