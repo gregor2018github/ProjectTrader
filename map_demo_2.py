@@ -48,10 +48,38 @@ class TMXMap:
         self.height = self.tmx_data.height
         self.tile_size = self.tmx_data.tilewidth
         self.scaled_tile_cache = {}
+        self.tree_images = []
+        self.trees = []  # List of (x, y, variant) in grid coordinates
         
+        # Load tree sprites
+        tree_dir = os.path.join('assets', 'map_sprites', 'trees')
+        for i in range(1, 12):
+            tree_path = os.path.join(tree_dir, f'tree{i}.png')
+            if os.path.exists(tree_path):
+                try:
+                    self.tree_images.append(pygame.image.load(tree_path).convert_alpha())
+                except pygame.error:
+                    continue
+
+    def place_random_trees(self, count=50):
+        """Randomly place trees on the map"""
+        self.trees = []
+        for _ in range(count):
+            tx = random.randint(0, self.width - 1)
+            ty = random.randint(0, self.height - 1)
+            # Only place on walkable tiles (assuming grass is walkable)
+            if self.is_walkable(tx, ty):
+                variant = random.randrange(len(self.tree_images)) if self.tree_images else 0
+                self.trees.append({'x': tx, 'y': ty, 'variant': variant})
+
     def is_walkable(self, x, y):
         """Check if tile is walkable. For now, assume all tiles are walkable unless they have a 'collidable' property."""
         if 0 <= x < self.width and 0 <= y < self.height:
+            # Check if there's a tree here
+            for tree in self.trees:
+                if tree['x'] == x and tree['y'] == y:
+                    return False
+
             # Check all layers for a collidable property
             for layer_idx, layer in enumerate(self.tmx_data.visible_layers):
                 if isinstance(layer, pytmx.TiledTileLayer):
@@ -86,8 +114,31 @@ class TMXMap:
                 cache[gid] = None
         return cache[gid]
 
-    def render(self, screen, camera):
-        """Render visible portion of map"""
+    def _get_scaled_tree(self, variant, zoom):
+        if not self.tree_images:
+            return None
+        
+        zoom_key = round(float(zoom), 3)
+        cache = self.scaled_tile_cache.setdefault(zoom_key, {})
+        cache_key = f"tree_{variant}"
+        
+        if cache_key not in cache:
+            image = self.tree_images[variant % len(self.tree_images)]
+            # Trees in map_demo were 3x tile size wide
+            base_tile_width = self.tile_size * 3
+            target_width = max(1, int(round(base_tile_width * zoom)))
+            scale_ratio = target_width / float(image.get_width())
+            target_height = max(1, int(round(image.get_height() * scale_ratio)))
+            
+            if target_width >= image.get_width() or target_height >= image.get_height():
+                cache[cache_key] = pygame.transform.scale(image, (target_width, target_height))
+            else:
+                cache[cache_key] = pygame.transform.smoothscale(image, (target_width, target_height))
+        
+        return cache[cache_key]
+
+    def render_layers(self, screen, camera):
+        """Render base TMX layers"""
         world_view_width = camera.screen_width / camera.zoom
         world_view_height = camera.screen_height / camera.zoom
 
@@ -109,6 +160,24 @@ class TMXMap:
                                 # Tiled aligns tiles to the bottom-left of the grid cell
                                 screen_y -= (tile_image.get_height() - self.tile_size * camera.zoom)
                                 screen.blit(tile_image, (int(screen_x), int(screen_y)))
+
+    def get_visible_trees(self, camera):
+        """Get trees that are currently visible in the camera view"""
+        world_view_width = camera.screen_width / camera.zoom
+        world_view_height = camera.screen_height / camera.zoom
+        
+        # Add some padding for large tree sprites
+        padding = 5 
+        start_x = int(camera.x // self.tile_size) - padding
+        start_y = int(camera.y // self.tile_size) - padding
+        end_x = int((camera.x + world_view_width) // self.tile_size) + padding
+        end_y = int((camera.y + world_view_height) // self.tile_size) + padding
+        
+        visible = []
+        for tree in self.trees:
+            if start_x <= tree['x'] <= end_x and start_y <= tree['y'] <= end_y:
+                visible.append(tree)
+        return visible
 
 class DirectionalAnimator:
     """Handles directional animations with sprite fallbacks."""
@@ -407,6 +476,7 @@ class Game:
         
         tmx_path = os.path.join('assets', 'tiles', 'grassmap.tmx')
         self.game_map = TMXMap(tmx_path)
+        self.game_map.place_random_trees(30)
         
         # Start player at a reasonable position
         self.player = Player(10 * self.game_map.tile_size, 10 * self.game_map.tile_size, self.game_map.tile_size)
@@ -461,10 +531,49 @@ class Game:
     
     def render(self):
         self.screen.fill((0, 0, 0))
-        self.game_map.render(self.screen, self.camera)
-        self.player.render(self.screen, self.camera)
         
-        # Draw UI info
+        # 1. Render base map layers
+        self.game_map.render_layers(self.screen, self.camera)
+        
+        # 2. Collect all objects to be Y-sorted
+        render_queue = []
+        
+        # Add visible trees to queue
+        visible_trees = self.game_map.get_visible_trees(self.camera)
+        for tree in visible_trees:
+            sprite = self.game_map._get_scaled_tree(tree['variant'], self.camera.zoom)
+            if sprite:
+                world_x, world_y = self.game_map.grid_to_world(tree['x'], tree['y'])
+                screen_x, screen_y = self.camera.apply(world_x, world_y)
+                
+                # Align tree bottom to tile bottom
+                tile_screen_height = self.game_map.tile_size * self.camera.zoom
+                tile_screen_width = self.game_map.tile_size * self.camera.zoom
+                draw_x = int(screen_x - (sprite.get_width() - tile_screen_width) / 2)
+                draw_y = int(screen_y + tile_screen_height - sprite.get_height())
+                
+                # Y-sort by the bottom of the tile (where the trunk is)
+                render_queue.append({
+                    'sprite': sprite,
+                    'pos': (draw_x, draw_y),
+                    'y_sort': world_y + self.game_map.tile_size
+                })
+        
+        # Add player to queue
+        player_sprite = self.player._get_scaled_sprite(self.camera.zoom)
+        player_screen_x, player_screen_y = self.camera.apply(self.player.x, self.player.y)
+        render_queue.append({
+            'sprite': player_sprite,
+            'pos': (int(player_screen_x), int(player_screen_y)),
+            'y_sort': self.player.y + self.player.height # Use world Y of player bottom
+        })
+        
+        # 3. Sort by Y and render
+        render_queue.sort(key=lambda obj: obj['y_sort'])
+        for obj in render_queue:
+            self.screen.blit(obj['sprite'], obj['pos'])
+        
+        # 4. Draw UI info
         font = pygame.font.SysFont(None, 24)
         zoom_text = font.render(f"Zoom: {self.camera.zoom:.2f} (Use +/- to change)", True, (255, 255, 255))
         pos_text = font.render(f"Player: ({int(self.player.x)}, {int(self.player.y)})", True, (255, 255, 255))
