@@ -76,20 +76,26 @@ class DepotViewDetail:
         # empty line
         self.cached_stats["Wealth Today"].append("")
         
-        # Add breakdown for each good that has quantity > 0
+        # Add breakdown for each good that has quantity > 0, sorted by total value
+        goods_with_value = []
         for good in goods:
             qty = depot.stock_history.get(good.name, [0])[-1]
             if qty > 0:
                 price = good.price_history_daily[-1]
                 value = qty * price
-                
-                # Add good name as a heading without value
-                self.cached_stats["Wealth Today"].append(f"{good.name}")
-                # Add indented details
-                self.cached_stats["Wealth Today"].append(f"      Units: {qty:,}")
-                self.cached_stats["Wealth Today"].append(f"      Unit Value: {price:,.2f}")
-                self.cached_stats["Wealth Today"].append(f"      Total Value: {value:,.2f}")
-                self.cached_stats["Wealth Today"].append("__SEPARATOR__")
+                goods_with_value.append((good, qty, price, value))
+        
+        # Sort by value descending
+        goods_with_value.sort(key=lambda x: x[3], reverse=True)
+        
+        for good, qty, price, value in goods_with_value:
+            # Add good name as a heading without value
+            self.cached_stats["Wealth Today"].append(f"{good.name}")
+            # Add indented details
+            self.cached_stats["Wealth Today"].append(f"      Units: {qty:,}")
+            self.cached_stats["Wealth Today"].append(f"      Unit Value: {price:,.2f}")
+            self.cached_stats["Wealth Today"].append(f"      Total Value: {value:,.2f}")
+            self.cached_stats["Wealth Today"].append("__SEPARATOR__")
     
     def _update_wealth_start(self, depot, goods, time_frame):
         """Update just the "Wealth Start" statistics based on selected time frame"""
@@ -166,7 +172,8 @@ class DepotViewDetail:
         self.cached_stats["Wealth Start"].append("__SEPARATOR__")
         self.cached_stats["Wealth Start"].append("")
         
-        # Show goods at start of period
+        # Show goods at start of period, sorted by total value
+        goods_with_value = []
         for good in goods:
             good_name = good.name
             qty = start_goods.get(good_name, 0)
@@ -175,11 +182,17 @@ class DepotViewDetail:
             total_value = qty * price
             
             if qty > 0 or time_frame == "Total":  # Show all goods for Total view
-                self.cached_stats["Wealth Start"].append(f"{good_name}")
-                self.cached_stats["Wealth Start"].append(f"      Units: {qty:,}")
-                self.cached_stats["Wealth Start"].append(f"      Unit Value: {price:,.2f}")
-                self.cached_stats["Wealth Start"].append(f"      Total Value: {total_value:,.2f}")
-                self.cached_stats["Wealth Start"].append("__SEPARATOR__")
+                goods_with_value.append((good_name, qty, price, total_value))
+        
+        # Sort by total value descending
+        goods_with_value.sort(key=lambda x: x[3], reverse=True)
+        
+        for good_name, qty, price, total_value in goods_with_value:
+            self.cached_stats["Wealth Start"].append(f"{good_name}")
+            self.cached_stats["Wealth Start"].append(f"      Units: {qty:,}")
+            self.cached_stats["Wealth Start"].append(f"      Unit Value: {price:,.2f}")
+            self.cached_stats["Wealth Start"].append(f"      Total Value: {total_value:,.2f}")
+            self.cached_stats["Wealth Start"].append("__SEPARATOR__")
     
     def draw(self, screen, font):
         if self.visible:
