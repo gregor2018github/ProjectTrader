@@ -15,13 +15,18 @@ class DepotViewDetail:
         # Add cache for wealth statistics
         self.cached_stats = {
             "Wealth Today": [],
-            "Wealth Start": []
+            "Wealth Start": [],
+            "Buy Actions": [],
+            "Sell Actions": [],
+            "Total Actions": []
         }
         self.last_update_date = None
         self.last_time_frame = None  # Track the last time frame to detect changes
         # Add separate flags to track when each statistic was last updated
         self.last_today_update_date = None
         self.last_start_update_date = None
+        self.last_trade_actions_update_date = None
+        self.last_trade_actions_count = 0
 
     def toggle(self):
         self.visible = not self.visible
@@ -50,6 +55,15 @@ class DepotViewDetail:
             self.last_start_update_date = current_date
             self.last_time_frame = current_time_frame
         
+        # Update Trade Actions if time frame changed, day changed, trade count changed, or forced
+        current_trade_count = len(depot.trades)
+        if (force or self.last_trade_actions_update_date != current_date or 
+            self.last_time_frame != current_time_frame or 
+            self.last_trade_actions_count != current_trade_count):
+            self._update_trade_actions(depot, goods, current_time_frame)
+            self.last_trade_actions_update_date = current_date
+            self.last_trade_actions_count = current_trade_count
+
         # Update last update timestamp for general statistics
         self.last_update_date = current_date
     
@@ -197,7 +211,90 @@ class DepotViewDetail:
             self.cached_stats["Wealth Start"].append(f"      Unit Value: {price:,.2f}")
             self.cached_stats["Wealth Start"].append(f"      Total Value: {total_value:,.2f}")
             self.cached_stats["Wealth Start"].append("__SEPARATOR__")
-    
+    def _update_trade_actions(self, depot, goods, time_frame):
+        """Update Buy, Sell, and Total Actions statistics based on selected time frame"""
+        # Determine period days
+        if time_frame == "Daily":
+            period_days = 1
+        elif time_frame == "Weekly":
+            period_days = 7
+        elif time_frame == "Monthly":
+            period_days = 30
+        elif time_frame == "Yearly":
+            period_days = 365
+        else:  # "Total"
+            period_days = None
+
+        # Filter trades by time frame
+        if period_days is not None:
+            delta = datetime.timedelta(days=period_days)
+            start_date = self.game_state.date - delta
+            filtered_trades = [t for t in depot.trades if t["timestamp"] >= start_date]
+        else:
+            filtered_trades = depot.trades
+
+        # Process Buy, Sell, and Total
+        for action_type in ["Buy Actions", "Sell Actions", "Total Actions"]:
+            self.cached_stats[action_type] = []
+            
+            if action_type == "Buy Actions":
+                type_filter = "purchase"
+            elif action_type == "Sell Actions":
+                type_filter = "sale"
+            else:
+                type_filter = None
+
+            trades = [t for t in filtered_trades if type_filter is None or t["type"] == type_filter]
+            
+            # Aggregate by good
+            good_stats = {}
+            total_volume = 0
+            total_units = 0
+            volume_bought = 0
+            volume_sold = 0
+            units_bought = 0
+            units_sold = 0
+            
+            for t in trades:
+                name = t["good"]
+                if name not in good_stats:
+                    good_stats[name] = {"units": 0, "total_value": 0}
+                good_stats[name]["units"] += t["quantity"]
+                good_stats[name]["total_value"] += t["total"]
+                total_volume += t["total"]
+                total_units += t["quantity"]
+                
+                if action_type == "Total Actions":
+                    if t["type"] == "purchase":
+                        volume_bought += t["total"]
+                        units_bought += t["quantity"]
+                    else:
+                        volume_sold += t["total"]
+                        units_sold += t["quantity"]
+
+            # Add summary
+            self.cached_stats[action_type].append(f"Total Volume: {total_volume:,.2f}")
+            self.cached_stats[action_type].append(f"Total Units: {total_units:,}")
+            
+            if action_type == "Total Actions":
+                self.cached_stats[action_type].append(f"Volume Bought: {volume_bought:,.2f}")
+                self.cached_stats[action_type].append(f"Volume Sold: {volume_sold:,.2f}")
+                self.cached_stats[action_type].append(f"Units Bought: {units_bought:,}")
+                self.cached_stats[action_type].append(f"Units Sold: {units_sold:,}")
+                
+            self.cached_stats[action_type].append("__SEPARATOR__")
+            self.cached_stats[action_type].append("")
+
+            # Sort goods by total value descending
+            sorted_goods = sorted(good_stats.items(), key=lambda x: x[1]["total_value"], reverse=True)
+
+            for name, stats in sorted_goods:
+                avg_price = stats["total_value"] / stats["units"] if stats["units"] > 0 else 0
+                self.cached_stats[action_type].append(f"{name}")
+                self.cached_stats[action_type].append(f"      Units: {stats['units']:,}")
+                self.cached_stats[action_type].append(f"      Avg Price: {avg_price:,.2f}")
+                self.cached_stats[action_type].append(f"      Total Value: {stats['total_value']:,.2f}")
+                self.cached_stats[action_type].append("__SEPARATOR__")    
     def draw(self, screen, font):
         if self.visible:
             # Update statistics if needed
@@ -236,30 +333,6 @@ class DepotViewDetail:
             lines = []
             if self.current_statistic in self.cached_stats:
                 lines = self.cached_stats[self.current_statistic]
-            elif self.current_statistic == "Buy Actions":
-                lines.extend([
-                    "Recent purchases:",
-                    "  Wood: 24 units",
-                    "  Iron: 12 units",
-                    "  Beer: 8 units",
-                    "  Total spent: 132.00"
-                ])
-            elif self.current_statistic == "Sell Actions":
-                lines.extend([
-                    "Recent sales:",
-                    "  Wood: 14 units",
-                    "  Iron: 8 units",
-                    "  Beer: 4 units",
-                    "  Total earned: 178.00"
-                ])
-            elif self.current_statistic == "Total Actions":
-                lines.extend([
-                    "All transactions:",
-                    "  Purchases: 44 units",
-                    "  Sales: 26 units",
-                    "  Net profit: 46.00",
-                    "  Average margin: 18.4%"
-                ])
             else:
                 lines.extend([
                     "Income: 1,240.00",
