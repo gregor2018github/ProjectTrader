@@ -9,6 +9,8 @@ class DepotViewDetail:
         self.visible = False
         self.current_statistic = None
         self.game_state = game_state
+        self.scroll_offset = 0
+        self.max_scroll = 0
         
         # Add cache for wealth statistics
         self.cached_stats = {
@@ -25,6 +27,8 @@ class DepotViewDetail:
         self.visible = not self.visible
 
     def show_for_statistic(self, statistic_label):
+        if self.current_statistic != statistic_label:
+            self.scroll_offset = 0
         self.current_statistic = statistic_label
         self.visible = True
 
@@ -213,7 +217,14 @@ class DepotViewDetail:
             title = font.render(title_text, True, BLACK)
             screen.blit(title, (self.rect.x + 20, self.rect.y + 20))
             
-            y_pos = self.rect.y + 60
+            # Define the scrollable area (reserving space for scrollbar)
+            scroll_area = pygame.Rect(self.rect.x, self.rect.y + 60, self.rect.width - 15, self.rect.height - 80)
+            
+            # Set clipping to the scroll area
+            old_clip = screen.get_clip()
+            screen.set_clip(scroll_area)
+            
+            y_pos = self.rect.y + 60 - self.scroll_offset
             line_height = 24
             
             # Get good icons from game instance
@@ -263,7 +274,7 @@ class DepotViewDetail:
                     # Draw separator line
                     pygame.draw.line(screen, PALE_BROWN, 
                                     (self.rect.x + 20, y_pos-5), 
-                                    (self.rect.x + self.rect.width - 20, y_pos-5), 1)
+                                    (self.rect.x + self.rect.width - 35, y_pos-5), 1)
                     continue  # Skip rendering this line
                 
                 # Calculate indentation level (number of spaces at beginning)
@@ -297,11 +308,29 @@ class DepotViewDetail:
                     label_surf = small_font.render(label_part, True, BLACK)
                     value_surf = small_font.render(value_part, True, BLACK)
                     screen.blit(label_surf, (self.rect.x + 20 + indent_pixels, y_pos))
-                    screen.blit(value_surf, (self.rect.x + 200, y_pos))
+                    screen.blit(value_surf, (self.rect.x + 180, y_pos))
                 else:
                     text = small_font.render(display_line, True, BLACK)
                     screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))
                 y_pos += line_height
             
             # add a visual closing as the last line to the content
-            pygame.draw.line(screen, DARK_BROWN, (self.rect.x + 20, y_pos+10), (self.rect.x + self.rect.width - 20, y_pos+10), 2)
+            pygame.draw.line(screen, DARK_BROWN, (self.rect.x + 20, y_pos+10), (self.rect.x + self.rect.width - 35, y_pos+10), 2)
+            
+            # Calculate max scroll
+            content_height = (y_pos + self.scroll_offset + 20) - (self.rect.y + 60)
+            self.max_scroll = max(0, content_height - scroll_area.height)
+            
+            # Reset clipping
+            screen.set_clip(old_clip)
+            
+            # Draw scrollbar if needed
+            if self.max_scroll > 0:
+                scrollbar_rect = pygame.Rect(self.rect.right - 12, self.rect.y + 60, 8, self.rect.height - 80)
+                pygame.draw.rect(screen, PALE_BROWN, scrollbar_rect)
+                
+                # Calculate handle height and position
+                handle_height = max(20, scrollbar_rect.height * (scrollbar_rect.height / content_height))
+                handle_y = scrollbar_rect.y + (self.scroll_offset / self.max_scroll) * (scrollbar_rect.height - handle_height)
+                handle_rect = pygame.Rect(scrollbar_rect.x, handle_y, scrollbar_rect.width, handle_height)
+                pygame.draw.rect(screen, DARK_BROWN, handle_rect)

@@ -37,14 +37,21 @@ class EventHandler:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)
                 
         elif event.type == pygame.MOUSEWHEEL:
-            screen = game_state.screen
-            width = screen.get_width() // 2 - 42
-            height = screen.get_height() - 120
-            x = screen.get_width() - width
-            y = 60
-            depot_rect = pygame.Rect(x, y, width, height)
-            if depot_rect.collidepoint(pygame.mouse.get_pos()):
-                scroll_speed = 20
-                game_state.depot_scroll_offset = getattr(game_state, "depot_scroll_offset", 0) - event.y * scroll_speed
+            mouse_pos = pygame.mouse.get_pos()
+            scroll_speed = 20
+            
+            # Check if detail panel is visible and mouse is over it
+            if hasattr(game_state, "detail_panel") and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
+                game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))
+            else:
+                # Otherwise check depot view
+                screen = game_state.screen
+                width = screen.get_width() // 2 - 42
+                height = screen.get_height() - 120
+                x = screen.get_width() - width
+                y = 60
+                depot_rect = pygame.Rect(x, y, width, height)
+                if depot_rect.collidepoint(mouse_pos):
+                    game_state.depot_scroll_offset = getattr(game_state, "depot_scroll_offset", 0) - event.y * scroll_speed
 
         return self.running
