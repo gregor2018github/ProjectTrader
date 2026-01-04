@@ -16,6 +16,7 @@ class DepotViewDetail:
         self.cached_stats = {
             "Wealth Today": [],
             "Wealth Start": [],
+            "Total Stock": [],
             "Buy Actions": [],
             "Sell Actions": [],
             "Total Actions": []
@@ -25,6 +26,7 @@ class DepotViewDetail:
         # Add separate flags to track when each statistic was last updated
         self.last_today_update_date = None
         self.last_start_update_date = None
+        self.last_total_stock_update_date = None
         self.last_trade_actions_update_date = None
         self.last_trade_actions_count = 0
 
@@ -54,6 +56,11 @@ class DepotViewDetail:
             self._update_wealth_start(depot, goods, current_time_frame)
             self.last_start_update_date = current_date
             self.last_time_frame = current_time_frame
+        
+        # Update "Total Stock" only if day changed or forced
+        if force or self.last_total_stock_update_date != current_date:
+            self._update_total_stock(depot, goods)
+            self.last_total_stock_update_date = current_date
         
         # Update Trade Actions if time frame changed, day changed, trade count changed, or forced
         current_trade_count = len(depot.trades)
@@ -114,6 +121,38 @@ class DepotViewDetail:
             self.cached_stats["Wealth Today"].append(f"      Unit Value: {price:,.2f}")
             self.cached_stats["Wealth Today"].append(f"      Total Value: {value:,.2f}")
             self.cached_stats["Wealth Today"].append("__SEPARATOR__")
+    
+    def _update_total_stock(self, depot, goods):
+        """Update just the "Total Stock" statistics"""
+        self.cached_stats["Total Stock"] = []
+        
+        # Get current total units from the last daily record
+        total_units = depot.total_stock[-1]
+        self.cached_stats["Total Stock"].append(f"Total Units: {total_units:,}")
+        self.cached_stats["Total Stock"].append("__SEPARATOR__")
+        self.cached_stats["Total Stock"].append("")
+        
+        # Add breakdown for each good that has quantity > 0, sorted by units
+        goods_with_stock = []
+        for good in goods:
+            # Get the last recorded quantity from stock_history for this good
+            qty = depot.stock_history.get(good.name, [0])[-1]
+            if qty > 0:
+                price = good.price_history_daily[-1]
+                value = qty * price
+                goods_with_stock.append((good, qty, price, value))
+        
+        # Sort by units descending (as requested)
+        goods_with_stock.sort(key=lambda x: x[1], reverse=True)
+        
+        for good, qty, price, value in goods_with_stock:
+            # Add good name as a heading
+            self.cached_stats["Total Stock"].append(f"{good.name}")
+            # Add indented details
+            self.cached_stats["Total Stock"].append(f"      Units: {qty:,}")
+            self.cached_stats["Total Stock"].append(f"      Unit Value: {price:,.2f}")
+            self.cached_stats["Total Stock"].append(f"      Total Value: {value:,.2f}")
+            self.cached_stats["Total Stock"].append("__SEPARATOR__")
     
     def _update_wealth_start(self, depot, goods, time_frame):
         """Update just the "Wealth Start" statistics based on selected time frame"""

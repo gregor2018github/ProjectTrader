@@ -186,7 +186,7 @@ def draw_depot_view(screen, font, depot, game_state):
             pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
             pygame.draw.rect(surf, BEIGE, row_separator)
         
-        labels_without_button = ["Wealth Today", "Wealth Start", "Buy Actions", "Sell Actions", "Total Actions"]
+        labels_without_button = ["Wealth Today", "Wealth Start", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
         if label in labels_without_button:
             # Create a more visible button instead of just the text
             button_size = 16
