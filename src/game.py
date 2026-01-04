@@ -13,7 +13,7 @@ from .ui.menu import Menu
 from .ui.time_control import TimeControl
 from .ui.sound_control import SoundControl  # Add import for SoundControl
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 
 class Game:
     def __init__(self):
@@ -48,7 +48,7 @@ class Game:
         self.goods = self._initialize_goods()
         
         # Initialize depot
-        self.depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST)
+        self.depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
 
         # Initialize player
         self.player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)

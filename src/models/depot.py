@@ -1,10 +1,12 @@
 class Depot:
-    def __init__(self, money, transaction_cost):
+    def __init__(self, money, transaction_cost, storage_capacity):
 
         # CURRENT STATE
 
         self.money = money                          # current money
         self.transaction_cost = transaction_cost    # cost per transaction
+        self.storage_capacity = storage_capacity    # maximum storage capacity
+        self.warehouse_count = 1                    # number of warehouses owned (by default 1)
         self.good_stock = {                         # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
@@ -72,6 +74,12 @@ class Depot:
         if self.money < total_cost + self.transaction_cost:
             game_state.show_warning("Not enough money.")
             return False
+
+        current_total_stock = sum(self.good_stock.values())
+        if current_total_stock + quantity_to_buy > self.storage_capacity:
+            game_state.show_warning("Not enough storage capacity.")
+            return False
+
         if good.get_quantity() < quantity_to_buy:
             game_state.show_warning("Market cannot fulfill the order.")
             return False

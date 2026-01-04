@@ -148,7 +148,7 @@ def draw_depot_view(screen, font, depot, game_state):
         ("Expenses", f"{current_expense:.2f}"),
         ("Profit", f"{wealth_change:.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
-        ("Total Stock", f"{sum(depot.good_stock.values())}")
+        ("Total Stock", f"{sum(depot.good_stock.values())} / {depot.storage_capacity}")
     ]
     
     trade_action_stats = [

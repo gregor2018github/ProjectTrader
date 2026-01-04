@@ -10,11 +10,12 @@ FONTS_PATH = os.path.join(MAIN_PATH, "assets", "fonts")
 
 MAX_RECULCULATIONS_PER_SEC = 60
 TILE_SIZE = 32
-PLAYER_SPEED = 120  # pixels per second
+PLAYER_SPEED = 120                  # pixels per second
 MAX_FRAMES_PER_SEC = 60
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
-INITIAL_DAILY_COST_OF_LIVING = 2  # Initial daily cost of living for the player
-STARTING_MONEY = 100  # Starting money for the player
-INITIAL_TRANSACTION_COST = 2  # Cost per transaction at the market
+INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
+STARTING_MONEY = 100                # Starting money for the player
+INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
+INITIAL_STORAGE_CAPACITY = 100      # how many items the player can store at the start
