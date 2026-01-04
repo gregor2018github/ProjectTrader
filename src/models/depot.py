@@ -26,6 +26,7 @@ class Depot:
         }
         self.expenditures = 0                       # current expenditures
         self.income = 0                             # current income
+        self.transaction_expenditures = 0           # current transaction expenditures
 
         # BOOKKEEPING
 
@@ -38,6 +39,7 @@ class Depot:
         self.trades = []                            # trade tracking for bookkeeping
         self.expenditure_history = [0]              # expenditures tracking for bookkeeping
         self.income_history = [0]                   # income tracking for bookkeeping
+        self.transaction_expenditure_history = [0]  # transaction expenditures tracking for bookkeeping
         # FIFO queue to track purchased goods with their prices
         self.purchase_history = {good_name: [] for good_name in self.good_stock}
 
@@ -67,16 +69,17 @@ class Depot:
         """Buy a quantity of a good from market to depot"""
         total_cost = good.get_price() * quantity_to_buy
         
-        if self.money < total_cost:
+        if self.money < total_cost + self.transaction_cost:
             game_state.show_warning("Not enough money.")
             return False
         if good.get_quantity() < quantity_to_buy:
             game_state.show_warning("Market cannot fulfill the order.")
             return False
 
-        self.money -= total_cost
+        self.money -= (total_cost + self.transaction_cost)
         self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
-        self.expenditures += total_cost
+        self.expenditures += (total_cost + self.transaction_cost)
+        self.transaction_expenditures += self.transaction_cost
         
         # Store purchase in FIFO queue with timestamp, price, and quantity
         self.purchase_history[good.name].append({
@@ -101,9 +104,16 @@ class Depot:
 
         current_sale_price = good.get_price()
         total_revenue = current_sale_price * quantity_to_sell
-        self.money += total_revenue
+        
+        if self.money + total_revenue < self.transaction_cost:
+            game_state.show_warning("Not enough money to cover transaction costs.")
+            return False
+
+        self.money += (total_revenue - self.transaction_cost)
         self.good_stock[good.name] -= quantity_to_sell
         self.income += total_revenue
+        self.expenditures += self.transaction_cost
+        self.transaction_expenditures += self.transaction_cost
         remaining_to_sell = quantity_to_sell
         total_cost_of_goods_sold = 0
         purchase_entries = self.purchase_history[good.name]
@@ -202,8 +212,10 @@ class Depot:
         """Update the income and expenditures for the current day"""
         self.income_history.append(self.income)
         self.expenditure_history.append(self.expenditures)
+        self.transaction_expenditure_history.append(self.transaction_expenditures)
         self.income = 0
         self.expenditures = 0
+        self.transaction_expenditures = 0
     
     def update_total_stock(self):
         """Update the total stock value"""
