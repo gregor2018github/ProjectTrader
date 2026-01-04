@@ -23,6 +23,8 @@ class DepotViewDetail:
         }
         self.last_update_date = None
         self.last_time_frame = None  # Track the last time frame to detect changes
+        self.last_hour = None        # Track the last hour to detect price changes
+        self.last_money = None       # Track the last money to detect trade changes
         # Add separate flags to track when each statistic was last updated
         self.last_today_update_date = None
         self.last_start_update_date = None
@@ -42,12 +44,15 @@ class DepotViewDetail:
     def update_statistics(self, force=False):
         """Update cached statistics if day has changed, time frame has changed, or force is True"""
         current_date = self.game_state.date.date()
+        current_hour = self.game_state.date.hour
         current_time_frame = self.game_state.depot_time_frame
         depot = self.game_state.game.depot
         goods = self.game_state.game.goods
+        current_money = depot.money
         
-        # Update "Wealth Today" only if day changed or forced
-        if force or self.last_today_update_date != current_date:
+        # Update "Wealth Today" if day changed, hour changed, money changed, or forced
+        if (force or self.last_today_update_date != current_date or 
+            self.last_hour != current_hour or self.last_money != current_money):
             self._update_wealth_today(depot, goods)
             self.last_today_update_date = current_date
         
@@ -57,8 +62,9 @@ class DepotViewDetail:
             self.last_start_update_date = current_date
             self.last_time_frame = current_time_frame
         
-        # Update "Total Stock" only if day changed or forced
-        if force or self.last_total_stock_update_date != current_date:
+        # Update "Total Stock" if day changed, hour changed, money changed, or forced
+        if (force or self.last_total_stock_update_date != current_date or 
+            self.last_hour != current_hour or self.last_money != current_money):
             self._update_total_stock(depot, goods)
             self.last_total_stock_update_date = current_date
         
@@ -71,28 +77,28 @@ class DepotViewDetail:
             self.last_trade_actions_update_date = current_date
             self.last_trade_actions_count = current_trade_count
 
-        # Update last update timestamp for general statistics
+        # Update tracking variables
         self.last_update_date = current_date
+        self.last_hour = current_hour
+        self.last_money = current_money
     
     def _update_wealth_today(self, depot, goods):
         """Update just the "Wealth Today" statistics"""
-        # Calculate total goods value for Wealth Today, must come from the last daily records, not the very recent ones
-        # base data is last qty of depot.stock_history and last price of good.price_history_daily
+        # Calculate total goods value for Wealth Today using current prices and stock
         total_goods_value = 0
         for good in goods:
-            # Get the last recorded quantity from stock_history for this good
-            qty = depot.stock_history.get(good.name, [0])[-1]
-            price = good.price_history_daily[-1]
+            qty = depot.good_stock.get(good.name, 0)
+            price = good.price
             total_goods_value += qty * price
             
         # Cache "Wealth Today" statistics
         self.cached_stats["Wealth Today"] = []
         
         # Add summary totals at the top
-        total_wealth = depot.wealth[-1]
+        total_wealth = depot.money + total_goods_value
         self.cached_stats["Wealth Today"].append(f"Total: {total_wealth:,.2f}")
         self.cached_stats["Wealth Today"].append("__SEPARATOR__")
-        self.cached_stats["Wealth Today"].append(f"Money: {depot.money_history[-1]:,.2f}")
+        self.cached_stats["Wealth Today"].append(f"Money: {depot.money:,.2f}")
         self.cached_stats["Wealth Today"].append(f"Goods: {total_goods_value:,.2f}")
         # place holders for future statistics
         self.cached_stats["Wealth Today"].append("Property: 0.00")
@@ -104,9 +110,9 @@ class DepotViewDetail:
         # Add breakdown for each good that has quantity > 0, sorted by total value
         goods_with_value = []
         for good in goods:
-            qty = depot.stock_history.get(good.name, [0])[-1]
+            qty = depot.good_stock.get(good.name, 0)
             if qty > 0:
-                price = good.price_history_daily[-1]
+                price = good.price
                 value = qty * price
                 goods_with_value.append((good, qty, price, value))
         
@@ -126,8 +132,8 @@ class DepotViewDetail:
         """Update just the "Total Stock" statistics"""
         self.cached_stats["Total Stock"] = []
         
-        # Get current total units from the last daily record
-        total_units = depot.total_stock[-1]
+        # Get current total units
+        total_units = sum(depot.good_stock.values())
         self.cached_stats["Total Stock"].append(f"Total Units: {total_units:,}")
         self.cached_stats["Total Stock"].append("__SEPARATOR__")
         self.cached_stats["Total Stock"].append("")
@@ -135,10 +141,9 @@ class DepotViewDetail:
         # Add breakdown for each good that has quantity > 0, sorted by units
         goods_with_stock = []
         for good in goods:
-            # Get the last recorded quantity from stock_history for this good
-            qty = depot.stock_history.get(good.name, [0])[-1]
+            qty = depot.good_stock.get(good.name, 0)
             if qty > 0:
-                price = good.price_history_daily[-1]
+                price = good.price
                 value = qty * price
                 goods_with_stock.append((good, qty, price, value))
         

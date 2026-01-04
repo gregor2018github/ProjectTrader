@@ -102,25 +102,34 @@ def draw_depot_view(screen, font, depot, game_state):
     else:  # "Total"
         period_days = None
 
-    # Calculate wealth statistics based on time frame
-    current_wealth = depot.wealth[-1]
-    if period_days is not None and len(depot.wealth) > period_days:
-        start_wealth = depot.wealth[-(period_days+1)]
-        start_income = depot.income_history[-(period_days+1)]
-        start_expense = depot.expenditure_history[-(period_days+1)]
+    # Calculate live wealth and start wealth based on time frame
+    live_goods_value = sum(depot.good_stock.get(g.name, 0) * g.price for g in game_state.game.goods)
+    current_wealth = depot.money + live_goods_value
+    
+    if period_days is not None:
+        # For Daily (period_days=1), start_wealth is yesterday's closing wealth (depot.wealth[-1])
+        if len(depot.wealth) >= period_days:
+            start_wealth = depot.wealth[-period_days]
+        else:
+            start_wealth = depot.wealth[0]
     else:
         start_wealth = depot.wealth[0]
-        start_income = depot.income_history[0]
-        start_expense = depot.expenditure_history[0]
+        
     wealth_change = current_wealth - start_wealth
 
-    # calculate the income for the given period, we need to take the last n days of the income and expenses list and sum them up
-    if period_days is not None and len(depot.income_history) > period_days:
-        current_income = sum(depot.income_history[-period_days:])
-        current_expense = sum(depot.expenditure_history[-period_days:])
+    # Calculate live income and expenses for the period
+    if period_days is not None:
+        # num_history_days is the number of completed days to include
+        num_history_days = period_days - 1
+        if num_history_days > 0:
+            current_income = sum(depot.income_history[-num_history_days:]) + depot.income
+            current_expense = sum(depot.expenditure_history[-num_history_days:]) + depot.expenditures
+        else:
+            current_income = depot.income
+            current_expense = depot.expenditures
     else:
-        current_income = sum(depot.income_history)
-        current_expense = sum(depot.expenditure_history)
+        current_income = sum(depot.income_history) + depot.income
+        current_expense = sum(depot.expenditure_history) + depot.expenditures
 
     # Filter trades by time frame for trade action stats
     if period_days is not None:
@@ -139,7 +148,7 @@ def draw_depot_view(screen, font, depot, game_state):
         ("Expenses", f"{current_expense:.2f}"),
         ("Profit", f"{wealth_change:.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
-        ("Total Stock", f"{depot.total_stock[-1]}")
+        ("Total Stock", f"{sum(depot.good_stock.values())}")
     ]
     
     trade_action_stats = [
