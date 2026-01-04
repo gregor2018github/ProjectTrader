@@ -13,10 +13,7 @@ from .ui.depot_view import draw_depot_view
 from .ui.menu import Menu
 from .ui.time_control import TimeControl
 from .ui.sound_control import SoundControl  # Add import for SoundControl
-
-# CONSTANTS
-MAX_FRAMES_PER_SEC = 60
-STARTING_MONEY = 100
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC
 
 class Game:
     def __init__(self):
@@ -54,7 +51,7 @@ class Game:
         self.depot = Depot(money=STARTING_MONEY)
 
         # Initialize player
-        self.player = Player(name="New Player", cost_of_living=2)
+        self.player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
         
         # Load images
         self.images = self._load_images()
