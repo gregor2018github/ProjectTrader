@@ -1,19 +1,25 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Player has only a limited amount of storage space
+
+- [ ] Always start depot view with "Wealth Today" open. Also rename it as "Current Wealth"
 - [ ] Integrate the map system into the main game loop
 - [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
 
 ## Medium Priority
 - [ ] Add a side menu panel with pictogram buttons
+- [ ] Add vertical bars to the chart which will indicate day changes
+- [ ] Reorganize the top bar so that all products get separated by the money and also get a bar - only possible when Menu button goes to the right
 - [ ] Market events
 
 ## Planned Features
 - [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Bank Menu 
+- [ ] give the player 8 instead of 4 movement directions (diagonals)
+- [ ] sound effects for walking
+- [ ] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
@@ -26,5 +32,7 @@
 
 
 Finished Features
+- [x] Storage availability must become visible in the top menu bar
+- [x] Player has only a limited amount of storage space
 - [x] Transaction costs for buying and selling goods
 - [x] Finish the depot view detail window

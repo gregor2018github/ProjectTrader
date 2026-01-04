@@ -2,9 +2,9 @@ import pygame
 from ..config.colors import *
 from .dropdown import Dropdown
 
-def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, money_50, goods_images_30, game_state):
+def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, money_50, goods_images_30, stock_30, warehouses_30, game_state):
     _draw_background(screen)
-    _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, game_state)
+    _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
@@ -12,7 +12,7 @@ def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_
 def _draw_background(screen):
     screen.fill(BEIGE)
 
-def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, game_state):
+def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state):
     top_bar = pygame.Rect(0, 0, screen.get_width(), 60)
     pygame.draw.rect(screen, LIGHT_GRAY, top_bar)
     pygame.draw.rect(screen, DARK_GRAY, top_bar, 2)
@@ -44,6 +44,20 @@ def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30
         text = main_font.render(f"{good_name}: {round(main_depot.good_stock[good_name], 2)}", True, BLACK)
         screen.blit(text, (start_x + (i * spacing), 35))
         screen.blit(goods_images_30[good_name], (start_x + (i * spacing) - 35, 29))
+
+    # Separator bar
+    pygame.draw.line(screen, DARK_GRAY, (1230, 5), (1230, 55), 2)
+    
+    # Warehouses counter
+    screen.blit(warehouses_30, (1240, 5))
+    warehouses_text = main_font.render(f"Warehouses: {main_depot.warehouse_count}", True, BLACK)
+    screen.blit(warehouses_text, (1275, 10))
+    
+    # Total Stock counter
+    screen.blit(stock_30, (1240, 30))
+    total_stock = sum(main_depot.good_stock.values())
+    stock_text = main_font.render(f"Total Stock: {total_stock}", True, BLACK)
+    screen.blit(stock_text, (1275, 35))
 
 def _draw_middle_section(screen):
     left_middle = pygame.Rect(0, 60, int(screen.get_width()/2), screen.get_height()-60)

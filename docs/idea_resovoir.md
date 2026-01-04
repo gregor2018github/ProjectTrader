@@ -1,3 +1,5 @@
+HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
+
 - Pokemon like map system where the player walks to places, enters buildings, and interacts with NPCs
     - trees can grow in clusters of similar types (requeires multiple tree sprites per type)
     - use tile to create map

@@ -122,8 +122,15 @@ class Game:
 
     def _load_images(self):
         images = {'goods_30': {}}
-        # Load money icon
+        # Load bigger images for general stats
         images['money_50'] = pygame.image.load(os.path.join(PICTURES_PATH, "money_50.png"))
+        images['stock_1024'] = pygame.image.load(os.path.join(PICTURES_PATH, "total_stock_full.png"))
+        images['warehouses_1024'] = pygame.image.load(os.path.join(PICTURES_PATH, "warehouses_full.png"))
+        
+        # Downscale the 1024x1024 images to 30x30 for the top bar
+        images['stock_30'] = pygame.transform.smoothscale(images['stock_1024'], (30, 30))
+        images['warehouses_30'] = pygame.transform.smoothscale(images['warehouses_1024'], (30, 30))
+
         
         # Load buttons for time settings
         images['button_start_stop_150'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_start_stop_150.png"))
@@ -228,7 +235,8 @@ class Game:
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                 self.state.date, self.state.input_fields, 
                                 self.state.mouse_clicked_on, self.images['money_50'], 
-                                self.images['goods_30'], self.state)
+                                self.images['goods_30'], self.images['stock_30'], 
+                                self.images['warehouses_30'], self.state)
                 
             # Draw chart
             self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
