@@ -12,6 +12,11 @@
         - bird flocks in highest zoom stage
         - animation for idle main character
 
+- Game must be savable and loadable
+    - all game state must be serializable (player data, depot data, market data, city data, time data, etc)
+    - implement save/load menu
+    - autosave feature
+
 - player warehouse capacity (player can only hold so many items in their warehouse)
 - warehouses can be upgraded to hold more items
 - a pictogram main menu on the right side of the screen
