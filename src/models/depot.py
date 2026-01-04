@@ -1,16 +1,17 @@
 class Depot:
-    def __init__(self, money):
+    def __init__(self, money, transaction_cost):
 
         # CURRENT STATE
 
-        self.money = money              # current money
-        self.good_stock = {             # current stock of goods
+        self.money = money                          # current money
+        self.transaction_cost = transaction_cost    # cost per transaction
+        self.good_stock = {                         # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
             "Wheat": 0, "Wine": 0, "Beer": 0,
             "Meat": 0, "Linen": 0, "Pottery": 0,
         }
-        self.properties = {             # current properties
+        self.properties = {                         # current properties
             "warehouses": [],
             "workshops": [],
             "farms": [],
@@ -23,29 +24,29 @@ class Depot:
             "town_halls": [],
             "houses": []
         }
-        self.expenditures = 0           # current expenditures
-        self.income = 0                 # current income
+        self.expenditures = 0                       # current expenditures
+        self.income = 0                             # current income
 
         # BOOKKEEPING
 
-        self.wealth = [money]           # wealth tracking for bookkeeping
-        self.money_history = [money]    # money tracking for bookkeeping
-        self.total_stock = [0]          # total stock tracking for bookkeeping
-        self.stock_history = {          # stock tracking for bookkeeping
+        self.wealth = [money]                       # wealth tracking for bookkeeping
+        self.money_history = [money]                # money tracking for bookkeeping
+        self.total_stock = [0]                      # total stock tracking for bookkeeping
+        self.stock_history = {                      # stock tracking for bookkeeping
             good_name: [0] for good_name in self.good_stock
         }
-        self.trades = []                # trade tracking for bookkeeping
-        self.expenditure_history = [0]    # expenditures tracking for bookkeeping
-        self.income_history = [0]        # income tracking for bookkeeping
+        self.trades = []                            # trade tracking for bookkeeping
+        self.expenditure_history = [0]              # expenditures tracking for bookkeeping
+        self.income_history = [0]                   # income tracking for bookkeeping
         # FIFO queue to track purchased goods with their prices
         self.purchase_history = {good_name: [] for good_name in self.good_stock}
 
         # Add trade cycle tracking
         self.trade_cycles = {
-            "total": 0,  # Total number of completed trade cycles
-            "successful": 0,  # Number of profitable trade cycles
-            "total_profit": 0,  # Cumulative profit from all trade cycles
-            "by_good": {},  # Statistics broken down by good
+            "total": 0,                             # Total number of completed trade cycles
+            "successful": 0,                        # Number of profitable trade cycles
+            "total_profit": 0,                      # Cumulative profit from all trade cycles
+            "by_good": {},                          # Statistics broken down by good
         }
         
         # Initialize trade cycle tracking for each good

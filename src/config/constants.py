@@ -17,4 +17,4 @@ MAX_FRAMES_PER_SEC = 60
 
 INITIAL_DAILY_COST_OF_LIVING = 2  # Initial daily cost of living for the player
 STARTING_MONEY = 100  # Starting money for the player
-TRANSACTION_COST = 2  # Cost per transaction at the market
+INITIAL_TRANSACTION_COST = 2  # Cost per transaction at the market
