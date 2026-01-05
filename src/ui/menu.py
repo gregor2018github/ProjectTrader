@@ -11,7 +11,7 @@ class Menu:
         self.button_width = 100
         self.button_height = 40
         self.button_rect = pygame.Rect(
-            screen_width - self.button_width - 10,  # 10px from right edge
+            screen_width - self.button_width - 5,  # 5px from right edge
             10,  # 10px from top
             self.button_width,
             self.button_height

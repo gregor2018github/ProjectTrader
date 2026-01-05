@@ -12,7 +12,7 @@ from .ui.depot_view import draw_depot_view
 from .ui.menu import Menu
 from .ui.time_control import TimeControl
 from .ui.sound_control import SoundControl  # Add import for SoundControl
-from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC
+from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 
 class Game:
@@ -23,7 +23,7 @@ class Game:
         pygame.mixer.init()
         
         # Initialize screen first
-        self.screen = pygame.display.set_mode((1536, 864))
+        self.screen = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))
         
         # Initialize basic components
         self.state = GameState()
@@ -85,7 +85,7 @@ class Game:
         }
         
         self.time_control = TimeControl(
-            self.screen.get_width(), 
+            SCREEN_WIDTH, 
             self.screen.get_height(), 
             self.font,
             time_control_images
@@ -93,7 +93,7 @@ class Game:
         
         # Initialize sound control
         self.sound_control = SoundControl(
-            self.screen.get_width(),
+            SCREEN_WIDTH,
             self.screen.get_height(),
             self.font,
             self.images['button_sound_80']

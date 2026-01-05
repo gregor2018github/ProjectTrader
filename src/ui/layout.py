@@ -1,19 +1,21 @@
 import pygame
 from ..config.colors import *
 from .dropdown import Dropdown
+from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
 def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, money_50, goods_images_30, stock_30, warehouses_30, game_state):
     _draw_background(screen)
     _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
+    _draw_right_bar(screen)
     return buttons
 
 def _draw_background(screen):
     screen.fill(BEIGE)
 
 def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state):
-    top_bar = pygame.Rect(0, 0, screen.get_width(), 60)
+    top_bar = pygame.Rect(0, 0, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, top_bar)
     pygame.draw.rect(screen, DARK_GRAY, top_bar, 2)
     
@@ -26,9 +28,12 @@ def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30
     # Date display
     date_text = main_font.render(date.strftime("%d.%m.%Y | %H o'clock"), True, DARK_BROWN)
     screen.blit(date_text, (70, 35))
+
+    # Separator bar
+    pygame.draw.line(screen, DARK_GRAY, (306, 5), (306, 55), 2)
     
     # Goods inventory display
-    start_x = 310
+    start_x = 360
     spacing = 160
     
     # Upper row goods
@@ -46,26 +51,26 @@ def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30
         screen.blit(goods_images_30[good_name], (start_x + (i * spacing) - 35, 29))
 
     # Separator bar
-    pygame.draw.line(screen, DARK_GRAY, (1230, 5), (1230, 55), 2)
+    pygame.draw.line(screen, DARK_GRAY, (1310, 5), (1310, 55), 2)
     
     # Warehouses counter
-    screen.blit(warehouses_30, (1240, 5))
+    screen.blit(warehouses_30, (1330, 5))
     warehouses_text = main_font.render(f"Warehouses: {main_depot.warehouse_count}", True, BLACK)
-    screen.blit(warehouses_text, (1275, 10))
+    screen.blit(warehouses_text, (1365, 10))
     
     # Total Stock counter
-    screen.blit(stock_30, (1240, 30))
+    screen.blit(stock_30, (1330, 30))
     total_stock = sum(main_depot.good_stock.values())
     stock_text = main_font.render(f"Total Stock: {total_stock}", True, BLACK)
-    screen.blit(stock_text, (1275, 35))
+    screen.blit(stock_text, (1365, 35))
 
 def _draw_middle_section(screen):
-    left_middle = pygame.Rect(0, 60, int(screen.get_width()/2), screen.get_height()-60)
+    left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT-60)
     pygame.draw.rect(screen, SANDY_BROWN, left_middle)
     pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
 
 def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state):
-    bottom_bar = pygame.Rect(0, screen.get_height()-60, screen.get_width(), 60)
+    bottom_bar = pygame.Rect(0, SCREEN_HEIGHT-60, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, bottom_bar)
     pygame.draw.rect(screen, DARK_GRAY, bottom_bar, 2)
     
@@ -106,10 +111,10 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
     ]
     
     for section, x_start, buy_key, sell_key in sections:
-        good_rect = pygame.Rect(x_start, screen.get_height() - 56, 150, 25)
-        qty_rect = pygame.Rect(x_start, screen.get_height() - 29, 150, 25)
-        buy_rect = pygame.Rect(x_start + 170, screen.get_height() - 45, 80, 30)
-        sell_rect = pygame.Rect(x_start + 270, screen.get_height() - 45, 80, 30)
+        good_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 56, 150, 25)
+        qty_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 29, 150, 25)
+        buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
+        sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
         
         # Store button rectangles
         buttons[f'good_{section}'] = good_rect
@@ -120,7 +125,7 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         # Create dropdown if it doesn't exist (but don't draw it)
         if f'dropdown_{section}' not in game_state.dropdowns:
             game_state.dropdowns[f'dropdown_{section}'] = Dropdown(
-                x_start, screen.get_height() - 56, 150, 25,
+                x_start, SCREEN_HEIGHT - 56, 150, 25,
                 game_state.available_goods, main_font
             )
         
@@ -201,3 +206,8 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         screen.blit(sell_text, (sell_rect.centerx - sell_text.get_width()//2, sell_rect.centery - sell_text.get_height()//2))
         
     return buttons
+
+def _draw_right_bar(screen):
+    right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
+    pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
+    pygame.draw.rect(screen, DARK_GRAY, right_bar, 1)

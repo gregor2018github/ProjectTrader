@@ -1,9 +1,10 @@
 import pygame
 from ..config.colors import *
+from ..config.constants import SCREEN_WIDTH
 
 def draw_chart(screen, main_font, chart_border, goods, goods_images_30):
     # determine max chart size based on screen size
-    max_chart_size = round((int(screen.get_width() / 2) - (chart_border[0] * 2)), 0)
+    max_chart_size = round((int(SCREEN_WIDTH / 2) - (chart_border[0] * 2)), 0)
     max_chart_height = screen.get_height() - (chart_border[1] * 2) - 70
 
     # Draw basic chart structure

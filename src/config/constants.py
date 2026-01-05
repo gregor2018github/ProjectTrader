@@ -8,6 +8,9 @@ FONTS_PATH = os.path.join(MAIN_PATH, "assets", "fonts")
 
 # SIMULATION CONSTANTS
 
+SCREEN_WIDTH = 1536
+SCREEN_HEIGHT = 864
+SIDEBAR_WIDTH = 110
 MAX_RECULCULATIONS_PER_SEC = 60
 TILE_SIZE = 32
 PLAYER_SPEED = 120                  # pixels per second

@@ -1,12 +1,13 @@
 import pygame
 import datetime
 from ..config.colors import *
+from ..config.constants import SCREEN_WIDTH
 
 def draw_depot_view(screen, font, depot, game_state):
     # Calculate dimensions
-    width = screen.get_width() // 2 - 42
+    width = SCREEN_WIDTH // 2 - 42
     height = screen.get_height() - 120
-    x = screen.get_width() - width
+    x = SCREEN_WIDTH - width
     y = 60
     
     # Draw depot container
