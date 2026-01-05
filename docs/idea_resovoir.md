@@ -13,6 +13,18 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
         - smoke from chimneys
         - bird flocks in highest zoom stage
         - animation for idle main character
+    - Shadows
+        - static for trees and buildings
+        - traveling for NPCs and player
+    - Sheeps that can stand on the meadow and have eating and walking animations
+    - a field of wheat that can be scaled as needed
+
+- have a pub where you can eat fancy food 
+    - you might get temporary buffs (like better prices, more storage space, faster movement, etc)
+    - menu will change daily with real medieval recipes
+
+- at the end of the year you will receive income tax and property tax statements that you have to pay
+    - if you don't pay them on time you get fined or worse
 
 - Game must be savable and loadable
     - all game state must be serializable (player data, depot data, market data, city data, time data, etc)
@@ -32,7 +44,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - a real city in the background
     - update statistics daily/weekly/monthly to not overload the system
     - the city must grow!
-- being able to save your game
+
 - dynamic economy based on supply and demand
     - base demand is determined by the population of the city
     - low prices increase demand, high prices decrease demand
@@ -44,9 +56,11 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - good deterioration 
     - bad warehouses will deteriorate and lose items over time
     - breakins can occur if the warehouse is not secure enough, player home can be the same
+
 - trading licences 
     - player can only trade certain items after buying a licence from the guild
     - can be linked to money, reputation, quests, completion of previous licences, etc.
+
 - building system - player can build houses, shops, warehouses, etc -> thus shape the town themselves
 
 - when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)

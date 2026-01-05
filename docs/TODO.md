@@ -1,14 +1,16 @@
 # Project Trader TODOs
 
 ## High Priority
+- [ ] give x and y coordinates to the player instance
 - [ ] Integrate the map system into the main game loop
+- [ ] Add a free license at github 
 - [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
 
 ## Medium Priority
 - [ ] Add a side menu panel with pictogram buttons
+- [ ] Add a readme file to the project including gifs/screenshots
 - [ ] Add vertical bars to the chart which will indicate day changes
-- [ ] Reorganize the top bar so that all products get separated by the money and also get a bar - only possible when Menu button goes to the right
 - [ ] Market events
 
 ## Planned Features
@@ -30,6 +32,8 @@
 
 
 Finished Features
+- [x] Shift menu button to the right (extension of the existing space)
+- [x] Reorganize the top bar so that all products get separated by the money with a vertical stripe - only possible when Menu button goes to the right
 - [x] Always start depot view with "Wealth Today" open. Also rename it as "Current Wealth"
 - [x] Storage availability must become visible in the top menu bar
 - [x] Player has only a limited amount of storage space
