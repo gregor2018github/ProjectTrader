@@ -1,8 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-
-- [ ] Always start depot view with "Wealth Today" open. Also rename it as "Current Wealth"
 - [ ] Integrate the map system into the main game loop
 - [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
@@ -32,6 +30,7 @@
 
 
 Finished Features
+- [x] Always start depot view with "Wealth Today" open. Also rename it as "Current Wealth"
 - [x] Storage availability must become visible in the top menu bar
 - [x] Player has only a limited amount of storage space
 - [x] Transaction costs for buying and selling goods

@@ -14,7 +14,7 @@ class DepotViewDetail:
         
         # Add cache for wealth statistics
         self.cached_stats = {
-            "Wealth Today": [],
+            "Current Wealth": [],
             "Wealth Start": [],
             "Total Stock": [],
             "Buy Actions": [],
@@ -50,10 +50,10 @@ class DepotViewDetail:
         goods = self.game_state.game.goods
         current_money = depot.money
         
-        # Update "Wealth Today" if day changed, hour changed, money changed, or forced
+        # Update "Current Wealth" if day changed, hour changed, money changed, or forced
         if (force or self.last_today_update_date != current_date or 
             self.last_hour != current_hour or self.last_money != current_money):
-            self._update_wealth_today(depot, goods)
+            self._update_current_wealth(depot, goods)
             self.last_today_update_date = current_date
         
         # Update "Wealth Start" if time frame changed, day changed, or forced
@@ -82,30 +82,30 @@ class DepotViewDetail:
         self.last_hour = current_hour
         self.last_money = current_money
     
-    def _update_wealth_today(self, depot, goods):
-        """Update just the "Wealth Today" statistics"""
-        # Calculate total goods value for Wealth Today using current prices and stock
+    def _update_current_wealth(self, depot, goods):
+        """Update just the "Current Wealth" statistics"""
+        # Calculate total goods value for Current Wealth using current prices and stock
         total_goods_value = 0
         for good in goods:
             qty = depot.good_stock.get(good.name, 0)
             price = good.price
             total_goods_value += qty * price
             
-        # Cache "Wealth Today" statistics
-        self.cached_stats["Wealth Today"] = []
+        # Cache "Current Wealth" statistics
+        self.cached_stats["Current Wealth"] = []
         
         # Add summary totals at the top
         total_wealth = depot.money + total_goods_value
-        self.cached_stats["Wealth Today"].append(f"Total: {total_wealth:,.2f}")
-        self.cached_stats["Wealth Today"].append("__SEPARATOR__")
-        self.cached_stats["Wealth Today"].append(f"Money: {depot.money:,.2f}")
-        self.cached_stats["Wealth Today"].append(f"Goods: {total_goods_value:,.2f}")
+        self.cached_stats["Current Wealth"].append(f"Total: {total_wealth:,.2f}")
+        self.cached_stats["Current Wealth"].append("__SEPARATOR__")
+        self.cached_stats["Current Wealth"].append(f"Money: {depot.money:,.2f}")
+        self.cached_stats["Current Wealth"].append(f"Goods: {total_goods_value:,.2f}")
         # place holders for future statistics
-        self.cached_stats["Wealth Today"].append("Property: 0.00")
-        self.cached_stats["Wealth Today"].append("Loans: 0.00")
-        self.cached_stats["Wealth Today"].append("__SEPARATOR__")
+        self.cached_stats["Current Wealth"].append("Property: 0.00")
+        self.cached_stats["Current Wealth"].append("Loans: 0.00")
+        self.cached_stats["Current Wealth"].append("__SEPARATOR__")
         # empty line
-        self.cached_stats["Wealth Today"].append("")
+        self.cached_stats["Current Wealth"].append("")
         
         # Add breakdown for each good that has quantity > 0, sorted by total value
         goods_with_value = []
@@ -121,12 +121,12 @@ class DepotViewDetail:
         
         for good, qty, price, value in goods_with_value:
             # Add good name as a heading without value
-            self.cached_stats["Wealth Today"].append(f"{good.name}")
+            self.cached_stats["Current Wealth"].append(f"{good.name}")
             # Add indented details
-            self.cached_stats["Wealth Today"].append(f"      Units: {qty:,}")
-            self.cached_stats["Wealth Today"].append(f"      Unit Value: {price:,.2f}")
-            self.cached_stats["Wealth Today"].append(f"      Total Value: {value:,.2f}")
-            self.cached_stats["Wealth Today"].append("__SEPARATOR__")
+            self.cached_stats["Current Wealth"].append(f"      Units: {qty:,}")
+            self.cached_stats["Current Wealth"].append(f"      Unit Value: {price:,.2f}")
+            self.cached_stats["Current Wealth"].append(f"      Total Value: {value:,.2f}")
+            self.cached_stats["Current Wealth"].append("__SEPARATOR__")
     
     def _update_total_stock(self, depot, goods):
         """Update just the "Total Stock" statistics"""

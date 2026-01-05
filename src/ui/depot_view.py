@@ -82,6 +82,8 @@ def draw_depot_view(screen, font, depot, game_state):
     if not hasattr(game_state, "detail_panel"):
         from .depot_view_detail import DepotViewDetail
         game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
+        # Open "Current Wealth" by default
+        game_state.detail_panel.show_for_statistic("Current Wealth")
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
@@ -142,7 +144,7 @@ def draw_depot_view(screen, font, depot, game_state):
     total_actions = len(filtered_trades)
     
     wealth_stats = [
-        ("Wealth Today", f"{current_wealth:.2f}"),
+        ("Current Wealth", f"{current_wealth:.2f}"),
         ("Wealth Start", f"{start_wealth:.2f}"),
         ("Income", f"{current_income:.2f}"),
         ("Expenses", f"{current_expense:.2f}"),
@@ -195,7 +197,7 @@ def draw_depot_view(screen, font, depot, game_state):
             pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
             pygame.draw.rect(surf, BEIGE, row_separator)
         
-        labels_without_button = ["Wealth Today", "Wealth Start", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
+        labels_without_button = ["Current Wealth", "Wealth Start", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
         if label in labels_without_button:
             # Create a more visible button instead of just the text
             button_size = 16
