@@ -8,7 +8,7 @@ def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_
     _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
-    _draw_right_bar(screen, images, buttons)
+    _draw_right_bar(screen, images, buttons, main_font)
     return buttons
 
 def _draw_background(screen):
@@ -212,13 +212,26 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         
     return buttons
 
-def _draw_right_bar(screen, images, buttons):
+def _draw_right_bar(screen, images, buttons, main_font):
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
     pygame.draw.rect(screen, DARK_GRAY, right_bar, 1)
 
+    # Get mouse position for hover effects
+    mouse_pos = pygame.mouse.get_pos()
+    tooltips = []
+
     # Draw pictograms for side menu
     pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
+    label_map = {
+        "map": "Map",
+        "market": "Market",
+        "depot": "Depot",
+        "politics": "Politics",
+        "trade_routes": "Trade Routes",
+        "building": "Building"
+    }
+
     start_y = 75    # the higher the number the lower the first button
     spacing = -15   # the higher the number (also pos), the further apart the buttons
     
@@ -228,6 +241,8 @@ def _draw_right_bar(screen, images, buttons):
             img = images[img_key]
             # Sidebar button rect (100x100)
             rect = pygame.Rect(SCREEN_WIDTH + 5, start_y + i * (100 + spacing), 100, 100)
+            # the actual visible rect of the pictogram is only 100 x 50, that is visible rect
+            visible_rect = pygame.Rect(rect.x, rect.y, 100, 50)
             
             # Sub-buttons logic
             sub_btn_y = rect.bottom - 100 + 45 
@@ -236,16 +251,48 @@ def _draw_right_bar(screen, images, buttons):
             
             # Left button "picto_<name>_left"
             left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
-            pygame.draw.rect(screen, TAN, left_btn_rect)
+            is_left_hovered = left_btn_rect.collidepoint(mouse_pos)
+            color_left = WHEAT if is_left_hovered else TAN
+            pygame.draw.rect(screen, color_left, left_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
             buttons[f"picto_{name}_left"] = left_btn_rect
+            if is_left_hovered:
+                tooltips.append(("Open left", mouse_pos))
             
             # Right button "picto_<name>_right"
             right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
-            pygame.draw.rect(screen, TAN, right_btn_rect)
+            is_right_hovered = right_btn_rect.collidepoint(mouse_pos)
+            color_right = WHEAT if is_right_hovered else TAN
+            pygame.draw.rect(screen, color_right, right_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
             buttons[f"picto_{name}_right"] = right_btn_rect
-
-            # Draw pictogram image LAST so it overlaps the buttons by 2 pixels
+            if is_right_hovered:
+                tooltips.append(("Open right", mouse_pos))
+            
+            # Draw main pictogram image after left and right buttons so it overlaps the buttons by 2 pixels
             screen.blit(img, rect)
             buttons[f"pictogram_{name}"] = rect
+
+            # Main pictogram hover effect
+            is_pictogram_hovered = visible_rect.collidepoint(mouse_pos) and not is_left_hovered and not is_right_hovered
+            if is_pictogram_hovered:
+                # redraw pictogram a bit overlighted to indicate hover
+                overlay = pygame.Surface((visible_rect.width, visible_rect.height), pygame.SRCALPHA)
+                overlay.fill((255, 255, 255, 50))  # white overlay
+                screen.blit(overlay, visible_rect.topleft)
+                # add tooltip
+                tooltips.append((label_map[name], mouse_pos))
+
+    # Render tooltips last to ensure they are on top of everything
+    for text, pos in tooltips:
+        tooltip_surf = main_font.render(text, True, BLACK)
+        # Position tooltip to the left of the side bar
+        tooltip_rect = tooltip_surf.get_rect(topright=(pos[0] - 20, pos[1] + 10))
+        
+        # Ensure tooltip stays on screen
+        if tooltip_rect.left < 0:
+            tooltip_rect.left = 10
+            
+        pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(10, 6))
+        pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(10, 6), 1)
+        screen.blit(tooltip_surf, tooltip_rect)
