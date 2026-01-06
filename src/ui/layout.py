@@ -3,18 +3,23 @@ from ..config.colors import *
 from .dropdown import Dropdown
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
-def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, money_50, goods_images_30, stock_30, warehouses_30, game_state):
+def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, images, game_state):
     _draw_background(screen)
-    _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state)
+    _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
-    _draw_right_bar(screen)
+    _draw_right_bar(screen, images, buttons)
     return buttons
 
 def _draw_background(screen):
     screen.fill(BEIGE)
 
-def _draw_top_bar(screen, main_depot, main_font, date, money_50, goods_images_30, stock_30, warehouses_30, game_state):
+def _draw_top_bar(screen, main_depot, main_font, date, images, game_state):
+    money_50 = images['money_50']
+    goods_images_30 = images['goods_30']
+    stock_30 = images['stock_30']
+    warehouses_30 = images['warehouses_30']
+    
     top_bar = pygame.Rect(0, 0, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, top_bar)
     pygame.draw.rect(screen, DARK_GRAY, top_bar, 2)
@@ -207,7 +212,21 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         
     return buttons
 
-def _draw_right_bar(screen):
+def _draw_right_bar(screen, images, buttons):
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
     pygame.draw.rect(screen, DARK_GRAY, right_bar, 1)
+
+    # Draw pictograms for side menu
+    pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
+    start_y = 100  # Leave some space under the menu button
+    spacing = 15
+    
+    for i, name in enumerate(pictogram_names):
+        img_key = f"pictogram_{name}"
+        if img_key in images:
+            img = images[img_key]
+            # Sidebar button rect (100x100)
+            rect = pygame.Rect(SCREEN_WIDTH + 5, start_y + i * (100 + spacing), 100, 100)
+            screen.blit(img, rect)
+            buttons[f"pictogram_{name}"] = rect

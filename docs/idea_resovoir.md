@@ -26,6 +26,14 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - at the end of the year you will receive income tax and property tax statements that you have to pay
     - if you don't pay them on time you get fined or worse
 
+- when opening a new menu page, there must be a rolling scroll effect
+    - animation
+    - sound effect
+
+- add different chart types like candlestick charts
+
+- add the possibility to enter different order types (limit orders, stop orders, etc)
+
 - Game must be savable and loadable
     - all game state must be serializable (player data, depot data, market data, city data, time data, etc)
     - implement save/load menu

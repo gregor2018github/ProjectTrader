@@ -119,6 +119,26 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 game_state.dialogue = None
             return
 
+    # Handle pictogram clicks (side menu)
+    for name in ["map", "market", "depot", "politics", "trade_routes", "building"]:
+        key = f"pictogram_{name}"
+        if key in buttons and buttons[key].collidepoint(pos):
+            # Placeholder for future menu switching logic
+            # Each pictogram will eventually trigger a menu state change
+            if name == "map":
+                pass
+            elif name == "market":
+                pass
+            elif name == "depot":
+                pass
+            elif name == "politics":
+                pass
+            elif name == "trade_routes":
+                pass
+            elif name == "building":
+                pass
+            return
+
     # Handle dropdown selection first
     if game_state.active_dropdown:
         dropdown = game_state.dropdowns[game_state.active_dropdown]

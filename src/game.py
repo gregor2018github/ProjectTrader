@@ -144,6 +144,12 @@ class Game:
         for good in self.goods:
             img_path = os.path.join(PICTURES_PATH, f"{good.name.lower()}_30.png")
             images['goods_30'][good.name] = pygame.image.load(img_path)
+
+        # Load pictograms for the side menu
+        pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
+        for name in pictogram_names:
+            img_path = os.path.join(PICTURES_PATH, f"pictogram_{name}_100.png")
+            images[f'pictogram_{name}'] = pygame.image.load(img_path)
         
         return images
     
@@ -234,9 +240,7 @@ class Game:
             # Draw base UI first
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                 self.state.date, self.state.input_fields, 
-                                self.state.mouse_clicked_on, self.images['money_50'], 
-                                self.images['goods_30'], self.images['stock_30'], 
-                                self.images['warehouses_30'], self.state)
+                                self.state.mouse_clicked_on, self.images, self.state)
                 
             # Draw chart
             self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
