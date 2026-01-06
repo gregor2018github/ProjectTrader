@@ -219,8 +219,8 @@ def _draw_right_bar(screen, images, buttons):
 
     # Draw pictograms for side menu
     pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
-    start_y = 100  # Leave some space under the menu button
-    spacing = 15
+    start_y = 75    # the higher the number the lower the first button
+    spacing = -15   # the higher the number (also pos), the further apart the buttons
     
     for i, name in enumerate(pictogram_names):
         img_key = f"pictogram_{name}"
@@ -228,5 +228,24 @@ def _draw_right_bar(screen, images, buttons):
             img = images[img_key]
             # Sidebar button rect (100x100)
             rect = pygame.Rect(SCREEN_WIDTH + 5, start_y + i * (100 + spacing), 100, 100)
+            
+            # Sub-buttons logic
+            sub_btn_y = rect.bottom - 100 + 45 
+            sub_btn_width = 47
+            sub_btn_height = 20
+            
+            # Left button "picto_<name>_left"
+            left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
+            pygame.draw.rect(screen, TAN, left_btn_rect)
+            pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
+            buttons[f"picto_{name}_left"] = left_btn_rect
+            
+            # Right button "picto_<name>_right"
+            right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
+            pygame.draw.rect(screen, TAN, right_btn_rect)
+            pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
+            buttons[f"picto_{name}_right"] = right_btn_rect
+
+            # Draw pictogram image LAST so it overlaps the buttons by 2 pixels
             screen.blit(img, rect)
             buttons[f"pictogram_{name}"] = rect
