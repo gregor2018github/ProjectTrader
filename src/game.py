@@ -2,7 +2,7 @@ import pygame
 import os
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
-from .ui.layout import draw_layout
+from .ui.layout import draw_layout, draw_right_bar
 from .ui.chart import draw_chart
 from .models.good import Good
 from .models.depot import Depot
@@ -249,7 +249,9 @@ class Game:
             # Draw depot view if state is active (for testing, always draw it)
             draw_depot_view(self.screen, self.font, self.depot, self.state)
             
-            # Draw menu
+            # draw right sidebar
+            draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font)
+            # Draw menu above the right sidebar
             self.menu.draw(self.screen)
             
             # Draw time controls in bottom bar

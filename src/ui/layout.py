@@ -8,7 +8,6 @@ def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_
     _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
-    _draw_right_bar(screen, images, buttons, main_font)
     return buttons
 
 def _draw_background(screen):
@@ -212,7 +211,7 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         
     return buttons
 
-def _draw_right_bar(screen, images, buttons, main_font):
+def draw_right_bar(screen, images, buttons, main_font):
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
     pygame.draw.rect(screen, DARK_GRAY, right_bar, 1)
