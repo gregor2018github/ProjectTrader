@@ -3,7 +3,13 @@ import datetime
 from ..config.colors import *
 from ..config.constants import SCREEN_WIDTH
 
-def draw_depot_view(screen, font, depot, game_state):
+def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot, game_state) -> None:
+    """Draw the depot view panel on the right side of the screen.
+    
+    The depot view basically only contains the left half of the data. 
+    The right half shows more detailed statistics and is handled in depot_view_detail.py.
+    """
+    
     # Calculate dimensions
     width = SCREEN_WIDTH // 2 - 42
     height = screen.get_height() - 120
@@ -181,8 +187,15 @@ def draw_depot_view(screen, font, depot, game_state):
     if scroll_offset < 0:
         scroll_offset = 0
     
-    # Helper function to draw a row on a given surface at y offset
-    def draw_row(surf, y_pos, label, value, label_color=DARK_BROWN, value_color=BLACK):
+    def draw_row(surf: pygame.Surface, 
+                 y_pos: int, 
+                 label: str, 
+                 value: str, 
+                 label_color: tuple[int, int, int] = DARK_BROWN, 
+                 value_color: tuple[int, int, int] = BLACK
+        ) -> None:
+        """Helper function to draw a single row with label and value at specified y position on given surface."""
+        
         #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
         small_font = game_state.small_font
         
@@ -390,8 +403,17 @@ def draw_depot_view(screen, font, depot, game_state):
         if game_state.detail_panel.visible:
             game_state.detail_panel.draw(screen, font)
 
-def draw_stat_row(screen, font, x, y, label, value, label_color=DARK_BROWN, value_color=BLACK):
+def draw_stat_row(screen: pygame.Surface, 
+                  font: pygame.font.Font, 
+                  x: int, 
+                  y: int, 
+                  label: str, 
+                  value: str, 
+                  label_color: tuple[int, int, int] = DARK_BROWN, 
+                  value_color: tuple[int, int, int] = BLACK
+    ) -> None:
     """Helper function to draw a row with label and value"""
+
     label_surf = font.render(label, True, label_color)
     value_surf = font.render(value, True, value_color)
     screen.blit(label_surf, (x + 20, y))

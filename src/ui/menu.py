@@ -2,7 +2,8 @@ import pygame
 from ..config.colors import *
 
 class Menu:
-    def __init__(self, screen_width, font):
+    def __init__(self, screen_width: int, font: pygame.font.Font) -> None:
+        """Initialize the menu dropdown for the top right of the screen."""
         self.font = font
         self.is_open = False
         self.items = ["Quit", "Balance", "Map", "Settings", "Demo"]
@@ -26,7 +27,8 @@ class Menu:
             self.item_height * len(self.items)
         )
 
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface) -> None:
+        """Draw the menu, dropdown functionality and hover effects."""
         # Get mouse position for hover effect
         mouse_pos = pygame.mouse.get_pos()
         is_hovered = self.button_rect.collidepoint(mouse_pos)
@@ -71,9 +73,9 @@ class Menu:
                                    (item_rect.right, item_rect.bottom))
                 # Draw dropdown border    
                 pygame.draw.rect(screen, DARK_GRAY, self.dropdown_rect, 2)
-        
 
-    def handle_click(self, pos):
+    def handle_click(self, pos: tuple[int, int]) -> str | None:
+        """Handle clicks on the menu button and dropdown items."""
         if self.button_rect.collidepoint(pos):
             self.is_open = not self.is_open
             return None
