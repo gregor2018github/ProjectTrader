@@ -1,7 +1,29 @@
 import pygame
-from ..ui.info_window import InfoWindow  # Add this import
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
+from ..ui.info_window import InfoWindow
 
-def handle_mouse_click(pos, buttons, game_state, goods, depot):
+if TYPE_CHECKING:
+    from ..game_state import GameState
+    from ..models.good import Good
+    from ..models.depot import Depot
+
+def handle_mouse_click(pos: Tuple[int, int], 
+                       buttons: Dict[str, pygame.Rect], 
+                       game_state: 'GameState', 
+                       goods: List['Good'], 
+                       depot: 'Depot') -> None:
+    """Process left mouse button clicks on various UI elements.
+    
+    This function handles clicks for sound controls, time controls, menus, 
+    dialogues, pictograms, dropdowns, input fields, and chart toggle boxes.
+    
+    Args:
+        pos: The (x, y) coordinates of the mouse click.
+        buttons: Dictionary of UI element names mapped to their hitboxes.
+        game_state: Current state of the game engine.
+        goods: List of all tradeable goods.
+        depot: The player's depot/inventory model.
+    """
     # Handle sound control clicks
     if hasattr(game_state.game, 'sound_control'):
         if game_state.game.sound_control.handle_click(pos, game_state.game):
@@ -14,13 +36,13 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
         if depot_buttons["left"].collidepoint(pos) and current_index > 0:
             game_state.depot_time_frame = game_state.depot_time_frames[current_index - 1]
             # Force update of detail panel statistics
-            if hasattr(game_state, "detail_panel"):
+            if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
                 game_state.detail_panel.update_statistics(force=True)
             return
         elif depot_buttons["right"].collidepoint(pos) and current_index < len(game_state.depot_time_frames) - 1:
             game_state.depot_time_frame = game_state.depot_time_frames[current_index + 1]
             # Force update of detail panel statistics
-            if hasattr(game_state, "detail_panel"):
+            if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
                 game_state.detail_panel.update_statistics(force=True)
             return
 
@@ -191,7 +213,7 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
     if hasattr(game_state, "depot_plus_rects") and game_state.depot_plus_rects:
         for label, rect in game_state.depot_plus_rects.items():
             if rect.collidepoint(pos):
-                if hasattr(game_state, "detail_panel"):
+                if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
                     # Check if the panel is already visible for this statistic
                     if game_state.detail_panel.visible and game_state.detail_panel.current_statistic == label:
                         # Close the panel if already open for this statistic
@@ -202,14 +224,22 @@ def handle_mouse_click(pos, buttons, game_state, goods, depot):
                 return
     # For backward compatibility
     elif hasattr(game_state, "depot_plus_rect") and game_state.depot_plus_rect and game_state.depot_plus_rect.collidepoint(pos):
-        if hasattr(game_state, "detail_panel"):
+        if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
             game_state.detail_panel.toggle()
         return
 
     # Reset mouse click if clicked elsewhere
     game_state.mouse_clicked_on = "none"
 
-def _handle_trade_button(button_name, game_state, goods, depot):
+def _handle_trade_button(button_name: str, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
+    """Execute a trade action when a buy or sell button is clicked.
+    
+    Args:
+        button_name: Internal name of the button (e.g., 'buy_one').
+        game_state: Current state of the game engine.
+        goods: List of all tradeable goods.
+        depot: The player's depot/inventory model.
+    """
     action, section = button_name.split('_')
     good_name = game_state.input_fields[f'good_{section}']
     try:

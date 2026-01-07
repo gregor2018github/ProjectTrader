@@ -1,9 +1,22 @@
 import pygame
 from ..config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT
 import datetime
+from typing import Dict, List, Optional, Any
 
 class DepotViewDetail:
-    def __init__(self, depot_rect, game_state):
+    """Handles the detailed statistics panel shown alongside the depot view.
+    
+    This panel displays granular information about wealth, stock, and trade actions
+    filtered by the currently selected time frame.
+    """
+    
+    def __init__(self, depot_rect: pygame.Rect, game_state: Any) -> None:
+        """Initialize the detail panel.
+        
+        Args:
+            depot_rect: The rectangle of the main depot view to align with.
+            game_state: The current game state object.
+        """
         # Place the detail panel just to the right of depot view
         self.rect = pygame.Rect(depot_rect.left + 370, depot_rect.top + 60, 300, depot_rect.height-80)
         self.visible = False
@@ -13,7 +26,7 @@ class DepotViewDetail:
         self.max_scroll = 0
         
         # Add cache for wealth statistics
-        self.cached_stats = {
+        self.cached_stats: Dict[str, List[str]] = {
             "Current Wealth": [],
             "Wealth Start": [],
             "Total Stock": [],
@@ -21,28 +34,37 @@ class DepotViewDetail:
             "Sell Actions": [],
             "Total Actions": []
         }
-        self.last_update_date = None
-        self.last_time_frame = None  # Track the last time frame to detect changes
-        self.last_hour = None        # Track the last hour to detect price changes
-        self.last_money = None       # Track the last money to detect trade changes
+        self.last_update_date: Optional[datetime.date] = None
+        self.last_time_frame: Optional[str] = None      # Track the last time frame to detect changes
+        self.last_hour: Optional[int] = None            # Track the last hour to detect price changes
+        self.last_money: Optional[float] = None         # Track the last money to detect trade changes
         # Add separate flags to track when each statistic was last updated
-        self.last_today_update_date = None
-        self.last_start_update_date = None
-        self.last_total_stock_update_date = None
-        self.last_trade_actions_update_date = None
-        self.last_trade_actions_count = 0
+        self.last_today_update_date: Optional[datetime.date] = None
+        self.last_start_update_date: Optional[datetime.date] = None
+        self.last_total_stock_update_date: Optional[datetime.date] = None
+        self.last_trade_actions_update_date: Optional[datetime.date] = None
+        self.last_trade_actions_count: int = 0
 
-    def toggle(self):
+    def toggle(self) -> None:
+        """Toggle the visibility of the detail panel."""
         self.visible = not self.visible
 
-    def show_for_statistic(self, statistic_label):
+    def show_for_statistic(self, statistic_label: str) -> None:
+        """Show the panel for a specific statistic.
+        
+        Args:
+            statistic_label: The label of the statistic to show details for.
+        """
         if self.current_statistic != statistic_label:
             self.scroll_offset = 0
         self.current_statistic = statistic_label
         self.visible = True
 
-    def update_statistics(self, force=False):
-        """Update cached statistics if day has changed, time frame has changed, or force is True"""
+    def update_statistics(self, force: bool = False) -> None:
+        """Update cached statistics if state has changed or force is True.
+        
+        Checks if day, hour, money, or time frame has changed since the last update.
+        """
         current_date = self.game_state.date.date()
         current_hour = self.game_state.date.hour
         current_time_frame = self.game_state.depot_time_frame
@@ -82,8 +104,11 @@ class DepotViewDetail:
         self.last_hour = current_hour
         self.last_money = current_money
     
-    def _update_current_wealth(self, depot, goods):
-        """Update just the "Current Wealth" statistics"""
+    def _update_current_wealth(self, depot: Any, goods: List[Any]) -> None:
+        """Update just the "Current Wealth" statistics.
+        
+        Calculates total wealth breakdown including money and current value of all goods.
+        """
         # Calculate total goods value for Current Wealth using current prices and stock
         total_goods_value = 0
         for good in goods:
@@ -128,8 +153,11 @@ class DepotViewDetail:
             self.cached_stats["Current Wealth"].append(f"      Total Value: {value:,.2f}")
             self.cached_stats["Current Wealth"].append("__SEPARATOR__")
     
-    def _update_total_stock(self, depot, goods):
-        """Update just the "Total Stock" statistics"""
+    def _update_total_stock(self, depot: Any, goods: List[Any]) -> None:
+        """Update just the "Total Stock" statistics.
+        
+        Lists all goods currently in stock, sorted by total units descending.
+        """
         self.cached_stats["Total Stock"] = []
         
         # Get current total units
@@ -159,8 +187,11 @@ class DepotViewDetail:
             self.cached_stats["Total Stock"].append(f"      Total Value: {value:,.2f}")
             self.cached_stats["Total Stock"].append("__SEPARATOR__")
     
-    def _update_wealth_start(self, depot, goods, time_frame):
-        """Update just the "Wealth Start" statistics based on selected time frame"""
+    def _update_wealth_start(self, depot: Any, goods: List[Any], time_frame: str) -> None:
+        """Update just the "Wealth Start" statistics based on selected time frame.
+        
+        Reconstructs what the player's wealth and stocks were at the beginning of the period.
+        """
         # Cache "Wealth Start" statistics based on selected time frame
         self.cached_stats["Wealth Start"] = []
         
@@ -255,8 +286,11 @@ class DepotViewDetail:
             self.cached_stats["Wealth Start"].append(f"      Unit Value: {price:,.2f}")
             self.cached_stats["Wealth Start"].append(f"      Total Value: {total_value:,.2f}")
             self.cached_stats["Wealth Start"].append("__SEPARATOR__")
-    def _update_trade_actions(self, depot, goods, time_frame):
-        """Update Buy, Sell, and Total Actions statistics based on selected time frame"""
+    def _update_trade_actions(self, depot: Any, goods: List[Any], time_frame: str) -> None:
+        """Update Buy, Sell, and Total Actions statistics based on selected time frame.
+        
+        Aggregates trade volumes and units by good for the chosen period.
+        """
         # Determine period days
         if time_frame == "Daily":
             period_days = 1
@@ -339,7 +373,13 @@ class DepotViewDetail:
                 self.cached_stats[action_type].append(f"      Avg Price: {avg_price:,.2f}")
                 self.cached_stats[action_type].append(f"      Total Value: {stats['total_value']:,.2f}")
                 self.cached_stats[action_type].append("__SEPARATOR__")    
-    def draw(self, screen, font):
+    def draw(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
+        """Draw the detail panel and its content to the screen.
+        
+        Args:
+            screen: The surface to draw on.
+            font: The font to use for titles.
+        """
         if self.visible:
             # Update statistics if needed
             self.update_statistics()
@@ -451,3 +491,4 @@ class DepotViewDetail:
                 handle_y = scrollbar_rect.y + (self.scroll_offset / self.max_scroll) * (scrollbar_rect.height - handle_height)
                 handle_rect = pygame.Rect(scrollbar_rect.x, handle_y, scrollbar_rect.width, handle_height)
                 pygame.draw.rect(screen, DARK_BROWN, handle_rect)
+

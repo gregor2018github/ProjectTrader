@@ -1,19 +1,35 @@
-class Depot:
-    def __init__(self, money, transaction_cost, storage_capacity):
+import datetime
+from typing import Dict, List, Optional, Any, Union
 
+class Depot:
+    """Manages the player's financial state, inventory, and trade history.
+    
+    The Depot handles buying and selling of goods, tracks wealth over time,
+    maintains a FIFO purchase history for profit calculation, and manages
+    property ownership and trade statistics.
+    """
+    
+    def __init__(self, money: float, transaction_cost: float, storage_capacity: int) -> None:
+        """Initialize the depot with starting values.
+        
+        Args:
+            money: Initial amount of money.
+            transaction_cost: Flat cost per trade transaction.
+            storage_capacity: Maximum number of goods units that can be stored.
+        """
         # CURRENT STATE
 
-        self.money = money                          # current money
-        self.transaction_cost = transaction_cost    # cost per transaction
-        self.storage_capacity = storage_capacity    # maximum storage capacity
-        self.warehouse_count = 1                    # number of warehouses owned (by default 1)
-        self.good_stock = {                         # current stock of goods
+        self.money: float = money                       # current money
+        self.transaction_cost: float = transaction_cost # cost per transaction
+        self.storage_capacity: int = storage_capacity   # maximum storage capacity
+        self.warehouse_count: int = 1                   # number of warehouses owned (by default 1)
+        self.good_stock: Dict[str, int] = {             # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
             "Wheat": 0, "Wine": 0, "Beer": 0,
             "Meat": 0, "Linen": 0, "Pottery": 0,
         }
-        self.properties = {                         # current properties
+        self.properties: Dict[str, List[Any]] = {       # current properties
             "warehouses": [],
             "workshops": [],
             "farms": [],
@@ -26,27 +42,27 @@ class Depot:
             "town_halls": [],
             "houses": []
         }
-        self.expenditures = 0                       # current expenditures
-        self.income = 0                             # current income
-        self.transaction_expenditures = 0           # current transaction expenditures
+        self.expenditures: float = 0                    # current expenditures
+        self.income: float = 0                          # current income
+        self.transaction_expenditures: float = 0        # current transaction expenditures
 
         # BOOKKEEPING
 
-        self.wealth = [money]                       # wealth tracking for bookkeeping
-        self.money_history = [money]                # money tracking for bookkeeping
-        self.total_stock = [0]                      # total stock tracking for bookkeeping
-        self.stock_history = {                      # stock tracking for bookkeeping
+        self.wealth: List[float] = [money]              # wealth tracking for bookkeeping
+        self.money_history: List[float] = [money]       # money tracking for bookkeeping
+        self.total_stock: List[int] = [0]               # total stock tracking for bookkeeping
+        self.stock_history: Dict[str, List[int]] = {    # stock tracking for bookkeeping
             good_name: [0] for good_name in self.good_stock
         }
-        self.trades = []                            # trade tracking for bookkeeping
-        self.expenditure_history = [0]              # expenditures tracking for bookkeeping
-        self.income_history = [0]                   # income tracking for bookkeeping
-        self.transaction_expenditure_history = [0]  # transaction expenditures tracking for bookkeeping
+        self.trades: List[Dict[str, Any]] = []                     # trade tracking for bookkeeping
+        self.expenditure_history: List[float] = [0.0]              # expenditures tracking for bookkeeping
+        self.income_history: List[float] = [0.0]                   # income tracking for bookkeeping
+        self.transaction_expenditure_history: List[float] = [0.0]  # transaction expenditures tracking for bookkeeping
         # FIFO queue to track purchased goods with their prices
-        self.purchase_history = {good_name: [] for good_name in self.good_stock}
+        self.purchase_history: Dict[str, List[Dict[str, Any]]] = {good_name: [] for good_name in self.good_stock}
 
         # Add trade cycle tracking
-        self.trade_cycles = {
+        self.trade_cycles: Dict[str, Any] = {
             "total": 0,                             # Total number of completed trade cycles
             "successful": 0,                        # Number of profitable trade cycles
             "total_profit": 0,                      # Cumulative profit from all trade cycles
@@ -65,10 +81,19 @@ class Depot:
             }
         
         # Add list to record individual trade cycles with their timestamp
-        self.trade_cycle_records = []
+        self.trade_cycle_records: List[Dict[str, Any]] = []
 
-    def buy(self, good, quantity_to_buy, game_state):
-        """Buy a quantity of a good from market to depot"""
+    def buy(self, good: Any, quantity_to_buy: int, game_state: Any) -> bool:
+        """Buy a quantity of a good from market to depot.
+        
+        Args:
+            good: The good object to buy.
+            quantity_to_buy: Number of units to purchase.
+            game_state: Current game state for warnings and context.
+            
+        Returns:
+            bool: True if purchase was successful, False otherwise.
+        """
         total_cost = good.get_price() * quantity_to_buy
         
         if self.money < total_cost + self.transaction_cost:
@@ -101,8 +126,20 @@ class Depot:
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
         return True
 
-    def sell(self, good, quantity_to_sell, game_state):
-        """Sell a quantity of a good from depot to market using FIFO method"""
+    def sell(self, good: Any, quantity_to_sell: int, game_state: Any) -> bool:
+        """Sell a quantity of a good from depot to market using FIFO method.
+        
+        Calculates profit based on original purchase prices and identifies
+        completed trade cycles.
+        
+        Args:
+            good: The good object to sell.
+            quantity_to_sell: Number of units to sell.
+            game_state: Current game state for warnings and context.
+            
+        Returns:
+            bool: True if sale was successful, False otherwise.
+        """
         if good.name not in self.good_stock:
             game_state.show_warning(f"No {good.name} in stock.")
             return False
@@ -146,8 +183,16 @@ class Depot:
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
         return True
         
-    def record_trade(self, good, quantity, price, is_purchase, game_state):
-        """Record a trade for statistical purposes"""
+    def record_trade(self, good: Any, quantity: int, price: float, is_purchase: bool, game_state: Any) -> None:
+        """Record a trade for statistical purposes.
+        
+        Args:
+            good: The good object traded.
+            quantity: Number of units.
+            price: Price per unit.
+            is_purchase: True if buying, False if selling.
+            game_state: Current game state for timestamp.
+        """
         trade = {
             "timestamp": game_state.date,
             "good": good.name,
@@ -158,8 +203,11 @@ class Depot:
         }
         self.trades.append(trade)
     
-    def _record_trade_cycle(self, good_name, profit, quantity, buy_price, sell_price, timestamp):
-        """Record statistics for a completed trade cycle and store an individual record"""
+    def _record_trade_cycle(self, good_name: str, profit: float, quantity: int, buy_price: float, sell_price: float, timestamp: datetime.datetime) -> Dict[str, Any]:
+        """Record statistics for a completed trade cycle and store an individual record.
+        
+        A trade cycle is defined by the match of a sale with its original purchase(s) in FIFO order.
+        """
         # Update overall statistics
         self.trade_cycles["total"] += 1
         self.trade_cycles["total_profit"] += profit
@@ -202,8 +250,15 @@ class Depot:
         self.trade_cycle_records.append(trade_cycle)
         return trade_cycle
     
-    def update_wealth(self, goods):
-        """Update the wealth, consisting of money and the value of all goods in stock"""
+    def update_wealth(self, goods: List[Any]) -> float:
+        """Update the wealth, consisting of money and the value of all goods in stock.
+        
+        Args:
+            goods: List of all good objects in the game to get current prices.
+            
+        Returns:
+            float: The newly calculated total wealth value.
+        """
         total_value = self.money
         
         for good_name, quantity in self.good_stock.items():
@@ -216,8 +271,8 @@ class Depot:
         self.money_history.append(self.money)  # Record current money
         return total_value
     
-    def update_income_and_expenditures(self):
-        """Update the income and expenditures for the current day"""
+    def update_income_and_expenditures(self) -> None:
+        """Update the income and expenditures history for the current day and reset daily counters."""
         self.income_history.append(self.income)
         self.expenditure_history.append(self.expenditures)
         self.transaction_expenditure_history.append(self.transaction_expenditures)
@@ -225,20 +280,30 @@ class Depot:
         self.expenditures = 0
         self.transaction_expenditures = 0
     
-    def update_total_stock(self):
-        """Update the total stock value"""
+    def update_total_stock(self) -> int:
+        """Update the total stock count history.
+        
+        Returns:
+            int: The current total number of units in stock.
+        """
         total_stock = sum(self.good_stock.values())
         self.total_stock.append(total_stock)
         return total_stock
     
-    def update_stock_history(self):
-        """Update the stock history for all goods"""
+    def update_stock_history(self) -> None:
+        """Update the stock history for all goods for bookkeeping."""
         for good_name, quantity in self.good_stock.items():
             self.stock_history[good_name].append(quantity)
     
-    def get_trade_cycle_stats(self, current_date, time_delta):
+    def get_trade_cycle_stats(self, current_date: datetime.datetime, time_delta: Optional[datetime.timedelta]) -> Dict[str, Any]:
         """Return summarized trade cycle statistics filtered by an optional time_delta.
-           If time_delta is provided, only trade cycles with timestamp >= (current_date - time_delta) are used.
+           
+        Args:
+            current_date: The reference date for filtering.
+            time_delta: The duration to look back. If None, all history is included.
+            
+        Returns:
+            Dict[str, Any]: Summarized statistics including total cycles, success rate, and best/worst goods.
         """
         if time_delta is not None:
             start_date = current_date - time_delta
@@ -274,7 +339,11 @@ class Depot:
         }
         return stats
     
-    def book_cost_of_living(self, cost_of_living):
-        """Book the cost of living for the current day"""
+    def book_cost_of_living(self, cost_of_living: float) -> None:
+        """Book the cost of living for the current day.
+        
+        Args:
+            cost_of_living: The amount to deduct from money and add to expenditures.
+        """
         self.money -= cost_of_living
         self.expenditures += cost_of_living

@@ -1,29 +1,38 @@
 import pygame
+from typing import List, Optional, Tuple, Any, TYPE_CHECKING
 from ..config.colors import *
 
+if TYPE_CHECKING:
+    from ..game import Game
+
 class Dialogue:
-    def __init__(self, screen, game, picture, npc_name, text, answers=None, sound=None):
+    """A UI component that provides a semi-transparent dialogue window with portraits and options.
+    
+    Handles word-wrapped text rendering, portrait scaling, and interactive button logic.
+    """
+    
+    def __init__(self, screen: pygame.Surface, game: 'Game', picture: str, npc_name: str, text: str, answers: Optional[List[str]] = None, sound: Optional[str] = None) -> None:
         """
         Initialize a dialogue with an NPC
         
         Args:
-            screen: pygame surface to draw on
-            game: reference to main game object
-            picture: string key for the portrait image in game.pic_portraits
-            npc_name: name of the NPC to display
-            text: string of dialogue text
-            answers: list of string answers (default: ["Continue", "Leave"])
-            sound: name of sound file to play (default: None)
+            screen: pygame surface to draw on.
+            game: reference to main game object.
+            picture: string key for the portrait image in game.pic_portraits.
+            npc_name: name of the NPC to display.
+            text: string of dialogue text.
+            answers: list of string answers (default: ["Continue", "Leave"]).
+            sound: name of sound file to play (default: None).
         """
-        self.screen = screen
-        self.game = game
-        self.picture = picture
-        self.npc_name = npc_name
-        self.text = text
-        self.answers = answers or ["Continue", "Leave"]
-        self.font = game.font
-        self.active = True
-        self.result = None  # Will store the selected answer
+        self.screen: pygame.Surface = screen
+        self.game: 'Game' = game
+        self.picture: str = picture
+        self.npc_name: str = npc_name
+        self.text: str = text
+        self.answers: List[str] = answers or ["Continue", "Leave"]
+        self.font: pygame.font.Font = game.font
+        self.active: bool = True
+        self.result: Optional[str] = None  # Will store the selected answer
 
         # first stop all sounds that are still running
         pygame.mixer.stop()
@@ -40,17 +49,17 @@ class Dialogue:
         original_portrait = game.pic_portraits.get(picture, None)
         if original_portrait:
             orig_width, orig_height = original_portrait.get_size()
-            aspect_ratio = orig_width / orig_height
-            portrait_width = int(portrait_height * aspect_ratio)
+            aspect_ratio: float = orig_width / orig_height
+            portrait_width: int = int(portrait_height * aspect_ratio)
             
             # Scale the portrait preserving aspect ratio
-            self.portrait = pygame.transform.scale(
+            self.portrait: Optional[pygame.Surface] = pygame.transform.scale(
                 original_portrait,
                 (portrait_width, portrait_height)
             )
             
             # Position portrait in bottom left
-            self.portrait_rect = pygame.Rect(
+            self.portrait_rect: pygame.Rect = pygame.Rect(
                 0,  # Left margin
                 screen_height - portrait_height,  # Bottom position
                 portrait_width,
@@ -62,10 +71,10 @@ class Dialogue:
             self.portrait_rect = pygame.Rect(20, screen_height - 300, 200, 280)
         
         # Create dialogue window in the middle-right of the screen
-        dialogue_width = screen_width - self.portrait_rect.right - 60
-        dialogue_height = min(400, int(screen_height * 0.6))
+        dialogue_width: int = screen_width - self.portrait_rect.right - 60
+        dialogue_height: int = min(400, int(screen_height * 0.6))
         
-        self.dialogue_rect = pygame.Rect(
+        self.dialogue_rect: pygame.Rect = pygame.Rect(
             self.portrait_rect.right + 30,
             (screen_height // 2) - (dialogue_height // 2),  # Center vertically
             dialogue_width,
@@ -73,15 +82,15 @@ class Dialogue:
         )
         
         # Create buttons for answers
-        self.buttons = []
-        button_width = min(dialogue_width - 40, 200)
-        button_height = 40
-        spacing = 20
+        self.buttons: List[Tuple[pygame.Rect, str]] = []
+        button_width: int = min(dialogue_width - 40, 200)
+        button_height: int = 40
+        spacing: int = 20
         
         # If we have multiple answers, arrange them side by side
         if len(self.answers) > 1:
-            total_width = (button_width * len(self.answers)) + (spacing * (len(self.answers) - 1))
-            start_x = self.dialogue_rect.centerx - (total_width // 2)
+            total_width: int = (button_width * len(self.answers)) + (spacing * (len(self.answers) - 1))
+            start_x: int = self.dialogue_rect.centerx - (total_width // 2)
             
             for i, answer in enumerate(self.answers):
                 button_rect = pygame.Rect(
@@ -101,8 +110,8 @@ class Dialogue:
             )
             self.buttons.append((button_rect, self.answers[0]))
     
-    def draw(self):
-        """Draw the dialogue UI"""
+    def draw(self) -> None:
+        """Draw the dialogue UI."""
         if not self.active:
             return
             
@@ -161,27 +170,34 @@ class Dialogue:
             text_rect = text_surface.get_rect(center=button_rect.center)
             self.screen.blit(text_surface, text_rect)
     
-    def _draw_wrapped_text(self, text, rect):
-        """Draw text that automatically wraps within the given rectangle and that it also does not overlap the decorative borders of the rectangle"""
-        font = self.font
-        font_height = font.size("Tg")[1]
+    def _draw_wrapped_text(self, text: str, rect: pygame.Rect) -> None:
+        """Draw text that automatically wraps within the given rectangle.
         
-        words = text.split(' ')
-        space_width = font.size(' ')[0]
+        Ensures that text does not overlap decorated borders.
+        
+        Args:
+            text: The text to render.
+            rect: Target rectangle for text area.
+        """
+        font = self.font
+        font_height: int = font.size("Tg")[1]
+        
+        words: List[str] = text.split(' ')
+        space_width: int = font.size(' ')[0]
         
         # Define margins to account for decorative borders
-        x_margin = 0.09 * rect.width    # 9% margin necessary for the width
-        y_margin = 0.12 * rect.height   # 12% margin necessary for the height
+        x_margin: float = 0.09 * rect.width    # 9% margin necessary for the width
+        y_margin: float = 0.12 * rect.height   # 12% margin necessary for the height
         
         # Starting position WITH margin offsets
-        x = rect.left + int(x_margin/2)  # Add left margin
-        y = rect.top + int(y_margin/2)   # Add top margin
+        x: int = rect.left + int(x_margin/2)  # Add left margin
+        y: int = rect.top + int(y_margin/2)   # Add top margin
         
         # Calculate available space for text
-        max_x = rect.right - int(x_margin/2)  # Right boundary
-        max_y = rect.bottom - int(y_margin/2)  # Bottom boundary
+        max_x: int = rect.right - int(x_margin/2)  # Right boundary
+        max_y: int = rect.bottom - int(y_margin/2)  # Bottom boundary
         
-        line_spacing = int(font_height * 0.2)  # Add 20% of font height as line spacing
+        line_spacing: int = int(font_height * 0.2)  # Add 20% of font height as line spacing
         
         for word in words:
             word_surface = font.render(word, True, BLACK)
@@ -202,8 +218,15 @@ class Dialogue:
             self.screen.blit(word_surface, (x, y))
             x += word_width + space_width
     
-    def handle_click(self, pos):
-        """Handle mouse clicks on dialogue options"""
+    def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
+        """Handle mouse clicks on dialogue options.
+        
+        Args:
+            pos: Mouse coordinates.
+            
+        Returns:
+            Optional[str]: The selected answer text if a button was clicked, else None.
+        """
         if not self.active:
             return None
             
@@ -217,21 +240,20 @@ class Dialogue:
 
 
 # Helper function to create and show a dialogue
-def show_dialogue(screen, game, picture="portrait_merchant", npc_name="Merchant", text="Greetings, traveler!", answers=None, sound=None):
-    """
-    Show a dialogue with an NPC
+def show_dialogue(screen: pygame.Surface, game: 'Game', picture: str = "portrait_merchant", npc_name: str = "Merchant", text: str = "Greetings, traveler!", answers: Optional[List[str]] = None, sound: Optional[str] = None) -> Dialogue:
+    """Show a dialogue with an NPC.
     
     Args:
-        screen: pygame surface to draw on
-        game: reference to game object
-        picture: string key for portrait image
-        npc_name: name of the NPC to display
-        text: dialogue text
-        answers: list of possible answers
-        sound: name of sound file to play
+        screen: pygame surface to draw on.
+        game: reference to game object.
+        picture: string key for portrait image.
+        npc_name: name of the NPC to display.
+        text: dialogue text.
+        answers: list of possible answers.
+        sound: name of sound file to play.
         
     Returns:
-        The dialogue instance
+        Dialogue: The dialogue instance.
     """
     dialogue = Dialogue(screen, game, picture, npc_name, text, answers, sound)
     return dialogue

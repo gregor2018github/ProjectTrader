@@ -135,7 +135,14 @@ def _draw_bottom_bar(
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
     
-    def draw_input_field(rect, text, is_selected):
+    def draw_input_field(rect: pygame.Rect, text: str, is_selected: bool) -> None:
+        """Helper to draw a text input field with an optional cursor.
+        
+        Args:
+            rect: The rectangular area for the input field.
+            text: The current text content.
+            is_selected: Whether this field is currently focused.
+        """
         pygame.draw.rect(screen, WHITE, rect)
         pygame.draw.rect(screen, DARK_BROWN, rect, 2)
         
@@ -151,7 +158,8 @@ def _draw_bottom_bar(
                            2)
     
     # Helper function to check if mouse is hovering over a rect
-    def is_hovering(rect):
+    def is_hovering(rect: pygame.Rect) -> bool:
+        """Check if the mouse is currently hovering over the given rect."""
         return rect.collidepoint(mouse_pos)
     
     # Draw input fields and buttons for all three trading sections
@@ -258,10 +266,16 @@ def _draw_bottom_bar(
         
     return buttons
 
-def draw_right_bar(screen: pygame.Surface, images: dict, buttons: dict, main_font: pygame.font.Font) -> None:
+def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font) -> None:
     """Draws the right sidebar for menu options with pictogram buttons and sub-buttons.
     
     The menu button is drawn separately in the menu module.
+    
+    Args:
+        screen: The pygame surface to draw on.
+        images: Dictionary of pre-loaded pictogram images.
+        buttons: Dictionary to store the clickable button rects.
+        main_font: Font for tooltip rendering.
     """
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)

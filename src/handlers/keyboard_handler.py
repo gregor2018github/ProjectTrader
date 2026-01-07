@@ -1,6 +1,20 @@
 import pygame
+from typing import List, Any, TYPE_CHECKING
 
-def handle_keyboard_input(event, game_state, goods, depot):
+if TYPE_CHECKING:
+    from ..game_state import GameState
+    from ..models.good import Good
+    from ..models.depot import Depot
+
+def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
+    """Process pygame keyboard events for text input and hotkeys.
+    
+    Args:
+        event: The pygame event to process.
+        game_state: Current state of the game engine.
+        goods: List of all tradeable goods.
+        depot: The player's depot/inventory model.
+    """
     # Handle input fields
     if game_state.mouse_clicked_on.startswith("quantity_"):
         field = game_state.mouse_clicked_on
@@ -45,7 +59,15 @@ def handle_keyboard_input(event, game_state, goods, depot):
         game_state.time_level = min(5, game_state.time_level + 1)
 
 
-def _handle_function_key(key, game_state, goods, depot):
+def _handle_function_key(key: int, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
+    """Dispatch actions for F1-F6 trading hotkeys.
+    
+    Args:
+        key: The key code (e.g., pygame.K_F1).
+        game_state: Current state of the game engine.
+        goods: List of all tradeable goods.
+        depot: The player's depot/inventory model.
+    """
     key_actions = {
         pygame.K_F1: ('one', 'buy'),
         pygame.K_F2: ('one', 'sell'),

@@ -1,13 +1,38 @@
 import pygame
+from typing import List, Dict, Any, Optional
 from .keyboard_handler import handle_keyboard_input
 from .mouse_handler import handle_mouse_click
 from ..ui.info_window import InfoWindow
 
 class EventHandler:
-    def __init__(self):
-        self.running = True
+    """Handles all user input and system events for the game.
+    
+    This class dispatches events to keyboard and mouse handlers, manages
+    the game's running state, and handles specialized events like music transitions.
+    """
+    
+    def __init__(self) -> None:
+        """Initialize the event handler."""
+        self.running: bool = True
 
-    def handle_events(self, event, game_state, goods, depot, buttons):
+    def handle_events(self, 
+                      event: pygame.event.Event, 
+                      game_state: Any, 
+                      goods: List[Any], 
+                      depot: Any, 
+                      buttons: Dict[str, pygame.Rect]) -> bool:
+        """Process a single pygame event and update game state accordingly.
+        
+        Args:
+            event: The pygame event to process.
+            game_state: The current game state object.
+            goods: List of all interactive goods in the market.
+            depot: The player's depot/inventory object.
+            buttons: A dictionary of interactive UI button rectangles.
+            
+        Returns:
+            bool: The current running state of the game (False if quit).
+        """
         if event.type == pygame.QUIT:
             self.running = False
 
@@ -41,7 +66,7 @@ class EventHandler:
             scroll_speed = 20
             
             # Check if detail panel is visible and mouse is over it
-            if hasattr(game_state, "detail_panel") and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
+            if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
                 game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))
             else:
                 # Otherwise check depot view

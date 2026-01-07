@@ -1,18 +1,45 @@
 import pygame
 import random
+from typing import List, Optional, Tuple, Any, TYPE_CHECKING
 from ..config.colors import *
 
+if TYPE_CHECKING:
+    from ..game import Game
+
 class SoundControl:
-    def __init__(self, screen_width, screen_height, font, button_image):
-        self.font = font
-        self.button_image = button_image
-        self.playing = False
-        self.current_song = None
-        self.last_played_song = None
-        self.play_queue = []
+    """A UI component to toggle background music and manage the playlist.
+    
+    Attributes:
+        font: The font used for text rendering.
+        button_image: The icon for the music button.
+        playing: Boolean state of background music playback.
+        current_song: Key of the currently playing song.
+        last_played_song: Key of the previous song played.
+        play_queue: List of songs waiting to be played.
+        button_size: Target size for the control button.
+        control_rect: Rectangular area for the background panel.
+        button_rect: Rectangular area for the interactive button.
+        MUSIC_END_EVENT: Custom event ID for song completion.
+    """
+
+    def __init__(self, screen_width: int, screen_height: int, font: pygame.font.Font, button_image: pygame.Surface) -> None:
+        """Initialize the sound control panel.
+        
+        Args:
+            screen_width: Width of the game screen.
+            screen_height: Height of the game screen.
+            font: Font for text rendering.
+            button_image: Surface containing the button icon.
+        """
+        self.font: pygame.font.Font = font
+        self.button_image: pygame.Surface = button_image
+        self.playing: bool = False
+        self.current_song: Optional[str] = None
+        self.last_played_song: Optional[str] = None
+        self.play_queue: List[str] = []
         
         # Set up button position and size
-        self.button_size = 45  # Target size for button
+        self.button_size: int = 45  # Target size for button
         
         # Resize button image if needed
         if button_image.get_height() > self.button_size or button_image.get_width() > self.button_size:
@@ -22,22 +49,22 @@ class SoundControl:
             self.button_image = pygame.transform.scale(button_image, (new_width, new_height))
         
         # Create a background panel rect similar to time control
-        padding = 3  # Padding around the button
-        panel_width = self.button_image.get_width() + padding * 2
-        panel_height = 50  # Same height as time control panel
+        padding: int = 3  # Padding around the button
+        panel_width: int = self.button_image.get_width() + padding * 2
+        panel_height: int = 50  # Same height as time control panel
         
         # Position the button to the left of time control
-        button_x = screen_width - 400  # Position left of time control
+        button_x: int = screen_width - 400  # Position left of time control
         
-        self.control_rect = pygame.Rect(
-            button_x - padding,  # Account for "Music:" text
+        self.control_rect: pygame.Rect = pygame.Rect(
+            button_x - padding,
             screen_height - 55,  # Same positioning as time control
             panel_width,
             panel_height
         )
         
         # Create button rectangle centered in the panel
-        self.button_rect = pygame.Rect(
+        self.button_rect: pygame.Rect = pygame.Rect(
             self.control_rect.x + (self.control_rect.width - self.button_image.get_width()) // 2,
             self.control_rect.y + (self.control_rect.height - self.button_image.get_height()) // 2,
             self.button_image.get_width(),
@@ -45,10 +72,15 @@ class SoundControl:
         )
         
         # Register for the music end event
-        self.MUSIC_END_EVENT = pygame.USEREVENT + 1
+        self.MUSIC_END_EVENT: int = pygame.USEREVENT + 1
         pygame.mixer.music.set_endevent(self.MUSIC_END_EVENT)
     
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface) -> None:
+        """Draw the music control panel and button.
+        
+        Args:
+            screen: The pygame surface to draw on.
+        """
         # Get mouse position for hover effects
         mouse_pos = pygame.mouse.get_pos()
         
@@ -74,7 +106,16 @@ class SoundControl:
             overlay.fill((0, 255, 0, 40))  # Green tint
             screen.blit(overlay, self.button_rect)
     
-    def handle_click(self, pos, game):
+    def handle_click(self, pos: Tuple[int, int], game: 'Game') -> bool:
+        """Handle mouse clicks to toggle music playback.
+        
+        Args:
+            pos: The (x, y) mouse position of the click.
+            game: Reference to the main Game instance.
+            
+        Returns:
+            bool: True if the button was clicked, False otherwise.
+        """
         if self.button_rect.collidepoint(pos):
             if not self.playing:
                 # Start playing music
@@ -90,13 +131,21 @@ class SoundControl:
             return True
         return False
     
-    def handle_music_end_event(self, game):
-        """Handle when a song ends and play the next song"""
+    def handle_music_end_event(self, game: 'Game') -> None:
+        """Handle when a song ends and play the next song.
+        
+        Args:
+            game: Reference to the main Game instance.
+        """
         if self.playing:
             self.play_random_song(game)
     
-    def play_random_song(self, game):
-        """Play a random song that's different from the last played song"""
+    def play_random_song(self, game: 'Game') -> None:
+        """Play a random song that's different from the last played song.
+        
+        Args:
+            game: Reference to the main Game instance.
+        """
         available_songs = ["song_1", "song_2", "song_3", "song_4", "song_5"]
         
         # If we've played all songs, refill the queue but exclude the last played song

@@ -1,3 +1,9 @@
+"""Color constants for the ProjectTrader application.
+
+This module defines standard RGB color tuples used throughout the game's UI
+and graphics, categorized by theme and purpose.
+"""
+
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)

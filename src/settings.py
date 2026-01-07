@@ -1,46 +1,75 @@
 import pygame
+from typing import List, Tuple, Optional, Any, TYPE_CHECKING
 from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK
-from .ui.color_wheel import ColorWheel  # New import
+from .ui.color_wheel import ColorWheel
+
+if TYPE_CHECKING:
+    from .game import Game
+    from .models.good import Good
 
 class SettingsWindow:
-    def __init__(self, screen, font, game=None):
-        self.screen = screen
-        self.font = font
-        self.game = game
+    """A modal window for configuring game settings, such as commodity colors.
+    
+    Attributes:
+        screen: The pygame surface to draw on.
+        font: Font used for UI labels.
+        game: Reference to the main Game instance.
+        width: Width of the settings window.
+        height: Height of the settings window.
+        window_rect: Rectangular area for the settings window.
+        buttons: List of tuples (rect, label) for footer buttons.
+        text: Heading text displayed in the window.
+        allowed_colors: List of default color constants.
+        color_entries: List of tuples (good_object, clickable_rect).
+        active_color_wheel: Currently active ColorWheel instance.
+        color_wheel_target: The Good object being edited.
+    """
+
+    def __init__(self, screen: pygame.Surface, font: pygame.font.Font, game: Optional['Game'] = None) -> None:
+        """Initialize the settings window.
+        
+        Args:
+            screen: The surface to draw on.
+            font: Font for text rendering.
+            game: Optional reference to the Game object.
+        """
+        self.screen: pygame.Surface = screen
+        self.font: pygame.font.Font = font
+        self.game: Optional['Game'] = game
         # Set smaller dimensions than InfoWindow
-        self.width = screen.get_width() // 2
-        self.height = 300
-        self.window_rect = pygame.Rect(0, 0, self.width, self.height)
+        self.width: int = screen.get_width() // 2
+        self.height: int = 300
+        self.window_rect: pygame.Rect = pygame.Rect(0, 0, self.width, self.height)
         self.window_rect.center = (screen.get_width()//2, screen.get_height()//2)
         
         # Create three buttons at the bottom with modified label for reset
-        self.buttons = []
-        button_width = 140
-        button_height = 35
-        gap = 30
-        total_width = 3 * button_width + 2 * gap
-        start_x = self.window_rect.centerx - total_width//2
-        y = self.window_rect.bottom - 60
+        self.buttons: List[Tuple[pygame.Rect, str]] = []
+        button_width: int = 140
+        button_height: int = 35
+        gap: int = 30
+        total_width: int = 3 * button_width + 2 * gap
+        start_x: int = self.window_rect.centerx - total_width//2
+        y: int = self.window_rect.bottom - 60
         # Changed "Reset All" to "Reset to Standard"
         for i, label in enumerate(["Save and Close", "Discard", "Default Colors"]):
             btn_rect = pygame.Rect(start_x + i*(button_width+gap), y, button_width, button_height)
             self.buttons.append((btn_rect, label))
             
         # Lorem ipsum text
-        self.text = "Colors of Goods in the Charts"
+        self.text: str = "Colors of Goods in the Charts"
         
         # Predefined allowed colors for goods
-        self.allowed_colors = [RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK, DARK_GRAY, LIGHT_GRAY, BLACK]
+        self.allowed_colors: List[Tuple[int, int, int]] = [RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK, DARK_GRAY, LIGHT_GRAY, BLACK]
         # Build color entries if game and its goods exist using grid layout (max 4 per column)
-        self.color_entries = []  # List of tuples: (good, rect)
+        self.color_entries: List[Tuple['Good', pygame.Rect]] = []  # List of tuples: (good, rect)
         if self.game and hasattr(self.game, 'goods'):
-            entry_width = 20
-            entry_height = 20
-            gap_y = 10
-            gap_x = 80  # horizontal spacing between columns
-            start_y = self.window_rect.top + 100
-            start_x = self.window_rect.left + 240
-            count = 0
+            entry_width: int = 20
+            entry_height: int = 20
+            gap_y: int = 10
+            gap_x: int = 80  # horizontal spacing between columns
+            start_y: int = self.window_rect.top + 100
+            start_x: int = self.window_rect.left + 240
+            count: int = 0
             for good in self.game.goods:
                 row = count % 4
                 col = count // 4
@@ -50,10 +79,11 @@ class SettingsWindow:
                 self.color_entries.append((good, entry_rect))
                 count += 1
         # New properties for color wheel overlay
-        self.active_color_wheel = None  # Instance of ColorWheel if open
-        self.color_wheel_target = None    # The good whose color is being changed
+        self.active_color_wheel: Optional[ColorWheel] = None  # Instance of ColorWheel if open
+        self.color_wheel_target: Optional['Good'] = None    # The good whose color is being changed
 
-    def draw(self):
+    def draw(self) -> None:
+        """Draw the settings window and all its components."""
         # Draw semi-transparent overlay
         overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
         overlay.set_alpha(128)
@@ -98,7 +128,15 @@ class SettingsWindow:
         if self.active_color_wheel:
             self.active_color_wheel.draw(self.screen)
 
-    def handle_click(self, pos):
+    def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
+        """Process click interactions within the settings window.
+        
+        Args:
+            pos: The (x, y) mouse position of the click.
+            
+        Returns:
+            Optional[str]: Action label if a function button was clicked, or None.
+        """
         # If a color wheel is active, delegate the click to it.
         if self.active_color_wheel:
             result = self.active_color_wheel.handle_click(pos)

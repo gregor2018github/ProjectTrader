@@ -1,3 +1,9 @@
+"""Global constants and configuration settings for ProjectTrader.
+
+This module contains system paths, screen dimensions, game balance parameters,
+and other static values that define the game's environment.
+"""
+
 import os
 
 # SYSTEM PATHS

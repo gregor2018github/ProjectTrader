@@ -1,13 +1,24 @@
 import pygame
 import datetime
+from typing import TYPE_CHECKING, Tuple, Optional, Any
 from ..config.colors import *
 from ..config.constants import SCREEN_WIDTH
 
-def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot, game_state) -> None:
+if TYPE_CHECKING:
+    from ..models.depot import Depot
+    from ..game_state import GameState
+
+def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState') -> None:
     """Draw the depot view panel on the right side of the screen.
     
     The depot view basically only contains the left half of the data. 
     The right half shows more detailed statistics and is handled in depot_view_detail.py.
+    
+    Args:
+        screen: The pygame surface to draw on.
+        font: Main font for text rendering.
+        depot: Reference to the player's depot model.
+        game_state: Current game state object.
     """
     
     # Calculate dimensions
@@ -86,7 +97,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot, game_
     # Do not render right button if not active
 
     # Initialize detail panel if not already set
-    if not hasattr(game_state, "detail_panel"):
+    if game_state.detail_panel is None:
         from .depot_view_detail import DepotViewDetail
         game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
         # Open "Current Wealth" by default
@@ -191,16 +202,26 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot, game_
                  y_pos: int, 
                  label: str, 
                  value: str, 
-                 label_color: tuple[int, int, int] = DARK_BROWN, 
-                 value_color: tuple[int, int, int] = BLACK
+                 label_color: Tuple[int, int, int] = DARK_BROWN, 
+                 value_color: Tuple[int, int, int] = BLACK
         ) -> None:
-        """Helper function to draw a single row with label and value at specified y position on given surface."""
+        """Helper function to draw a single row with label and value.
+        
+        Args:
+            surf: Surface to draw the row onto.
+            y_pos: Vertical position in pixels.
+            label: Text label for the row.
+            value: Value text to display.
+            label_color: Color of the label text.
+            value_color: Color of the value text.
+        """
         
         #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
         small_font = game_state.small_font
         
         # Check if this row is currently selected (its detail panel is open)
         is_selected = (hasattr(game_state, "detail_panel") and 
+                     game_state.detail_panel is not None and
                      game_state.detail_panel.visible and 
                      game_state.detail_panel.current_statistic == label)
         
@@ -399,7 +420,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot, game_
     game_state.depot_buttons = {"left": left_btn_rect, "right": right_btn_rect}
 
     # After all depot rendering, draw the detail panel if toggled visible
-    if hasattr(game_state, "detail_panel"):
+    if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
         if game_state.detail_panel.visible:
             game_state.detail_panel.draw(screen, font)
 
@@ -409,10 +430,21 @@ def draw_stat_row(screen: pygame.Surface,
                   y: int, 
                   label: str, 
                   value: str, 
-                  label_color: tuple[int, int, int] = DARK_BROWN, 
-                  value_color: tuple[int, int, int] = BLACK
+                  label_color: Tuple[int, int, int] = DARK_BROWN, 
+                  value_color: Tuple[int, int, int] = BLACK
     ) -> None:
-    """Helper function to draw a row with label and value"""
+    """Helper function to draw a row with label and value.
+    
+    Args:
+        screen: The surface to draw on.
+        font: Font for text rendering.
+        x: Horizontal starting position.
+        y: Vertical position.
+        label: Text label describing the statistic.
+        value: The statistic value.
+        label_color: Color for the label.
+        value_color: Color for the value.
+    """
 
     label_surf = font.render(label, True, label_color)
     value_surf = font.render(value, True, value_color)

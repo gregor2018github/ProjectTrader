@@ -1,17 +1,36 @@
 import pygame
+from typing import List, Optional, Tuple, Union
 from ..config.colors import *
 
 class Menu:
+    """A persistent menu button and dropdown menu for global game actions.
+    
+    Attributes:
+        font: The font used for rendering menu text.
+        is_open: Boolean indicating if the dropdown is currently expanded.
+        items: List of labels for the menu items.
+        button_width: Width of the menu button.
+        button_height: Height of the menu button.
+        button_rect: The rectangular area of the main menu button.
+        item_height: Height of each dropdown item.
+        dropdown_rect: The rectangular area of the expanded menu.
+    """
+
     def __init__(self, screen_width: int, font: pygame.font.Font) -> None:
-        """Initialize the menu dropdown for the top right of the screen."""
-        self.font = font
-        self.is_open = False
-        self.items = ["Quit", "Balance", "Map", "Settings", "Demo"]
+        """Initialize the menu dropdown for the top right of the screen.
+        
+        Args:
+            screen_width: Width of the game screen to calculate positioning.
+            font: Font for text rendering.
+        """
+        self.font: pygame.font.Font = font
+        self.is_open: bool = False
+        self.items: List[str] = ["Quit", "Balance", "Map", "Settings", "Demo"]
         
         # Menu button dimensions and position
-        self.button_width = 100
-        self.button_height = 40
-        self.button_rect = pygame.Rect(
+        self.button_width: int = 100
+        self.button_height: int = 40
+        self.button_rect: pygame.Rect = pygame.Rect(
             screen_width - self.button_width - 5,  # 5px from right edge
             10,  # 10px from top
             self.button_width,
@@ -19,8 +38,8 @@ class Menu:
         )
         
         # Dropdown dimensions
-        self.item_height = 40
-        self.dropdown_rect = pygame.Rect(
+        self.item_height: int = 40
+        self.dropdown_rect: pygame.Rect = pygame.Rect(
             self.button_rect.x,
             self.button_rect.bottom,
             self.button_width,
@@ -28,7 +47,11 @@ class Menu:
         )
 
     def draw(self, screen: pygame.Surface) -> None:
-        """Draw the menu, dropdown functionality and hover effects."""
+        """Draw the menu button and its dropdown menu if open.
+        
+        Args:
+            screen: The pygame surface to draw on.
+        """
         # Get mouse position for hover effect
         mouse_pos = pygame.mouse.get_pos()
         is_hovered = self.button_rect.collidepoint(mouse_pos)
@@ -74,8 +97,15 @@ class Menu:
                 # Draw dropdown border    
                 pygame.draw.rect(screen, DARK_GRAY, self.dropdown_rect, 2)
 
-    def handle_click(self, pos: tuple[int, int]) -> str | None:
-        """Handle clicks on the menu button and dropdown items."""
+    def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
+        """Handle mouse clicks on the menu button or dropdown items.
+        
+        Args:
+            pos: The (x, y) mouse position of the click.
+            
+        Returns:
+            Optional[str]: The name of the clicked menu item, or None.
+        """
         if self.button_rect.collidepoint(pos):
             self.is_open = not self.is_open
             return None

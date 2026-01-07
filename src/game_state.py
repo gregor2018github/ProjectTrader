@@ -1,20 +1,64 @@
 import datetime
+import pygame
 from collections import namedtuple
+from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from .ui.warning_message import WarningMessage
 
+if TYPE_CHECKING:
+    from .game import Game
+    from .ui.dropdown import Dropdown
+    from .ui.info_window import InfoWindow
+    from .ui.depot_view_detail import DepotViewDetail
+
+# Named tuple for tracking which time units have changed in a tick
+TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
+
 class GameState:
-    def __init__(self):
-        self.screen = None  # Will be set by Game class
-        self.date = datetime.datetime(1500, 1, 1, 0, 0, 0)
-        self.time_level = 3
-        self.tick_counter = 0
-        self.chart_state = True
-        self.info_state = False
-        self.depot_state = False
-        self.mouse_clicked_on = "none"
+    """Central repository for game session data and transient UI states.
+    
+    Attributes:
+        screen: The main pygame display surface.
+        date: Current simulation date and time.
+        time_level: Simulation speed level (1-5).
+        tick_counter: Number of game engine ticks elapsed.
+        chart_state: Boolean indicating if the price chart is visible.
+        info_state: Boolean for info panel visibility.
+        depot_state: Boolean for depot panel visibility.
+        mouse_clicked_on: Key of the UI element currently being clicked.
+        input_fields: Dictionary of text content for various input fields.
+        image_boxes: List of clickable areas for images (deprecated/placeholder).
+        message: Current status message text.
+        message_timer: Ticks remaining for the current message.
+        active_dropdown: Reference to the currently open Dropdown.
+        dropdowns: Dictionary mapping dropdown keys to Dropdown instances.
+        info_window: Currently active InfoWindow modal.
+        warning: Currently active WarningMessage pop-up.
+        cursor_visible: Blink state of the text cursor.
+        cursor_timer: Ticks elapsed since last cursor toggle.
+        cursor_blink_rate: Ticks between cursor blink toggles.
+        cursor_position: Index within active input field text.
+        available_goods: List of all valid commodity names.
+        money_effect_timer: Duration of money change highlight.
+        money_effect_color: Color of money change highlight.
+        button_click_effects: Active click animation timers.
+        detail_panel: Reference to the DepotViewDetail panel.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the game state with default values."""
+        self.screen: Optional[pygame.Surface] = None  # Will be set by Game class
+        self.game: Optional['Game'] = None # Will be set by Game class
+        self.font: Optional[pygame.font.Font] = None # Will be set by Game class
+        self.date: datetime.datetime = datetime.datetime(1500, 1, 1, 0, 0, 0)
+        self.time_level: int = 3
+        self.tick_counter: int = 0
+        self.chart_state: bool = True
+        self.info_state: bool = False
+        self.depot_state: bool = False
+        self.mouse_clicked_on: str = "none"
         
         # Input fields for quick trading at the bottom of the screen
-        self.input_fields = {
+        self.input_fields: Dict[str, str] = {
             'good_one': "Wood",
             'good_two': "Stone",
             'good_three': "Iron",
@@ -23,41 +67,49 @@ class GameState:
             'quantity_three': "2"
         }
         
-        self.image_boxes = []
-        self.message = None
-        self.message_timer = 0
+        self.image_boxes: List[Any] = []
+        self.message: Optional[str] = None
+        self.message_timer: int = 0
         
-        self.active_dropdown = None  # Stores the currently open dropdown
-        self.dropdowns = {}  # Stores all dropdown instances
-        self.info_window = None  # For modal dialogs like quit confirmation
-        self.warning = None      # For warning messages
-        self.cursor_visible = True
-        self.cursor_timer = 0
-        self.cursor_blink_rate = 30
-        self.cursor_position = 0
-        self.current_day = 1
+        self.active_dropdown: Optional['Dropdown'] = None  # Stores the currently open dropdown
+        self.dropdowns: Dict[str, Any] = {}  # Stores all dropdown instances
+        self.info_window: Optional['InfoWindow'] = None  # For modal dialogs like quit confirmation
+        self.warning: Optional[WarningMessage] = None      # For warning messages
+        self.cursor_visible: bool = True
+        self.cursor_timer: int = 0
+        self.cursor_blink_rate: int = 30
+        self.cursor_position: int = 0
+        self.current_day: int = 1
         
         # List of available goods for dropdown
-        self.available_goods = [
+        self.available_goods: List[str] = [
             "Wood", "Stone", "Iron", "Wool", "Hide", "Fish",
             "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
         ]
         
-        self.last_hour = 0
-        self.last_day = 1
-        self.last_week = 1
-        self.last_month = 1
-        self.last_year = 1500
+        self.last_hour: int = 0
+        self.last_day: int = 1
+        self.last_week: int = 1
+        self.last_month: int = 1
+        self.last_year: int = 1500
         
-        self.depot_time_frame = "Daily"
-        self.depot_time_frames = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
+        self.depot_time_frame: str = "Daily"
+        self.depot_time_frames: List[str] = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
         
         # NEW: For money glow effect and button click animations
-        self.money_effect_timer = 0
-        self.money_effect_color = None
-        self.button_click_effects = {}
+        self.money_effect_timer: int = 0
+        self.money_effect_color: Optional[Tuple[int, int, int]] = None
+        self.button_click_effects: Dict[str, int] = {}
         
-    def update_time(self):
+        self.detail_panel: Optional['DepotViewDetail'] = None
+        self.small_font: Optional[pygame.font.Font] = None # Will be set by Game class
+        self.depot_scroll_offset: int = 0
+        self.depot_plus_buttons: Dict[str, Tuple[int, int, int, int]] = {}
+        self.depot_plus_rects: Dict[str, pygame.Rect] = {}
+        self.depot_buttons: Dict[str, pygame.Rect] = {}
+        
+    def update_time(self) -> None:
+        """Advance the game simulation time based on current speed level."""
         self.tick_counter += 1
         if self.time_level == 1:
                 self.date += datetime.timedelta(hours=0)
@@ -70,10 +122,21 @@ class GameState:
         elif self.time_level == 5:
             self.date += datetime.timedelta(hours=1)
   
-    def show_warning(self, text):
-        self.warning = WarningMessage(self.screen, text, self.font, self.game)  # pass game reference
+    def show_warning(self, text: str) -> None:
+        """Display a transient warning message on the UI.
         
-    def update(self):
+        Args:
+            text: The message content.
+        """
+        if self.screen and self.font:
+            self.warning = WarningMessage(self.screen, text, self.font, self.game)
+        
+    def update(self) -> TimeChanges:
+        """Update game state timers and check for time interval changes.
+        
+        Returns:
+            TimeChanges: Named tuple indicating which time units changed.
+        """
         self.update_time()
         current_hour = self.date.hour
         current_day = self.date.day
@@ -98,11 +161,6 @@ class GameState:
             if self.message_timer == 0:
                 self.message = None
         
-        if self.money_effect_timer > 0:
-            self.money_effect_timer -= 1
-            if self.money_effect_timer == 0:
-                self.money_effect_color = None
-
         # NEW: Update button click effects and remove finished ones
         remove_keys = []
         for key in self.button_click_effects:
@@ -112,5 +170,4 @@ class GameState:
         for key in remove_keys:
             del self.button_click_effects[key]
                 
-        TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
         return TimeChanges(hour_changed, day_changed, week_changed, month_changed, year_changed)

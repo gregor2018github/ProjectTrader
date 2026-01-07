@@ -1,10 +1,7 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add docstrings
-- [ ] add type hints
-- [ ] give x and y coordinates to the player instance
-- [ ] Integrate the map system into the main game loop
+- [ ] Integrate the map system into the main game loop (link player position to map position)
 - [ ] Add a free license at github 
 - [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
@@ -13,6 +10,7 @@
 - [ ] Add a readme file to the project including gifs/screenshots
 - [ ] Add vertical bars to the chart which will indicate day changes
 - [ ] Market events
+- [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 
 ## Planned Features
 - [ ] Expenditure overview in the depot detail view
@@ -33,6 +31,9 @@
 
 
 Finished Features
+- [x] give x and y coordinates to the player instance
+- [x] add docstrings
+- [x] add type hints
 - [x] Add a side menu panel with pictogram buttons
 - [x] Shift menu button to the right (extension of the existing space)
 - [x] Reorganize the top bar so that all products get separated by the money with a vertical stripe - only possible when Menu button goes to the right

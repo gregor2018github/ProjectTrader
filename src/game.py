@@ -1,5 +1,6 @@
 import pygame
 import os
+from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
 from .ui.layout import draw_layout, draw_right_bar
@@ -16,21 +17,28 @@ from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 
 class Game:
-    def __init__(self):
+    """The central class that manages the main game loop, initialization, and resource loading.
+    
+    This class orchestrates components like GameState, EventHandler, Depot, and UI elements
+    to provide the Merchant's Rise game experience.
+    """
+    
+    def __init__(self) -> None:
+        """Initialize the game engine, UI, assets, and game objects."""
         pygame.init()
         
         # Initialize mixer for sound playback
         pygame.mixer.init()
         
         # Initialize screen first
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))
+        self.screen: pygame.Surface = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))
         
         # Initialize basic components
-        self.state = GameState()
+        self.state: GameState = GameState()
         self.state.screen = self.screen  # Set screen reference in GameState
         self.state.game = self  # Add reference to self (Game instance)
-        self.event_handler = EventHandler()
-        self.clock = pygame.time.Clock()
+        self.event_handler: EventHandler = EventHandler()
+        self.clock: pygame.time.Clock = pygame.time.Clock()
         
         # Set up window properties
         pygame.display.set_caption("Merchant's Rise")
@@ -38,34 +46,34 @@ class Game:
         pygame.display.set_icon(icon)
         
         # Initialize font
-        self.font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 24)
-        self.small_font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 19)
+        self.font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 24)
+        self.small_font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 19)
         self.state.font = self.font  # Set font reference in GameState
         self.state.small_font = self.small_font  # Set small font reference in GameState
-        self.chart_border = (50, self.screen.get_size()[1]-150)
+        self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
         
         # Initialize goods
-        self.goods = self._initialize_goods()
+        self.goods: List[Good] = self._initialize_goods()
         
         # Initialize depot
-        self.depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
+        self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
 
         # Initialize player
-        self.player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
         
         # Load images
-        self.images = self._load_images()
+        self.images: Dict[str, Any] = self._load_images()
         
         # Load sounds
-        self.sounds = self._load_sounds()
+        self.sounds: Dict[str, pygame.mixer.Sound] = self._load_sounds()
         
         # Load music
-        self.music_paths = self._load_music()
+        self.music_paths: Dict[str, str] = self._load_music()
         
-        self.update_delay = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
-        self.last_update = 0
+        self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
+        self.last_update: int = 0
         
-        self.menu = Menu(self.screen.get_width(), self.font)  # Add menu initialization
+        self.menu: Menu = Menu(self.screen.get_width(), self.font)  # Add menu initialization
         
         # Load images for time control
         time_control_images = {
@@ -75,16 +83,16 @@ class Game:
         }
 
         # load image for info window background frame
-        self.pic_info_window = pygame.image.load(os.path.join(PICTURES_PATH, "info_window_frame.png"))
+        self.pic_info_window: pygame.Surface = pygame.image.load(os.path.join(PICTURES_PATH, "info_window_frame.png"))
 
         # Load portraits for encountable characters and places
-        self.pic_portraits = {
+        self.pic_portraits: Dict[str, pygame.Surface] = {
             "portrait_merchant": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_merchant.png")),
             "portrait_harbor": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_harbor.png")),
             "portrait_shop": pygame.image.load(os.path.join(PICTURES_PATH, "portrait_shop.png"))
         }
         
-        self.time_control = TimeControl(
+        self.time_control: TimeControl = TimeControl(
             SCREEN_WIDTH, 
             self.screen.get_height(), 
             self.font,
@@ -92,14 +100,19 @@ class Game:
         )
         
         # Initialize sound control
-        self.sound_control = SoundControl(
+        self.sound_control: SoundControl = SoundControl(
             SCREEN_WIDTH,
             self.screen.get_height(),
             self.font,
             self.images['button_sound_80']
         )
 
-    def _initialize_goods(self):
+    def _initialize_goods(self) -> List[Good]:
+        """Create and initialize the default list of goods for the market.
+        
+        Returns:
+            List[Good]: A list of initialized Good objects.
+        """
         goods = []
         goods_data = [
             ("Wood", 1, 5000, PALE_BROWN, 0, True),
@@ -120,7 +133,12 @@ class Game:
                             color=color, index=index, show_in_charts=show))
         return goods
 
-    def _load_images(self):
+    def _load_images(self) -> Dict[str, Any]:
+        """Load and scale all visual assets for the game.
+        
+        Returns:
+            Dict[str, Any]: A dictionary containing loaded surfaces and nested image dictionaries.
+        """
         images = {'goods_30': {}}
         # Load bigger images for general stats
         images['money_50'] = pygame.image.load(os.path.join(PICTURES_PATH, "money_50.png"))
@@ -153,8 +171,12 @@ class Game:
         
         return images
     
-    def _load_sounds(self):
-        """Load game sound effects"""
+    def _load_sounds(self) -> Dict[str, pygame.mixer.Sound]:
+        """Load game sound effects from the sound directory.
+        
+        Returns:
+            Dict[str, pygame.mixer.Sound]: A dictionary mapping sound names to Sound objects.
+        """
         sounds = {}
         
         # Define the sound directory
@@ -171,8 +193,12 @@ class Game:
     
         return sounds
     
-    def _load_music(self):
-        """Load music tracks"""
+    def _load_music(self) -> Dict[str, str]:
+        """Identify paths for music tracks in the music directory.
+        
+        Returns:
+            Dict[str, str]: A dictionary mapping music track identifiers to file paths.
+        """
         music_paths = {}
         
         # Define the music directory
@@ -193,8 +219,12 @@ class Game:
         
         return music_paths
         
-    def play_sound(self, sound_name):
-        """Play a sound by name"""
+    def play_sound(self, sound_name: str) -> None:
+        """Play a sound effect by name.
+        
+        Args:
+            sound_name: The key of the sound in self.sounds.
+        """
         if sound_name in self.sounds:
             try:
                 self.sounds[sound_name].play()
@@ -203,10 +233,12 @@ class Game:
         else:
             print(f"Sound {sound_name} not found")
 
-    def run(self):
+    def run(self) -> None:
+        """Execute the main game loop, handling updates, rendering, and events."""
         running = True
         buttons = {}
         while running:
+
             # Limit to X frames per second
             delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
             current_time = pygame.time.get_ticks()

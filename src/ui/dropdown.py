@@ -1,20 +1,48 @@
 import pygame
+from typing import List, Optional, Tuple, Any
 from ..config.colors import *
 
 class Dropdown:
-    def __init__(self, x, y, width, height, options, font):
-        self.rect = pygame.Rect(x, y, width, height)
-        self.options = options
-        self.font = font
-        self.item_height = 25
-        self.is_open = False
+    """A dropdown menu for selecting from a list of options.
+    
+    Attributes:
+        rect: The rectangular area of the main dropdown button.
+        options: A list of string options to display.
+        font: The pygame font used for rendering text.
+        item_height: Height of each individual option in pixels.
+        is_open: Boolean indicating if the dropdown is currently expanded.
+        dropdown_height: Total height of the expanded dropdown list.
+        dropdown_rect: The rectangular area covering the entire expanded list.
+    """
+
+    def __init__(self, x: int, y: int, width: int, height: int, options: List[str], font: pygame.font.Font) -> None:
+        """Initialize the dropdown.
+        
+        Args:
+            x: X-coordinate of the dropdown.
+            y: Y-coordinate of the dropdown.
+            width: Width of the dropdown.
+            height: Height of the main button.
+            options: List of selectable options.
+            font: Font for text rendering.
+        """
+        self.rect: pygame.Rect = pygame.Rect(x, y, width, height)
+        self.options: List[str] = options
+        self.font: pygame.font.Font = font
+        self.item_height: int = 25
+        self.is_open: bool = False
         
         # Calculate dropdown dimensions
-        self.dropdown_height = len(options) * self.item_height
+        self.dropdown_height: int = len(options) * self.item_height
         # Position above the input field
-        self.dropdown_rect = pygame.Rect(x, y - self.dropdown_height, width, self.dropdown_height)
+        self.dropdown_rect: pygame.Rect = pygame.Rect(x, y - self.dropdown_height, width, self.dropdown_height)
         
-    def draw(self, screen):
+    def draw(self, screen: pygame.Surface) -> None:
+        """Draw the dropdown if it is currently open.
+        
+        Args:
+            screen: The pygame surface to draw on.
+        """
         if self.is_open:
             # Draw dropdown background
             pygame.draw.rect(screen, WHITE, self.dropdown_rect)
@@ -44,7 +72,15 @@ class Dropdown:
             # Draw dropdown border        
             pygame.draw.rect(screen, DARK_BROWN, self.dropdown_rect, 2)
     
-    def handle_click(self, pos):
+    def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
+        """Handle clicks when the dropdown is open.
+        
+        Args:
+            pos: The (x, y) mouse position of the click.
+            
+        Returns:
+            Optional[str]: The selected option string if an option was clicked, else None.
+        """
         if not self.is_open:
             return None
             

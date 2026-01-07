@@ -1,24 +1,54 @@
 import pygame
+from typing import Optional, TYPE_CHECKING
 from ..config.colors import LIGHT_GRAY, DARK_GRAY, BLACK
 
-class WarningMessage:
-    def __init__(self, screen, message, font, game=None):  # added game parameter
-        msg_surface = font.render(message, True, BLACK)
-        width = msg_surface.get_width() + 80
-        height = msg_surface.get_height() + 60
-        self.window_rect = pygame.Rect(0, 0, width, height)
-        self.window_rect.center = (screen.get_width() // 2, screen.get_height() // 2)
-        self.screen = screen
-        self.message = message
-        self.font = font
-        self.timer = 2.0  # Warning persists for 2 seconds (time-based)
-        self.fade_time = 0.5  # Fade out during the last 0.5 seconds
-        self.game = game  # store game reference
+if TYPE_CHECKING:
+    from ..game import Game
 
-    def update(self, delta_time=0.016):  # Default to ~60fps if no delta_time provided
+class WarningMessage:
+    """A transient pop-up message that fades out over time.
+    
+    Attributes:
+        screen: The pygame surface to draw on.
+        message: The warning text to display.
+        font: The font used for text rendering.
+        timer: Time remaining in seconds before the message disappears.
+        fade_time: Duration of the fade-out effect in seconds.
+        game: Optional reference to the Game instance for frame styling.
+        window_rect: The rectangular area for the warning box.
+    """
+
+    def __init__(self, screen: pygame.Surface, message: str, font: pygame.font.Font, game: Optional['Game'] = None) -> None:
+        """Initialize the warning message.
+        
+        Args:
+            screen: The surface to draw on.
+            message: The warning text.
+            font: Font for text rendering.
+            game: Optional reference to the Game object.
+        """
+        msg_surface = font.render(message, True, BLACK)
+        width: int = msg_surface.get_width() + 80
+        height: int = msg_surface.get_height() + 60
+        self.window_rect: pygame.Rect = pygame.Rect(0, 0, width, height)
+        self.window_rect.center = (screen.get_width() // 2, screen.get_height() // 2)
+        self.screen: pygame.Surface = screen
+        self.message: str = message
+        self.font: pygame.font.Font = font
+        self.timer: float = 2.0  # Warning persists for 2 seconds (time-based)
+        self.fade_time: float = 0.5  # Fade out during the last 0.5 seconds
+        self.game: Optional['Game'] = game  # store game reference
+
+    def update(self, delta_time: float = 0.016) -> None:
+        """Update the message timer.
+        
+        Args:
+            delta_time: Time elapsed since the last update in seconds.
+        """
         self.timer -= delta_time
 
-    def draw(self):
+    def draw(self) -> None:
+        """Draw the warning message with transparency and fade-out effect."""
         # Determine dynamic alpha: if timer is within fade-out period, alpha decreases gradually.
         if self.timer < self.fade_time:
             current_alpha_background = int(128 * (self.timer / self.fade_time))
