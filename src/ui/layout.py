@@ -1,19 +1,53 @@
 import pygame
+import datetime
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..models.good import Good
+    from ..models.depot import Depot
+    from ..game_state import GameState
+
 from ..config.colors import *
 from .dropdown import Dropdown
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
-def draw_layout(screen, goods, main_depot, main_font, date, input_fields, mouse_clicked_on, images, game_state):
+def draw_layout(
+    screen: pygame.Surface,
+    goods: List["Good"],
+    main_depot: "Depot",
+    main_font: pygame.font.Font,
+    date: datetime.datetime,
+    input_fields: Dict[str, str],
+    mouse_clicked_on: Optional[str],
+    images: Dict[str, Any],
+    game_state: "GameState"
+) -> Dict[str, pygame.Rect]:
+    """Builds layout parts - background, top bar, middle section, and bottom bar.
+    
+    Each section is drawn by a dedicated helper function. Only right bar is drawn separately.
+    """
+
     _draw_background(screen)
     _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
     _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
 
-def _draw_background(screen):
+def _draw_background(screen: pygame.Surface) -> None:
+    """Draws the lowest level monochrome background color."""
+
     screen.fill(BEIGE)
 
-def _draw_top_bar(screen, main_depot, main_font, date, images, game_state):
+def _draw_top_bar(
+    screen: pygame.Surface,
+    main_depot: "Depot",
+    main_font: pygame.font.Font,
+    date: datetime.datetime,
+    images: Dict[str, Any],
+    game_state: "GameState"
+) -> None:
+    """Draws the top bar with money, date, goods inventory, warehouses, and stock."""
+
     money_50 = images['money_50']
     goods_images_30 = images['goods_30']
     stock_30 = images['stock_30']
@@ -68,12 +102,25 @@ def _draw_top_bar(screen, main_depot, main_font, date, images, game_state):
     stock_text = main_font.render(f"Total Stock: {total_stock}", True, BLACK)
     screen.blit(stock_text, (1365, 35))
 
-def _draw_middle_section(screen):
+def _draw_middle_section(screen: pygame.Surface) -> None:
+    """Draws the middle section background and left middle area."""
+
     left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT-60)
     pygame.draw.rect(screen, SANDY_BROWN, left_middle)
     pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
 
-def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state):
+def _draw_bottom_bar(
+    screen: pygame.Surface,
+    goods: List["Good"],
+    main_font: pygame.font.Font,
+    input_fields: Dict[str, str],
+    mouse_clicked_on: Optional[str],
+    game_state: "GameState"
+) -> Dict[str, pygame.Rect]:
+    """Draws the bottom bar with trading buttons.
+    
+    Time controls and sound controls are drawn separately in their own modules.
+    """
     bottom_bar = pygame.Rect(0, SCREEN_HEIGHT-60, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, bottom_bar)
     pygame.draw.rect(screen, DARK_GRAY, bottom_bar, 2)
@@ -211,7 +258,11 @@ def _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, g
         
     return buttons
 
-def draw_right_bar(screen, images, buttons, main_font):
+def draw_right_bar(screen: pygame.Surface, images: dict, buttons: dict, main_font: pygame.font.Font) -> None:
+    """Draws the right sidebar for menu options with pictogram buttons and sub-buttons.
+    
+    The menu button is drawn separately in the menu module.
+    """
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
     pygame.draw.rect(screen, DARK_GRAY, right_bar, 1)
