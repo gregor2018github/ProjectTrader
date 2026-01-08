@@ -8,7 +8,6 @@
 
 ## Medium Priority
 - [ ] Add a readme file to the project including gifs/screenshots
-- [ ] Add vertical bars to the chart which will indicate day changes
 - [ ] Market events
 - [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 
@@ -31,6 +30,7 @@
 
 
 Finished Features
+- [x] Add vertical bars to the chart which will indicate day changes
 - [x] give x and y coordinates to the player instance
 - [x] add docstrings
 - [x] add type hints

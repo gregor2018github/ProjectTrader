@@ -1,12 +1,13 @@
 import pygame
+import datetime
 from typing import List, Dict, Tuple, Any, TYPE_CHECKING
 from ..config.colors import *
-from ..config.constants import SCREEN_WIDTH
+from ..config.constants import SCREEN_WIDTH, CHART_TIME_MARKER_UNIT
 
 if TYPE_CHECKING:
     from ..models.good import Good
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface]) -> List[pygame.Rect]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime) -> List[pygame.Rect]:
     """Draw the primary price history chart and selection UI.
     
     Args:
@@ -15,6 +16,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
         chart_border: Coordinates (x, y) defining the chart's top-left corner.
         goods: List of all tradeable goods with history data.
         goods_images_30: mapping of good names to 30x30 icons.
+        current_date: Current game simulation date and time.
         
     Returns:
         List[pygame.Rect]: Hitboxes for the good selection buttons.
@@ -32,8 +34,16 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0], chart_border[1] + max_chart_height), 1)
 
     # Calculate max price using chart history instead of bookkeeping history
-    max_price = max(max(good.price_history_hourly[-max_chart_size:]) for good in goods if good.show_in_charts)
+    visible_goods = [good for good in goods if good.show_in_charts]
+    if not visible_goods:
+        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
+
+    max_price = max(max(good.price_history_hourly[-int(max_chart_size):]) for good in visible_goods)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
+
+    # Draw time markers (vertical lines for day changes)
+    history_len = len(visible_goods[0].price_history_hourly[-int(max_chart_size):])
+    _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
     image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
@@ -41,7 +51,144 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Draw charts for each good with hover effects
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
+    # Draw chart hover effects (vertical line and tooltip)
+    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font)
+
     return image_boxes
+
+def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font) -> None:
+    """Draw a vertical hover line and price tooltip when hovering over the chart area.
+    
+    Args:
+        screen: Target surface.
+        chart_border: Base coordinates.
+        max_chart_size: Chart width.
+        max_chart_height: Chart height.
+        goods: List of all goods.
+        max_price: Price scaling factor.
+        main_font: Font for tooltip.
+    """
+    mouse_pos = pygame.mouse.get_pos()
+    
+    # Ensure height is handled correctly for collision detection (prices go 'up' from chart_border[1])
+    # The chart area vertically is between chart_border[1] and chart_border[1] + max_chart_height
+    # Since max_chart_height is negative, we use min/max to find the bounds.
+    top_y = min(chart_border[1], chart_border[1] + int(max_chart_height))
+    bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
+    left_x = chart_border[0]
+    right_x = chart_border[0] + int(max_chart_size)
+    
+    # Check if mouse is within the horizontal and vertical chart boundaries
+    if left_x <= mouse_pos[0] <= right_x and top_y <= mouse_pos[1] <= bottom_y:
+        # Draw vertical hover line spanning the full height of the chart
+        pygame.draw.line(screen, DARK_GRAY, (mouse_pos[0], top_y), (mouse_pos[0], bottom_y), 1)
+        
+        # Calculate index in price history based on mouse x position relative to start of chart
+        idx = int(mouse_pos[0] - left_x)
+        
+        visible_goods = [good for good in goods if good.show_in_charts]
+        if not visible_goods:
+            return
+
+        # Find closest good's price at this index
+        closest_good = None
+        min_dist = float('inf')
+        
+        for good in visible_goods:
+            # Use same slice as used for drawing the lines
+            price_history = good.price_history_hourly[-int(max_chart_size):]
+            
+            if idx < len(price_history):
+                # Calculate screen y-coordinate for this good at this index
+                # Matches the formula in _draw_good_line
+                price_y = chart_border[1] + ((price_history[idx] / max_price) * max_chart_height)
+                dist = abs(mouse_pos[1] - price_y)
+                
+                # Update closest good if this one is nearer to the mouse y position
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_good = (good.name, price_history[idx], good.color)
+        
+        if closest_good:
+            name, price, color = closest_good
+            tooltip_text = f"{name}: {price:.2f}"
+            
+            # Create a stable width by calculating as if all digits were the widest digit (9)
+            # This prevents the tooltip box from "jumping" as prices update.
+            stable_text = "".join(['9' if c.isdigit() else c for c in tooltip_text])
+            stable_width, stable_height = main_font.size(stable_text)
+            
+            # Render the actual text using a fixed color for readability
+            tooltip_surface = main_font.render(tooltip_text, True, DARK_BROWN)
+            
+            # Create a stable-size rect for the background based on "all 9s" dimensions
+            tooltip_base_x = mouse_pos[0] + 15
+            tooltip_base_y = mouse_pos[1] - 10
+            stable_rect = pygame.Rect(tooltip_base_x, tooltip_base_y, stable_width, stable_height)
+            
+            # Flip to left if it would go off right edge
+            if stable_rect.right > screen.get_width() - 10:
+                stable_rect.topright = (mouse_pos[0] - 15, tooltip_base_y)
+            
+            # Ensure it doesn't go off the top or bottom of the screen
+            if stable_rect.top < 0:
+                stable_rect.top = 0
+            if stable_rect.bottom > screen.get_height():
+                stable_rect.bottom = screen.get_height()
+            
+            # Draw background box with padding using the stable dimensions
+            bg_rect = stable_rect.inflate(10, 8)
+            pygame.draw.rect(screen, WHITE, bg_rect)
+            pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
+            
+            # Draw the text centered within the stable rect
+            text_rect = tooltip_surface.get_rect(center=stable_rect.center)
+            screen.blit(tooltip_surface, text_rect)
+
+def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, current_date: datetime.datetime, history_len: int) -> None:
+    """Draw vertical lines representing time boundaries (Day, Week, or Month).
+    
+    Args:
+        screen: Target surface.
+        chart_border: Base coordinates.
+        max_chart_size: Chart width.
+        max_chart_height: Chart height.
+        current_date: Current game time.
+        history_len: Length of the displayed history.
+    """
+    current_idx = history_len - 1
+    
+    if CHART_TIME_MARKER_UNIT == "Day":
+        # First marker is at the start of the current day
+        first_marker_offset = current_date.hour
+        step = 24
+        for i in range(current_idx - first_marker_offset, -1, -step):
+            if i < max_chart_size:
+                x = chart_border[0] + i
+                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
+                
+    elif CHART_TIME_MARKER_UNIT == "Week":
+        # First marker is at the start of the current week (Monday 00:00)
+        first_marker_offset = (current_date.weekday() * 24) + current_date.hour
+        step = 24 * 7
+        for i in range(current_idx - first_marker_offset, -1, -step):
+            if i < max_chart_size:
+                x = chart_border[0] + i
+                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
+                
+    elif CHART_TIME_MARKER_UNIT == "Month":
+        # Month lengths vary, so we iterate backwards index by index to check for day 1 at hour 0
+        # Given the chart width (~600-800 pixels), this is only hundreds of iterations.
+        for i in range(current_idx, -1, -1):
+            if i >= max_chart_size:
+                continue
+            
+            hours_ago = current_idx - i
+            check_date = current_date - datetime.timedelta(hours=hours_ago)
+            
+            if check_date.day == 1 and check_date.hour == 0:
+                x = chart_border[0] + i
+                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
 
 def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float) -> None:
     """Draw grid lines and price level labels.

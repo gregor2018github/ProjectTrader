@@ -276,7 +276,7 @@ class Game:
                 
             # Draw chart
             self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                self.goods, self.images['goods_30'])
+                                                self.goods, self.images['goods_30'], self.state.date)
             
             # Draw depot view if state is active (for testing, always draw it)
             draw_depot_view(self.screen, self.font, self.depot, self.state)
