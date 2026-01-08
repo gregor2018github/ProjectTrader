@@ -3,6 +3,7 @@ import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from .ui.warning_message import WarningMessage
+from .config.constants import START_DATE
 
 if TYPE_CHECKING:
     from .game import Game
@@ -87,16 +88,18 @@ class GameState:
             "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
         ]
         
+        # Initialize the time from the string in the constants like "01.01.1500" dd.mm.yyyy
+        start_date_parts = START_DATE.split(".")
         self.last_hour: int = 0
-        self.last_day: int = 1
-        self.last_week: int = 1
-        self.last_month: int = 1
-        self.last_year: int = 1500
+        self.last_day: int = int(start_date_parts[0])
+        self.last_week: int = datetime.datetime(int(start_date_parts[2]), int(start_date_parts[1]), int(start_date_parts[0])).isocalendar()[1]
+        self.last_month: int = int(start_date_parts[1])
+        self.last_year: int = int(start_date_parts[2])
         
         self.depot_time_frame: str = "Daily"
         self.depot_time_frames: List[str] = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
         
-        # NEW: For money glow effect and button click animations
+        # Money glow effect and button click animations
         self.money_effect_timer: int = 0
         self.money_effect_color: Optional[Tuple[int, int, int]] = None
         self.button_click_effects: Dict[str, int] = {}

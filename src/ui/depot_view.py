@@ -2,7 +2,7 @@ import pygame
 import datetime
 from typing import TYPE_CHECKING, Tuple, Optional, Any
 from ..config.colors import *
-from ..config.constants import SCREEN_WIDTH
+from ..config.constants import SCREEN_WIDTH, START_DATE
 
 if TYPE_CHECKING:
     from ..models.depot import Depot
@@ -46,7 +46,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     elif game_state.depot_time_frame == "Yearly":
         start_date = (game_state.date - datetime.timedelta(days=364)).strftime("%d.%m.%Y")
     else:  # "Total"
-        start_date = "01.01.1500"  # Game start date
+        start_date = START_DATE  # Game start date
     
     # Create heading text with date range
     if game_state.depot_time_frame == "Total":
