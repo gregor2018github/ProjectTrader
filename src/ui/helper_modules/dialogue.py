@@ -1,9 +1,9 @@
 import pygame
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
-from ..config.colors import *
+from ...config.colors import *
 
 if TYPE_CHECKING:
-    from ..game import Game
+    from ...game import Game
 
 class Dialogue:
     """A UI component that provides a semi-transparent dialogue window with portraits and options.

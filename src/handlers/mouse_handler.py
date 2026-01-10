@@ -1,6 +1,6 @@
 import pygame
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
-from ..ui.info_window import InfoWindow
+from ..ui.helper_modules.info_window import InfoWindow
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -70,7 +70,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                                                   game_state.font,
                                                   game_state.game)  # Pass game reference
             elif menu_action == "Demo":
-                from ..ui.dialogue import show_dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,
@@ -102,7 +102,7 @@ def handle_mouse_click(pos: Tuple[int, int],
         if result:
             if result == "Follow the Address":
                 # Create a new follow-up dialogue
-                from ..ui.dialogue import show_dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,
@@ -114,7 +114,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 )                
             elif result == "What a journey!":
                 # Create a new follow-up dialogue
-                from ..ui.dialogue import show_dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,
@@ -126,7 +126,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 )
             elif result == "Give him a hug":
                 # Create a new follow-up dialogue
-                from ..ui.dialogue import show_dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
                     game_state.game,

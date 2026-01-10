@@ -1,12 +1,12 @@
 import pygame
 import datetime
 from typing import TYPE_CHECKING, Tuple, Optional, Any
-from ..config.colors import *
-from ..config.constants import SCREEN_WIDTH, START_DATE
+from ...config.colors import *
+from ...config.constants import SCREEN_WIDTH, START_DATE
 
 if TYPE_CHECKING:
-    from ..models.depot import Depot
-    from ..game_state import GameState
+    from ...models.depot import Depot
+    from ...game_state import GameState
 
 def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState') -> None:
     """Draw the depot view panel on the right side of the screen.

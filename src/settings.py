@@ -1,7 +1,7 @@
 import pygame
 from typing import List, Tuple, Optional, Any, TYPE_CHECKING
 from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK
-from .ui.color_wheel import ColorWheel
+from .ui.helper_modules.color_wheel import ColorWheel
 
 if TYPE_CHECKING:
     from .game import Game

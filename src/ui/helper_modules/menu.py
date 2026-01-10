@@ -1,6 +1,6 @@
 import pygame
 from typing import List, Optional, Tuple, Union
-from ..config.colors import *
+from ...config.colors import *
 
 class Menu:
     """A persistent menu button and dropdown menu for global game actions.

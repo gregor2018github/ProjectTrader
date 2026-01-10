@@ -1,9 +1,9 @@
 import pygame
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
-from ..config.colors import *
+from ...config.colors import *
 
 if TYPE_CHECKING:
-    from ..game import Game
+    from ...game import Game
 
 class InfoWindow:
     """A pop-up information window with customizable message and buttons.
@@ -69,7 +69,7 @@ class InfoWindow:
         if hasattr(self, 'game') and self.game:
             game = self.game
         else:
-            from ..game_state import GameState
+            from ...game_state import GameState
             # This is a fallback and might fail if GameState isn't initialized correctly
             game = GameState().game  # type: ignore
         

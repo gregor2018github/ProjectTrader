@@ -3,16 +3,16 @@ import os
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
-from .ui.layout import draw_layout, draw_right_bar
-from .ui.chart import draw_chart
+from .ui.general_layout.layout import draw_layout, draw_right_bar
+from .ui.layout_modules.chart import draw_chart
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
 from .config.colors import *
-from .ui.depot_view import draw_depot_view
-from .ui.menu import Menu
-from .ui.time_control import TimeControl
-from .ui.sound_control import SoundControl  # Add import for SoundControl
+from .ui.layout_modules.depot_view import draw_depot_view
+from .ui.helper_modules.menu import Menu
+from .ui.helper_modules.time_control import TimeControl
+from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 

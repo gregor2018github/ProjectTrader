@@ -1,6 +1,6 @@
 import pygame
 from typing import Dict, List, Tuple, Any, Optional
-from ..config.colors import *
+from ...config.colors import *
 
 class TimeControl:
     """A UI component for controlling the simulation speed of the game.

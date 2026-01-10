@@ -1,9 +1,9 @@
 import pygame
 from typing import Optional, TYPE_CHECKING
-from ..config.colors import LIGHT_GRAY, DARK_GRAY, BLACK
+from ...config.colors import LIGHT_GRAY, DARK_GRAY, BLACK
 
 if TYPE_CHECKING:
-    from ..game import Game
+    from ...game import Game
 
 class WarningMessage:
     """A transient pop-up message that fades out over time.

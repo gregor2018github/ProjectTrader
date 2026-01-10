@@ -1,11 +1,11 @@
 import pygame
 import datetime
 from typing import List, Dict, Tuple, Any, TYPE_CHECKING
-from ..config.colors import *
-from ..config.constants import SCREEN_WIDTH, CHART_TIME_MARKER_UNIT
+from ...config.colors import *
+from ...config.constants import SCREEN_WIDTH, CHART_TIME_MARKER_UNIT
 
 if TYPE_CHECKING:
-    from ..models.good import Good
+    from ...models.good import Good
 
 def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime) -> List[pygame.Rect]:
     """Draw the primary price history chart and selection UI.

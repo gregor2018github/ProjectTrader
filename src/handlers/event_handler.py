@@ -2,7 +2,7 @@ import pygame
 from typing import List, Dict, Any, Optional
 from .keyboard_handler import handle_keyboard_input
 from .mouse_handler import handle_mouse_click
-from ..ui.info_window import InfoWindow
+from ..ui.helper_modules.info_window import InfoWindow
 
 class EventHandler:
     """Handles all user input and system events for the game.

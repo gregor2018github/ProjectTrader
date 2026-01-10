@@ -1,6 +1,6 @@
 import pygame
 from typing import List, Optional, Tuple, Any
-from ..config.colors import *
+from ...config.colors import *
 
 class Dropdown:
     """A dropdown menu for selecting from a list of options.

@@ -2,14 +2,14 @@ import datetime
 import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
-from .ui.warning_message import WarningMessage
+from .ui.helper_modules.warning_message import WarningMessage
 from .config.constants import START_DATE
 
 if TYPE_CHECKING:
     from .game import Game
-    from .ui.dropdown import Dropdown
-    from .ui.info_window import InfoWindow
-    from .ui.depot_view_detail import DepotViewDetail
+    from .ui.helper_modules.dropdown import Dropdown
+    from .ui.helper_modules.info_window import InfoWindow
+    from .ui.layout_modules.depot_view_detail import DepotViewDetail
 
 # Named tuple for tracking which time units have changed in a tick
 TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
@@ -63,9 +63,9 @@ class GameState:
             'good_one': "Wood",
             'good_two': "Stone",
             'good_three': "Iron",
-            'quantity_one': "4",
-            'quantity_two': "3",
-            'quantity_three': "2"
+            'quantity_one': "6",
+            'quantity_two': "4",
+            'quantity_three': "3"
         }
         
         self.image_boxes: List[Any] = []

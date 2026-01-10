@@ -1,10 +1,10 @@
 import pygame
 import random
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
-from ..config.colors import *
+from ...config.colors import *
 
 if TYPE_CHECKING:
-    from ..game import Game
+    from ...game import Game
 
 class SoundControl:
     """A UI component to toggle background music and manage the playlist.

@@ -1,6 +1,6 @@
 import math, pygame, colorsys
 from typing import Tuple, Optional, Union
-from ..config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE
+from ...config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE
 
 class ColorWheel:
     """A UI component that allows users to pick a color from a HSV-based wheel.

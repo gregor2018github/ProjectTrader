@@ -3,13 +3,13 @@ import datetime
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..models.good import Good
-    from ..models.depot import Depot
-    from ..game_state import GameState
+    from ...models.good import Good
+    from ...models.depot import Depot
+    from ...game_state import GameState
 
-from ..config.colors import *
-from .dropdown import Dropdown
-from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
+from ...config.colors import *
+from ..helper_modules.dropdown import Dropdown
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
 def draw_layout(
     screen: pygame.Surface,

@@ -1,5 +1,5 @@
 import pygame
-from ..config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT
+from ...config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT
 import datetime
 from typing import Dict, List, Optional, Any
 
