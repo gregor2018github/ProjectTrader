@@ -7,40 +7,45 @@ from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART
 if TYPE_CHECKING:
     from ...models.good import Good
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime) -> List[pygame.Rect]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect) -> List[pygame.Rect]:
     """Draw the primary price history chart and selection UI.
     
     Args:
         screen: Target surface for rendering.
         main_font: Primary font used for price levels.
-        chart_border: Coordinates (x, y) defining the chart's top-left corner.
+        chart_border_orig: Coordinates (x, y) defining the chart's top-left corner relative to screen.
         goods: List of all tradeable goods with history data.
         goods_images_30: mapping of good names to 30x30 icons.
         current_date: Current game simulation date and time.
+        view_rect: The rectangle defining the module viewport area on screen.
         
     Returns:
         List[pygame.Rect]: Hitboxes for the good selection buttons.
     """
+    # Adjust chart border based on view_rect position
+    # The original chart_border[0] is the left margin within the first module.
+    chart_border = (view_rect.x + chart_border_orig[0], chart_border_orig[1])
+
     # Define the chart content width (leaving 42px buffer on right for goods icons)
-    chart_content_width = MODULE_WIDTH - 42
+    chart_content_width = view_rect.width - 42
     
-    # Draw the left module background
-    left_module = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-    pygame.draw.rect(screen, BEIGE, left_module)
-    pygame.draw.rect(screen, DARK_BROWN, left_module, 2)
+    # Draw the module background
+    pygame.draw.rect(screen, BEIGE, view_rect)
+    pygame.draw.rect(screen, DARK_BROWN, view_rect, 2)
     
     # Draw the chart content area (with border on right before the buffer)
-    chart_area = pygame.Rect(0, 60, chart_content_width, SCREEN_HEIGHT - 120)
+    chart_area = pygame.Rect(view_rect.x, view_rect.y, chart_content_width, view_rect.height)
     pygame.draw.rect(screen, SANDY_BROWN, chart_area)
     pygame.draw.rect(screen, DARK_BROWN, chart_area, 2)
 
     # determine max chart size based on chart content width
-    max_chart_size = round((chart_content_width - (chart_border[0] * 2)), 0)
+    # We use chart_border_orig[0] as margin for consistent padding on both sides
+    max_chart_size = round((chart_content_width - (chart_border_orig[0] * 2)), 0)
     max_chart_height = screen.get_height() - (chart_border[1] * 2) - 70
 
     # Draw basic chart structure
     chart_left_bottom = (chart_border[0], chart_border[1])
-    select_bar = pygame.Rect(0, chart_left_bottom[1] + 15, chart_content_width, 75)
+    select_bar = pygame.Rect(view_rect.x, chart_left_bottom[1] + 15, chart_content_width, 75)
     pygame.draw.rect(screen, PALE_BROWN, select_bar)
     pygame.draw.rect(screen, DARK_BROWN, select_bar, 2)
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0] + max_chart_size, chart_border[1]), 1)

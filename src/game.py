@@ -286,31 +286,48 @@ class Game:
             right_module_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
             full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
             
-            # Handle map view based on mode
-            if self.state.map_view_mode:
+            # Handle map view updates based on visibility
+            is_map_visible = self.state.map_view_mode in ['left', 'right', 'full']
+            if is_map_visible:
                 # Update map with player movement
                 if self.state.time_level > 1:  # Only update if game is not paused
                     keys = pygame.key.get_pressed()
                     self.game_map.handle_movement_keys(keys)
                     self.game_map.update(delta_time)
-                
-                if self.state.map_view_mode == 'full':
-                    # Map takes both left and right
-                    draw_map_view(self.screen, self.game_map, full_module_rect, self.font)
-                elif self.state.map_view_mode == 'left':
-                    # Map on left, depot on right
-                    draw_map_view(self.screen, self.game_map, left_module_rect, self.font)
-                    draw_depot_view(self.screen, self.font, self.depot, self.state)
-                elif self.state.map_view_mode == 'right':
-                    # Chart on left, map on right
-                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                        self.goods, self.images['goods_30'], self.state.date)
-                    draw_map_view(self.screen, self.game_map, right_module_rect, self.font)
-            else:
-                # Default view: chart on left, depot on right
+            
+            # Render content based on view modes
+            if self.state.map_view_mode == 'full':
+                # Map takes both left and right
+                draw_map_view(self.screen, self.game_map, full_module_rect, self.font)
+            elif self.state.market_view_mode == 'full':
+                # Chart takes both left and right
                 self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                    self.goods, self.images['goods_30'], self.state.date)
-                draw_depot_view(self.screen, self.font, self.depot, self.state)
+                                                    self.goods, self.images['goods_30'], self.state.date, 
+                                                    full_module_rect)
+            else:
+                # Handle LEFT side
+                if self.state.map_view_mode == 'left':
+                    draw_map_view(self.screen, self.game_map, left_module_rect, self.font)
+                elif self.state.market_view_mode == 'right':
+                    # If market is on right, we can show depot or something else on left?
+                    # For now, let's just not draw chart on left if it's on right.
+                    pass
+                else: 
+                    # Default: chart on left
+                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                        self.goods, self.images['goods_30'], self.state.date, 
+                                                        left_module_rect)
+                
+                # Handle RIGHT side
+                if self.state.map_view_mode == 'right':
+                    draw_map_view(self.screen, self.game_map, right_module_rect, self.font)
+                elif self.state.market_view_mode == 'right':
+                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                        self.goods, self.images['goods_30'], self.state.date, 
+                                                        right_module_rect)
+                else:
+                    # Default: depot on right
+                    draw_depot_view(self.screen, self.font, self.depot, self.state)
 
             # 4. Draw persistent UI elements (Top and Bottom Bars)
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 

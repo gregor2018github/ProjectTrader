@@ -2,12 +2,14 @@
 
 ## High Priority
 - [ ] Collisions with objects in the world
+- [ ] Fix how the depot_view looks like with the new screen size (free area on the right, overlapping bars, etc)
 - [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
 
 ## Medium Priority
 
 - [ ] Market events
+- [ ] when going to map view, the time may only be normal speed
 - [ ] sound effects for walking
 
 

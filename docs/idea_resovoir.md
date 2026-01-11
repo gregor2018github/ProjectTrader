@@ -1,9 +1,14 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
-- Pokemon like map system where the player walks to places, enters buildings, and interacts with NPCs
-    - trees can grow in clusters of similar types (requeires multiple tree sprites per type)
-    - use tile to create map
-    - add base tiles like grass, road, water, etc
+- add market areas
+    - these are on squares on the map
+    - several market booths per market area
+    - only when in the vicinity of a market area the player can trade (otherwise market options are disabled/grayed out)
+
+- MAP FEATURES
+    - we need cobblestone roads, squares
+    - underground must be defined as gifs which will allow more modular overlapping of tiles (currently 'hard-drawn' between different tile types)
+    - trees can grow in clusters of similar types (requires multiple tree sprites per type)
     - buildings can be entered (shop, house, warehouse, guild, etc)
     - inner views of buildings
     - NPSs for decoration (for now just standing around)
@@ -16,7 +21,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - Shadows
         - static for trees and buildings
         - traveling for NPCs and player
-    - Sheeps that can stand on the meadow and have eating and walking animations
+    - Sheeps that can stand on the meadow, eating and walking animations
     - a field of wheat that can be scaled as needed
 
 - have a pub where you can eat fancy food 
@@ -38,6 +43,12 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - all game state must be serializable (player data, depot data, market data, city data, time data, etc)
     - implement save/load menu
     - autosave feature
+
+- Main menu when starting the game
+    - New Game
+    - Load Game
+    - Settings
+    - Exit
 
 - player warehouse capacity (player can only hold so many items in their warehouse)
 - warehouses can be upgraded to hold more items

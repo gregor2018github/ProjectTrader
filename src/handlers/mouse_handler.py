@@ -153,6 +153,18 @@ def handle_mouse_click(pos: Tuple[int, int],
                     game_state.map_view_mode = None
                 else:
                     game_state.map_view_mode = 'left'
+                    # If map is on left, market cannot be full or on left
+                    if game_state.market_view_mode in ['left', 'full']:
+                        game_state.market_view_mode = None
+            elif name == "market":
+                # Toggle market view on left side
+                if game_state.market_view_mode == 'left':
+                    game_state.market_view_mode = None
+                else:
+                    game_state.market_view_mode = 'left'
+                    # If market is on left, map cannot be full or on left
+                    if game_state.map_view_mode in ['left', 'full']:
+                        game_state.map_view_mode = None
             return
         
         if right_key in buttons and buttons[right_key].collidepoint(pos):
@@ -162,6 +174,18 @@ def handle_mouse_click(pos: Tuple[int, int],
                     game_state.map_view_mode = None
                 else:
                     game_state.map_view_mode = 'right'
+                    # If map is on right, market cannot be full or on right
+                    if game_state.market_view_mode in ['right', 'full']:
+                        game_state.market_view_mode = None
+            elif name == "market":
+                # Toggle market view on right side
+                if game_state.market_view_mode == 'right':
+                    game_state.market_view_mode = None
+                else:
+                    game_state.market_view_mode = 'right'
+                    # If market is on right, map cannot be full or on right
+                    if game_state.map_view_mode in ['right', 'full']:
+                        game_state.map_view_mode = None
             return
 
     # Handle pictogram main button clicks (side menu)
@@ -175,9 +199,14 @@ def handle_mouse_click(pos: Tuple[int, int],
                     game_state.map_view_mode = None
                 else:
                     game_state.map_view_mode = 'full'
+                    game_state.market_view_mode = None
             elif name == "market":
-                # Close map view if open
-                game_state.map_view_mode = None
+                # Toggle full market view (both sides)
+                if game_state.market_view_mode == 'full':
+                    game_state.market_view_mode = None
+                else:
+                    game_state.market_view_mode = 'full'
+                    game_state.map_view_mode = None
             elif name == "depot":
                 pass
             elif name == "politics":
