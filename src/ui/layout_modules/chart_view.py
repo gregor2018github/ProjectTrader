@@ -70,11 +70,11 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
     # Draw chart hover effects (vertical line and tooltip)
-    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font)
+    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date)
 
     return image_boxes
 
-def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font) -> None:
+def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime) -> None:
     """Draw a vertical hover line and price tooltip when hovering over the chart area.
     
     Args:
@@ -85,6 +85,7 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
         goods: List of all goods.
         max_price: Price scaling factor.
         main_font: Font for tooltip.
+        current_date: Current game simulation date.
     """
     mouse_pos = pygame.mouse.get_pos()
     
@@ -131,18 +132,32 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             name, price, color = closest_good
             tooltip_text = f"{name}: {price:.2f}"
             
+            # Calculate date for the hovered data point
+            price_history_len = len(visible_goods[0].price_history_hourly[-int(max_chart_size):])
+            hours_ago = price_history_len - 1 - idx
+            hover_date = current_date - datetime.timedelta(hours=hours_ago)
+            date_text = hover_date.strftime("%d.%m.%Y")
+            
             # Create a stable width by calculating as if all digits were the widest digit (9)
             # This prevents the tooltip box from "jumping" as prices update.
-            stable_text = "".join(['9' if c.isdigit() else c for c in tooltip_text])
-            stable_width, stable_height = main_font.size(stable_text)
+            stable_text_price = "".join(['9' if c.isdigit() else c for c in tooltip_text])
+            stable_text_date = "".join(['9' if c.isdigit() else c for c in date_text])
+            
+            sw_price, sh_price = main_font.size(stable_text_price)
+            sw_date, sh_date = main_font.size(stable_text_date)
+            
+            total_stable_width = max(sw_price, sw_date)
+            row_spacing = 2
+            total_stable_height = sh_price + sh_date + row_spacing
             
             # Render the actual text using a fixed color for readability
-            tooltip_surface = main_font.render(tooltip_text, True, DARK_BROWN)
+            price_surface = main_font.render(tooltip_text, True, DARK_BROWN)
+            date_surface = main_font.render(date_text, True, DARK_BROWN)
             
             # Create a stable-size rect for the background based on "all 9s" dimensions
             tooltip_base_x = mouse_pos[0] + 15
             tooltip_base_y = mouse_pos[1] - 10
-            stable_rect = pygame.Rect(tooltip_base_x, tooltip_base_y, stable_width, stable_height)
+            stable_rect = pygame.Rect(tooltip_base_x, tooltip_base_y, total_stable_width, total_stable_height)
             
             # Flip to left if it would go off right edge
             if stable_rect.right > screen.get_width() - 10:
@@ -159,9 +174,12 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             pygame.draw.rect(screen, WHITE, bg_rect)
             pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
             
-            # Draw the text centered within the stable rect
-            text_rect = tooltip_surface.get_rect(center=stable_rect.center)
-            screen.blit(tooltip_surface, text_rect)
+            # Draw the text rows centered within the stable rect
+            price_rect = price_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top))
+            date_rect = date_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + row_spacing))
+            
+            screen.blit(price_surface, price_rect)
+            screen.blit(date_surface, date_rect)
 
 def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, current_date: datetime.datetime, history_len: int) -> None:
     """Draw vertical lines representing time boundaries (Day, Week, or Month).

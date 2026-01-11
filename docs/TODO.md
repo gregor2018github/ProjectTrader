@@ -12,7 +12,6 @@
 - [ ] when going to map view, the time may only be normal speed
 - [ ] sound effects for walking
 
-
 ## Planned Features
 - [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
@@ -26,10 +25,10 @@
 
 ## Bug Fixes
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
+- [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
-
 
 Finished Features
 - [x] Add a free license on github 
