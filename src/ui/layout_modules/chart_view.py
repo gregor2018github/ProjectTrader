@@ -21,18 +21,26 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     Returns:
         List[pygame.Rect]: Hitboxes for the good selection buttons.
     """
+    # Define the chart content width (leaving 42px buffer on right for goods icons)
+    chart_content_width = MODULE_WIDTH - 42
+    
     # Draw the left module background
     left_module = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-    pygame.draw.rect(screen, SANDY_BROWN, left_module)
+    pygame.draw.rect(screen, BEIGE, left_module)
     pygame.draw.rect(screen, DARK_BROWN, left_module, 2)
+    
+    # Draw the chart content area (with border on right before the buffer)
+    chart_area = pygame.Rect(0, 60, chart_content_width, SCREEN_HEIGHT - 120)
+    pygame.draw.rect(screen, SANDY_BROWN, chart_area)
+    pygame.draw.rect(screen, DARK_BROWN, chart_area, 2)
 
-    # determine max chart size based on module width
-    max_chart_size = round((MODULE_WIDTH - (chart_border[0] * 2)), 0)
+    # determine max chart size based on chart content width
+    max_chart_size = round((chart_content_width - (chart_border[0] * 2)), 0)
     max_chart_height = screen.get_height() - (chart_border[1] * 2) - 70
 
     # Draw basic chart structure
     chart_left_bottom = (chart_border[0], chart_border[1])
-    select_bar = pygame.Rect(0, chart_left_bottom[1] + 15, (max_chart_size + chart_border[0] * 2), 75)
+    select_bar = pygame.Rect(0, chart_left_bottom[1] + 15, chart_content_width, 75)
     pygame.draw.rect(screen, PALE_BROWN, select_bar)
     pygame.draw.rect(screen, DARK_BROWN, select_bar, 2)
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0] + max_chart_size, chart_border[1]), 1)
