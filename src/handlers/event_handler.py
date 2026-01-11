@@ -66,10 +66,19 @@ class EventHandler:
             scroll_speed = 20
             
             # Check if map is active and mouse is over map area
-            if game_state.map_state and hasattr(game_state.game, 'game_map'):
-                from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT
-                map_view_rect = pygame.Rect(5, 65, SCREEN_WIDTH // 2 - 10, SCREEN_HEIGHT - 130)
-                if map_view_rect.collidepoint(mouse_pos):
+            if game_state.map_view_mode and hasattr(game_state.game, 'game_map'):
+                from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
+                # Determine map view rect based on mode
+                if game_state.map_view_mode == 'full':
+                    map_view_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
+                elif game_state.map_view_mode == 'left':
+                    map_view_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                elif game_state.map_view_mode == 'right':
+                    map_view_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                else:
+                    map_view_rect = None
+                    
+                if map_view_rect and map_view_rect.collidepoint(mouse_pos):
                     # Handle zoom with mouse wheel on map
                     game_state.game.game_map.handle_zoom(event.y)
                     return self.running

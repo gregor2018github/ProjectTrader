@@ -57,7 +57,7 @@ class GameState:
         self.chart_state: bool = True
         self.info_state: bool = False
         self.depot_state: bool = False
-        self.map_state: bool = False  # Whether the map view is active
+        self.map_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
         self.mouse_clicked_on: str = "none"
         
         # Input fields for quick trading at the bottom of the screen

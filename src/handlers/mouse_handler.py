@@ -141,18 +141,43 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.dialogue = None
             return
 
-    # Handle pictogram clicks (side menu)
+    # Handle pictogram sub-button clicks (left/right buttons)
+    for name in ["map", "market", "depot", "politics", "trade_routes", "building"]:
+        left_key = f"picto_{name}_left"
+        right_key = f"picto_{name}_right"
+        
+        if left_key in buttons and buttons[left_key].collidepoint(pos):
+            if name == "map":
+                # Toggle map view on left side
+                if game_state.map_view_mode == 'left':
+                    game_state.map_view_mode = None
+                else:
+                    game_state.map_view_mode = 'left'
+            return
+        
+        if right_key in buttons and buttons[right_key].collidepoint(pos):
+            if name == "map":
+                # Toggle map view on right side
+                if game_state.map_view_mode == 'right':
+                    game_state.map_view_mode = None
+                else:
+                    game_state.map_view_mode = 'right'
+            return
+
+    # Handle pictogram main button clicks (side menu)
     for name in ["map", "market", "depot", "politics", "trade_routes", "building"]:
         key = f"pictogram_{name}"
         if key in buttons and buttons[key].collidepoint(pos):
-            # Placeholder for future menu switching logic
             # Each pictogram will eventually trigger a menu state change
             if name == "map":
-                # Toggle map view
-                game_state.map_state = not game_state.map_state
+                # Toggle full map view (both sides)
+                if game_state.map_view_mode == 'full':
+                    game_state.map_view_mode = None
+                else:
+                    game_state.map_view_mode = 'full'
             elif name == "market":
-                # Toggle back to market/chart view
-                game_state.map_state = False
+                # Close map view if open
+                game_state.map_view_mode = None
             elif name == "depot":
                 pass
             elif name == "politics":

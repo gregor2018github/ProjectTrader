@@ -2,7 +2,7 @@ import pygame
 import datetime
 from typing import TYPE_CHECKING, Tuple, Optional, Any
 from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, START_DATE
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, START_DATE
 
 if TYPE_CHECKING:
     from ...models.depot import Depot
@@ -21,10 +21,10 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         game_state: Current game state object.
     """
     
-    # Calculate dimensions
-    width = SCREEN_WIDTH // 2 - 42
-    height = screen.get_height() - 120
-    x = SCREEN_WIDTH - width
+    # Calculate dimensions using MODULE_WIDTH for consistent sizing
+    width = MODULE_WIDTH
+    height = SCREEN_HEIGHT - 120
+    x = MODULE_WIDTH  # Right module starts after left module
     y = 60
     
     # Draw depot container

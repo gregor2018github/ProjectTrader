@@ -8,6 +8,7 @@
 ## Medium Priority
 
 - [ ] Market events
+- [ ] sound effects for walking
 
 
 ## Planned Features
@@ -15,7 +16,6 @@
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Bank Menu 
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
-- [ ] sound effects for walking
 - [ ] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
@@ -24,6 +24,7 @@
 
 ## Bug Fixes
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
+- [ ] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 

@@ -8,7 +8,6 @@ import pygame
 import pytmx
 from typing import List, Dict, Any, TYPE_CHECKING
 from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap, MapPlayer
@@ -29,22 +28,25 @@ def draw_map_view(
         view_rect: The rectangle defining the map viewport area on screen.
         main_font: Font for UI text rendering.
     """
-    # Draw the middle section background and left middle area
-    left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT - 120)
-    pygame.draw.rect(screen, SANDY_BROWN, left_middle)
-    pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
-
-    # Create a subsurface or use clipping to constrain drawing to view_rect
-    # First draw a background for the map area
-    pygame.draw.rect(screen, BLACK, view_rect)
+    # Draw the background frame for the map area
+    pygame.draw.rect(screen, SANDY_BROWN, view_rect)
+    pygame.draw.rect(screen, DARK_BROWN, view_rect, 2)
+    
+    # Draw the actual map content area (slightly inset)
+    map_content_rect = view_rect.inflate(-10, -10)
+    pygame.draw.rect(screen, BLACK, map_content_rect)
     
     # Set up clipping rectangle to prevent drawing outside the view
     old_clip = screen.get_clip()
-    screen.set_clip(view_rect)
+    screen.set_clip(map_content_rect)
     
     # Offset all drawing by view_rect position
-    offset_x = view_rect.x
-    offset_y = view_rect.y
+    offset_x = map_content_rect.x
+    offset_y = map_content_rect.y
+    
+    # Update camera dimensions to match the view
+    game_map.camera.screen_width = map_content_rect.width
+    game_map.camera.screen_height = map_content_rect.height
     
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)

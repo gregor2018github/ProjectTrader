@@ -15,7 +15,7 @@ from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
 from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
-from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
+from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 
 class Game:
@@ -280,24 +280,37 @@ class Game:
             # 1. Fill base background
             self.screen.fill(BEIGE)
             
-            # 2. Draw either map view or chart based on state (Middle Content)
-            if self.state.map_state:
+            # 2. Draw content modules based on view states
+            # Calculate view rectangles for left and right modules
+            left_module_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+            right_module_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+            full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
+            
+            # Handle map view based on mode
+            if self.state.map_view_mode:
                 # Update map with player movement
                 if self.state.time_level > 1:  # Only update if game is not paused
                     keys = pygame.key.get_pressed()
                     self.game_map.handle_movement_keys(keys)
                     self.game_map.update(delta_time)
                 
-                # Define map view rectangle (left half of screen)
-                map_view_rect = pygame.Rect(5, 65, SCREEN_WIDTH // 2 - 10, SCREEN_HEIGHT - 130)
-                draw_map_view(self.screen, self.game_map, map_view_rect, self.font)
+                if self.state.map_view_mode == 'full':
+                    # Map takes both left and right
+                    draw_map_view(self.screen, self.game_map, full_module_rect, self.font)
+                elif self.state.map_view_mode == 'left':
+                    # Map on left, depot on right
+                    draw_map_view(self.screen, self.game_map, left_module_rect, self.font)
+                    draw_depot_view(self.screen, self.font, self.depot, self.state)
+                elif self.state.map_view_mode == 'right':
+                    # Chart on left, map on right
+                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                        self.goods, self.images['goods_30'], self.state.date)
+                    draw_map_view(self.screen, self.game_map, right_module_rect, self.font)
             else:
-                # Draw chart
+                # Default view: chart on left, depot on right
                 self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                     self.goods, self.images['goods_30'], self.state.date)
-            
-            # 3. Draw depot view if state is active (for testing, always draw it)
-            draw_depot_view(self.screen, self.font, self.depot, self.state)
+                draw_depot_view(self.screen, self.font, self.depot, self.state)
 
             # 4. Draw persistent UI elements (Top and Bottom Bars)
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
