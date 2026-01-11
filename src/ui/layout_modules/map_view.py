@@ -7,8 +7,8 @@ UI layout modules like chart_view or depot_view.
 import pygame
 import pytmx
 from typing import List, Dict, Any, TYPE_CHECKING
-
 from ...config.colors import *
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap, MapPlayer
@@ -29,6 +29,11 @@ def draw_map_view(
         view_rect: The rectangle defining the map viewport area on screen.
         main_font: Font for UI text rendering.
     """
+    # Draw the middle section background and left middle area
+    left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT - 120)
+    pygame.draw.rect(screen, SANDY_BROWN, left_middle)
+    pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
+
     # Create a subsurface or use clipping to constrain drawing to view_rect
     # First draw a background for the map area
     pygame.draw.rect(screen, BLACK, view_rect)

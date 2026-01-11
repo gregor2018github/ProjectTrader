@@ -277,12 +277,10 @@ class Game:
                 if hasattr(good, '_external_hover') and not good._external_hover:
                     good.hovered = False
             
-            # Draw base UI first
-            buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
-                                self.state.date, self.state.input_fields, 
-                                self.state.mouse_clicked_on, self.images, self.state)
+            # 1. Fill base background
+            self.screen.fill(BEIGE)
             
-            # Draw either map view or chart based on state
+            # 2. Draw either map view or chart based on state (Middle Content)
             if self.state.map_state:
                 # Update map with player movement
                 if self.state.time_level > 1:  # Only update if game is not paused
@@ -298,10 +296,15 @@ class Game:
                 self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                     self.goods, self.images['goods_30'], self.state.date)
             
-            # Draw depot view if state is active (for testing, always draw it)
+            # 3. Draw depot view if state is active (for testing, always draw it)
             draw_depot_view(self.screen, self.font, self.depot, self.state)
+
+            # 4. Draw persistent UI elements (Top and Bottom Bars)
+            buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
+                                self.state.date, self.state.input_fields, 
+                                self.state.mouse_clicked_on, self.images, self.state)
             
-            # draw right sidebar
+            # 5. Draw right sidebar and other overlays
             draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font)
             # Draw menu above the right sidebar
             self.menu.draw(self.screen)

@@ -27,9 +27,7 @@ def draw_layout(
     Each section is drawn by a dedicated helper function. Only right bar is drawn separately.
     """
 
-    _draw_background(screen)
     _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
-    _draw_middle_section(screen)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
 
@@ -101,13 +99,6 @@ def _draw_top_bar(
     total_stock = sum(main_depot.good_stock.values())
     stock_text = main_font.render(f"Total Stock: {total_stock}", True, BLACK)
     screen.blit(stock_text, (1365, 35))
-
-def _draw_middle_section(screen: pygame.Surface) -> None:
-    """Draws the middle section background and left middle area."""
-
-    left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT-60)
-    pygame.draw.rect(screen, SANDY_BROWN, left_middle)
-    pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
 
 def _draw_bottom_bar(
     screen: pygame.Surface,

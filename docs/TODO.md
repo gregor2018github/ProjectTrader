@@ -1,14 +1,14 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Add a free license at github 
 - [ ] Collisions with objects in the world
+- [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
 
 ## Medium Priority
 
 - [ ] Market events
-- [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
+
 
 ## Planned Features
 - [ ] Expenditure overview in the depot detail view
@@ -29,6 +29,7 @@
 
 
 Finished Features
+- [x] Add a free license on github 
 - [x] Integrate the map system into the main game loop (link player position to map position)
 - [x] Add a readme file to the project including gifs/screenshots
 - [x] Add vertical bars to the chart which will indicate day changes

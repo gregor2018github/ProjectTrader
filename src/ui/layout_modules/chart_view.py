@@ -2,7 +2,7 @@ import pygame
 import datetime
 from typing import List, Dict, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, CHART_TIME_MARKER_UNIT
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, CHART_TIME_MARKER_UNIT
 
 if TYPE_CHECKING:
     from ...models.good import Good
@@ -21,6 +21,11 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     Returns:
         List[pygame.Rect]: Hitboxes for the good selection buttons.
     """
+    # Draw the middle section background and left middle area
+    left_middle = pygame.Rect(0, 60, int(SCREEN_WIDTH/2), SCREEN_HEIGHT - 120)
+    pygame.draw.rect(screen, SANDY_BROWN, left_middle)
+    pygame.draw.rect(screen, DARK_BROWN, left_middle, 2)
+
     # determine max chart size based on screen size
     max_chart_size = round((int(SCREEN_WIDTH / 2) - (chart_border[0] * 2)), 0)
     max_chart_height = screen.get_height() - (chart_border[1] * 2) - 70
