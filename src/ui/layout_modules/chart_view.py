@@ -1,6 +1,6 @@
 import pygame
 import datetime
-from typing import List, Dict, Tuple, Any, TYPE_CHECKING
+from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT
 
@@ -66,15 +66,64 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Store selection boxes for later use with hover effects
     image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
     
+    # Check for proximity hover on the chart itself
+    closest_good, hover_idx = _get_closest_good_at_mouse(pygame.mouse.get_pos(), chart_border, max_chart_size, max_chart_height, goods, max_price)
+    if closest_good:
+        closest_good.hovered = True
+
     # Draw charts for each good with hover effects
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
     # Draw chart hover effects (vertical line and tooltip)
-    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date)
+    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx)
 
     return image_boxes
 
-def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime) -> None:
+def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float) -> Tuple[Optional['Good'], Optional[int]]:
+    """Determine which good is closest to the mouse within the chart area.
+    
+    Args:
+        mouse_pos: Current mouse coordinates.
+        chart_border: Base chart coordinates.
+        max_chart_size: Chart width.
+        max_chart_height: Chart height.
+        goods: List of all goods.
+        max_price: Price scaling factor.
+        
+    Returns:
+        Tuple containing the closest Good object and the history index, or (None, None).
+    """
+    # Boundary check for chart area
+    top_y = min(chart_border[1], chart_border[1] + int(max_chart_height))
+    bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
+    left_x = chart_border[0]
+    right_x = chart_border[0] + int(max_chart_size)
+    
+    if not (left_x <= mouse_pos[0] <= right_x and top_y <= mouse_pos[1] <= bottom_y):
+        return None, None
+        
+    idx = int(mouse_pos[0] - left_x)
+    visible_goods = [good for good in goods if good.show_in_charts]
+    if not visible_goods:
+        return None, None
+
+    closest_good = None
+    min_dist = float('inf')
+    
+    for good in visible_goods:
+        price_history = good.price_history_hourly[-int(max_chart_size):]
+        if idx < len(price_history):
+            # Calculate screen y-coordinate for this good at this index
+            price_y = chart_border[1] + ((price_history[idx] / max_price) * max_chart_height)
+            dist = abs(mouse_pos[1] - price_y)
+            
+            if dist < min_dist:
+                min_dist = dist
+                closest_good = good
+                
+    return closest_good, idx
+
+def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime, closest_good: Optional['Good'] = None, idx: Optional[int] = None) -> None:
     """Draw a vertical hover line and price tooltip when hovering over the chart area.
     
     Args:
@@ -86,53 +135,30 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
         max_price: Price scaling factor.
         main_font: Font for tooltip.
         current_date: Current game simulation date.
+        closest_good: Pre-calculated closest good (optional).
+        idx: Pre-calculated history index (optional).
     """
     mouse_pos = pygame.mouse.get_pos()
     
-    # Ensure height is handled correctly for collision detection (prices go 'up' from chart_border[1])
-    # The chart area vertically is between chart_border[1] and chart_border[1] + max_chart_height
-    # Since max_chart_height is negative, we use min/max to find the bounds.
-    top_y = min(chart_border[1], chart_border[1] + int(max_chart_height))
-    bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
-    left_x = chart_border[0]
-    right_x = chart_border[0] + int(max_chart_size)
+    # If not pre-calculated, determine it here (fallback)
+    if closest_good is None or idx is None:
+        closest_good, idx = _get_closest_good_at_mouse(mouse_pos, chart_border, max_chart_size, max_chart_height, goods, max_price)
     
-    # Check if mouse is within the horizontal and vertical chart boundaries
-    if left_x <= mouse_pos[0] <= right_x and top_y <= mouse_pos[1] <= bottom_y:
+    if idx is not None:
         # Draw vertical hover line spanning the full height of the chart
+        top_y = min(chart_border[1], chart_border[1] + int(max_chart_height))
+        bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
         pygame.draw.line(screen, DARK_GRAY, (mouse_pos[0], top_y), (mouse_pos[0], bottom_y), 1)
         
-        # Calculate index in price history based on mouse x position relative to start of chart
-        idx = int(mouse_pos[0] - left_x)
-        
-        visible_goods = [good for good in goods if good.show_in_charts]
-        if not visible_goods:
-            return
-
-        # Find closest good's price at this index
-        closest_good = None
-        min_dist = float('inf')
-        
-        for good in visible_goods:
-            # Use same slice as used for drawing the lines
-            price_history = good.price_history_hourly[-int(max_chart_size):]
-            
-            if idx < len(price_history):
-                # Calculate screen y-coordinate for this good at this index
-                # Matches the formula in _draw_good_line
-                price_y = chart_border[1] + ((price_history[idx] / max_price) * max_chart_height)
-                dist = abs(mouse_pos[1] - price_y)
-                
-                # Update closest good if this one is nearer to the mouse y position
-                if dist < min_dist:
-                    min_dist = dist
-                    closest_good = (good.name, price_history[idx], good.color)
-        
         if closest_good:
-            name, price, color = closest_good
-            tooltip_text = f"{name}: {price:.2f}"
+            # Get data from the closest good
+            price_history = closest_good.price_history_hourly[-int(max_chart_size):]
+            price = price_history[idx]
+            tooltip_text = f"{closest_good.name}: {price:.2f}"
             
             # Calculate date for the hovered data point
+            # Use any visible good to get history length (assuming they all have it)
+            visible_goods = [g for g in goods if g.show_in_charts]
             price_history_len = len(visible_goods[0].price_history_hourly[-int(max_chart_size):])
             hours_ago = price_history_len - 1 - idx
             hover_date = current_date - datetime.timedelta(hours=hours_ago)
