@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar
-from .ui.layout_modules.chart import draw_chart
+from .ui.layout_modules.chart_view import draw_chart
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
