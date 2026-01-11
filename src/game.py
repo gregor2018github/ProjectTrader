@@ -5,9 +5,11 @@ from .game_state import GameState
 from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar
 from .ui.layout_modules.chart_view import draw_chart
+from .ui.layout_modules.map_view import draw_map_view
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
+from .models.map import GameMap
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -60,6 +62,12 @@ class Game:
 
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        
+        # Initialize game map (for the 2D map view)
+        # Map viewport is the left half of the screen minus borders
+        map_view_width = SCREEN_WIDTH // 2 - 10
+        map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
+        self.game_map: GameMap = GameMap(map_view_width, map_view_height)
         
         # Load images
         self.images: Dict[str, Any] = self._load_images()
@@ -273,10 +281,22 @@ class Game:
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                 self.state.date, self.state.input_fields, 
                                 self.state.mouse_clicked_on, self.images, self.state)
+            
+            # Draw either map view or chart based on state
+            if self.state.map_state:
+                # Update map with player movement
+                if self.state.time_level > 1:  # Only update if game is not paused
+                    keys = pygame.key.get_pressed()
+                    self.game_map.handle_movement_keys(keys)
+                    self.game_map.update(delta_time)
                 
-            # Draw chart
-            self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                self.goods, self.images['goods_30'], self.state.date)
+                # Define map view rectangle (left half of screen)
+                map_view_rect = pygame.Rect(5, 65, SCREEN_WIDTH // 2 - 10, SCREEN_HEIGHT - 130)
+                draw_map_view(self.screen, self.game_map, map_view_rect, self.font)
+            else:
+                # Draw chart
+                self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                    self.goods, self.images['goods_30'], self.state.date)
             
             # Draw depot view if state is active (for testing, always draw it)
             draw_depot_view(self.screen, self.font, self.depot, self.state)

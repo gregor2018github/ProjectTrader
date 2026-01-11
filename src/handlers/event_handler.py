@@ -65,6 +65,15 @@ class EventHandler:
             mouse_pos = pygame.mouse.get_pos()
             scroll_speed = 20
             
+            # Check if map is active and mouse is over map area
+            if game_state.map_state and hasattr(game_state.game, 'game_map'):
+                from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+                map_view_rect = pygame.Rect(5, 65, SCREEN_WIDTH // 2 - 10, SCREEN_HEIGHT - 130)
+                if map_view_rect.collidepoint(mouse_pos):
+                    # Handle zoom with mouse wheel on map
+                    game_state.game.game_map.handle_zoom(event.y)
+                    return self.running
+            
             # Check if detail panel is visible and mouse is over it
             if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
                 game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))

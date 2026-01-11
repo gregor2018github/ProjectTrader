@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from .ui.helper_modules.dropdown import Dropdown
     from .ui.helper_modules.info_window import InfoWindow
     from .ui.layout_modules.depot_view_detail import DepotViewDetail
+    from .models.map import GameMap
 
 # Named tuple for tracking which time units have changed in a tick
 TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
@@ -56,6 +57,7 @@ class GameState:
         self.chart_state: bool = True
         self.info_state: bool = False
         self.depot_state: bool = False
+        self.map_state: bool = False  # Whether the map view is active
         self.mouse_clicked_on: str = "none"
         
         # Input fields for quick trading at the bottom of the screen

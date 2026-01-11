@@ -1,13 +1,12 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Integrate the map system into the main game loop (link player position to map position)
 - [ ] Add a free license at github 
 - [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo)
 
 ## Medium Priority
-- [ ] Add a readme file to the project including gifs/screenshots
+
 - [ ] Market events
 - [ ] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 
@@ -30,6 +29,8 @@
 
 
 Finished Features
+- [x] Integrate the map system into the main game loop (link player position to map position)
+- [x] Add a readme file to the project including gifs/screenshots
 - [x] Add vertical bars to the chart which will indicate day changes
 - [x] give x and y coordinates to the player instance
 - [x] add docstrings

@@ -52,11 +52,19 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
         else:
             game_state.time_level = 1   # Pause
     elif event.key in [pygame.K_MINUS, pygame.K_KP_MINUS]:
-        # Slow down time (decrease level)
-        game_state.time_level = max(1, game_state.time_level - 1)
+        # When map is active, control zoom; otherwise control time
+        if game_state.map_state and hasattr(game_state.game, 'game_map'):
+            game_state.game.game_map.handle_zoom(-1)  # Zoom out
+        else:
+            # Slow down time (decrease level)
+            game_state.time_level = max(1, game_state.time_level - 1)
     elif event.key in [pygame.K_PLUS, pygame.K_KP_PLUS, pygame.K_EQUALS]:
-        # Speed up time (increase level)
-        game_state.time_level = min(5, game_state.time_level + 1)
+        # When map is active, control zoom; otherwise control time
+        if game_state.map_state and hasattr(game_state.game, 'game_map'):
+            game_state.game.game_map.handle_zoom(1)  # Zoom in
+        else:
+            # Speed up time (increase level)
+            game_state.time_level = min(5, game_state.time_level + 1)
 
 
 def _handle_function_key(key: int, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:

@@ -148,9 +148,11 @@ def handle_mouse_click(pos: Tuple[int, int],
             # Placeholder for future menu switching logic
             # Each pictogram will eventually trigger a menu state change
             if name == "map":
-                pass
+                # Toggle map view
+                game_state.map_state = not game_state.map_state
             elif name == "market":
-                pass
+                # Toggle back to market/chart view
+                game_state.map_state = False
             elif name == "depot":
                 pass
             elif name == "politics":
