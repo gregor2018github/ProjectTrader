@@ -33,3 +33,7 @@ INITIAL_STORAGE_CAPACITY = 100      # how many items the player can store at the
 
 # UI CONSTANTS
 CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "Week", "Month"
+
+# MAP AND SOUND CONSTANTS
+
+FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)

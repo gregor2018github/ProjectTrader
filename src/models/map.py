@@ -10,7 +10,7 @@ import pygame
 import pytmx
 from typing import List, Dict, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC
+from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME
 
 
 class Camera:
@@ -472,7 +472,28 @@ class MapPlayer:
         # Movement state
         self.vel_x: float = 0.0
         self.vel_y: float = 0.0
+        self.was_moving: bool = False
+        self.footstep_sounds: List[pygame.mixer.Sound] = []
+        self.last_sound_index: int = -1
+        self.current_sound: Optional[pygame.mixer.Sound] = None
     
+    def set_footstep_sounds(self, sounds: List[pygame.mixer.Sound]) -> None:
+        """Assign footstep sounds to the player.
+        
+        Args:
+            sounds: List of pygame Sound objects for footsteps.
+        """
+        self.footstep_sounds = sounds
+        for sound in self.footstep_sounds:
+            sound.set_volume(FOOT_STEP_VOLUME)
+
+    def stop_footstep_sound(self) -> None:
+        """Stop any currently playing footstep sound."""
+        if self.current_sound:
+            self.current_sound.stop()
+            self.current_sound = None
+        self.was_moving = False
+
     def set_movement(self, dx: float, dy: float) -> None:
         """Set movement direction (-1, 0, 1 for each axis).
         
@@ -491,6 +512,22 @@ class MapPlayer:
             game_map: The map for collision checks.
         """
         is_moving = self.vel_x != 0 or self.vel_y != 0
+
+        # Sound logic
+        if self.footstep_sounds:
+            if is_moving and not self.was_moving:
+                # Started moving - pick a sound
+                available_indices = [i for i in range(len(self.footstep_sounds)) if i != self.last_sound_index]
+                if not available_indices: # only 1 sound available or empty
+                    available_indices = [0] if self.footstep_sounds else []
+                
+                if available_indices:
+                    self.last_sound_index = random.choice(available_indices)
+                    self.current_sound = self.footstep_sounds[self.last_sound_index]
+                    self.current_sound.play(loops=-1)
+            elif not is_moving and self.was_moving:
+                # Stopped moving
+                self.stop_footstep_sound()
 
         if is_moving:
             move_x = self.vel_x * self.speed * dt
@@ -512,6 +549,7 @@ class MapPlayer:
         self.source_sprite = self.animator.get_current_source_frame()
         self.width = self.sprite.get_width()
         self.height = self.sprite.get_height()
+        self.was_moving = is_moving
 
     def _determine_direction(self, is_moving: bool) -> str:
         """Calculate active direction string based on velocity.

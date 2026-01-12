@@ -75,6 +75,11 @@ class Game:
         # Load sounds
         self.sounds: Dict[str, pygame.mixer.Sound] = self._load_sounds()
         
+        # Initialize footstep sounds for map player
+        footstep_keys = ['Map_foot_steps_1', 'Map_foot_steps_2', 'Map_foot_steps_3', 'Map_foot_steps_4']
+        footstep_sounds = [self.sounds[k] for k in footstep_keys if k in self.sounds]
+        self.game_map.map_player.set_footstep_sounds(footstep_sounds)
+        
         # Load music
         self.music_paths: Dict[str, str] = self._load_music()
         
@@ -294,6 +299,10 @@ class Game:
                     keys = pygame.key.get_pressed()
                     self.game_map.handle_movement_keys(keys)
                     self.game_map.update(delta_time)
+                else:
+                    self.game_map.map_player.stop_footstep_sound()
+            else:
+                self.game_map.map_player.stop_footstep_sound()
             
             # Render content based on view modes
             if self.state.map_view_mode == 'full':
