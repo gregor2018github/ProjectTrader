@@ -59,6 +59,7 @@ class GameState:
         self.depot_state: bool = False
         self.map_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
         self.market_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
+        self.depot_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
         self.mouse_clicked_on: str = "none"
         
         # Input fields for quick trading at the bottom of the screen

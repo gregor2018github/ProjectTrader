@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from ...models.depot import Depot
     from ...game_state import GameState
 
-def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState') -> None:
+def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', rect: pygame.Rect) -> None:
     """Draw the depot view panel on the right side of the screen.
     
     The depot view basically only contains the left half of the data. 
@@ -19,13 +19,14 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         font: Main font for text rendering.
         depot: Reference to the player's depot model.
         game_state: Current game state object.
+        rect: The rectangular area where the depot view should be drawn.
     """
     
-    # Calculate dimensions using MODULE_WIDTH for consistent sizing
-    width = MODULE_WIDTH
-    height = SCREEN_HEIGHT - 120
-    x = MODULE_WIDTH  # Right module starts after left module
-    y = 60
+    # Use the passed rect for positioning and dimensions
+    width = rect.width
+    height = rect.height
+    x = rect.x
+    y = rect.y
     
     # Draw depot container
     depot_rect = pygame.Rect(x, y, width, height)
@@ -102,6 +103,9 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
         # Open "Current Wealth" by default
         game_state.detail_panel.show_for_statistic("Current Wealth")
+    else:
+        # Update detail panel position in case the view moved
+        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + 370, depot_rect.top + 60, 300, depot_rect.height-80)
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)

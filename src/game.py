@@ -6,6 +6,7 @@ from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view
+from .ui.layout_modules.depot_view_chart import draw_depot_chart
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
@@ -313,14 +314,30 @@ class Game:
                 self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                     self.goods, self.images['goods_30'], self.state.date, 
                                                     full_module_rect)
+            elif self.state.depot_view_mode == 'full':
+                # Chart on left (Empty plane)
+                draw_depot_chart(self.screen, left_module_rect)
+                # Depot on right
+                draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
             else:
                 # Handle LEFT side
                 if self.state.map_view_mode == 'left':
                     draw_map_view(self.screen, self.game_map, left_module_rect, self.font)
+                elif self.state.market_view_mode == 'left':
+                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                        self.goods, self.images['goods_30'], self.state.date, 
+                                                        left_module_rect)
+                elif self.state.depot_view_mode == 'left':
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, left_module_rect)
                 elif self.state.market_view_mode == 'right':
                     # If market is on right, we can show depot or something else on left?
                     # For now, let's just not draw chart on left if it's on right.
                     pass
+                elif self.state.depot_view_mode == 'right':
+                    # If depot explicitly on right, default chart on left
+                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                        self.goods, self.images['goods_30'], self.state.date, 
+                                                        left_module_rect)
                 else: 
                     # Default: chart on left
                     self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
@@ -334,9 +351,14 @@ class Game:
                     self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                         self.goods, self.images['goods_30'], self.state.date, 
                                                         right_module_rect)
+                elif self.state.depot_view_mode == 'right':
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
+                elif self.state.depot_view_mode == 'left':
+                     # Prevent duplicate depot on right if explicitly on left
+                     pass
                 else:
                     # Default: depot on right
-                    draw_depot_view(self.screen, self.font, self.depot, self.state)
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
 
             # 4. Draw persistent UI elements (Top and Bottom Bars)
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
