@@ -51,6 +51,7 @@ class Depot:
         self.wealth: List[float] = [money]              # wealth tracking for bookkeeping
         self.money_history: List[float] = [money]       # money tracking for bookkeeping
         self.total_stock: List[int] = [0]               # total stock tracking for bookkeeping
+        self.house_history: List[int] = [0]             # history of owned houses
         self.stock_history: Dict[str, List[int]] = {    # stock tracking for bookkeeping
             good_name: [0] for good_name in self.good_stock
         }
@@ -288,6 +289,11 @@ class Depot:
         """
         total_stock = sum(self.good_stock.values())
         self.total_stock.append(total_stock)
+        
+        # Also update house count history (assuming houses property exists)
+        house_count = len(self.properties.get("houses", []))
+        self.house_history.append(house_count)
+        
         return total_stock
     
     def update_stock_history(self) -> None:

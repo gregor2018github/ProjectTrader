@@ -235,6 +235,13 @@ def handle_mouse_click(pos: Tuple[int, int],
             if not (visible_count == 1 and good.show_in_charts):
                 good.toggle_display()
             return
+            
+    # Check for clicks on Depot Chart buttons
+    if hasattr(game_state, "depot_chart_buttons") and game_state.depot_chart_buttons:
+        for label, rect in game_state.depot_chart_buttons.items():
+            if rect.collidepoint(pos):
+                game_state.depot_active_chart = label
+                return
 
     # Check for plus button clicks in depot view detail area
     if hasattr(game_state, "depot_plus_rects") and game_state.depot_plus_rects:

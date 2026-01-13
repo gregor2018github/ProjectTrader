@@ -120,6 +120,10 @@ class GameState:
         self.depot_plus_rects: Dict[str, pygame.Rect] = {}
         self.depot_buttons: Dict[str, pygame.Rect] = {}
         
+        # State for the depot chart view
+        self.depot_active_chart: str = "Wealth"
+        self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
+        
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""
         self.tick_counter += 1

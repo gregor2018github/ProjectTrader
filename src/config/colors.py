@@ -34,6 +34,10 @@ TAN = (210, 180, 140)
 BEIGE = (245, 245, 220)
 PALE_BROWN = (152, 118, 84)
 DARK_ORANGE = (255, 140, 0)
+DARK_GREEN = (0, 100, 0)
+GOLD = (218, 165, 32)
+DARK_BLUE = (0, 0, 139)
+DARK_RED = (139, 0, 0)
 
 # Button colors
 BUY_BUTTON = (76, 175, 80)  # Softer green

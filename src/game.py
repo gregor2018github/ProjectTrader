@@ -278,7 +278,9 @@ class Game:
                     for good in self.goods:
                         good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
             
-            # Reset hover states at the beginning of each frame
+            # Reset hover states and UI boxes at the beginning of each frame
+            self.state.image_boxes = []
+            self.state.depot_chart_buttons = {}
             for good in self.goods:
                 if hasattr(good, '_external_hover') and not good._external_hover:
                     good.hovered = False
@@ -327,29 +329,23 @@ class Game:
                 mode = self.state.left_side_mode
                 if mode == 'depot':
                      # Special case for Depot Full View: Chart on left, List on right
-                    draw_depot_chart(self.screen, left_module_rect)
+                    draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state)
                     draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
                 else:
                     # Standard full view (Map, Market, etc.)
                     render_module(mode, full_module_rect)
             else:
                 # Split View (Different modules)
-                render_module(self.state.left_side_mode, left_module_rect)
-                # Special handling for Market to avoid overwriting image_boxes simply? 
-                # Actually, draw_chart returns image_boxes. If we call it twice (once for left, once for right), 
-                # we might have issues if we overwrite self.state.image_boxes.
-                # But typically only one market view is active in split mode, or if both are active it's handled by full view logic above.
-                # So here, just render right side.
+                if self.state.left_side_mode == 'depot':
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, left_module_rect)
+                else:
+                    render_module(self.state.left_side_mode, left_module_rect)
                 
-                # Check if right side is market, append or overwrite boxes? 
-                # Ideally, if market is on both sides (which is handled by full view logic mostly), we'd want both sets of boxes.
-                # But here we are in split view, so at most one side is market.
-                # However, current logic in render_module overwrites: self.state.image_boxes = draw_chart(...)
-                # If market is NOT active, image_boxes should probably be cleared or ignored? 
-                # Note: draw_chart returns boxes. 
-                
-                # Let's just execute render for right side.
-                render_module(self.state.right_side_mode, right_module_rect)
+                if self.state.right_side_mode == 'depot':
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
+                else:
+                    render_module(self.state.right_side_mode, right_module_rect)
+
 
             # 4. Draw persistent UI elements (Top and Bottom Bars)
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
