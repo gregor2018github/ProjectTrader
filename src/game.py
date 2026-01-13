@@ -293,7 +293,9 @@ class Game:
             full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
             
             # Handle map view updates based on visibility
-            is_map_visible = self.state.map_view_mode in ['left', 'right', 'full']
+            # Map is visible if either left or right side is map
+            is_map_visible = (self.state.left_side_mode == 'map' or self.state.right_side_mode == 'map')
+            
             if is_map_visible:
                 # Update map with player movement
                 if self.state.time_level > 1:  # Only update if game is not paused
@@ -305,60 +307,49 @@ class Game:
             else:
                 self.game_map.map_player.stop_footstep_sound()
             
-            # Render content based on view modes
-            if self.state.map_view_mode == 'full':
-                # Map takes both left and right
-                draw_map_view(self.screen, self.game_map, full_module_rect, self.font)
-            elif self.state.market_view_mode == 'full':
-                # Chart takes both left and right
-                self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                    self.goods, self.images['goods_30'], self.state.date, 
-                                                    full_module_rect)
-            elif self.state.depot_view_mode == 'full':
-                # Chart on left (Empty plane)
-                draw_depot_chart(self.screen, left_module_rect)
-                # Depot on right
-                draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
-            else:
-                # Handle LEFT side
-                if self.state.map_view_mode == 'left':
-                    draw_map_view(self.screen, self.game_map, left_module_rect, self.font)
-                elif self.state.market_view_mode == 'left':
+            # Helper function to render a module in a specific rect
+            def render_module(mode, rect):
+                if mode == 'map':
+                    draw_map_view(self.screen, self.game_map, rect, self.font)
+                elif mode == 'market':
                     self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                        self.goods, self.images['goods_30'], self.state.date, 
-                                                        left_module_rect)
-                elif self.state.depot_view_mode == 'left':
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, left_module_rect)
-                elif self.state.market_view_mode == 'right':
-                    # If market is on right, we can show depot or something else on left?
-                    # For now, let's just not draw chart on left if it's on right.
+                                                      self.goods, self.images['goods_30'], self.state.date, 
+                                                      rect)
+                elif mode == 'depot':
+                    draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
+                elif mode in ['politics', 'trade_routes', 'building']:
+                    # Placeholders for future modules
                     pass
-                elif self.state.depot_view_mode == 'right':
-                    # If depot explicitly on right, default chart on left
-                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                        self.goods, self.images['goods_30'], self.state.date, 
-                                                        left_module_rect)
-                else: 
-                    # Default: chart on left
-                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                        self.goods, self.images['goods_30'], self.state.date, 
-                                                        left_module_rect)
-                
-                # Handle RIGHT side
-                if self.state.map_view_mode == 'right':
-                    draw_map_view(self.screen, self.game_map, right_module_rect, self.font)
-                elif self.state.market_view_mode == 'right':
-                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                        self.goods, self.images['goods_30'], self.state.date, 
-                                                        right_module_rect)
-                elif self.state.depot_view_mode == 'right':
+
+            # Render content based on view modes
+            if self.state.left_side_mode == self.state.right_side_mode:
+                # Full View (Same module on both sides)
+                mode = self.state.left_side_mode
+                if mode == 'depot':
+                     # Special case for Depot Full View: Chart on left, List on right
+                    draw_depot_chart(self.screen, left_module_rect)
                     draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
-                elif self.state.depot_view_mode == 'left':
-                     # Prevent duplicate depot on right if explicitly on left
-                     pass
                 else:
-                    # Default: depot on right
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
+                    # Standard full view (Map, Market, etc.)
+                    render_module(mode, full_module_rect)
+            else:
+                # Split View (Different modules)
+                render_module(self.state.left_side_mode, left_module_rect)
+                # Special handling for Market to avoid overwriting image_boxes simply? 
+                # Actually, draw_chart returns image_boxes. If we call it twice (once for left, once for right), 
+                # we might have issues if we overwrite self.state.image_boxes.
+                # But typically only one market view is active in split mode, or if both are active it's handled by full view logic above.
+                # So here, just render right side.
+                
+                # Check if right side is market, append or overwrite boxes? 
+                # Ideally, if market is on both sides (which is handled by full view logic mostly), we'd want both sets of boxes.
+                # But here we are in split view, so at most one side is market.
+                # However, current logic in render_module overwrites: self.state.image_boxes = draw_chart(...)
+                # If market is NOT active, image_boxes should probably be cleared or ignored? 
+                # Note: draw_chart returns boxes. 
+                
+                # Let's just execute render for right side.
+                render_module(self.state.right_side_mode, right_module_rect)
 
             # 4. Draw persistent UI elements (Top and Bottom Bars)
             buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 

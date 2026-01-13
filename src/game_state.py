@@ -57,9 +57,14 @@ class GameState:
         self.chart_state: bool = True
         self.info_state: bool = False
         self.depot_state: bool = False
-        self.map_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
-        self.market_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
-        self.depot_view_mode: Optional[str] = None  # None, 'left', 'right', or 'full'
+        self.left_side_mode: str = "market"
+        self.left_side_prev_mode: str = "market"
+        self.right_side_mode: str = "depot"
+        self.right_side_prev_mode: str = "depot"
+        
+        self.map_view_mode: Optional[str] = None  # Deprecated
+        self.market_view_mode: Optional[str] = None  # Deprecated
+        self.depot_view_mode: Optional[str] = None  # Deprecated
         self.mouse_clicked_on: str = "none"
         
         # Input fields for quick trading at the bottom of the screen

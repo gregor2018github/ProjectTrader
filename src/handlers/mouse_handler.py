@@ -142,117 +142,50 @@ def handle_mouse_click(pos: Tuple[int, int],
             return
 
     # Handle pictogram sub-button clicks (left/right buttons)
-    for name in ["map", "market", "depot", "politics", "trade_routes", "building"]:
+    possible_modes = ["map", "market", "depot", "politics", "trade_routes", "building"]
+    for name in possible_modes:
         left_key = f"picto_{name}_left"
         right_key = f"picto_{name}_right"
+        main_key = f"pictogram_{name}"
         
+        # Handle Left Button Click
         if left_key in buttons and buttons[left_key].collidepoint(pos):
-            if name == "map":
-                # Toggle map view on left side
-                if game_state.map_view_mode == 'left':
-                    game_state.map_view_mode = None
-                else:
-                    game_state.map_view_mode = 'left'
-                    # If map is on left, market/depot cannot be full or on left
-                    if game_state.market_view_mode in ['left', 'full']:
-                        game_state.market_view_mode = None
-                    if game_state.depot_view_mode in ['left', 'full']:
-                        game_state.depot_view_mode = None
-            elif name == "market":
-                # Toggle market view on left side
-                if game_state.market_view_mode == 'left':
-                    game_state.market_view_mode = None
-                else:
-                    game_state.market_view_mode = 'left'
-                    # If market is on left, map/depot cannot be full or on left
-                    if game_state.map_view_mode in ['left', 'full']:
-                        game_state.map_view_mode = None
-                    if game_state.depot_view_mode in ['left', 'full']:
-                        game_state.depot_view_mode = None
-            elif name == "depot":
-                # Toggle depot view on left side
-                if game_state.depot_view_mode == 'left':
-                    game_state.depot_view_mode = None
-                else:
-                    game_state.depot_view_mode = 'left'
-                    # If depot is on left, map/market cannot be full or on left
-                    if game_state.map_view_mode in ['left', 'full']:
-                        game_state.map_view_mode = None
-                    if game_state.market_view_mode in ['left', 'full']:
-                        game_state.market_view_mode = None
+            if game_state.left_side_mode == name:
+                # If clicking the active mode, fall back to previous
+                game_state.left_side_mode = game_state.left_side_prev_mode
+            else:
+                # If clicking a new mode, update previous and set new current
+                game_state.left_side_prev_mode = game_state.left_side_mode
+                game_state.left_side_mode = name
             return
         
+        # Handle Right Button Click
         if right_key in buttons and buttons[right_key].collidepoint(pos):
-            if name == "map":
-                # Toggle map view on right side
-                if game_state.map_view_mode == 'right':
-                    game_state.map_view_mode = None
-                else:
-                    game_state.map_view_mode = 'right'
-                    # If map is on right, market/depot cannot be full or on right
-                    if game_state.market_view_mode in ['right', 'full']:
-                        game_state.market_view_mode = None
-                    if game_state.depot_view_mode in ['right', 'full']:
-                        game_state.depot_view_mode = None
-            elif name == "market":
-                # Toggle market view on right side
-                if game_state.market_view_mode == 'right':
-                    game_state.market_view_mode = None
-                else:
-                    game_state.market_view_mode = 'right'
-                    # If market is on right, map/depot cannot be full or on right
-                    if game_state.map_view_mode in ['right', 'full']:
-                        game_state.map_view_mode = None
-                    if game_state.depot_view_mode in ['right', 'full']:
-                        game_state.depot_view_mode = None
-            elif name == "depot":
-                # Toggle depot view on right side
-                if game_state.depot_view_mode == 'right':
-                    game_state.depot_view_mode = None
-                else:
-                    game_state.depot_view_mode = 'right'
-                    # If depot is on right, map/market cannot be full or on right
-                    if game_state.map_view_mode in ['right', 'full']:
-                        game_state.map_view_mode = None
-                    if game_state.market_view_mode in ['right', 'full']:
-                        game_state.market_view_mode = None
+            if game_state.right_side_mode == name:
+                # If clicking the active mode, fall back to previous
+                game_state.right_side_mode = game_state.right_side_prev_mode
+            else:
+                # If clicking a new mode, update previous and set new current
+                game_state.right_side_prev_mode = game_state.right_side_mode
+                game_state.right_side_mode = name
             return
 
-    # Handle pictogram main button clicks (side menu)
-    for name in ["map", "market", "depot", "politics", "trade_routes", "building"]:
-        key = f"pictogram_{name}"
-        if key in buttons and buttons[key].collidepoint(pos):
-            # Each pictogram will eventually trigger a menu state change
-            if name == "map":
-                # Toggle full map view (both sides)
-                if game_state.map_view_mode == 'full':
-                    game_state.map_view_mode = None
-                else:
-                    game_state.map_view_mode = 'full'
-                    game_state.market_view_mode = None
-                    game_state.depot_view_mode = None
-            elif name == "market":
-                # Toggle full market view (both sides)
-                if game_state.market_view_mode == 'full':
-                    game_state.market_view_mode = None
-                else:
-                    game_state.market_view_mode = 'full'
-                    game_state.map_view_mode = None
-                    game_state.depot_view_mode = None
-            elif name == "depot":
-                # Toggle full depot view (both sides)
-                if game_state.depot_view_mode == 'full':
-                    game_state.depot_view_mode = None
-                else:
-                    game_state.depot_view_mode = 'full'
-                    game_state.map_view_mode = None
-                    game_state.market_view_mode = None
-            elif name == "politics":
-                pass
-            elif name == "trade_routes":
-                pass
-            elif name == "building":
-                pass
+        # Handle Main Pictogram Button Click (Full View)
+        if main_key in buttons and buttons[main_key].collidepoint(pos):
+            if game_state.left_side_mode == name and game_state.right_side_mode == name:
+                # Toggle off if already active on both sides -> switch both back to previous
+                game_state.left_side_mode = game_state.left_side_prev_mode
+                game_state.right_side_mode = game_state.right_side_prev_mode
+            else:
+                # Set full view mode by setting both sides to the target name
+                # Update previous modes only for sides that are changing
+                if game_state.left_side_mode != name:
+                    game_state.left_side_prev_mode = game_state.left_side_mode
+                    game_state.left_side_mode = name
+                
+                if game_state.right_side_mode != name:
+                    game_state.right_side_prev_mode = game_state.right_side_mode
+                    game_state.right_side_mode = name
             return
 
     # Handle dropdown selection first
