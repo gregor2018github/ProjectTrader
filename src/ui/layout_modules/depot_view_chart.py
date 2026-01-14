@@ -134,14 +134,14 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             pygame.draw.line(screen, CHART_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
             
             # Draw label
-            line_label = font.render(str(int(current_line)), True, CHART_BROWN)
+            line_label = font.render(f"{int(current_line):,}", True, CHART_BROWN)
             screen.blit(line_label, (chart_rect.left + 5, line_y - 12))
             
             current_line += step
             
         # Draw min/max labels
-        max_label = font.render(f"{max_val:.1f}", True, DARK_BROWN)
-        min_label = font.render(f"{min_val:.1f}", True, DARK_BROWN)
+        max_label = font.render(f"{max_val:,.1f}", True, DARK_BROWN)
+        min_label = font.render(f"{min_val:,.1f}", True, DARK_BROWN)
         
         screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
         screen.blit(min_label, (chart_rect.left + 5, chart_rect.bottom - 25))

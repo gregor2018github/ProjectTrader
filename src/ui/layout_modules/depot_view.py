@@ -105,7 +105,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         game_state.detail_panel.show_for_statistic("Current Wealth")
     else:
         # Update detail panel position in case the view moved
-        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + 370, depot_rect.top + 60, 300, depot_rect.height-80)
+        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + 435, depot_rect.top + 60, 340, depot_rect.height-80)
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
@@ -166,19 +166,19 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     total_actions = len(filtered_trades)
     
     wealth_stats = [
-        ("Current Wealth", f"{current_wealth:.2f}"),
-        ("Wealth Start", f"{start_wealth:.2f}"),
-        ("Income", f"{current_income:.2f}"),
-        ("Expenses", f"{current_expense:.2f}"),
-        ("Profit", f"{wealth_change:.2f}"),
+        ("Current Wealth", f"{current_wealth:,.2f}"),
+        ("Wealth Start", f"{start_wealth:,.2f}"),
+        ("Income", f"{current_income:,.2f}"),
+        ("Expenses", f"{current_expense:,.2f}"),
+        ("Profit", f"{wealth_change:,.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
-        ("Total Stock", f"{sum(depot.good_stock.values())} / {depot.storage_capacity}")
+        ("Total Stock", f"{sum(depot.good_stock.values()):,} / {depot.storage_capacity:,}")
     ]
     
     trade_action_stats = [
-        ("Buy Actions", f"{buy_actions}"),
-        ("Sell Actions", f"{sell_actions}"),
-        ("Total Actions", f"{total_actions}")
+        ("Buy Actions", f"{buy_actions:,}"),
+        ("Sell Actions", f"{sell_actions:,}"),
+        ("Total Actions", f"{total_actions:,}")
     ]
     
     # Get trade cycle statistics filtered by time frame
@@ -190,10 +190,10 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     
     # Convert cycle_stats dictionary to a list for display
     trade_cycle_stats = [
-        ("Completed Trades", f"{cycle_stats['total_cycles']}"),
-        ("Successful Trades", f"{cycle_stats['successful_cycles']}"),
+        ("Completed Trades", f"{cycle_stats['total_cycles']:,}"),
+        ("Successful Trades", f"{cycle_stats['successful_cycles']:,}"),
         ("Success Rate", f"{cycle_stats['success_rate']:.1f}%"),
-        ("Total Trade Profit", f"{cycle_stats['total_profit']:.2f}")
+        ("Total Trade Profit", f"{cycle_stats['total_profit']:,.2f}")
     ]
 
     # Use game_state.depot_scroll_offset if it exists, otherwise default to 0
@@ -232,7 +232,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         # Draw a subtle gray background for the selected row
         if is_selected:
             row_rect = pygame.Rect(10, y_pos-4, surf.get_width()-80, 24)
-            row_separator = pygame.Rect(345, y_pos-4, 7, 24)
+            row_separator = pygame.Rect(410, y_pos-4, 7, 24)
             pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
             pygame.draw.rect(surf, BEIGE, row_separator)
         
@@ -343,11 +343,11 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         content_y += 24
         draw_row(content_surface, content_y, "Type", trade_type, value_color=trade_color)
         content_y += 24
-        draw_row(content_surface, content_y, "Quantity", str(last_trade["quantity"]))
+        draw_row(content_surface, content_y, "Quantity", f"{last_trade['quantity']:,}")
         content_y += 24
-        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:.2f}")
+        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:,.2f}")
         content_y += 24
-        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:.2f}")
+        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:,.2f}")
         content_y += 24
     
     # Draw section: Best & Worst Goods
@@ -363,7 +363,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         content_y += 24
         for i, (good_name, profit) in enumerate(cycle_stats["best_goods"][:3]):
             if profit > 0:
-                draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"+{profit:.2f}")
+                draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"+{profit:,.2f}")
                 content_y += 24
     
     # Draw worst goods if available
@@ -373,11 +373,11 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         content_y += 24
         for i, (good_name, profit) in enumerate(reversed(cycle_stats["worst_goods"][-3:])):
             color = RED if profit < 0 else BLACK
-            draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"{profit:.2f}", value_color=color)
+            draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"{profit:,.2f}", value_color=color)
             content_y += 24
 
     # add a visual closing as the last line to the content
-    pygame.draw.line(content_surface, DARK_BROWN, (20, content_y+10), (345, content_y+10), 2)
+    pygame.draw.line(content_surface, DARK_BROWN, (20, content_y+10), (410, content_y+10), 2)
     content_y += 20
 
     # Crop the content_surface to the actual content height

@@ -18,7 +18,7 @@ class DepotViewDetail:
             game_state: The current game state object.
         """
         # Place the detail panel just to the right of depot view
-        self.rect = pygame.Rect(depot_rect.left + 370, depot_rect.top + 60, 300, depot_rect.height-80)
+        self.rect = pygame.Rect(depot_rect.left + 435, depot_rect.top + 60, 325, depot_rect.height-80)
         self.visible = False
         self.current_statistic = None
         self.game_state = game_state
