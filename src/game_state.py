@@ -123,6 +123,11 @@ class GameState:
         # State for the depot chart view
         self.depot_active_chart: str = "Wealth"
         self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
+
+    @property
+    def is_map_visible(self) -> bool:
+        """Check if the map is currently being displayed on either side of the screen."""
+        return self.left_side_mode == 'map' or self.right_side_mode == 'map'
         
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""

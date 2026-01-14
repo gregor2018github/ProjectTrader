@@ -1,10 +1,11 @@
 # Project Trader TODOs
 
 ## High Priority
+- [ ] fix the map zoom (mousewheel is not working, + or - lets the game crash)
 - [ ] Fix how the depot_view looks like with the new screen size (free area on the right, overlapping bars, etc)
-- [ ] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
-- [ ] Collisions with objects in the world
 - [ ] Houses must actually overlap the player (like trees now do in the map demo) -> they must become ID'd objects rather than tiles
+- [ ] Collisions with objects in the world must be improved (only tree demo so far)
+- [ ] make the complete window a bit higher, see if there are problems related to that
 
 ## Medium Priority
 
@@ -17,6 +18,7 @@
 - [ ] Bank Menu 
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
+- [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] Price influenced by Supply and Demand
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
@@ -29,6 +31,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
 - [x] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 - [x] sound effects for walking
 - [x] Add a free license on github 

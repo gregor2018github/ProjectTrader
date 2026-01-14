@@ -199,6 +199,8 @@ class Game:
         # simply load in all files in the sound directory
         for sound_file in os.listdir(sound_dir):
             sound_path = os.path.join(sound_dir, sound_file)
+            if os.path.isdir(sound_path):
+                continue
             sound_name = os.path.splitext(sound_file)[0]
             try:
                 sounds[sound_name] = pygame.mixer.Sound(sound_path)

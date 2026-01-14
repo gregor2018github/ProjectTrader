@@ -66,22 +66,25 @@ class EventHandler:
             scroll_speed = 20
             
             # Check if map is active and mouse is over map area
-            if game_state.map_view_mode and hasattr(game_state.game, 'game_map'):
+            if game_state.is_map_visible and hasattr(game_state.game, 'game_map'):
                 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
-                # Determine map view rect based on mode
-                if game_state.map_view_mode == 'full':
-                    map_view_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
-                elif game_state.map_view_mode == 'left':
-                    map_view_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-                elif game_state.map_view_mode == 'right':
-                    map_view_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-                else:
-                    map_view_rect = None
+                
+                # Check for map on left side (includes full screen if left is map)
+                if game_state.left_side_mode == 'map':
+                    left_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                    if game_state.left_side_mode == game_state.right_side_mode:
+                        left_rect.width = MODULE_WIDTH * 2
                     
-                if map_view_rect and map_view_rect.collidepoint(mouse_pos):
-                    # Handle zoom with mouse wheel on map
-                    game_state.game.game_map.handle_zoom(event.y)
-                    return self.running
+                    if left_rect.collidepoint(mouse_pos):
+                        game_state.game.game_map.handle_zoom(event.y)
+                        return self.running
+                
+                # Check for map on right side
+                if game_state.right_side_mode == 'map':
+                    right_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                    if right_rect.collidepoint(mouse_pos):
+                        game_state.game.game_map.handle_zoom(event.y)
+                        return self.running
             
             # Check if detail panel is visible and mouse is over it
             if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
