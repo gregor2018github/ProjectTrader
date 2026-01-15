@@ -26,6 +26,7 @@
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
+- [ ] Fix map view rendering artifacts when moving the player (tiles flicker at a certain line when moving)
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 

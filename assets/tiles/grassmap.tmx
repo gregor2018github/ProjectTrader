@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="1">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="7" nextobjectid="54">
  <tileset firstgid="1" name="Test-Tiles" tilewidth="64" tileheight="64" tilecount="54" columns="9">
   <image source="test_tileset.png" width="576" height="384"/>
  </tileset>
@@ -428,7 +428,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="6" name="Collision" width="100" height="100" visible="0" opacity="0.65">
+ <layer id="6" name="Collision" width="100" height="100" visible="0" opacity="0.69">
   <properties>
    <property name="collision" type="bool" value="true"/>
   </properties>
@@ -535,5 +535,45 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <objectgroup id="2" name="ObjectLayer"/>
+ <objectgroup id="2" name="ObjectLayer">
+  <object id="1" gid="19957" x="609.333" y="952.667" width="32" height="32"/>
+  <object id="2" gid="19957" x="604" y="967.333" width="32" height="32"/>
+  <object id="3" gid="19957" x="607.333" y="956" width="32" height="32"/>
+  <object id="4" gid="19957" x="607.333" y="958" width="32" height="32"/>
+  <object id="5" gid="19957" x="607.333" y="958" width="32" height="32"/>
+  <object id="6" gid="19957" x="607.333" y="961.333" width="32" height="32"/>
+  <object id="7" gid="19957" x="607.333" y="961.333" width="32" height="32"/>
+  <object id="8" gid="19957" x="606.313" y="960" width="32" height="32"/>
+  <object id="9" gid="19957" x="612.5" y="958.375" width="32" height="32"/>
+  <object id="10" gid="19957" x="612.875" y="958.625" width="32" height="32"/>
+  <object id="11" gid="19957" x="609.375" y="960.75" width="32" height="32"/>
+  <object id="12" gid="19957" x="607.125" y="960.625" width="32" height="32"/>
+  <object id="13" gid="19957" x="607.813" y="959.375" width="32" height="32"/>
+  <object id="14" gid="19957" x="608.375" y="960" width="32" height="32"/>
+  <object id="15" gid="19957" x="608" y="959.875" width="32" height="32"/>
+  <object id="16" gid="19957" x="592.086" y="975.906" width="32" height="32"/>
+  <object id="17" gid="19957" x="596.289" y="972.305" width="32" height="32"/>
+  <object id="18" gid="19957" x="605.875" y="955.969" width="32" height="32"/>
+  <object id="19" gid="19957" x="610.313" y="957.875" width="32" height="32"/>
+  <object id="20" gid="19957" x="609.719" y="960.094" width="32" height="32"/>
+  <object id="21" gid="19957" x="608.813" y="960.063" width="32" height="32"/>
+  <object id="22" gid="19957" x="608.219" y="959.781" width="32" height="32"/>
+  <object id="23" gid="19957" x="608.125" y="959.781" width="32" height="32"/>
+  <object id="24" gid="19957" x="608.125" y="959.906" width="32" height="32"/>
+  <object id="25" gid="19957" x="608.125" y="959.906" width="32" height="32"/>
+  <object id="26" gid="19957" x="608.094" y="959.813" width="32" height="32"/>
+  <object id="27" gid="19957" x="608.094" y="960.125" width="32" height="32"/>
+  <object id="28" gid="19957" x="608.094" y="959.906" width="32" height="32"/>
+  <object id="29" gid="19957" x="607.813" y="959.938" width="32" height="32"/>
+  <object id="30" gid="19957" x="607.906" y="960.031" width="32" height="32"/>
+  <object id="31" gid="19957" x="607.938" y="960.031" width="32" height="32"/>
+  <object id="32" name="House The Fine Weaver" gid="19957" x="608" y="960" width="32" height="32"/>
+  <object id="53" name="Point House The Grey Griffin Inn" type="House_Frontal" x="832" y="960">
+   <properties>
+    <property name="Tiles_to_right" type="int" value="7"/>
+    <property name="Tiles_up" type="int" value="11"/>
+   </properties>
+   <point/>
+  </object>
+ </objectgroup>
 </map>

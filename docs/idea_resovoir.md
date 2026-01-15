@@ -52,13 +52,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - player warehouse capacity (player can only hold so many items in their warehouse)
 - warehouses can be upgraded to hold more items
-- a pictogram main menu on the right side of the screen
-    - to pictogram menu items next to each other, you can click them on both sides to decide if it opens right or left or double sided
-    - pictogram menu items:
-        - statistics (table format)
-        - statistics (graph format)
-        - map
-        - market
 
 - a real city in the background
     - update statistics daily/weekly/monthly to not overload the system
