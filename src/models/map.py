@@ -628,15 +628,19 @@ class MapPlayer:
         if y + self.height > game_map.height * game_map.tile_size:
             return False
         
+        # Calculate collision box (just the bottom tile/feet area)
+        collision_height = self.tile_size
+        collision_y = y + self.height - collision_height
+        
         # Check collision with objects (houses)
-        player_rect = pygame.Rect(int(x), int(y), int(self.width), int(self.height))
+        player_rect = pygame.Rect(int(x), int(collision_y), int(self.width), int(collision_height))
         if game_map.check_object_collision(player_rect):
             return False
 
-        # Get the four corners of the player sprite
+        # Get the four corners of the player collision box (feet area)
         corners = [
-            (x, y),  # top-left
-            (x + self.width - 1, y),  # top-right
+            (x, collision_y),  # top-left of collision area
+            (x + self.width - 1, collision_y),  # top-right of collision area
             (x, y + self.height - 1),  # bottom-left
             (x + self.width - 1, y + self.height - 1)  # bottom-right
         ]
