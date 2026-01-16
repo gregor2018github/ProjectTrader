@@ -18,7 +18,7 @@ Instead of "painting" a house tile by tile on a layer, you place a **single Map 
 - Collision Box (defined in Tiled or auto-generated)
 
 ## 3. Tiled Workflow Instructions
-1.  **Open `grassmap.tmx` in Tiled.**
+1.  **Open `Map1.tmx` in Tiled.**
 2.  **Delete the existing "Collision" Tile Layer.** It is better to use Object-based collision.
 3.  **Delete the "Houses" Tile Layers** (Upper, Middle, Lower) if you want to convert them to objects.
     *   *Alternative:* You can keep them for now, but draw "Collision Objects" over them. However, making them actual Objects is better for the long run.

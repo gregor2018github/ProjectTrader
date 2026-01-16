@@ -535,7 +535,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <objectgroup id="2" name="ObjectLayer">
+ <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="832" y="960">
    <properties>
     <property name="Collision_to_right" type="int" value="7"/>

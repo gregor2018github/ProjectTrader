@@ -11,6 +11,7 @@ import pytmx
 from typing import List, Dict, Tuple, Any, Optional, Union
 
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME
+from .house import House
 
 
 class Camera:
@@ -87,6 +88,7 @@ class TMXMap:
         self.scaled_tile_cache: Dict[float, Dict[Any, pygame.Surface]] = {}
         self.tree_images: List[pygame.Surface] = []
         self.trees: List[Dict[str, int]] = []  # List of dicts with x, y, variant
+        self.houses: List[House] = []
         
         # Load tree sprites
         tree_dir = os.path.join('assets', 'map_sprites', 'trees')
@@ -97,6 +99,42 @@ class TMXMap:
                     self.tree_images.append(pygame.image.load(tree_path).convert_alpha())
                 except pygame.error:
                     continue
+        
+        self._load_houses()
+
+    def _load_houses(self) -> None:
+        """Load house objects from the "Houses" object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Houses":
+                for obj in layer:
+                    # Extract properties
+                    file_name = obj.properties.get('File_name', '')
+                    if not file_name:
+                        continue
+                        
+                    tiles_to_right = int(obj.properties.get('Tiles_to_right', 0))
+                    tiles_up = int(obj.properties.get('Tiles_up', 0))
+                    collision_to_right = int(obj.properties.get('Collision_to_right', 0))
+                    collision_up = int(obj.properties.get('Collision_up', 0))
+                    
+                    house = House(
+                        x=obj.x,
+                        y=obj.y,
+                        file_name=file_name,
+                        tiles_to_right=tiles_to_right,
+                        tiles_up=tiles_up,
+                        collision_to_right=collision_to_right,
+                        collision_up=collision_up,
+                        tile_size=self.tile_size
+                    )
+                    self.houses.append(house)
+
+    def check_object_collision(self, rect: pygame.Rect) -> bool:
+        """Check if the given rect collides with any map objects (houses)."""
+        for house in self.houses:
+            if house.collision_rect.colliderect(rect):
+                return True
+        return False
 
     def place_random_trees(self, count: int = 50) -> None:
         """Randomly place trees on the map.
@@ -590,6 +628,11 @@ class MapPlayer:
         if y + self.height > game_map.height * game_map.tile_size:
             return False
         
+        # Check collision with objects (houses)
+        player_rect = pygame.Rect(int(x), int(y), int(self.width), int(self.height))
+        if game_map.check_object_collision(player_rect):
+            return False
+
         # Get the four corners of the player sprite
         corners = [
             (x, y),  # top-left
