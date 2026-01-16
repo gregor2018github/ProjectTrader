@@ -37,6 +37,8 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - add different chart types like candlestick charts
 
+- hide random bottle messages in the world that give little stories or simply medieval sayings
+
 - add the possibility to enter different order types (limit orders, stop orders, etc)
 
 - Game must be savable and loadable
@@ -50,7 +52,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - Settings
     - Exit
 
-- player warehouse capacity (player can only hold so many items in their warehouse)
 - warehouses can be upgraded to hold more items
 
 - a real city in the background

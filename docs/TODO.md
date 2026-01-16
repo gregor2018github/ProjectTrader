@@ -2,13 +2,13 @@
 
 ## High Priority
 
-- [ ] Add all houses as proper objects via tiled object layers
 - [ ] create proper standardized tree assets
 - [ ] add the trees as objects via tiled object layers (that it can also be designed where they look best)
 - [ ] make the complete window a bit higher, see if there are problems related to that
 
 ## Medium Priority
 
+- [ ] Fix the walkthrough of the second fence with an invisible collision box
 - [ ] Market events
 - [ ] when going to map view, the time may only be normal speed or paused
 - [ ] Add sound effects for buying and selling goods at the market
@@ -31,6 +31,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] Add all houses as proper objects via tiled object layers
 - [x] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
 - [x] Fix map view rendering artifacts when moving the player (tiles flicker at a certain line when moving)
 - [x] Collisions with objects in the world must be improved (only tree demo so far)
