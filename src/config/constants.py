@@ -37,3 +37,4 @@ CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "
 # MAP AND SOUND CONSTANTS
 
 FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
+MAP_START_ZOOM = 1.25                 # Initial zoom level for the map view (bigger = zoomed in)

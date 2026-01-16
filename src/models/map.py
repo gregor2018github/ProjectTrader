@@ -10,7 +10,7 @@ import pygame
 import pytmx
 from typing import List, Dict, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME
+from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM
 from .house import House
 
 
@@ -28,7 +28,7 @@ class Camera:
         self.y: float = 0.0
         self.screen_width: int = screen_width
         self.screen_height: int = screen_height
-        self.zoom: float = 1.0
+        self.zoom: float = MAP_START_ZOOM
     
     def set_zoom(self, zoom: Union[float, int]) -> None:
         """Update current zoom factor.
@@ -730,7 +730,13 @@ class GameMap:
         # Initialize camera
         self.camera: Camera = Camera(view_width, view_height)
         self.zoom_levels: List[float] = [0.75, 1.0, 1.25, 1.5, 1.75]
-        self.zoom_index: int = 1
+        
+        # Determine initial zoom index from constant if possible
+        try:
+            self.zoom_index: int = self.zoom_levels.index(MAP_START_ZOOM)
+        except ValueError:
+            self.zoom_index = 1.25  # Default fallback
+            
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         
         # Load TMX map
