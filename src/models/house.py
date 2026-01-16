@@ -58,12 +58,6 @@ class House:
         if not os.path.exists(path):
             if os.path.exists(path + '.png'):
                 path = path + '.png'
-            elif os.path.exists(path + '.xcf'):
-                # Pygame technically doesn't support XCF out of the box usually, 
-                # but if user mentioned XCF in folders, maybe they have them.
-                # But they said "png sprite".
-                pass
-                
         if os.path.exists(path):
             try:
                 self.image = pygame.image.load(path).convert_alpha()

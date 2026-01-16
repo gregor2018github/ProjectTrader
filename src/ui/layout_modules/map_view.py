@@ -57,7 +57,8 @@ def draw_map_view(
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
     for obj in render_queue:
-        screen.blit(obj['sprite'], obj['pos'])
+        # Use round() for consistent pixel alignment during movement
+        screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])))
     
     # Restore clipping
     screen.set_clip(old_clip)
@@ -101,8 +102,10 @@ def _render_map_layers(
                             world_x, world_y = tmx_map.grid_to_world(x, y)
                             screen_x, screen_y = camera.apply(world_x, world_y)
                             # Tiled aligns tiles to the bottom-left of the grid cell
-                            screen_y -= (tile_image.get_height() - tmx_map.tile_size * camera.zoom)
-                            screen.blit(tile_image, (int(screen_x) + offset_x, int(screen_y) + offset_y))
+                            # Use rounded tile size for consistency with scaling logic
+                            scaled_grid_size = round(tmx_map.tile_size * camera.zoom)
+                            screen_y -= (tile_image.get_height() - scaled_grid_size)
+                            screen.blit(tile_image, (round(screen_x) + offset_x, round(screen_y) + offset_y))
 
 
 def _build_render_queue(
@@ -134,10 +137,9 @@ def _build_render_queue(
             screen_x, screen_y = camera.apply(world_px, world_py)
             
             # Align tree bottom to tile bottom
-            tile_screen_height = tmx_map.tile_size * camera.zoom
-            tile_screen_width = tmx_map.tile_size * camera.zoom
-            draw_x = int(screen_x - (sprite.get_width() - tile_screen_width) / 2.0) + offset_x
-            draw_y = int(screen_y + tile_screen_height - sprite.get_height()) + offset_y
+            scaled_grid_size = round(tmx_map.tile_size * camera.zoom)
+            draw_x = screen_x - (sprite.get_width() - scaled_grid_size) / 2.0 + offset_x
+            draw_y = screen_y + scaled_grid_size - sprite.get_height() + offset_y
             
             # Y-sort by the bottom of the tile (where the trunk is)
             render_queue.append({
@@ -152,16 +154,16 @@ def _build_render_queue(
         if sprite:
             screen_x, screen_y = camera.apply(house.x, house.y)
             # screen_y is the bottom of the sprite because house.x, house.y is bottom-left
-            draw_x = screen_x
-            draw_y = screen_y - sprite.get_height()
+            draw_x = screen_x + offset_x
+            draw_y = screen_y - sprite.get_height() + offset_y
             
             # Culling - check if sprite frame intersects with screen area
-            if (draw_x + sprite.get_width() >= 0 and draw_x < camera.screen_width and
-                draw_y + sprite.get_height() >= 0 and draw_y < camera.screen_height):
+            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
                 
                 render_queue.append({
                     'sprite': sprite,
-                    'pos': (int(draw_x) + offset_x, int(draw_y) + offset_y),
+                    'pos': (draw_x, draw_y),
                     'y_sort': house.y_sort
                 })
 
@@ -170,7 +172,7 @@ def _build_render_queue(
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
     render_queue.append({
         'sprite': player_sprite,
-        'pos': (int(player_screen_x) + offset_x, int(player_screen_y) + offset_y),
+        'pos': (player_screen_x + offset_x, player_screen_y + offset_y),
         'y_sort': map_player.y + map_player.height  # Use world Y of player bottom
     })
     

@@ -44,20 +44,39 @@ class Camera:
         Args:
             target_x: Target's X coordinate in world space.
             target_y: Target's Y coordinate in world space.
-            world_width: Total width of the world map.
-            world_height: Total height of the world map.
+            world_width: Total width of the world map in world units.
+            world_height: Total height of the world map in world units.
         """
-        half_width = (self.screen_width / self.zoom) / 2
-        half_height = (self.screen_height / self.zoom) / 2
-
-        self.x = target_x - half_width
-        self.y = target_y - half_height
-
-        max_x = max(0, world_width - (self.screen_width / self.zoom))
-        max_y = max(0, world_height - (self.screen_height / self.zoom))
-
-        self.x = max(0, min(self.x, max_x))
-        self.y = max(0, min(self.y, max_y))
+        # Calculate scaling factor consistent with tile rendering
+        scaled_tile_size = round(TILE_SIZE * self.zoom)
+        scale_factor = scaled_tile_size / float(TILE_SIZE)
+        
+        # Center the camera on the target in pixel space
+        half_screen_w = self.screen_width / 2.0
+        half_screen_h = self.screen_height / 2.0
+        
+        # Target position in pixels
+        target_px = target_x * scale_factor
+        target_py = target_y * scale_factor
+        
+        # Camera top-left in pixels
+        cam_px = target_px - half_screen_w
+        cam_py = target_py - half_screen_h
+        
+        # Map boundaries in pixels
+        world_px_w = world_width * scale_factor
+        world_px_h = world_height * scale_factor
+        
+        # Clamp camera to map bounds
+        max_px_x = max(0, world_px_w - self.screen_width)
+        max_px_y = max(0, world_px_h - self.screen_height)
+        
+        cam_px = max(0, min(cam_px, max_px_x))
+        cam_py = max(0, min(cam_py, max_px_y))
+        
+        # Convert pixel position back to "world units" for storage and apply()
+        self.x = cam_px / scale_factor if scale_factor > 0 else 0
+        self.y = cam_py / scale_factor if scale_factor > 0 else 0
     
     def apply(self, x: float, y: float) -> Tuple[float, float]:
         """Convert world coordinates to screen coordinates.
@@ -69,7 +88,11 @@ class Camera:
         Returns:
             Tuple[float, float]: Position relative to camera on screen.
         """
-        return (x - self.x) * self.zoom, (y - self.y) * self.zoom
+        # Ensure we use the same scaling logic as the tile renderer
+        scaled_tile_size = round(TILE_SIZE * self.zoom)
+        scale_factor = scaled_tile_size / float(TILE_SIZE)
+        
+        return (x * scale_factor - self.x * scale_factor), (y * scale_factor - self.y * scale_factor)
 
 
 class TMXMap:

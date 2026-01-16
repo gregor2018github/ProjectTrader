@@ -1,8 +1,10 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Houses must actually overlap the player (like trees now do in the map demo) -> they must become ID'd objects rather than tiles
-- [ ] Collisions with objects in the world must be improved (only tree demo so far)
+
+- [ ] Add all houses as proper objects via tiled object layers
+- [ ] create proper standardized tree assets
+- [ ] add the trees as objects via tiled object layers (that it can also be designed where they look best)
 - [ ] make the complete window a bit higher, see if there are problems related to that
 
 ## Medium Priority
@@ -25,12 +27,14 @@
 ## Bug Fixes
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
-- [ ] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
-- [ ] Fix map view rendering artifacts when moving the player (tiles flicker at a certain line when moving)
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
+- [x] Fix map view rendering artifacts when moving the player (tiles flicker at a certain line when moving)
+- [x] Collisions with objects in the world must be improved (only tree demo so far)
+- [x] Houses must actually overlap the player (like trees now do in the map demo) -> they must become ID'd objects rather than tiles
 - [x] Fix how the depot_view looks like with the new screen size (free area on the right, overlapping bars, etc)
 - [x] fix the map zoom (mousewheel is not working, + or - lets the game crash)
 - [x] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
