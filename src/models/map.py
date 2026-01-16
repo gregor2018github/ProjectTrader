@@ -664,7 +664,7 @@ class GameMap:
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         
         # Load TMX map
-        tmx_path = os.path.join('assets', 'tiles', 'grassmap.tmx')
+        tmx_path = os.path.join('assets', 'tiles', 'Map1.tmx')
         self.tmx_map: TMXMap = TMXMap(tmx_path)
         self.tmx_map.place_random_trees(30)
         
