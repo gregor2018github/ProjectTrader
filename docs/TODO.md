@@ -2,13 +2,15 @@
 
 ## High Priority
 
-- [ ] create proper standardized tree assets
+- [ ] make the collision box of the player ever smaller at the top
+- [ ] add collision margins (so that houses can have a bit more or less space around at the particular sides)
+- [ ] Fix the walkthrough of the second fence with an invisible collision box
+- [ ]create proper standardized tree assets
 - [ ] add the trees as objects via tiled object layers (that it can also be designed where they look best)
 - [ ] make the complete window a bit higher, see if there are problems related to that
 
 ## Medium Priority
 
-- [ ] Fix the walkthrough of the second fence with an invisible collision box
 - [ ] Market events
 - [ ] when going to map view, the time may only be normal speed or paused
 - [ ] Add sound effects for buying and selling goods at the market

@@ -652,7 +652,7 @@ class MapPlayer:
             return False
         
         # Calculate collision box (just the bottom tile/feet area)
-        collision_height = self.tile_size
+        collision_height = self.tile_size/2
         collision_y = y + self.height - collision_height
         
         # Check collision with objects (houses)
