@@ -8,7 +8,11 @@ class House:
     def __init__(self, x: float, y: float, file_name: str, 
                  tiles_to_right: int, tiles_up: int,
                  collision_to_right: int, collision_up: int,
-                 tile_size: int):
+                 tile_size: int,
+                 col_margin_right_pixel: int = 0,
+                 col_margin_left_pixel: int = 0,
+                 col_margin_up_pixel: int = 0,
+                 col_margin_down_pixel: int = 0):
         """Initialize the house.
         
         Args:
@@ -20,6 +24,10 @@ class House:
             collision_to_right: Width of collision box in tiles.
             collision_up: Height of collision box in tiles.
             tile_size: Size of one tile in pixels.
+            col_margin_right_pixel: Extra pixels to add to the right of collision.
+            col_margin_left_pixel: Extra pixels to add to the left of collision.
+            col_margin_up_pixel: Extra pixels to add to the top of collision.
+            col_margin_down_pixel: Extra pixels to add to the bottom of collision.
         """
         self.x = x
         self.y = y 
@@ -36,18 +44,34 @@ class House:
         self._load_image()
         
         # Calculate collision rect
-        # The point (x, y) is the bottom-left corner of the image AND the anchor for collision.
-        # "Collision from this point up" means the box extends upwards (negative Y).
-        collision_width = self.collision_to_right * self.tile_size
-        collision_height = self.collision_up * self.tile_size
+        # The point (x, y) is the bottom-left corner of the image AND the anchor for base collision.
+        # Base dimensions in pixels
+        base_width = self.collision_to_right * self.tile_size
+        base_height = self.collision_up * self.tile_size
+        
+        # Apply pixel margins:
+        # Left margin adds/removes from the left side (x-axis)
+        # Right margin adds/removes from the right side (width)
+        # Up margin adds/removes from the top side (y-axis)
+        # Down margin adds/removes from the bottom side (y-axis)
+        
+        final_x = self.x - col_margin_left_pixel
+        final_width = base_width + col_margin_left_pixel + col_margin_right_pixel
+        final_height = base_height + col_margin_up_pixel + col_margin_down_pixel
         
         # Rect(left, top, width, height)
-        # Top is y - height
+        # top = (y - base_height) - up_margin
+        # which is also: top = y - (base_height + up_margin)
+        # but we also have down_margin which pushes the bottom down.
+        # bottom = y + down_margin
+        # top = bottom - final_height = (y + down_margin) - (base_height + up_margin + down_margin)
+        # = y - base_height - up_margin
+        
         self.collision_rect = pygame.Rect(
-            self.x, 
-            self.y - collision_height, 
-            collision_width, 
-            collision_height
+            final_x, 
+            (self.y + col_margin_down_pixel) - final_height, 
+            final_width, 
+            final_height
         )
 
     def _load_image(self) -> None:

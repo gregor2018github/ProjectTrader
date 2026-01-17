@@ -140,6 +140,12 @@ class TMXMap:
                     collision_to_right = int(obj.properties.get('Collision_to_right', 0))
                     collision_up = int(obj.properties.get('Collision_up', 0))
                     
+                    # Optional pixel margins for fine-tuning collision
+                    col_margin_right = int(obj.properties.get('Col_margin_right_pixel', 0))
+                    col_margin_left = int(obj.properties.get('Col_margin_left_pixel', 0))
+                    col_margin_up = int(obj.properties.get('Col_margin_up_pixel', 0))
+                    col_margin_down = int(obj.properties.get('Col_margin_down_pixel', 0))
+                    
                     house = House(
                         x=obj.x,
                         y=obj.y,
@@ -148,7 +154,11 @@ class TMXMap:
                         tiles_up=tiles_up,
                         collision_to_right=collision_to_right,
                         collision_up=collision_up,
-                        tile_size=self.tile_size
+                        tile_size=self.tile_size,
+                        col_margin_right_pixel=col_margin_right,
+                        col_margin_left_pixel=col_margin_left,
+                        col_margin_up_pixel=col_margin_up,
+                        col_margin_down_pixel=col_margin_down
                     )
                     self.houses.append(house)
 

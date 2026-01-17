@@ -116,7 +116,7 @@
 1762,1854,1862,1014,1670,1204,1767,1010,1291,922,1388,1481,1104,1861,923,1858,1665,1857,914,917,1393,1291,1767,1292,1763,1761,1292,1298,1016,1477,1107,1861,1766,923,1578,1571,1759,1014,1766,1298,1196,1203,1670,1486,1007,1013,1393,1581,1106,1012,1481,914,1482,1673,1299,1205,1383,1486,1292,1203,920,1669,1109,1389,1580,923,1196,1860,1300,2147484948,1106,1477,1859,1204,1107,1665,1486,1298,1201,1580,1105,1855,1487,1858,1764,1768,1104,919,1571,1576,1574,1480,1198,1195,1480,1011,915,1292,1017,1858
 </data>
  </layer>
- <layer id="5" name="Houses Lower" width="100" height="100" visible="0">
+ <layer id="5" name="Houses Lower" width="100" height="100">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -220,7 +220,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="3" name="Houses Middle" width="100" height="100" visible="0">
+ <layer id="3" name="Houses Middle" width="100" height="100">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -324,7 +324,7 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
- <layer id="4" name="Houses Upper" width="100" height="100" visible="0">
+ <layer id="4" name="Houses Upper" width="100" height="100">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -538,6 +538,7 @@
  <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="832" y="960">
    <properties>
+    <property name="Col_margin_right_pixel" type="int" value="-12"/>
     <property name="Collision_to_right" type="int" value="7"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_2.png"/>
@@ -548,6 +549,7 @@
   </object>
   <object id="55" name="House_1" type="House_Frontal" x="608" y="960">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="7"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_1.png"/>
@@ -558,6 +560,8 @@
   </object>
   <object id="56" name="House_3" type="House_Frontal" x="1760" y="736">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-14"/>
+    <property name="Col_margin_right_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="7"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_2.png"/>
@@ -568,6 +572,9 @@
   </object>
   <object id="57" name="House_4" type="House_Frontal" x="2112" y="736">
    <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-3"/>
+    <property name="Col_margin_left_pixel" type="int" value="-17"/>
+    <property name="Col_margin_right_pixel" type="int" value="-10"/>
     <property name="Collision_to_right" type="int" value="7"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_1.png"/>
@@ -578,6 +585,8 @@
   </object>
   <object id="58" name="House_5" type="House_Profile" x="224" y="1216">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-10"/>
+    <property name="Col_margin_right_pixel" type="int" value="-19"/>
     <property name="Collision_to_right" type="int" value="8"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_6.png"/>
@@ -588,6 +597,9 @@
   </object>
   <object id="59" name="House_7" type="House_Profile" x="2208" y="864">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-17"/>
+    <property name="Col_margin_right_pixel" type="int" value="-17"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="6"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_5.png"/>
@@ -598,6 +610,9 @@
   </object>
   <object id="60" name="House_6" type="House_Profile" x="1600" y="896">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-10"/>
+    <property name="Col_margin_right_pixel" type="int" value="-19"/>
+    <property name="Col_margin_up_pixel" type="int" value="-5"/>
     <property name="Collision_to_right" type="int" value="8"/>
     <property name="Collision_up" type="int" value="3"/>
     <property name="File_name" value="House_6.png"/>
@@ -618,6 +633,8 @@
   </object>
   <object id="62" name="House_9" type="House_Frontal" x="1504" y="1536">
    <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-12"/>
+    <property name="Col_margin_right_pixel" type="int" value="-22"/>
     <property name="Collision_to_right" type="int" value="8"/>
     <property name="Collision_up" type="int" value="2"/>
     <property name="File_name" value="House_4.png"/>
@@ -628,8 +645,11 @@
   </object>
   <object id="63" name="House_10" type="House_Frontal" x="1056" y="1504">
    <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-4"/>
+    <property name="Col_margin_left_pixel" type="int" value="-16"/>
+    <property name="Col_margin_right_pixel" type="int" value="-13"/>
     <property name="Collision_to_right" type="int" value="6"/>
-    <property name="Collision_up" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
     <property name="File_name" value="House_3.png"/>
     <property name="Tiles_to_right" type="int" value="6"/>
     <property name="Tiles_up" type="int" value="4"/>
@@ -638,6 +658,7 @@
   </object>
   <object id="64" name="Fence_1" type="Fence_Frontal" x="1056" y="1536">
    <properties>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="13"/>
     <property name="Collision_up" type="int" value="1"/>
     <property name="File_name" value="Fence_2.png"/>
@@ -648,6 +669,7 @@
   </object>
   <object id="65" name="Fence_2" type="Fence_Frontal" x="1728" y="1536">
    <properties>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="16"/>
     <property name="Collision_up" type="int" value="1"/>
     <property name="File_name" value="Fence_1.png"/>
