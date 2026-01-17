@@ -51,7 +51,7 @@ def draw_map_view(
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
     
-    # Build render queue for Y-sorting (trees and player)
+    # Build render queue for Y-sorting (houses and player)
     render_queue = _build_render_queue(game_map, offset_x, offset_y)
     
     # Sort by Y coordinate and render
@@ -127,26 +127,6 @@ def _build_render_queue(
     tmx_map = game_map.tmx_map
     camera = game_map.camera
     map_player = game_map.map_player
-    
-    # Add visible trees to queue
-    visible_trees = tmx_map.get_visible_trees(camera)
-    for tree in visible_trees:
-        sprite = tmx_map._get_scaled_tree(tree['variant'], camera.zoom)
-        if sprite:
-            world_px, world_py = tmx_map.grid_to_world(tree['x'], tree['y'])
-            screen_x, screen_y = camera.apply(world_px, world_py)
-            
-            # Align tree bottom to tile bottom
-            scaled_grid_size = round(tmx_map.tile_size * camera.zoom)
-            draw_x = screen_x - (sprite.get_width() - scaled_grid_size) / 2.0 + offset_x
-            draw_y = screen_y + scaled_grid_size - sprite.get_height() + offset_y
-            
-            # Y-sort by the bottom of the tile (where the trunk is)
-            render_queue.append({
-                'sprite': sprite,
-                'pos': (draw_x, draw_y),
-                'y_sort': float(world_py) + tmx_map.tile_size
-            })
     
     # Add houses to queue
     for house in tmx_map.houses:

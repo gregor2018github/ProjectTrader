@@ -109,19 +109,7 @@ class TMXMap:
         self.height: int = self.tmx_data.height
         self.tile_size: int = self.tmx_data.tilewidth
         self.scaled_tile_cache: Dict[float, Dict[Any, pygame.Surface]] = {}
-        self.tree_images: List[pygame.Surface] = []
-        self.trees: List[Dict[str, int]] = []  # List of dicts with x, y, variant
         self.houses: List[House] = []
-        
-        # Load tree sprites
-        tree_dir = os.path.join('assets', 'map_sprites', 'trees')
-        for i in range(1, 12):
-            tree_path = os.path.join(tree_dir, f'tree{i}.png')
-            if os.path.exists(tree_path):
-                try:
-                    self.tree_images.append(pygame.image.load(tree_path).convert_alpha())
-                except pygame.error:
-                    continue
         
         self._load_houses()
 
@@ -168,21 +156,6 @@ class TMXMap:
                 return True
         return False
 
-    def place_random_trees(self, count: int = 50) -> None:
-        """Randomly place trees on the map.
-        
-        Args:
-            count: Number of trees to place.
-        """
-        self.trees = []
-        for _ in range(count):
-            tx = random.randint(0, self.width - 1)
-            ty = random.randint(0, self.height - 1)
-            # Only place on walkable tiles (assuming grass is walkable)
-            if self.is_walkable(tx, ty):
-                variant = random.randrange(len(self.tree_images)) if self.tree_images else 0
-                self.trees.append({'x': tx, 'y': ty, 'variant': variant})
-
     def is_walkable(self, x: int, y: int) -> bool:
         """Check if tile is walkable.
         
@@ -194,11 +167,6 @@ class TMXMap:
             bool: True if walkable, False otherwise.
         """
         if 0 <= x < self.width and 0 <= y < self.height:
-            # Check if there's a tree here
-            for tree in self.trees:
-                if tree['x'] == x and tree['y'] == y:
-                    return False
-
             # Check all layers for a collidable property
             for layer_idx, layer in enumerate(self.tmx_data.visible_layers):
                 if isinstance(layer, pytmx.TiledTileLayer):
@@ -257,64 +225,6 @@ class TMXMap:
             else:
                 cache[gid] = None
         return cache[gid]
-
-    def _get_scaled_tree(self, variant: int, zoom: float) -> Optional[pygame.Surface]:
-        """Retrieve or create a scaled tree sprite.
-        
-        Args:
-            variant: Tree image index.
-            zoom: Current zoom factor.
-            
-        Returns:
-            Optional[pygame.Surface]: Scaled tree surface if it exists.
-        """
-        if not self.tree_images:
-            return None
-        
-        zoom_key = round(float(zoom), 3)
-        cache = self.scaled_tile_cache.setdefault(zoom_key, {})
-        cache_key = f"tree_{variant}"
-        
-        if cache_key not in cache:
-            image = self.tree_images[variant % len(self.tree_images)]
-            # Trees are 3x tile size wide
-            base_tile_width = self.tile_size * 3
-            target_width = max(1, int(round(base_tile_width * zoom)))
-            scale_ratio = target_width / float(image.get_width())
-            target_height = max(1, int(round(image.get_height() * scale_ratio)))
-            
-            if target_width >= image.get_width() or target_height >= image.get_height():
-                cache[cache_key] = pygame.transform.scale(image, (target_width, target_height))
-            else:
-                cache[cache_key] = pygame.transform.smoothscale(image, (target_width, target_height))
-        
-        return cache[cache_key]
-
-    def get_visible_trees(self, camera: Camera) -> List[Dict[str, int]]:
-        """Get trees that are currently visible in the camera view.
-        
-        Args:
-            camera: Active camera for viewport info.
-            
-        Returns:
-            List[Dict[str, int]]: Trees within the current viewport.
-        """
-        world_view_width = camera.screen_width / camera.zoom
-        world_view_height = camera.screen_height / camera.zoom
-        
-        # Add some padding for large tree sprites
-        padding = 5 
-        start_x = int(camera.x // self.tile_size) - padding
-        start_y = int(camera.y // self.tile_size) - padding
-        end_x = int((camera.x + world_view_width) // self.tile_size) + padding
-        end_y = int((camera.y + world_view_height) // self.tile_size) + padding
-        
-        visible = []
-        for tree in self.trees:
-            if start_x <= tree['x'] <= end_x and start_y <= tree['y'] <= end_y:
-                visible.append(tree)
-        return visible
-
 
 class DirectionalAnimator:
     """Handles directional animations with sprite fallbacks."""
@@ -751,7 +661,6 @@ class GameMap:
         # Load TMX map
         tmx_path = os.path.join('assets', 'tiles', 'Map1.tmx')
         self.tmx_map: TMXMap = TMXMap(tmx_path)
-        self.tmx_map.place_random_trees(30)
         
         # Initialize map player
         self.map_player: MapPlayer = MapPlayer(
