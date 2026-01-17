@@ -76,6 +76,9 @@ class House:
 
     def _load_image(self) -> None:
         """Load the house image from assets."""
+        if not self.file_name:
+            return
+
         path = os.path.join('assets', 'map_sprites', 'houses', self.file_name)
         
         # Try finding the file, add extension if missing

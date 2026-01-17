@@ -2,10 +2,7 @@
 
 ## High Priority
 
-- [ ] make the collision box of the player ever smaller at the top
-- [ ] add collision margins (so that houses can have a bit more or less space around at the particular sides)
-- [ ] Fix the walkthrough of the second fence with an invisible collision box
-- [ ]create proper standardized tree assets
+- [ ] create proper standardized tree assets
 - [ ] add the trees as objects via tiled object layers (that it can also be designed where they look best)
 - [ ] make the complete window a bit higher, see if there are problems related to that
 
@@ -33,6 +30,9 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] make the collision box of the player ever smaller at the top
+- [x] add collision margins (so that houses can have a bit more or less space around at the particular sides)
+- [x] Fix the walkthrough of the second fence with an invisible collision box
 - [x] Add all houses as proper objects via tiled object layers
 - [x] Fix map view rendering artifacts (black lines between tiles at certain zoom levels)
 - [x] Fix map view rendering artifacts when moving the player (tiles flicker at a certain line when moving)

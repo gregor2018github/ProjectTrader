@@ -132,8 +132,7 @@ class TMXMap:
                 for obj in layer:
                     # Extract properties
                     file_name = obj.properties.get('File_name', '')
-                    if not file_name:
-                        continue
+                    # We now allow objects without a file_name (invisible collision boxes)
                         
                     tiles_to_right = int(obj.properties.get('Tiles_to_right', 0))
                     tiles_up = int(obj.properties.get('Tiles_up', 0))
