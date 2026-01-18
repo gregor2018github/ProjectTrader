@@ -3,7 +3,14 @@ import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
-from .config.constants import START_DATE
+from .config.constants import (
+    START_DATE, 
+    TIME_STEP_LEVEL_1, 
+    TIME_STEP_LEVEL_2, 
+    TIME_STEP_LEVEL_3, 
+    TIME_STEP_LEVEL_4, 
+    TIME_STEP_LEVEL_5
+)
 
 if TYPE_CHECKING:
     from .game import Game
@@ -13,7 +20,7 @@ if TYPE_CHECKING:
     from .models.map import GameMap
 
 # Named tuple for tracking which time units have changed in a tick
-TimeChanges = namedtuple('TimeChanges', ['hour', 'day', 'week', 'month', 'year'])
+TimeChanges = namedtuple('TimeChanges', ['minute', 'hour', 'day', 'week', 'month', 'year'])
 
 class GameState:
     """Central repository for game session data and transient UI states.
@@ -99,6 +106,7 @@ class GameState:
         
         # Initialize the time from the string in the constants like "01.01.1500" dd.mm.yyyy
         start_date_parts = START_DATE.split(".")
+        self.last_minute: int = 0
         self.last_hour: int = 0
         self.last_day: int = int(start_date_parts[0])
         self.last_week: int = datetime.datetime(int(start_date_parts[2]), int(start_date_parts[1]), int(start_date_parts[0])).isocalendar()[1]
@@ -138,15 +146,15 @@ class GameState:
 
         self.tick_counter += 1
         if self.time_level == 1:
-                self.date += datetime.timedelta(hours=0)
+                self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_1)
         elif self.time_level == 2:
-                self.date += datetime.timedelta(hours=0.005)
+                self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_2)
         elif self.time_level == 3:
-                self.date += datetime.timedelta(hours=0.01)
+                self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_3)
         elif self.time_level == 4:
-                self.date += datetime.timedelta(hours=0.1)
+                self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_4)
         elif self.time_level == 5:
-            self.date += datetime.timedelta(hours=1)
+            self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_5)
   
     def show_warning(self, text: str) -> None:
         """Display a transient warning message on the UI.
@@ -164,18 +172,21 @@ class GameState:
             TimeChanges: Named tuple indicating which time units changed.
         """
         self.update_time()
+        current_minute = self.date.minute
         current_hour = self.date.hour
         current_day = self.date.day
         current_week = self.date.isocalendar()[1]
         current_month = self.date.month
         current_year = self.date.year
 
+        minute_changed = current_minute != self.last_minute
         hour_changed = current_hour != self.last_hour
         day_changed = current_day != self.last_day
         week_changed = current_week != self.last_week
         month_changed = current_month != self.last_month
         year_changed = current_year != self.last_year
 
+        self.last_minute = current_minute
         self.last_hour = current_hour
         self.last_day = current_day
         self.last_week = current_week
@@ -196,4 +207,4 @@ class GameState:
         for key in remove_keys:
             del self.button_click_effects[key]
                 
-        return TimeChanges(hour_changed, day_changed, week_changed, month_changed, year_changed)
+        return TimeChanges(minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed)

@@ -23,6 +23,13 @@ TILE_SIZE = 32
 PLAYER_SPEED = 120                  # pixels per second
 MAX_FRAMES_PER_SEC = 60
 
+# TIME STEP CONSTANTS (minutes per tick for each speed level)
+TIME_STEP_LEVEL_1 = 0.0             # Level 1: Paused
+TIME_STEP_LEVEL_2 = 0.02             # Level 2: Slow
+TIME_STEP_LEVEL_3 = 0.10             # Level 3: Normal
+TIME_STEP_LEVEL_4 = 1.00            # Level 4: Fast
+TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
+
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
 START_DATE = "01.01.1500"           # When the simulation time starts, format: dd.mm.yyyy

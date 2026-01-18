@@ -261,7 +261,7 @@ class Game:
             
             if current_time - self.last_update >= self.update_delay:
                 self.last_update = current_time
-                hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
+                minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
 
                 # update prices once per hour
                 if hour_changed:
