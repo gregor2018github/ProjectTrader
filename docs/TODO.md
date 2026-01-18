@@ -2,20 +2,25 @@
 
 ## High Priority
 
-- [ ] create proper standardized tree assets
-- [ ] add the trees as objects via tiled object layers (that it can also be designed where they look best)
-- [ ] make the complete window a bit higher, see if there are problems related to that
+- [ ] when going to map view, the time may only be normal speed or paused
+- [ ] time must past slower - add a minute system (which will not be visible in the UI, but used for internal calculations)
+- [ ] for debugging fix the overlays at the map view (bottom is not aligned with writing; add fps counter)
+- [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
+- [ ] with new tiles create a market area, only there a player can trade
+- [ ] create market booths as asset sprites
+- [ ] place the market booths in the market area
 
 ## Medium Priority
 
+- [ ] day and night cycle with different lighting
 - [ ] Market events
-- [ ] when going to map view, the time may only be normal speed or paused
-- [ ] Add sound effects for buying and selling goods at the market
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
+- [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
 - [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
+- [ ] Add sound effects for buying and selling goods at the market
 - [ ] Bank Menu 
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
@@ -24,12 +29,16 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] make the complete window a bit higher, see if there are problems related to that
+- [x] create proper standardized tree assets
+- [x] add the trees as objects via tiled object layers (that it can also be designed where they look best)
 - [x] make the collision box of the player ever smaller at the top
 - [x] add collision margins (so that houses can have a bit more or less space around at the particular sides)
 - [x] Fix the walkthrough of the second fence with an invisible collision box
