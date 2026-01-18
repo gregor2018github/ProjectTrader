@@ -131,6 +131,11 @@ class GameState:
         
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""
+        # Enforce map view time restriction: only paused (1) or normal (3) allowed
+        if self.is_map_visible and self.time_level not in [1, 3]:
+            # If map is visible, we force invalid speeds to Normal (3)
+            self.time_level = 3
+
         self.tick_counter += 1
         if self.time_level == 1:
                 self.date += datetime.timedelta(hours=0)

@@ -2,7 +2,6 @@
 
 ## High Priority
 
-- [ ] when going to map view, the time may only be normal speed or paused
 - [ ] time must past slower - add a minute system (which will not be visible in the UI, but used for internal calculations)
 - [ ] for debugging fix the overlays at the map view (bottom is not aligned with writing; add fps counter)
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
@@ -36,6 +35,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] when going to map view, the time may only be normal speed or paused
 - [x] make the complete window a bit higher, see if there are problems related to that
 - [x] create proper standardized tree assets
 - [x] add the trees as objects via tiled object layers (that it can also be designed where they look best)
