@@ -314,7 +314,7 @@ class Game:
             # Helper function to render a module in a specific rect
             def render_module(mode, rect):
                 if mode == 'map':
-                    draw_map_view(self.screen, self.game_map, rect, self.font)
+                    draw_map_view(self.screen, self.game_map, rect, self.font, self.state)
                 elif mode == 'market':
                     self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                       self.goods, self.images['goods_30'], self.state.date, 
