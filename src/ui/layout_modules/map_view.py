@@ -6,7 +6,8 @@ UI layout modules like chart_view or depot_view.
 
 import pygame
 import pytmx
-from typing import List, Dict, Any, TYPE_CHECKING
+import datetime
+from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SHOW_MAP_DEBUG
 
@@ -63,12 +64,86 @@ def draw_map_view(
         # Use round() for consistent pixel alignment during movement
         screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])))
     
+    # Apply day/night cycle lighting
+    _apply_lighting(screen, map_content_rect, game_state.date)
+    
     # Restore clipping
     screen.set_clip(old_clip)
     
     # Draw UI overlay (zoom level, position info, FPS, time) if enabled
     if SHOW_MAP_DEBUG:
         _draw_map_ui(screen, game_map, view_rect, main_font, game_state)
+
+
+def _apply_lighting(
+    screen: pygame.Surface,
+    rect: pygame.Rect,
+    current_time: datetime.datetime
+) -> None:
+    """Apply a colored overlay to the map based on the time of day.
+    
+    Args:
+        screen: The surface to draw onto.
+        rect: The area to apply the lighting to.
+        current_time: The current game time.
+    """
+    # Calculate ambient color
+    color = _get_ambient_color(current_time)
+    
+    # If it's effectively full daylight (white), don't draw anything to save resources
+    if color == (255, 255, 255):
+        return
+        
+    # Create a lighting overlay
+    # optimizing: we could cache this surface if rect size hasn't changed
+    # but for now we create it fresh to keep logic simple
+    lighting_surf = pygame.Surface((rect.width, rect.height))
+    lighting_surf.fill(color)
+    
+    # Apply using multiply blend mode for a lighting effect
+    screen.blit(lighting_surf, rect, special_flags=pygame.BLEND_MULT)
+
+
+def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
+    """Calculate the ambient light color based on current time.
+    
+    Returns:
+        RGB tuple representing the ambient light.
+    """
+    hour = date.hour + date.minute / 60.0
+    
+    # Keyframes define the color at specific times of day
+    # Format: (hour, (r, g, b))
+    # We use BLEND_MULT, so (255, 255, 255) is normal brightness (Day)
+    # Lower values darken the screen (Night)
+    keyframes = [
+        (0.0, (30, 30, 70)),     # Deep night (Dark Blue)
+        (4.0, (30, 30, 70)),     # Still deep night
+        (5.5, (60, 60, 90)),     # Night triggers pre-dawn
+        (6.5, (180, 100, 100)),  # Sunrise (Red/Orange tint)
+        (8.0, (255, 255, 255)),  # Full daylight
+        (17.0, (255, 255, 255)), # Start of sunset
+        (18.5, (220, 150, 100)), # Golden hour (Orange/Gold)
+        (20.0, (80, 60, 100)),   # Twilight (Purple/Dark)
+        (21.0, (30, 30, 70)),    # Night begins
+        (24.0, (30, 30, 70))     # Midnight wrap
+    ]
+    
+    # Find which segment we are in
+    for i in range(len(keyframes) - 1):
+        start_hour, start_color = keyframes[i]
+        end_hour, end_color = keyframes[i + 1]
+        
+        if start_hour <= hour <= end_hour:
+            # Interpolate
+            t = (hour - start_hour) / (end_hour - start_hour)
+            r = int(start_color[0] + (end_color[0] - start_color[0]) * t)
+            g = int(start_color[1] + (end_color[1] - start_color[1]) * t)
+            b = int(start_color[2] + (end_color[2] - start_color[2]) * t)
+            return (r, g, b)
+            
+    # Fallback (shouldn't be reached if keyframes cover 0-24)
+    return (255, 255, 255)
 
 
 def _render_map_layers(

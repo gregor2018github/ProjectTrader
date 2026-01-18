@@ -9,7 +9,6 @@
 
 ## Medium Priority
 
-- [ ] day and night cycle with different lighting
 - [ ] Market events
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] other people must stand behind the market booths, create and add NPC sprites
@@ -33,6 +32,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] day and night cycle with different lighting
 - [x] for debugging... fix the overlays at the map view (bottom info has to be replaced by... fps counter; time)
 - [x] time must past slower - add a minute system (which will not be visible in the UI, but used for internal calculations)
 - [x] when going to map view, the time may only be normal speed or paused
