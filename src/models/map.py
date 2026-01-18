@@ -12,6 +12,7 @@ from typing import List, Dict, Tuple, Any, Optional, Union
 
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM
 from .house import House
+from .tree import Tree
 
 
 class Camera:
@@ -110,8 +111,10 @@ class TMXMap:
         self.tile_size: int = self.tmx_data.tilewidth
         self.scaled_tile_cache: Dict[float, Dict[Any, pygame.Surface]] = {}
         self.houses: List[House] = []
+        self.trees: List[Tree] = []
         
         self._load_houses()
+        self._load_trees()
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""
@@ -149,12 +152,36 @@ class TMXMap:
                     )
                     self.houses.append(house)
 
+    def _load_trees(self) -> None:
+        """Load tree objects from the "Trees" object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Trees":
+                for obj in layer:
+                    file_name = obj.properties.get('File_name', '')
+                    stem_position = float(obj.properties.get('Stem_Position', 0.0))
+                    stem_thick = float(obj.properties.get('Stem_Thick', 0.0))
+                    
+                    if file_name:
+                        tree = Tree(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            stem_position=stem_position,
+                            stem_thick=stem_thick,
+                            tile_size=self.tile_size
+                        )
+                        self.trees.append(tree)
+
     def check_object_collision(self, rect: pygame.Rect) -> bool:
-        """Check if the given rect collides with any map objects (houses)."""
+        """Check if the given rect collides with any map objects (houses or trees)."""
         for house in self.houses:
             if house.collision_rect.colliderect(rect):
                 return True
+        for tree in self.trees:
+            if tree.collision_rect.colliderect(rect):
+                return True
         return False
+
 
     def is_walkable(self, x: int, y: int) -> bool:
         """Check if tile is walkable.

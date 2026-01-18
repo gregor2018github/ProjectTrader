@@ -147,6 +147,25 @@ def _build_render_queue(
                     'y_sort': house.y_sort
                 })
 
+    # Add trees to queue
+    for tree in tmx_map.trees:
+        sprite = tree.get_scaled_sprite(camera.zoom)
+        if sprite:
+            screen_x, screen_y = camera.apply(tree.x, tree.y)
+            # screen_y is the bottom of the sprite because x, y is bottom-left
+            draw_x = screen_x + offset_x
+            draw_y = screen_y - sprite.get_height() + offset_y
+            
+            # Culling - check if sprite frame intersects with screen area
+            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                
+                render_queue.append({
+                    'sprite': sprite,
+                    'pos': (draw_x, draw_y),
+                    'y_sort': tree.y_sort
+                })
+
     # Add player to queue
     player_sprite = map_player._get_scaled_sprite(camera.zoom)
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
