@@ -33,6 +33,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] Fixed a bug where lights visibly reset at midnight - now it is at noon 12.00, where all lights are off anyway
 - [x] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free
 - [x] give light points proper candle light sources with glow effect in the code, also design a time schedule when lights are on/off
 - [x] Add lights to the windows of the houses during night time (first as points in the tiled map)

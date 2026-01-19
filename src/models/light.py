@@ -84,10 +84,13 @@ class Light:
     def update(self, current_time: datetime.datetime) -> None:
         """Update light state and flicker."""
         # Check if we need to reschedule for a new day
-        current_date_str = current_time.strftime("%Y-%m-%d")
-        if self.last_date_check != current_date_str:
+        # We shift the time by 12 hours so the transition happens at 12:00 midday
+        scheduling_time = current_time - datetime.timedelta(hours=12)
+        current_cycle_date = scheduling_time.strftime("%Y-%m-%d")
+        
+        if self.last_date_check != current_cycle_date:
             self._schedule_for_night(current_time)
-            self.last_date_check = current_date_str
+            self.last_date_check = current_cycle_date
             
         # Update flickering if active
         if self.is_on(current_time):
