@@ -23,6 +23,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
         - traveling for NPCs and player
     - Sheeps that can stand on the meadow, eating and walking animations
     - a field of wheat that can be scaled as needed
+    - at night time trading booths close and are covered with tarps
 
 - have a pub where you can eat fancy food 
     - you might get temporary buffs (like better prices, more storage space, faster movement, etc)

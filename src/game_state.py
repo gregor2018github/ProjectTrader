@@ -205,6 +205,18 @@ class GameState:
             if self.message_timer == 0:
                 self.message = None
         
+        # NEW: Update money effect timer and reset color if finished
+        if self.money_effect_timer > 0:
+            self.money_effect_timer -= 1
+            if self.money_effect_timer <= 0:
+                self.money_effect_color = None
+
+        # Update cursor blink
+        self.cursor_timer += 1
+        if self.cursor_timer >= self.cursor_blink_rate:
+            self.cursor_timer = 0
+            self.cursor_visible = not self.cursor_visible
+
         # NEW: Update button click effects and remove finished ones
         remove_keys = []
         for key in self.button_click_effects:

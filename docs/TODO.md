@@ -11,6 +11,7 @@
 
 - [ ] Market events
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
+- [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
@@ -26,13 +27,12 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] When earning or losing money, the top money display always stays green or red, it gets stuck until the next transaction
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
-- [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] When earning or losing money, the top money display always stays green or red, it gets stuck until the next transaction
 - [x] Fixed a bug where lights visibly reset at midnight - now it is at noon 12.00, where all lights are off anyway
 - [x] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free
 - [x] give light points proper candle light sources with glow effect in the code, also design a time schedule when lights are on/off
@@ -57,7 +57,8 @@ Finished Features
 - [x] have a menu that shows graphs of how your personal statistics are developing (wealth, depot size, goods owned, etc)
 - [x] Make the different menu elements like map, depot view and market truly modular that they can be added and removed at will at both sides
 - [x] sound effects for walking
-- [x] Add a free license on github 
+- [x] Add a free license on github
+- [x] Make all sounds evenly loud (old trader voice is too silent) 
 - [x] Integrate the map system into the main game loop (link player position to map position)
 - [x] Add a readme file to the project including gifs/screenshots
 - [x] Add vertical bars to the chart which will indicate day changes
