@@ -307,7 +307,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             # Left button "picto_<name>_left"
             left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
             is_left_hovered = left_btn_rect.collidepoint(mouse_pos)
-            color_left = WHEAT if is_left_hovered else TAN
+            color_left = PALE_BROWN if is_left_hovered else TAN
             pygame.draw.rect(screen, color_left, left_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
             buttons[f"picto_{name}_left"] = left_btn_rect
@@ -317,7 +317,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             # Right button "picto_<name>_right"
             right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
             is_right_hovered = right_btn_rect.collidepoint(mouse_pos)
-            color_right = WHEAT if is_right_hovered else TAN
+            color_right = PALE_BROWN if is_right_hovered else TAN
             pygame.draw.rect(screen, color_right, right_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
             buttons[f"picto_{name}_right"] = right_btn_rect
@@ -331,9 +331,9 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             # Main pictogram hover effect
             is_pictogram_hovered = visible_rect.collidepoint(mouse_pos) and not is_left_hovered and not is_right_hovered
             if is_pictogram_hovered:
-                # redraw pictogram a bit overlighted to indicate hover
+                # redraw pictogram a bit darker to indicate hover
                 overlay = pygame.Surface((visible_rect.width, visible_rect.height), pygame.SRCALPHA)
-                overlay.fill((255, 255, 255, 50))  # white overlay
+                overlay.fill((0, 0, 0, 50))  # black overlay
                 screen.blit(overlay, visible_rect.topleft)
                 # add tooltip
                 tooltips.append((label_map[name], mouse_pos))
