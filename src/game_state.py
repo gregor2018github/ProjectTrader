@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
 from .config.constants import (
     START_DATE, 
+    START_TIME,
     TIME_STEP_LEVEL_1, 
     TIME_STEP_LEVEL_2, 
     TIME_STEP_LEVEL_3, 
@@ -58,7 +59,14 @@ class GameState:
         self.screen: Optional[pygame.Surface] = None  # Will be set by Game class
         self.game: Optional['Game'] = None # Will be set by Game class
         self.font: Optional[pygame.font.Font] = None # Will be set by Game class
-        self.date: datetime.datetime = datetime.datetime(1500, 1, 1, 0, 0, 0)
+        
+        # Parse start date and time from constants
+        start_date_parts = START_DATE.split(".")
+        start_time_parts = START_TIME.split(":")
+        day, month, year = int(start_date_parts[0]), int(start_date_parts[1]), int(start_date_parts[2])
+        hour, minute = int(start_time_parts[0]), int(start_time_parts[1])
+        
+        self.date: datetime.datetime = datetime.datetime(year, month, day, hour, minute, 0)
         self.time_level: int = 3
         self.tick_counter: int = 0
         self.chart_state: bool = True
@@ -104,14 +112,13 @@ class GameState:
             "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
         ]
         
-        # Initialize the time from the string in the constants like "01.01.1500" dd.mm.yyyy
-        start_date_parts = START_DATE.split(".")
-        self.last_minute: int = 0
-        self.last_hour: int = 0
-        self.last_day: int = int(start_date_parts[0])
-        self.last_week: int = datetime.datetime(int(start_date_parts[2]), int(start_date_parts[1]), int(start_date_parts[0])).isocalendar()[1]
-        self.last_month: int = int(start_date_parts[1])
-        self.last_year: int = int(start_date_parts[2])
+        # Initialize the time trackers from the start date
+        self.last_minute: int = self.date.minute
+        self.last_hour: int = self.date.hour
+        self.last_day: int = self.date.day
+        self.last_week: int = self.date.isocalendar()[1]
+        self.last_month: int = self.date.month
+        self.last_year: int = self.date.year
         
         self.depot_time_frame: str = "Daily"
         self.depot_time_frames: List[str] = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
