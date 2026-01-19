@@ -9,6 +9,7 @@ class House:
                  tiles_to_right: int, tiles_up: int,
                  collision_to_right: int, collision_up: int,
                  tile_size: int,
+                 name: str = "",
                  col_margin_right_pixel: int = 0,
                  col_margin_left_pixel: int = 0,
                  col_margin_up_pixel: int = 0,
@@ -24,6 +25,7 @@ class House:
             collision_to_right: Width of collision box in tiles.
             collision_up: Height of collision box in tiles.
             tile_size: Size of one tile in pixels.
+            name: The name of the object from the map editor.
             col_margin_right_pixel: Extra pixels to add to the right of collision.
             col_margin_left_pixel: Extra pixels to add to the left of collision.
             col_margin_up_pixel: Extra pixels to add to the top of collision.
@@ -37,6 +39,7 @@ class House:
         self.collision_to_right = collision_to_right
         self.collision_up = collision_up
         self.tile_size = tile_size
+        self.name = name
         
         self.image: Optional[pygame.Surface] = None
         self.scaled_image_cache: Dict[float, pygame.Surface] = {}

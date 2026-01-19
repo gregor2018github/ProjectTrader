@@ -6,6 +6,7 @@ player movement, collision detection, and map object management.
 
 import os
 import random
+import datetime
 import pygame
 import pytmx
 from typing import List, Dict, Tuple, Any, Optional, Union
@@ -13,6 +14,8 @@ from typing import List, Dict, Tuple, Any, Optional, Union
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM
 from .house import House
 from .tree import Tree
+from .light import Light
+
 
 
 class Camera:
@@ -112,9 +115,11 @@ class TMXMap:
         self.scaled_tile_cache: Dict[float, Dict[Any, pygame.Surface]] = {}
         self.houses: List[House] = []
         self.trees: List[Tree] = []
+        self.lights: List[Light] = []
         
         self._load_houses()
         self._load_trees()
+        self._load_lights()
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""
@@ -148,7 +153,8 @@ class TMXMap:
                         col_margin_right_pixel=col_margin_right,
                         col_margin_left_pixel=col_margin_left,
                         col_margin_up_pixel=col_margin_up,
-                        col_margin_down_pixel=col_margin_down
+                        col_margin_down_pixel=col_margin_down,
+                        name=obj.name
                     )
                     self.houses.append(house)
 
@@ -171,6 +177,30 @@ class TMXMap:
                             tile_size=self.tile_size
                         )
                         self.trees.append(tree)
+
+    def _load_lights(self) -> None:
+        """Load rectangular light objects from the 'Lights' object layer.
+        
+        Looks for objects named 'Light_rectangle' which represent window rectangles.
+        """
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Lights":
+                for obj in layer:
+                    # Only load objects named "Light_rectangle"
+                    if obj.name == "Light_rectangle":
+                        light = Light(
+                            x=obj.x,
+                            y=obj.y,
+                            width=obj.width,
+                            height=obj.height,
+                            tile_size=self.tile_size
+                        )
+                        self.lights.append(light)
+    
+    def update_lights(self, current_time: datetime.datetime) -> None:
+        """Update all lights (flicker, on/off state)."""
+        for light in self.lights:
+            light.update(current_time)
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
         """Check if the given rect collides with any map objects (houses or trees)."""

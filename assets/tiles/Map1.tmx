@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="13" nextobjectid="86">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="15" nextobjectid="193">
  <tileset firstgid="1" name="Test-Tiles" tilewidth="64" tileheight="64" tilecount="54" columns="9">
   <image source="test_tileset.png" width="576" height="384"/>
  </tileset>
@@ -1279,5 +1279,56 @@
    </properties>
    <point/>
   </object>
+ </objectgroup>
+ <objectgroup id="14" name="Lights">
+  <object id="142" name="Light_rectangle" x="2251.25" y="809" width="19" height="22.625"/>
+  <object id="144" name="Light_rectangle" x="2335.95" y="808.818" width="19" height="23"/>
+  <object id="145" name="Light_rectangle" x="2285.38" y="809.313" width="19" height="22.625"/>
+  <object id="146" name="Light_rectangle" x="2336.32" y="749.233" width="20" height="21.4432"/>
+  <object id="147" name="Light_rectangle" x="2278.86" y="749.324" width="19.3636" height="21.4432"/>
+  <object id="148" name="Light_rectangle" x="2281.88" y="672.063" width="9.125" height="12.5"/>
+  <object id="149" name="Light_rectangle" x="647.591" y="746.688" width="15.3636" height="22.2614"/>
+  <object id="150" name="Light_rectangle" x="644.5" y="811.233" width="15.5455" height="21.3523"/>
+  <object id="151" name="Light_rectangle" x="782.5" y="747.415" width="15.3636" height="22.8068"/>
+  <object id="152" name="Light_rectangle" x="784.136" y="811.415" width="15.3636" height="21.3523"/>
+  <object id="153" name="Light_rectangle" x="705.227" y="750.506" width="34.8182" height="24.625"/>
+  <object id="154" name="Light_rectangle" x="2148.52" y="587.229" width="15.375" height="20.9375"/>
+  <object id="155" name="Light_rectangle" x="2209.06" y="526.219" width="34.8125" height="24.6875"/>
+  <object id="156" name="Light_rectangle" x="2286.2" y="523.872" width="15.375" height="20.9375"/>
+  <object id="157" name="Light_rectangle" x="2151.86" y="523.94" width="15.375" height="20.9375"/>
+  <object id="158" name="Light_rectangle" x="2289.31" y="584.781" width="15.375" height="20.9375"/>
+  <object id="159" name="Light_rectangle" x="1928.86" y="473.683" width="14.6477" height="21.392"/>
+  <object id="160" name="Light_rectangle" x="1865.78" y="482.122" width="14.6477" height="18.892"/>
+  <object id="161" name="Light_rectangle" x="1933.04" y="533.119" width="14.9955" height="20.8268"/>
+  <object id="162" name="Light_rectangle" x="1933.05" y="590.054" width="15.6477" height="21.392"/>
+  <object id="163" name="Light_rectangle" x="1795.8" y="532.679" width="15.6477" height="21.392"/>
+  <object id="164" name="Light_rectangle" x="1799.8" y="473.429" width="15.6477" height="21.392"/>
+  <object id="165" name="Light_rectangle" x="867.608" y="814.395" width="16.3977" height="21.392"/>
+  <object id="166" name="Light_rectangle" x="867.54" y="756.759" width="16.3977" height="21.392"/>
+  <object id="167" name="Light_rectangle" x="999.847" y="697.849" width="16.5227" height="21.392"/>
+  <object id="168" name="Light_rectangle" x="1005.14" y="814.349" width="15.6477" height="21.392"/>
+  <object id="169" name="Light_rectangle" x="1004.43" y="756.349" width="16.7727" height="21.392"/>
+  <object id="170" name="Light_rectangle" x="937.267" y="705.804" width="15.3977" height="19.4545"/>
+  <object id="171" name="Light_rectangle" x="871.813" y="697.849" width="16.1477" height="21.392"/>
+  <object id="172" name="Light_rectangle" x="1715.03" y="756.577" width="15.3352" height="20.4829"/>
+  <object id="173" name="Light_rectangle" x="1802.24" y="756.94" width="15.6477" height="19.9375"/>
+  <object id="174" name="Light_rectangle" x="1758.3" y="756.315" width="15.6477" height="20.4829"/>
+  <object id="175" name="Light_rectangle" x="1714.97" y="835.668" width="16.126" height="21.392"/>
+  <object id="176" name="Light_rectangle" x="1758.3" y="835.06" width="15.6477" height="21.392"/>
+  <object id="177" name="Light_rectangle" x="1800.24" y="835.423" width="15.6477" height="21.392"/>
+  <object id="178" name="Light_rectangle" x="1697.27" y="659.936" width="15.6477" height="21.392"/>
+  <object id="179" name="Light_rectangle" x="1631.99" y="1405.3" width="20.8295" height="24.392"/>
+  <object id="180" name="Light_rectangle" x="1573.13" y="1405.17" width="20.8295" height="24.392"/>
+  <object id="181" name="Light_rectangle" x="1690.4" y="1405.71" width="20.8295" height="24.392"/>
+  <object id="182" name="Light_rectangle" x="339.165" y="1155.85" width="16.0795" height="20.517"/>
+  <object id="184" name="Light_rectangle" x="423.944" y="1156.16" width="16.0795" height="20.517"/>
+  <object id="185" name="Light_rectangle" x="382.21" y="1155.99" width="16.0795" height="20.517"/>
+  <object id="186" name="Light_rectangle" x="382.264" y="1076.49" width="15.3838" height="20.517"/>
+  <object id="187" name="Light_rectangle" x="425.96" y="1076.74" width="16.0795" height="20.517"/>
+  <object id="188" name="Light_rectangle" x="338.71" y="1076.49" width="16.0795" height="20.517"/>
+  <object id="189" name="Light_rectangle" x="320.96" y="979.367" width="16.0795" height="22.142"/>
+  <object id="190" name="Light_rectangle" x="383.585" y="875.867" width="21.8295" height="24.142"/>
+  <object id="191" name="Light_rectangle" x="326.183" y="875.804" width="20.6991" height="24.142"/>
+  <object id="192" name="Light_rectangle" x="328.585" y="799.554" width="11.0795" height="14.517"/>
  </objectgroup>
 </map>

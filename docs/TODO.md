@@ -2,6 +2,7 @@
 
 ## High Priority
 
+- [ ] give light points proper candle light sources with glow effect in the code, also design a time schedule when lights are on/off
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [ ] with new tiles create a market area, only there a player can trade
 - [ ] create market booths as asset sprites
@@ -17,6 +18,7 @@
 - [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Add sound effects for buying and selling goods at the market
+- [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Bank Menu 
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
@@ -32,6 +34,7 @@
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] Add lights to the windows of the houses during night time (first as points in the tiled map)
 - [x] day and night cycle with different lighting
 - [x] for debugging... fix the overlays at the map view (bottom info has to be replaced by... fps counter; time)
 - [x] time must past slower - add a minute system (which will not be visible in the UI, but used for internal calculations)

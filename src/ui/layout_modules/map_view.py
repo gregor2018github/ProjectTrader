@@ -55,17 +55,21 @@ def draw_map_view(
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
     
+    # Update light states
+    game_map.tmx_map.update_lights(game_state.date)
+
     # Build render queue for Y-sorting (houses and player)
-    render_queue = _build_render_queue(game_map, offset_x, offset_y)
+    render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)
     
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
-        screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])))
+        flags = obj.get('flags', 0)
+        screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])), special_flags=flags)
     
-    # Apply day/night cycle lighting
-    _apply_lighting(screen, map_content_rect, game_state.date)
+    # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed)
+    _apply_lighting(screen, map_content_rect, game_state.date, render_queue)
     
     # Restore clipping
     screen.set_clip(old_clip)
@@ -78,7 +82,8 @@ def draw_map_view(
 def _apply_lighting(
     screen: pygame.Surface,
     rect: pygame.Rect,
-    current_time: datetime.datetime
+    current_time: datetime.datetime,
+    render_queue: List[Dict[str, Any]]
 ) -> None:
     """Apply a colored overlay to the map based on the time of day.
     
@@ -86,6 +91,7 @@ def _apply_lighting(
         screen: The surface to draw onto.
         rect: The area to apply the lighting to.
         current_time: The current game time.
+        render_queue: The list of rendered objects (to find/apply active lights to the mask).
     """
     # Calculate ambient color
     color = _get_ambient_color(current_time)
@@ -100,6 +106,37 @@ def _apply_lighting(
     lighting_surf = pygame.Surface((rect.width, rect.height))
     lighting_surf.fill(color)
     
+    # We want lights to "break through" the darkness.
+    # The darkness is applied via BLEND_MULT. 
+    # To make a spot bright, the lighting_surf must be brighter (closer to White) at that spot.
+    # We iterate the render queue to find lights that were drawn.
+    # Note: This ignores Z-depth for the "glow" effect (tree in front will glow),
+    # but it ensures the light itself is not darkened.
+    
+    for obj in render_queue:
+        if obj.get('flags') == pygame.BLEND_ADD: # Identify lights by their blend flag
+             # Draw the light onto the darkness mask using ADD
+             # Adding color to the dark mask brightens it.
+             # e.g. Dark Blue (30,30,70) + Orange Light (200, 100, 0) -> (230, 130, 70)
+             # Then Screen (House Wall) * Mask (230, 130, 70) ~ Wall * 0.9 (keep brightness)
+             
+             # We might want to use the sprite's alpha or color.
+             # The sprite in render_queue is already scaled.
+             
+             # Position logic is same as used in blit
+             pos = (round(obj['pos'][0]), round(obj['pos'][1]))
+             
+             # Determine offset from rect (screen is relative to window, but rect is view_rect)
+             # Note: screen passed here IS the main screen. 
+             # lighting_surf is same size as rect.
+             # obj['pos'] is in screen coordinates (absolute values around 110, 10 etc).
+             # rect.x, rect.y is top-left of view.
+             # so we need to offset by -rect.x, -rect.y to draw on lighting_surf surface at (0,0)
+             
+             local_pos = (pos[0] - rect.x, pos[1] - rect.y)
+             
+             lighting_surf.blit(obj['sprite'], local_pos, special_flags=pygame.BLEND_ADD)
+
     # Apply using multiply blend mode for a lighting effect
     screen.blit(lighting_surf, rect, special_flags=pygame.BLEND_MULT)
 
@@ -190,7 +227,8 @@ def _render_map_layers(
 def _build_render_queue(
     game_map: 'GameMap',
     offset_x: int,
-    offset_y: int
+    offset_y: int,
+    current_time: datetime.datetime
 ) -> List[Dict[str, Any]]:
     """Build a list of objects to render, sorted by Y coordinate.
     
@@ -198,6 +236,7 @@ def _build_render_queue(
         game_map: The GameMap model instance.
         offset_x: Horizontal offset for the view area.
         offset_y: Vertical offset for the view area.
+        current_time: The current game time.
         
     Returns:
         List of render items with sprite, position, and y_sort value.
@@ -224,6 +263,32 @@ def _build_render_queue(
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),
                     'y_sort': house.y_sort
+                })
+
+    # Add active lights to queue
+    for light in tmx_map.lights:
+        if light.is_on(current_time):
+            # Get scaled surface and glow offset
+            sprite, glow_extend = light.get_render_data(camera.zoom)
+            
+            # Calculate screen position
+            # light.x, light.y is top-left of window rectangle in world coordinates
+            screen_x, screen_y = camera.apply(light.x, light.y)
+            
+            # Draw position accounts for glow extending beyond the window
+            draw_x = screen_x + offset_x - glow_extend
+            draw_y = screen_y + offset_y - glow_extend
+
+            # Culling check
+            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                
+                render_queue.append({
+                    'sprite': sprite,
+                    'pos': (draw_x, draw_y),
+                    # Y-sort at bottom of window for proper layering
+                    'y_sort': light.y_sort, 
+                    'flags': pygame.BLEND_ADD
                 })
 
     # Add trees to queue
