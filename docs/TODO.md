@@ -5,6 +5,8 @@
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [ ] with new tiles create a market area, only there a player can trade
 - [ ] create market booths as asset sprites
+- [ ] create a church building as asset sprite
+- [ ] place the church building in the town map
 - [ ] place the market booths in the market area
 
 ## Medium Priority
@@ -32,6 +34,9 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 Finished Features
+- [x] defined new market area in the town map (in front of the city hall)
+- [x] Added the city hall building to the town map
+- [x] created city hall building asset sprite
 - [x] When earning or losing money, the top money display always stays green or red, it gets stuck until the next transaction
 - [x] Fixed a bug where lights visibly reset at midnight - now it is at noon 12.00, where all lights are off anyway
 - [x] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free

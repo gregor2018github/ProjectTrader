@@ -5,6 +5,12 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - several market booths per market area
     - only when in the vicinity of a market area the player can trade (otherwise market options are disabled/grayed out)
 
+- carriage system 
+    - player only has a limited amount of 100 storage units in carriage
+    - he can only trade goods from the carriage if it is parked at a market area
+    - player himself has place for 10 storage units (pockets)
+    - extra tiny warehouse will be another 100 storage units
+
 - MAP FEATURES
     - we need cobblestone roads, squares
     - underground must be defined as gifs which will allow more modular overlapping of tiles (currently 'hard-drawn' between different tile types)
@@ -28,6 +34,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - have a pub where you can eat fancy food 
     - you might get temporary buffs (like better prices, more storage space, faster movement, etc)
     - menu will change daily with real medieval recipes
+    - there are always three recipes available (cheap, medium, expensive)
 
 - at the end of the year you will receive income tax and property tax statements that you have to pay
     - if you don't pay them on time you get fined or worse
