@@ -2,7 +2,6 @@
 
 ## High Priority
 
-- [ ] give light points proper candle light sources with glow effect in the code, also design a time schedule when lights are on/off
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [ ] with new tiles create a market area, only there a player can trade
 - [ ] create market booths as asset sprites
@@ -27,13 +26,15 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free
+- [ ] When earning or losing money, the top money display always stays green or red, it gets stuck until the next transaction
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 - [ ] Make all sounds evenly loud (old trader voice is too silent)
 
 Finished Features
+- [x] When moving as the player from top towards bottom, the player sprite can get stuck in collision boxes and must go up again to get free
+- [x] give light points proper candle light sources with glow effect in the code, also design a time schedule when lights are on/off
 - [x] Add lights to the windows of the houses during night time (first as points in the tiled map)
 - [x] day and night cycle with different lighting
 - [x] for debugging... fix the overlays at the map view (bottom info has to be replaced by... fps counter; time)

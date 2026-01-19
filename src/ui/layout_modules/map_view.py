@@ -315,7 +315,8 @@ def _build_render_queue(
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
     render_queue.append({
         'sprite': player_sprite,
-        'pos': (player_screen_x + offset_x, player_screen_y + offset_y),
+        # Use rounding for draw position to prevent shimmering during slow movement
+        'pos': (round(player_screen_x) + offset_x, round(player_screen_y) + offset_y),
         'y_sort': map_player.y + map_player.height  # Use world Y of player bottom
     })
     

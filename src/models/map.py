@@ -502,6 +502,8 @@ class MapPlayer:
 
         self.sprite: pygame.Surface = self.animator.get_current_frame()
         self.source_sprite: pygame.Surface = self.animator.get_current_source_frame()
+        # width and height are used for logical collision and sorting.
+        # They should remain stable even if animation frames have slightly different sizes.
         self.width: int = tile_size
         self.height: int = self.sprite.get_height()
         self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
@@ -584,8 +586,7 @@ class MapPlayer:
         self.animator.update(dt, direction, is_moving)
         self.sprite = self.animator.get_current_frame()
         self.source_sprite = self.animator.get_current_source_frame()
-        self.width = self.sprite.get_width()
-        self.height = self.sprite.get_height()
+        # self.width and self.height are kept stable for collision consistency
         self.was_moving = is_moving
 
     def _determine_direction(self, is_moving: bool) -> str:
@@ -628,20 +629,30 @@ class MapPlayer:
             return False
         
         # Calculate collision box (just the bottom tile/feet area)
-        collision_height = self.tile_size/2
+        # Use a slightly smaller height for the collision box to prevent being "stuck"
+        # exactly at the edge of a collision box when moving from top to bottom.
+        collision_height = self.tile_size / 2 - 2
         collision_y = y + self.height - collision_height
         
         # Check collision with objects (houses)
-        player_rect = pygame.Rect(int(x), int(collision_y), int(self.width), int(collision_height))
+        # Use round instead of int for slightly more accurate positioning
+        player_rect = pygame.Rect(
+            int(round(x)), 
+            int(round(collision_y)), 
+            int(self.width), 
+            int(collision_height)
+        )
         if game_map.check_object_collision(player_rect):
             return False
 
         # Get the four corners of the player collision box (feet area)
+        # Inset the corners slightly to allow for easier movement through tight spaces
+        margin = 2
         corners = [
-            (x, collision_y),  # top-left of collision area
-            (x + self.width - 1, collision_y),  # top-right of collision area
-            (x, y + self.height - 1),  # bottom-left
-            (x + self.width - 1, y + self.height - 1)  # bottom-right
+            (x + margin, collision_y),  # top-left of collision area
+            (x + self.width - 1 - margin, collision_y),  # top-right of collision area
+            (x + margin, y + self.height - 1),  # bottom-left
+            (x + self.width - 1 - margin, y + self.height - 1)  # bottom-right
         ]
         
         # Check if all corners are in walkable tiles
