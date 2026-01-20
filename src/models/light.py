@@ -4,6 +4,13 @@ import datetime
 import math
 from typing import Optional
 
+from ..config.constants import (
+    LIGHT_PROBABILITY, LIGHT_START_HOUR_MIN, LIGHT_START_HOUR_RANGE,
+    LIGHT_DURATION_MIN, LIGHT_DURATION_RANGE,
+    BUILDING_LIGHT_PROBABILITY, BUILDING_LIGHT_START_HOUR_MIN, BUILDING_LIGHT_START_HOUR_RANGE,
+    BUILDING_LIGHT_DURATION_MIN, BUILDING_LIGHT_DURATION_RANGE
+)
+
 
 class Light:
     """Represents a rectangular window light source.
@@ -113,15 +120,15 @@ class Light:
 
     def _schedule_for_night(self, current_time: datetime.datetime) -> None:
         """Decide if and when this light turns on for the upcoming night."""
-        # 40% chance of being active tonight
-        self.is_active_tonight = random.random() < 0.4
+        # Decide if active tonight based on probability constant
+        self.is_active_tonight = random.random() < LIGHT_PROBABILITY
         
         if self.is_active_tonight:
-            # Random start time (17:30 to 22:00)
-            self.start_hour = 17.5 + random.random() * 4.5
+            # Random start time based on constants
+            self.start_hour = LIGHT_START_HOUR_MIN + random.random() * LIGHT_START_HOUR_RANGE
             
-            # Duration (2 to 6 hours)
-            duration = 2.0 + random.random() * 4.0
+            # Duration based on constants
+            duration = LIGHT_DURATION_MIN + random.random() * LIGHT_DURATION_RANGE
             self.end_hour = self.start_hour + duration
             
         # Clear cache on new schedule
@@ -333,15 +340,15 @@ class BuildingLightGroup:
         Building lights are always on every night (unlike regular house windows),
         and they stay on longer.
         """
-        # Building lights are always active every night
-        self.is_active_tonight = True
+        # Decide if active tonight based on probability constant
+        self.is_active_tonight = random.random() < BUILDING_LIGHT_PROBABILITY
         
         if self.is_active_tonight:
-            # Random start time (17:00 to 20:00) - earlier than houses
-            self.start_hour = 17.0 + random.random() * 3.0
+            # Random start time based on constants
+            self.start_hour = BUILDING_LIGHT_START_HOUR_MIN + random.random() * BUILDING_LIGHT_START_HOUR_RANGE
             
-            # Duration (4 to 8 hours) - longer than houses
-            duration = 4.0 + random.random() * 4.0
+            # Duration based on constants
+            duration = BUILDING_LIGHT_DURATION_MIN + random.random() * BUILDING_LIGHT_DURATION_RANGE
             self.end_hour = self.start_hour + duration
         
         # Clear caches on all lights
