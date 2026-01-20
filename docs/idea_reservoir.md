@@ -3,13 +3,49 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - add market areas
     - these are on squares on the map
     - several market booths per market area
+    - per good there will be one booth, player has to be near the booth to trade that good
     - only when in the vicinity of a market area the player can trade (otherwise market options are disabled/grayed out)
+
+- Buildings
+    - market booths
+    - more houses
+    - medium warehouse
+    - large warehouse
+    - church
+    - guild hall
+    - bank
+    - bakery
+    - blacksmith
+    - mill
+    - butcher
+    - more regular houses
+
+- Decoration Buildings
+    - fountain
+    - well
+    - statues
+    - park bench
+    - crates and barrels
+    - 
+
+- when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)
+    - scribble sound when they sign
+    - different funny texts that change based on building or right or whatever
+
+- trading licences 
+    - player can only trade certain items after buying a licence from the guild
+    - trading licences have a limited duration (like 1 month, 3 months, 6 months, 12 months)
+    - can be linked to money, reputation, quests, completion of previous licences, etc.
+    - prices for licenses can increase on a monthly basis (when the player also gets richer)
+
+- have a market screamer/NPC that announces change
 
 - carriage system 
     - player only has a limited amount of 100 storage units in carriage
     - he can only trade goods from the carriage if it is parked at a market area
     - player himself has place for 10 storage units (pockets)
     - extra tiny warehouse will be another 100 storage units
+    - carriage speed is slower than walking, but on cobble stone it is nearly as fast as walking
 
 - MAP FEATURES
     - we need cobblestone roads, squares
@@ -78,12 +114,4 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - bad warehouses will deteriorate and lose items over time
     - breakins can occur if the warehouse is not secure enough, player home can be the same
 
-- trading licences 
-    - player can only trade certain items after buying a licence from the guild
-    - can be linked to money, reputation, quests, completion of previous licences, etc.
-
 - building system - player can build houses, shops, warehouses, etc -> thus shape the town themselves
-
-- when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)
-    - scribble sound when they sign
-    - different funny texts that change based on building or right or whatever

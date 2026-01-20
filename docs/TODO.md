@@ -11,7 +11,8 @@
 
 ## Medium Priority
 
-- [ ] Market events
+- [ ] Demo to sign a contract (from the menu button for now just to check the functionality)
+- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
@@ -22,6 +23,7 @@
 - [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Bank Menu 
+- [ ] Market events
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
