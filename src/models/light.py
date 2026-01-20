@@ -2,6 +2,7 @@ import pygame
 import random
 import datetime
 import math
+from typing import Optional
 
 
 class Light:
@@ -154,3 +155,209 @@ class Light:
         
         # No glow extension anymore
         return surface, 0
+
+
+class BuildingLight:
+    """Represents a polygon-shaped window light source for big buildings.
+    
+    Unlike regular Light objects which are individual rectangles, BuildingLight
+    objects are grouped by building name (e.g., 'Townhall', 'Church') and share
+    their on/off timing as a group.
+    """
+
+    def __init__(self, x: float, y: float, polygon_points: list[tuple[float, float]], 
+                 building_name: str, tile_size: int):
+        """Initialize the polygon light.
+
+        Args:
+            x: World X coordinate (origin point of polygon).
+            y: World Y coordinate (origin point of polygon).
+            polygon_points: List of (x, y) tuples representing polygon vertices
+                           relative to the origin point.
+            building_name: Name of the building (e.g., 'Townhall', 'Church').
+            tile_size: Size of one tile in pixels.
+        """
+        self.x = x
+        self.y = y
+        self.polygon_points = polygon_points
+        self.building_name = building_name
+        self.tile_size = tile_size
+
+        # Calculate bounding box for the polygon
+        abs_points = [(x + px, y + py) for px, py in polygon_points]
+        min_x = min(p[0] for p in abs_points)
+        max_x = max(p[0] for p in abs_points)
+        min_y = min(p[1] for p in abs_points)
+        max_y = max(p[1] for p in abs_points)
+        
+        self.bbox_x = min_x
+        self.bbox_y = min_y
+        self.width = max_x - min_x
+        self.height = max_y - min_y
+
+        # Y-sort position (bottom of polygon for proper layering)
+        self.y_sort = max_y
+
+        # Color configuration - warm candlelight
+        self.window_color = (255, 180, 80)  # Warm orange for window glow
+
+        # Flickering properties
+        self.flicker_offset = random.random() * 100
+        self.flicker_speed = 0.03 + random.random() * 0.04
+        self.current_intensity = 1.0
+
+        # Reference to the group (will be set by BuildingLightGroup)
+        self.group: Optional['BuildingLightGroup'] = None
+        
+        # Cache for scaled surfaces
+        self._surface_cache: dict = {}
+
+    def _create_light_surface(self, zoom: float) -> pygame.Surface:
+        """Create the polygon light surface.
+        
+        Args:
+            zoom: Current camera zoom level.
+            
+        Returns:
+            Surface with the polygon light effect.
+        """
+        # Calculate scaled dimensions
+        scaled_width = max(1, int(self.width * zoom))
+        scaled_height = max(1, int(self.height * zoom))
+        
+        surface = pygame.Surface((scaled_width, scaled_height), pygame.SRCALPHA)
+        
+        # Calculate window alpha based on intensity
+        window_alpha = int(180 * self.current_intensity)
+        window_alpha = max(0, min(255, window_alpha))
+        
+        # Scale polygon points relative to bounding box top-left
+        scaled_points = []
+        for px, py in self.polygon_points:
+            # Convert from origin-relative to bbox-relative and scale
+            abs_x = self.x + px
+            abs_y = self.y + py
+            rel_x = (abs_x - self.bbox_x) * zoom
+            rel_y = (abs_y - self.bbox_y) * zoom
+            scaled_points.append((rel_x, rel_y))
+        
+        # Draw the polygon
+        if len(scaled_points) >= 3:
+            pygame.draw.polygon(surface, (*self.window_color, window_alpha), scaled_points)
+        
+        return surface
+
+    def update(self, current_time: datetime.datetime) -> None:
+        """Update light flicker (timing is managed by group)."""
+        if self.group and self.group.is_on(current_time):
+            self.flicker_offset += self.flicker_speed
+            
+            # Gentle sine wave based flicker
+            wave = math.sin(self.flicker_offset)
+            noise = (random.random() - 0.5) * 0.05
+            
+            self.current_intensity = 0.95 + (wave * 0.03 + noise)
+            self.current_intensity = max(0.85, min(1.0, self.current_intensity))
+            
+            self._surface_cache.clear()
+        else:
+            self.current_intensity = 1.0
+
+    def is_on(self, current_time: datetime.datetime) -> bool:
+        """Check if the light is on (delegated to group)."""
+        if self.group:
+            return self.group.is_on(current_time)
+        return False
+
+    def get_render_data(self, camera_zoom: float) -> tuple[pygame.Surface, int]:
+        """Get the current surface for rendering.
+        
+        Args:
+            camera_zoom: Current camera zoom level.
+            
+        Returns:
+            Tuple of (surface, glow_extend) where glow_extend is 0.
+        """
+        surface = self._create_light_surface(camera_zoom)
+        return surface, 0
+
+
+class BuildingLightGroup:
+    """Manages a group of BuildingLight objects that share timing.
+    
+    All lights in a group (e.g., all 'Townhall' lights) turn on and off together,
+    but each light still has its own flickering effect.
+    """
+
+    def __init__(self, name: str):
+        """Initialize the building light group.
+        
+        Args:
+            name: Name of the building group (e.g., 'Townhall', 'Church').
+        """
+        self.name = name
+        self.lights: list[BuildingLight] = []
+        
+        # Activation logic (shared by all lights in group)
+        self.is_active_tonight = False
+        self.start_hour = 0.0
+        self.end_hour = 0.0
+        self.last_date_check: Optional[str] = None
+
+    def add_light(self, light: BuildingLight) -> None:
+        """Add a light to this group.
+        
+        Args:
+            light: The BuildingLight to add.
+        """
+        light.group = self
+        self.lights.append(light)
+
+    def update(self, current_time: datetime.datetime) -> None:
+        """Update group scheduling and all lights in the group."""
+        # Check if we need to reschedule for a new day
+        scheduling_time = current_time - datetime.timedelta(hours=12)
+        current_cycle_date = scheduling_time.strftime("%Y-%m-%d")
+        
+        if self.last_date_check != current_cycle_date:
+            self._schedule_for_night(current_time)
+            self.last_date_check = current_cycle_date
+        
+        # Update individual lights
+        for light in self.lights:
+            light.update(current_time)
+
+    def _schedule_for_night(self, current_time: datetime.datetime) -> None:
+        """Decide if and when this building's lights turn on for the night.
+        
+        Building lights are always on every night (unlike regular house windows),
+        and they stay on longer.
+        """
+        # Building lights are always active every night
+        self.is_active_tonight = True
+        
+        if self.is_active_tonight:
+            # Random start time (17:00 to 20:00) - earlier than houses
+            self.start_hour = 17.0 + random.random() * 3.0
+            
+            # Duration (4 to 8 hours) - longer than houses
+            duration = 4.0 + random.random() * 4.0
+            self.end_hour = self.start_hour + duration
+        
+        # Clear caches on all lights
+        for light in self.lights:
+            light._surface_cache.clear()
+
+    def is_on(self, current_time: datetime.datetime) -> bool:
+        """Check if the building lights are on at this time."""
+        if not self.is_active_tonight:
+            return False
+            
+        hour = current_time.hour + current_time.minute / 60.0
+        
+        # Handle midnight wrap
+        effective_hour = hour
+        if hour < 12:
+            effective_hour += 24
+            
+        return self.start_hour <= effective_hour <= self.end_hour

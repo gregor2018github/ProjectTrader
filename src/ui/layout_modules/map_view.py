@@ -291,6 +291,30 @@ def _build_render_queue(
                     'flags': pygame.BLEND_ADD
                 })
 
+    # Add active building lights to queue (Townhall, Church, etc.)
+    for group in tmx_map.building_light_groups.values():
+        for building_light in group.lights:
+            if building_light.is_on(current_time):
+                # Get scaled surface
+                sprite, glow_extend = building_light.get_render_data(camera.zoom)
+                
+                # Calculate screen position using bbox coordinates
+                screen_x, screen_y = camera.apply(building_light.bbox_x, building_light.bbox_y)
+                
+                draw_x = screen_x + offset_x - glow_extend
+                draw_y = screen_y + offset_y - glow_extend
+
+                # Culling check
+                if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                    draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                    
+                    render_queue.append({
+                        'sprite': sprite,
+                        'pos': (draw_x, draw_y),
+                        'y_sort': building_light.y_sort,
+                        'flags': pygame.BLEND_ADD
+                    })
+
     # Add trees to queue
     for tree in tmx_map.trees:
         sprite = tree.get_scaled_sprite(camera.zoom)

@@ -33,7 +33,7 @@ TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
 START_DATE = "01.01.1500"           # When the simulation time starts, format: dd.mm.yyyy
-START_TIME = "12:00"                # When the simulation time starts, format: HH:MM
+START_TIME = "19:00"                # When the simulation time starts, format: HH:MM
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
 STARTING_MONEY = 100                # Starting money for the player
 INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market

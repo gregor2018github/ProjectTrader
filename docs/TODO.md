@@ -34,6 +34,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 Finished Features
+- [x] create special night light areas for big buildings as polygons and let them shine every night (city hall)
 - [x] create a church building as asset sprite
 - [x] place the church building in the town map
 - [x] defined new market area in the town map (in front of the city hall)

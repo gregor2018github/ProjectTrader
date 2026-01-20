@@ -14,7 +14,7 @@ from typing import List, Dict, Tuple, Any, Optional, Union
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM
 from .house import House
 from .tree import Tree
-from .light import Light
+from .light import Light, BuildingLight, BuildingLightGroup
 
 
 
@@ -116,6 +116,7 @@ class TMXMap:
         self.houses: List[House] = []
         self.trees: List[Tree] = []
         self.lights: List[Light] = []
+        self.building_light_groups: Dict[str, BuildingLightGroup] = {}
         
         self._load_houses()
         self._load_trees()
@@ -179,14 +180,19 @@ class TMXMap:
                         self.trees.append(tree)
 
     def _load_lights(self) -> None:
-        """Load rectangular light objects from the 'Lights' object layer.
+        """Load light objects from the 'Lights' object layer.
         
-        Looks for objects named 'Light_rectangle' which represent window rectangles.
+        Loads two types of lights:
+        1. 'Light_rectangle' - Individual rectangular window lights
+        2. 'Townhall', 'Church' - Polygon lights for big buildings (grouped by name)
         """
+        # Building names that should be treated as grouped polygon lights
+        building_light_names = {'Townhall', 'Church'}
+        
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Lights":
                 for obj in layer:
-                    # Only load objects named "Light_rectangle"
+                    # Load regular rectangular lights
                     if obj.name == "Light_rectangle":
                         light = Light(
                             x=obj.x,
@@ -196,11 +202,36 @@ class TMXMap:
                             tile_size=self.tile_size
                         )
                         self.lights.append(light)
+                    
+                    # Load polygon lights for buildings
+                    elif obj.name in building_light_names and hasattr(obj, 'points'):
+                        # pytmx provides absolute coordinates in Point named tuples
+                        # Convert to relative coordinates (relative to obj.x, obj.y)
+                        polygon_points = [(p.x - obj.x, p.y - obj.y) for p in obj.points]
+                        
+                        building_light = BuildingLight(
+                            x=obj.x,
+                            y=obj.y,
+                            polygon_points=polygon_points,
+                            building_name=obj.name,
+                            tile_size=self.tile_size
+                        )
+                        
+                        # Create or get the group for this building
+                        if obj.name not in self.building_light_groups:
+                            self.building_light_groups[obj.name] = BuildingLightGroup(obj.name)
+                        
+                        self.building_light_groups[obj.name].add_light(building_light)
     
     def update_lights(self, current_time: datetime.datetime) -> None:
         """Update all lights (flicker, on/off state)."""
+        # Update individual house lights
         for light in self.lights:
             light.update(current_time)
+        
+        # Update building light groups (handles timing and individual light flicker)
+        for group in self.building_light_groups.values():
+            group.update(current_time)
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
         """Check if the given rect collides with any map objects (houses or trees)."""
