@@ -5,8 +5,6 @@
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [ ] with new tiles create a market area, only there a player can trade
 - [ ] create market booths as asset sprites
-- [ ] create a church building as asset sprite
-- [ ] place the church building in the town map
 - [ ] place the market booths in the market area
 
 ## Medium Priority
@@ -36,7 +34,8 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 Finished Features
-- [x] created church building asset sprite
+- [x] create a church building as asset sprite
+- [x] place the church building in the town map
 - [x] defined new market area in the town map (in front of the city hall)
 - [x] Added the city hall building to the town map
 - [x] created city hall building asset sprite
