@@ -36,6 +36,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 Finished Features
+- [x] created church building asset sprite
 - [x] defined new market area in the town map (in front of the city hall)
 - [x] Added the city hall building to the town map
 - [x] created city hall building asset sprite

@@ -12,6 +12,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - medium warehouse
     - large warehouse
     - church
+    - graveyard next to the church
     - guild hall
     - bank
     - bakery
@@ -22,17 +23,35 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - Decoration Buildings
     - fountain
+    - a field of wheat that can be scaled as needed
+    - base plowed field texture (farming goods can grow on there later)
     - well
     - statues
     - park bench
     - crates and barrels
-    - 
+    - gravestones in graveyard
+    - iron gates that can even open when the player approaches
+
+- Animations and NPC
+    - Fisherman who always tells you to buy fish
+    - Sheeps that can stand on the meadow, eating and walking animations
+    - windmill with rotating blades
+    - ghost coming out of the graveyard at night
+    - water that is actually moving
+    - waving wheat fields
+    - smoke from chimneys
+    - bird flocks in highest zoom stage
+    - animation for idle main character
+    - Blacksmith hammering on an anvil
+
+
 
 - when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)
     - scribble sound when they sign
     - different funny texts that change based on building or right or whatever
+    - headline font medici; main text fond augusta
 
-- trading licences 
+- trading licences
     - player can only trade certain items after buying a licence from the guild
     - trading licences have a limited duration (like 1 month, 3 months, 6 months, 12 months)
     - can be linked to money, reputation, quests, completion of previous licences, etc.
@@ -54,17 +73,9 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - buildings can be entered (shop, house, warehouse, guild, etc)
     - inner views of buildings
     - NPSs for decoration (for now just standing around)
-    - Animations
-        - water that is actually moving
-        - waving wheat fields
-        - smoke from chimneys
-        - bird flocks in highest zoom stage
-        - animation for idle main character
     - Shadows
         - static for trees and buildings
         - traveling for NPCs and player
-    - Sheeps that can stand on the meadow, eating and walking animations
-    - a field of wheat that can be scaled as needed
     - at night time trading booths close and are covered with tarps
 
 - have a pub where you can eat fancy food 
