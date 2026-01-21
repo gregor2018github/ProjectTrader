@@ -1,6 +1,7 @@
 import pygame
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
+from ..ui.helper_modules.contract_view import ContractView
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -95,6 +96,9 @@ def handle_mouse_click(pos: Tuple[int, int],
             elif menu_action == "Settings":
                 from ..settings import SettingsWindow
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
+                return
+            elif menu_action == "License":
+                game_state.contract_view = ContractView(game_state.screen, game_state.game, "License_Stone.txt", "stone.png")
                 return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action

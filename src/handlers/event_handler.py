@@ -36,6 +36,16 @@ class EventHandler:
         if event.type == pygame.QUIT:
             self.running = False
 
+        # Handle Contract View
+        if game_state.contract_view:
+            game_state.contract_view.handle_event(event)
+            if not game_state.contract_view.active:
+                game_state.contract_view = None
+            
+            # Consume input events if contract is active
+            if event.type in [pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION, pygame.MOUSEWHEEL]:
+                return self.running
+
         # Handle music end event to play the next song
         if hasattr(game_state.game, 'sound_control') and event.type == game_state.game.sound_control.MUSIC_END_EVENT:
             game_state.game.sound_control.handle_music_end_event(game_state.game)

@@ -25,7 +25,7 @@ class Menu:
         """
         self.font: pygame.font.Font = font
         self.is_open: bool = False
-        self.items: List[str] = ["Quit", "Balance", "Map", "Settings", "Demo"]
+        self.items: List[str] = ["Quit", "Balance", "Map", "Settings", "License", "Demo"]
         
         # Menu button dimensions and position
         self.button_width: int = 100
