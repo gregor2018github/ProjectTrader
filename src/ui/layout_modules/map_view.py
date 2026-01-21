@@ -208,7 +208,8 @@ def _render_map_layers(
     end_y = min(tmx_map.height, int((camera.y + world_view_height) // tmx_map.tile_size) + 2)
 
     for layer in tmx_map.tmx_data.visible_layers:
-        if isinstance(layer, pytmx.TiledTileLayer):
+        # Only render tile layers that start with "Ground"
+        if isinstance(layer, pytmx.TiledTileLayer) and layer.name.startswith("Ground"):
             for y in range(start_y, end_y):
                 for x in range(start_x, end_x):
                     gid = layer.data[y][x]
