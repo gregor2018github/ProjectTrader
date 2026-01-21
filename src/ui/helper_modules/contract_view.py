@@ -1,5 +1,6 @@
 import pygame
 import os
+import random
 from typing import Optional, List, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT
@@ -106,6 +107,16 @@ class ContractView:
         self.stamp_timer = 0.0 # 3.0 (1s wait + 2s fade)
         self.global_alpha = 255
 
+        self.scribble_channel = None
+        self.last_motion_ticks = 0
+
+        # Adjust volume for scribble sounds - Pygame limits volume to 1.0, 
+        # so for "louder" we'll ensure they are at max and potentially double-play.
+        for i in range(1, 5):
+            s_name = f"scribble_{i}"
+            if s_name in self.game.sounds:
+                self.game.sounds[s_name].set_volume(1.0)
+
         # Buttons
         btn_w = 120
         btn_h = 40
@@ -173,6 +184,14 @@ class ContractView:
         
         return final_lines
 
+    def _stop_scribble_sounds(self) -> None:
+        """Stop all scribble sound variations."""
+        for i in range(1, 5):
+            s_name = f"scribble_{i}"
+            if s_name in self.game.sounds:
+                self.game.sounds[s_name].stop()
+        self.scribble_channel = None
+
     def update(self, delta_time: float) -> None:
         if self.is_stamped or self.is_denied:
             self.stamp_timer -= delta_time
@@ -181,6 +200,12 @@ class ContractView:
             elif self.stamp_timer < 2.0:
                 # Fade out over 2 seconds
                 self.global_alpha = int(255 * (self.stamp_timer / 2.0))
+        
+        # Handle scribble sound stopping during idle motion while still signing
+        if self.is_signing and self.scribble_channel and self.scribble_channel.get_busy():
+            current_ticks = pygame.time.get_ticks()
+            if current_ticks - self.last_motion_ticks > 150:
+                self._stop_scribble_sounds()
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         if self.is_stamped or self.is_denied:
@@ -217,11 +242,23 @@ class ContractView:
         elif event.type == pygame.MOUSEBUTTONUP:
             if event.button == 1:
                 self.is_signing = False
+                self._stop_scribble_sounds()
                 self.last_pos = None
 
         elif event.type == pygame.MOUSEMOTION:
             if self.is_signing:
                 if self.paper_rect.collidepoint(event.pos):
+                    self.last_motion_ticks = pygame.time.get_ticks()
+                    
+                    # Play scribble sound if not already playing
+                    if not self.scribble_channel or not self.scribble_channel.get_busy():
+                        sound_name = f"scribble_{random.randint(1, 4)}"
+                        if sound_name in self.game.sounds:
+                            # We play the sound on two channels simultaneously to 
+                            # reach a volume level above the standard 1.0 limit.
+                            self.scribble_channel = self.game.sounds[sound_name].play()
+                            self.game.sounds[sound_name].play() 
+
                     current_pos = (event.pos[0] - self.paper_rect.x, event.pos[1] - self.paper_rect.y)
                     if self.last_pos:
                         # Draw line on signature surface
@@ -234,6 +271,7 @@ class ContractView:
                 else:
                     # Mouse went out of paper bounds while signing
                     self.is_signing = False
+                    self._stop_scribble_sounds()
                     self.last_pos = None
         
         return None
