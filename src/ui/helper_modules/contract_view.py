@@ -18,10 +18,13 @@ class ContractView:
         try:
             self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 42)
             self.body_font = pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), 22)
+            # Create a larger font for the drop caps (first letter of paragraphs)
+            self.drop_cap_font = pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), 38)
         except:
             # Fallback if fonts are missing (though user said they exist)
             self.title_font = pygame.font.SysFont("arial", 32)
             self.body_font = pygame.font.SysFont("arial", 18)
+            self.drop_cap_font = pygame.font.SysFont("arial", 32)
 
         # Load Text
         try:
@@ -78,7 +81,7 @@ class ContractView:
         sig_h = 100
         self.signature_rect = pygame.Rect(
             self.paper_rect.x + (paper_w - sig_w) // 2,
-            self.paper_rect.bottom - 260, # Above buttons
+            self.paper_rect.bottom - 240, # Above buttons
             sig_w,
             sig_h
         )
@@ -99,45 +102,64 @@ class ContractView:
         btn_h = 40
         spacing = 20
         start_x = self.paper_rect.centerx - btn_w - (spacing // 2)
-        btn_y = self.paper_rect.bottom - 150
+        btn_y = self.paper_rect.bottom - 130
         
         self.btn_confirm = pygame.Rect(start_x, btn_y, btn_w, btn_h)
         self.btn_deny = pygame.Rect(start_x + btn_w + spacing, btn_y, btn_w, btn_h)
 
-    def split_text_to_lines(self, text: str, font: pygame.font.Font, paper_w: int, x_margin: int, start_y: int, line_height: int, img_rect: Optional[pygame.Rect] = None) -> List[str]:
+    def split_text_to_lines(self, text: str, font: pygame.font.Font, paper_w: int, x_margin: int, start_y: int, line_height: int, img_rect: Optional[pygame.Rect] = None) -> List[Tuple[str, bool]]:
         # First handle explicit newlines
         raw_paragraphs = text.splitlines()
-        final_lines = []
+        final_lines = [] # Now stores (text, is_paragraph_start)
         current_y_offset = start_y
         
         for paragraph in raw_paragraphs:
             if not paragraph.strip():
-                final_lines.append("") # Preserve empty lines
-                current_y_offset += line_height
+                final_lines.append(("", False)) # Preserve empty lines
+                current_y_offset += 15 # Match the spacing used in draw()
                 continue
                 
             words = paragraph.split(' ')
             current_line = []
+            is_start = True
             
             for word in words:
-                # Calculate available width for this line based on image overlap
+                # Calculate available width
                 available_width = paper_w - (x_margin * 2)
-                # If image is on the right and we are within its vertical range
-                if img_rect and (self.paper_rect.y + current_y_offset) < img_rect.bottom + 10:
+                if img_rect and current_y_offset < img_rect.bottom + 10:
                     available_width -= (img_rect.width + 20)
 
-                current_line.append(word)
-                # Check width
-                w, h = font.size(' '.join(current_line))
+                # Special handling for calculating width of the first line of a paragraph
+                # because the drop cap is wider
+                test_line = ' '.join(current_line + [word])
+                if is_start:
+                    if test_line.startswith("• "):
+                        # Skip "• " and make the next character bigger
+                        prefix = test_line[:2]
+                        if len(test_line) > 2:
+                            first_char = test_line[2]
+                            rest = test_line[3:]
+                            w = font.size(prefix)[0] + self.drop_cap_font.size(first_char)[0] + font.size(rest)[0]
+                        else:
+                            w = font.size(prefix)[0]
+                    else:
+                        # Width of the big first letter + the rest of the line
+                        first_char = test_line[0]
+                        rest = test_line[1:]
+                        w = self.drop_cap_font.size(first_char)[0] + font.size(rest)[0]
+                else:
+                    w = font.size(test_line)[0]
+
                 if w > available_width:
-                    # Pop last word, add line, start new line with popped word
-                    current_line.pop()
-                    final_lines.append(' '.join(current_line))
+                    final_lines.append((' '.join(current_line), is_start))
                     current_line = [word]
                     current_y_offset += line_height
+                    is_start = False # rest of lines in this paragraph are NOT starts
+                else:
+                    current_line.append(word)
             
             if current_line:
-                final_lines.append(' '.join(current_line))
+                final_lines.append((' '.join(current_line), is_start))
                 current_y_offset += line_height
         
         return final_lines
@@ -237,7 +259,13 @@ class ContractView:
         # Image (Stone)
         if self.stone_image:
             img_rect = self.stone_image.get_rect()
-            img_rect.topright = (local_paper_rect.right - 40, local_paper_rect.top + 90)
+            # Moved a bit more down and left
+            img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
+            
+            # Draw frame
+            frame_rect = img_rect.inflate(10, 10)
+            pygame.draw.rect(paper_surf, (100, 80, 60), frame_rect, 2) # Frame border
+            
             paper_surf.blit(self.stone_image, img_rect)
 
         # Body Text
@@ -249,31 +277,73 @@ class ContractView:
             full_body = "".join(self.raw_text[1:])
             full_body = full_body.replace('—', '-').replace('"', '"').replace('“', '"').replace('”', '"').replace('’', "'")
             
-            # We already have lines split, but we used self.paper_rect.width which is fine
-            # We'll just re-render them onto paper_surf
-            # Note: handle_event split them using paper_rect.width, so they fit.
-            # But the logic for split_text_to_lines in draw was a bit messy. 
-            # I'll just re-use the local coordinates.
-            
+            # Use updated img_rect for wrapping
+            wrapping_img_rect = self.stone_image.get_rect()
+            wrapping_img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
+
+            # Add more margin to the left for wrapping calculation
+            wrapping_img_rect.width += 10 
+
             # Simple re-rendering logic
             # For simplicity I'll re-calculate lines to ensure they fit the local surf
             # (Though they are usually the same)
-            lines = self.split_text_to_lines(full_body, self.body_font, self.paper_rect.width, x_margin, y_offset_start, line_height, img_rect)
-            
+            lines = self.split_text_to_lines(full_body, self.body_font, self.paper_rect.width, x_margin, y_offset_start, line_height, wrapping_img_rect)
+
             y_offset = y_offset_start
-            for line in lines:
-                line = line.strip()
-                if not line:
+            for line_text, is_start in lines:
+                line_text = line_text.strip()
+                if not line_text:
                      y_offset += 15
                      continue
-                line_surf = self.body_font.render(line, True, BLACK)
-                paper_surf.blit(line_surf, (x_margin, y_offset))
+                
+                if is_start and line_text:
+                    if line_text.startswith("• "):
+                        # Render prefix "• " normally, then the next char big
+                        prefix = line_text[:2]
+                        if len(line_text) > 2:
+                            first_char = line_text[2]
+                            rest = line_text[3:]
+                            
+                            prefix_surf = self.body_font.render(prefix, True, BLACK)
+                            char_surf = self.drop_cap_font.render(first_char, True, BLACK)
+                            rest_surf = self.body_font.render(rest, True, BLACK)
+                            
+                            current_y = y_offset
+                            paper_surf.blit(prefix_surf, (x_margin, current_y))
+                            
+                            p_width = prefix_surf.get_width()
+                            paper_surf.blit(char_surf, (x_margin + p_width, current_y - 8))
+                            
+                            c_width = char_surf.get_width()
+                            paper_surf.blit(rest_surf, (x_margin + p_width + c_width, current_y))
+                        else:
+                            line_surf = self.body_font.render(line_text, True, BLACK)
+                            paper_surf.blit(line_surf, (x_margin, y_offset))
+                    else:
+                        # Draw first letter with big font
+                        first_char = line_text[0]
+                        rest = line_text[1:]
+                        
+                        char_surf = self.drop_cap_font.render(first_char, True, BLACK)
+                        rest_surf = self.body_font.render(rest, True, BLACK)
+                        
+                        # Align the big letter slightly lower so it sits better with the line
+                        current_y = y_offset
+                        paper_surf.blit(char_surf, (x_margin, current_y - 8))
+                        
+                        # Blit rest of the text after the width of the first character
+                        char_width = char_surf.get_width()
+                        paper_surf.blit(rest_surf, (x_margin + char_width, current_y))
+                else:
+                    line_surf = self.body_font.render(line_text, True, BLACK)
+                    paper_surf.blit(line_surf, (x_margin, y_offset))
+                
                 y_offset += line_height
 
         # Signature Area
         local_sig_rect = pygame.Rect(
             (local_paper_rect.width - self.signature_rect.width) // 2,
-            local_paper_rect.height - 260,
+            local_paper_rect.height - 240,
             self.signature_rect.width,
             self.signature_rect.height
         )
