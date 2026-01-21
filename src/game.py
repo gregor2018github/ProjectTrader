@@ -397,6 +397,7 @@ class Game:
             
             # Draw contract view if active
             if self.state.contract_view:
+                self.state.contract_view.update(delta_time)
                 self.state.contract_view.draw()
 
             # UPDATE AND DRAW WARNING MESSAGE IF PRESENT

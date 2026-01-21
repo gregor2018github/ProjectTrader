@@ -52,10 +52,17 @@ class ContractView:
             c_scale = cursor_height / orig_ch
             self.cursor_quill = pygame.transform.smoothscale(self.cursor_quill, (int(orig_cw * c_scale), int(orig_ch * c_scale)))
 
+            self.stamp_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "stamp.png"))
+            if self.stamp_image:
+                s_w, s_h = self.stamp_image.get_size()
+                s_scale = 150 / s_w # target width 150
+                self.stamp_image = pygame.transform.smoothscale(self.stamp_image, (int(s_w * s_scale), int(s_h * s_scale)))
+
         except Exception as e:
             print(f"Error loading contract images: {e}")
             self.stone_image = None
             self.cursor_quill = None
+            self.stamp_image = None
 
         # Dimensions
         self.overlay_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -81,6 +88,11 @@ class ContractView:
         self.is_signing = False
         self.last_pos = None
         self.hit_signature_box = False
+        
+        # Stamping and Fading state
+        self.is_stamped = False
+        self.stamp_timer = 0.0 # 3.0 (1s wait + 2s fade)
+        self.global_alpha = 255
 
         # Buttons
         btn_w = 120
@@ -130,7 +142,19 @@ class ContractView:
         
         return final_lines
 
+    def update(self, delta_time: float) -> None:
+        if self.is_stamped:
+            self.stamp_timer -= delta_time
+            if self.stamp_timer <= 0:
+                self.active = False
+            elif self.stamp_timer < 2.0:
+                # Fade out over 2 seconds
+                self.global_alpha = int(255 * (self.stamp_timer / 2.0))
+
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        if self.is_stamped:
+             return None # Block input during animation
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             if event.button == 1:
                 # Check buttons
@@ -138,8 +162,10 @@ class ContractView:
                     if not self.hit_signature_box:
                         self.game.state.warning = WarningMessage(self.screen, "You have to sign in the field!", self.game.font, self.game)
                         return None
-                    self.active = False
-                    return "Confirm"
+                    # Start stamp and fade process
+                    self.is_stamped = True
+                    self.stamp_timer = 4.0
+                    return None
                 elif self.btn_deny.collidepoint(event.pos):
                     self.active = False
                     return "Deny"
@@ -180,34 +206,39 @@ class ContractView:
     def draw(self) -> None:
         # Darken background
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(150)
+        overlay.set_alpha(int(150 * (self.global_alpha / 255)))
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
 
-        # Paper
-        pygame.draw.rect(self.screen, self.paper_color, self.paper_rect)
+        # Create a temporary surface for the paper and its content to allow global fading
+        paper_surf = pygame.Surface((self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA)
+        
+        # Local rect for drawing inside paper_surf
+        local_paper_rect = pygame.Rect(0, 0, self.paper_rect.width, self.paper_rect.height)
+
+        # Paper Background
+        pygame.draw.rect(paper_surf, self.paper_color, local_paper_rect)
         # Outer Border
-        pygame.draw.rect(self.screen, (100, 80, 60), self.paper_rect, 3) 
+        pygame.draw.rect(paper_surf, (100, 80, 60), local_paper_rect, 3) 
         # Inner decorative border
-        inner_rect = self.paper_rect.inflate(-20, -20)
-        pygame.draw.rect(self.screen, (100, 80, 60), inner_rect, 1)
+        inner_rect = local_paper_rect.inflate(-20, -20)
+        pygame.draw.rect(paper_surf, (100, 80, 60), inner_rect, 1)
 
         # Title
         if self.raw_text:
-            # Clean title text - remove BOM or other weird chars if present
             title_text = self.raw_text[0].strip().replace('\ufeff', '')
             title_surf = self.title_font.render(title_text, True, (60, 40, 20))
-            title_rect = title_surf.get_rect(centerx=self.paper_rect.centerx, top=self.paper_rect.top + 30)
-            self.screen.blit(title_surf, title_rect)
+            title_rect = title_surf.get_rect(centerx=local_paper_rect.centerx, top=local_paper_rect.top + 30)
+            paper_surf.blit(title_surf, title_rect)
             
             # Line under title
-            pygame.draw.line(self.screen, (60, 40, 20), (self.paper_rect.left + 60, title_rect.bottom + 5), (self.paper_rect.right - 60, title_rect.bottom + 5), 2)
+            pygame.draw.line(paper_surf, (60, 40, 20), (local_paper_rect.left + 60, title_rect.bottom + 5), (local_paper_rect.right - 60, title_rect.bottom + 5), 2)
 
-        # Image (Stone) - Moved down slightly to avoid overlap
+        # Image (Stone)
         if self.stone_image:
             img_rect = self.stone_image.get_rect()
-            img_rect.topright = (self.paper_rect.right - 40, self.paper_rect.top + 90)
-            self.screen.blit(self.stone_image, img_rect)
+            img_rect.topright = (local_paper_rect.right - 40, local_paper_rect.top + 90)
+            paper_surf.blit(self.stone_image, img_rect)
 
         # Body Text
         y_offset_start = 120
@@ -215,67 +246,89 @@ class ContractView:
         line_height = 28
         
         if len(self.raw_text) > 1:
-            full_body = "".join(self.raw_text[1:]) # Join rest of lines
-            
-            # Clean up the text - replace placeholder boxes/unknown chars
+            full_body = "".join(self.raw_text[1:])
             full_body = full_body.replace('—', '-').replace('"', '"').replace('“', '"').replace('”', '"').replace('’', "'")
             
-            # Pass image rect to respect wrapping
-            img_rect = None
-            if self.stone_image:
-                img_rect = self.stone_image.get_rect()
-                img_rect.topright = (self.paper_rect.right - 40, self.paper_rect.top + 90)
-
+            # We already have lines split, but we used self.paper_rect.width which is fine
+            # We'll just re-render them onto paper_surf
+            # Note: handle_event split them using paper_rect.width, so they fit.
+            # But the logic for split_text_to_lines in draw was a bit messy. 
+            # I'll just re-use the local coordinates.
+            
+            # Simple re-rendering logic
+            # For simplicity I'll re-calculate lines to ensure they fit the local surf
+            # (Though they are usually the same)
             lines = self.split_text_to_lines(full_body, self.body_font, self.paper_rect.width, x_margin, y_offset_start, line_height, img_rect)
             
             y_offset = y_offset_start
             for line in lines:
-                # Basic cleaner
                 line = line.strip()
                 if not line:
-                     y_offset += 15 # smaller gap for empty lines
+                     y_offset += 15
                      continue
-                     
                 line_surf = self.body_font.render(line, True, BLACK)
-                current_y = self.paper_rect.y + y_offset
-                
-                # Render
-                self.screen.blit(line_surf, (self.paper_rect.x + x_margin, current_y))
+                paper_surf.blit(line_surf, (x_margin, y_offset))
                 y_offset += line_height
 
         # Signature Area
-        # Draw dotted line or box
-        pygame.draw.rect(self.screen, (230, 220, 200), self.signature_rect)
-        pygame.draw.rect(self.screen, (150, 150, 150), self.signature_rect, 1) # Thin border
+        local_sig_rect = pygame.Rect(
+            (local_paper_rect.width - self.signature_rect.width) // 2,
+            local_paper_rect.height - 160,
+            self.signature_rect.width,
+            self.signature_rect.height
+        )
+        pygame.draw.rect(paper_surf, (230, 220, 200), local_sig_rect)
+        pygame.draw.rect(paper_surf, (150, 150, 150), local_sig_rect, 1)
         
-        # 'X' mark
         x_mark = self.body_font.render("X", True, BLACK)
-        self.screen.blit(x_mark, (self.signature_rect.x - 20, self.signature_rect.bottom - 30))
+        paper_surf.blit(x_mark, (local_sig_rect.x - 20, local_sig_rect.bottom - 30))
 
-        # Signature content
-        self.screen.blit(self.signature_surface, self.paper_rect)
+        # Signature content (already in local coords for paper_rect)
+        paper_surf.blit(self.signature_surface, (0, 0))
 
         # Buttons
         mouse_pos = pygame.mouse.get_pos()
+        # Translate mouse pos to local paper surf coords for hover check
+        local_mouse_pos = (mouse_pos[0] - self.paper_rect.x, mouse_pos[1] - self.paper_rect.y)
         
-        # Confirm (Buy style)
-        confirm_hover = self.btn_confirm.collidepoint(mouse_pos)
+        # Local button rects
+        local_btn_confirm = pygame.Rect(self.btn_confirm.x - self.paper_rect.x, self.btn_confirm.y - self.paper_rect.y, self.btn_confirm.width, self.btn_confirm.height)
+        local_btn_deny = pygame.Rect(self.btn_deny.x - self.paper_rect.x, self.btn_deny.y - self.paper_rect.y, self.btn_deny.width, self.btn_deny.height)
+
+        # Confirm 
+        confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped
         confirm_color = BUY_BUTTON_HOVER if confirm_hover else BUY_BUTTON
-        pygame.draw.rect(self.screen, confirm_color, self.btn_confirm)
-        pygame.draw.rect(self.screen, BUY_BUTTON_BORDER, self.btn_confirm, 2)
+        pygame.draw.rect(paper_surf, confirm_color, local_btn_confirm)
+        pygame.draw.rect(paper_surf, BUY_BUTTON_BORDER, local_btn_confirm, 2)
         confirm_text = self.body_font.render("Confirm", True, BUTTON_TEXT)
-        self.screen.blit(confirm_text, confirm_text.get_rect(center=self.btn_confirm.center))
+        paper_surf.blit(confirm_text, confirm_text.get_rect(center=local_btn_confirm.center))
         
-        # Deny (Sell style)
-        deny_hover = self.btn_deny.collidepoint(mouse_pos)
+        # Deny
+        deny_hover = local_btn_deny.collidepoint(local_mouse_pos) and not self.is_stamped
         deny_color = SELL_BUTTON_HOVER if deny_hover else SELL_BUTTON
-        pygame.draw.rect(self.screen, deny_color, self.btn_deny)
-        pygame.draw.rect(self.screen, SELL_BUTTON_BORDER, self.btn_deny, 2)
+        pygame.draw.rect(paper_surf, deny_color, local_btn_deny)
+        pygame.draw.rect(paper_surf, SELL_BUTTON_BORDER, local_btn_deny, 2)
         deny_text = self.body_font.render("Deny", True, BUTTON_TEXT)
-        self.screen.blit(deny_text, deny_text.get_rect(center=self.btn_deny.center))
+        paper_surf.blit(deny_text, deny_text.get_rect(center=local_btn_deny.center))
+
+        # Stamp
+        if self.is_stamped and self.stamp_image:
+            stamp_rect = self.stamp_image.get_rect()
+            # Position relatively but not completely at the right bottom
+            stamp_rect.bottomright = (local_paper_rect.right - 60, local_paper_rect.bottom - 80)
+            paper_surf.blit(self.stamp_image, stamp_rect)
+
+        # Finally blit the paper surface with global alpha
+        # Easiest way to fade a surface with transparency:
+        # Create a surface with the alpha we want
+        alpha_surf = pygame.Surface(paper_surf.get_size(), pygame.SRCALPHA)
+        alpha_surf.fill((255, 255, 255, self.global_alpha))
+        paper_surf.blit(alpha_surf, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        self.screen.blit(paper_surf, self.paper_rect)
 
     def draw_cursor(self) -> None:
-        if self.cursor_quill:
+        if self.cursor_quill and not self.is_stamped:
             mouse_pos = pygame.mouse.get_pos()
             # Offset so the tip is at the mouse position
             # Assuming the tip is at the bottom-left of the image
