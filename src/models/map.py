@@ -11,7 +11,7 @@ import pygame
 import pytmx
 from typing import List, Dict, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM
+from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .tree import Tree
 from .light import Light, BuildingLight, BuildingLightGroup
@@ -763,8 +763,8 @@ class GameMap:
         
         # Initialize map player
         self.map_player: MapPlayer = MapPlayer(
-            10.0 * self.tmx_map.tile_size,
-            10.0 * self.tmx_map.tile_size,
+            START_X_POSITION,
+            START_Y_POSITION,
             self.tmx_map.tile_size
         )
     
