@@ -94,6 +94,7 @@ class ContractView:
         
         # Stamping and Fading state
         self.is_stamped = False
+        self.is_denied = False
         self.stamp_timer = 0.0 # 3.0 (1s wait + 2s fade)
         self.global_alpha = 255
 
@@ -165,7 +166,7 @@ class ContractView:
         return final_lines
 
     def update(self, delta_time: float) -> None:
-        if self.is_stamped:
+        if self.is_stamped or self.is_denied:
             self.stamp_timer -= delta_time
             if self.stamp_timer <= 0:
                 self.active = False
@@ -174,7 +175,7 @@ class ContractView:
                 self.global_alpha = int(255 * (self.stamp_timer / 2.0))
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        if self.is_stamped:
+        if self.is_stamped or self.is_denied:
              return None # Block input during animation
 
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -191,7 +192,9 @@ class ContractView:
                     self.stamp_timer = 4.0
                     return None
                 elif self.btn_deny.collidepoint(event.pos):
-                    self.active = False
+                    # Start fade out process immediately
+                    self.is_denied = True
+                    self.stamp_timer = 2.0
                     return "Deny"
                 
                 # Start signing anywhere on paper
@@ -368,7 +371,7 @@ class ContractView:
         local_btn_deny = pygame.Rect(self.btn_deny.x - self.paper_rect.x, self.btn_deny.y - self.paper_rect.y, self.btn_deny.width, self.btn_deny.height)
 
         # Confirm 
-        confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped
+        confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
         confirm_color = BUY_BUTTON_HOVER if confirm_hover else BUY_BUTTON
         pygame.draw.rect(paper_surf, confirm_color, local_btn_confirm)
         pygame.draw.rect(paper_surf, BUY_BUTTON_BORDER, local_btn_confirm, 2)
@@ -376,7 +379,7 @@ class ContractView:
         paper_surf.blit(confirm_text, confirm_text.get_rect(center=local_btn_confirm.center))
         
         # Deny
-        deny_hover = local_btn_deny.collidepoint(local_mouse_pos) and not self.is_stamped
+        deny_hover = local_btn_deny.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
         deny_color = SELL_BUTTON_HOVER if deny_hover else SELL_BUTTON
         pygame.draw.rect(paper_surf, deny_color, local_btn_deny)
         pygame.draw.rect(paper_surf, SELL_BUTTON_BORDER, local_btn_deny, 2)
@@ -400,7 +403,7 @@ class ContractView:
         self.screen.blit(paper_surf, self.paper_rect)
 
     def draw_cursor(self) -> None:
-        if self.cursor_quill and not self.is_stamped:
+        if self.cursor_quill and not self.is_stamped and not self.is_denied:
             mouse_pos = pygame.mouse.get_pos()
             # Offset so the tip is at the mouse position
             # Assuming the tip is at the bottom-left of the image
