@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ...game import Game
 
 class ContractView:
-    def __init__(self, screen: pygame.Surface, game: 'Game', contract_file: str, image_file: str) -> None:
+    def __init__(self, screen: pygame.Surface, game: 'Game', contract_file: str, image_file: str, **placeholders) -> None:
         self.screen = screen
         self.game = game
         self.active = True
@@ -32,6 +32,14 @@ class ContractView:
             text_path = os.path.join(MAIN_PATH, "assets", "texts", "contracts", contract_file)
             with open(text_path, 'r', encoding='utf-8') as f:
                 self.raw_text = f.readlines()
+            
+            # Replace placeholders in the loaded text
+            for i, line in enumerate(self.raw_text):
+                for key, value in placeholders.items():
+                    placeholder_str = f"[$${key}$$]"
+                    line = line.replace(placeholder_str, str(value))
+                self.raw_text[i] = line
+                
         except FileNotFoundError:
             self.raw_text = ["Contract text not found."]
 
