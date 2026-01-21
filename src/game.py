@@ -120,6 +120,22 @@ class Game:
             self.font,
             self.images['button_sound_80']
         )
+        
+        # Load and setup custom cursor
+        try:
+            cursor_path = os.path.join(PICTURES_PATH, "cursor_1.png")
+            if os.path.exists(cursor_path):
+                raw_cursor = pygame.image.load(cursor_path).convert_alpha()
+                # Original size (554x751) is too big, scale down to roughly 30 width keeping aspect ratio
+                # 30 / 554 = 0.054. 751 * 0.054 = 40.5
+                self.cursor_img = pygame.transform.smoothscale(raw_cursor, (30, 41))
+                pygame.mouse.set_visible(False)
+            else:
+                self.cursor_img = None
+                print(f"Cursor file not found at {cursor_path}")
+        except Exception as e:
+            print(f"Failed to load custom cursor: {e}")
+            self.cursor_img = None
 
     def _initialize_goods(self) -> List[Good]:
         """Create and initialize the default list of goods for the market.
@@ -398,6 +414,11 @@ class Game:
                 
                 running = self.event_handler.handle_events(event, self.state, 
                                                         self.goods, self.depot, buttons)
+            
+            # Draw custom cursor on top of everything
+            if self.cursor_img and pygame.mouse.get_focused():
+                mouse_pos = pygame.mouse.get_pos()
+                self.screen.blit(self.cursor_img, mouse_pos)
                 
             pygame.display.update()
 
