@@ -110,6 +110,10 @@ class ContractView:
         self.scribble_channel = None
         self.last_motion_ticks = 0
 
+        # Ripping animation state
+        self.rip_pieces = [] # Stores (surface, pos, angle, velocity_x, velocity_y, rot_vel)
+        self.rip_progress = 0.0
+
         # Adjust volume for scribble sounds - Pygame limits volume to 1.0, 
         # so for "louder" we'll ensure they are at max and potentially double-play.
         for i in range(1, 5):
@@ -201,6 +205,16 @@ class ContractView:
                 # Fade out over 2 seconds
                 self.global_alpha = int(255 * (self.stamp_timer / 2.0))
         
+        if self.is_denied and self.rip_pieces:
+            # Update piece positions
+            for i in range(len(self.rip_pieces)):
+                surf, pos, angle, vx, vy, rv = self.rip_pieces[i]
+                new_pos = (pos[0] + vx * delta_time, pos[1] + vy * delta_time)
+                new_angle = angle + rv * delta_time
+                # Add gravity-like effect
+                new_vy = vy + 500 * delta_time
+                self.rip_pieces[i] = (surf, new_pos, new_angle, vx, new_vy, rv)
+
         # Handle scribble sound stopping during idle motion while still signing
         if self.is_signing and self.scribble_channel and self.scribble_channel.get_busy():
             current_ticks = pygame.time.get_ticks()
@@ -228,6 +242,8 @@ class ContractView:
                     # Start fade out process immediately
                     self.is_denied = True
                     self.stamp_timer = 2.0
+                    self.game.play_sound("rip_paper")
+                    self._create_rip_pieces()
                     return "Deny"
                 
                 # Start signing anywhere on paper
@@ -276,17 +292,46 @@ class ContractView:
         
         return None
 
-    def draw(self) -> None:
-        # Darken background
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-        overlay.set_alpha(int(150 * (self.global_alpha / 255)))
-        overlay.fill((0, 0, 0))
-        self.screen.blit(overlay, (0, 0))
+    def _create_rip_pieces(self) -> None:
+        # Create a surface with the current full content of the paper
+        full_paper = pygame.Surface((self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA)
+        self._render_paper_content(full_paper)
 
-        # Create a temporary surface for the paper and its content to allow global fading
-        paper_surf = pygame.Surface((self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA)
+        w, h = full_paper.get_size()
+        center_x = w // 2
         
-        # Local rect for drawing inside paper_surf
+        # Generate jagged rip points
+        points = [(center_x + random.randint(-15, 15), y) for y in range(0, h + 10, 15)]
+        points[0] = (center_x + random.randint(-5, 5), 0)
+        points[-1] = (center_x + random.randint(-5, 5), h)
+
+        # Left piece
+        left_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        poly_left = [(0, 0)] + points + [(0, h)]
+        
+        # We'll use a temp surface as a mask
+        mask_left = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.polygon(mask_left, (255, 255, 255, 255), poly_left)
+        left_surf.blit(full_paper, (0, 0))
+        left_surf.blit(mask_left, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        # Right piece
+        right_surf = pygame.Surface((w, h), pygame.SRCALPHA)
+        poly_right = [(w, 0)] + points + [(w, h)]
+        mask_right = pygame.Surface((w, h), pygame.SRCALPHA)
+        pygame.draw.polygon(mask_right, (255, 255, 255, 255), poly_right)
+        right_surf.blit(full_paper, (0, 0))
+        right_surf.blit(mask_right, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+
+        # Define physics for pieces
+        # [surface, (x, y), angle, vx, vy, rot_vel]
+        start_x, start_y = self.paper_rect.x, self.paper_rect.y
+        self.rip_pieces = [
+            [left_surf, [start_x, start_y], 0.0, -200.0, -100.0, -30.0], # Left piece moves left and rotates CCW
+            [right_surf, [start_x, start_y], 0.0, 200.0, -150.0, 45.0]   # Right piece moves right and rotates CW
+        ]
+
+    def _render_paper_content(self, paper_surf: pygame.Surface) -> None:
         local_paper_rect = pygame.Rect(0, 0, self.paper_rect.width, self.paper_rect.height)
 
         # Paper Background
@@ -310,13 +355,9 @@ class ContractView:
         # Image (Stone)
         if self.stone_image:
             img_rect = self.stone_image.get_rect()
-            # Moved a bit more down and left
             img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
-            
-            # Draw frame
             frame_rect = img_rect.inflate(10, 10)
-            pygame.draw.rect(paper_surf, (100, 80, 60), frame_rect, 2) # Frame border
-            
+            pygame.draw.rect(paper_surf, (100, 80, 60), frame_rect, 2)
             paper_surf.blit(self.stone_image, img_rect)
 
         # Body Text
@@ -327,17 +368,10 @@ class ContractView:
         if len(self.raw_text) > 1:
             full_body = "".join(self.raw_text[1:])
             full_body = full_body.replace('—', '-').replace('"', '"').replace('“', '"').replace('”', '"').replace('’', "'")
-            
-            # Use updated img_rect for wrapping
             wrapping_img_rect = self.stone_image.get_rect()
             wrapping_img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
-
-            # Add more margin to the left for wrapping calculation
             wrapping_img_rect.width += 10 
 
-            # Simple re-rendering logic
-            # For simplicity I'll re-calculate lines to ensure they fit the local surf
-            # (Though they are usually the same)
             lines = self.split_text_to_lines(full_body, self.body_font, self.paper_rect.width, x_margin, y_offset_start, line_height, wrapping_img_rect)
 
             y_offset = y_offset_start
@@ -349,46 +383,32 @@ class ContractView:
                 
                 if is_start and line_text:
                     if line_text.startswith("• "):
-                        # Render prefix "• " normally, then the next char big
                         prefix = line_text[:2]
                         if len(line_text) > 2:
                             first_char = line_text[2]
                             rest = line_text[3:]
-                            
                             prefix_surf = self.body_font.render(prefix, True, BLACK)
                             char_surf = self.drop_cap_font.render(first_char, True, BLACK)
                             rest_surf = self.body_font.render(rest, True, BLACK)
-                            
-                            current_y = y_offset
-                            paper_surf.blit(prefix_surf, (x_margin, current_y))
-                            
+                            paper_surf.blit(prefix_surf, (x_margin, y_offset))
                             p_width = prefix_surf.get_width()
-                            paper_surf.blit(char_surf, (x_margin + p_width, current_y - 8))
-                            
+                            paper_surf.blit(char_surf, (x_margin + p_width, y_offset - 8))
                             c_width = char_surf.get_width()
-                            paper_surf.blit(rest_surf, (x_margin + p_width + c_width, current_y))
+                            paper_surf.blit(rest_surf, (x_margin + p_width + c_width, y_offset))
                         else:
                             line_surf = self.body_font.render(line_text, True, BLACK)
                             paper_surf.blit(line_surf, (x_margin, y_offset))
                     else:
-                        # Draw first letter with big font
                         first_char = line_text[0]
                         rest = line_text[1:]
-                        
                         char_surf = self.drop_cap_font.render(first_char, True, BLACK)
                         rest_surf = self.body_font.render(rest, True, BLACK)
-                        
-                        # Align the big letter slightly lower so it sits better with the line
-                        current_y = y_offset
-                        paper_surf.blit(char_surf, (x_margin, current_y - 8))
-                        
-                        # Blit rest of the text after the width of the first character
+                        paper_surf.blit(char_surf, (x_margin, y_offset - 8))
                         char_width = char_surf.get_width()
-                        paper_surf.blit(rest_surf, (x_margin + char_width, current_y))
+                        paper_surf.blit(rest_surf, (x_margin + char_width, y_offset))
                 else:
                     line_surf = self.body_font.render(line_text, True, BLACK)
                     paper_surf.blit(line_surf, (x_margin, y_offset))
-                
                 y_offset += line_height
 
         # Signature Area
@@ -400,23 +420,16 @@ class ContractView:
         )
         pygame.draw.rect(paper_surf, (230, 220, 200), local_sig_rect)
         pygame.draw.rect(paper_surf, (150, 150, 150), local_sig_rect, 1)
-        
         x_mark = self.body_font.render("X", True, BLACK)
         paper_surf.blit(x_mark, (local_sig_rect.x - 20, local_sig_rect.bottom - 30))
-
-        # Signature content (already in local coords for paper_rect)
         paper_surf.blit(self.signature_surface, (0, 0))
 
         # Buttons
         mouse_pos = pygame.mouse.get_pos()
-        # Translate mouse pos to local paper surf coords for hover check
         local_mouse_pos = (mouse_pos[0] - self.paper_rect.x, mouse_pos[1] - self.paper_rect.y)
-        
-        # Local button rects
         local_btn_confirm = pygame.Rect(self.btn_confirm.x - self.paper_rect.x, self.btn_confirm.y - self.paper_rect.y, self.btn_confirm.width, self.btn_confirm.height)
         local_btn_deny = pygame.Rect(self.btn_deny.x - self.paper_rect.x, self.btn_deny.y - self.paper_rect.y, self.btn_deny.width, self.btn_deny.height)
 
-        # Confirm 
         confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
         confirm_color = BUY_BUTTON_HOVER if confirm_hover else BUY_BUTTON
         pygame.draw.rect(paper_surf, confirm_color, local_btn_confirm)
@@ -432,12 +445,36 @@ class ContractView:
         deny_text = self.body_font.render("Deny", True, BUTTON_TEXT)
         paper_surf.blit(deny_text, deny_text.get_rect(center=local_btn_deny.center))
 
-        # Stamp
         if self.is_stamped and self.stamp_image:
             stamp_rect = self.stamp_image.get_rect()
-            # Position relatively but not completely at the right bottom
             stamp_rect.bottomright = (local_paper_rect.right - 60, local_paper_rect.bottom - 80)
             paper_surf.blit(self.stamp_image, stamp_rect)
+
+    def draw(self) -> None:
+        # Darken background
+        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay.set_alpha(int(150 * (self.global_alpha / 255)))
+        overlay.fill((0, 0, 0))
+        self.screen.blit(overlay, (0, 0))
+
+        if self.is_denied and self.rip_pieces:
+            # Draw ripping pieces
+            for surf, pos, angle, vx, vy, rv in self.rip_pieces:
+                # Apply alpha to piece
+                temp_surf = surf.copy()
+                alpha_surf = pygame.Surface(temp_surf.get_size(), pygame.SRCALPHA)
+                alpha_surf.fill((255, 255, 255, self.global_alpha))
+                temp_surf.blit(alpha_surf, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                
+                # Rotate
+                rotated_surf = pygame.transform.rotate(temp_surf, angle)
+                rotated_rect = rotated_surf.get_rect(topleft=pos)
+                self.screen.blit(rotated_surf, rotated_rect)
+            return
+
+        # Create a temporary surface for the paper and its content to allow global fading
+        paper_surf = pygame.Surface((self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA)
+        self._render_paper_content(paper_surf)
 
         # Finally blit the paper surface with global alpha
         # Easiest way to fade a surface with transparency:

@@ -1,15 +1,12 @@
 # Project Trader TODOs
 
 ## High Priority
-
 - [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [ ] with new tiles create a market area, only there a player can trade
 - [ ] create market booths as asset sprites
 - [ ] place the market booths in the market area
 
 ## Medium Priority
-
-- [ ] Demo to sign a contract (from the menu button for now just to check the functionality)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] Trading at the market should only be available between 6am and 10pm
@@ -33,7 +30,8 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
-Finished Features
+## Finished Features
+- [x] Demo to sign a contract (from the menu button for now just to check the functionality)
 - [x] Added custom mouse cursor
 - [x] Added night light effects for the church
 - [x] create special night light areas for big buildings as polygons and let them shine every night (city hall)
