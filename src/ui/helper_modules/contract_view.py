@@ -184,6 +184,8 @@ class ContractView:
                     if not self.hit_signature_box:
                         self.game.state.warning = WarningMessage(self.screen, "You have to sign in the field!", self.game.font, self.game)
                         return None
+                    # Play stamp sound
+                    self.game.play_sound("stamp")
                     # Start stamp and fade process
                     self.is_stamped = True
                     self.stamp_timer = 4.0
