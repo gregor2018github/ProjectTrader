@@ -78,7 +78,7 @@ class ContractView:
         sig_h = 100
         self.signature_rect = pygame.Rect(
             self.paper_rect.x + (paper_w - sig_w) // 2,
-            self.paper_rect.bottom - 160, # Above buttons
+            self.paper_rect.bottom - 260, # Above buttons
             sig_w,
             sig_h
         )
@@ -99,7 +99,7 @@ class ContractView:
         btn_h = 40
         spacing = 20
         start_x = self.paper_rect.centerx - btn_w - (spacing // 2)
-        btn_y = self.paper_rect.bottom - 50
+        btn_y = self.paper_rect.bottom - 150
         
         self.btn_confirm = pygame.Rect(start_x, btn_y, btn_w, btn_h)
         self.btn_deny = pygame.Rect(start_x + btn_w + spacing, btn_y, btn_w, btn_h)
@@ -273,7 +273,7 @@ class ContractView:
         # Signature Area
         local_sig_rect = pygame.Rect(
             (local_paper_rect.width - self.signature_rect.width) // 2,
-            local_paper_rect.height - 160,
+            local_paper_rect.height - 260,
             self.signature_rect.width,
             self.signature_rect.height
         )
