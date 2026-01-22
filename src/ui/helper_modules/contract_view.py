@@ -7,6 +7,7 @@ contract that the player can sign, stamp, or tear up.
 import pygame
 import os
 import random
+import math
 from typing import Optional, List, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
@@ -126,6 +127,7 @@ class ContractView:
         paper_h = int(SCREEN_HEIGHT * 0.9)
         self.paper_rect = pygame.Rect((self.total_width - paper_w) // 2, (SCREEN_HEIGHT - paper_h) // 2, paper_w, paper_h)
         self.paper_color = (245, 235, 210) # Parchment color ish
+        self.paper_texture = self._generate_paper_texture(paper_w, paper_h)
 
         # Signature Area
         sig_w = int(paper_w * 0.8)
@@ -411,6 +413,73 @@ class ContractView:
             [right_surf, [start_x, start_y], 0.0, 200.0, -150.0, 45.0]   # Right piece moves right and rotates CW
         ]
 
+    def _generate_paper_texture(self, width: int, height: int) -> pygame.Surface:
+        """Generates a parchment-like texture surface using procedural noise."""
+        surface = pygame.Surface((width, height))
+        # Slightly darker base for better contrast
+        base_color = (240, 230, 205)
+        surface.fill(base_color)
+        
+        # 1. Heavy Grain / Noise
+        for _ in range(8000):
+            x = random.randint(0, width)
+            y = random.randint(0, height)
+            radius = random.randint(1, 2)
+            
+            # Use a brownish/grey noise color
+            # Much more contrast than before
+            noise_color = (180, 170, 150)
+            
+            # Higher alpha for visibility
+            alpha = random.randint(30, 80)
+            
+            temp_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(temp_surf, (*noise_color, alpha), (radius, radius), radius)
+            surface.blit(temp_surf, (x - radius, y - radius))
+            
+        # 2. Larger "dirty" stains/blots
+        for _ in range(25):
+            x = random.randint(0, width)
+            y = random.randint(0, height)
+            w_blob = random.randint(40, 150)
+            h_blob = random.randint(40, 150)
+            
+            # Irregular ellipses
+            temp_surf = pygame.Surface((w_blob, h_blob), pygame.SRCALPHA)
+            # Coffee-stain like brown
+            pygame.draw.ellipse(temp_surf, (160, 140, 110, 15), (0, 0, w_blob, h_blob))
+            surface.blit(temp_surf, (x - w_blob//2, y - h_blob//2))
+
+        # 3. Simulate some random creases/fibers
+        for _ in range(50):
+            x1 = random.randint(0, width)
+            y1 = random.randint(0, height)
+            length = random.randint(10, 50)
+            angle = random.uniform(0, 3.14159 * 2)
+            x2 = x1 + int(length * math.cos(angle))
+            y2 = y1 + int(length * math.sin(angle))
+            
+            # Dark thin lines for fibers
+            color_fiber = (150, 140, 120, 100)
+            
+            # Draw line on temp surface for alpha
+            min_x = min(x1, x2)
+            min_y = min(y1, y2)
+            w_line = abs(x2 - x1) + 4
+            h_line = abs(y2 - y1) + 4
+            
+            if w_line > 0 and h_line > 0:
+                temp_line = pygame.Surface((w_line, h_line), pygame.SRCALPHA)
+                pygame.draw.aaline(
+                    temp_line, 
+                    color_fiber, 
+                    (x1 - min_x + 2, y1 - min_y + 2), 
+                    (x2 - min_x + 2, y2 - min_y + 2)
+                )
+                surface.blit(temp_line, (min_x - 2, min_y - 2))
+
+        return surface
+
     def _render_paper_content(self, paper_surf: pygame.Surface) -> None:
         """Drives the actual drawing of text and graphics onto the parchment surface.
         
@@ -420,7 +489,8 @@ class ContractView:
         local_paper_rect = pygame.Rect(0, 0, self.paper_rect.width, self.paper_rect.height)
 
         # Paper Background
-        pygame.draw.rect(paper_surf, self.paper_color, local_paper_rect)
+        paper_surf.blit(self.paper_texture, (0, 0))
+        
         # Outer Border
         pygame.draw.rect(paper_surf, (100, 80, 60), local_paper_rect, 3) 
         # Inner decorative border
