@@ -114,6 +114,7 @@ class ContractView:
         self.is_denied = False
         self.stamp_timer = 0.0 # 3.0 (1s wait + 2s fade)
         self.global_alpha = 255
+        self.shake_offset = [0, 0]
 
         self.scribble_channel = None
         self.last_motion_ticks = 0
@@ -212,6 +213,14 @@ class ContractView:
             elif self.stamp_timer < 2.0:
                 # Fade out over 2 seconds
                 self.global_alpha = int(255 * (self.stamp_timer / 2.0))
+            
+            # Shake effect when stamped (only for first 0.3s after impact)
+            if self.is_stamped and self.stamp_timer > 3.9:
+                shake_intensity = 2
+                self.shake_offset = [random.randint(-shake_intensity, shake_intensity), 
+                                    random.randint(-shake_intensity, shake_intensity)]
+            else:
+                self.shake_offset = [0, 0]
         
         if self.is_denied and self.rip_pieces:
             # Update piece positions
@@ -501,7 +510,7 @@ class ContractView:
         alpha_surf.fill((255, 255, 255, self.global_alpha))
         paper_surf.blit(alpha_surf, (0,0), special_flags=pygame.BLEND_RGBA_MULT)
 
-        self.screen.blit(paper_surf, self.paper_rect)
+        self.screen.blit(paper_surf, (self.paper_rect.x + self.shake_offset[0], self.paper_rect.y + self.shake_offset[1]))
 
     def draw_cursor(self) -> None:
         if self.cursor_quill and not self.is_stamped and not self.is_denied:
