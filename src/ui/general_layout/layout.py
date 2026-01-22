@@ -126,6 +126,9 @@ def _draw_bottom_bar(
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
     
+    # Check if menu is open - if so, disable all hover effects on other buttons
+    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    
     def draw_input_field(rect: pygame.Rect, text: str, is_selected: bool) -> None:
         """Helper to draw a text input field with an optional cursor.
         
@@ -150,7 +153,12 @@ def _draw_bottom_bar(
     
     # Helper function to check if mouse is hovering over a rect
     def is_hovering(rect: pygame.Rect) -> bool:
-        """Check if the mouse is currently hovering over the given rect."""
+        """Check if the mouse is currently hovering over the given rect.
+        
+        Returns False if the menu is open to prevent hover effects on other buttons.
+        """
+        if menu_is_open:
+            return False
         return rect.collidepoint(mouse_pos)
     
     # Draw input fields and buttons for all three trading sections
@@ -257,7 +265,7 @@ def _draw_bottom_bar(
         
     return buttons
 
-def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font) -> None:
+def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font, game_state: "GameState") -> None:
     """Draws the right sidebar for menu options with pictogram buttons and sub-buttons.
     
     The menu button is drawn separately in the menu module.
@@ -267,6 +275,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
         images: Dictionary of pre-loaded pictogram images.
         buttons: Dictionary to store the clickable button rects.
         main_font: Font for tooltip rendering.
+        game_state: The current game state object.
     """
     right_bar = pygame.Rect(SCREEN_WIDTH, 0, SIDEBAR_WIDTH, SCREEN_HEIGHT)
     pygame.draw.rect(screen, LIGHT_GRAY, right_bar)
@@ -274,6 +283,10 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
 
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()
+    
+    # Check if menu is open - if so, disable all hover effects on other buttons
+    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    
     tooltips = []
 
     # Draw pictograms for side menu
@@ -306,7 +319,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             
             # Left button "picto_<name>_left"
             left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
-            is_left_hovered = left_btn_rect.collidepoint(mouse_pos)
+            is_left_hovered = left_btn_rect.collidepoint(mouse_pos) and not menu_is_open
             color_left = PALE_BROWN if is_left_hovered else TAN
             pygame.draw.rect(screen, color_left, left_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
@@ -316,7 +329,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             
             # Right button "picto_<name>_right"
             right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
-            is_right_hovered = right_btn_rect.collidepoint(mouse_pos)
+            is_right_hovered = right_btn_rect.collidepoint(mouse_pos) and not menu_is_open
             color_right = PALE_BROWN if is_right_hovered else TAN
             pygame.draw.rect(screen, color_right, right_btn_rect)
             pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
@@ -329,7 +342,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             buttons[f"pictogram_{name}"] = rect
 
             # Main pictogram hover effect
-            is_pictogram_hovered = visible_rect.collidepoint(mouse_pos) and not is_left_hovered and not is_right_hovered
+            is_pictogram_hovered = visible_rect.collidepoint(mouse_pos) and not is_left_hovered and not is_right_hovered and not menu_is_open
             if is_pictogram_hovered:
                 # redraw pictogram a bit darker to indicate hover
                 overlay = pygame.Surface((visible_rect.width, visible_rect.height), pygame.SRCALPHA)

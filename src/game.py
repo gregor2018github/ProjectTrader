@@ -372,7 +372,7 @@ class Game:
                                 self.state.mouse_clicked_on, self.images, self.state)
             
             # 5. Draw right sidebar and other overlays
-            draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font)
+            draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)
             # Draw menu above the right sidebar
             self.menu.draw(self.screen)
             

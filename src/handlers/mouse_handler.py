@@ -25,6 +25,52 @@ def handle_mouse_click(pos: Tuple[int, int],
         goods: List of all tradeable goods.
         depot: The player's depot/inventory model.
     """
+    # Handle dialogue clicks first if active - blocks all other UI interactions
+    if hasattr(game_state, 'dialogue') and game_state.dialogue:
+        result = game_state.dialogue.handle_click(pos)
+        if result:
+            if result == "Follow the Address":
+                # Create a new follow-up dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "portrait_shop",  # Use picture parameter
+                    "Story Teller",       # Use npc_name parameter
+                    """You make your way through the sleepy town and eventually enter a cramped but well-organized shop nestled between the cobbler and the blacksmith. The old trader's eyes light up with recognition as you approach.""",
+                    ["What a journey!"],
+                    "story_teller_2"  # Sound to play
+                )                
+            elif result == "What a journey!":
+                # Create a new follow-up dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "portrait_merchant",  # Use picture parameter
+                    "Old Merchant",       # Use npc_name parameter
+                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid!""",
+                    ["Give him a hug"],
+                    "merchant_1"  # Sound to play
+                )
+            elif result == "Give him a hug":
+                # Create a new follow-up dialogue
+                from ..ui.helper_modules.dialogue import show_dialogue
+                game_state.dialogue = show_dialogue(
+                    game_state.screen,
+                    game_state.game,
+                    "portrait_merchant",  # Use picture parameter
+                    "Story Teller",        # Use npc_name parameter
+                    """Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He calmly smiles at you.""",
+                    ["I will help you!"],
+                    "story_teller_3"  # Sound to play
+                )                 
+            else:
+                # Close the dialogue
+                game_state.dialogue = None
+        # Always return when dialogue is active - block all other UI interactions
+        return
+
     # Handle sound control clicks
     if hasattr(game_state.game, 'sound_control'):
         if game_state.game.sound_control.handle_click(pos, game_state.game):
@@ -68,6 +114,9 @@ def handle_mouse_click(pos: Tuple[int, int],
     # Handle menu clicks first
     if hasattr(game_state, 'game') and hasattr(game_state.game, 'menu'):
         menu_action = game_state.game.menu.handle_click(pos)
+        if menu_action == "_menu_toggled":
+            # Menu was opened/closed, consume the click to prevent other buttons from activating
+            return
         if menu_action:
             if menu_action == "Quit":
                 game_state.info_window = InfoWindow(game_state.screen, 
@@ -105,51 +154,6 @@ def handle_mouse_click(pos: Tuple[int, int],
                 pass
             return
         
-    # Handle dialogue clicks if active
-    if hasattr(game_state, 'dialogue') and game_state.dialogue:
-        result = game_state.dialogue.handle_click(pos)
-        if result:
-            if result == "Follow the Address":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_shop",  # Use picture parameter
-                    "Story Teller",       # Use npc_name parameter
-                    """You make your way through the sleepy town and eventually enter a cramped but well-organized shop nestled between the cobbler and the blacksmith. The old trader's eyes light up with recognition as you approach.""",
-                    ["What a journey!"],
-                    "story_teller_2"  # Sound to play
-                )                
-            elif result == "What a journey!":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_merchant",  # Use picture parameter
-                    "Old Merchant",       # Use npc_name parameter
-                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid!""",
-                    ["Give him a hug"],
-                    "merchant_1"  # Sound to play
-                )
-            elif result == "Give him a hug":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_merchant",  # Use picture parameter
-                    "Story Teller",        # Use npc_name parameter
-                    """Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He calmly smiles at you.""",
-                    ["I will help you!"],
-                    "story_teller_3"  # Sound to play
-                )                 
-            else:
-                # Close the dialogue
-                game_state.dialogue = None
-            return
-
     # Handle pictogram sub-button clicks (left/right buttons)
     possible_modes = ["map", "market", "depot", "politics", "trade_routes", "building"]
     for name in possible_modes:

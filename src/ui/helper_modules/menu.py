@@ -104,11 +104,13 @@ class Menu:
             pos: The (x, y) mouse position of the click.
             
         Returns:
-            Optional[str]: The name of the clicked menu item, or None.
+            Optional[str]: The name of the clicked menu item, "_menu_toggled" if the
+            menu was opened/closed (to block click propagation), or None if the menu
+            was not involved.
         """
         if self.button_rect.collidepoint(pos):
             self.is_open = not self.is_open
-            return None
+            return "_menu_toggled"
             
         if self.is_open and self.dropdown_rect.collidepoint(pos):
             clicked_index = (pos[1] - self.dropdown_rect.y) // self.item_height
@@ -116,5 +118,9 @@ class Menu:
                 self.is_open = False
                 return self.items[clicked_index]
         
-        self.is_open = False
+        # If menu was open and click was outside, close it and consume the click
+        if self.is_open:
+            self.is_open = False
+            return "_menu_toggled"
+        
         return None
