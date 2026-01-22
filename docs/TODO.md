@@ -31,6 +31,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] bugfix: overlay of the contract_view to grey out the background was not big enough to cover the sidebar area
 - [x] bugfix: When opening the dialogue demo, all the buttons in the background where still clickable
 - [x] bugfix: When opening the menu at the top right, the module buttons below it where still clickable
 - [x] Demo to sign a contract (from the menu button for now just to check the functionality)

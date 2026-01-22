@@ -9,7 +9,7 @@ import os
 import random
 from typing import Optional, List, Tuple, TYPE_CHECKING
 from ...config.colors import *
-from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT
+from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from .warning_message import WarningMessage
 
 if TYPE_CHECKING:
@@ -118,12 +118,13 @@ class ContractView:
             self.stone_image = None
 
         # Dimensions
-        self.overlay_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.total_width = SCREEN_WIDTH + SIDEBAR_WIDTH
+        self.overlay_rect = pygame.Rect(0, 0, self.total_width, SCREEN_HEIGHT)
         
         # Paper dimensions
         paper_w = int(SCREEN_WIDTH * 0.5)
         paper_h = int(SCREEN_HEIGHT * 0.9)
-        self.paper_rect = pygame.Rect((SCREEN_WIDTH - paper_w) // 2, (SCREEN_HEIGHT - paper_h) // 2, paper_w, paper_h)
+        self.paper_rect = pygame.Rect((self.total_width - paper_w) // 2, (SCREEN_HEIGHT - paper_h) // 2, paper_w, paper_h)
         self.paper_color = (245, 235, 210) # Parchment color ish
 
         # Signature Area
@@ -554,7 +555,7 @@ class ContractView:
         the shake offset for impact animations.
         """
         # Darken background
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay = pygame.Surface((self.total_width, SCREEN_HEIGHT))
         overlay.set_alpha(int(150 * (self.global_alpha / 255)))
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0, 0))
