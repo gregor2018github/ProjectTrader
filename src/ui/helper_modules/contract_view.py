@@ -44,6 +44,14 @@ class ContractView:
         except FileNotFoundError:
             self.raw_text = ["Contract text not found."]
 
+        # Load extra signature acknowledgement text
+        try:
+            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", "License_Stone_Bottom.txt")
+            with open(extra_text_path, 'r', encoding='utf-8') as f:
+                self.extra_text = f.read().strip()
+        except FileNotFoundError:
+            self.extra_text = ""
+
         # Load Images
         try:
             self.stone_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", image_file))
@@ -90,7 +98,7 @@ class ContractView:
         sig_h = 100
         self.signature_rect = pygame.Rect(
             self.paper_rect.x + (paper_w - sig_w) // 2,
-            self.paper_rect.bottom - 240, # Above buttons
+            self.paper_rect.bottom - 230, # Above buttons
             sig_w,
             sig_h
         )
@@ -126,12 +134,12 @@ class ContractView:
         btn_h = 40
         spacing = 20
         start_x = self.paper_rect.centerx - btn_w - (spacing // 2)
-        btn_y = self.paper_rect.bottom - 130
+        btn_y = self.paper_rect.bottom - 80
         
         self.btn_confirm = pygame.Rect(start_x, btn_y, btn_w, btn_h)
         self.btn_deny = pygame.Rect(start_x + btn_w + spacing, btn_y, btn_w, btn_h)
 
-    def split_text_to_lines(self, text: str, font: pygame.font.Font, paper_w: int, x_margin: int, start_y: int, line_height: int, img_rect: Optional[pygame.Rect] = None) -> List[Tuple[str, bool]]:
+    def split_text_to_lines(self, text: str, font: pygame.font.Font, paper_w: int, x_margin: int, start_y: int, line_height: int, img_rect: Optional[pygame.Rect] = None, use_drop_caps: bool = True) -> List[Tuple[str, bool]]:
         # First handle explicit newlines
         raw_paragraphs = text.splitlines()
         final_lines = [] # Now stores (text, is_paragraph_start)
@@ -156,7 +164,7 @@ class ContractView:
                 # Special handling for calculating width of the first line of a paragraph
                 # because the drop cap is wider
                 test_line = ' '.join(current_line + [word])
-                if is_start:
+                if is_start and use_drop_caps:
                     if test_line.startswith("• "):
                         # Skip "• " and make the next character bigger
                         prefix = test_line[:2]
@@ -414,7 +422,7 @@ class ContractView:
         # Signature Area
         local_sig_rect = pygame.Rect(
             (local_paper_rect.width - self.signature_rect.width) // 2,
-            local_paper_rect.height - 240,
+            local_paper_rect.height - 230, # Moved down as requested
             self.signature_rect.width,
             self.signature_rect.height
         )
@@ -423,6 +431,16 @@ class ContractView:
         x_mark = self.body_font.render("X", True, BLACK)
         paper_surf.blit(x_mark, (local_sig_rect.x - 20, local_sig_rect.bottom - 30))
         paper_surf.blit(self.signature_surface, (0, 0))
+
+        # Extra clause about the signature Field
+        if self.extra_text:
+            extra_lines = self.split_text_to_lines(self.extra_text, self.body_font, local_paper_rect.width, 60, local_sig_rect.bottom + 10, 22, use_drop_caps=False)
+            curr_y = local_sig_rect.bottom + 5
+            for line_text, _ in extra_lines:
+                text_surf = self.body_font.render(line_text, True, (60, 40, 20))
+                text_rect = text_surf.get_rect(centerx=local_paper_rect.centerx, top=curr_y)
+                paper_surf.blit(text_surf, text_rect)
+                curr_y += 22
 
         # Buttons
         mouse_pos = pygame.mouse.get_pos()
@@ -447,7 +465,7 @@ class ContractView:
 
         if self.is_stamped and self.stamp_image:
             stamp_rect = self.stamp_image.get_rect()
-            stamp_rect.bottomright = (local_paper_rect.right - 60, local_paper_rect.bottom - 80)
+            stamp_rect.bottomright = (local_paper_rect.right - 60, local_paper_rect.bottom - 100)
             paper_surf.blit(self.stamp_image, stamp_rect)
 
     def draw(self) -> None:
