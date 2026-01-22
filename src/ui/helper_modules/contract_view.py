@@ -1,3 +1,9 @@
+"""Module for displaying and handling trade license contracts.
+
+This module provides the ContractView class which displays a parchment-style 
+contract that the player can sign, stamp, or tear up.
+"""
+
 import pygame
 import os
 import random
@@ -10,11 +16,31 @@ if TYPE_CHECKING:
     from ...game import Game
 
 class ContractView:
-    def __init__(self, screen: pygame.Surface, game: 'Game', contract_file: str, image_file: str, **placeholders) -> None:
+    """A UI component that displays a license contract for trading specific goods.
+    
+    The contract allows the player to read terms, sign the document with a quill,
+    and then either confirm (stamp) or deny (rip up) the agreement.
+    """
+
+    def __init__(self, screen: pygame.Surface, game: 'Game', contract_type: str, contract_months: int, contract_cost: int) -> None:
+        """Initialize the contract view with specific terms.
+        
+        Args:
+            screen: The main Pygame display surface.
+            game: Reference to the main Game object.
+            contract_type: The type of contract (e.g., 'Stone') which determines image and text files.
+            contract_months: Duration of the contract in game months.
+            contract_cost: Cost to acquire the license.
+        """
         self.screen = screen
         self.game = game
         self.active = True
         
+        # Determine file names based on contract type
+        contract_file = f"License_{contract_type}.txt"
+        image_file = f"{contract_type.lower()}.png"
+        extra_file = f"License_{contract_type}_Bottom.txt"
+
         # Load Fonts
         try:
             self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 42)
@@ -22,7 +48,7 @@ class ContractView:
             # Create a larger font for the drop caps (first letter of paragraphs)
             self.drop_cap_font = pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), 38)
         except:
-            # Fallback if fonts are missing (though user said they exist)
+            # Fallback if fonts are missing
             self.title_font = pygame.font.SysFont("arial", 32)
             self.body_font = pygame.font.SysFont("arial", 18)
             self.drop_cap_font = pygame.font.SysFont("arial", 32)
@@ -35,6 +61,10 @@ class ContractView:
                 self.raw_text = f.readlines()
             
             # Replace placeholders in the loaded text
+            placeholders = {
+                "contract_months": contract_months,
+                "contract_cost": contract_cost
+            }
             for i, line in enumerate(self.raw_text):
                 for key, value in placeholders.items():
                     placeholder_str = f"[$${key}$$]"
@@ -46,43 +76,46 @@ class ContractView:
 
         # Load extra signature acknowledgement text
         try:
-            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", "License_Stone_Bottom.txt")
+            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", extra_file)
             with open(extra_text_path, 'r', encoding='utf-8') as f:
                 self.extra_text = f.read().strip()
         except FileNotFoundError:
             self.extra_text = ""
 
         # Load Images
+        # 1. Essential UI Images
+        try:
+            self.cursor_quill = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "cursor_quill.png")).convert_alpha()
+            orig_cw, orig_ch = self.cursor_quill.get_size()
+            cursor_height = 80
+            c_scale = cursor_height / orig_ch
+            self.cursor_quill = pygame.transform.smoothscale(self.cursor_quill, (int(orig_cw * c_scale), int(orig_ch * c_scale)))
+        except Exception as e:
+            print(f"Error loading quill image: {e}")
+            self.cursor_quill = None
+
+        try:
+            self.stamp_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "stamp.png")).convert_alpha()
+            s_w, s_h = self.stamp_image.get_size()
+            s_scale = 150 / s_w # target width 150
+            self.stamp_image = pygame.transform.smoothscale(self.stamp_image, (int(s_w * s_scale), int(s_h * s_scale)))
+        except Exception as e:
+            print(f"Error loading stamp image: {e}")
+            self.stamp_image = None
+
+        # 2. Specific Contract Image
         try:
             self.stone_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", image_file))
             # Scale stone image if needed. Let's aim for a reasonable width, maybe 100px
             if self.stone_image:
-                 # original scale factor logic
                  target_width = 100
                  orig_w, orig_h = self.stone_image.get_size()
                  scale_factor = target_width / orig_w
                  new_size = (int(orig_w * scale_factor), int(orig_h * scale_factor))
                  self.stone_image = pygame.transform.smoothscale(self.stone_image, new_size)
-
-            self.cursor_quill = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "cursor_quill.png"))
-            self.cursor_quill = self.cursor_quill.convert_alpha()
-            # Scale cursor. It's huge. Let's make it more reasonable, maybe 60px high?
-            orig_cw, orig_ch = self.cursor_quill.get_size()
-            cursor_height = 80
-            c_scale = cursor_height / orig_ch
-            self.cursor_quill = pygame.transform.smoothscale(self.cursor_quill, (int(orig_cw * c_scale), int(orig_ch * c_scale)))
-
-            self.stamp_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "stamp.png"))
-            if self.stamp_image:
-                s_w, s_h = self.stamp_image.get_size()
-                s_scale = 150 / s_w # target width 150
-                self.stamp_image = pygame.transform.smoothscale(self.stamp_image, (int(s_w * s_scale), int(s_h * s_scale)))
-
         except Exception as e:
-            print(f"Error loading contract images: {e}")
+            print(f"Contract specific image not found: {e}")
             self.stone_image = None
-            self.cursor_quill = None
-            self.stamp_image = None
 
         # Dimensions
         self.overlay_rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -141,6 +174,21 @@ class ContractView:
         self.btn_deny = pygame.Rect(start_x + btn_w + spacing, btn_y, btn_w, btn_h)
 
     def split_text_to_lines(self, text: str, font: pygame.font.Font, paper_w: int, x_margin: int, start_y: int, line_height: int, img_rect: Optional[pygame.Rect] = None, use_drop_caps: bool = True) -> List[Tuple[str, bool]]:
+        """Split a long text string into lines that fit within the contract's width.
+        
+        Args:
+            text: The full string to wrap.
+            font: Pygame font for standard text.
+            paper_w: Total width of the parchment surface.
+            x_margin: Horizontal margin from the edge.
+            start_y: Starting vertical position (used to check image overlap).
+            line_height: Vertical spacing between lines.
+            img_rect: Optional rectangle of an image that text should wrap around.
+            use_drop_caps: If True, treats the first letter of paragraphs as large drop caps.
+            
+        Returns:
+            A list of tuples (line_text, is_paragraph_start).
+        """
         # First handle explicit newlines
         raw_paragraphs = text.splitlines()
         final_lines = [] # Now stores (text, is_paragraph_start)
@@ -198,7 +246,7 @@ class ContractView:
         return final_lines
 
     def _stop_scribble_sounds(self) -> None:
-        """Stop all scribble sound variations."""
+        """Stop all currently playing scribble sound variations."""
         for i in range(1, 5):
             s_name = f"scribble_{i}"
             if s_name in self.game.sounds:
@@ -206,6 +254,11 @@ class ContractView:
         self.scribble_channel = None
 
     def update(self, delta_time: float) -> None:
+        """Update animations, timers, and fading effects.
+        
+        Args:
+            delta_time: Time elapsed since the last frame in seconds.
+        """
         if self.is_stamped or self.is_denied:
             self.stamp_timer -= delta_time
             if self.stamp_timer <= 0:
@@ -239,6 +292,14 @@ class ContractView:
                 self._stop_scribble_sounds()
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
+        """Handle mouse interactions for signing and clicking buttons.
+        
+        Args:
+            event: The Pygame event to process.
+            
+        Returns:
+            'Deny' if the player rips the contract, else None.
+        """
         if self.is_stamped or self.is_denied:
              return None # Block input during animation
 
@@ -310,6 +371,7 @@ class ContractView:
         return None
 
     def _create_rip_pieces(self) -> None:
+        """Create the animation fragments when the contract is denied/ripped."""
         # Create a surface with the current full content of the paper
         full_paper = pygame.Surface((self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA)
         self._render_paper_content(full_paper)
@@ -349,6 +411,11 @@ class ContractView:
         ]
 
     def _render_paper_content(self, paper_surf: pygame.Surface) -> None:
+        """Drives the actual drawing of text and graphics onto the parchment surface.
+        
+        Args:
+            paper_surf: The surface to draw the contract content upon.
+        """
         local_paper_rect = pygame.Rect(0, 0, self.paper_rect.width, self.paper_rect.height)
 
         # Paper Background
@@ -385,9 +452,12 @@ class ContractView:
         if len(self.raw_text) > 1:
             full_body = "".join(self.raw_text[1:])
             full_body = full_body.replace('—', '-').replace('"', '"').replace('“', '"').replace('”', '"').replace('’', "'")
-            wrapping_img_rect = self.stone_image.get_rect()
-            wrapping_img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
-            wrapping_img_rect.width += 10 
+            
+            wrapping_img_rect = None
+            if self.stone_image:
+                wrapping_img_rect = self.stone_image.get_rect()
+                wrapping_img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
+                wrapping_img_rect.width += 10 
 
             lines = self.split_text_to_lines(full_body, self.body_font, self.paper_rect.width, x_margin, y_offset_start, line_height, wrapping_img_rect)
 
@@ -478,6 +548,11 @@ class ContractView:
             paper_surf.blit(self.stamp_image, stamp_rect)
 
     def draw(self) -> None:
+        """Draw the entire contract view, including background overlay and animations.
+        
+        This method handles the global transparency for fading effects and applies 
+        the shake offset for impact animations.
+        """
         # Darken background
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         overlay.set_alpha(int(150 * (self.global_alpha / 255)))
@@ -513,6 +588,7 @@ class ContractView:
         self.screen.blit(paper_surf, (self.paper_rect.x + self.shake_offset[0], self.paper_rect.y + self.shake_offset[1]))
 
     def draw_cursor(self) -> None:
+        """Draw the custom quill cursor if the contract is active and not yet decided."""
         if self.cursor_quill and not self.is_stamped and not self.is_denied:
             mouse_pos = pygame.mouse.get_pos()
             # Offset so the tip is at the mouse position

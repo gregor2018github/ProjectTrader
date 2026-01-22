@@ -98,7 +98,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
                 return
             elif menu_action == "License":
-                game_state.contract_view = ContractView(game_state.screen, game_state.game, "License_Stone.txt", "stone.png", contract_months=12, contract_cost=500)
+                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type="Stone", contract_months=12, contract_cost=500)
                 return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action
