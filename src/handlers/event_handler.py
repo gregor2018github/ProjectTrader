@@ -41,6 +41,7 @@ class EventHandler:
             game_state.contract_view.handle_event(event)
             if not game_state.contract_view.active:
                 game_state.contract_view = None
+                game_state.time_level = game_state.previous_time_level
             
             # Consume input events if contract is active
             if event.type in [pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION, pygame.MOUSEWHEEL]:

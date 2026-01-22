@@ -68,6 +68,7 @@ class GameState:
         
         self.date: datetime.datetime = datetime.datetime(year, month, day, hour, minute, 0)
         self.time_level: int = 3
+        self.previous_time_level: int = 3  # Stores the speed before pausing
         self.tick_counter: int = 0
         self.chart_state: bool = True
         self.info_state: bool = False

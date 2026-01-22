@@ -68,6 +68,7 @@ def handle_mouse_click(pos: Tuple[int, int],
             else:
                 # Close the dialogue
                 game_state.dialogue = None
+                game_state.time_level = game_state.previous_time_level
         # Always return when dialogue is active - block all other UI interactions
         return
 
@@ -125,6 +126,8 @@ def handle_mouse_click(pos: Tuple[int, int],
                                                   game_state.font,
                                                   game_state.game)  # Pass game reference
             elif menu_action == "Demo":
+                game_state.previous_time_level = game_state.time_level
+                game_state.time_level = 1
                 from ..ui.helper_modules.dialogue import show_dialogue
                 game_state.dialogue = show_dialogue(
                     game_state.screen,
@@ -147,6 +150,8 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
                 return
             elif menu_action == "License":
+                game_state.previous_time_level = game_state.time_level
+                game_state.time_level = 1
                 game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type="Stone", contract_months=12, contract_cost=500)
                 return
             elif menu_action == "Talk Demo":
