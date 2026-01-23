@@ -1,4 +1,5 @@
 import pygame
+import random
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_view import ContractView
@@ -152,7 +153,7 @@ def handle_mouse_click(pos: Tuple[int, int],
             elif menu_action == "License":
                 game_state.previous_time_level = game_state.time_level
                 game_state.time_level = 1
-                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type="Stone", contract_months=12, contract_cost=500)
+                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type=random.choice(["Stone", "Iron"]), contract_months=12, contract_cost=500)
                 return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action

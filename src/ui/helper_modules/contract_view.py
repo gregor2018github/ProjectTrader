@@ -29,7 +29,7 @@ class ContractView:
         Args:
             screen: The main Pygame display surface.
             game: Reference to the main Game object.
-            contract_type: The type of contract (e.g., 'Stone') which determines image and text files.
+            contract_type: The type of contract (e.g., 'Stone', 'Iron') which determines image and text files.
             contract_months: Duration of the contract in game months.
             contract_cost: Cost to acquire the license.
         """
@@ -77,7 +77,7 @@ class ContractView:
 
         # Load extra signature acknowledgement text
         try:
-            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", extra_file)
+            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", "contracts", extra_file)
             with open(extra_text_path, 'r', encoding='utf-8') as f:
                 self.extra_text = f.read().strip()
         except FileNotFoundError:
@@ -106,17 +106,17 @@ class ContractView:
 
         # 2. Specific Contract Image
         try:
-            self.stone_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", image_file))
-            # Scale stone image if needed. Let's aim for a reasonable width, maybe 100px
-            if self.stone_image:
+            self.contract_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", image_file))
+            # Scale contract image if needed. Let's aim for a reasonable width, maybe 100px
+            if self.contract_image:
                  target_width = 100
-                 orig_w, orig_h = self.stone_image.get_size()
+                 orig_w, orig_h = self.contract_image.get_size()
                  scale_factor = target_width / orig_w
                  new_size = (int(orig_w * scale_factor), int(orig_h * scale_factor))
-                 self.stone_image = pygame.transform.smoothscale(self.stone_image, new_size)
+                 self.contract_image = pygame.transform.smoothscale(self.contract_image, new_size)
         except Exception as e:
             print(f"Contract specific image not found: {e}")
-            self.stone_image = None
+            self.contract_image = None
 
         # Dimensions
         self.total_width = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -507,13 +507,13 @@ class ContractView:
             # Line under title
             pygame.draw.line(paper_surf, (60, 40, 20), (local_paper_rect.left + 60, title_rect.bottom + 5), (local_paper_rect.right - 60, title_rect.bottom + 5), 2)
 
-        # Image (Stone)
-        if self.stone_image:
-            img_rect = self.stone_image.get_rect()
+        # Image
+        if self.contract_image:
+            img_rect = self.contract_image.get_rect()
             img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
             frame_rect = img_rect.inflate(10, 10)
             pygame.draw.rect(paper_surf, (100, 80, 60), frame_rect, 2)
-            paper_surf.blit(self.stone_image, img_rect)
+            paper_surf.blit(self.contract_image, img_rect)
 
         # Body Text
         y_offset_start = 120
@@ -525,8 +525,8 @@ class ContractView:
             full_body = full_body.replace('—', '-').replace('"', '"').replace('“', '"').replace('”', '"').replace('’', "'")
             
             wrapping_img_rect = None
-            if self.stone_image:
-                wrapping_img_rect = self.stone_image.get_rect()
+            if self.contract_image:
+                wrapping_img_rect = self.contract_image.get_rect()
                 wrapping_img_rect.topright = (local_paper_rect.right - 60, local_paper_rect.top + 110)
                 wrapping_img_rect.width += 10 
 
