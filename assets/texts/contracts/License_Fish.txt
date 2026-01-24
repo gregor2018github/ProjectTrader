@@ -1,0 +1,16 @@
+License for the Trade of Fresh Fish
+By the grace of the Town Council of Blackwater and the brine-soaked authority of the Honorable Fellowship of Fishmongers and Net-Menders, the bearer is hereby licensed to cast, haul, and hawk the silver bounty of our rivers and seas. While we celebrate the fruits of the deep, the bearer is strictly prohibited from "rejuvenating" a dull-eyed trout by painting its gills with beet juice or masking the scent of a three-day-old mackerel with excessive perfumes. Go forth and feed the bellies of our citizens, provided you do not store your wares in the sun long enough to summon an legion of neighborhood stray cats.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these maritime statutes, they shall forfeit their entire inventory to the town strays. Additionally, the offender shall be "anchored" by having their feet tied to a bucket of fish-guts and forced to stand at the low-tide mark until the water reaches their chin, as a reminder that the sea eventually claims what is hers.
+
+
+
+
+
+
+Witness Thereto:

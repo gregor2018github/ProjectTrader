@@ -1,5 +1,5 @@
-License for Stone Trading
-By the grace of the Town Council of Blackwater and the somewhat sober oversight of the Masons’ Guild, the bearer—having finally graduated from the simple-minded business of peddling sticks and kindling—is hereby granted the legal right to buy, sell, and lug heavy chunks of the earth across our markets. While we recognize that trading stone requires significantly less intellect than wood, as rocks generally refuse to rot or catch fire, the bearer must still refrain from passing off common gravel as "pre-crushed castle walls" or selling "petrified bread" to the local garnison. Go forth and profit, provided you do not drop your inventory on the Mayor’s gouty foot or cause a localized landslide within the city walls.
+License for the Trade of Stone
+By the grace of the Town Council of Blackwater and the heavy-handed oversight of the Order of Masons and Quarry-Masters, the bearer is hereby granted the legal right to hew, haul, and barter the very foundations of our realm. While we appreciate a sturdy wall, the bearer is strictly forbidden from passing off sun-dried river mud as "Everlasting Granite" or selling "pre-weathered" limestone that dissolves at the first hint of a summer drizzle. Go forth and profit, provided you do not drop your inventory on the Mayor’s gouty foot or cause a localized landslide within the city walls.
 
 
 • Term of Validity: [$$contract_months$$] Months
@@ -7,7 +7,9 @@ By the grace of the Town Council of Blackwater and the somewhat sober oversight 
 • Licensing Fee: [$$contract_cost$$] Gold Coins
 
 
-Penalty for Breach: Should the merchant violate these holy ordinances, they shall be subject to a fine of triple the market value and shall spend one full Sabbath standing in the town square holding a very heavy rock while citizens are encouraged to point and titter at their incompetence.
+Penalty for Breach: Should the merchant violate these holy ordinances, they shall be subject to a fine of triple the market value. Additionally, the offender shall spend one full Sabbath in the town square, tethered to a half-ton block of limestone, which they must attempt to "smooth" using only their forehead.
+
+
 
 
 

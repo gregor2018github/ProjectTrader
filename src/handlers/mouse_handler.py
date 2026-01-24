@@ -153,7 +153,7 @@ def handle_mouse_click(pos: Tuple[int, int],
             elif menu_action == "License":
                 game_state.previous_time_level = game_state.time_level
                 game_state.time_level = 1
-                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type=random.choice(["Wine", "Hides", "Wool", "Stone", "Iron"]), contract_months=12, contract_cost=500) #"Wine", "Hides", "Wool", "Stone", "Iron"
+                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type=random.choice(["Fish"]), contract_months=12, contract_cost=500) #"Wine", "Hides", "Wool", "Stone", "Iron", "Wheat", "Fish"
                 return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action

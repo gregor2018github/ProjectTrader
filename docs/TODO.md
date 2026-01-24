@@ -8,12 +8,10 @@
 
 ## Medium Priority
 - [ ] contract beer
-- [ ] contract candle
-- [ ] contract fish
+- [ ] contract candles
 - [ ] contract linen
 - [ ] contract meat
 - [ ] contract pottery
-- [ ] contract wheat
 - [ ] contract wood
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
@@ -44,6 +42,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] contract wheat, contract fish, refined stone contract
 - [x] contracts hides, iron, stone, wool, wine
 - [x] when watching the dialogue demo, the time is being paused
 - [x] when watching the contract demo, the time is being paused
