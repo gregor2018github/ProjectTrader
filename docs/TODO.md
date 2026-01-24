@@ -7,12 +7,25 @@
 - [ ] place the market booths in the market area
 
 ## Medium Priority
+- [ ] contract beer
+- [ ] contract candle
+- [ ] contract fish
+- [ ] contract linen
+- [ ] contract meat
+- [ ] contract pottery
+- [ ] contract wheat
+- [ ] contract wood
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
+- [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
+- [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
+- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
+- [ ] create a system to interact with a building. There will be "door areas" and when these are touched, you can do things with the buildings (later enter, for now only menu)
 - [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
+- [ ] have the bell at the church ringing when the map is open and the player is close to the church (midday and midnight for now)
 - [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Add sound effects for buying and selling goods at the market
@@ -31,8 +44,9 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
-- [x] when watching the dialogue demo, the time is be paused
-- [x] when watching the contract demo, the time is be paused
+- [x] contracts hides, iron, stone, wool, wine
+- [x] when watching the dialogue demo, the time is being paused
+- [x] when watching the contract demo, the time is being paused
 - [x] bugfix: overlay of the contract_view to grey out the background was not big enough to cover the sidebar area
 - [x] bugfix: When opening the dialogue demo, all the buttons in the background where still clickable
 - [x] bugfix: When opening the menu at the top right, the module buttons below it where still clickable

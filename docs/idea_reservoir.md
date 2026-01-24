@@ -33,6 +33,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - iron gates that can even open when the player approaches
 
 - Animations and NPC
+    - general medieval sentences for NPCs that they say randomly when the player clicks on them
     - Fisherman who always tells you to buy fish
     - Sheeps that can stand on the meadow, eating and walking animations
     - windmill with rotating blades
@@ -44,8 +45,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - animation for idle main character
     - Blacksmith hammering on an anvil
 
-
-
 - when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)
     - scribble sound when they sign
     - different funny texts that change based on building or right or whatever
@@ -55,9 +54,13 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - player can only trade certain items after buying a licence from the guild
     - trading licences have a limited duration (like 1 month, 3 months, 6 months, 12 months)
     - can be linked to money, reputation, quests, completion of previous licences, etc.
-    - prices for licenses can increase on a monthly basis (when the player also gets richer)
+    - prices for licenses can increase on a monthly basis (only when the player also gets richer)
+    - licenses can be bought at the townhall (normal price) or at the respective guild building (cheaper price but you have to walk there and know about it)
 
 - have a market screamer/NPC that announces change
+- trees can be scalable in size
+    - that will allow for more variation on the map with less assets created
+    - would look weird in the map preview though
 
 - carriage system 
     - player only has a limited amount of 100 storage units in carriage
