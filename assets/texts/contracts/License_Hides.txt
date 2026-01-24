@@ -1,0 +1,11 @@
+License for the Trade of Hides and Pelts
+By the grace of the Town Council of Blackwater and the thick-skinned, scent-blind oversight of the Honorable Company of Tanners and Skinners, the bearer is hereby granted the legal right to procure, cure, and transport the outer casings of beasts across our sovereign markets. While we acknowledge that the tanning arts are a pungent necessity, the bearer is strictly forbidden from selling "waterproof" leather that drinks like a sponge or passing off mangy rat-skins as "exotic marten." Furthermore, the merchant shall not utilize "aromatic oils" to mask the scent of hides that have clearly begun to return to the earth. Go forth and skin the profit from the land, provided you do not store your raw, dripping wares upwind of the Mayor’s balcony.
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these sacred hide-bound laws they shall be subject to a fine of five times the market value. In addition, the offender shall be tethered for one full day outside the tanning pits during high noon, where they may fully contemplate the "fragrance" of their industry while the local tanner’s apprentices use them as a stationary target for testing the flexibility of newly fashioned bullwhips.
+
+
+Witness Thereto:

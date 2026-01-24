@@ -1,0 +1,11 @@
+License for the Trade of Wool and Fleece
+By the grace of the Town Council of Blackwater and the soft-handed, yet ever-watchful oversight of the Guild of Weavers and Shearers, the bearer is hereby granted the legal right to procure, barter, and transport the fluffy bounty of the meadows within our sovereign borders. While we recognize that a sheep is a simple creature of God, the bearer is strictly forbidden from soaking their wool in the river to increase its weight or from passing off stray dog hair as "Highland Fleece." Furthermore, the merchant shall not sell "self-warming" garments that achieve said warmth solely through an infestation of hyperactive fleas. Go forth and gather your flocks, provided you do not allow your livestock to "decorate" the steps of the Cathedral.
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these woolly ordinances—specifically by "fleecing" the public with moth-eaten rags—they shall be subject to a fine of quadruple the market value. Additionally, they shall be required to spend one full Sabbath in the public square, clad in a suit made entirely of unwashed, raw grease-wool, where the local peasantry may freely comment on their aroma while tossing handfuls of burrs and thistles at their person.
+
+
+Witness Thereto:
