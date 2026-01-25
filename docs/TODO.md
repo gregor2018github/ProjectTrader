@@ -7,12 +7,10 @@
 - [ ] place the market booths in the market area
 
 ## Medium Priority
-- [ ] contract beer
 - [ ] contract candles
 - [ ] contract linen
 - [ ] contract meat
 - [ ] contract pottery
-- [ ] contract wood
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
@@ -42,6 +40,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] contract beer, contract wood
 - [x] contract wheat, contract fish, refined stone contract
 - [x] contracts hides, iron, stone, wool, wine
 - [x] when watching the dialogue demo, the time is being paused

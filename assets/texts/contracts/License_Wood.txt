@@ -1,0 +1,18 @@
+License for the Trade of Hardwoods
+By the grace of the Town Council of Blackwater and the splinter-riddled, iron-grip oversight of the Order of Loggers, the bearer is hereby granted the legal right to fell, mill, and trade the sturdy bones of our ancient forests. While we require timber for hearth and hall, the bearer is strictly forbidden from passing off green, sap-weeping timber as "expertly seasoned oak". Furthermore, the merchant shall not stuff hollow logs with river-mud to tip the lumber-scales. Go forth and build the foundations of our realm, provided you do not clear-cut the Sacred Grove and bring a curse of dryads upon our gates.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these forestry statutes, they shall pay a fine of five times the shipment’s value. Additionally, the offender shall be "staked and sapped": coated in sticky pine-resin and forced to stand in the town square for one full day to act as a human scratching post for the local livestock.
+
+
+
+
+
+
+
+
+Witness Thereto:

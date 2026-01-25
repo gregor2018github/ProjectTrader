@@ -1,0 +1,15 @@
+License for the Trade of Fermented Ales and Spirits
+By the grace of the Town Council of Blackwater and the frothing, double-seeing oversight of the Most Gallant Guild of Brewers, the bearer is hereby granted the sacred right to mash, boil, and dispense the amber nectar that keeps our peasantry pacified. While we encourage a sturdy head on every pour, the bearer is strictly forbidden from "invigorating" a weak brew with soap suds for false foam or "stretching" the barrels with well-water and river-silt. Go forth and quench the thirst of the masses, provided you do not incite a tavern brawl that spreads to a nationwide riot.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these sacred brewing-laws, they shall be fined three times their quarterly take. Additionally, the offender shall be "barrel-bound": fitted with a bottomless cask and forced to walk the town square while locals test the quality of the merchant’s own sour leftovers by "donating" them back to the merchant's face.
+
+
+
+
+
+Witness Thereto:
