@@ -1,0 +1,13 @@
+License for the Trade of Pottery and Earthenware
+By the grace of the Town Council of Blackwater and the kiln-burnt, soot-stained oversight of the Most Honorable Guild of Potters and Kiln-Masters, the bearer is hereby granted the legal right to mold, fire, and vend the earthen vessels of our kitchens and cellars. While we require sturdy pots for our ale and grain, the bearer is strictly forbidden from "mending" a fractured amphora with wax and pig-fat, or masking a hairline crack with a thick, deceptive layer of paint. Furthermore, the merchant shall not use glazes that turn a customer’s wine into a slow-acting tonic for the grave. Go forth and furnish our tables, provided your roaring kilns do not shower the textile of the town's nobility.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these earthen statutes, they shall be fined five times the price of the vessel. Additionally, the offender shall be "fired and glazed": they shall be coated in wet river-silt and forced to sit perfectly still in the market square for one full day, acting as a human garden statue for the amusement of passers-by and the convenience of local pigeons.
+
+
+
+Witness Thereto:

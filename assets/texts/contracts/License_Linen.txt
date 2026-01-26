@@ -1,0 +1,13 @@
+License for the Trade of Fine Linen and Textiles
+By the grace of the Town Council of Blackwater and the needle-sharp, judgmental oversight of the Most Fastidious Guild of Weavers and Draperers, the bearer is hereby granted the legal right to spin, weave, and trade the supple skin of our gentlefolk. While we appreciate a fine drape, the bearer is strictly forbidden from "whitening" yellowed fabric with lead-based chalk. Furthermore, the merchant shall not hide moth-holes with excessive starch and prayer. Go forth and clothe our citizens in dignity, provided you do not let your flax-steeping pits turn the town’s air into a stench that could fell a plow-ox.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these textile statutes — specifically by selling a garment that shrinks to doll-size at the first drop of rain — they shall pay a fine of five times the fabric's weight in silver. Additionally, the offender shall be "spooled": bound tightly in their own shoddy bolts of cloth and rolled down Blackwater Hill during the noon market to demonstrate the durability (or lack thereof) of their weave.
+
+
+
+Witness Thereto:

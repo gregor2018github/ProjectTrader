@@ -7,10 +7,6 @@
 - [ ] place the market booths in the market area
 
 ## Medium Priority
-- [ ] contract candles
-- [ ] contract linen
-- [ ] contract meat
-- [ ] contract pottery
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
@@ -31,6 +27,10 @@
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
+- [ ] add candles, salts and herbs as tradable goods
+- [ ] contract candles
+- [ ] contract salt
+- [ ] contract herbs
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
@@ -40,6 +40,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] contract linen, contract meat, contract pottery
 - [x] contract beer, contract wood
 - [x] contract wheat, contract fish, refined stone contract
 - [x] contracts hides, iron, stone, wool, wine
