@@ -1426,7 +1426,7 @@
    </properties>
    <point/>
   </object>
-  <object id="85" name="Tree_03" type="Pine_Tree" x="176" y="1715.82">
+  <object id="85" name="Tree_03" type="Pine_Tree" x="160" y="1728">
    <properties>
     <property name="File_name" value="Tree_03.png"/>
     <property name="Stem_Position" type="float" value="1"/>
@@ -1496,7 +1496,7 @@
    </properties>
    <point/>
   </object>
-  <object id="59" name="House_7" type="House_Profile" x="2464" y="1343.53">
+  <object id="59" name="House_7" type="House_Profile" x="2464" y="1344">
    <properties>
     <property name="Col_margin_left_pixel" type="int" value="-17"/>
     <property name="Col_margin_right_pixel" type="int" value="-17"/>
@@ -1690,7 +1690,7 @@
   <object id="226" name="Market_Wool_Hide" type="Market_Frontal" x="2368" y="1088">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
-    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-3"/>
     <property name="Col_margin_right_pixel" type="int" value="-6"/>
     <property name="Col_margin_up_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="5"/>

@@ -36,12 +36,13 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] Some houses flicker badly when moving (some more than others); furthermore, when moving to the sides, the window polygons at night also flicker
+- [ ] When moving to the sides, the window polygons at night also flicker
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] bugfix: Some houses flickered badly when moving due to wrong positioned object pins in Tiled
 - [x] contract linen, contract meat, contract pottery
 - [x] contract beer, contract wood
 - [x] contract wheat, contract fish, refined stone contract
