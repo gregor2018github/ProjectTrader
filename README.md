@@ -14,7 +14,7 @@ In **Merchant's Rise**, you take on the role of an aspiring trader. Manage your 
 - **Depot Management**: Monitor your inventory, storage capacity, and historical wealth statistics.
 - **Economic Visualization**: In-game charts and tables to track your progress and market trends.
 - **Exploration Map**: A top-down tiled map system (using Tiled/TMX) where you can move your character around a medieval world.
-![Exploration Map](assets/pictures/readme3.png)
+![Exploration Map](assets/pictures/readme4.png)
 - **First Demo of a Dialogue System**: Engage with NPCs through a simple dialogue interface, including portrait pictures, text boxes, and sound.
 ![Dialogue System](assets/pictures/readme2.png)
 
