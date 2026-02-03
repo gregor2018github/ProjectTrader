@@ -1,13 +1,14 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] rework the base tileset for the ground (make them all modular so they can overlap each other better)
-- [ ] with new stone tiles create a market area
-- [ ] create market booths as asset sprites
-- [ ] place the market booths in the market area
 - [ ] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade
 
 ## Medium Priority
+- [ ] when clicking on a building you are close by, you can open an interaction menu
+- [ ] interaction menu for buying / selling goods at the market booths
+- [ ] interaction menu for buying trading licenses at the city hall
+- [ ] interaction menu for church donations at the church building
+- [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
@@ -42,6 +43,10 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] with new stone tiles create a market area
+- [x] create market booths as asset sprites
+- [x] place the market booths in the market area
+- [x] rework the base tileset for the ground (make them all modular so they can overlap each other better)
 - [x] bugfix: Some houses flickered badly when moving due to wrong positioned object pins in Tiled
 - [x] contract linen, contract meat, contract pottery
 - [x] contract beer, contract wood
