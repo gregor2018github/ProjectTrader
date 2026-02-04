@@ -1,17 +1,17 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade
-
-## Medium Priority
 - [ ] when clicking on a building you are close by, you can open an interaction menu
 - [ ] interaction menu for buying / selling goods at the market booths
 - [ ] interaction menu for buying trading licenses at the city hall
 - [ ] interaction menu for church donations at the church building
-- [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
-- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
+
+## Medium Priority
+- [ ] design water tiles (plan how to animate them before implementing static ones)
+- [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
+- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] create a system to interact with a building. There will be "door areas" and when these are touched, you can do things with the buildings (later enter, for now only menu)
@@ -37,12 +37,13 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] When moving to the sides, the window polygons at night also flicker
+- [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade
 - [x] with new stone tiles create a market area
 - [x] create market booths as asset sprites
 - [x] place the market booths in the market area
