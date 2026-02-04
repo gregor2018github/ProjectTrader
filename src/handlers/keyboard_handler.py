@@ -76,6 +76,10 @@ def _handle_function_key(key: int, game_state: 'GameState', goods: List['Good'],
         goods: List of all tradeable goods.
         depot: The player's depot/inventory model.
     """
+    # Check if trading is allowed (player must be in Market Area)
+    if hasattr(game_state, 'game') and hasattr(game_state.game, 'player') and not game_state.game.player.in_market_area:
+        return
+
     key_actions = {
         pygame.K_F1: ('one', 'buy'),
         pygame.K_F2: ('one', 'sell'),

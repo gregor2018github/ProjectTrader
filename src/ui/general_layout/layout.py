@@ -122,6 +122,10 @@ def _draw_bottom_bar(
     # for now we will check if the buy or sell buttons trigger a hover effect from this layout script
     for good in goods:
         good.hovered = False
+
+    # Check if trading is allowed - if not in market area, stop here (hiding buttons)
+    if hasattr(game_state, 'game') and hasattr(game_state.game, 'player') and not game_state.game.player.in_market_area:
+        return buttons
     
     # Get mouse position for hover effects
     mouse_pos = pygame.mouse.get_pos()

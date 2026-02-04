@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="20" nextobjectid="230">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="100" height="100" tilewidth="32" tileheight="32" infinite="0" nextlayerid="21" nextobjectid="234">
  <tileset firstgid="1" name="Test-Tiles" tilewidth="64" tileheight="64" tilecount="54" columns="9">
   <image source="test_tileset.png" width="576" height="384"/>
  </tileset>
@@ -1951,6 +1951,9 @@
    </properties>
    <point/>
   </object>
+ </objectgroup>
+ <objectgroup id="20" name="Areas" offsetx="-9" offsety="-6">
+  <object id="233" name="Market_Area" x="1886.67" y="803" width="636.667" height="338"/>
  </objectgroup>
  <objectgroup id="14" name="Lights">
   <object id="142" name="Light_rectangle" x="2507.34" y="1288.59" width="19" height="22.625"/>

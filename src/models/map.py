@@ -117,10 +117,19 @@ class TMXMap:
         self.trees: List[Tree] = []
         self.lights: List[Light] = []
         self.building_light_groups: Dict[str, BuildingLightGroup] = {}
+        self.areas: Dict[str, pygame.Rect] = {}
         
         self._load_houses()
         self._load_trees()
         self._load_lights()
+        self._load_areas()
+
+    def _load_areas(self) -> None:
+        """Load area objects from the 'Areas' object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Areas":
+                for obj in layer:
+                    self.areas[obj.name] = pygame.Rect(obj.x, obj.y, obj.width, obj.height)
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""
@@ -827,3 +836,31 @@ class GameMap:
         self.view_height = height
         self.camera.screen_width = width
         self.camera.screen_height = height
+
+    def check_player_in_area(self, area_name: str) -> bool:
+        """Check if player is currently inside a named area.
+        
+        Args:
+            area_name: The name of the area to check (must exist in tmx_map.areas).
+            
+        Returns:
+            bool: True if player intersects the area.
+        """
+        if area_name not in self.tmx_map.areas:
+            return False
+            
+        area_rect = self.tmx_map.areas[area_name]
+        
+        # Calculate player collision box (feet area)
+        # Similar logic to MapPlayer.can_move_to
+        collision_height = self.map_player.tile_size / 2 - 2
+        collision_y = self.map_player.y + self.map_player.height - collision_height
+        
+        player_rect = pygame.Rect(
+            int(round(self.map_player.x)), 
+            int(round(collision_y)), 
+            int(self.map_player.width), 
+            int(collision_height)
+        )
+        
+        return area_rect.colliderect(player_rect)

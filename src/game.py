@@ -71,6 +71,9 @@ class Game:
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
         
+        # Initial check for area
+        self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
+        
         # Load images
         self.images: Dict[str, Any] = self._load_images()
         
@@ -323,6 +326,9 @@ class Game:
                     keys = pygame.key.get_pressed()
                     self.game_map.handle_movement_keys(keys)
                     self.game_map.update(delta_time)
+                    
+                    # Update player area status
+                    self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
                 else:
                     self.game_map.map_player.stop_footstep_sound()
             else:

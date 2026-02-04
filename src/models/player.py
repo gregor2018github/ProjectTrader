@@ -20,6 +20,7 @@ class Player:
         self.reputation: int = 0
         self.daily_cost_of_living: float = cost_of_living
         self.position: Tuple[int, int] = (START_X_POSITION, START_Y_POSITION)  # Starting position from constants
+        self.in_market_area: bool = False
 
     def add_score(self, score: int) -> None:
         """Add points to the player's total score.
