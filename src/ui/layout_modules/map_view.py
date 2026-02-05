@@ -10,6 +10,7 @@ import datetime
 from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SHOW_MAP_DEBUG
+from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap, MapPlayer
@@ -58,8 +59,15 @@ def draw_map_view(
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
 
+    # Detect hovered house before building the render queue
+    mouse_pos = pygame.mouse.get_pos()
+    hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
+    
     # Build render queue for Y-sorting (houses and player)
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)
+    
+    # Inject hover effect into the queue (before sorting) for proper z-ordering
+    inject_hover_effect_into_queue(render_queue, hovered_house, game_map.camera, offset_x, offset_y)
     
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
