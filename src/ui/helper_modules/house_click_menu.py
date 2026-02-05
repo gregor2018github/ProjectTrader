@@ -18,9 +18,9 @@ if TYPE_CHECKING:
 HOUSE_INTERACTION_DISTANCE = 48  # About 1.5 tiles
 
 # Hover effect settings
-HOVER_SCALE_FACTOR = 1.06  # How much bigger the glow layer is (6% larger)
-HOVER_OFFSET_X = -2  # Pixel offset to the left
-HOVER_OFFSET_Y = 2   # Pixel offset downward
+HOVER_GLOW_EXTENSION = 4  # Fixed pixel amount to extend the sprite on each side
+HOVER_OFFSET_X = 0   # Pixel offset to the right
+HOVER_OFFSET_Y = 0  # Pixel offset upwards
 HOVER_TINT = (245, 245, 220, 160)  # Beige with transparency
 
 
@@ -136,14 +136,14 @@ _hover_glow_cache: Dict[Tuple[int, float], pygame.Surface] = {}
 
 
 def _create_hover_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Surface:
-    """Create a beige-tinted, slightly larger version of a sprite for hover effect.
+    """Create a monocolor beige silhouette, slightly larger, for hover effect.
     
     Args:
         sprite: The original scaled sprite.
         zoom: Current zoom level (used for cache key).
         
     Returns:
-        The glow effect sprite.
+        The monocolor glow effect sprite.
     """
     # Use sprite id and zoom as cache key
     cache_key = (id(sprite), round(zoom, 3))
@@ -151,27 +151,21 @@ def _create_hover_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Sur
     if cache_key in _hover_glow_cache:
         return _hover_glow_cache[cache_key]
     
-    # Calculate new size
+    # Calculate new size based on fixed pixel extension
     orig_w, orig_h = sprite.get_size()
-    new_w = int(orig_w * HOVER_SCALE_FACTOR)
-    new_h = int(orig_h * HOVER_SCALE_FACTOR)
+    new_w = orig_w + HOVER_GLOW_EXTENSION * 2
+    new_h = orig_h + HOVER_GLOW_EXTENSION * 2
     
-    # Scale the sprite up slightly
+    # Scale the sprite up slightly to create the "form"
     scaled = pygame.transform.smoothscale(sprite, (new_w, new_h))
     
-    # Create a tinted version by blending with beige
-    # First copy the scaled sprite
-    result = scaled.copy()
+    # Create a monocolor silhouette (only the form remains)
+    # 1. Generate a mask from the scaled sprite's alpha channel
+    mask = pygame.mask.from_surface(scaled)
     
-    # Create a beige overlay with same alpha pattern as sprite
-    tint_surface = pygame.Surface((new_w, new_h), pygame.SRCALPHA)
-    tint_surface.fill(HOVER_TINT)
-    
-    # Use the scaled sprite's alpha to mask the tint
-    tint_surface.blit(scaled, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
-    
-    # Add the tint on top of the result
-    result.blit(tint_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+    # 2. Convert mask back to a surface with the desired monocolor
+    # 'setcolor' is the color for pixels in the mask, 'unsetcolor' is transparent
+    result = mask.to_surface(setcolor=HOVER_TINT, unsetcolor=(0, 0, 0, 0))
     
     # Limit cache size to prevent memory issues
     if len(_hover_glow_cache) > 50:
