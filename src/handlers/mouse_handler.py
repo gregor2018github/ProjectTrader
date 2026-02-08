@@ -3,6 +3,7 @@ import random
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_view import ContractView
+from ..ui.helper_modules.house_click_menu import get_hovered_house, show_house_menu
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -77,6 +78,44 @@ def handle_mouse_click(pos: Tuple[int, int],
     if hasattr(game_state.game, 'sound_control'):
         if game_state.game.sound_control.handle_click(pos, game_state.game):
             return
+
+    # Handle map object clicks (houses) if map is visible
+    if game_state.is_map_visible:
+        # Check if we clicked on a house that is hoverable (in range)
+        # We need the map view rect for this. The map view takes up the remaining space
+        # after sidebar (SIDEBAR_WIDTH) is removed from left.
+        # But wait, looking at game.py/render_module, it seems modules render into full_module_rect
+        # We need to construct the view_rect here or access it from somewhere.
+        # The game renders modules side-by-side or full view.
+        # Let's approximate: if map is left module, rect is there. If right module...
+        # Better: Iterate all potential view areas.
+        
+        # Simplified approach: Since we don't have the exact rects easily available here without passed args,
+        # we can reconstruct them based on game_state layout logic or just check if the click hits any house
+        # assuming the mouse pos is correct.
+        # get_hovered_house checks if pos is within passed view_rect.
+        # We'll try passing the screen rect as fallback or calculate properly?
+        
+        # Let's try to find the map rect based on current layout modes
+        from ..config.constants import SIDEBAR_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
+        
+        map_rects = []
+        # Check Left Module
+        if game_state.left_side_mode == "map":
+            rect = pygame.Rect(SIDEBAR_WIDTH, 0, MODULE_WIDTH, SCREEN_HEIGHT)
+            map_rects.append(rect)
+        
+        # Check Right Module
+        if game_state.right_side_mode == "map":
+            rect = pygame.Rect(SIDEBAR_WIDTH + MODULE_WIDTH, 0, MODULE_WIDTH, SCREEN_HEIGHT)
+            map_rects.append(rect)
+            
+        for view_rect in map_rects:
+            if view_rect.collidepoint(pos):
+                hovered_house = get_hovered_house(pos, game_state.game.game_map, view_rect)
+                if hovered_house:
+                    show_house_menu(game_state, hovered_house)
+                    return
 
     # Handle depot time frame button clicks
     if hasattr(game_state, "depot_buttons"):

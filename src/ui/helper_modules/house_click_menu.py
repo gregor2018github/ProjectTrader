@@ -7,11 +7,12 @@ within interaction range of the player, and provides hover effect rendering.
 import pygame
 from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 
-from ...config.colors import BEIGE
+from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK
 
 if TYPE_CHECKING:
     from ...models.house import House
     from ...models.map import GameMap, Camera
+    from ...game_state import GameState
 
 
 # Maximum distance (in world units) the player can be from a house to interact with it
@@ -238,3 +239,123 @@ def inject_hover_effect_into_queue(
     }
     
     render_queue.insert(house_index, glow_entry)
+
+
+def show_house_menu(game_state: 'GameState', house: 'House') -> None:
+    """Create a menu with interaction options for the clicked house.
+    
+    Args:
+        game_state: The current game state.
+        house: The clicked house.
+    """
+    from .info_window import InfoWindow
+    
+    # Create an info window styled as a menu
+    # For now strictly using InfoWindow as requested, later this will be custom menu
+    options = ["Knock", "Inspect", "Buy"]
+    
+    # We will use the existing InfoWindow for now, but style it a bit differently 
+    # via custom callback or parameters if available, or just create it directly.
+    # The InfoWindow logic in menu.py handles its own rendering.
+    
+    # Since InfoWindow constructor takes callback for button clicks, we define one here
+    def menu_callback(option_text: str):
+        print(f"Clicked {option_text} on house {house.name}")
+        # Close the window after selection
+        game_state.info_window = None
+        
+    # The InfoWindow is designed to be modal and centered.
+    # The request asks for dark brown surroundings and sandy brown background.
+    # InfoWindow uses colors from config/colors.py.
+    # To strictly follow the "dark brown for surroundings and sandy brown for background"
+    # we would need to modify InfoWindow or create a custom HouseMenu class. 
+    # Given the instruction "Expand the script house_click_menu to create the actual menu",
+    # we will implement a custom simple menu class here that matches the visual requirements.
+    
+    game_state.info_window = HouseMenu(game_state.screen, house, options, game_state.font, game_state)
+
+
+class HouseMenu:
+    """A pop-up menu for house interactions."""
+    
+    def __init__(self, screen: pygame.Surface, house: 'House', options: List[str], font: pygame.font.Font, game_state: 'GameState'):
+        self.screen = screen
+        self.house = house
+        self.options = options
+        self.font = font
+        self.game_state = game_state
+        
+        # Menu dimensions
+        self.width = 200
+        self.button_height = 40
+        self.padding = 10
+        self.header_height = 30
+        self.total_height = self.header_height + (len(options) * (self.button_height + self.padding)) + self.padding
+        
+        # Center on screen
+        screen_w, screen_h = screen.get_size()
+        self.x = (screen_w - self.width) // 2
+        self.y = (screen_h - self.total_height) // 2
+        
+        self.rect = pygame.Rect(self.x, self.y, self.width, self.total_height)
+        
+        # Create button rects
+        self.buttons: List[Tuple[pygame.Rect, str]] = []
+        current_y = self.y + self.header_height + self.padding
+        for option in options:
+            btn_rect = pygame.Rect(self.x + self.padding, current_y, self.width - 2 * self.padding, self.button_height)
+            self.buttons.append((btn_rect, option))
+            current_y += self.button_height + self.padding
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        """Handle clicks on the menu. Returns True if handled/closed."""
+        # Check if clicked outside
+        if not self.rect.collidepoint(pos):
+            self.game_state.info_window = None # Close menu
+            return True
+            
+        for rect, option in self.buttons:
+            if rect.collidepoint(pos):
+                print(f"Selected {option} for {self.house.name}")
+                self.game_state.info_window = None # Close after action
+                return True
+        return False
+
+    def draw(self) -> None:
+        """Draw the menu."""
+        # Draw background (Sandy Brown)
+        pygame.draw.rect(self.screen, SANDY_BROWN, self.rect)
+        
+        # Draw border (Dark Brown)
+        pygame.draw.rect(self.screen, DARK_BROWN, self.rect, 3)
+        
+        # Draw header (Title) - House Name or Generic
+        title_surf = self.font.render(self.house.name or "House", True, BLACK)
+        title_rect = title_surf.get_rect(center=(self.rect.centerx, self.rect.y + self.header_height // 2))
+        self.screen.blit(title_surf, title_rect)
+        
+        mouse_pos = pygame.mouse.get_pos()
+        
+        # Draw buttons
+        for rect, text in self.buttons:
+            # Check hover
+            is_hovered = rect.collidepoint(mouse_pos)
+            
+            # Button background
+            color = SANDY_BROWN
+            pygame.draw.rect(self.screen, color, rect)
+            
+            # Dark border for buttons
+            pygame.draw.rect(self.screen, DARK_BROWN, rect, 2)
+            
+            # Hover effect (overlay)
+            if is_hovered:
+                overlay = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 30)) # Transparent black
+                self.screen.blit(overlay, rect)
+            
+            # Text
+            text_surf = self.font.render(text, True, BLACK)
+            text_rect = text_surf.get_rect(center=rect.center)
+            self.screen.blit(text_surf, text_rect)
+
