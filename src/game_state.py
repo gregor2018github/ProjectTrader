@@ -145,6 +145,9 @@ class GameState:
         self.house_hover_fade_house = None
         self.house_hover_fade_duration = 12
         self.house_hover_fade_timer = 0
+        self.menu_fade_window = None
+        self.menu_fade_timer = 0
+        self.menu_fade_duration = 20
 
     @property
     def is_map_visible(self) -> bool:

@@ -65,6 +65,10 @@ def draw_map_view(
         if is_player_near_house(game_map.map_player, active_house_menu):
             hovered_house = active_house_menu
         else:
+            # Trigger fade out for the menu
+            game_state.menu_fade_window = game_state.info_window
+            game_state.menu_fade_timer = game_state.menu_fade_duration
+            
             game_state.info_window = None
             game_state.active_house_menu = None
             hovered_house = None

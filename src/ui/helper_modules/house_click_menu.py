@@ -312,6 +312,10 @@ class HouseMenu:
         """Handle clicks on the menu. Returns True if handled/closed."""
         # Check if clicked outside
         if not self.rect.collidepoint(pos):
+            # Trigger fade out
+            self.game_state.menu_fade_window = self
+            self.game_state.menu_fade_timer = self.game_state.menu_fade_duration
+
             self.game_state.info_window = None  # Close menu
             self.game_state.active_house_menu = None
             return True
@@ -326,43 +330,71 @@ class HouseMenu:
                 return True
         return False
 
-    def draw(self) -> None:
-        """Draw the menu."""
+    def draw(self, alpha_scale: float = 1.0) -> None:
+        """Draw the menu.
+        
+        Args:
+            alpha_scale: Transparency scale from 0.0 to 1.0.
+        """
+        if alpha_scale <= 0:
+            return
+
+        # If fading, draw to a temporary surface first
+        target_surf = self.screen
+        draw_rect = self.rect
+        if alpha_scale < 1.0:
+            temp_surf = pygame.Surface((self.width, self.total_height), pygame.SRCALPHA)
+            target_surf = temp_surf
+            draw_rect = pygame.Rect(0, 0, self.width, self.total_height)
+        else:
+            temp_surf = None
+
         # Draw background (Sandy Brown)
-        pygame.draw.rect(self.screen, SANDY_BROWN, self.rect)
+        pygame.draw.rect(target_surf, SANDY_BROWN, draw_rect)
         
         # Draw border (Dark Brown)
-        pygame.draw.rect(self.screen, DARK_BROWN, self.rect, 3)
+        pygame.draw.rect(target_surf, DARK_BROWN, draw_rect, 3)
         
         # Draw header (Title) - House Name or Generic
         raw_name = self.house.name or "House"
         display_name = raw_name.split('_')[0]
         title_surf = self.font.render(display_name, True, BLACK)
-        title_rect = title_surf.get_rect(center=(self.rect.centerx, self.rect.y + self.header_height // 2))
-        self.screen.blit(title_surf, title_rect)
+        title_rect = title_surf.get_rect(center=(draw_rect.centerx, draw_rect.y + self.header_height // 2))
+        target_surf.blit(title_surf, title_rect)
         
         mouse_pos = pygame.mouse.get_pos()
         
         # Draw buttons
         for rect, text in self.buttons:
-            # Check hover
-            is_hovered = rect.collidepoint(mouse_pos)
+            # Adjust rect for local coordinates if drawing to temp surface
+            if temp_surf:
+                btn_draw_rect = pygame.Rect(rect.x - self.x, rect.y - self.y, rect.width, rect.height)
+            else:
+                btn_draw_rect = rect
+
+            # Check hover (only if fully visible)
+            is_hovered = alpha_scale >= 1.0 and rect.collidepoint(mouse_pos)
             
             # Button background
             color = SANDY_BROWN
-            pygame.draw.rect(self.screen, color, rect)
+            pygame.draw.rect(target_surf, color, btn_draw_rect)
             
             # Dark border for buttons
-            pygame.draw.rect(self.screen, DARK_BROWN, rect, 2)
+            pygame.draw.rect(target_surf, DARK_BROWN, btn_draw_rect, 2)
             
             # Hover effect (overlay)
             if is_hovered:
                 overlay = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
                 overlay.fill((0, 0, 0, 30)) # Transparent black
-                self.screen.blit(overlay, rect)
+                target_surf.blit(overlay, btn_draw_rect)
             
             # Text
             text_surf = self.font.render(text, True, BLACK)
-            text_rect = text_surf.get_rect(center=rect.center)
-            self.screen.blit(text_surf, text_rect)
+            text_rect = text_surf.get_rect(center=btn_draw_rect.center)
+            target_surf.blit(text_surf, text_rect)
+
+        # Final blit if we used a temp surface
+        if temp_surf:
+            temp_surf.set_alpha(int(255 * alpha_scale))
+            self.screen.blit(temp_surf, (self.x, self.y))
 

@@ -401,6 +401,14 @@ class Game:
             if self.state.info_window:
                 self.state.info_window.draw()
             
+            # Draw fading menu if present
+            if getattr(self.state, "menu_fade_window", None) and self.state.menu_fade_timer > 0:
+                alpha = self.state.menu_fade_timer / self.state.menu_fade_duration
+                self.state.menu_fade_window.draw(alpha_scale=alpha)
+                self.state.menu_fade_timer -= 1
+                if self.state.menu_fade_timer <= 0:
+                    self.state.menu_fade_window = None
+            
             # Draw contract view if active
             if self.state.contract_view:
                 self.state.contract_view.update(delta_time)

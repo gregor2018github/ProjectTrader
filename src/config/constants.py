@@ -21,7 +21,7 @@ MODULE_WIDTH = (SCREEN_WIDTH) // 2  # 734 pixels per module
 MAX_RECULCULATIONS_PER_SEC = 60
 TILE_SIZE = 32
 PLAYER_SPEED = 120                  # pixels per second
-MAX_FRAMES_PER_SEC = 60
+MAX_FRAMES_PER_SEC = 100
 
 # TIME STEP CONSTANTS (minutes per tick for each speed level)
 TIME_STEP_LEVEL_1 = 0.0             # Level 1: Paused

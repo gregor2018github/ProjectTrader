@@ -39,7 +39,6 @@
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
-- [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
 - [x] when clicking on a building you are close by, you can open an interaction menu
