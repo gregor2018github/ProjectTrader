@@ -1,5 +1,6 @@
 import pygame
 import os
+import random
 from typing import Optional, Dict
 
 class House:
@@ -76,6 +77,36 @@ class House:
             final_width, 
             final_height
         )
+        self.associated_lights = []
+
+    def interact_knock(self, game_state) -> None:
+        """Handle knocking on the house door."""
+        # 1. Play random knock sound
+        knock_num = random.randint(1, 5)
+        sound_name = f"knock_{knock_num}"
+        if game_state.game:
+            game_state.game.play_sound(sound_name)
+
+        # 2. Light interaction if it's night
+        hour = game_state.date.hour + game_state.date.minute / 60.0
+        is_night = hour < 7 or hour > 19
+
+        if is_night and self.associated_lights:
+            # Pick a random light
+            target_light = random.choice(self.associated_lights)
+            
+            if target_light.is_on(game_state.date):
+                # Turn it off: schedule it to end now
+                target_light.is_active_tonight = False
+                target_light._surface_cache.clear()
+            else:
+                # Turn it on: force it active and set timing to include now
+                target_light.is_active_tonight = True
+                # Set start to way before and end to way after current night cycle
+                # This ensures it stays on for the rest of this night
+                target_light.start_hour = hour - 0.1
+                target_light.end_hour = hour + 5.0 
+                target_light._surface_cache.clear()
 
     def _load_image(self) -> None:
         """Load the house image from assets."""

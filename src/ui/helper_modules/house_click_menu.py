@@ -256,40 +256,35 @@ def show_house_menu(game_state: 'GameState', house: 'House') -> None:
     from .info_window import InfoWindow
     
     # Create an info window styled as a menu
-    # For now strictly using InfoWindow as requested, later this will be custom menu
-    options = ["Knock", "Inspect", "Buy"]
+    options = ["Inspect", "Buy"]
     
-    # We will use the existing InfoWindow for now, but style it a bit differently 
-    # via custom callback or parameters if available, or just create it directly.
-    # The InfoWindow logic in menu.py handles its own rendering.
+    # Only show Knock option if building name starts with "House"
+    if house.name and house.name.startswith("House"):
+        options.insert(0, "Knock")
     
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
-        print(f"Clicked {option_text} on house {house.name}")
+        if option_text == "Knock":
+            house.interact_knock(game_state)
+            
         # Close the window after selection
         game_state.info_window = None
+        game_state.active_house_menu = None
         
-    # The InfoWindow is designed to be modal and centered.
-    # The request asks for dark brown surroundings and sandy brown background.
-    # InfoWindow uses colors from config/colors.py.
-    # To strictly follow the "dark brown for surroundings and sandy brown for background"
-    # we would need to modify InfoWindow or create a custom HouseMenu class. 
-    # Given the instruction "Expand the script house_click_menu to create the actual menu",
-    # we will implement a custom simple menu class here that matches the visual requirements.
-    
-    game_state.info_window = HouseMenu(game_state.screen, house, options, game_state.font, game_state)
+    game_state.info_window = HouseMenu(game_state.screen, house, options, game_state.font, game_state, callback=menu_callback)
     game_state.active_house_menu = house
 
 
 class HouseMenu:
     """A pop-up menu for house interactions."""
     
-    def __init__(self, screen: pygame.Surface, house: 'House', options: List[str], font: pygame.font.Font, game_state: 'GameState'):
+    def __init__(self, screen: pygame.Surface, house: 'House', options: List[str], font: pygame.font.Font, game_state: 'GameState', callback=None):
         self.screen = screen
         self.house = house
         self.options = options
         self.font = font
         self.game_state = game_state
+        self.callback = callback
         
         # Menu dimensions
         self.width = 200
@@ -323,9 +318,11 @@ class HouseMenu:
             
         for rect, option in self.buttons:
             if rect.collidepoint(pos):
-                print(f"Selected {option} for {self.house.name}")
-                self.game_state.info_window = None  # Close after action
-                self.game_state.active_house_menu = None
+                if self.callback:
+                    self.callback(option)
+                else:
+                    self.game_state.info_window = None  # Close after action
+                    self.game_state.active_house_menu = None
                 return True
         return False
 
@@ -338,7 +335,9 @@ class HouseMenu:
         pygame.draw.rect(self.screen, DARK_BROWN, self.rect, 3)
         
         # Draw header (Title) - House Name or Generic
-        title_surf = self.font.render(self.house.name or "House", True, BLACK)
+        raw_name = self.house.name or "House"
+        display_name = raw_name.split('_')[0]
+        title_surf = self.font.render(display_name, True, BLACK)
         title_rect = title_surf.get_rect(center=(self.rect.centerx, self.rect.y + self.header_height // 2))
         self.screen.blit(title_surf, title_rect)
         

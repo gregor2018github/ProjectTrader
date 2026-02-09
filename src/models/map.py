@@ -211,6 +211,23 @@ class TMXMap:
                             tile_size=self.tile_size
                         )
                         self.lights.append(light)
+                        
+                        # Find the house that contains this light
+                        # A light is "in" a house if its center is within the house's collision_rect
+                        # (We use collision_rect as a proxy for the house bounds on the map)
+                        light_center_x = obj.x + obj.width / 2
+                        light_center_y = obj.y + obj.height / 2
+                        
+                        for house in self.houses:
+                            # Use collision_rect to associate lights with houses
+                            # The collision_rect covers the base of the house
+                            # However, windows (lights) are usually above the base (collision_rect)
+                            # Let's check if the light's X is within house X range and Y is slightly above
+                            # Or just check if X is within and Y is within a reasonable vertical range
+                            if (house.collision_rect.left <= light_center_x <= house.collision_rect.right and
+                                house.collision_rect.top - house.tile_size * 5 <= light_center_y <= house.collision_rect.bottom):
+                                house.associated_lights.append(light)
+                                break
                     
                     # Load polygon lights for buildings
                     elif obj.name in building_light_names and hasattr(obj, 'points'):

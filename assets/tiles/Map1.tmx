@@ -1828,7 +1828,7 @@
    </properties>
    <point/>
   </object>
-  <object id="221" name="Market_Wheat" type="Market_Frontal" x="1920" y="864">
+  <object id="221" name="Wheat Market" type="Market_Frontal" x="1920" y="864">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -1841,7 +1841,7 @@
    </properties>
    <point/>
   </object>
-  <object id="222" name="Market_Wine_Beer" type="Market_Frontal" x="2112" y="864">
+  <object id="222" name="Wine &amp; Beer Market" type="Market_Frontal" x="2112" y="864">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="-3"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -1854,7 +1854,7 @@
    </properties>
    <point/>
   </object>
-  <object id="223" name="Market_Meat" type="Market_Frontal" x="2336" y="864">
+  <object id="223" name="Meat Market" type="Market_Frontal" x="2336" y="864">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -1867,7 +1867,7 @@
    </properties>
    <point/>
   </object>
-  <object id="224" name="Market_Fish" type="Market_Frontal" x="2272" y="992">
+  <object id="224" name="Fish Market" type="Market_Frontal" x="2272" y="992">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-5"/>
@@ -1881,7 +1881,7 @@
    </properties>
    <point/>
   </object>
-  <object id="225" name="Market_Wood" type="Market_Frontal" x="2048" y="960">
+  <object id="225" name="Wood Market" type="Market_Frontal" x="2048" y="960">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-6"/>
@@ -1895,7 +1895,7 @@
    </properties>
    <point/>
   </object>
-  <object id="226" name="Market_Wool_Hide" type="Market_Frontal" x="2368" y="1088">
+  <object id="226" name="Wool &amp; Hide Market" type="Market_Frontal" x="2368" y="1088">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-3"/>
@@ -1909,7 +1909,7 @@
    </properties>
    <point/>
   </object>
-  <object id="227" name="Market_Iron" type="Market_Side" x="2176" y="1088">
+  <object id="227" name="Iron Market" type="Market_Side" x="2176" y="1088">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -1923,7 +1923,7 @@
    </properties>
    <point/>
   </object>
-  <object id="228" name="Market_Pottery" type="Market_Side" x="1920" y="992">
+  <object id="228" name="Pottery Market" type="Market_Side" x="1920" y="992">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -1937,7 +1937,7 @@
    </properties>
    <point/>
   </object>
-  <object id="229" name="Market_Stone" type="Market_Side" x="1920" y="1120">
+  <object id="229" name="Stone Market" type="Market_Side" x="1920" y="1120">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-2"/>

@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] when clicking on a building you are close by, you can open an interaction menu
 - [ ] interaction menu for buying / selling goods at the market booths
 - [ ] interaction menu for buying trading licenses at the city hall
 - [ ] interaction menu for church donations at the church building
@@ -43,6 +42,7 @@
 - [ ] Time progresses faster with higher frame rates, these two must be decoupled
 
 ## Finished Features
+- [x] when clicking on a building you are close by, you can open an interaction menu
 - [x] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade
 - [x] with new stone tiles create a market area
 - [x] create market booths as asset sprites
