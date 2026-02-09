@@ -140,6 +140,11 @@ class GameState:
         # State for the depot chart view
         self.depot_active_chart: str = "Wealth"
         self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
+        self.active_house_menu = None
+        self.house_last_hovered = None
+        self.house_hover_fade_house = None
+        self.house_hover_fade_duration = 12
+        self.house_hover_fade_timer = 0
 
     @property
     def is_map_visible(self) -> bool:

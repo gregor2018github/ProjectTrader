@@ -10,7 +10,7 @@ import datetime
 from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SHOW_MAP_DEBUG
-from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue
+from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap, MapPlayer
@@ -60,14 +60,45 @@ def draw_map_view(
     game_map.tmx_map.update_lights(game_state.date)
 
     # Detect hovered house before building the render queue
-    mouse_pos = pygame.mouse.get_pos()
-    hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
+    active_house_menu = getattr(game_state, "active_house_menu", None)
+    if active_house_menu and getattr(game_state, "info_window", None) and getattr(game_state.info_window, "house", None) == active_house_menu:
+        if is_player_near_house(game_map.map_player, active_house_menu):
+            hovered_house = active_house_menu
+        else:
+            game_state.info_window = None
+            game_state.active_house_menu = None
+            hovered_house = None
+    else:
+        mouse_pos = pygame.mouse.get_pos()
+        hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
+
+    if hovered_house:
+        game_state.house_last_hovered = hovered_house
+        game_state.house_hover_fade_house = None
+        game_state.house_hover_fade_timer = 0
+    elif game_state.house_last_hovered and game_state.house_hover_fade_house is None:
+        game_state.house_hover_fade_house = game_state.house_last_hovered
+        game_state.house_hover_fade_timer = game_state.house_hover_fade_duration
+        game_state.house_last_hovered = None
     
     # Build render queue for Y-sorting (houses and player)
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)
     
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered_house, game_map.camera, offset_x, offset_y)
+    if not hovered_house and game_state.house_hover_fade_timer > 0 and game_state.house_hover_fade_house:
+        fade_alpha = game_state.house_hover_fade_timer / game_state.house_hover_fade_duration
+        inject_hover_effect_into_queue(
+            render_queue,
+            game_state.house_hover_fade_house,
+            game_map.camera,
+            offset_x,
+            offset_y,
+            alpha_scale=fade_alpha
+        )
+        game_state.house_hover_fade_timer -= 1
+        if game_state.house_hover_fade_timer <= 0:
+            game_state.house_hover_fade_house = None
     
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])

@@ -97,18 +97,20 @@ def handle_mouse_click(pos: Tuple[int, int],
         # We'll try passing the screen rect as fallback or calculate properly?
         
         # Let's try to find the map rect based on current layout modes
-        from ..config.constants import SIDEBAR_WIDTH, SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
-        
+        from ..config.constants import SCREEN_HEIGHT, MODULE_WIDTH
+
         map_rects = []
-        # Check Left Module
-        if game_state.left_side_mode == "map":
-            rect = pygame.Rect(SIDEBAR_WIDTH, 0, MODULE_WIDTH, SCREEN_HEIGHT)
-            map_rects.append(rect)
-        
-        # Check Right Module
-        if game_state.right_side_mode == "map":
-            rect = pygame.Rect(SIDEBAR_WIDTH + MODULE_WIDTH, 0, MODULE_WIDTH, SCREEN_HEIGHT)
-            map_rects.append(rect)
+        left_module_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+        right_module_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+        full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
+
+        if game_state.left_side_mode == "map" and game_state.right_side_mode == "map":
+            map_rects.append(full_module_rect)
+        else:
+            if game_state.left_side_mode == "map":
+                map_rects.append(left_module_rect)
+            if game_state.right_side_mode == "map":
+                map_rects.append(right_module_rect)
             
         for view_rect in map_rects:
             if view_rect.collidepoint(pos):

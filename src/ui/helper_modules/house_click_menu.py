@@ -64,7 +64,7 @@ def get_hovered_house(
     
     for house in houses:
         # Check if player is close enough to interact
-        if not _is_player_near_house(player, house):
+        if not is_player_near_house(player, house):
             continue
         
         # Get the house sprite and calculate its screen rect
@@ -100,7 +100,7 @@ def get_hovered_house(
     return candidates[0][1]
 
 
-def _is_player_near_house(player, house: 'House') -> bool:
+def is_player_near_house(player, house: 'House') -> bool:
     """Check if the player is close enough to a house to interact.
     
     Uses the house's collision rect for distance calculation, checking if
@@ -181,7 +181,8 @@ def inject_hover_effect_into_queue(
     hovered_house: Optional['House'],
     camera: 'Camera',
     offset_x: int,
-    offset_y: int
+    offset_y: int,
+    alpha_scale: Optional[float] = None
 ) -> None:
     """Inject hover effect sprites into the render queue for proper z-ordering.
     
@@ -222,6 +223,10 @@ def inject_hover_effect_into_queue(
     
     # Create the glow sprite
     glow_sprite = _create_hover_glow_sprite(sprite, camera.zoom)
+    if alpha_scale is not None:
+        base_alpha = HOVER_TINT[3] if len(HOVER_TINT) > 3 else 255
+        glow_sprite = glow_sprite.copy()
+        glow_sprite.set_alpha(max(0, min(255, int(base_alpha * alpha_scale))))
     
     # Calculate the offset for centering the larger glow behind the original
     size_diff_x = (glow_sprite.get_width() - sprite.get_width()) // 2
@@ -273,6 +278,7 @@ def show_house_menu(game_state: 'GameState', house: 'House') -> None:
     # we will implement a custom simple menu class here that matches the visual requirements.
     
     game_state.info_window = HouseMenu(game_state.screen, house, options, game_state.font, game_state)
+    game_state.active_house_menu = house
 
 
 class HouseMenu:
@@ -311,13 +317,15 @@ class HouseMenu:
         """Handle clicks on the menu. Returns True if handled/closed."""
         # Check if clicked outside
         if not self.rect.collidepoint(pos):
-            self.game_state.info_window = None # Close menu
+            self.game_state.info_window = None  # Close menu
+            self.game_state.active_house_menu = None
             return True
             
         for rect, option in self.buttons:
             if rect.collidepoint(pos):
                 print(f"Selected {option} for {self.house.name}")
-                self.game_state.info_window = None # Close after action
+                self.game_state.info_window = None  # Close after action
+                self.game_state.active_house_menu = None
                 return True
         return False
 
