@@ -155,6 +155,10 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         current_income = sum(depot.income_history) + depot.income
         current_expense = sum(depot.expenditure_history) + depot.expenditures
 
+    # Calculate live donation expenses for the period
+    donation_stats = depot.get_donation_stats(period_days)
+    current_donations = donation_stats["total"]
+
     # Filter trades by time frame for trade action stats
     if period_days is not None:
         delta = datetime.timedelta(days=period_days)
@@ -170,6 +174,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         ("Wealth Start", f"{start_wealth:,.2f}"),
         ("Income", f"{current_income:,.2f}"),
         ("Expenses", f"{current_expense:,.2f}"),
+        ("  Donations", f"{current_donations:,.2f}"),
         ("Profit", f"{wealth_change:,.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
         ("Total Stock", f"{sum(depot.good_stock.values()):,} / {depot.storage_capacity:,}")

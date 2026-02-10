@@ -35,8 +35,7 @@ class Church(House):
 
             depot = game_state.game.depot
             
-            if depot.money >= amount:
-                depot.money -= amount
+            if depot.book_donation(amount, category="Church Donations"):
                 self.treasury += amount
                 
                 # Close menu on success

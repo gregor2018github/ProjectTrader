@@ -45,6 +45,10 @@ class Depot:
         self.expenditures: float = 0                    # current expenditures
         self.income: float = 0                          # current income
         self.transaction_expenditures: float = 0        # current transaction expenditures
+        self.donation_expenditures: float = 0           # current donation expenditures
+        self.donations: Dict[str, float] = {            # donation subcategories (current day)
+            "Church Donations": 0,
+        }
 
         # BOOKKEEPING
 
@@ -59,6 +63,10 @@ class Depot:
         self.expenditure_history: List[float] = [0.0]              # expenditures tracking for bookkeeping
         self.income_history: List[float] = [0.0]                   # income tracking for bookkeeping
         self.transaction_expenditure_history: List[float] = [0.0]  # transaction expenditures tracking for bookkeeping
+        self.donation_expenditure_history: List[float] = [0.0]     # donation expenditures tracking for bookkeeping
+        self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
+            "Church Donations": [0.0],
+        }
         # FIFO queue to track purchased goods with their prices
         self.purchase_history: Dict[str, List[Dict[str, Any]]] = {good_name: [] for good_name in self.good_stock}
 
@@ -277,9 +285,15 @@ class Depot:
         self.income_history.append(self.income)
         self.expenditure_history.append(self.expenditures)
         self.transaction_expenditure_history.append(self.transaction_expenditures)
+        self.donation_expenditure_history.append(self.donation_expenditures)
+        for category, amount in self.donations.items():
+            self.donation_history[category].append(amount)
         self.income = 0
         self.expenditures = 0
         self.transaction_expenditures = 0
+        self.donation_expenditures = 0
+        for category in self.donations:
+            self.donations[category] = 0
     
     def update_total_stock(self) -> int:
         """Update the total stock count history.
@@ -353,3 +367,58 @@ class Depot:
         """
         self.money -= cost_of_living
         self.expenditures += cost_of_living
+
+    def book_donation(self, amount: float, category: str = "Church Donations") -> bool:
+        """Book a donation as an expenditure.
+        
+        Args:
+            amount: The donation amount.
+            category: The donation subcategory (e.g. "Church Donations").
+            
+        Returns:
+            bool: True if the donation was booked successfully, False if insufficient funds.
+        """
+        if self.money < amount:
+            return False
+        
+        self.money -= amount
+        self.expenditures += amount
+        self.donation_expenditures += amount
+        
+        # Track by subcategory, initialize if new
+        if category not in self.donations:
+            self.donations[category] = 0
+            self.donation_history[category] = [0.0] * len(self.donation_expenditure_history)
+        self.donations[category] += amount
+        
+        return True
+
+    def get_donation_stats(self, period_days: Optional[int] = None) -> Dict[str, Any]:
+        """Get donation statistics for a given time period.
+        
+        Args:
+            period_days: Number of days to look back. None for all time.
+            
+        Returns:
+            Dict with total donations, breakdown by category, and history.
+        """
+        if period_days is not None:
+            num_history_days = period_days - 1
+            if num_history_days > 0:
+                total = sum(self.donation_expenditure_history[-num_history_days:]) + self.donation_expenditures
+                by_category = {}
+                for category, history in self.donation_history.items():
+                    by_category[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
+            else:
+                total = self.donation_expenditures
+                by_category = dict(self.donations)
+        else:
+            total = sum(self.donation_expenditure_history) + self.donation_expenditures
+            by_category = {}
+            for category, history in self.donation_history.items():
+                by_category[category] = sum(history) + self.donations.get(category, 0)
+        
+        return {
+            "total": total,
+            "by_category": by_category,
+        }
