@@ -246,7 +246,7 @@ def inject_hover_effect_into_queue(
     render_queue.insert(house_index, glow_entry)
 
 
-def show_house_menu(game_state: 'GameState', house: 'House') -> None:
+def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[int, int]) -> None:
     """Create a menu with interaction options for the clicked house.
     
     Args:
@@ -271,14 +271,31 @@ def show_house_menu(game_state: 'GameState', house: 'House') -> None:
         game_state.info_window = None
         game_state.active_house_menu = None
         
-    game_state.info_window = HouseMenu(game_state.screen, house, options, game_state.font, game_state, callback=menu_callback)
+    game_state.info_window = HouseMenu(
+        game_state.screen,
+        house,
+        options,
+        game_state.font,
+        game_state,
+        click_pos=click_pos,
+        callback=menu_callback,
+    )
     game_state.active_house_menu = house
 
 
 class HouseMenu:
     """A pop-up menu for house interactions."""
     
-    def __init__(self, screen: pygame.Surface, house: 'House', options: List[str], font: pygame.font.Font, game_state: 'GameState', callback=None):
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        house: 'House',
+        options: List[str],
+        font: pygame.font.Font,
+        game_state: 'GameState',
+        click_pos: Tuple[int, int],
+        callback=None,
+    ):
         self.screen = screen
         self.house = house
         self.options = options
@@ -293,10 +310,10 @@ class HouseMenu:
         self.header_height = 30
         self.total_height = self.header_height + (len(options) * (self.button_height + self.padding)) + self.padding
         
-        # Center on screen
+        # Position at click with screen clamping
         screen_w, screen_h = screen.get_size()
-        self.x = (screen_w - self.width) // 2
-        self.y = (screen_h - self.total_height) // 2
+        self.x = max(0, min(click_pos[0], screen_w - self.width))
+        self.y = max(0, min(click_pos[1], screen_h - self.total_height))
         
         self.rect = pygame.Rect(self.x, self.y, self.width, self.total_height)
         

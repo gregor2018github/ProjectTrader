@@ -116,7 +116,7 @@ def handle_mouse_click(pos: Tuple[int, int],
             if view_rect.collidepoint(pos):
                 hovered_house = get_hovered_house(pos, game_state.game.game_map, view_rect)
                 if hovered_house:
-                    show_house_menu(game_state, hovered_house)
+                    show_house_menu(game_state, hovered_house, pos)
                     return
 
     # Handle depot time frame button clicks
