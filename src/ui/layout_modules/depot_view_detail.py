@@ -29,6 +29,7 @@ class DepotViewDetail:
         self.cached_stats: Dict[str, List[str]] = {
             "Current Wealth": [],
             "Wealth Start": [],
+            "Expenses": [],
             "Total Stock": [],
             "Buy Actions": [],
             "Sell Actions": [],
@@ -44,6 +45,8 @@ class DepotViewDetail:
         self.last_total_stock_update_date: Optional[datetime.date] = None
         self.last_trade_actions_update_date: Optional[datetime.date] = None
         self.last_trade_actions_count: int = 0
+        self.last_expenses_update_date: Optional[datetime.date] = None
+        self.last_expenses_money: Optional[float] = None
 
     def toggle(self) -> None:
         """Toggle the visibility of the detail panel."""
@@ -98,6 +101,14 @@ class DepotViewDetail:
             self._update_trade_actions(depot, goods, current_time_frame)
             self.last_trade_actions_update_date = current_date
             self.last_trade_actions_count = current_trade_count
+
+        # Update "Expenses" if day changed, money changed, time frame changed, or forced
+        if (force or self.last_expenses_update_date != current_date or
+            self.last_expenses_money != current_money or
+            self.last_time_frame != current_time_frame):
+            self._update_expenses(depot, current_time_frame)
+            self.last_expenses_update_date = current_date
+            self.last_expenses_money = current_money
 
         # Update tracking variables
         self.last_update_date = current_date
@@ -373,6 +384,63 @@ class DepotViewDetail:
                 self.cached_stats[action_type].append(f"      Avg Price: {avg_price:,.2f}")
                 self.cached_stats[action_type].append(f"      Total Value: {stats['total_value']:,.2f}")
                 self.cached_stats[action_type].append("__SEPARATOR__")    
+
+    def _update_expenses(self, depot: Any, time_frame: str) -> None:
+        """Update the 'Expenses' detail statistics based on selected time frame.
+        
+        Breaks down expenses into Cost of Living, Trading Expenses, and Donations.
+        """
+        # Determine period days
+        if time_frame == "Daily":
+            period_days = 1
+        elif time_frame == "Weekly":
+            period_days = 7
+        elif time_frame == "Monthly":
+            period_days = 30
+        elif time_frame == "Yearly":
+            period_days = 365
+        else:  # "Total"
+            period_days = None
+        
+        breakdown = depot.get_expense_breakdown(period_days)
+        
+        self.cached_stats["Expenses"] = []
+        
+        # Total expenses
+        self.cached_stats["Expenses"].append(f"Total: {breakdown['total']:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+        self.cached_stats["Expenses"].append("")
+        
+        # Cost of Living
+        col = breakdown["cost_of_living"]
+        self.cached_stats["Expenses"].append(f"Cost of Living")
+        self.cached_stats["Expenses"].append(f"      Total: {col['total']:,.2f}")
+        for sub_name, sub_val in col.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+        
+        # Trading Expenses
+        trading = breakdown["trading_expenses"]
+        self.cached_stats["Expenses"].append(f"Trading Expenses")
+        self.cached_stats["Expenses"].append(f"      Total: {trading['total']:,.2f}")
+        for sub_name, sub_val in trading.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+        
+        # Donations
+        donations = breakdown["donations"]
+        self.cached_stats["Expenses"].append(f"Donations")
+        self.cached_stats["Expenses"].append(f"      Total: {donations['total']:,.2f}")
+        for sub_name, sub_val in donations.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+
     def draw(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
         """Draw the detail panel and its content to the screen.
         
@@ -465,7 +533,7 @@ class DepotViewDetail:
                     label_surf = small_font.render(label_part, True, BLACK)
                     value_surf = small_font.render(value_part, True, BLACK)
                     screen.blit(label_surf, (self.rect.x + 20 + indent_pixels, y_pos))
-                    screen.blit(value_surf, (self.rect.x + 180, y_pos))
+                    screen.blit(value_surf, (self.rect.x + 230, y_pos))
                 else:
                     text = small_font.render(display_line, True, BLACK)
                     screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))

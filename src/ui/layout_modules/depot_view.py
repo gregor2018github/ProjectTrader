@@ -155,10 +155,6 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         current_income = sum(depot.income_history) + depot.income
         current_expense = sum(depot.expenditure_history) + depot.expenditures
 
-    # Calculate live donation expenses for the period
-    donation_stats = depot.get_donation_stats(period_days)
-    current_donations = donation_stats["total"]
-
     # Filter trades by time frame for trade action stats
     if period_days is not None:
         delta = datetime.timedelta(days=period_days)
@@ -174,7 +170,6 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         ("Wealth Start", f"{start_wealth:,.2f}"),
         ("Income", f"{current_income:,.2f}"),
         ("Expenses", f"{current_expense:,.2f}"),
-        ("  Donations", f"{current_donations:,.2f}"),
         ("Profit", f"{wealth_change:,.2f}"),
         ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
         ("Total Stock", f"{sum(depot.good_stock.values()):,} / {depot.storage_capacity:,}")
@@ -241,7 +236,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
             pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
             pygame.draw.rect(surf, BEIGE, row_separator)
         
-        labels_without_button = ["Current Wealth", "Wealth Start", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
+        labels_without_button = ["Current Wealth", "Wealth Start", "Expenses", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
         if label in labels_without_button:
             # Create a more visible button instead of just the text
             button_size = 16

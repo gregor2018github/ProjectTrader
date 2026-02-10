@@ -46,6 +46,7 @@ class Depot:
         self.income: float = 0                          # current income
         self.transaction_expenditures: float = 0        # current transaction expenditures
         self.donation_expenditures: float = 0           # current donation expenditures
+        self.cost_of_living_expenditures: float = 0     # current cost of living expenditures
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
         }
@@ -64,6 +65,7 @@ class Depot:
         self.income_history: List[float] = [0.0]                   # income tracking for bookkeeping
         self.transaction_expenditure_history: List[float] = [0.0]  # transaction expenditures tracking for bookkeeping
         self.donation_expenditure_history: List[float] = [0.0]     # donation expenditures tracking for bookkeeping
+        self.cost_of_living_expenditure_history: List[float] = [0.0]  # cost of living tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
         }
@@ -286,12 +288,14 @@ class Depot:
         self.expenditure_history.append(self.expenditures)
         self.transaction_expenditure_history.append(self.transaction_expenditures)
         self.donation_expenditure_history.append(self.donation_expenditures)
+        self.cost_of_living_expenditure_history.append(self.cost_of_living_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
         self.income = 0
         self.expenditures = 0
         self.transaction_expenditures = 0
         self.donation_expenditures = 0
+        self.cost_of_living_expenditures = 0
         for category in self.donations:
             self.donations[category] = 0
     
@@ -367,6 +371,7 @@ class Depot:
         """
         self.money -= cost_of_living
         self.expenditures += cost_of_living
+        self.cost_of_living_expenditures += cost_of_living
 
     def book_donation(self, amount: float, category: str = "Church Donations") -> bool:
         """Book a donation as an expenditure.
@@ -392,6 +397,65 @@ class Depot:
         self.donations[category] += amount
         
         return True
+
+    def get_expense_breakdown(self, period_days: Optional[int] = None) -> Dict[str, Any]:
+        """Get a full expense breakdown for a given time period.
+        
+        Returns totals for three top-level categories:
+          - Cost of Living (with subcategory Food)
+          - Trading Expenses (with subcategories Transaction Cost, Good Cost)
+          - Donations (with subcategories from self.donations)
+        
+        Args:
+            period_days: Number of days to look back. None for all time.
+            
+        Returns:
+            Dict with total expenses and per-category breakdowns.
+        """
+        if period_days is not None:
+            num_history_days = period_days - 1
+            if num_history_days > 0:
+                total_exp = sum(self.expenditure_history[-num_history_days:]) + self.expenditures
+                total_transaction = sum(self.transaction_expenditure_history[-num_history_days:]) + self.transaction_expenditures
+                total_col = sum(self.cost_of_living_expenditure_history[-num_history_days:]) + self.cost_of_living_expenditures
+                total_donation = sum(self.donation_expenditure_history[-num_history_days:]) + self.donation_expenditures
+                by_donation_cat = {}
+                for category, history in self.donation_history.items():
+                    by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
+            else:
+                total_exp = self.expenditures
+                total_transaction = self.transaction_expenditures
+                total_col = self.cost_of_living_expenditures
+                total_donation = self.donation_expenditures
+                by_donation_cat = dict(self.donations)
+        else:
+            total_exp = sum(self.expenditure_history) + self.expenditures
+            total_transaction = sum(self.transaction_expenditure_history) + self.transaction_expenditures
+            total_col = sum(self.cost_of_living_expenditure_history) + self.cost_of_living_expenditures
+            total_donation = sum(self.donation_expenditure_history) + self.donation_expenditures
+            by_donation_cat = {}
+            for category, history in self.donation_history.items():
+                by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
+        
+        # Good cost = trading expenditures minus transaction fees
+        total_good_cost = total_exp - total_transaction - total_col - total_donation
+        
+        return {
+            "total": total_exp,
+            "cost_of_living": {
+                "total": total_col,
+                "Food": total_col,  # Currently cost of living is only food
+            },
+            "trading_expenses": {
+                "total": total_transaction + total_good_cost,
+                "Transaction Cost": total_transaction,
+                "Good Cost": total_good_cost,
+            },
+            "donations": {
+                "total": total_donation,
+                **by_donation_cat,
+            },
+        }
 
     def get_donation_stats(self, period_days: Optional[int] = None) -> Dict[str, Any]:
         """Get donation statistics for a given time period.
