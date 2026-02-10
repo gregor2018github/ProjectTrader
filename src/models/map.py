@@ -13,6 +13,7 @@ from typing import List, Dict, Tuple, Any, Optional, Union
 
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
+from .institutions.church import Church
 from .tree import Tree
 from .light import Light, BuildingLight, BuildingLightGroup
 
@@ -151,21 +152,38 @@ class TMXMap:
                     col_margin_up = int(obj.properties.get('Col_margin_up_pixel', 0))
                     col_margin_down = int(obj.properties.get('Col_margin_down_pixel', 0))
                     
-                    house = House(
-                        x=obj.x,
-                        y=obj.y,
-                        file_name=file_name,
-                        tiles_to_right=tiles_to_right,
-                        tiles_up=tiles_up,
-                        collision_to_right=collision_to_right,
-                        collision_up=collision_up,
-                        tile_size=self.tile_size,
-                        col_margin_right_pixel=col_margin_right,
-                        col_margin_left_pixel=col_margin_left,
-                        col_margin_up_pixel=col_margin_up,
-                        col_margin_down_pixel=col_margin_down,
-                        name=obj.name
-                    )
+                    if obj.name.startswith("Church"):
+                        house = Church(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            name=obj.name
+                        )
+                    else:
+                        house = House(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            name=obj.name
+                        )
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

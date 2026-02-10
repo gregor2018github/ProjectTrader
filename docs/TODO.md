@@ -3,7 +3,6 @@
 ## High Priority
 - [ ] interaction menu for buying / selling goods at the market booths
 - [ ] interaction menu for buying trading licenses at the city hall
-- [ ] interaction menu for church donations at the church building
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
 
@@ -41,6 +40,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] interaction menu for church donations at the church building
 - [x] when clicking on a building you are close by, you can open an interaction menu
 - [x] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade
 - [x] with new stone tiles create a market area

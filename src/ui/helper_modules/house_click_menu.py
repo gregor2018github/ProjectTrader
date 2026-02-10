@@ -254,6 +254,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         house: The clicked house.
     """
     from .info_window import InfoWindow
+    from ...models.institutions.church import Church
     
     # Create an info window styled as a menu
     options = ["Inspect", "Buy"]
@@ -262,11 +263,19 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name and house.name.startswith("House"):
         options.insert(0, "Knock")
     
+    if isinstance(house, Church):
+        options.insert(0, "Donate Money")
+    
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
         if option_text == "Knock":
             house.interact_knock(game_state)
             
+        if option_text == "Donate Money" and isinstance(house, Church):
+            house.open_donation_menu(game_state, click_pos)
+            # Don't close window here as open_donation_menu replaces it
+            return
+
         # Close the window after selection
         game_state.info_window = None
         game_state.active_house_menu = None
@@ -310,12 +319,26 @@ class HouseMenu:
         self.header_height = 30
         self.total_height = self.header_height + (len(options) * (self.button_height + self.padding)) + self.padding
         
+        self.close_button_size = 24
+        
         # Position at click with screen clamping
         screen_w, screen_h = screen.get_size()
-        self.x = max(0, min(click_pos[0], screen_w - self.width))
+        
+        # We need space for the close button on the right
+        total_width = self.width + self.close_button_size
+        
+        self.x = max(0, min(click_pos[0], screen_w - total_width))
         self.y = max(0, min(click_pos[1], screen_h - self.total_height))
         
         self.rect = pygame.Rect(self.x, self.y, self.width, self.total_height)
+        
+        # Close button rect (outside, to the right of the header)
+        self.close_rect = pygame.Rect(
+            self.x + self.width,
+            self.y,
+            self.close_button_size,
+            self.header_height,
+        )
         
         # Create button rects
         self.buttons: List[Tuple[pygame.Rect, str]] = []
@@ -327,6 +350,12 @@ class HouseMenu:
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         """Handle clicks on the menu. Returns True if handled/closed."""
+        if self.close_rect.collidepoint(pos):
+            self.game_state.menu_fade_window = self
+            self.game_state.menu_fade_timer = self.game_state.menu_fade_duration
+            self.game_state.info_window = None
+            self.game_state.active_house_menu = None
+            return True
         # Check if clicked outside
         if not self.rect.collidepoint(pos):
             # Trigger fade out
@@ -356,38 +385,62 @@ class HouseMenu:
         if alpha_scale <= 0:
             return
 
-        # If fading, draw to a temporary surface first
+        # Determine bounding area for all parts
+        bounding_rect = self.rect.union(self.close_rect)
+        
+        # Setup target surface
         target_surf = self.screen
-        draw_rect = self.rect
+        offset_x, offset_y = 0, 0
+        
         if alpha_scale < 1.0:
-            temp_surf = pygame.Surface((self.width, self.total_height), pygame.SRCALPHA)
+            # Create a surface big enough for both menu and close button
+            temp_surf = pygame.Surface((bounding_rect.width, bounding_rect.height), pygame.SRCALPHA)
             target_surf = temp_surf
-            draw_rect = pygame.Rect(0, 0, self.width, self.total_height)
+            offset_x = -bounding_rect.x
+            offset_y = -bounding_rect.y
         else:
             temp_surf = None
 
-        # Draw background (Sandy Brown)
-        pygame.draw.rect(target_surf, SANDY_BROWN, draw_rect)
-        
-        # Draw border (Dark Brown)
-        pygame.draw.rect(target_surf, DARK_BROWN, draw_rect, 3)
+        # Draw Menu Body
+        body_draw_rect = self.rect.move(offset_x, offset_y)
+        pygame.draw.rect(target_surf, SANDY_BROWN, body_draw_rect)
+        pygame.draw.rect(target_surf, DARK_BROWN, body_draw_rect, 3)
         
         # Draw header (Title) - House Name or Generic
         raw_name = self.house.name or "House"
         display_name = raw_name.split('_')[0]
         title_surf = self.font.render(display_name, True, BLACK)
-        title_rect = title_surf.get_rect(center=(draw_rect.centerx, draw_rect.y + self.header_height // 2))
+        title_rect = title_surf.get_rect(center=(body_draw_rect.centerx, body_draw_rect.y + self.header_height // 2))
         target_surf.blit(title_surf, title_rect)
-        
+
         mouse_pos = pygame.mouse.get_pos()
+
+        # Draw Close Button (outside main panel)
+        close_draw_rect = self.close_rect.move(offset_x, offset_y)
+        pygame.draw.rect(target_surf, SANDY_BROWN, close_draw_rect)
+        pygame.draw.rect(target_surf, DARK_BROWN, close_draw_rect, 2)
+        
+        is_close_hovered = alpha_scale >= 1.0 and self.close_rect.collidepoint(mouse_pos)
+        if is_close_hovered:
+            overlay = pygame.Surface((close_draw_rect.width, close_draw_rect.height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 30))
+            target_surf.blit(overlay, close_draw_rect)
+
+        # Draw X using lines
+        margin = 6
+        dx, dy = -1, 0
+        start1 = (close_draw_rect.left + margin + dx, close_draw_rect.top + margin + dy)
+        end1 = (close_draw_rect.right - margin + dx, close_draw_rect.bottom - margin + dy)
+        start2 = (close_draw_rect.left + margin + dx, close_draw_rect.bottom - margin + dy)
+        end2 = (close_draw_rect.right - margin + dx, close_draw_rect.top + margin + dy)
+        
+        pygame.draw.line(target_surf, DARK_BROWN, start1, end1, 2)
+        pygame.draw.line(target_surf, DARK_BROWN, start2, end2, 2)
         
         # Draw buttons
         for rect, text in self.buttons:
             # Adjust rect for local coordinates if drawing to temp surface
-            if temp_surf:
-                btn_draw_rect = pygame.Rect(rect.x - self.x, rect.y - self.y, rect.width, rect.height)
-            else:
-                btn_draw_rect = rect
+            btn_draw_rect = rect.move(offset_x, offset_y)
 
             # Check hover (only if fully visible)
             is_hovered = alpha_scale >= 1.0 and rect.collidepoint(mouse_pos)
@@ -413,5 +466,5 @@ class HouseMenu:
         # Final blit if we used a temp surface
         if temp_surf:
             temp_surf.set_alpha(int(255 * alpha_scale))
-            self.screen.blit(temp_surf, (self.x, self.y))
+            self.screen.blit(temp_surf, (bounding_rect.x, bounding_rect.y))
 
