@@ -154,6 +154,12 @@ def handle_mouse_click(pos: Tuple[int, int],
             game_state.time_level = time_level
         return
 
+    # Handle info window clicks first - blocks other UI interactions if present
+    if getattr(game_state, 'info_window', None) and hasattr(game_state.info_window, 'handle_click'):
+        if game_state.info_window.handle_click(pos):
+            # If handled (e.g., button clicked, or closed), return
+            return
+
     # Handle menu clicks first
     if hasattr(game_state, 'game') and hasattr(game_state.game, 'menu'):
         menu_action = game_state.game.menu.handle_click(pos)
