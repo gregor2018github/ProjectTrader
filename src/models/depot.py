@@ -49,6 +49,7 @@ class Depot:
         self.cost_of_living_expenditures: float = 0     # current cost of living expenditures
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
+            "Town Donations": 0,
         }
 
         # BOOKKEEPING
@@ -68,6 +69,7 @@ class Depot:
         self.cost_of_living_expenditure_history: List[float] = [0.0]  # cost of living tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
+            "Town Donations": [0.0],
         }
         # FIFO queue to track purchased goods with their prices
         self.purchase_history: Dict[str, List[Dict[str, Any]]] = {good_name: [] for good_name in self.good_stock}

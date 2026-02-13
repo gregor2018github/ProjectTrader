@@ -18,7 +18,6 @@
 
 ## Planned Features
 - [ ] have the bell at the church ringing when the map is open and the player is close to the church (midday and midnight for now)
-- [ ] Expenditure overview in the depot detail view
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
@@ -35,11 +34,13 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] Expenditure overview in the depot detail view
 - [x] interaction menu for church donations at the church building
 - [x] when clicking on a building you are close by, you can open an interaction menu
 - [x] Create a market area on the tiled project, connect it to the python code, only on the market the player can trade

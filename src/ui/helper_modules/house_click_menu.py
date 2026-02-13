@@ -255,6 +255,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     """
     from .info_window import InfoWindow
     from ...models.institutions.church import Church
+    from ...models.institutions.town import Town
     
     # Create an info window styled as a menu
     options = ["Inspect", "Buy"]
@@ -263,7 +264,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name and house.name.startswith("House"):
         options.insert(0, "Knock")
     
-    if isinstance(house, Church):
+    if isinstance(house, (Church, Town)):
         options.insert(0, "Donate Money")
     
     # Since InfoWindow constructor takes callback for button clicks, we define one here
@@ -271,7 +272,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Knock":
             house.interact_knock(game_state)
             
-        if option_text == "Donate Money" and isinstance(house, Church):
+        if option_text == "Donate Money" and isinstance(house, (Church, Town)):
             house.open_donation_menu(game_state, click_pos)
             # Don't close window here as open_donation_menu replaces it
             return
