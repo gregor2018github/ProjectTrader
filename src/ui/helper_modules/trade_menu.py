@@ -150,6 +150,13 @@ class TradeMenu:
         pygame.draw.rect(target_surf, SANDY_BROWN, close_draw_rect)
         pygame.draw.rect(target_surf, DARK_BROWN, close_draw_rect, 2)
         
+        # Close button hover effect
+        mouse_pos = pygame.mouse.get_pos()
+        if alpha_scale >= 1.0 and self.close_rect.collidepoint(mouse_pos):
+            overlay = pygame.Surface((close_draw_rect.width, close_draw_rect.height), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 30))
+            target_surf.blit(overlay, close_draw_rect)
+        
         # X mark
         margin = 6
         start1 = (close_draw_rect.left + margin, close_draw_rect.top + margin)
@@ -168,6 +175,18 @@ class TradeMenu:
         minus_rect = self.buttons['minus'].move(offset_x, offset_y)
         plus_rect = self.buttons['plus'].move(offset_x, offset_y)
         
+        # Minus button hover
+        if alpha_scale >= 1.0 and self.buttons['minus'].collidepoint(mouse_pos):
+             overlay = pygame.Surface((minus_rect.width, minus_rect.height), pygame.SRCALPHA)
+             overlay.fill((0, 0, 0, 30))
+             target_surf.blit(overlay, minus_rect)
+
+        # Plus button hover
+        if alpha_scale >= 1.0 and self.buttons['plus'].collidepoint(mouse_pos):
+             overlay = pygame.Surface((plus_rect.width, plus_rect.height), pygame.SRCALPHA)
+             overlay.fill((0, 0, 0, 30))
+             target_surf.blit(overlay, plus_rect)
+
         # Arrows (Triangles)
         # Minus (point left)
         pygame.draw.polygon(target_surf, DARK_BROWN, [
@@ -197,7 +216,11 @@ class TradeMenu:
 
         # Buy Button
         buy_rect = self.buttons['buy'].move(offset_x, offset_y)
-        pygame.draw.rect(target_surf, BUY_BUTTON, buy_rect)
+        buy_color = BUY_BUTTON
+        if alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos):
+            buy_color = BUY_BUTTON_HOVER
+
+        pygame.draw.rect(target_surf, buy_color, buy_rect)
         pygame.draw.rect(target_surf, BUY_BUTTON_BORDER, buy_rect, 2)
         buy_text = self.font.render("Buy", True, BUTTON_TEXT)
         buy_text_rect = buy_text.get_rect(center=buy_rect.center)
@@ -205,7 +228,11 @@ class TradeMenu:
 
         # Sell Button
         sell_rect = self.buttons['sell'].move(offset_x, offset_y)
-        pygame.draw.rect(target_surf, SELL_BUTTON, sell_rect)
+        sell_color = SELL_BUTTON
+        if alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos):
+            sell_color = SELL_BUTTON_HOVER
+
+        pygame.draw.rect(target_surf, sell_color, sell_rect)
         pygame.draw.rect(target_surf, SELL_BUTTON_BORDER, sell_rect, 2)
         sell_text = self.font.render("Sell", True, BUTTON_TEXT)
         sell_text_rect = sell_text.get_rect(center=sell_rect.center)
