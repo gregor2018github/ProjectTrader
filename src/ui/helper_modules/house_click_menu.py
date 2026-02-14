@@ -272,6 +272,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         goods = house.get_trade_options()
         for good in reversed(goods): # Insert in reverse so they appear in correct order at top
              options.insert(0, f"Trade {good}")
+        options.insert(0, "Check Prices")
     
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
@@ -286,6 +287,19 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text.startswith("Trade ") and isinstance(house, Market):
             good_name = option_text.replace("Trade ", "")
             house.open_trade_menu(game_state, click_pos, good_name)
+            return
+
+        if option_text == "Check Prices" and isinstance(house, Market):
+            game_state.left_side_mode = "market"
+            game_state.right_side_mode = "depot"
+
+            if game_state.game:
+                market_goods = house.get_trade_options()
+                for good in game_state.game.goods:
+                    good.show_in_charts = good.name in market_goods
+
+            game_state.info_window = None
+            game_state.active_house_menu = None
             return
 
         # Close the window after selection
