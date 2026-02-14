@@ -42,7 +42,7 @@ class Market(House):
             good_name: The name of the good to trade.
         """
         # Local import to avoid circular dependency
-        from ...ui.helper_modules.trade_menu import TradeMenu
+        from ...ui.helper_modules.quick_trade_menu import TradeMenu
         
         # Replace current info window with new trade menu
         game_state.info_window = TradeMenu(

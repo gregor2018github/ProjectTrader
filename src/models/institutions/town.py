@@ -57,3 +57,43 @@ class Town(House):
             callback=donation_callback
         )
         game_state.active_house_menu = self
+
+    def open_license_view(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
+        """Opens a view showing all current trading licenses and their remaining days.
+        
+        Args:
+            game_state: The current game state.
+            click_pos: The screen position where the user clicked.
+        """
+        from ...ui.helper_modules.house_click_menu import HouseMenu
+
+        depot = game_state.game.depot
+        licenses = depot.get_licenses(game_state.date)
+
+        if not licenses:
+            options = ["No licenses owned"]
+        else:
+            # Sort: active first (by days left desc), then expired
+            licenses.sort(key=lambda l: l["days_left"], reverse=True)
+            options = []
+            for lic in licenses:
+                if lic["days_left"] > 0:
+                    options.append(f"{lic['good']}: {lic['days_left']} days left")
+                else:
+                    options.append(f"{lic['good']}: expired")
+
+        def license_callback(option_text: str):
+            # Read-only view, clicking any entry just closes the menu
+            game_state.info_window = None
+            game_state.active_house_menu = None
+
+        game_state.info_window = HouseMenu(
+            game_state.screen,
+            self,
+            options,
+            game_state.font,
+            game_state,
+            click_pos=click_pos,
+            callback=license_callback,
+        )
+        game_state.active_house_menu = self

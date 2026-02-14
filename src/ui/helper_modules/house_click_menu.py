@@ -268,6 +268,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if isinstance(house, (Church, Town)):
         options.insert(0, "Donate Money")
 
+    if isinstance(house, Town):
+        options.insert(0, "Check Licenses")
+
     if isinstance(house, Market):
         goods = house.get_trade_options()
         for good in reversed(goods): # Insert in reverse so they appear in correct order at top
@@ -287,6 +290,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Donate Money" and isinstance(house, (Church, Town)):
             house.open_donation_menu(game_state, click_pos)
             # Don't close window here as open_donation_menu replaces it
+            return
+
+        if option_text == "Check Licenses" and isinstance(house, Town):
+            house.open_license_view(game_state, click_pos)
             return
 
         if option_text.startswith("QuickTrade ") and isinstance(house, Market):

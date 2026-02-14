@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] in QuickTrade menu, add second set of arrow buttons to allow to change volume by +-10
 - [ ] interaction menu for buying trading licenses at the city hall
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
@@ -40,6 +39,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] in QuickTrade menu, add second set of arrow buttons to allow to change volume by +-10
 - [x] when clicking inspect on any house object, see the Object name,  the class, the x and y coordinates, the sprite name
 - [x] extra option at the house_click_menu for market stands to jump into the prices right away, with the respective good opened immediately
 - [x] interaction menu for buying / selling goods at the market booths

@@ -1,5 +1,6 @@
 import datetime
 from typing import Dict, List, Optional, Any, Union
+from ..config.constants import STARTING_LICENSES
 
 class Depot:
     """Manages the player's financial state, inventory, and trade history.
@@ -96,6 +97,87 @@ class Depot:
         # Add list to record individual trade cycles with their timestamp
         self.trade_cycle_records: List[Dict[str, Any]] = []
 
+        # TRADING LICENSES
+        # Each license maps good_name -> expiry datetime
+        self.trading_licenses: Dict[str, datetime.datetime] = {}
+
+    def init_starting_licenses(self, start_date: datetime.datetime) -> None:
+        """Initialize trading licenses from constants.
+        
+        Args:
+            start_date: The game's starting date to calculate expiry from.
+        """
+        for good_name, months in STARTING_LICENSES:
+            self.add_license(good_name, months, start_date)
+
+    def add_license(self, good_name: str, months: int, current_date: datetime.datetime) -> None:
+        """Grant a trading license for a good.
+        
+        Args:
+            good_name: Name of the good.
+            months: Duration in months.
+            current_date: Current game date.
+        """
+        # Calculate expiry: advance by the given number of months
+        new_month = current_date.month + months
+        new_year = current_date.year + (new_month - 1) // 12
+        new_month = (new_month - 1) % 12 + 1
+        try:
+            expiry = current_date.replace(year=new_year, month=new_month)
+        except ValueError:
+            # Handle end-of-month edge cases (e.g., Jan 31 + 1 month)
+            import calendar
+            last_day = calendar.monthrange(new_year, new_month)[1]
+            expiry = current_date.replace(year=new_year, month=new_month, day=last_day)
+
+        # If already licensed, extend from the later of current expiry or now
+        if good_name in self.trading_licenses and self.trading_licenses[good_name] > current_date:
+            base = self.trading_licenses[good_name]
+            ext_month = base.month + months
+            ext_year = base.year + (ext_month - 1) // 12
+            ext_month = (ext_month - 1) % 12 + 1
+            try:
+                expiry = base.replace(year=ext_year, month=ext_month)
+            except ValueError:
+                import calendar
+                last_day = calendar.monthrange(ext_year, ext_month)[1]
+                expiry = base.replace(year=ext_year, month=ext_month, day=last_day)
+
+        self.trading_licenses[good_name] = expiry
+
+    def has_license(self, good_name: str, current_date: datetime.datetime) -> bool:
+        """Check if the player has a valid trading license for a good.
+        
+        Args:
+            good_name: Name of the good.
+            current_date: Current game date.
+            
+        Returns:
+            bool: True if a valid license exists.
+        """
+        if good_name not in self.trading_licenses:
+            return False
+        return self.trading_licenses[good_name] > current_date
+
+    def get_licenses(self, current_date: datetime.datetime) -> List[Dict[str, Any]]:
+        """Get all trading licenses with remaining days.
+        
+        Args:
+            current_date: Current game date.
+            
+        Returns:
+            List of dicts with 'good', 'expiry', and 'days_left' keys.
+        """
+        result = []
+        for good_name, expiry in self.trading_licenses.items():
+            days_left = (expiry - current_date).days
+            result.append({
+                "good": good_name,
+                "expiry": expiry,
+                "days_left": max(0, days_left),
+            })
+        return result
+
     def buy(self, good: Any, quantity_to_buy: int, game_state: Any) -> bool:
         """Buy a quantity of a good from market to depot.
         
@@ -107,6 +189,10 @@ class Depot:
         Returns:
             bool: True if purchase was successful, False otherwise.
         """
+        if not self.has_license(good.name, game_state.date):
+            game_state.show_warning(f"No trading license for {good.name}.")
+            return False
+
         total_cost = good.get_price() * quantity_to_buy
         
         if self.money < total_cost + self.transaction_cost:
@@ -153,6 +239,9 @@ class Depot:
         Returns:
             bool: True if sale was successful, False otherwise.
         """
+        if not self.has_license(good.name, game_state.date):
+            game_state.show_warning(f"No trading license for {good.name}.")
+            return False
         if good.name not in self.good_stock:
             game_state.show_warning(f"No {good.name} in stock.")
             return False

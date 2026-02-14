@@ -72,10 +72,12 @@ class TradeMenu:
         arrow_size = 20
         
         # Centered Quantity Text Area (conceptually)
-        # Minus button
+        # Minus buttons
+        self.buttons['minus10'] = pygame.Rect(cx - 80, qty_center - 10, arrow_size, arrow_size)
         self.buttons['minus'] = pygame.Rect(cx - 50, qty_center - 10, arrow_size, arrow_size)
-        # Plus button
+        # Plus buttons
         self.buttons['plus'] = pygame.Rect(cx + 30, qty_center - 10, arrow_size, arrow_size)
+        self.buttons['plus10'] = pygame.Rect(cx + 60, qty_center - 10, arrow_size, arrow_size)
         
         y += 80
         
@@ -92,11 +94,21 @@ class TradeMenu:
         if self.close_rect.collidepoint(pos) or (not self.rect.collidepoint(pos) and not self.close_rect.collidepoint(pos)):
             self._close()
             return True
+
+        if self.buttons['plus10'].collidepoint(pos):
+            self.quantity += 10
+            if self.quantity > 999:
+                self.quantity = 999
+            return True
             
         if self.buttons['plus'].collidepoint(pos):
             self.quantity += 1
             if self.quantity > 999: # Cap quantity
                 self.quantity = 999
+            return True
+
+        if self.buttons['minus10'].collidepoint(pos):
+            self.quantity = max(1, self.quantity - 10)
             return True
             
         if self.buttons['minus'].collidepoint(pos):
@@ -172,33 +184,56 @@ class TradeMenu:
         target_surf.blit(title_surf, title_rect)
 
         # Quantity Row
+        minus10_rect = self.buttons['minus10'].move(offset_x, offset_y)
         minus_rect = self.buttons['minus'].move(offset_x, offset_y)
         plus_rect = self.buttons['plus'].move(offset_x, offset_y)
+        plus10_rect = self.buttons['plus10'].move(offset_x, offset_y)
         
-        # Minus button hover
-        if alpha_scale >= 1.0 and self.buttons['minus'].collidepoint(mouse_pos):
-             overlay = pygame.Surface((minus_rect.width, minus_rect.height), pygame.SRCALPHA)
-             overlay.fill((0, 0, 0, 30))
-             target_surf.blit(overlay, minus_rect)
-
-        # Plus button hover
-        if alpha_scale >= 1.0 and self.buttons['plus'].collidepoint(mouse_pos):
-             overlay = pygame.Surface((plus_rect.width, plus_rect.height), pygame.SRCALPHA)
-             overlay.fill((0, 0, 0, 30))
-             target_surf.blit(overlay, plus_rect)
+        # Hover effects
+        for btn_key in ['minus10', 'minus', 'plus', 'plus10']:
+            if alpha_scale >= 1.0 and self.buttons[btn_key].collidepoint(mouse_pos):
+                 btn_rect = self.buttons[btn_key].move(offset_x, offset_y)
+                 overlay = pygame.Surface((btn_rect.width, btn_rect.height), pygame.SRCALPHA)
+                 overlay.fill((0, 0, 0, 30))
+                 target_surf.blit(overlay, btn_rect)
 
         # Arrows (Triangles)
+        # Minus10 (double point left)
+        pygame.draw.polygon(target_surf, DARK_BROWN, [
+            (minus10_rect.right, minus10_rect.top),
+            (minus10_rect.centerx, minus10_rect.centery),
+            (minus10_rect.right, minus10_rect.bottom)
+        ])
+        pygame.draw.polygon(target_surf, DARK_BROWN, [
+            (minus10_rect.centerx, minus10_rect.top),
+            (minus10_rect.left, minus10_rect.centery),
+            (minus10_rect.centerx, minus10_rect.bottom)
+        ])
+
         # Minus (point left)
         pygame.draw.polygon(target_surf, DARK_BROWN, [
             (minus_rect.right, minus_rect.top),
             (minus_rect.left, minus_rect.centery),
             (minus_rect.right, minus_rect.bottom)
         ])
+
         # Plus (point right)
         pygame.draw.polygon(target_surf, DARK_BROWN, [
             (plus_rect.left, plus_rect.top),
             (plus_rect.right, plus_rect.centery),
             (plus_rect.left, plus_rect.bottom)
+        ])
+
+        # Plus10 (double point right)
+        pygame.draw.polygon(target_surf, DARK_BROWN, [
+            (plus10_rect.left, plus10_rect.top),
+            (plus10_rect.centerx, plus10_rect.centery),
+            (plus10_rect.left, plus10_rect.bottom)
+        ])
+        pygame.draw.polygon(target_surf, DARK_BROWN, [
+            (plus10_rect.centerx, plus10_rect.top),
+            (plus10_rect.right, plus10_rect.centery),
+            (plus10_rect.centerx, plus10_rect.bottom)
         ])
         
         # Quantity Number

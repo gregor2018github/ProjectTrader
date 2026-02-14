@@ -39,6 +39,13 @@ STARTING_MONEY = 100                # Starting money for the player
 INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
 INITIAL_STORAGE_CAPACITY = 100      # how many items the player can store at the start
 
+# TRADING LICENSE CONSTANTS
+# Each entry: (good_name, duration_in_months)
+STARTING_LICENSES = [
+    ("Wood", 2),
+    ("Stone", 2),
+]
+
 # UI CONSTANTS
 CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "Week", "Month"
 
