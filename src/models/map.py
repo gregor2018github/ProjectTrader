@@ -153,6 +153,7 @@ class TMXMap:
                     col_margin_left = int(obj.properties.get('Col_margin_left_pixel', 0))
                     col_margin_up = int(obj.properties.get('Col_margin_up_pixel', 0))
                     col_margin_down = int(obj.properties.get('Col_margin_down_pixel', 0))
+                    obj_class = getattr(obj, 'type', "") or ""
                     
                     if obj.name.startswith("Church"):
                         house = Church(
@@ -168,7 +169,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
-                            name=obj.name
+                            name=obj.name,
+                            house_class=obj_class
                         )
                     elif obj.name.startswith("Townhall"):
                         house = Town(
@@ -184,7 +186,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
-                            name=obj.name
+                            name=obj.name,
+                            house_class=obj_class
                         )
                     elif "Market" in obj.name:
                         house = Market(
@@ -200,7 +203,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
-                            name=obj.name
+                            name=obj.name,
+                            house_class=obj_class
                         )
                     else:
                         house = House(
@@ -216,7 +220,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
-                            name=obj.name
+                            name=obj.name,
+                            house_class=obj_class
                         )
                     self.houses.append(house)
 

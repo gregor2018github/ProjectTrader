@@ -35,9 +35,15 @@ class InfoWindow:
         self.game: Optional['Game'] = game  # Store reference to the game object
         
         # Calculate window size based on message and number of options
-        msg_surface = self.font.render(message, True, BLACK)
-        width: int = max(msg_surface.get_width() + 80, len(options) * 120)  # Made wider for the frame
-        height: int = 150 + (len(options) > 2) * 40  # Made taller for the frame
+        lines = message.split('\n')
+        max_line_width = 0
+        for line in lines:
+            line_surface = self.font.render(line, True, BLACK)
+            max_line_width = max(max_line_width, line_surface.get_width())
+            
+        width: int = max(max_line_width + 80, len(options) * 120 + 40)
+        # Base height + space for each line + space for buttons
+        height: int = 120 + (len(lines) * 30) + (len(options) > 0) * 60
         
         # Create window in center of screen
         screen_center = (screen.get_width() // 2, screen.get_height() // 2)
@@ -84,10 +90,12 @@ class InfoWindow:
             pygame.draw.rect(self.screen, LIGHT_GRAY, self.window_rect)
             pygame.draw.rect(self.screen, DARK_GRAY, self.window_rect, 2)
         
-        # Draw message - adjusted positioning
-        text = self.font.render(self.message, True, BLACK)
-        text_rect = text.get_rect(center=(self.window_rect.centerx, self.window_rect.top + 60))
-        self.screen.blit(text, text_rect)
+        # Draw message lines
+        lines = self.message.split('\n')
+        for i, line in enumerate(lines):
+            text = self.font.render(line, True, BLACK)
+            text_rect = text.get_rect(center=(self.window_rect.centerx, self.window_rect.top + 60 + (i * 30)))
+            self.screen.blit(text, text_rect)
         
         # Get mouse position for hover effects
         mouse_pos = pygame.mouse.get_pos()

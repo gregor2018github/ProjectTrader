@@ -67,7 +67,7 @@ class EventHandler:
                 choice = game_state.info_window.handle_click(event.pos)
                 if choice == "Quit":
                     self.running = False
-                elif choice in ("Back", "Save and Close"):
+                elif choice in ("Back", "Save and Close", "OK"):
                     game_state.info_window = None
             else:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)

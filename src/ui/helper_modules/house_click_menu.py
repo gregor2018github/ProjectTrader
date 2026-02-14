@@ -259,7 +259,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.market import Market
     
     # Create an info window styled as a menu
-    options = ["Inspect", "Buy"]
+    options = ["Inspect"]
     
     # Only show Knock option if building name starts with "House"
     if house.name and house.name.startswith("House"):
@@ -271,7 +271,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if isinstance(house, Market):
         goods = house.get_trade_options()
         for good in reversed(goods): # Insert in reverse so they appear in correct order at top
-             options.insert(0, f"Trade {good}")
+             options.insert(0, f"QuickTrade {good}")
         options.insert(0, "Check Prices")
     
     # Since InfoWindow constructor takes callback for button clicks, we define one here
@@ -279,13 +279,18 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Knock":
             house.interact_knock(game_state)
             
+        if option_text == "Inspect":
+            msg = f"Object Name: {house.name}\nClass: {house.house_class}\nCoordinates: X={round(house.x, 1)}, Y={round(house.y, 1)}\nSprite: {house.file_name}"
+            game_state.info_window = InfoWindow(game_state.screen, msg, ["OK"], game_state.font, game_state.game)
+            return
+
         if option_text == "Donate Money" and isinstance(house, (Church, Town)):
             house.open_donation_menu(game_state, click_pos)
             # Don't close window here as open_donation_menu replaces it
             return
 
-        if option_text.startswith("Trade ") and isinstance(house, Market):
-            good_name = option_text.replace("Trade ", "")
+        if option_text.startswith("QuickTrade ") and isinstance(house, Market):
+            good_name = option_text.replace("QuickTrade ", "")
             house.open_trade_menu(game_state, click_pos, good_name)
             return
 

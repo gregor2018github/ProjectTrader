@@ -11,6 +11,7 @@ class House:
                  collision_to_right: int, collision_up: int,
                  tile_size: int,
                  name: str = "",
+                 house_class: str = "",
                  col_margin_right_pixel: int = 0,
                  col_margin_left_pixel: int = 0,
                  col_margin_up_pixel: int = 0,
@@ -41,6 +42,7 @@ class House:
         self.collision_up = collision_up
         self.tile_size = tile_size
         self.name = name
+        self.house_class = house_class
         
         self.image: Optional[pygame.Surface] = None
         self.scaled_image_cache: Dict[float, pygame.Surface] = {}
