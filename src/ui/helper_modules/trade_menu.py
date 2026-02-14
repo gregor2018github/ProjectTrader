@@ -77,7 +77,7 @@ class TradeMenu:
         # Plus button
         self.buttons['plus'] = pygame.Rect(cx + 30, qty_center - 10, arrow_size, arrow_size)
         
-        y += 50
+        y += 80
         
         # Buy Button
         self.buttons['buy'] = pygame.Rect(x, y, width, 30)
@@ -188,7 +188,7 @@ class TradeMenu:
         target_surf.blit(qty_surf, qty_rect)
 
         # Price Info (below Quantity)
-        price_y = minus_rect.bottom + 5
+        price_y = minus_rect.bottom + 10
         if self.good:
             price_text = f"Price: {self.good.get_price():.1f}"
             price_surf = self.font.render(price_text, True, DARK_GRAY)
