@@ -463,8 +463,10 @@ class ContractOverview:
             overlay.fill((0, 0, 0, 50))  # Black overlay at 50 alpha
             surf.blit(overlay, inner.topleft)
             
-            # Return tooltip data if it's an active license
+            # Return tooltip data
             if has_license:
-                return ("Inspect Contract", mouse_pos)
+                return ("  Inspect Contract", mouse_pos)
+            else:
+                return ("  Acquire License", mouse_pos)
         
         return None

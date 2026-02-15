@@ -46,6 +46,22 @@ STARTING_LICENSES = [
     ("Stone", 1),
 ]
 
+# monthly base contract fees for each good, used in contract overview and license acquisition
+MONTHLY_CONTRACT_FEES = {
+    "Wood": 50,
+    "Stone": 50,
+    "Iron": 100,
+    "Wool": 100,
+    "Hide": 100,
+    "Fish": 50,
+    "Wheat": 70,
+    "Wine": 500,
+    "Beer": 200,
+    "Meat": 200,
+    "Linen": 150,
+    "Pottery": 150,
+}
+
 # UI CONSTANTS
 CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "Week", "Month"
 
