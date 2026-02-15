@@ -112,7 +112,7 @@ class GameState:
             "Wood", "Stone", "Iron", "Wool", "Hide", "Fish",
             "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
         ]
-        self.contract_view: Optional[Any] = None
+        self.contract_acquisition: Optional[Any] = None
         
         # Initialize the time trackers from the start date
         self.last_minute: int = self.date.minute

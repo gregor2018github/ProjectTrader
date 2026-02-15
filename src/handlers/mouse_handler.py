@@ -2,7 +2,7 @@ import pygame
 import random
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
-from ..ui.helper_modules.contract_view import ContractView
+from ..ui.helper_modules.contract_acquisition import ContractView
 from ..ui.helper_modules.house_click_menu import get_hovered_house, show_house_menu
 
 if TYPE_CHECKING:
@@ -201,7 +201,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.previous_time_level = game_state.time_level
                 game_state.time_level = 1
                 available_contracts = ["Wine", "Hides", "Wool", "Stone", "Iron", "Wheat", "Fish", "Beer", "Wood", "Linen", "Meat", "Pottery"]
-                game_state.contract_view = ContractView(game_state.screen, game_state.game, contract_type=random.choice(available_contracts), contract_months=12, contract_cost=500)
+                game_state.contract_acquisition = ContractView(game_state.screen, game_state.game, contract_type=random.choice(available_contracts), contract_months=12, contract_cost=500)
                 return
             elif menu_action == "Talk Demo":
                 # Handle talk demo action

@@ -37,10 +37,10 @@ class EventHandler:
             self.running = False
 
         # Handle Contract View
-        if game_state.contract_view:
-            game_state.contract_view.handle_event(event)
-            if not game_state.contract_view.active:
-                game_state.contract_view = None
+        if game_state.contract_acquisition:
+            game_state.contract_acquisition.handle_event(event)
+            if not game_state.contract_acquisition.active:
+                game_state.contract_acquisition = None
                 game_state.time_level = game_state.previous_time_level
             
             # Consume input events if contract is active

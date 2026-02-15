@@ -16,7 +16,7 @@ from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
 from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
-from .ui.helper_modules.contract_view import ContractView
+from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
 
@@ -411,9 +411,9 @@ class Game:
                     self.state.menu_fade_window = None
             
             # Draw contract view if active
-            if self.state.contract_view:
-                self.state.contract_view.update(delta_time)
-                self.state.contract_view.draw()
+            if self.state.contract_acquisition:
+                self.state.contract_acquisition.update(delta_time)
+                self.state.contract_acquisition.draw()
 
             # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
             if self.state.warning:
@@ -438,8 +438,8 @@ class Game:
                                                         self.goods, self.depot, buttons)
             
             # Draw custom cursor on top of everything
-            if self.state.contract_view:
-                self.state.contract_view.draw_cursor()
+            if self.state.contract_acquisition:
+                self.state.contract_acquisition.draw_cursor()
             elif self.cursor_img and pygame.mouse.get_focused():
                 mouse_pos = pygame.mouse.get_pos()
                 self.screen.blit(self.cursor_img, mouse_pos)
