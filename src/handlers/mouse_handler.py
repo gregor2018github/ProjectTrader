@@ -190,22 +190,10 @@ def handle_mouse_click(pos: Tuple[int, int],
             elif menu_action == "Balance":
                 # Handle balance action
                 pass
-            elif menu_action == "Map":
-                # Handle map action
-                pass
             elif menu_action == "Settings":
                 from ..settings import SettingsWindow
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
                 return
-            elif menu_action == "License":
-                game_state.previous_time_level = game_state.time_level
-                game_state.time_level = 1
-                available_contracts = ["Wine", "Hides", "Wool", "Stone", "Iron", "Wheat", "Fish", "Beer", "Wood", "Linen", "Meat", "Pottery"]
-                game_state.contract_acquisition = ContractView(game_state.screen, game_state.game, contract_type=random.choice(available_contracts), contract_months=12, contract_cost=500)
-                return
-            elif menu_action == "Talk Demo":
-                # Handle talk demo action
-                pass
             return
         
     # Handle pictogram sub-button clicks (left/right buttons)
