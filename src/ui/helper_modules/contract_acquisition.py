@@ -36,6 +36,10 @@ class ContractView:
         self.screen = screen
         self.game = game
         self.active = True
+        self.finalized = False  # To prevent double-charging/logging
+        self.contract_type = contract_type
+        self.contract_months = contract_months
+        self.contract_cost = contract_cost
         
         # Determine file names based on contract type
         contract_file = f"License_{contract_type}.txt"
@@ -256,6 +260,50 @@ class ContractView:
                 self.game.sounds[s_name].stop()
         self.scribble_channel = None
 
+    def _finalize_contract(self) -> None:
+        if self.finalized:
+            return
+
+        depot = self.game.depot
+        state = self.game.state
+
+        # Deduct the contract cost
+        if depot.money >= self.contract_cost:
+            depot.money -= self.contract_cost
+            depot.expenditures += self.contract_cost
+        else:
+            # Shouldn't happen — affordability is checked before opening
+            state.show_warning("Not enough money!")
+            return
+
+        # Grant the trading license
+        depot.add_license(self.contract_type, self.contract_months, state.date)
+
+        # Save a screenshot of the signed contract
+        self._save_contract_image()
+        self.finalized = True
+
+    def _save_contract_image(self) -> None:
+        """Render the paper content and save it as a JPEG in the contract_views folder."""
+        paper_surf = pygame.Surface(
+            (self.paper_rect.width, self.paper_rect.height), pygame.SRCALPHA
+        )
+        # Render without buttons for the screenshot
+        self._render_paper_content(paper_surf, include_buttons=False)
+
+        # Convert SRCALPHA surface to RGB for JPEG saving
+        rgb_surf = pygame.Surface((self.paper_rect.width, self.paper_rect.height))
+        rgb_surf.fill((255, 255, 255))  # white background
+        rgb_surf.blit(paper_surf, (0, 0))
+
+        # Ensure the output directory exists
+        views_dir = os.path.join(PICTURES_PATH, "contracts", "contract_views")
+        os.makedirs(views_dir, exist_ok=True)
+
+        filename = f"contract_{self.contract_type.lower()}.jpg"
+        filepath = os.path.join(views_dir, filename)
+        pygame.image.save(rgb_surf, filepath)
+
     def update(self, delta_time: float) -> None:
         """Update animations, timers, and fading effects.
         
@@ -265,6 +313,8 @@ class ContractView:
         if self.is_stamped or self.is_denied:
             self.stamp_timer -= delta_time
             if self.stamp_timer <= 0:
+                if self.is_stamped:
+                    self._finalize_contract()
                 self.active = False
             elif self.stamp_timer < 2.0:
                 # Fade out over 2 seconds
@@ -480,11 +530,12 @@ class ContractView:
 
         return surface
 
-    def _render_paper_content(self, paper_surf: pygame.Surface) -> None:
+    def _render_paper_content(self, paper_surf: pygame.Surface, include_buttons: bool = True) -> None:
         """Drives the actual drawing of text and graphics onto the parchment surface.
         
         Args:
             paper_surf: The surface to draw the contract content upon.
+            include_buttons: Whether to draw the Confirm/Deny buttons (False for screenshots).
         """
         local_paper_rect = pygame.Rect(0, 0, self.paper_rect.width, self.paper_rect.height)
 
@@ -592,26 +643,26 @@ class ContractView:
                 paper_surf.blit(text_surf, text_rect)
                 curr_y += 22
 
-        # Buttons
-        mouse_pos = pygame.mouse.get_pos()
-        local_mouse_pos = (mouse_pos[0] - self.paper_rect.x, mouse_pos[1] - self.paper_rect.y)
-        local_btn_confirm = pygame.Rect(self.btn_confirm.x - self.paper_rect.x, self.btn_confirm.y - self.paper_rect.y, self.btn_confirm.width, self.btn_confirm.height)
-        local_btn_deny = pygame.Rect(self.btn_deny.x - self.paper_rect.x, self.btn_deny.y - self.paper_rect.y, self.btn_deny.width, self.btn_deny.height)
+        if include_buttons:
+            mouse_pos = pygame.mouse.get_pos()
+            local_mouse_pos = (mouse_pos[0] - self.paper_rect.x, mouse_pos[1] - self.paper_rect.y)
+            local_btn_confirm = pygame.Rect(self.btn_confirm.x - self.paper_rect.x, self.btn_confirm.y - self.paper_rect.y, self.btn_confirm.width, self.btn_confirm.height)
+            local_btn_deny = pygame.Rect(self.btn_deny.x - self.paper_rect.x, self.btn_deny.y - self.paper_rect.y, self.btn_deny.width, self.btn_deny.height)
 
-        confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
-        confirm_color = BUY_BUTTON_HOVER if confirm_hover else BUY_BUTTON
-        pygame.draw.rect(paper_surf, confirm_color, local_btn_confirm)
-        pygame.draw.rect(paper_surf, BUY_BUTTON_BORDER, local_btn_confirm, 2)
-        confirm_text = self.body_font.render("Confirm", True, BUTTON_TEXT)
-        paper_surf.blit(confirm_text, confirm_text.get_rect(center=local_btn_confirm.center))
-        
-        # Deny
-        deny_hover = local_btn_deny.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
-        deny_color = SELL_BUTTON_HOVER if deny_hover else SELL_BUTTON
-        pygame.draw.rect(paper_surf, deny_color, local_btn_deny)
-        pygame.draw.rect(paper_surf, SELL_BUTTON_BORDER, local_btn_deny, 2)
-        deny_text = self.body_font.render("Deny", True, BUTTON_TEXT)
-        paper_surf.blit(deny_text, deny_text.get_rect(center=local_btn_deny.center))
+            confirm_hover = local_btn_confirm.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
+            confirm_color = BUY_BUTTON_HOVER if confirm_hover else BUY_BUTTON
+            pygame.draw.rect(paper_surf, confirm_color, local_btn_confirm)
+            pygame.draw.rect(paper_surf, BUY_BUTTON_BORDER, local_btn_confirm, 2)
+            confirm_text = self.body_font.render("Confirm", True, BUTTON_TEXT)
+            paper_surf.blit(confirm_text, confirm_text.get_rect(center=local_btn_confirm.center))
+            
+            # Deny
+            deny_hover = local_btn_deny.collidepoint(local_mouse_pos) and not self.is_stamped and not self.is_denied
+            deny_color = SELL_BUTTON_HOVER if deny_hover else SELL_BUTTON
+            pygame.draw.rect(paper_surf, deny_color, local_btn_deny)
+            pygame.draw.rect(paper_surf, SELL_BUTTON_BORDER, local_btn_deny, 2)
+            deny_text = self.body_font.render("Deny", True, BUTTON_TEXT)
+            paper_surf.blit(deny_text, deny_text.get_rect(center=local_btn_deny.center))
 
         if self.is_stamped and self.stamp_image:
             stamp_rect = self.stamp_image.get_rect()

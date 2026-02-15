@@ -47,6 +47,7 @@ STARTING_LICENSES = [
 ]
 
 # monthly base contract fees for each good, used in contract overview and license acquisition
+BASE_CONTRACT_FEE = 50
 MONTHLY_CONTRACT_FEES = {
     "Wood": 50,
     "Stone": 50,

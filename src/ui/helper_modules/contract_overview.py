@@ -11,9 +11,12 @@ from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 from ...config.colors import (
     BLACK, WHITE, DARK_BROWN, SANDY_BROWN, BEIGE, DARK_GRAY, LIGHT_GRAY,
     GOLD, DARK_GREEN, DARK_RED, WHEAT,
+    BUY_BUTTON, BUY_BUTTON_HOVER, BUY_BUTTON_BORDER, BUTTON_TEXT,
+    SELL_BUTTON, SELL_BUTTON_HOVER, SELL_BUTTON_BORDER,
 )
 from ...config.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH,
+    BASE_CONTRACT_FEE, MONTHLY_CONTRACT_FEES,
 )
 
 if TYPE_CHECKING:
@@ -110,6 +113,12 @@ class ContractOverview:
         self.inspecting_good: Optional[str] = None
         self.inspecting_img: Optional[pygame.Surface] = None
 
+        # Month Selection State ----------------------------------------
+        self.selecting_good: Optional[str] = None  # Good currently being acquired
+        self.month_buttons: List[Dict[str, Any]] = []  # [{"months": int, "rect": Rect, "cost": int}]
+        self.month_panel_rect: Optional[pygame.Rect] = None
+        self.month_cancel_rect: Optional[pygame.Rect] = None
+
         # Scroll state (not needed now but easy to add later) -----------
         self.scroll_y = 0
 
@@ -173,6 +182,10 @@ class ContractOverview:
         click outside the panel).  The caller should set
         ``game_state.info_window = None`` accordingly.
         """
+        # Handle month selection panel clicks first
+        if self.selecting_good:
+            return self._handle_month_selection_click(pos)
+
         # Close full view if active
         if self.inspecting_good:
             self.inspecting_good = None
@@ -188,16 +201,20 @@ class ContractOverview:
         depot = self.game_state.game.depot
         current_date = self.game_state.date
         for i, good in enumerate(ALL_GOODS):
-            expiry = depot.trading_licenses.get(good)
-            if expiry and expiry > current_date:
-                cell_rect = self._get_cell_rect(i)
-                if cell_rect.collidepoint(pos):
-                    # Click to inspect
+            cell_rect = self._get_cell_rect(i)
+            if cell_rect.collidepoint(pos):
+                expiry = depot.trading_licenses.get(good)
+                has_license = expiry is not None and expiry > current_date
+                if has_license:
+                    # Click to inspect existing license
                     img = self._get_full_image(good)
                     if img:
                         self.inspecting_good = good
                         self.inspecting_img = img
-                    return True
+                else:
+                    # Open month selection panel for acquiring a new license
+                    self._open_month_selection(good)
+                return True
 
         # Click outside panel -> close
         if not self.panel_rect.collidepoint(pos):
@@ -206,6 +223,105 @@ class ContractOverview:
 
         # Click inside is consumed but doesn't close
         return True
+
+    def _open_month_selection(self, good: str) -> None:
+        """Open the month-duration selection sub-panel for *good*."""
+        self.selecting_good = good
+        monthly_fee = MONTHLY_CONTRACT_FEES.get(good, BASE_CONTRACT_FEE)
+
+        # Panel dimensions
+        panel_w = 340
+        row_h = 36
+        header_h = 60
+        footer_h = 50
+        month_options = [1, 2, 3, 6, 12]
+        panel_h = header_h + len(month_options) * row_h + footer_h
+
+        total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
+        px = (total_w - panel_w) // 2
+        py = (SCREEN_HEIGHT - panel_h) // 2
+        self.month_panel_rect = pygame.Rect(px, py, panel_w, panel_h)
+
+        # Build buttons
+        self.month_buttons = []
+        btn_w = panel_w - 40
+        btn_h = row_h - 6
+        for idx, months in enumerate(month_options):
+            cost = BASE_CONTRACT_FEE + monthly_fee * months
+            bx = px + 20
+            by = py + header_h + idx * row_h + 3
+            self.month_buttons.append({
+                "months": months,
+                "cost": cost,
+                "rect": pygame.Rect(bx, by, btn_w, btn_h),
+            })
+
+        # Cancel button
+        cancel_w = 100
+        cancel_h = 32
+        self.month_cancel_rect = pygame.Rect(
+            px + (panel_w - cancel_w) // 2,
+            py + panel_h - footer_h + 8,
+            cancel_w,
+            cancel_h,
+        )
+
+    def _handle_month_selection_click(self, pos: Tuple[int, int]) -> bool:
+        """Handle clicks inside the month selection sub-panel."""
+        # Cancel button
+        if self.month_cancel_rect and self.month_cancel_rect.collidepoint(pos):
+            self.selecting_good = None
+            self.month_buttons = []
+            self.month_panel_rect = None
+            self.month_cancel_rect = None
+            return True
+
+        # Month option buttons
+        for btn in self.month_buttons:
+            if btn["rect"].collidepoint(pos):
+                self._acquire_license(self.selecting_good, btn["months"], btn["cost"])
+                return True
+
+        # Click outside the month panel dismisses it
+        if self.month_panel_rect and not self.month_panel_rect.collidepoint(pos):
+            self.selecting_good = None
+            self.month_buttons = []
+            self.month_panel_rect = None
+            self.month_cancel_rect = None
+            return True
+
+        return True
+
+    def _acquire_license(self, good: str, months: int, cost: int) -> None:
+        """Close the overview and open ContractView for signing."""
+        from .contract_acquisition import ContractView
+
+        gs = self.game_state
+
+        # Check if the player can afford the license
+        if gs.game.depot.money < cost:
+            gs.show_warning("Not enough money!")
+            return
+
+        # Clear the month selection state
+        self.selecting_good = None
+        self.month_buttons = []
+        self.month_panel_rect = None
+        self.month_cancel_rect = None
+
+        # Close the overview
+        gs.info_window = None
+        gs.active_house_menu = None
+
+        # Pause the game and open the contract acquisition view
+        gs.previous_time_level = gs.time_level
+        gs.time_level = 1
+        gs.contract_acquisition = ContractView(
+            gs.screen, gs.game,
+            contract_type=good,
+            contract_months=months,
+            contract_cost=cost,
+        )
 
     def _close(self) -> None:
         """Trigger the fade-out and clear references."""
@@ -312,8 +428,10 @@ class ContractOverview:
         if alpha_scale >= 1.0:
             for text, pos in tooltips:
                 self._draw_tooltip(text, pos)
-            
-            if self.inspecting_img:
+
+            if self.selecting_good:
+                self._draw_month_selection()
+            elif self.inspecting_img:
                 self._draw_full_inspector()
 
     def _draw_tooltip(self, text: str, pos: Tuple[int, int]) -> None:
@@ -352,6 +470,61 @@ class ContractOverview:
         close_txt = self.body_font.render("Click anywhere to close", True, WHITE)
         close_rect = close_txt.get_rect(centerx=total_w // 2, bottom=SCREEN_HEIGHT - 20)
         self.screen.blit(close_txt, close_rect)
+
+    def _draw_month_selection(self) -> None:
+        """Draw the month-duration selection sub-panel on top of the overview."""
+        if not self.month_panel_rect or not self.selecting_good:
+            return
+
+        total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
+
+        # Darken background behind the sub-panel
+        overlay = pygame.Surface((total_w, SCREEN_HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 150))
+        self.screen.blit(overlay, (0, 0))
+
+        pr = self.month_panel_rect
+        mouse_pos = pygame.mouse.get_pos()
+
+        # Panel background
+        pygame.draw.rect(self.screen, SANDY_BROWN, pr)
+        pygame.draw.rect(self.screen, DARK_BROWN, pr, 3)
+
+        # Header
+        header_text = f"Acquire {self.selecting_good} License"
+        header_surf = self.heading_font.render(header_text, True, DARK_BROWN)
+        header_rect = header_surf.get_rect(centerx=pr.centerx, top=pr.top + 10)
+        self.screen.blit(header_surf, header_rect)
+
+        # Decorative line
+        line_y = header_rect.bottom + 6
+        pygame.draw.line(self.screen, DARK_BROWN, (pr.left + 20, line_y), (pr.right - 20, line_y), 1)
+
+        # Month option buttons
+        for btn in self.month_buttons:
+            rect = btn["rect"]
+            hovered = rect.collidepoint(mouse_pos)
+            bg_color = BUY_BUTTON_HOVER if hovered else BUY_BUTTON
+            pygame.draw.rect(self.screen, bg_color, rect, border_radius=4)
+            pygame.draw.rect(self.screen, BUY_BUTTON_BORDER, rect, 2, border_radius=4)
+
+            # Label: "X month(s) — Y coins"
+            m = btn["months"]
+            label = f"{m} {'month' if m == 1 else 'months'}  —  {btn['cost']} coins"
+            label_surf = self.body_font.render(label, True, BUTTON_TEXT)
+            label_rect = label_surf.get_rect(center=rect.center)
+            self.screen.blit(label_surf, label_rect)
+
+        # Cancel button
+        if self.month_cancel_rect:
+            cr = self.month_cancel_rect
+            cancel_hovered = cr.collidepoint(mouse_pos)
+            cancel_bg = SELL_BUTTON_HOVER if cancel_hovered else SELL_BUTTON
+            pygame.draw.rect(self.screen, cancel_bg, cr, border_radius=4)
+            pygame.draw.rect(self.screen, SELL_BUTTON_BORDER, cr, 2, border_radius=4)
+            cancel_surf = self.body_font.render("Cancel", True, BUTTON_TEXT)
+            cancel_rect = cancel_surf.get_rect(center=cr.center)
+            self.screen.blit(cancel_surf, cancel_rect)
 
     # ------------------------------------------------------------------
 
