@@ -43,7 +43,7 @@ INITIAL_STORAGE_CAPACITY = 100      # how many items the player can store at the
 # Each entry: (good_name, duration_in_months)
 STARTING_LICENSES = [
     ("Wood", 2),
-    ("Stone", 2),
+    ("Stone", 1),
 ]
 
 # UI CONSTANTS
