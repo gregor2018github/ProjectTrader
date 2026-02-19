@@ -380,6 +380,7 @@ class ContractOverview:
         mouse_pos = pygame.mouse.get_pos()
         close_hovered = (
             alpha_scale >= 1.0 and self.close_rect.collidepoint(mouse_pos)
+            and not self.selecting_good and not self.inspecting_good
         )
         close_bg = (200, 180, 150) if close_hovered else SANDY_BROWN
         pygame.draw.rect(surf, close_bg, local_close)
@@ -548,7 +549,11 @@ class ContractOverview:
         # Local mouse pos relative to the cell for hover detection
         mouse_pos = pygame.mouse.get_pos()
         screen_cell_rect = rect.move(self.panel_rect.x, self.panel_rect.y)
-        is_hovered = screen_cell_rect.collidepoint(mouse_pos) and not self.inspecting_good
+        is_hovered = (
+            screen_cell_rect.collidepoint(mouse_pos)
+            and not self.inspecting_good
+            and not self.selecting_good
+        )
 
         # Cell background
         # Note: We don't change bg color to PALE_BROWN here because the layout's pictograms 
