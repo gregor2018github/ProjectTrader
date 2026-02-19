@@ -62,13 +62,18 @@ class EventHandler:
             else:
                 handle_keyboard_input(event, game_state, goods, depot)
                 
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+        # Pass event to info_window if it supports handle_event
+        if game_state.info_window and hasattr(game_state.info_window, 'handle_event'):
+            game_state.info_window.handle_event(event)
+            
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if game_state.info_window:
-                choice = game_state.info_window.handle_click(event.pos)
-                if choice == "Quit":
-                    self.running = False
-                elif choice in ("Back", "Save and Close", "OK"):
-                    game_state.info_window = None
+                if hasattr(game_state.info_window, 'handle_click'):
+                    choice = game_state.info_window.handle_click(event.pos)
+                    if choice == "Quit":
+                        self.running = False
+                    elif choice in ("Back", "Save and Close", "OK"):
+                        game_state.info_window = None
             else:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)
                 

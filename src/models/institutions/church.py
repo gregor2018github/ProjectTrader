@@ -20,16 +20,9 @@ class Church(House):
             click_pos: The screen position where the user clicked.
         """
         # Local import to avoid circular dependency
-        from ...ui.helper_modules.house_click_menu import HouseMenu
+        from ...ui.helper_modules.donation_menu import DonationMenu
         
-        options = ["Donate 1", "Donate 10", "Donate 100"]
-        
-        def donation_callback(option_text: str):
-            try:
-                amount = int(option_text.split()[1])
-            except (IndexError, ValueError):
-                return
-
+        def donation_callback(amount: int):
             if not hasattr(game_state.game, 'depot'):
                 return
 
@@ -47,13 +40,12 @@ class Church(House):
                     game_state.show_warning("Not enough money!")
         
         # Replace current info window with new one
-        game_state.info_window = HouseMenu(
+        game_state.info_window = DonationMenu(
             game_state.screen, 
             self, 
-            options, 
-            game_state.font, 
             game_state, 
             click_pos=click_pos, 
-            callback=donation_callback
+            callback=donation_callback,
+            category="Church Donations"
         )
         game_state.active_house_menu = self

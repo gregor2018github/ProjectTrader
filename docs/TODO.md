@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] make donation options a slider between 1 and the maximum amount of money the player has (instead of three fixed buttons)
 - [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
 - [ ] add a house that is oriented vertically instead of horizontally
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
@@ -40,6 +39,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] make donation options a slider between 1 and the maximum amount of money the player has (instead of three fixed buttons)
 - [x] bugfix: in the contract_overview when selecting an amount of months, the buttons in the background (one layer deeper) must stop being reactive
 - [x] remove the "demo" button for licenses in the main menu, only keep the "demo" button for dialogues for now
 - [x] interaction menu for buying trading licenses at the town hall
