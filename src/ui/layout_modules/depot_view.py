@@ -201,6 +201,12 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     # Ensure offset is within bounds.
     if scroll_offset < 0:
         scroll_offset = 0
+
+    # Cache mouse coordinates once per frame and transform them into content-space
+    # coordinates to avoid repeated expensive calls inside row rendering.
+    mouse_pos = pygame.mouse.get_pos()
+    content_mouse_x = mouse_pos[0] - scroll_area.x
+    content_mouse_y = mouse_pos[1] - scroll_area.y + scroll_offset
     
     def draw_row(surf: pygame.Surface, 
                  y_pos: int, 
@@ -241,12 +247,6 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
             # Create a more visible button instead of just the text
             button_size = 16
             button_rect = pygame.Rect(20, y_pos, button_size, button_size)
-            
-            # Get mouse position (in content surface coordinates)
-            mouse_pos = pygame.mouse.get_pos()
-            # Convert mouse position to content surface coordinates
-            content_mouse_x = mouse_pos[0] - scroll_area.x
-            content_mouse_y = mouse_pos[1] - scroll_area.y + scroll_offset
             
             # Check if mouse is hovering over this button
             button_hover = (20 <= content_mouse_x <= 20 + button_size and 

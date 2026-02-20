@@ -281,214 +281,220 @@ class Game:
         """Execute the main game loop, handling updates, rendering, and events."""
         running = True
         buttons = {}
-        while running:
+        try:
+            while running:
 
-            # Limit to X frames per second
-            delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
-            current_time = pygame.time.get_ticks()
-            
-            if current_time - self.last_update >= self.update_delay:
-                self.last_update = current_time
-                minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
+                # Limit to X frames per second
+                delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
+                current_time = pygame.time.get_ticks()
 
-                # update prices once per hour
-                if hour_changed:
-                    for good in self.goods:
-                        good.update_price()
-                        # Update chart price history hourly
-                        good.update_price_history_chart()
-                        
-                    # Check if church bell should ring (midday or midnight)
-                    if self.state.date.hour in (0, 12):
-                        self.church_bell_channel = self.play_sound("church_bell_12_rings")
+                # Keep SDL input state updated before render-time input reads.
+                pygame.event.pump()
+                
+                if current_time - self.last_update >= self.update_delay:
+                    self.last_update = current_time
+                    minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
 
-                # update wealth, stock and bookkeeping price history once per day
-                if day_changed:
-                    self.depot.book_cost_of_living(self.player.daily_cost_of_living) # first pay your bread
-                    self.depot.update_wealth(self.goods)
-                    self.depot.update_total_stock()
-                    self.depot.update_stock_history()
-                    self.depot.update_income_and_expenditures()
-                    for good in self.goods:
-                        good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
-            
-            # Reset hover states and UI boxes at the beginning of each frame
-            self.state.image_boxes = []
-            self.state.depot_chart_buttons = {}
-            for good in self.goods:
-                if hasattr(good, '_external_hover') and not good._external_hover:
-                    good.hovered = False
-            
-            # 1. Fill base background
-            self.screen.fill(BEIGE)
-            
-            # 2. Draw content modules based on view states
-            # Calculate view rectangles for left and right modules
-            left_module_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-            right_module_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
-            full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
-            
-            # Handle map view updates based on visibility
-            # Map is visible if either left or right side is map
-            is_map_visible = (self.state.left_side_mode == 'map' or self.state.right_side_mode == 'map')
-            
-            if is_map_visible:
-                # Update map with player movement
-                if self.state.time_level > 1:  # Only update if game is not paused
-                    keys = pygame.key.get_pressed()
-                    self.game_map.handle_movement_keys(keys)
-                    self.game_map.update(delta_time)
+                    # update prices once per hour
+                    if hour_changed:
+                        for good in self.goods:
+                            good.update_price()
+                            # Update chart price history hourly
+                            good.update_price_history_chart()
+                            
+                        # Check if church bell should ring (midday or midnight)
+                        if self.state.date.hour in (0, 12):
+                            self.church_bell_channel = self.play_sound("church_bell_12_rings")
+
+                    # update wealth, stock and bookkeeping price history once per day
+                    if day_changed:
+                        self.depot.book_cost_of_living(self.player.daily_cost_of_living) # first pay your bread
+                        self.depot.update_wealth(self.goods)
+                        self.depot.update_total_stock()
+                        self.depot.update_stock_history()
+                        self.depot.update_income_and_expenditures()
+                        for good in self.goods:
+                            good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
+                
+                # Reset hover states and UI boxes at the beginning of each frame
+                self.state.image_boxes = []
+                self.state.depot_chart_buttons = {}
+                for good in self.goods:
+                    if hasattr(good, '_external_hover') and not good._external_hover:
+                        good.hovered = False
+                
+                # 1. Fill base background
+                self.screen.fill(BEIGE)
+                
+                # 2. Draw content modules based on view states
+                # Calculate view rectangles for left and right modules
+                left_module_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                right_module_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
+                full_module_rect = pygame.Rect(0, 60, MODULE_WIDTH * 2, SCREEN_HEIGHT - 120)
+                
+                # Handle map view updates based on visibility
+                # Map is visible if either left or right side is map
+                is_map_visible = (self.state.left_side_mode == 'map' or self.state.right_side_mode == 'map')
+                
+                if is_map_visible:
+                    # Update map with player movement
+                    if self.state.time_level > 1:  # Only update if game is not paused
+                        keys = pygame.key.get_pressed()
+                        self.game_map.handle_movement_keys(keys)
+                        self.game_map.update(delta_time)
                     
                     # Update player area status
                     self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
                 else:
                     self.game_map.map_player.stop_footstep_sound()
-            else:
-                self.game_map.map_player.stop_footstep_sound()
                 
-            # Update church bell volume if it's playing
-            if self.church_bell_channel and self.church_bell_channel.get_sound():
-                if self.state.time_level == 1:
-                    self.church_bell_channel.pause()
-                else:
-                    self.church_bell_channel.unpause()
-                    if is_map_visible:
-                        from .models.institutions.church import Church
-                        church = next((h for h in self.game_map.tmx_map.houses if isinstance(h, Church)), None)
-                        if church:
-                            # Calculate distance
-                            player_center_x = self.game_map.map_player.x + self.game_map.map_player.width / 2
-                            player_center_y = self.game_map.map_player.y + self.game_map.map_player.height / 2
-                            col_rect = church.collision_rect
-                            closest_x = max(col_rect.left, min(player_center_x, col_rect.right))
-                            closest_y = max(col_rect.top, min(player_center_y, col_rect.bottom))
-                            dx = player_center_x - closest_x
-                            dy = player_center_y - closest_y
-                            distance = (dx * dx + dy * dy) ** 0.5
-                            
-                            # Max distance to hear the bell
-                            max_distance = 1500.0
-                            if distance < max_distance:
-                                # Volume from 1.0 (close) to 0.0 (far)
-                                volume = CHURCH_BELL_VOLUME - (distance / max_distance)
-                                self.church_bell_channel.set_volume(volume)
+                # Update church bell volume if it's playing
+                if self.church_bell_channel and self.church_bell_channel.get_sound():
+                    if self.state.time_level == 1:
+                        self.church_bell_channel.pause()
+                    else:
+                        self.church_bell_channel.unpause()
+                        if is_map_visible:
+                            from .models.institutions.church import Church
+                            church = next((h for h in self.game_map.tmx_map.houses if isinstance(h, Church)), None)
+                            if church:
+                                # Calculate distance
+                                player_center_x = self.game_map.map_player.x + self.game_map.map_player.width / 2
+                                player_center_y = self.game_map.map_player.y + self.game_map.map_player.height / 2
+                                col_rect = church.collision_rect
+                                closest_x = max(col_rect.left, min(player_center_x, col_rect.right))
+                                closest_y = max(col_rect.top, min(player_center_y, col_rect.bottom))
+                                dx = player_center_x - closest_x
+                                dy = player_center_y - closest_y
+                                distance = (dx * dx + dy * dy) ** 0.5
+                                
+                                # Max distance to hear the bell
+                                max_distance = 1500.0
+                                if distance < max_distance:
+                                    # Volume from 1.0 (close) to 0.0 (far)
+                                    volume = CHURCH_BELL_VOLUME - (distance / max_distance)
+                                    self.church_bell_channel.set_volume(volume)
+                                else:
+                                    self.church_bell_channel.set_volume(0.0)
                             else:
                                 self.church_bell_channel.set_volume(0.0)
                         else:
                             self.church_bell_channel.set_volume(0.0)
+                
+                # Helper function to render a module in a specific rect
+                def render_module(mode, rect):
+                    if mode == 'map':
+                        draw_map_view(self.screen, self.game_map, rect, self.font, self.state)
+                    elif mode == 'market':
+                        self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
+                                                          self.goods, self.images['goods_30'], self.state.date, 
+                                                          rect)
+                    elif mode == 'depot':
+                        draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
+                    elif mode in ['politics', 'trade_routes', 'building']:
+                        # Placeholders for future modules
+                        pass
+
+                # Render content based on view modes
+                if self.state.left_side_mode == self.state.right_side_mode:
+                    # Full View (Same module on both sides)
+                    mode = self.state.left_side_mode
+                    if mode == 'depot':
+                        # Special case for Depot Full View: Chart on left, List on right
+                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state)
+                        draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
                     else:
-                        self.church_bell_channel.set_volume(0.0)
-            
-            # Helper function to render a module in a specific rect
-            def render_module(mode, rect):
-                if mode == 'map':
-                    draw_map_view(self.screen, self.game_map, rect, self.font, self.state)
-                elif mode == 'market':
-                    self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                      self.goods, self.images['goods_30'], self.state.date, 
-                                                      rect)
-                elif mode == 'depot':
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
-                elif mode in ['politics', 'trade_routes', 'building']:
-                    # Placeholders for future modules
-                    pass
+                        # Standard full view (Map, Market, etc.)
+                        render_module(mode, full_module_rect)
+                else:
+                    # Split View (Different modules)
+                    if self.state.left_side_mode == 'depot':
+                        draw_depot_view(self.screen, self.font, self.depot, self.state, left_module_rect)
+                    else:
+                        render_module(self.state.left_side_mode, left_module_rect)
+                    
+                    if self.state.right_side_mode == 'depot':
+                        draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
+                    else:
+                        render_module(self.state.right_side_mode, right_module_rect)
 
-            # Render content based on view modes
-            if self.state.left_side_mode == self.state.right_side_mode:
-                # Full View (Same module on both sides)
-                mode = self.state.left_side_mode
-                if mode == 'depot':
-                     # Special case for Depot Full View: Chart on left, List on right
-                    draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state)
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
-                else:
-                    # Standard full view (Map, Market, etc.)
-                    render_module(mode, full_module_rect)
-            else:
-                # Split View (Different modules)
-                if self.state.left_side_mode == 'depot':
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, left_module_rect)
-                else:
-                    render_module(self.state.left_side_mode, left_module_rect)
+
+                # 4. Draw persistent UI elements (Top and Bottom Bars)
+                buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
+                                    self.state.date, self.state.input_fields, 
+                                    self.state.mouse_clicked_on, self.images, self.state)
                 
-                if self.state.right_side_mode == 'depot':
-                    draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
-                else:
-                    render_module(self.state.right_side_mode, right_module_rect)
-
-
-            # 4. Draw persistent UI elements (Top and Bottom Bars)
-            buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
-                                self.state.date, self.state.input_fields, 
-                                self.state.mouse_clicked_on, self.images, self.state)
-            
-            # 5. Draw right sidebar and other overlays
-            draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)
-            # Draw menu above the right sidebar
-            self.menu.draw(self.screen)
-            
-            # Draw time controls in bottom bar
-            self.time_control.draw(self.screen, self.state.time_level)
-            
-            # Draw sound control button
-            self.sound_control.draw(self.screen)
-            
-            # Draw dropdowns after everything else
-            for dropdown in self.state.dropdowns.values():
-                if dropdown.is_open:  # Changed from checking active_dropdown
-                    dropdown.draw(self.screen)
-
-            # Draw dialogue if active
-            if hasattr(self.state, 'dialogue') and self.state.dialogue:
-                self.state.dialogue.draw()
-            
-            # Draw info window if active
-            if self.state.info_window:
-                self.state.info_window.draw()
-            
-            # Draw fading menu if present
-            if getattr(self.state, "menu_fade_window", None) and self.state.menu_fade_timer > 0:
-                alpha = self.state.menu_fade_timer / self.state.menu_fade_duration
-                self.state.menu_fade_window.draw(alpha_scale=alpha)
-                self.state.menu_fade_timer -= 1
-                if self.state.menu_fade_timer <= 0:
-                    self.state.menu_fade_window = None
-            
-            # Draw contract view if active
-            if self.state.contract_acquisition:
-                self.state.contract_acquisition.update(delta_time)
-                self.state.contract_acquisition.draw()
-
-            # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
-            if self.state.warning:
-                # Update warning timer with actual elapsed time
-                self.state.warning.update(delta_time)
-                self.state.warning.draw()
-                if self.state.warning.timer <= 0:
-                    self.state.warning = None
-            # Draw message only if no warning is active
-            if self.state.message and not self.state.warning:
-                self._draw_message(self.state.message)
+                # 5. Draw right sidebar and other overlays
+                draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)
+                # Draw menu above the right sidebar
+                self.menu.draw(self.screen)
                 
-            for event in pygame.event.get():
-                if event.type == pygame.MOUSEMOTION:
-                    # Clear any hover states that aren't from the current frame
-                    for good in self.goods:
-                        if not hasattr(good, '_external_hover'):
+                # Draw time controls in bottom bar
+                self.time_control.draw(self.screen, self.state.time_level)
+                
+                # Draw sound control button
+                self.sound_control.draw(self.screen)
+                
+                # Draw dropdowns after everything else
+                for dropdown in self.state.dropdowns.values():
+                    if dropdown.is_open:  # Changed from checking active_dropdown
+                        dropdown.draw(self.screen)
+
+                # Draw dialogue if active
+                if hasattr(self.state, 'dialogue') and self.state.dialogue:
+                    self.state.dialogue.draw()
+                
+                # Draw info window if active
+                if self.state.info_window:
+                    self.state.info_window.draw()
+                
+                # Draw fading menu if present
+                if getattr(self.state, "menu_fade_window", None) and self.state.menu_fade_timer > 0:
+                    alpha = self.state.menu_fade_timer / self.state.menu_fade_duration
+                    self.state.menu_fade_window.draw(alpha_scale=alpha)
+                    self.state.menu_fade_timer -= 1
+                    if self.state.menu_fade_timer <= 0:
+                        self.state.menu_fade_window = None
+                
+                # Draw contract view if active
+                if self.state.contract_acquisition:
+                    self.state.contract_acquisition.update(delta_time)
+                    self.state.contract_acquisition.draw()
+
+                # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
+                if self.state.warning:
+                    # Update warning timer with actual elapsed time
+                    self.state.warning.update(delta_time)
+                    self.state.warning.draw()
+                    if self.state.warning.timer <= 0:
+                        self.state.warning = None
+                # Draw message only if no warning is active
+                if self.state.message and not self.state.warning:
+                    self._draw_message(self.state.message)
+                    
+                for event in pygame.event.get():
+                    if event.type == pygame.MOUSEMOTION:
+                        # Clear any hover states that aren't from the current frame
+                        for good in self.goods:
+                            if not hasattr(good, '_external_hover'):
+                                good._external_hover = False
                             good._external_hover = False
-                        good._external_hover = False
+                    
+                    running = self.event_handler.handle_events(event, self.state, 
+                                                            self.goods, self.depot, buttons)
                 
-                running = self.event_handler.handle_events(event, self.state, 
-                                                        self.goods, self.depot, buttons)
-            
-            # Draw custom cursor on top of everything
-            if self.state.contract_acquisition:
-                self.state.contract_acquisition.draw_cursor()
-            elif self.cursor_img and pygame.mouse.get_focused():
-                mouse_pos = pygame.mouse.get_pos()
-                self.screen.blit(self.cursor_img, mouse_pos)
-                
-            pygame.display.update()
+                # Draw custom cursor on top of everything
+                if self.state.contract_acquisition:
+                    self.state.contract_acquisition.draw_cursor()
+                elif self.cursor_img and pygame.mouse.get_focused():
+                    mouse_pos = pygame.mouse.get_pos()
+                    self.screen.blit(self.cursor_img, mouse_pos)
+                    
+                pygame.display.update()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            pygame.quit()
 
     def _draw_message(self, message):
         # Draw message in center of screen
