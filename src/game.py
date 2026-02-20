@@ -89,6 +89,8 @@ class Game:
         # Load music
         self.music_paths: Dict[str, str] = self._load_music()
         
+        self.church_bell_channel: Optional[pygame.mixer.Channel] = None
+        
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
         
@@ -256,19 +258,24 @@ class Game:
         
         return music_paths
         
-    def play_sound(self, sound_name: str) -> None:
+    def play_sound(self, sound_name: str) -> Optional[pygame.mixer.Channel]:
         """Play a sound effect by name.
         
         Args:
             sound_name: The key of the sound in self.sounds.
+            
+        Returns:
+            The Channel object the sound is playing on, or None if it failed.
         """
         if sound_name in self.sounds:
             try:
-                self.sounds[sound_name].play()
+                return self.sounds[sound_name].play()
             except Exception as e:
                 print(f"Failed to play sound {sound_name}: {e}")
+                return None
         else:
             print(f"Sound {sound_name} not found")
+            return None
 
     def run(self) -> None:
         """Execute the main game loop, handling updates, rendering, and events."""
@@ -290,6 +297,10 @@ class Game:
                         good.update_price()
                         # Update chart price history hourly
                         good.update_price_history_chart()
+                        
+                    # Check if church bell should ring (midday or midnight)
+                    if self.state.date.hour in (0, 12):
+                        self.church_bell_channel = self.play_sound("church_bell_12_rings")
 
                 # update wealth, stock and bookkeeping price history once per day
                 if day_changed:
@@ -334,6 +345,39 @@ class Game:
                     self.game_map.map_player.stop_footstep_sound()
             else:
                 self.game_map.map_player.stop_footstep_sound()
+                
+            # Update church bell volume if it's playing
+            if self.church_bell_channel and self.church_bell_channel.get_sound():
+                if self.state.time_level == 1:
+                    self.church_bell_channel.pause()
+                else:
+                    self.church_bell_channel.unpause()
+                    if is_map_visible:
+                        from .models.institutions.church import Church
+                        church = next((h for h in self.game_map.tmx_map.houses if isinstance(h, Church)), None)
+                        if church:
+                            # Calculate distance
+                            player_center_x = self.game_map.map_player.x + self.game_map.map_player.width / 2
+                            player_center_y = self.game_map.map_player.y + self.game_map.map_player.height / 2
+                            col_rect = church.collision_rect
+                            closest_x = max(col_rect.left, min(player_center_x, col_rect.right))
+                            closest_y = max(col_rect.top, min(player_center_y, col_rect.bottom))
+                            dx = player_center_x - closest_x
+                            dy = player_center_y - closest_y
+                            distance = (dx * dx + dy * dy) ** 0.5
+                            
+                            # Max distance to hear the bell
+                            max_distance = 1500.0
+                            if distance < max_distance:
+                                # Volume from 1.0 (close) to 0.0 (far)
+                                volume = 1.0 - (distance / max_distance)
+                                self.church_bell_channel.set_volume(volume)
+                            else:
+                                self.church_bell_channel.set_volume(0.0)
+                        else:
+                            self.church_bell_channel.set_volume(0.0)
+                    else:
+                        self.church_bell_channel.set_volume(0.0)
             
             # Helper function to render a module in a specific rect
             def render_module(mode, rect):

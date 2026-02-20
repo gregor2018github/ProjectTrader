@@ -16,7 +16,6 @@
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
-- [ ] have the bell at the church ringing when the map is open and the player is close to the church (midday and midnight for now)
 - [ ] Negative balance handling (e.g., loans)
 - [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
@@ -39,6 +38,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] have the bell at the church ringing when the map is open and the player is close to the church (midday and midnight for now)
 - [x] make donation options a slider between 1 and the maximum amount of money the player has (instead of three fixed buttons)
 - [x] bugfix: in the contract_overview when selecting an amount of months, the buttons in the background (one layer deeper) must stop being reactive
 - [x] remove the "demo" button for licenses in the main menu, only keep the "demo" button for dialogues for now
