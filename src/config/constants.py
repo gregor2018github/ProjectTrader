@@ -69,9 +69,10 @@ CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "
 # MAP AND SOUND CONSTANTS
 
 FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
+CHURCH_BELL_VOLUME = 0.4              # Maximum volume for church music (1.0 is 100%)
 MAP_START_ZOOM = 1.50                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 1388               # Player starting X position on the map
-START_Y_POSITION = 1316              # Player starting Y position on the map
+START_Y_POSITION = 1316               # Player starting Y position on the map
 
 # LIGHTING CONSTANTS (Hours are decimal, for example 18.5 = 18:30)
 

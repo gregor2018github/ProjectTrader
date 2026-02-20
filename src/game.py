@@ -18,7 +18,7 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME
 
 class Game:
     """The central class that manages the main game loop, initialization, and resource loading.
@@ -370,7 +370,7 @@ class Game:
                             max_distance = 1500.0
                             if distance < max_distance:
                                 # Volume from 1.0 (close) to 0.0 (far)
-                                volume = 1.0 - (distance / max_distance)
+                                volume = CHURCH_BELL_VOLUME - (distance / max_distance)
                                 self.church_bell_channel.set_volume(volume)
                             else:
                                 self.church_bell_channel.set_volume(0.0)
