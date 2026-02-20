@@ -1,7 +1,8 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] create a first version of the town class (with population, balance, happiness per pop type, etc)
+- [ ] create 4 icons that represent the 4 population groups (poor, commons, middling sort, nobility)
+- [ ] visualize the population statistics in a menu that is accessible in the townhall building
 - [ ] add a house that is oriented vertically instead of horizontally
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
 
@@ -32,12 +33,16 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
+- [ ] church bell sound is still buggy... sometimes way too loud
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when not at the market area, the lower layout will now show a field with statistics regarding the town population
+- [x] create a first version of the town class (with population, balance, pop types)
 - [X] bugfix: avoid crashes seconds after starting the game (usually caused by jitters in the early loading and drawing process)
 - [X] bugfix: when moving too long, no foodstep sounds are played anymore
 - [x] bugfix: church bell sound was too loud, now stearable via constants

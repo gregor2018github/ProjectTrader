@@ -11,6 +11,131 @@ from ...config.colors import *
 from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
+
+def _get_town_for_stats(game_state: "GameState") -> Optional[Any]:
+    """Get the town instance used for statistics display."""
+    if not hasattr(game_state, 'game') or game_state.game is None:
+        return None
+
+    if not hasattr(game_state.game, 'game_map') or game_state.game.game_map is None:
+        return None
+
+    houses = getattr(game_state.game.game_map.tmx_map, 'houses', [])
+    for house in houses:
+        if hasattr(house, 'population_groups') and hasattr(house, 'max_citizens'):
+            return house
+    return None
+
+
+def _draw_town_statistics_panel(
+    screen: pygame.Surface,
+    main_font: pygame.font.Font,
+    game_state: "GameState"
+) -> None:
+    """Draw bottom-bar replacement with core town population statistics."""
+    town = _get_town_for_stats(game_state)
+    if town is None:
+        return
+
+    # Use small font for tooltip to match right-panel tooltips
+    small_font = getattr(game_state, "small_font", main_font)
+
+    mouse_pos = pygame.mouse.get_pos()
+    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+
+    current_population = int(getattr(town, 'citizens', 0))
+    maximum_population = int(getattr(town, 'max_citizens', 0))
+    happiness = float(getattr(town, 'happiness', 80))
+    population_groups = getattr(town, 'population_groups', {})
+
+    label_text = main_font.render("Town Population", True, BLACK)
+
+    panel_padding_x = 20
+    panel_y = SCREEN_HEIGHT - 53
+    panel_h = 44
+    panel_w = label_text.get_width() + 40
+    panel_rect = pygame.Rect(panel_padding_x, panel_y, panel_w, panel_h)
+
+    is_hovered = panel_rect.collidepoint(mouse_pos) and not menu_is_open
+    panel_color = PALE_BROWN if is_hovered else TAN
+    pygame.draw.rect(screen, panel_color, panel_rect)
+    pygame.draw.rect(screen, DARK_BROWN, panel_rect, 1)
+
+    label_rect = label_text.get_rect(center=panel_rect.center)
+    screen.blit(label_text, label_rect)
+
+    tooltip_text = None
+    tooltip_pos = None
+    if is_hovered:
+        tooltip_text = [
+            ("Current:", f"{current_population} Souls"),
+            ("Maximum:", f"{maximum_population} Souls"),
+            ("Happiness:", f"{happiness:.0f} %"),
+            ("Poor:", f"{int(population_groups.get('Poor', 0))} Souls"),
+            ("Commons:", f"{int(population_groups.get('Commons', 0))} Souls"),
+            ("Middling Sort:", f"{int(population_groups.get('Middling Sort', 0))} Souls"),
+            ("Nobility:", f"{int(population_groups.get('Nobility', 0))} Souls")
+        ]
+        tooltip_pos = mouse_pos
+
+    if tooltip_text and tooltip_pos:
+        # Pre-render surfaces to calculate dimensions using the smaller font
+        line_data = []
+        max_label_w = 0
+        max_value_w = 0
+        line_height = 0
+        line_spacing = 6 # Vertical distance between lines
+        
+        for label, val in tooltip_text:
+            label_surf = small_font.render(label, True, BLACK)
+            val_surf = small_font.render(val, True, BLACK)
+            line_data.append((label, label_surf, val_surf))
+            max_label_w = max(max_label_w, label_surf.get_width())
+            max_value_w = max(max_value_w, val_surf.get_width())
+            line_height = max(line_height, label_surf.get_height())
+
+        padding = 12
+        column_gap = 40 # space between columns
+        stripe_height = 10 # Extra height for the separator stripe
+        
+        tooltip_width = max_label_w + max_value_w + column_gap + (padding * 2)
+        tooltip_height = (len(tooltip_text) * (line_height + line_spacing)) + (padding * 2) + stripe_height
+
+        tooltip_rect = pygame.Rect(
+            tooltip_pos[0] + 14,
+            tooltip_pos[1] - tooltip_height - 8,
+            tooltip_width,
+            tooltip_height
+        )
+
+        if tooltip_rect.right > SCREEN_WIDTH:
+            tooltip_rect.right = SCREEN_WIDTH - 8
+        if tooltip_rect.left < 8:
+            tooltip_rect.left = 8
+        if tooltip_rect.top < 64:
+            tooltip_rect.top = 64
+
+        pygame.draw.rect(screen, WHITE, tooltip_rect)
+        pygame.draw.rect(screen, DARK_BROWN, tooltip_rect, 1)
+
+        line_y = tooltip_rect.top + padding
+        for label, label_surf, val_surf in line_data:
+            # Draw label left-aligned
+            screen.blit(label_surf, (tooltip_rect.left + padding, line_y))
+            # Draw value right-aligned within its column
+            val_x = tooltip_rect.right - padding - val_surf.get_width()
+            screen.blit(val_surf, (val_x, line_y))
+            
+            line_y += line_height + line_spacing
+
+            # Draw a brown stripe under "Happiness"
+            if label == "Happiness:":
+                stripe_y = line_y - (line_spacing // 2) + 2
+                pygame.draw.line(screen, DARK_BROWN, 
+                                (tooltip_rect.left + padding, stripe_y), 
+                                (tooltip_rect.right - padding, stripe_y), 2)
+                line_y += 8 # Add space after the stripe
+
 def draw_layout(
     screen: pygame.Surface,
     goods: List["Good"],
@@ -125,6 +250,7 @@ def _draw_bottom_bar(
 
     # Check if trading is allowed - if not in market area, stop here (hiding buttons)
     if hasattr(game_state, 'game') and hasattr(game_state.game, 'player') and not game_state.game.player.in_market_area:
+        _draw_town_statistics_panel(screen, main_font, game_state)
         return buttons
     
     # Get mouse position for hover effects
