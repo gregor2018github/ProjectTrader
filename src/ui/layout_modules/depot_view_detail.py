@@ -388,7 +388,7 @@ class DepotViewDetail:
     def _update_expenses(self, depot: Any, time_frame: str) -> None:
         """Update the 'Expenses' detail statistics based on selected time frame.
         
-        Breaks down expenses into Cost of Living, Trading Expenses, and Donations.
+        Breaks down expenses into Cost of Living, Trading Expenses, Licenses, and Donations.
         """
         # Determine period days
         if time_frame == "Daily":
@@ -426,6 +426,16 @@ class DepotViewDetail:
         self.cached_stats["Expenses"].append(f"Trading Expenses")
         self.cached_stats["Expenses"].append(f"      Total: {trading['total']:,.2f}")
         for sub_name, sub_val in trading.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+        
+        # Licenses
+        licenses = breakdown["licenses"]
+        self.cached_stats["Expenses"].append(f"Licenses")
+        self.cached_stats["Expenses"].append(f"      Total: {licenses['total']:,.2f}")
+        for sub_name, sub_val in licenses.items():
             if sub_name == "total":
                 continue
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")

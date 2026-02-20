@@ -271,6 +271,7 @@ class ContractView:
         if depot.money >= self.contract_cost:
             depot.money -= self.contract_cost
             depot.expenditures += self.contract_cost
+            depot.license_expenditures += self.contract_cost
         else:
             # Shouldn't happen — affordability is checked before opening
             state.show_warning("Not enough money!")

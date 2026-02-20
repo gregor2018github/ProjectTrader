@@ -48,6 +48,7 @@ class Depot:
         self.transaction_expenditures: float = 0        # current transaction expenditures
         self.donation_expenditures: float = 0           # current donation expenditures
         self.cost_of_living_expenditures: float = 0     # current cost of living expenditures
+        self.license_expenditures: float = 0            # current license expenditures
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
             "Town Donations": 0,
@@ -68,6 +69,7 @@ class Depot:
         self.transaction_expenditure_history: List[float] = [0.0]  # transaction expenditures tracking for bookkeeping
         self.donation_expenditure_history: List[float] = [0.0]     # donation expenditures tracking for bookkeeping
         self.cost_of_living_expenditure_history: List[float] = [0.0]  # cost of living tracking for bookkeeping
+        self.license_expenditure_history: List[float] = [0.0]      # license expenditures tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
             "Town Donations": [0.0],
@@ -380,6 +382,7 @@ class Depot:
         self.transaction_expenditure_history.append(self.transaction_expenditures)
         self.donation_expenditure_history.append(self.donation_expenditures)
         self.cost_of_living_expenditure_history.append(self.cost_of_living_expenditures)
+        self.license_expenditure_history.append(self.license_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
         self.income = 0
@@ -387,6 +390,7 @@ class Depot:
         self.transaction_expenditures = 0
         self.donation_expenditures = 0
         self.cost_of_living_expenditures = 0
+        self.license_expenditures = 0
         for category in self.donations:
             self.donations[category] = 0
     
@@ -495,6 +499,7 @@ class Depot:
         Returns totals for three top-level categories:
           - Cost of Living (with subcategory Food)
           - Trading Expenses (with subcategories Transaction Cost, Good Cost)
+          - Licenses (with subcategory Trading Licenses)
           - Donations (with subcategories from self.donations)
         
         Args:
@@ -510,6 +515,7 @@ class Depot:
                 total_transaction = sum(self.transaction_expenditure_history[-num_history_days:]) + self.transaction_expenditures
                 total_col = sum(self.cost_of_living_expenditure_history[-num_history_days:]) + self.cost_of_living_expenditures
                 total_donation = sum(self.donation_expenditure_history[-num_history_days:]) + self.donation_expenditures
+                total_license = sum(self.license_expenditure_history[-num_history_days:]) + self.license_expenditures
                 by_donation_cat = {}
                 for category, history in self.donation_history.items():
                     by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
@@ -518,18 +524,20 @@ class Depot:
                 total_transaction = self.transaction_expenditures
                 total_col = self.cost_of_living_expenditures
                 total_donation = self.donation_expenditures
+                total_license = self.license_expenditures
                 by_donation_cat = dict(self.donations)
         else:
             total_exp = sum(self.expenditure_history) + self.expenditures
             total_transaction = sum(self.transaction_expenditure_history) + self.transaction_expenditures
             total_col = sum(self.cost_of_living_expenditure_history) + self.cost_of_living_expenditures
             total_donation = sum(self.donation_expenditure_history) + self.donation_expenditures
+            total_license = sum(self.license_expenditure_history) + self.license_expenditures
             by_donation_cat = {}
             for category, history in self.donation_history.items():
                 by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
         
         # Good cost = trading expenditures minus transaction fees
-        total_good_cost = total_exp - total_transaction - total_col - total_donation
+        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license
         
         return {
             "total": total_exp,
@@ -541,6 +549,10 @@ class Depot:
                 "total": total_transaction + total_good_cost,
                 "Transaction Cost": total_transaction,
                 "Good Cost": total_good_cost,
+            },
+            "licenses": {
+                "total": total_license,
+                "Trading Licenses": total_license,
             },
             "donations": {
                 "total": total_donation,
