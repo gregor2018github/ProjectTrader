@@ -38,6 +38,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [X] bugfix: avoid crashes seconds after starting the game (usually caused by jitters in the early loading and drawing process)
 - [X] bugfix: when moving too long, no foodstep sounds are played anymore
 - [x] bugfix: church bell sound was too loud, now stearable via constants
 - [x] have the bell at the church ringing when the map is open and the player is close to the church (midday and midnight for now)

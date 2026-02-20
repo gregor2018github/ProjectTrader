@@ -284,6 +284,8 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             
         if option_text == "Inspect":
             msg = f"Object Name: {house.name}\nClass: {house.house_class}\nCoordinates: X={round(house.x, 1)}, Y={round(house.y, 1)}\nSprite: {house.file_name}"
+            if getattr(house, "has_max_inhabitants_property", False):
+                msg += f"\nInhabitants: {house.inhabitants}/{house.max_inhabitants}"
             game_state.info_window = InfoWindow(game_state.screen, msg, ["OK"], game_state.font, game_state.game)
             return
 

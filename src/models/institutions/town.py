@@ -1,6 +1,11 @@
 from ..house import House
-from typing import TYPE_CHECKING, Tuple, List, Optional
-import pygame
+from typing import TYPE_CHECKING, Tuple, List, Dict
+from ...config.constants import (
+    POPULATION_SHARE_POOR,
+    POPULATION_SHARE_COMMONS,
+    POPULATION_SHARE_MIDDLING_SORT,
+    POPULATION_SHARE_NOBILITY,
+)
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -11,6 +16,67 @@ class Town(House):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.treasury = 0
+        self.max_citizens = 0
+        self.citizens = 0
+        self.population_groups: Dict[str, int] = {
+            "Poor": 0,
+            "Commons": 0,
+            "Middling Sort": 0,
+            "Nobility": 0,
+        }
+
+    def initialize_population(self, houses: List[House]) -> None:
+        """Initialize town population statistics from already loaded houses.
+
+        Population capacity is the sum of all residential house capacities.
+        Houses without a positive ``max_inhabitants`` are treated as non-residential.
+        For now, all residential houses are initialized at 100% occupancy.
+
+        Args:
+            houses: All loaded house objects from the map.
+        """
+        max_citizens = 0
+        citizens = 0
+
+        for house in houses:
+            if house.max_inhabitants <= 0:
+                continue
+
+            house.inhabitants = house.max_inhabitants
+            max_citizens += house.max_inhabitants
+            citizens += house.inhabitants
+
+        self.max_citizens = max_citizens
+        self.citizens = citizens
+        self.population_groups = self._split_population_into_groups(citizens)
+
+    @staticmethod
+    def _split_population_into_groups(total_population: int) -> Dict[str, int]:
+        """Split a total population into social groups using configured shares."""
+        group_shares = [
+            ("Poor", POPULATION_SHARE_POOR),
+            ("Commons", POPULATION_SHARE_COMMONS),
+            ("Middling Sort", POPULATION_SHARE_MIDDLING_SORT),
+            ("Nobility", POPULATION_SHARE_NOBILITY),
+        ]
+
+        exact_values = [(name, total_population * share) for name, share in group_shares]
+        population_groups = {name: int(value) for name, value in exact_values}
+
+        assigned = sum(population_groups.values())
+        remainder = total_population - assigned
+
+        if remainder > 0:
+            fractions_sorted = sorted(
+                exact_values,
+                key=lambda item: item[1] - int(item[1]),
+                reverse=True
+            )
+            for idx in range(remainder):
+                group_name = fractions_sorted[idx % len(fractions_sorted)][0]
+                population_groups[group_name] += 1
+
+        return population_groups
 
     def open_donation_menu(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
         """Opens the donation menu replacing the current menu.

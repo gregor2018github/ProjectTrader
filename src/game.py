@@ -11,6 +11,7 @@ from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
 from .models.map import GameMap
+from .models.institutions.town import Town
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -71,6 +72,10 @@ class Game:
         map_view_width = SCREEN_WIDTH // 2 - 10
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
+
+        for house in self.game_map.tmx_map.houses:
+            if isinstance(house, Town):
+                house.initialize_population(self.game_map.tmx_map.houses)
         
         # Initial check for area
         self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")

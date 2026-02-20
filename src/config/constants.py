@@ -46,6 +46,13 @@ STARTING_LICENSES = [
     ("Stone", 1),
 ]
 
+# POPULATION GROUP SHARES
+# The values represent the target share of total population per social group.
+POPULATION_SHARE_POOR = 0.25
+POPULATION_SHARE_COMMONS = 0.52
+POPULATION_SHARE_MIDDLING_SORT = 0.20
+POPULATION_SHARE_NOBILITY = 0.03
+
 # monthly base contract fees for each good, used in contract overview and license acquisition
 BASE_CONTRACT_FEE = 50
 MONTHLY_CONTRACT_FEES = {

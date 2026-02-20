@@ -153,6 +153,8 @@ class TMXMap:
                     col_margin_left = int(obj.properties.get('Col_margin_left_pixel', 0))
                     col_margin_up = int(obj.properties.get('Col_margin_up_pixel', 0))
                     col_margin_down = int(obj.properties.get('Col_margin_down_pixel', 0))
+                    has_max_inhabitants_property = 'Max_inhabitants' in obj.properties
+                    max_inhabitants = int(obj.properties.get('Max_inhabitants', 0))
                     obj_class = getattr(obj, 'type', "") or ""
                     
                     if obj.name.startswith("Church"):
@@ -169,6 +171,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class
                         )
@@ -186,6 +190,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class
                         )
@@ -203,6 +209,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class
                         )
@@ -220,6 +228,8 @@ class TMXMap:
                             col_margin_left_pixel=col_margin_left,
                             col_margin_up_pixel=col_margin_up,
                             col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class
                         )
