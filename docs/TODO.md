@@ -1,13 +1,22 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] create 4 icons that represent the 4 population groups (poor, commons, middling sort, nobility)
-- [ ] visualize the population statistics in a menu that is accessible in the townhall building
+- [ ] in the bottom of the layout.py is a button "Town Population". I must change towards an Pictogram of heads, followed by the int number of population
+- [ ] make the population menu a bit smaller (except the heading, this is fine)
 - [ ] add a house that is oriented vertically instead of horizontally
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
+- [ ] Game must be savable and loadable
+    - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
+    - [ ] Save game / Load game menu that is available in the main menu
 
 ## Medium Priority
 - [ ] design water tiles (plan how to animate them before implementing static ones)
+- [ ] add two more houses with different designs
+- [ ] add sprites of oak trees or linden trees as a second type of tree
+- [ ] add a well in the middle of the city as a decorative element
+- [ ] add a functionality to throw down a rock into the lake
+- [ ] create a start screen with the game title and a "Start New Game", "Load Game", "Settings" and "Exit" button
+- [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
@@ -33,6 +42,7 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] fences must not be clickable with the house_click_menu, they are not really houses
 - [ ] in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [ ] church bell sound is still buggy... sometimes way too loud
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
@@ -41,6 +51,9 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] show with color if a trading license is affordable or not (currently they are all green, even if you can't afford them)
+- [x] create 4 icons that represent the 4 population groups (poor, commons, middling sort, nobility)
+- [x] visualize the population statistics in a menu that is accessible in the townhall building
 - [x] when not at the market area, the lower layout will now show a field with statistics regarding the town population
 - [x] create a first version of the town class (with population, balance, pop types)
 - [X] bugfix: avoid crashes seconds after starting the game (usually caused by jitters in the early loading and drawing process)

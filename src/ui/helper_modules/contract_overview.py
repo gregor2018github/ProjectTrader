@@ -478,6 +478,7 @@ class ContractOverview:
             return
 
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
+        money = self.game_state.game.depot.money
 
         # Darken background behind the sub-panel
         overlay = pygame.Surface((total_w, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -504,10 +505,18 @@ class ContractOverview:
         # Month option buttons
         for btn in self.month_buttons:
             rect = btn["rect"]
+            affordable = money >= btn["cost"]
             hovered = rect.collidepoint(mouse_pos)
-            bg_color = BUY_BUTTON_HOVER if hovered else BUY_BUTTON
+            
+            if affordable:
+                bg_color = BUY_BUTTON_HOVER if hovered else BUY_BUTTON
+                border_color = BUY_BUTTON_BORDER
+            else:
+                bg_color = SELL_BUTTON_HOVER if hovered else SELL_BUTTON
+                border_color = SELL_BUTTON_BORDER
+
             pygame.draw.rect(self.screen, bg_color, rect, border_radius=4)
-            pygame.draw.rect(self.screen, BUY_BUTTON_BORDER, rect, 2, border_radius=4)
+            pygame.draw.rect(self.screen, border_color, rect, 2, border_radius=4)
 
             # Label: "X month(s) — Y coins"
             m = btn["months"]

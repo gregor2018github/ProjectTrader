@@ -1,22 +1,35 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
-- add market areas
-    - these are on squares on the map
-    - several market booths per market area
-    - per good there will be one booth, player has to be near the booth to trade that good
-    - only when in the vicinity of a market area the player can trade (otherwise market options are disabled/grayed out)
+- Game must be savable and loadable
+    - all game states must be serializable (player data, depot data, market data, city data, time data, etc)
+    - implement save/load menu
+    - autosave feature
+
+- Main menu when starting the game
+    - New Game
+    - Load Game
+    - Settings
+    - Exit
+
+- Mini games
+    - Shopping wood with an axe in the forest at a forester's shop
+    - Fishing mini game at the seeside
+    - Mining mini game at the mine
 
 - Buildings
-    - market booths
+    - blacksmith
+    - cobbler
+    - uncles' trading shop
     - more houses
     - medium warehouse
+    - forester's shop
+    - seeside fisherman's shop
+    - mine
     - large warehouse
-    - church
     - graveyard next to the church
     - guild hall
     - bank
     - bakery
-    - blacksmith
     - mill
     - butcher
     - more regular houses
@@ -45,15 +58,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - animation for idle main character
     - Blacksmith hammering on an anvil
 
-- when player gets new rights there will be a real medieval contract written out for them to sign... (really sign yourself with mouse)
-    - scribble sound when they sign
-    - different funny texts that change based on building or right or whatever
-    - headline font medici; main text fond augusta
-
 - trading licences
-    - player can only trade certain items after buying a licence from the guild
-    - trading licences have a limited duration (like 1 month, 3 months, 6 months, 12 months)
-    - can be linked to money, reputation, quests, completion of previous licences, etc.
     - prices for licenses can increase on a monthly basis (only when the player also gets richer)
     - licenses can be bought at the townhall (normal price) or at the respective guild building (cheaper price but you have to walk there and know about it)
 
@@ -98,17 +103,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - hide random bottle messages in the world that give little stories or simply medieval sayings
 
 - add the possibility to enter different order types (limit orders, stop orders, etc)
-
-- Game must be savable and loadable
-    - all game state must be serializable (player data, depot data, market data, city data, time data, etc)
-    - implement save/load menu
-    - autosave feature
-
-- Main menu when starting the game
-    - New Game
-    - Load Game
-    - Settings
-    - Exit
 
 - warehouses can be upgraded to hold more items
 
