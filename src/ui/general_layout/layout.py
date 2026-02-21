@@ -31,11 +31,11 @@ def _draw_town_statistics_panel(
     screen: pygame.Surface,
     main_font: pygame.font.Font,
     game_state: "GameState"
-) -> None:
+) -> Optional[pygame.Rect]:
     """Draw bottom-bar replacement with core town population statistics."""
     town = _get_town_for_stats(game_state)
     if town is None:
-        return
+        return None
 
     # Use small font for tooltip to match right-panel tooltips
     small_font = getattr(game_state, "small_font", main_font)
@@ -135,6 +135,8 @@ def _draw_town_statistics_panel(
                                 (tooltip_rect.left + padding, stripe_y), 
                                 (tooltip_rect.right - padding, stripe_y), 2)
                 line_y += 8 # Add space after the stripe
+
+    return panel_rect
 
 def draw_layout(
     screen: pygame.Surface,
@@ -250,7 +252,9 @@ def _draw_bottom_bar(
 
     # Check if trading is allowed - if not in market area, stop here (hiding buttons)
     if hasattr(game_state, 'game') and hasattr(game_state.game, 'player') and not game_state.game.player.in_market_area:
-        _draw_town_statistics_panel(screen, main_font, game_state)
+        town_rect = _draw_town_statistics_panel(screen, main_font, game_state)
+        if town_rect:
+            buttons['town_population'] = town_rect
         return buttons
     
     # Get mouse position for hover effects

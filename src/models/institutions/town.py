@@ -25,6 +25,12 @@ class Town(House):
             "Middling Sort": 0,
             "Nobility": 0,
         }
+        self.happiness_groups: Dict[str, float] = {
+            "Poor": 80.0,
+            "Commons": 80.0,
+            "Middling Sort": 80.0,
+            "Nobility": 80.0,
+        }
 
     def initialize_population(self, houses: List[House]) -> None:
         """Initialize town population statistics from already loaded houses.
@@ -127,6 +133,22 @@ class Town(House):
         from ...ui.helper_modules.contract_overview import ContractOverview
 
         game_state.info_window = ContractOverview(
+            game_state.screen,
+            game_state,
+            house=self
+        )
+        game_state.active_house_menu = self
+
+    def open_population_stats(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
+        """Opens the population statistics overview.
+        
+        Args:
+            game_state: The current game state.
+            click_pos: The screen position where the user clicked.
+        """
+        from ...ui.helper_modules.population_stats import PopulationStats
+
+        game_state.info_window = PopulationStats(
             game_state.screen,
             game_state,
             house=self

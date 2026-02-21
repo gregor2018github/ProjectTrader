@@ -269,6 +269,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Donate Money")
 
     if isinstance(house, Town):
+        options.insert(0, "Population Stats")
         options.insert(0, "Trading Licenses")
 
     if isinstance(house, Market):
@@ -296,6 +297,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
 
         if option_text == "Trading Licenses" and isinstance(house, Town):
             house.open_license_view(game_state, click_pos)
+            return
+
+        if option_text == "Population Stats" and isinstance(house, Town):
+            house.open_population_stats(game_state, click_pos)
             return
 
         if option_text.startswith("QuickTrade ") and isinstance(house, Market):

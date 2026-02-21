@@ -196,6 +196,14 @@ def handle_mouse_click(pos: Tuple[int, int],
                 return
             return
         
+    # Handle town population statistics panel click (Bottom bar)
+    if 'town_population' in buttons and buttons['town_population'].collidepoint(pos):
+        from ..ui.general_layout.layout import _get_town_for_stats
+        town = _get_town_for_stats(game_state)
+        if town:
+            town.open_population_stats(game_state, pos)
+            return
+
     # Handle pictogram sub-button clicks (left/right buttons)
     possible_modes = ["map", "market", "depot", "politics", "trade_routes", "building"]
     for name in possible_modes:
