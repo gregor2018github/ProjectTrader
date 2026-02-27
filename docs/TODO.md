@@ -1,10 +1,12 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] in the bottom of the layout.py is a button "Town Population". I must change towards an Pictogram of heads, followed by the int number of population
+- [ ] in the bottom of the layout.py is a button "Town Population". It must change towards a pictogram of heads, followed by the int number of population
 - [ ] make the population menu a bit smaller (except the heading, this is fine)
 - [ ] add a house that is oriented vertically instead of horizontally
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
+- [ ] build a wheat field
+- [ ] animate the wheat field (swaying in the wind)
 - [ ] Game must be savable and loadable
     - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
     - [ ] Save game / Load game menu that is available in the main menu

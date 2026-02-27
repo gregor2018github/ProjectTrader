@@ -18,13 +18,15 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - Buildings
     - blacksmith
+    - bakery
     - cobbler
     - uncles' trading shop
     - more houses
     - medium warehouse
     - forester's shop
     - seeside fisherman's shop
-    - mine
+    - monestary with wine yard on hill
+    - mine at mountain side
     - large warehouse
     - graveyard next to the church
     - guild hall
@@ -47,8 +49,9 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - Animations and NPC
     - general medieval sentences for NPCs that they say randomly when the player clicks on them
-    - Fisherman who always tells you to buy fish
+    - fisherman who always tells you to buy fish
     - Sheeps that can stand on the meadow, eating and walking animations
+    - cows on the meadow with eating and walking animations
     - windmill with rotating blades
     - ghost coming out of the graveyard at night
     - water that is actually moving
@@ -57,6 +60,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - bird flocks in highest zoom stage
     - animation for idle main character
     - Blacksmith hammering on an anvil
+    - Executioner event at the market square randomly happening sometimes when player comes back to the market square (with a chance of 1% every time the player enters the market square, but only if the player has a certain amount of money, like 1000 gold coins, to make it more likely to happen in later stages of the game)
 
 - trading licences
     - prices for licenses can increase on a monthly basis (only when the player also gets richer)
@@ -74,9 +78,11 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - extra tiny warehouse will be another 100 storage units
     - carriage speed is slower than walking, but on cobble stone it is nearly as fast as walking
 
+- newspaper available with information about market price changes
+    - only available after paying lots of money and time at the scribe to learn how to read and write (or maybe you can just buy the newspaper without learning to read, but then you won't understand it and thus won't get the information about price changes)
+
 - MAP FEATURES
     - we need cobblestone roads, squares
-    - underground must be defined as gifs which will allow more modular overlapping of tiles (currently 'hard-drawn' between different tile types)
     - trees can grow in clusters of similar types (requires multiple tree sprites per type)
     - buildings can be entered (shop, house, warehouse, guild, etc)
     - inner views of buildings
