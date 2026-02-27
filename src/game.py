@@ -315,6 +315,10 @@ class Game:
                         # Check if church bell should ring (midday or midnight)
                         if self.state.date.hour in (0, 12):
                             self.church_bell_channel = self.play_sound("church_bell_12_rings")
+                            # Start silent; the per-frame volume update sets the correct level.
+                            # Without this, pygame resets the channel to 1.0 on play().
+                            if self.church_bell_channel:
+                                self.church_bell_channel.set_volume(0.0)
 
                     # update wealth, stock and bookkeeping price history once per day
                     if day_changed:
@@ -381,8 +385,8 @@ class Game:
                                 # Max distance to hear the bell
                                 max_distance = 1500.0
                                 if distance < max_distance:
-                                    # Volume from 1.0 (close) to 0.0 (far)
-                                    volume = CHURCH_BELL_VOLUME - (distance / max_distance)
+                                    # Scale linearly from CHURCH_BELL_VOLUME (close) to 0.0 (far)
+                                    volume = CHURCH_BELL_VOLUME * (1.0 - distance / max_distance)
                                     self.church_bell_channel.set_volume(volume)
                                 else:
                                     self.church_bell_channel.set_volume(0.0)

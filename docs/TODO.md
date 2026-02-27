@@ -44,13 +44,13 @@
 ## Bug Fixes
 - [ ] fences must not be clickable with the house_click_menu, they are not really houses
 - [ ] in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
-- [ ] church bell sound is still buggy... sometimes way too loud
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: church bell sound was buggy... sometimes way too loud
 - [x] in the bottom of the layout.py is a button "Town Population". It must change towards a pictogram of heads, followed by the int number of population
 - [x] make the population menu a bit smaller (except the heading, this is fine)
 - [x] show with color if a trading license is affordable or not (currently they are all green, even if you can't afford them)
