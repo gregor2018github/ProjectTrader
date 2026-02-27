@@ -51,8 +51,8 @@ class PopulationStats:
 
         # Panel dimensions ---------------------------------------------
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
-        panel_w = int(total_w * 0.52)
-        panel_h = int(SCREEN_HEIGHT * 0.86)
+        panel_w = int(total_w * 0.42)
+        panel_h = int(SCREEN_HEIGHT * 0.62)
         self.panel_rect = pygame.Rect(
             (total_w - panel_w) // 2,
             (SCREEN_HEIGHT - panel_h) // 2,
