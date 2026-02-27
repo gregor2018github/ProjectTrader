@@ -1,8 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] in the bottom of the layout.py is a button "Town Population". It must change towards a pictogram of heads, followed by the int number of population
-- [ ] make the population menu a bit smaller (except the heading, this is fine)
 - [ ] add a house that is oriented vertically instead of horizontally
 - [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
 - [ ] build a wheat field
@@ -53,6 +51,8 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] in the bottom of the layout.py is a button "Town Population". It must change towards a pictogram of heads, followed by the int number of population
+- [x] make the population menu a bit smaller (except the heading, this is fine)
 - [x] show with color if a trading license is affordable or not (currently they are all green, even if you can't afford them)
 - [x] create 4 icons that represent the 4 population groups (poor, commons, middling sort, nobility)
 - [x] visualize the population statistics in a menu that is accessible in the townhall building
