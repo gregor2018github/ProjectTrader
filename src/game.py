@@ -210,7 +210,12 @@ class Game:
         for name in pictogram_names:
             img_path = os.path.join(PICTURES_PATH, f"pictogram_{name}_100.png")
             images[f'pictogram_{name}'] = pygame.image.load(img_path)
-        
+
+        # Load population pictogram for the bottom bar (scaled to fit the 44px panel)
+        pop_icon_path = os.path.join(PICTURES_PATH, "pictogram_population.png")
+        raw = pygame.image.load(pop_icon_path).convert_alpha()
+        images['pictogram_population'] = pygame.transform.smoothscale(raw, (34, 34))
+
         return images
     
     def _load_sounds(self) -> Dict[str, pygame.mixer.Sound]:

@@ -48,21 +48,33 @@ def _draw_town_statistics_panel(
     happiness = float(getattr(town, 'happiness', 80))
     population_groups = getattr(town, 'population_groups', {})
 
-    label_text = main_font.render("Town Population", True, BLACK)
-
     panel_padding_x = 20
     panel_y = SCREEN_HEIGHT - 53
     panel_h = 44
-    panel_w = label_text.get_width() + 40
+    icon_size = panel_h - 10  # 34px
+
+    pop_icon = None
+    if hasattr(game_state, 'game') and hasattr(game_state.game, 'images'):
+        pop_icon = game_state.game.images.get('pictogram_population')
+
+    count_surf = main_font.render(str(current_population), True, BLACK)
+    gap = 6
+    content_w = (icon_size + gap if pop_icon else 0) + count_surf.get_width()
+    panel_w = content_w + 20  # 10px padding each side
     panel_rect = pygame.Rect(panel_padding_x, panel_y, panel_w, panel_h)
 
     is_hovered = panel_rect.collidepoint(mouse_pos) and not menu_is_open
-    panel_color = PALE_BROWN if is_hovered else TAN
-    pygame.draw.rect(screen, panel_color, panel_rect)
-    pygame.draw.rect(screen, DARK_BROWN, panel_rect, 1)
 
-    label_rect = label_text.get_rect(center=panel_rect.center)
-    screen.blit(label_text, label_rect)
+    if is_hovered:
+        pygame.draw.rect(screen, PALE_BROWN, panel_rect, border_radius=4)
+
+    draw_x = panel_rect.x + 10
+    if pop_icon:
+        icon_rect = pop_icon.get_rect(midleft=(draw_x, panel_rect.centery))
+        screen.blit(pop_icon, icon_rect)
+        draw_x = icon_rect.right + gap
+    text_rect = count_surf.get_rect(midleft=(draw_x, panel_rect.centery))
+    screen.blit(count_surf, text_rect)
 
     tooltip_text = None
     tooltip_pos = None
