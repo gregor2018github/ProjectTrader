@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] enlarge the map size while keeping the current city structure(it is already getting too small)
 - [ ] build a wheat field
 - [ ] animate the wheat field (swaying in the wind)
 - [ ] Game must be savable and loadable
@@ -49,6 +48,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] enlarge the map size while keeping the current city structure(it is already getting too small)
 - [x] add a house that is oriented vertically instead of horizontally
 - [x] bugfix: church bell sound was buggy... sometimes way too loud
 - [x] in the bottom of the layout.py is a button "Town Population". It must change towards a pictogram of heads, followed by the int number of population
