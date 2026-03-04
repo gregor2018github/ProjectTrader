@@ -34,6 +34,9 @@ class Game:
         
         # Initialize mixer for sound playback
         pygame.mixer.init()
+        # Reserve channel 0 exclusively for footstep sounds so that
+        # Sound.play() calls (e.g. knock, church bell) can never steal it.
+        pygame.mixer.set_reserved(1)
         
         # Initialize screen first
         self.screen: pygame.Surface = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))

@@ -639,7 +639,8 @@ class MapPlayer:
         self.footstep_sounds: List[pygame.mixer.Sound] = []
         self.last_sound_index: int = -1
         self.current_sound: Optional[pygame.mixer.Sound] = None
-        self.current_channel: Optional[pygame.mixer.Channel] = None
+        # Channel 0 is reserved exclusively for footsteps (see game.py mixer init).
+        self.footstep_channel: pygame.mixer.Channel = pygame.mixer.Channel(0)
     
     def set_footstep_sounds(self, sounds: List[pygame.mixer.Sound]) -> None:
         """Assign footstep sounds to the player.
@@ -653,10 +654,8 @@ class MapPlayer:
 
     def stop_footstep_sound(self) -> None:
         """Stop any currently playing footstep sound."""
-        if self.current_sound:
-            self.current_sound.stop()
-            self.current_sound = None
-        self.current_channel = None
+        self.footstep_channel.stop()
+        self.current_sound = None
         self.was_moving = False
 
     def set_movement(self, dx: float, dy: float) -> None:
@@ -681,19 +680,19 @@ class MapPlayer:
         # Sound logic
         if self.footstep_sounds:
             if is_moving:
-                # Check if we just started moving, or if the sound stopped playing (e.g. due to Pygame MP3 looping bug)
-                needs_sound = not self.was_moving or not self.current_channel or self.current_channel.get_sound() != self.current_sound
-                
+                # Check if we just started moving, or if the dedicated channel stopped playing
+                needs_sound = not self.was_moving or self.footstep_channel.get_sound() != self.current_sound
+
                 if needs_sound:
-                    # Started moving or sound stopped - pick a sound
+                    # Started moving or sound stopped - pick a new sound
                     available_indices = [i for i in range(len(self.footstep_sounds)) if i != self.last_sound_index]
-                    if not available_indices: # only 1 sound available or empty
+                    if not available_indices:  # only 1 sound available or empty
                         available_indices = [0] if self.footstep_sounds else []
-                    
+
                     if available_indices:
                         self.last_sound_index = random.choice(available_indices)
                         self.current_sound = self.footstep_sounds[self.last_sound_index]
-                        self.current_channel = self.current_sound.play(loops=-1)
+                        self.footstep_channel.play(self.current_sound, loops=-1)
             elif not is_moving and self.was_moving:
                 # Stopped moving
                 self.stop_footstep_sound()
