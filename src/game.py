@@ -59,7 +59,8 @@ class Game:
         
         # Initialize goods
         self.goods: List[Good] = self._initialize_goods()
-        
+        self._presimulate_market_history(days=60)
+
         # Initialize depot
         self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
         self.depot.init_starting_licenses(self.state.date)
@@ -174,6 +175,20 @@ class Game:
             goods.append(Good(name=name, price=price, market_quantity=quantity,
                             color=color, index=index, show_in_charts=show))
         return goods
+
+    def _presimulate_market_history(self, days: int) -> None:
+        """Run the price simulation forward before the game starts so charts are pre-filled.
+
+        Args:
+            days: Number of in-game days to simulate.
+        """
+        for _ in range(days):
+            for _ in range(24):
+                for good in self.goods:
+                    good.update_price()
+                    good.update_price_history_chart()
+            for good in self.goods:
+                good.update_price_history()
 
     def _load_images(self) -> Dict[str, Any]:
         """Load and scale all visual assets for the game.

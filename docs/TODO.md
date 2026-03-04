@@ -48,6 +48,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when the game starts, there should already be a historic market movement. The market price calculations thus already need to run for 3 months before start of the game 
 - [x] enlarge the map size while keeping the current city structure(it is already getting too small)
 - [x] add a house that is oriented vertically instead of horizontally
 - [x] bugfix: church bell sound was buggy... sometimes way too loud
