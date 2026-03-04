@@ -5,23 +5,35 @@ drawn as overlays, and routed through the existing event_handler click mechanism
 """
 
 import datetime
+import os
 import pygame
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
 from ...config.colors import (
     BLACK, WHITE, DARK_GRAY, LIGHT_GRAY, GRAY,
-    DARK_BROWN, TAN, SANDY_BROWN, BEIGE,
+    DARK_BROWN, TAN, SANDY_BROWN, BEIGE, WHEAT,
 )
+from ...config.constants import FONTS_PATH
 from ...persistence.save_manager import get_save_slots
 
 if TYPE_CHECKING:
     from ...game import Game
 
-_WINDOW_W = 560
-_WINDOW_H = 340
-_SLOT_H = 58
+_WINDOW_W = 580
+_SLOT_H = 66
 _SLOT_SPACING = 10
-_SLOT_MARGIN_TOP = 56
+_SLOT_MARGIN_TOP = 96    # top padding (~30px) + title + divider gap
+_SLOT_TO_CANCEL_GAP = 14 # space between last slot and cancel button
+_CANCEL_H = 36
+_CANCEL_BOTTOM_PAD = 32  # space below cancel button to window edge
+# Window height derived so every gap is explicit
+_WINDOW_H = (
+    _SLOT_MARGIN_TOP
+    + 3 * _SLOT_H + 2 * _SLOT_SPACING
+    + _SLOT_TO_CANCEL_GAP
+    + _CANCEL_H
+    + _CANCEL_BOTTOM_PAD
+)  # = 96 + 198 + 20 + 14 + 36 + 32 = 396
 
 
 def _format_game_date(iso_str: str) -> str:
@@ -40,6 +52,16 @@ def _format_saved_at(iso_str: str) -> str:
         return iso_str
 
 
+def _draw_bold(surface: pygame.Surface, font: pygame.font.Font, text: str,
+               color: tuple, x: int, y: int) -> None:
+    """Render text with a fake-bold effect by drawing offset copies."""
+    for dx, dy in ((1, 0), (0, 1), (1, 1)):
+        surf = font.render(text, True, color)
+        surface.blit(surf, (x + dx, y + dy))
+    surf = font.render(text, True, color)
+    surface.blit(surf, (x, y))
+
+
 class _BaseSlotDialog:
     """Shared geometry and rendering for save/load dialogs."""
 
@@ -56,41 +78,48 @@ class _BaseSlotDialog:
         self.title = title
         self.slots = get_save_slots()
 
+        # Title font — matches main menu "Load Game" heading
+        try:
+            self.title_font = pygame.font.Font(
+                os.path.join(FONTS_PATH, "Medici Text.ttf"), 44
+            )
+        except Exception:
+            self.title_font = font
+
         self.window_rect = pygame.Rect(0, 0, _WINDOW_W, _WINDOW_H)
         self.window_rect.center = (screen.get_width() // 2, screen.get_height() // 2)
 
-        # Slot rects
+        # Slot rects — 30px margin on each side (+10 vs previous 20)
         self.slot_rects: List[pygame.Rect] = []
-        slot_w = _WINDOW_W - 40
-        top = self.window_rect.top + _SLOT_MARGIN_TOP
+        slot_margin = 30
+        slot_w = _WINDOW_W - 2 * slot_margin
+        slots_top = self.window_rect.top + _SLOT_MARGIN_TOP
         for i in range(3):
             self.slot_rects.append(
                 pygame.Rect(
-                    self.window_rect.left + 20,
-                    top + i * (_SLOT_H + _SLOT_SPACING),
+                    self.window_rect.left + slot_margin,
+                    slots_top + i * (_SLOT_H + _SLOT_SPACING),
                     slot_w,
                     _SLOT_H,
                 )
             )
 
-        # Cancel button
-        cancel_h = 36
+        # Cancel button — positioned relative to last slot, not window bottom
+        cancel_top = self.slot_rects[-1].bottom + _SLOT_TO_CANCEL_GAP
         self.cancel_rect = pygame.Rect(
             self.window_rect.centerx - 60,
-            self.window_rect.bottom - cancel_h - 12,
+            cancel_top,
             120,
-            cancel_h,
+            _CANCEL_H,
         )
 
     def _draw_background(self) -> None:
-        # Dim overlay
         overlay = pygame.Surface(
             (self.screen.get_width(), self.screen.get_height()), pygame.SRCALPHA
         )
         overlay.fill((0, 0, 0, 140))
         self.screen.blit(overlay, (0, 0))
 
-        # Window frame (reuse info_window_frame image if available)
         if hasattr(self.game, "pic_info_window"):
             scaled = pygame.transform.scale(
                 self.game.pic_info_window, (_WINDOW_W, _WINDOW_H)
@@ -99,6 +128,23 @@ class _BaseSlotDialog:
         else:
             pygame.draw.rect(self.screen, BEIGE, self.window_rect)
             pygame.draw.rect(self.screen, DARK_BROWN, self.window_rect, 2)
+
+    def _draw_title(self) -> None:
+        surf = self.title_font.render(self.title, True, DARK_BROWN)
+        title_rect = surf.get_rect(
+            centerx=self.window_rect.centerx,
+            top=self.window_rect.top + 28,
+        )
+        self.screen.blit(surf, title_rect)
+
+        # Divider line below title
+        divider_y = title_rect.bottom + 8
+        pygame.draw.line(
+            self.screen, DARK_BROWN,
+            (self.window_rect.left + 30, divider_y),
+            (self.window_rect.right - 30, divider_y),
+            1,
+        )
 
     def _draw_slot(
         self,
@@ -110,20 +156,20 @@ class _BaseSlotDialog:
     ) -> None:
         hovered = clickable and rect.collidepoint(mouse_pos)
         if not slot_info:
-            bg = LIGHT_GRAY
-            border = GRAY
+            if hovered:
+                bg, border = WHEAT, DARK_GRAY
+            else:
+                bg, border = LIGHT_GRAY, GRAY
         elif hovered:
-            bg = SANDY_BROWN
-            border = DARK_BROWN
+            bg, border = SANDY_BROWN, DARK_BROWN
         else:
-            bg = TAN
-            border = DARK_BROWN
+            bg, border = TAN, DARK_BROWN
         pygame.draw.rect(self.screen, bg, rect, border_radius=4)
         pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
-        label_color = BLACK if slot_info else DARK_GRAY
-        label = self.font.render(f"Slot {slot_index + 1}", True, label_color)
-        self.screen.blit(label, (rect.left + 12, rect.top + 8))
+        label_color = DARK_BROWN if slot_info else DARK_GRAY
+        _draw_bold(self.screen, self.font, f"Slot {slot_index + 1}",
+                   label_color, rect.left + 12, rect.top + 8)
 
         small = getattr(self.game, "small_font", self.font)
         if slot_info:
@@ -132,10 +178,12 @@ class _BaseSlotDialog:
                 f"   |   {slot_info['money']:.1f} Gold"
                 f"   |   Saved {_format_saved_at(slot_info['saved_at'])}"
             )
+            info_color = BLACK
         else:
             info_str = "Empty"
-        info_surf = small.render(info_str, True, DARK_GRAY if not slot_info else BLACK)
-        self.screen.blit(info_surf, (rect.left + 12, rect.bottom - 22))
+            info_color = DARK_GRAY
+        info_surf = small.render(info_str, True, info_color)
+        self.screen.blit(info_surf, (rect.left + 12, rect.bottom - 24))
 
     def _draw_cancel(self, mouse_pos: Tuple[int, int]) -> None:
         hovered = self.cancel_rect.collidepoint(mouse_pos)
@@ -144,13 +192,6 @@ class _BaseSlotDialog:
         pygame.draw.rect(self.screen, DARK_BROWN, self.cancel_rect, 2, border_radius=4)
         surf = self.font.render("Cancel", True, BLACK)
         self.screen.blit(surf, surf.get_rect(center=self.cancel_rect.center))
-
-    def _draw_title(self) -> None:
-        surf = self.font.render(self.title, True, BLACK)
-        self.screen.blit(
-            surf,
-            surf.get_rect(centerx=self.window_rect.centerx, top=self.window_rect.top + 14),
-        )
 
 
 class SaveDialog(_BaseSlotDialog):

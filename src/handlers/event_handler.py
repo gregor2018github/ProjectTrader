@@ -77,7 +77,7 @@ class EventHandler:
                         self.running = False
                     elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
                         game_state.info_window = None
-                    elif choice and choice.startswith("save_slot_"):
+                    elif isinstance(choice, str) and choice.startswith("save_slot_"):
                         from ..persistence.save_manager import save_game as _save
                         slot = int(choice[-1])
                         try:
@@ -88,7 +88,7 @@ class EventHandler:
                         except Exception as e:
                             game_state.info_window = None
                             game_state.show_warning(f"Save failed: {e}")
-                    elif choice and choice.startswith("load_slot_"):
+                    elif isinstance(choice, str) and choice.startswith("load_slot_"):
                         slot = int(choice[-1])
                         game_state._pending_load_slot = slot
                         game_state.info_window = InfoWindow(

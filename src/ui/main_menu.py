@@ -99,6 +99,7 @@ class MainMenu:
         self._slots: List[Optional[Dict[str, Any]]] = []
         self._slot_rects: List[pygame.Rect] = []
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._load_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
 
     # ------------------------------------------------------------------
     # Public API
@@ -153,29 +154,77 @@ class MainMenu:
     # ------------------------------------------------------------------
 
     def _build_slot_rects(self) -> None:
-        slot_w = 520
-        slot_h = 68
+        # Panel geometry — wide enough to display all save info on one line
+        panel_w = 660
+        panel_margin = 24
+        slot_w = panel_w - 2 * panel_margin
+        slot_h = 74
         slot_spacing = 12
+        top_pad = 22
+        title_h = 54       # approximate rendered height of title_font at 52pt
+        title_gap = 10
+        divider_gap = 16
+        back_h = 46
+        back_gap = 22
+        bottom_pad = 24
+        panel_h = (
+            top_pad + title_h + title_gap + 1 + divider_gap
+            + 3 * slot_h + 2 * slot_spacing
+            + back_gap + back_h + bottom_pad
+        )
+
         cx = _TOTAL_WIDTH // 2
-        top = SCREEN_HEIGHT // 2 - (3 * (slot_h + slot_spacing)) // 2
+        cy = SCREEN_HEIGHT // 2
+        self._load_panel_rect = pygame.Rect(
+            cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h
+        )
+
+        slots_top = (
+            self._load_panel_rect.top
+            + top_pad + title_h + title_gap + 1 + divider_gap
+        )
         self._slot_rects = []
         for i in range(3):
             self._slot_rects.append(
-                pygame.Rect(cx - slot_w // 2, top + i * (slot_h + slot_spacing), slot_w, slot_h)
+                pygame.Rect(
+                    self._load_panel_rect.left + panel_margin,
+                    slots_top + i * (slot_h + slot_spacing),
+                    slot_w,
+                    slot_h,
+                )
             )
-        back_y = self._slot_rects[-1].bottom + 28
-        self._back_rect = pygame.Rect(cx - 100, back_y, 200, 46)
+
+        back_y = self._slot_rects[-1].bottom + back_gap
+        self._back_rect = pygame.Rect(cx - 100, back_y, 200, back_h)
 
     def _draw_load_slots(self, mouse_pos: Tuple[int, int]) -> None:
         self.screen.fill(BEIGE)
 
-        title_surf = self.title_font.render("Load Game", True, DARK_BROWN)
-        self.screen.blit(title_surf, title_surf.get_rect(centerx=_TOTAL_WIDTH // 2, top=80))
+        # Panel background and border (matches main menu style)
+        pygame.draw.rect(self.screen, SANDY_BROWN, self._load_panel_rect, border_radius=6)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._load_panel_rect, 3, border_radius=6)
 
+        # Title
+        title_surf = self.title_font.render("Load Game", True, DARK_BROWN)
+        title_rect = title_surf.get_rect(
+            centerx=self._load_panel_rect.centerx,
+            top=self._load_panel_rect.top + 22,
+        )
+        self.screen.blit(title_surf, title_rect)
+
+        # Divider
+        divider_y = title_rect.bottom + 10
+        pygame.draw.line(
+            self.screen, DARK_BROWN,
+            (self._load_panel_rect.left + 30, divider_y),
+            (self._load_panel_rect.right - 30, divider_y),
+            1,
+        )
+
+        # Slots
         for i, rect in enumerate(self._slot_rects):
             slot_info = self._slots[i]
-            clickable = slot_info is not None
-            hovered = clickable and rect.collidepoint(mouse_pos)
+            hovered = slot_info is not None and rect.collidepoint(mouse_pos)
 
             if not slot_info:
                 bg, border = LIGHT_GRAY, GRAY
@@ -184,8 +233,8 @@ class MainMenu:
             else:
                 bg, border = TAN, DARK_BROWN
 
-            pygame.draw.rect(self.screen, bg, rect, border_radius=5)
-            pygame.draw.rect(self.screen, border, rect, 2, border_radius=5)
+            pygame.draw.rect(self.screen, bg, rect, border_radius=4)
+            pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
             label_color = DARK_BROWN if slot_info else DARK_GRAY
             label_surf = self.button_font.render(f"Slot {i + 1}", True, label_color)
@@ -202,11 +251,14 @@ class MainMenu:
                     saved_str = sd.strftime("%Y-%m-%d %H:%M")
                 except Exception:
                     saved_str = slot_info["saved_at"]
-                info_str = f"{game_date_str}   |   {slot_info['money']:.1f} Gold   |   Saved {saved_str}"
+                info_str = (
+                    f"{game_date_str}   |   {slot_info['money']:.1f} Gold"
+                    f"   |   Saved {saved_str}"
+                )
                 info_surf = self.subtitle_font.render(info_str, True, DARK_BROWN)
             else:
                 info_surf = self.subtitle_font.render("Empty", True, DARK_GRAY)
-            self.screen.blit(info_surf, (rect.left + 14, rect.bottom - 24))
+            self.screen.blit(info_surf, (rect.left + 14, rect.bottom - 30))
 
         # Back button
         hovered = self._back_rect.collidepoint(mouse_pos)
