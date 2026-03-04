@@ -1,6 +1,8 @@
+import os
 import pygame
 from typing import List, Optional, Tuple, Union
 from ...config.colors import *
+from ...config.constants import FONTS_PATH
 
 class Menu:
     """A persistent menu button and dropdown menu for global game actions.
@@ -24,8 +26,11 @@ class Menu:
             font: Font for text rendering.
         """
         self.font: pygame.font.Font = font
+        self.item_font: pygame.font.Font = pygame.font.Font(
+            os.path.join(FONTS_PATH, "RomanAntique.ttf"), 20
+        )
         self.is_open: bool = False
-        self.items: List[str] = ["Quit", "Balance", "Settings", "Demo"]
+        self.items: List[str] = ["Quit", "Main Menu", "Settings", "Demo"]
         
         # Menu button dimensions and position
         self.button_width: int = 100
@@ -85,7 +90,7 @@ class Menu:
                     pygame.draw.rect(screen, LIGHT_GRAY, item_rect)
                 
                 # Draw item text
-                text = self.font.render(item, True, BLACK)
+                text = self.item_font.render(item, True, BLACK)
                 text_rect = text.get_rect(center=item_rect.center)
                 screen.blit(text, text_rect)
                 

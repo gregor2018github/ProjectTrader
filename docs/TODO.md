@@ -3,7 +3,6 @@
 ## High Priority
 - [ ] build a wheat field
 - [ ] animate the wheat field (swaying in the wind)
-- [ ] Make the first prototype of a main menu with a "Start New Game", "Load Game", "Settings" and "Exit" button (only the start new game button needs to be functional for now)
 - [ ] Game must be savable and loadable
     - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
     - [ ] Save game / Load game menu that is available in the main menu
@@ -48,6 +47,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] Make the first prototype of a main menu with a "Start New Game", "Load Game", "Settings" and "Exit" button (only the start new game button needs to be functional for now)
 - [x] bugfix: in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [x] bugfix: the walking sound is now more stable towards other sounds which are played in parallel (like the church bell or the knock sound of building interactions) 
 - [x] when the game starts, there should already be a historic market movement. The market price calculations thus already need to run for 3 months before start of the game 

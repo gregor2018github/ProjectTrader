@@ -305,7 +305,7 @@ class Game:
             print(f"Sound {sound_name} not found")
             return None
 
-    def run(self) -> None:
+    def run(self) -> Optional[str]:
         """Execute the main game loop, handling updates, rendering, and events."""
         running = True
         buttons = {}
@@ -527,6 +527,10 @@ class Game:
             pass
         finally:
             pygame.quit()
+
+        if getattr(self.state, 'return_to_main_menu', False):
+            return "main_menu"
+        return None
 
     def _draw_message(self, message):
         # Draw message in center of screen

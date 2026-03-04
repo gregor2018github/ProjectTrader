@@ -187,9 +187,12 @@ def handle_mouse_click(pos: Tuple[int, int],
                     "story_teller_1"        # Sound to play
                 )
                 return
-            elif menu_action == "Balance":
-                # Handle balance action
-                pass
+            elif menu_action == "Main Menu":
+                game_state.info_window = InfoWindow(game_state.screen,
+                                                  "Return to main menu?",
+                                                  ["No", "Yes"],
+                                                  game_state.font,
+                                                  game_state.game)
             elif menu_action == "Settings":
                 from ..settings import SettingsWindow
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
