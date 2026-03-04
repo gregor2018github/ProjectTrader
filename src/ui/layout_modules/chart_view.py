@@ -181,7 +181,7 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             date_surface = main_font.render(date_text, True, DARK_BROWN)
             
             # Create a stable-size rect for the background based on "all 9s" dimensions
-            tooltip_base_x = mouse_pos[0] + 15
+            tooltip_base_x = mouse_pos[0] + 35
             tooltip_base_y = mouse_pos[1] - 10
             stable_rect = pygame.Rect(tooltip_base_x, tooltip_base_y, total_stable_width, total_stable_height)
             
@@ -430,7 +430,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
     # Render tooltips after all buttons are drawn.
     for name, pos in tooltips:
         tooltip_surface = main_font.render(name, True, BLACK)
-        tooltip_rect = tooltip_surface.get_rect(topleft=(pos[0] + 15, pos[1] + 10))
+        tooltip_rect = tooltip_surface.get_rect(topleft=(pos[0] + 35, pos[1] + 10))
         pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(4, 4))
         pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(4, 4), 1)
         screen.blit(tooltip_surface, tooltip_rect)
