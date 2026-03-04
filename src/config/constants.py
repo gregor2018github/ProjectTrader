@@ -11,6 +11,8 @@ import os
 MAIN_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 PICTURES_PATH = os.path.join(MAIN_PATH, "assets", "pictures")
 FONTS_PATH = os.path.join(MAIN_PATH, "assets", "fonts")
+SAVES_PATH = os.path.join(MAIN_PATH, "saves")
+SAVE_SECRET_KEY = "MerchantsRise_sv1_k9xP"
 
 # SIMULATION CONSTANTS
 

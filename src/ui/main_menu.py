@@ -2,12 +2,14 @@
 
 import os
 import pygame
-from typing import Optional, List, Tuple
+import datetime
+from typing import Any, Dict, List, Optional, Tuple
 from ..config.colors import (
     BEIGE, SANDY_BROWN, DARK_BROWN, TAN, PALE_BROWN,
-    LIGHT_GRAY, DARK_GRAY, WHITE, DARK_GREEN
+    LIGHT_GRAY, DARK_GRAY, GRAY, WHITE, DARK_GREEN, BLACK,
 )
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
+from ..persistence.save_manager import get_save_slots, load_game as _sm_load_game
 
 _TOTAL_WIDTH = SCREEN_WIDTH + SIDEBAR_WIDTH
 
@@ -77,7 +79,7 @@ class MainMenu:
         self.buttons: List[Tuple[pygame.Rect, str, str, bool]] = []
         entries = [
             ("Start New Game", "new_game", True),
-            ("Load Game",      "load_game", False),
+            ("Load Game",      "load_game", True),
             ("Settings",       "settings",  False),
             ("Exit",           "exit",      True),
         ]
@@ -92,26 +94,126 @@ class MainMenu:
             )
             self.buttons.append((rect, label, action, enabled))
 
+        # Load-game slot selection state
+        self._view: str = "main"  # "main" or "load_slots"
+        self._slots: List[Optional[Dict[str, Any]]] = []
+        self._slot_rects: List[pygame.Rect] = []
+        self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self) -> str:
-        """Block until the user selects an option and return the action string."""
+    def run(self) -> Tuple[str, Optional[Dict[str, Any]]]:
+        """Block until the user selects an option.
+
+        Returns:
+            A ``(action, save_data)`` tuple.  ``save_data`` is ``None`` for
+            every action except ``"load_game"`` with a valid save slot selected.
+        """
         while True:
             self.clock.tick(60)
             mouse_pos = pygame.mouse.get_pos()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    return "exit"
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    for rect, _label, action, enabled in self.buttons:
-                        if enabled and rect.collidepoint(mouse_pos):
-                            return action
+                    return ("exit", None)
 
-            self._draw(mouse_pos)
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self._view == "main":
+                        for rect, _label, action, enabled in self.buttons:
+                            if enabled and rect.collidepoint(mouse_pos):
+                                if action == "load_game":
+                                    self._slots = get_save_slots()
+                                    self._build_slot_rects()
+                                    self._view = "load_slots"
+                                else:
+                                    return (action, None)
+
+                    elif self._view == "load_slots":
+                        if self._back_rect.collidepoint(mouse_pos):
+                            self._view = "main"
+                            continue
+                        for i, rect in enumerate(self._slot_rects):
+                            if rect.collidepoint(mouse_pos) and self._slots[i] is not None:
+                                try:
+                                    data = _sm_load_game(i + 1)
+                                    return ("load_game", data)
+                                except Exception:
+                                    pass  # Slot corrupted — stay on screen
+
+            if self._view == "main":
+                self._draw(mouse_pos)
+            else:
+                self._draw_load_slots(mouse_pos)
             pygame.display.flip()
+
+    # ------------------------------------------------------------------
+    # Load-slots helpers
+    # ------------------------------------------------------------------
+
+    def _build_slot_rects(self) -> None:
+        slot_w = 520
+        slot_h = 68
+        slot_spacing = 12
+        cx = _TOTAL_WIDTH // 2
+        top = SCREEN_HEIGHT // 2 - (3 * (slot_h + slot_spacing)) // 2
+        self._slot_rects = []
+        for i in range(3):
+            self._slot_rects.append(
+                pygame.Rect(cx - slot_w // 2, top + i * (slot_h + slot_spacing), slot_w, slot_h)
+            )
+        back_y = self._slot_rects[-1].bottom + 28
+        self._back_rect = pygame.Rect(cx - 100, back_y, 200, 46)
+
+    def _draw_load_slots(self, mouse_pos: Tuple[int, int]) -> None:
+        self.screen.fill(BEIGE)
+
+        title_surf = self.title_font.render("Load Game", True, DARK_BROWN)
+        self.screen.blit(title_surf, title_surf.get_rect(centerx=_TOTAL_WIDTH // 2, top=80))
+
+        for i, rect in enumerate(self._slot_rects):
+            slot_info = self._slots[i]
+            clickable = slot_info is not None
+            hovered = clickable and rect.collidepoint(mouse_pos)
+
+            if not slot_info:
+                bg, border = LIGHT_GRAY, GRAY
+            elif hovered:
+                bg, border = PALE_BROWN, DARK_BROWN
+            else:
+                bg, border = TAN, DARK_BROWN
+
+            pygame.draw.rect(self.screen, bg, rect, border_radius=5)
+            pygame.draw.rect(self.screen, border, rect, 2, border_radius=5)
+
+            label_color = DARK_BROWN if slot_info else DARK_GRAY
+            label_surf = self.button_font.render(f"Slot {i + 1}", True, label_color)
+            self.screen.blit(label_surf, (rect.left + 14, rect.top + 10))
+
+            if slot_info:
+                try:
+                    gd = datetime.datetime.fromisoformat(slot_info["game_date"])
+                    game_date_str = gd.strftime("%d %b %Y  %H:%M")
+                except Exception:
+                    game_date_str = slot_info["game_date"]
+                try:
+                    sd = datetime.datetime.fromisoformat(slot_info["saved_at"])
+                    saved_str = sd.strftime("%Y-%m-%d %H:%M")
+                except Exception:
+                    saved_str = slot_info["saved_at"]
+                info_str = f"{game_date_str}   |   {slot_info['money']:.1f} Gold   |   Saved {saved_str}"
+                info_surf = self.subtitle_font.render(info_str, True, DARK_BROWN)
+            else:
+                info_surf = self.subtitle_font.render("Empty", True, DARK_GRAY)
+            self.screen.blit(info_surf, (rect.left + 14, rect.bottom - 24))
+
+        # Back button
+        hovered = self._back_rect.collidepoint(mouse_pos)
+        pygame.draw.rect(self.screen, PALE_BROWN if hovered else TAN, self._back_rect, border_radius=4)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._back_rect, 2, border_radius=4)
+        back_surf = self.button_font.render("Back", True, DARK_BROWN)
+        self.screen.blit(back_surf, back_surf.get_rect(center=self._back_rect.center))
 
     # ------------------------------------------------------------------
     # Drawing

@@ -20,16 +20,23 @@ from .ui.helper_modules.sound_control import SoundControl  # Add import for Soun
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, MARKET_PRESIMULATION_DAYS
+from .persistence.save_manager import apply_save_data
 
 class Game:
     """The central class that manages the main game loop, initialization, and resource loading.
-    
+
     This class orchestrates components like GameState, EventHandler, Depot, and UI elements
     to provide the Merchant's Rise game experience.
     """
-    
-    def __init__(self) -> None:
-        """Initialize the game engine, UI, assets, and game objects."""
+
+    def __init__(self, save_data: Optional[Dict[str, Any]] = None) -> None:
+        """Initialize the game engine, UI, assets, and game objects.
+
+        Args:
+            save_data: Optional save dict from save_manager.load_game(). When provided,
+                       the live game objects are overwritten with the saved state after
+                       normal initialization completes.
+        """
         pygame.init()
         
         # Initialize mixer for sound playback
@@ -152,6 +159,12 @@ class Game:
         except Exception as e:
             print(f"Failed to load custom cursor: {e}")
             self.cursor_img = None
+
+        # If loading from a save file, restore all game state now that every object exists
+        if save_data is not None:
+            apply_save_data(save_data, self.state, self.player, self.depot, self.goods)
+            self.game_map.map_player.x = self.player.position[0]
+            self.game_map.map_player.y = self.player.position[1]
 
     def _initialize_goods(self) -> List[Good]:
         """Create and initialize the default list of goods for the market.

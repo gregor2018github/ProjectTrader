@@ -167,7 +167,15 @@ def handle_mouse_click(pos: Tuple[int, int],
             # Menu was opened/closed, consume the click to prevent other buttons from activating
             return
         if menu_action:
-            if menu_action == "Quit":
+            if menu_action == "Save Game":
+                from ..ui.helper_modules.save_load_dialog import SaveDialog
+                game_state.info_window = SaveDialog(game_state.screen, game_state.font, game_state.game)
+                return
+            elif menu_action == "Load Game":
+                from ..ui.helper_modules.save_load_dialog import LoadDialog
+                game_state.info_window = LoadDialog(game_state.screen, game_state.font, game_state.game)
+                return
+            elif menu_action == "Quit":
                 game_state.info_window = InfoWindow(game_state.screen, 
                                                   "Do you want to quit?", 
                                                   ["Back", "Quit"], 

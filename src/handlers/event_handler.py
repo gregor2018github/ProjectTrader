@@ -75,8 +75,46 @@ class EventHandler:
                     elif choice == "Yes":
                         game_state.return_to_main_menu = True
                         self.running = False
-                    elif choice in ("Back", "No", "Save and Close", "OK"):
+                    elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
                         game_state.info_window = None
+                    elif choice and choice.startswith("save_slot_"):
+                        from ..persistence.save_manager import save_game as _save
+                        slot = int(choice[-1])
+                        try:
+                            _save(slot, game_state, game_state.game.player,
+                                  game_state.game.depot, game_state.game.goods)
+                            game_state.info_window = None
+                            game_state.show_warning(f"Game saved to Slot {slot}.")
+                        except Exception as e:
+                            game_state.info_window = None
+                            game_state.show_warning(f"Save failed: {e}")
+                    elif choice and choice.startswith("load_slot_"):
+                        slot = int(choice[-1])
+                        game_state._pending_load_slot = slot
+                        game_state.info_window = InfoWindow(
+                            game_state.screen,
+                            "Load game?\nCurrent progress will be lost.",
+                            ["No", "Load"],
+                            game_state.font,
+                            game_state.game,
+                        )
+                    elif choice == "Load":
+                        slot = getattr(game_state, "_pending_load_slot", None)
+                        if slot:
+                            from ..persistence.save_manager import load_game as _load, apply_save_data
+                            try:
+                                data = _load(slot)
+                                apply_save_data(data, game_state, game_state.game.player,
+                                               game_state.game.depot, game_state.game.goods)
+                                game_state.game.game_map.map_player.x = game_state.game.player.position[0]
+                                game_state.game.game_map.map_player.y = game_state.game.player.position[1]
+                                game_state.info_window = None
+                                game_state._pending_load_slot = None
+                                game_state.show_warning("Game loaded.")
+                            except Exception as e:
+                                game_state.info_window = None
+                                game_state._pending_load_slot = None
+                                game_state.show_warning(f"Load failed: {e}")
             else:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)
                 
