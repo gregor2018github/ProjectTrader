@@ -42,13 +42,13 @@
 
 ## Bug Fixes
 - [ ] fences must not be clickable with the house_click_menu, they are not really houses
-- [ ] in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [x] bugfix: the walking sound is now more stable towards other sounds which are played in parallel (like the church bell or the knock sound of building interactions) 
 - [x] when the game starts, there should already be a historic market movement. The market price calculations thus already need to run for 3 months before start of the game 
 - [x] enlarge the map size while keeping the current city structure(it is already getting too small)

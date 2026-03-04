@@ -32,6 +32,7 @@ TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
+MARKET_PRESIMULATION_DAYS = 60      # Days of price history to simulate before the game starts
 START_DATE = "01.01.1500"           # When the simulation time starts, format: dd.mm.yyyy
 START_TIME = "08:00"                # When the simulation time starts, format: HH:MM
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player

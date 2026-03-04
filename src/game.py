@@ -19,7 +19,7 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, MARKET_PRESIMULATION_DAYS
 
 class Game:
     """The central class that manages the main game loop, initialization, and resource loading.
@@ -62,7 +62,7 @@ class Game:
         
         # Initialize goods
         self.goods: List[Good] = self._initialize_goods()
-        self._presimulate_market_history(days=60)
+        self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
 
         # Initialize depot
         self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
