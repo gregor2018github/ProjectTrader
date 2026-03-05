@@ -1,6 +1,8 @@
 # Project Trader TODOs
 
 ## High Priority
+- [ ] start game in double map view with zoom 1.75, also in the market_view only wood and stone are preselected, no iron
+- [ ] add some semitransparent information that the game is paused as an overlay when the time is paused (e.g., when the map view is open)
 - [ ] build a wheat field
 - [ ] animate the wheat field (swaying in the wind)
 - [ ] Game must be savable and loadable
@@ -41,6 +43,7 @@
 
 ## Bug Fixes
 - [ ] fences must not be clickable with the house_click_menu, they are not really houses
+- [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
 - [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches

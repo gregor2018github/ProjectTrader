@@ -73,10 +73,10 @@ class GameState:
         self.chart_state: bool = True
         self.info_state: bool = False
         self.depot_state: bool = False
-        self.left_side_mode: str = "market"
-        self.left_side_prev_mode: str = "market"
-        self.right_side_mode: str = "depot"
-        self.right_side_prev_mode: str = "depot"
+        self.left_side_mode: str = "map"
+        self.left_side_prev_mode: str = "map"
+        self.right_side_mode: str = "map"
+        self.right_side_prev_mode: str = "map"
         
         self.map_view_mode: Optional[str] = None  # Deprecated
         self.market_view_mode: Optional[str] = None  # Deprecated

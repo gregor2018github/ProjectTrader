@@ -120,7 +120,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                     return
 
     # Handle depot time frame button clicks
-    if hasattr(game_state, "depot_buttons"):
+    if hasattr(game_state, "depot_buttons") and "left" in game_state.depot_buttons:
         depot_buttons = game_state.depot_buttons
         current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
         if depot_buttons["left"].collidepoint(pos) and current_index > 0:

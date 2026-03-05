@@ -176,7 +176,7 @@ class Game:
         goods_data = [
             ("Wood", 1, 5000, PALE_BROWN, 0, True),
             ("Stone", 2, 2000, GRAY, 1, True),
-            ("Iron", 5, 900, STEELE_BLUE, 2, True),
+            ("Iron", 5, 900, STEELE_BLUE, 2, False),
             ("Wool", 3, 2500, WHITE, 3, False),
             ("Hide", 4, 1000, DARK_GRAY, 4, False),
             ("Fish", 2, 5000, LIGHT_BLUE, 5, False),
