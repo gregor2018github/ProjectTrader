@@ -1,8 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] start game in double map view with zoom 1.75, also in the market_view only wood and stone are preselected, no iron
-- [ ] add some semitransparent information that the game is paused as an overlay when the time is paused (e.g., when the map view is open)
 - [ ] build a wheat field
 - [ ] animate the wheat field (swaying in the wind)
 - [ ] Game must be savable and loadable
@@ -50,6 +48,9 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when paused, the player may not trade anymore or open menus over the house click menu
+- [x] add some semitransparent information that the game is paused as an overlay when the time is paused (e.g., when the map view is open)
+- [x] start game in double map view with zoom 1.75, also in the market_view only wood and stone are preselected, no iron
 - [x] Make the first prototype of a main menu with a "Start New Game", "Load Game", "Settings" and "Exit" button (only the start new game button needs to be functional for now)
 - [x] bugfix: in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [x] bugfix: the walking sound is now more stable towards other sounds which are played in parallel (like the church bell or the knock sound of building interactions) 

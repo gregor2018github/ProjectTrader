@@ -60,15 +60,20 @@ def draw_map_view(
     game_map.tmx_map.update_lights(game_state.date)
 
     # Detect hovered house before building the render queue
+    paused = game_state.time_level == 1
     active_house_menu = getattr(game_state, "active_house_menu", None)
-    if active_house_menu and getattr(game_state, "info_window", None) and getattr(game_state.info_window, "house", None) == active_house_menu:
+    if paused:
+        hovered_house = None
+        game_state.house_last_hovered = None
+        game_state.house_hover_fade_house = None
+        game_state.house_hover_fade_timer = 0
+    elif active_house_menu and getattr(game_state, "info_window", None) and getattr(game_state.info_window, "house", None) == active_house_menu:
         if is_player_near_house(game_map.map_player, active_house_menu):
             hovered_house = active_house_menu
         else:
             # Trigger fade out for the menu
             game_state.menu_fade_window = game_state.info_window
             game_state.menu_fade_timer = game_state.menu_fade_duration
-            
             game_state.info_window = None
             game_state.active_house_menu = None
             hovered_house = None
@@ -76,14 +81,15 @@ def draw_map_view(
         mouse_pos = pygame.mouse.get_pos()
         hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
 
-    if hovered_house:
-        game_state.house_last_hovered = hovered_house
-        game_state.house_hover_fade_house = None
-        game_state.house_hover_fade_timer = 0
-    elif game_state.house_last_hovered and game_state.house_hover_fade_house is None:
-        game_state.house_hover_fade_house = game_state.house_last_hovered
-        game_state.house_hover_fade_timer = game_state.house_hover_fade_duration
-        game_state.house_last_hovered = None
+    if not paused:
+        if hovered_house:
+            game_state.house_last_hovered = hovered_house
+            game_state.house_hover_fade_house = None
+            game_state.house_hover_fade_timer = 0
+        elif game_state.house_last_hovered and game_state.house_hover_fade_house is None:
+            game_state.house_hover_fade_house = game_state.house_last_hovered
+            game_state.house_hover_fade_timer = game_state.house_hover_fade_duration
+            game_state.house_last_hovered = None
     
     # Build render queue for Y-sorting (houses and player)
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)

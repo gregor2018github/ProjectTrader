@@ -79,8 +79,8 @@ def handle_mouse_click(pos: Tuple[int, int],
         if game_state.game.sound_control.handle_click(pos, game_state.game):
             return
 
-    # Handle map object clicks (houses) if map is visible
-    if game_state.is_map_visible:
+    # Handle map object clicks (houses) if map is visible and not paused
+    if game_state.is_map_visible and game_state.time_level > 1:
         # Check if we clicked on a house that is hoverable (in range)
         # We need the map view rect for this. The map view takes up the remaining space
         # after sidebar (SIDEBAR_WIDTH) is removed from left.
@@ -296,7 +296,8 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.active_dropdown = dropdown_name
                 return
             elif field_name.startswith(('buy_', 'sell_')):
-                _handle_trade_button(field_name, game_state, goods, depot)
+                if game_state.time_level > 1:
+                    _handle_trade_button(field_name, game_state, goods, depot)
             else:
                 game_state.mouse_clicked_on = field_name
             return

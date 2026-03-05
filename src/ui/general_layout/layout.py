@@ -342,29 +342,26 @@ def _draw_bottom_bar(
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
                         
-        # Draw buy button 
-        if is_hovering(buy_rect):
-            # if hovered, change color of the button 
+        # Draw buy button
+        paused = game_state.time_level == 1
+        if paused:
+            buy_color = LIGHT_GRAY
+        elif is_hovering(buy_rect):
             buy_color = BUY_BUTTON_HOVER
-            # also set the "hovered" property of the good that is linked to the button to True 
-            # find the right good object from the list of goods
             good_name = input_fields[f'good_{section}']
             good = next(good for good in goods if good.name == good_name)
             good.hovered = True
-
         else:
             buy_color = BUY_BUTTON
 
-
         pygame.draw.rect(screen, buy_color, buy_rect)
-        pygame.draw.rect(screen, BUY_BUTTON_BORDER, buy_rect, 2)
-        
+        pygame.draw.rect(screen, GRAY if paused else BUY_BUTTON_BORDER, buy_rect, 2)
+
         # Draw sell button
-        if is_hovering(sell_rect):
-            # if hovered, change color of the button 
+        if paused:
+            sell_color = LIGHT_GRAY
+        elif is_hovering(sell_rect):
             sell_color = SELL_BUTTON_HOVER
-            # also set the "hovered" property of the good that is linked to the button to True 
-            # find the right good object from the list of goods
             good_name = input_fields[f'good_{section}']
             good = next(good for good in goods if good.name == good_name)
             good.hovered = True
@@ -372,7 +369,7 @@ def _draw_bottom_bar(
             sell_color = SELL_BUTTON
 
         pygame.draw.rect(screen, sell_color, sell_rect)
-        pygame.draw.rect(screen, SELL_BUTTON_BORDER, sell_rect, 2)
+        pygame.draw.rect(screen, GRAY if paused else SELL_BUTTON_BORDER, sell_rect, 2)
         
         # NEW: Draw click animation overlay on buy and sell buttons if active
         effect = game_state.button_click_effects.get(f'buy_{section}', 0)

@@ -63,6 +63,7 @@ class Game:
         # Initialize font
         self.font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 24)
         self.small_font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 19)
+        self.pause_font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 52)
         self.state.font = self.font  # Set font reference in GameState
         self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
@@ -387,6 +388,8 @@ class Game:
                         keys = pygame.key.get_pressed()
                         self.game_map.handle_movement_keys(keys)
                         self.game_map.update(delta_time)
+                    else:
+                        self.game_map.map_player.stop_footstep_sound()
                     
                     # Update player area status
                     self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
@@ -480,6 +483,10 @@ class Game:
                 # Draw sound control button
                 self.sound_control.draw(self.screen)
                 
+                # Draw pause overlay when map is visible and time is paused
+                if self.state.time_level == 1 and is_map_visible:
+                    self._draw_pause_overlay()
+
                 # Draw dropdowns after everything else
                 for dropdown in self.state.dropdowns.values():
                     if dropdown.is_open:  # Changed from checking active_dropdown
@@ -544,6 +551,22 @@ class Game:
         if getattr(self.state, 'return_to_main_menu', False):
             return "main_menu"
         return None
+
+    def _draw_pause_overlay(self) -> None:
+        text_surf = self.pause_font.render("Paused", True, (220, 200, 160))
+        pad_x, pad_y = 28, 12
+        w = text_surf.get_width() + pad_x * 2
+        h = text_surf.get_height() + pad_y * 2
+        # Center in the map content area
+        cx = MODULE_WIDTH
+        cy = 60 + (SCREEN_HEIGHT - 120) // 2
+        x = cx - w // 2
+        y = cy - h // 2
+        bg = pygame.Surface((w, h), pygame.SRCALPHA)
+        bg.fill((30, 20, 10, 160))
+        self.screen.blit(bg, (x, y))
+        pygame.draw.rect(self.screen, (180, 150, 100, 180), pygame.Rect(x, y, w, h), 1)
+        self.screen.blit(text_surf, (x + pad_x, y + pad_y))
 
     def _draw_message(self, message):
         # Draw message in center of screen
