@@ -54,12 +54,12 @@ class EventHandler:
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q and not game_state.info_window:
-                game_state.info_window = InfoWindow(game_state.screen, 
-                                                    "Do you want to quit?", 
-                                                    ["Back", "Quit"], 
+                game_state.info_window = InfoWindow(game_state.screen,
+                                                    "Do you want to quit?",
+                                                    ["Back", "Quit"],
                                                     game_state.font,
                                                     game_state.game)
-            else:
+            elif not (game_state.info_window and hasattr(game_state.info_window, 'handle_event')):
                 handle_keyboard_input(event, game_state, goods, depot)
                 
         # Pass event to info_window if it supports handle_event
@@ -80,9 +80,11 @@ class EventHandler:
                     elif isinstance(choice, str) and choice.startswith("save_slot_"):
                         from ..persistence.save_manager import save_game as _save
                         slot = int(choice[-1])
+                        save_name = getattr(game_state.info_window, "save_name", "")
                         try:
                             _save(slot, game_state, game_state.game.player,
-                                  game_state.game.depot, game_state.game.goods)
+                                  game_state.game.depot, game_state.game.goods,
+                                  save_name=save_name)
                             game_state.info_window = None
                             game_state.show_warning(f"Game saved to Slot {slot}.")
                         except Exception as e:

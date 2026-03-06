@@ -237,7 +237,8 @@ class MainMenu:
             pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
             label_color = DARK_BROWN if slot_info else DARK_GRAY
-            label_surf = self.button_font.render(f"Slot {i + 1}", True, label_color)
+            label_str = (slot_info.get("save_name") or f"Slot {i + 1}") if slot_info else f"Slot {i + 1}"
+            label_surf = self.button_font.render(label_str, True, label_color)
             self.screen.blit(label_surf, (rect.left + 14, rect.top + 10))
 
             if slot_info:

@@ -70,10 +70,11 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any]) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "") -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
+        "save_name": save_name,
         "game_state": {
             "date": _dt_to_str(game_state.date),
             "time_level": game_state.time_level,
@@ -155,10 +156,10 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any]) 
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any]) -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "") -> None:
     """Serialize the full game state and write it to the given slot file (1-based)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods)
+    data = _serialize_game(game_state, player, depot, goods, save_name)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)
@@ -199,6 +200,7 @@ def get_save_slots() -> List[Optional[Dict[str, Any]]]:
                 "saved_at": data["saved_at"],
                 "game_date": data["game_state"]["date"],
                 "money": data["depot"]["money"],
+                "save_name": data.get("save_name", ""),
             })
         except Exception:
             result.append(None)

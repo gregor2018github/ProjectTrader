@@ -3,9 +3,10 @@
 ## High Priority
 - [ ] build a wheat field
 - [ ] animate the wheat field (swaying in the wind)
-- [ ] Game must be savable and loadable
+- [x] Game must be savable and loadable
     - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
-    - [ ] Save game / Load game menu that is available in the main menu
+    - [x] Save game / Load game menu that is available in the main menu
+    - [ ] when saving the game, the player can enter a name for the save file, which is then shown in the load game menu (maximum 30 characters)
 
 ## Medium Priority
 - [ ] design water tiles (plan how to animate them before implementing static ones)

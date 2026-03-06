@@ -168,8 +168,8 @@ class _BaseSlotDialog:
         pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
         label_color = DARK_BROWN if slot_info else DARK_GRAY
-        _draw_bold(self.screen, self.font, f"Slot {slot_index + 1}",
-                   label_color, rect.left + 12, rect.top + 8)
+        label = (slot_info.get("save_name") or f"Slot {slot_index + 1}") if slot_info else f"Slot {slot_index + 1}"
+        _draw_bold(self.screen, self.font, label, label_color, rect.left + 12, rect.top + 8)
 
         small = getattr(self.game, "small_font", self.font)
         if slot_info:
@@ -194,29 +194,145 @@ class _BaseSlotDialog:
         self.screen.blit(surf, surf.get_rect(center=self.cancel_rect.center))
 
 
+_MAX_NAME_LEN = 30
+
+
 class SaveDialog(_BaseSlotDialog):
     """Modal dialog for saving to one of 3 fixed slots.
 
-    handle_click() returns "save_slot_1/2/3" or "Cancel".
+    Phase 1 — slot selection: clicking a slot moves to phase 2.
+    Phase 2 — name entry: player types a name (max 30 chars), then confirms.
+
+    handle_click() returns "save_slot_1/2/3" (with self.save_name set) or "Cancel".
+    handle_event() handles KEYDOWN for text input in phase 2.
     """
 
     def __init__(self, screen: pygame.Surface, font: pygame.font.Font, game: "Game") -> None:
         super().__init__(screen, font, game, "Save Game")
+        self._phase: str = "slot"       # "slot" or "name"
+        self._selected_slot: Optional[int] = None
+        self._name_text: str = ""
+        self.save_name: str = ""        # read by event_handler after confirm
+
+        # Name-entry UI rects (relative to window_rect)
+        input_top = self.window_rect.top + 200
+        input_h = 44
+        btn_top = input_top + input_h + 24
+        btn_h = 36
+        btn_w = 110
+        self._input_rect = pygame.Rect(
+            self.window_rect.left + 30,
+            input_top,
+            _WINDOW_W - 60,
+            input_h,
+        )
+        self._confirm_rect = pygame.Rect(
+            self.window_rect.centerx - btn_w - 8,
+            btn_top, btn_w, btn_h,
+        )
+        self._back_name_rect = pygame.Rect(
+            self.window_rect.centerx + 8,
+            btn_top, btn_w, btn_h,
+        )
 
     def draw(self) -> None:
         self._draw_background()
         self._draw_title()
         mouse_pos = pygame.mouse.get_pos()
-        for i, rect in enumerate(self.slot_rects):
-            self._draw_slot(rect, i, self.slots[i], clickable=True, mouse_pos=mouse_pos)
-        self._draw_cancel(mouse_pos)
+        if self._phase == "slot":
+            for i, rect in enumerate(self.slot_rects):
+                self._draw_slot(rect, i, self.slots[i], clickable=True, mouse_pos=mouse_pos)
+            self._draw_cancel(mouse_pos)
+        else:
+            self._draw_name_entry(mouse_pos)
+
+    def _draw_name_entry(self, mouse_pos: Tuple[int, int]) -> None:
+        small = getattr(self.game, "small_font", self.font)
+
+        # Slot subtitle
+        slot_label = small.render(f"Slot {self._selected_slot}", True, DARK_GRAY)
+        self.screen.blit(slot_label, slot_label.get_rect(
+            centerx=self.window_rect.centerx,
+            top=self.window_rect.top + 108,
+        ))
+
+        # Prompt
+        prompt = self.font.render("Enter a name for this save:", True, DARK_BROWN)
+        self.screen.blit(prompt, prompt.get_rect(
+            centerx=self.window_rect.centerx,
+            top=self.window_rect.top + 152,
+        ))
+
+        # Text input box
+        pygame.draw.rect(self.screen, WHITE, self._input_rect, border_radius=4)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._input_rect, 2, border_radius=4)
+        cursor = "|" if pygame.time.get_ticks() // 500 % 2 == 0 else " "
+        text_surf = self.font.render(self._name_text + cursor, True, BLACK)
+        self.screen.blit(text_surf, (
+            self._input_rect.left + 10,
+            self._input_rect.centery - text_surf.get_height() // 2,
+        ))
+
+        # Char counter
+        counter = small.render(f"{len(self._name_text)}/{_MAX_NAME_LEN}", True, DARK_GRAY)
+        self.screen.blit(counter, counter.get_rect(
+            right=self._input_rect.right - 6,
+            top=self._input_rect.bottom + 4,
+        ))
+
+        # Save button
+        hov = self._confirm_rect.collidepoint(mouse_pos)
+        pygame.draw.rect(self.screen, SANDY_BROWN if hov else TAN, self._confirm_rect, border_radius=4)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._confirm_rect, 2, border_radius=4)
+        s = self.font.render("Save", True, BLACK)
+        self.screen.blit(s, s.get_rect(center=self._confirm_rect.center))
+
+        # Back button
+        hov = self._back_name_rect.collidepoint(mouse_pos)
+        pygame.draw.rect(self.screen, SANDY_BROWN if hov else TAN, self._back_name_rect, border_radius=4)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._back_name_rect, 2, border_radius=4)
+        s = self.font.render("Back", True, BLACK)
+        self.screen.blit(s, s.get_rect(center=self._back_name_rect.center))
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if self._phase != "name" or event.type != pygame.KEYDOWN:
+            return
+        if event.key == pygame.K_BACKSPACE:
+            self._name_text = self._name_text[:-1]
+        elif event.key == pygame.K_RETURN:
+            self.save_name = self._name_text.strip()
+            # Signal confirm via a pending flag; click handler will pick it up
+            # Actually just store — event_handler watches handle_click only.
+            # We let Enter act like clicking Save by returning from handle_click next frame.
+            # Simpler: set a flag and handle in next draw/click cycle.
+            self._enter_pressed = True
+        elif len(self._name_text) < _MAX_NAME_LEN and event.unicode.isprintable() and event.unicode:
+            self._name_text += event.unicode
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
-        if self.cancel_rect.collidepoint(pos):
-            return "Cancel"
-        for i, rect in enumerate(self.slot_rects):
-            if rect.collidepoint(pos):
-                return f"save_slot_{i + 1}"
+        # Check Enter-key confirm flag
+        if getattr(self, "_enter_pressed", False):
+            self._enter_pressed = False
+            self.save_name = self._name_text.strip()
+            return f"save_slot_{self._selected_slot}"
+
+        if self._phase == "slot":
+            if self.cancel_rect.collidepoint(pos):
+                return "Cancel"
+            for i, rect in enumerate(self.slot_rects):
+                if rect.collidepoint(pos):
+                    self._phase = "name"
+                    self._selected_slot = i + 1
+                    existing = self.slots[i]
+                    self._name_text = (existing.get("save_name") or "") if existing else ""
+                    return None
+        else:
+            if self._confirm_rect.collidepoint(pos):
+                self.save_name = self._name_text.strip()
+                return f"save_slot_{self._selected_slot}"
+            if self._back_name_rect.collidepoint(pos):
+                self._phase = "slot"
+                return None
         return None
 
 
