@@ -2,25 +2,27 @@
 
 ## High Priority
 - [ ] build a wheat field
+- [ ] add some sheep sprites and place them on a meadow
 - [ ] animate the wheat field (swaying in the wind)
-- [x] Game must be savable and loadable
-    - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
-    - [x] Save game / Load game menu that is available in the main menu
-    - [ ] when saving the game, the player can enter a name for the save file, which is then shown in the load game menu (maximum 30 characters)
+- [ ] animate the sheep (eating and walking horizontally)
+- [ ] add random sheep noises
+- [ ] reassess and standardize the sound system (currently sound is handled at different places and some combinations bug out, this will become more critical when more sounds are added)
+
 
 ## Medium Priority
+- [ ] smoke from chimneys
+- [ ] add a mill building with rotating blades
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a well in the middle of the city as a decorative element
 - [ ] add a functionality to throw down a rock into the lake
-- [ ] create a start screen with the game title and a "Start New Game", "Load Game", "Settings" and "Exit" button
+
 - [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
-- [ ] create a system to interact with a building. There will be "door areas" and when these are touched, you can do things with the buildings (later enter, for now only menu)
 - [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
@@ -49,9 +51,14 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] Game must be savable and loadable
+    - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
+    - [x] Save game / Load game menu that is available in the main menu
+    - [x] when saving the game, the player can enter a name for the save file, which is then shown in the load game menu (maximum 30 characters)
 - [x] when paused, the player may not trade anymore or open menus over the house click menu
 - [x] add some semitransparent information that the game is paused as an overlay when the time is paused (e.g., when the map view is open)
 - [x] start game in double map view with zoom 1.75, also in the market_view only wood and stone are preselected, no iron
+- [x] create a start screen with the game title and a "Start New Game", "Load Game", "Settings" and "Exit" button
 - [x] Make the first prototype of a main menu with a "Start New Game", "Load Game", "Settings" and "Exit" button (only the start new game button needs to be functional for now)
 - [x] bugfix: in the market view, the hover text is sometimes hidden by the cursor picture, maybe move the hover text a bit to the right
 - [x] bugfix: the walking sound is now more stable towards other sounds which are played in parallel (like the church bell or the knock sound of building interactions) 

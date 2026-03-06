@@ -1,8 +1,6 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
-- Game must be savable and loadable
-    - all game states must be serializable (player data, depot data, market data, city data, time data, etc)
-    - implement save/load menu
+- Game saving and Loading
     - autosave feature
 
 - Main menu when starting the game
