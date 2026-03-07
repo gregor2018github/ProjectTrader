@@ -10,7 +10,6 @@
 
 
 ## Medium Priority
-- [ ] smoke from chimneys
 - [ ] add a mill building with rotating blades
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
@@ -51,6 +50,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] smoke from chimneys
 - [x] Game must be savable and loadable
     - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
     - [x] Save game / Load game menu that is available in the main menu

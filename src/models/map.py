@@ -18,6 +18,7 @@ from .institutions.town import Town
 from .institutions.market import Market
 from .tree import Tree
 from .light import Light, BuildingLight, BuildingLightGroup
+from .smoke import SmokeEmitter
 
 
 
@@ -121,11 +122,13 @@ class TMXMap:
         self.lights: List[Light] = []
         self.building_light_groups: Dict[str, BuildingLightGroup] = {}
         self.areas: Dict[str, pygame.Rect] = {}
-        
+        self.smoke_emitters: List[SmokeEmitter] = []
+
         self._load_houses()
         self._load_trees()
         self._load_lights()
         self._load_areas()
+        self._load_smoke()
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
@@ -316,6 +319,31 @@ class TMXMap:
                         
                         self.building_light_groups[obj.name].add_light(building_light)
     
+    def _load_smoke(self) -> None:
+        """Load Smoke objects from the 'Smoke' object layer and create SmokeEmitters."""
+        import re
+        house_y_sort = {h.name: h.y for h in self.houses}
+
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Smoke":
+                for obj in layer:
+                    m = re.match(r'Smoke_(House_\d+)', obj.name)
+                    if not m:
+                        continue
+                    house_name = m.group(1)
+                    y_sort = house_y_sort.get(house_name, obj.y + obj.height)
+                    self.smoke_emitters.append(SmokeEmitter(
+                        outlet_x=obj.x,
+                        outlet_y=obj.y + obj.height,  # bottom edge = chimney mouth
+                        outlet_width=obj.width,
+                        y_sort=y_sort,
+                    ))
+
+    def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
+        """Advance all smoke emitters (call once per frame when not paused)."""
+        for emitter in self.smoke_emitters:
+            emitter.update(dt, current_time)
+
     def update_lights(self, current_time: datetime.datetime) -> None:
         """Update all lights (flicker, on/off state)."""
         # Update individual house lights
@@ -900,13 +928,15 @@ class GameMap:
         
         self.map_player.set_movement(dx, dy)
     
-    def update(self, dt: float) -> None:
+    def update(self, dt: float, current_time: datetime.datetime) -> None:
         """Update map state including player and camera.
-        
+
         Args:
             dt: Delta time in seconds.
+            current_time: Current in-game datetime for smoke scheduling.
         """
         self.map_player.update(dt, self.tmx_map)
+        self.tmx_map.update_smoke(dt, current_time)
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,
             self.map_player.y + self.map_player.height / 2.0,

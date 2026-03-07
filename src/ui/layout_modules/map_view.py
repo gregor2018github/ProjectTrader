@@ -13,7 +13,7 @@ from ...config.constants import SHOW_MAP_DEBUG
 from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
 
 if TYPE_CHECKING:
-    from ...models.map import GameMap, Camera, TMXMap, MapPlayer
+    from ...models.map import GameMap, Camera, TMXMap
     from ...game_state import GameState
 
 
@@ -382,6 +382,20 @@ def _build_render_queue(
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),
                     'y_sort': tree.y_sort
+                })
+
+    # Add smoke particles to queue
+    for emitter in tmx_map.smoke_emitters:
+        for particle in emitter.particles:
+            sprite, pos = particle.get_render_data(camera, camera.zoom)
+            draw_x = pos[0] + offset_x
+            draw_y = pos[1] + offset_y
+            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                    draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                render_queue.append({
+                    'sprite': sprite,
+                    'pos': (draw_x, draw_y),
+                    'y_sort': emitter.y_sort,
                 })
 
     # Add player to queue

@@ -387,7 +387,7 @@ class Game:
                     if self.state.time_level > 1:  # Only update if game is not paused
                         keys = pygame.key.get_pressed()
                         self.game_map.handle_movement_keys(keys)
-                        self.game_map.update(delta_time)
+                        self.game_map.update(delta_time, self.state.date)
                     else:
                         self.game_map.map_player.stop_footstep_sound()
                     

@@ -100,5 +100,12 @@ BUILDING_LIGHT_START_HOUR_RANGE = 3.0
 BUILDING_LIGHT_DURATION_MIN = 4.0
 BUILDING_LIGHT_DURATION_RANGE = 4.0
 
+# Chimney smoke — ~1/3 of chimneys active each night
+SMOKE_PROBABILITY = 0.33
+SMOKE_START_HOUR_MIN = 17.5          # earliest activation: 17:30
+SMOKE_START_HOUR_RANGE = 3.5         # latest activation: 21:00
+SMOKE_DURATION_MIN = 4.0             # burns at least 4 hours
+SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
+
 # DEBUGGING
 SHOW_MAP_DEBUG = True                 # Set to True to show FPS, position and zoom on map view
