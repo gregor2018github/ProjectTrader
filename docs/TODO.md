@@ -6,6 +6,7 @@
 - [ ] animate the wheat field (swaying in the wind)
 - [ ] animate the sheep (eating and walking horizontally)
 - [ ] add random sheep noises
+- [ ] add a bank building
 - [ ] reassess and standardize the sound system (currently sound is handled at different places and some combinations bug out, this will become more critical when more sounds are added)
 
 
