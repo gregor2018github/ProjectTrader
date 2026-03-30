@@ -365,6 +365,24 @@ def _build_render_queue(
                         'flags': pygame.BLEND_ADD
                     })
 
+    # Add field crop sprites to queue
+    for field in tmx_map.fields:
+        scaled_sprites = field.get_scaled_sprites(camera.zoom)
+        if not scaled_sprites:
+            continue
+        for (world_cx, world_by, sprite_idx) in field.sprite_placements:
+            screen_x, screen_y = camera.apply(world_cx, world_by)
+            sprite = scaled_sprites[sprite_idx]
+            draw_x = screen_x - sprite.get_width() // 2 + offset_x
+            draw_y = screen_y - sprite.get_height() + offset_y
+            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                    draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                render_queue.append({
+                    'sprite': sprite,
+                    'pos': (draw_x, draw_y),
+                    'y_sort': world_by
+                })
+
     # Add trees to queue
     for tree in tmx_map.trees:
         sprite = tree.get_scaled_sprite(camera.zoom)

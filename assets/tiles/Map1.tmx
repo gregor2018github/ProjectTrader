@@ -5044,7 +5044,6 @@
   </object>
  </objectgroup>
  <objectgroup id="26" name="Fields">
-  <object id="302" x="3904" y="5728"/>
   <object id="305" name="Wheat" x="3904.01" y="5568" width="447.992" height="160"/>
  </objectgroup>
  <objectgroup id="2" name="Houses">

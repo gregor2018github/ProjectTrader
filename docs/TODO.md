@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] build a wheat field
 - [ ] add some sheep sprites and place them on a meadow
 - [ ] animate the wheat field (swaying in the wind)
 - [ ] animate the sheep (eating and walking horizontally)
@@ -46,10 +45,11 @@
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
-- [x] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] build a wheat field
+- [x] bugfix:On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [x] bugfix:fences must not be clickable with the house_click_menu, they are not really houses
 - [x] smoke from chimneys
 - [x] Game must be savable and loadable

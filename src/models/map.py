@@ -17,6 +17,7 @@ from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
 from .tree import Tree
+from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 
@@ -123,9 +124,11 @@ class TMXMap:
         self.building_light_groups: Dict[str, BuildingLightGroup] = {}
         self.areas: Dict[str, pygame.Rect] = {}
         self.smoke_emitters: List[SmokeEmitter] = []
+        self.fields: List[Field] = []
 
         self._load_houses()
         self._load_trees()
+        self._load_fields()
         self._load_lights()
         self._load_areas()
         self._load_smoke()
@@ -257,6 +260,20 @@ class TMXMap:
                             tile_size=self.tile_size
                         )
                         self.trees.append(tree)
+
+    def _load_fields(self) -> None:
+        """Load field objects from the 'Fields' object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Fields":
+                for obj in layer:
+                    field = Field(
+                        x=obj.x,
+                        y=obj.y,
+                        width=obj.width,
+                        height=obj.height,
+                        name=obj.name
+                    )
+                    self.fields.append(field)
 
     def _load_lights(self) -> None:
         """Load light objects from the 'Lights' object layer.
