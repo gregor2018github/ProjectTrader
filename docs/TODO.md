@@ -43,7 +43,7 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] fences must not be clickable with the house_click_menu, they are not really houses
+- [x] fences must not be clickable with the house_click_menu, they are not really houses
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)

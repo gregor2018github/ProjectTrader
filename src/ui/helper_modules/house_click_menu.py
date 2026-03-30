@@ -63,6 +63,10 @@ def get_hovered_house(
     candidates: List[Tuple[float, 'House']] = []
     
     for house in houses:
+        # Fences are not interactable buildings
+        if house.name and house.name.lower().startswith("fence"):
+            continue
+
         # Check if player is close enough to interact
         if not is_player_near_house(player, house):
             continue
