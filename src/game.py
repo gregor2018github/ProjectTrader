@@ -354,11 +354,11 @@ class Game:
 
                     # update wealth, stock and bookkeeping price history once per day
                     if day_changed:
-                        self.depot.book_cost_of_living(self.player.daily_cost_of_living) # first pay your bread
+                        self.depot.update_income_and_expenditures() # archive yesterday's counters first
+                        self.depot.book_cost_of_living(self.player.daily_cost_of_living) # then charge today's cost of living
                         self.depot.update_wealth(self.goods)
                         self.depot.update_total_stock()
                         self.depot.update_stock_history()
-                        self.depot.update_income_and_expenditures()
                         for good in self.goods:
                             good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
                 

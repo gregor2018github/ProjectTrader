@@ -43,14 +43,14 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [x] fences must not be clickable with the house_click_menu, they are not really houses
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
-- [ ] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
+- [x] On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix:fences must not be clickable with the house_click_menu, they are not really houses
 - [x] smoke from chimneys
 - [x] Game must be savable and loadable
     - research how to save the game state (player position, balance, population, etc) in a file and load it again (find best solution so that game data cannot be easily manipulated by the user, but also not too complicated to implement)
