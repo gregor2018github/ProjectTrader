@@ -374,6 +374,11 @@ class TMXMap:
         for sheep in self.sheep:
             sheep.update(dt, player_rect)
 
+    def update_fields(self, dt: float) -> None:
+        """Advance wind animation for all fields (call once per frame)."""
+        for field in self.fields:
+            field.update(dt)
+
     def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all smoke emitters (call once per frame when not paused)."""
         for emitter in self.smoke_emitters:
@@ -984,6 +989,7 @@ class GameMap:
             int(collision_height),
         )
         self.tmx_map.update_sheep(dt, player_rect)
+        self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,

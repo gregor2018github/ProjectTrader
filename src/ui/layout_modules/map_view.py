@@ -365,16 +365,16 @@ def _build_render_queue(
                         'flags': pygame.BLEND_ADD
                     })
 
-    # Add field crop sprites to queue
+    # Add field crop sprites to queue (with wind sway animation)
     for field in tmx_map.fields:
-        scaled_sprites = field.get_scaled_sprites(camera.zoom)
-        if not scaled_sprites:
+        if not field.images:
             continue
         for (world_cx, world_by, sprite_idx) in field.sprite_placements:
             screen_x, screen_y = camera.apply(world_cx, world_by)
-            sprite = scaled_sprites[sprite_idx]
-            draw_x = screen_x - sprite.get_width() // 2 + offset_x
-            draw_y = screen_y - sprite.get_height() + offset_y
+            angle = field.get_sway_angle(world_cx, world_by)
+            sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)
+            draw_x = screen_x + rel_x + offset_x
+            draw_y = screen_y + rel_y + offset_y
             if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
                     draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
                 render_queue.append({
