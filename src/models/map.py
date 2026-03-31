@@ -20,6 +20,7 @@ from .tree import Tree
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
+from .npcs.sheep import Sheep
 
 
 
@@ -125,6 +126,7 @@ class TMXMap:
         self.areas: Dict[str, pygame.Rect] = {}
         self.smoke_emitters: List[SmokeEmitter] = []
         self.fields: List[Field] = []
+        self.sheep: List[Sheep] = []
 
         self._load_houses()
         self._load_trees()
@@ -132,6 +134,7 @@ class TMXMap:
         self._load_lights()
         self._load_areas()
         self._load_smoke()
+        self._load_movements()
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
@@ -356,6 +359,21 @@ class TMXMap:
                         y_sort=y_sort,
                     ))
 
+    def _load_movements(self) -> None:
+        """Load NPC movement zones from the 'Movements' object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Movements":
+                for obj in layer:
+                    if obj.name == "Sheep":
+                        self.sheep.append(
+                            Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size)
+                        )
+
+    def update_sheep(self, dt: float, player_rect: pygame.Rect = None) -> None:
+        """Advance all sheep NPCs (call once per frame when not paused)."""
+        for sheep in self.sheep:
+            sheep.update(dt, player_rect)
+
     def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all smoke emitters (call once per frame when not paused)."""
         for emitter in self.smoke_emitters:
@@ -372,12 +390,15 @@ class TMXMap:
             group.update(current_time)
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
-        """Check if the given rect collides with any map objects (houses or trees)."""
+        """Check if the given rect collides with any map objects (houses, trees, or sheep)."""
         for house in self.houses:
             if house.collision_rect.colliderect(rect):
                 return True
         for tree in self.trees:
             if tree.collision_rect.colliderect(rect):
+                return True
+        for sheep in self.sheep:
+            if sheep.collision_rect.colliderect(rect):
                 return True
         return False
 
@@ -924,6 +945,8 @@ class GameMap:
         
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         self.map_player.on_zoom_change()
+        for sheep in self.tmx_map.sheep:
+            sheep.on_zoom_change()
     
     def handle_movement_keys(self, keys: pygame.key.ScancodeWrapper) -> None:
         """Process movement key states.
@@ -953,6 +976,14 @@ class GameMap:
             current_time: Current in-game datetime for smoke scheduling.
         """
         self.map_player.update(dt, self.tmx_map)
+        collision_height = self.map_player.tile_size / 2 - 2
+        player_rect = pygame.Rect(
+            int(round(self.map_player.x)),
+            int(round(self.map_player.y + self.map_player.height - collision_height)),
+            int(self.map_player.width),
+            int(collision_height),
+        )
+        self.tmx_map.update_sheep(dt, player_rect)
         self.tmx_map.update_smoke(dt, current_time)
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,

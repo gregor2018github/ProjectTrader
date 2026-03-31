@@ -416,6 +416,20 @@ def _build_render_queue(
                     'y_sort': emitter.y_sort,
                 })
 
+    # Add sheep NPCs to queue
+    for sheep in game_map.tmx_map.sheep:
+        sheep_sprite = sheep._get_scaled_sprite(camera.zoom)
+        sheep_screen_x, sheep_screen_y = camera.apply(sheep.x, sheep.y)
+        draw_x = round(sheep_screen_x) + offset_x
+        draw_y = round(sheep_screen_y) + offset_y
+        if (draw_x + sheep_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sheep_sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            render_queue.append({
+                'sprite': sheep_sprite,
+                'pos': (draw_x, draw_y),
+                'y_sort': sheep.y_sort
+            })
+
     # Add player to queue
     player_sprite = map_player._get_scaled_sprite(camera.zoom)
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
