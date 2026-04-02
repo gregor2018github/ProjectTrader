@@ -30,24 +30,29 @@ class Game:
     to provide the Merchant's Rise game experience.
     """
 
-    def __init__(self, save_data: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, save_data: Optional[Dict[str, Any]] = None,
+                 screen: Optional[pygame.Surface] = None) -> None:
         """Initialize the game engine, UI, assets, and game objects.
 
         Args:
             save_data: Optional save dict from save_manager.load_game(). When provided,
                        the live game objects are overwritten with the saved state after
                        normal initialization completes.
+            screen: Optional pre-created display surface. When provided the display
+                    mode is not changed.
         """
         pygame.init()
-        
+
         # Initialize mixer for sound playback
         pygame.mixer.init()
         # Reserve channel 0 exclusively for footstep sounds so that
         # Sound.play() calls (e.g. knock, church bell) can never steal it.
         pygame.mixer.set_reserved(1)
-        
-        # Initialize screen first
-        self.screen: pygame.Surface = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))
+
+        # Use the provided surface or create the display for the first time.
+        self.screen: pygame.Surface = screen if screen is not None else pygame.display.set_mode(
+            (SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT)
+        )
         
         # Initialize basic components
         self.state: GameState = GameState()
@@ -68,7 +73,7 @@ class Game:
         self.state.font = self.font  # Set font reference in GameState
         self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
-        
+
         # Initialize goods
         self.goods: List[Good] = self._initialize_goods()
         self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
@@ -79,7 +84,7 @@ class Game:
 
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
-        
+
         # Initialize game map (for the 2D map view)
         # Map viewport is the left half of the screen minus borders
         map_view_width = SCREEN_WIDTH // 2 - 10
