@@ -20,8 +20,7 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .models.npcs.sheep import SOUND_MAX_DISTANCE as SHEEP_SOUND_MAX_DISTANCE
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, MARKET_PRESIMULATION_DAYS
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS
 from .persistence.save_manager import apply_save_data
 
 class Game:
@@ -402,8 +401,10 @@ class Game:
                                     if dist < SHEEP_SOUND_MAX_DISTANCE:
                                         volume = SHEEP_VOLUME * (1.0 - dist / SHEEP_SOUND_MAX_DISTANCE)
                                         sound = random.choice(self.sheep_sounds)
-                                        sound.set_volume(volume)
-                                        sound.play()
+                                        channel = pygame.mixer.find_channel()
+                                        if channel:
+                                            channel.set_volume(volume)
+                                            channel.play(sound)
                     else:
                         self.game_map.map_player.stop_footstep_sound()
                     

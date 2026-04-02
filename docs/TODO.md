@@ -1,13 +1,9 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add some sheep sprites and place them on a meadow
-- [ ] animate the wheat field (swaying in the wind)
-- [ ] animate the sheep (eating and walking horizontally)
-- [ ] add random sheep noises
+- [ ] animate the sheep (eating)
 - [ ] add a bank building
-- [ ] reassess and standardize the sound system (currently sound is handled at different places and some combinations bug out, this will become more critical when more sounds are added)
-
+- [ ] add random up and down swings to the city population count and their happiness (it always will swing around a base value, can not be too extreme, but it should be visible in the population statistics)
 
 ## Medium Priority
 - [ ] add a mill building with rotating blades
@@ -48,6 +44,11 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] reassess and standardize the sound system (currently sound is handled at different places and some combinations bug out, this will become more critical when more sounds are added)
+- [x] add random sheep noises
+- [x] animate the wheat field (swaying in the wind)
+- [x] add some sheep sprites and place them on a meadow
+- [x] animate the sheep (walking horizontally)
 - [x] build a wheat field
 - [x] bugfix:On daily statistics the cost of living never gets shown as it gets deducted at the same point in time, when the day switches
 - [x] bugfix:fences must not be clickable with the house_click_menu, they are not really houses

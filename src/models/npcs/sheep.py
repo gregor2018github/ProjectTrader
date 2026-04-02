@@ -11,7 +11,6 @@ STOP_MIN_DURATION = 10.0  # seconds
 STOP_MAX_DURATION = 20.0  # seconds
 SOUND_MIN_INTERVAL = 15.0  # minimum seconds between sheep sounds
 SOUND_MAX_INTERVAL = 35.0  # maximum seconds between sheep sounds
-SOUND_MAX_DISTANCE = 500.0  # pixels beyond which sheep are completely silent
 
 
 class Sheep:

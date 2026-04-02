@@ -81,6 +81,7 @@ CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "
 FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
 CHURCH_BELL_VOLUME = 0.25             # Maximum volume for church music (1.0 is 100%)
 SHEEP_VOLUME = 0.5                    # Maximum volume for sheep sounds (1.0 is 100%)
+SHEEP_SOUND_MAX_DISTANCE = 1200.0     # World pixels beyond which sheep are completely silent
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4298               # Player starting X position on the map
 START_Y_POSITION = 4533               # Player starting Y position on the map

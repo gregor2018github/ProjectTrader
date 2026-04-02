@@ -720,8 +720,6 @@ class MapPlayer:
             sounds: List of pygame Sound objects for footsteps.
         """
         self.footstep_sounds = sounds
-        for sound in self.footstep_sounds:
-            sound.set_volume(FOOT_STEP_VOLUME)
 
     def stop_footstep_sound(self) -> None:
         """Stop any currently playing footstep sound."""
@@ -764,6 +762,7 @@ class MapPlayer:
                         self.last_sound_index = random.choice(available_indices)
                         self.current_sound = self.footstep_sounds[self.last_sound_index]
                         self.footstep_channel.play(self.current_sound, loops=-1)
+                        self.footstep_channel.set_volume(FOOT_STEP_VOLUME)
             elif not is_moving and self.was_moving:
                 # Stopped moving
                 self.stop_footstep_sound()
