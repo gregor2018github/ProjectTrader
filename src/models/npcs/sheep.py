@@ -9,6 +9,9 @@ SHEEP_SPEED = 40.0       # pixels per second at base tile_size=32
 STOP_CHANCE_PER_SEC = 0.15  # probability per second to stop mid-walk
 STOP_MIN_DURATION = 10.0  # seconds
 STOP_MAX_DURATION = 20.0  # seconds
+SOUND_MIN_INTERVAL = 15.0  # minimum seconds between sheep sounds
+SOUND_MAX_INTERVAL = 35.0  # maximum seconds between sheep sounds
+SOUND_MAX_DISTANCE = 500.0  # pixels beyond which sheep are completely silent
 
 
 class Sheep:
@@ -95,6 +98,11 @@ class Sheep:
         # Zoom-scaled sprite cache (keyed by zoom -> {frame_id -> surface})
         self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
 
+        # Sound: stagger initial timers so sheep don't all bleat at once
+        self.sound_timer: float = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
+        self.wants_sound: bool = False
+        self._was_blocked: bool = False
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -176,6 +184,15 @@ class Sheep:
         self.animator.update(dt, self.direction, self.is_moving)
         self.sprite = self.animator.get_current_frame()
         self.source_sprite = self.animator.get_current_source_frame()
+
+        # Sound trigger — game.py reads wants_sound and plays the actual audio
+        self.wants_sound = False
+        newly_blocked = self.is_blocked and not self._was_blocked
+        self._was_blocked = self.is_blocked
+        self.sound_timer -= dt
+        if self.sound_timer <= 0.0 or newly_blocked:
+            self.wants_sound = True
+            self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
 
     # ------------------------------------------------------------------
     # Rendering helpers

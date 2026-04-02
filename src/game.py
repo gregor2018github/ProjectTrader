@@ -1,5 +1,6 @@
 import pygame
 import os
+import random
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
@@ -19,7 +20,8 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, MARKET_PRESIMULATION_DAYS
+from .models.npcs.sheep import SOUND_MAX_DISTANCE as SHEEP_SOUND_MAX_DISTANCE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, MARKET_PRESIMULATION_DAYS
 from .persistence.save_manager import apply_save_data
 
 class Game:
@@ -107,6 +109,7 @@ class Game:
         self.music_paths: Dict[str, str] = self._load_music()
         
         self.church_bell_channel: Optional[pygame.mixer.Channel] = None
+        self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
         
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
@@ -388,6 +391,19 @@ class Game:
                         keys = pygame.key.get_pressed()
                         self.game_map.handle_movement_keys(keys)
                         self.game_map.update(delta_time, self.state.date)
+                        if self.sheep_sounds:
+                            px = self.game_map.map_player.x + self.game_map.map_player.width / 2
+                            py = self.game_map.map_player.y + self.game_map.map_player.height / 2
+                            for sheep in self.game_map.tmx_map.sheep:
+                                if sheep.wants_sound:
+                                    sx = sheep.x + sheep.sprite_width / 2
+                                    sy = sheep.y + sheep.sprite_height / 2
+                                    dist = ((px - sx) ** 2 + (py - sy) ** 2) ** 0.5
+                                    if dist < SHEEP_SOUND_MAX_DISTANCE:
+                                        volume = SHEEP_VOLUME * (1.0 - dist / SHEEP_SOUND_MAX_DISTANCE)
+                                        sound = random.choice(self.sheep_sounds)
+                                        sound.set_volume(volume)
+                                        sound.play()
                     else:
                         self.game_map.map_player.stop_footstep_sound()
                     
