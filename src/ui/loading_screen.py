@@ -1,17 +1,30 @@
 """Animated loading screen shown before the game initializes."""
 
 import os
+import random
 import time
 import pygame
 from ..config.constants import FONTS_PATH
 from ..config.colors import BEIGE, DARK_BROWN
 
-_SPRITE_DIR = os.path.join('assets', 'map_sprites')
-_SPRITE_NAMES = [
+_PLAYER_DIR = os.path.join('assets', 'map_sprites')
+_PLAYER_SPRITES = [
     'player_right_static.png',
     'player_right_move1.png',
     'player_right_move2.png',
     'player_right_move1.png',
+]
+
+_SHEEP_DIR = os.path.join('assets', 'map_sprites', 'figurines', 'sheep')
+_SHEEP_SPRITES = [
+    'sheep_right_static.png',
+    'sheep_right_move1.png',
+    'sheep_right_move2.png',
+    'sheep_right_move3.png',
+    'sheep_right_move4.png',
+    'sheep_right_move3.png',
+    'sheep_right_move2.png',
+    'sheep_right_move1.png',
 ]
 _FRAME_MS = 150
 _DOT_CYCLE_TICKS = 3
@@ -31,10 +44,15 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
     except Exception:
         font = pygame.font.SysFont("serif", 36)
 
+    if random.random() < 0.5:
+        sprite_dir, sprite_names = _PLAYER_DIR, _PLAYER_SPRITES
+    else:
+        sprite_dir, sprite_names = _SHEEP_DIR, _SHEEP_SPRITES
+
     target_height = 128
     sprites: list[pygame.Surface] = []
-    for name in _SPRITE_NAMES:
-        path = os.path.join(_SPRITE_DIR, name)
+    for name in sprite_names:
+        path = os.path.join(sprite_dir, name)
         try:
             img = pygame.image.load(path).convert_alpha()
             w, h = img.get_size()
