@@ -56,6 +56,15 @@ POPULATION_SHARE_COMMONS = 0.52
 POPULATION_SHARE_MIDDLING_SORT = 0.20
 POPULATION_SHARE_NOBILITY = 0.03
 
+# POPULATION SIMULATION CONSTANTS
+HAPPINESS_THRESHOLD = 70.0          # Below this average happiness, people move out; above, they move in
+POPULATION_MIN_FACTOR = 0.4         # A group can shrink to at most 40% of its map-defined base
+POPULATION_MAX_FACTOR = 1.2         # A group can grow to at most 120% of its map-defined base
+HAPPINESS_EQUILIBRIUM = 80.0        # Natural happiness setpoint for mean-reversion
+HAPPINESS_DRIFT_SIGMA = 1.5         # Std dev of hourly happiness noise (points)
+MAX_DAILY_POPULATION_CHANGE = 0.01  # Max daily population change rate (1% per day at extreme happiness)
+OVERPOP_MALUS_PER_PERCENT = 2       # Each 1% of overpopulation reduces happiness score by this many points
+
 # monthly base contract fees for each good, used in contract overview and license acquisition
 BASE_CONTRACT_FEE = 50
 MONTHLY_CONTRACT_FEES = {
@@ -80,7 +89,7 @@ CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "
 
 FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
 CHURCH_BELL_VOLUME = 0.25             # Maximum volume for church music (1.0 is 100%)
-SHEEP_VOLUME = 0.5                    # Maximum volume for sheep sounds (1.0 is 100%)
+SHEEP_VOLUME = 0.65                   # Maximum volume for sheep sounds (1.0 is 100%)
 SHEEP_SOUND_MAX_DISTANCE = 1200.0     # World pixels beyond which sheep are completely silent
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4298               # Player starting X position on the map

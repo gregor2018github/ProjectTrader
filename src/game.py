@@ -13,6 +13,7 @@ from .models.depot import Depot
 from .models.player import Player
 from .models.map import GameMap
 from .models.institutions.town import Town
+from .models.population import PopulationManager
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -91,9 +92,15 @@ class Game:
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
 
+        self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:
             if isinstance(house, Town):
                 house.initialize_population(self.game_map.tmx_map.houses)
+                self.town = house
+
+        self.population_manager: Optional[PopulationManager] = (
+            PopulationManager(self.town) if self.town else None
+        )
         
         # Initial check for area
         self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
@@ -350,6 +357,10 @@ class Game:
                             good.update_price()
                             # Update chart price history hourly
                             good.update_price_history_chart()
+
+                        if self.population_manager:
+                            self.population_manager.update_happiness()
+                            self.population_manager.record_happiness_history()
                             
                         # Check if church bell should ring (midday or midnight)
                         if self.state.date.hour in (0, 12):
@@ -368,6 +379,10 @@ class Game:
                         self.depot.update_stock_history()
                         for good in self.goods:
                             good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
+
+                        if self.population_manager:
+                            self.population_manager.update_population()
+                            self.population_manager.record_population_history()
                 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []
@@ -471,7 +486,7 @@ class Game:
                     mode = self.state.left_side_mode
                     if mode == 'depot':
                         # Special case for Depot Full View: Chart on left, List on right
-                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state)
+                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state, self.population_manager)
                         draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
                     else:
                         # Standard full view (Map, Market, etc.)

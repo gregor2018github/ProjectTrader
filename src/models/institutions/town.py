@@ -19,6 +19,7 @@ class Town(House):
         self.happiness = 80
         self.max_citizens = 0
         self.citizens = 0
+        self.base_groups: Dict[str, int] = {}  # map-defined 100% baseline, set by initialize_population
         self.population_groups: Dict[str, int] = {
             "Poor": 0,
             "Commons": 0,
@@ -56,6 +57,7 @@ class Town(House):
         self.max_citizens = max_citizens
         self.citizens = citizens
         self.population_groups = self._split_population_into_groups(citizens)
+        self.base_groups = dict(self.population_groups)
 
     @staticmethod
     def _split_population_into_groups(total_population: int) -> Dict[str, int]:
