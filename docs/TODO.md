@@ -2,7 +2,6 @@
 
 ## High Priority
 - [ ] animate the sheep (eating)
-- [ ] add a bank building 
 - [ ] Negative balance handling (e.g., loans)
 - [ ] add a house click menu for the bank (loan menu, wealth overview, etc.)
 
@@ -46,6 +45,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a bank building 
 - [x] bugfix: the depot view window can sometimes not be opened (especially when starting a new game). it will open the map view instead when clicking the big button for depot view; There must be a bug in the selection procedure
 - [x] also add the fancy mouse cursor already in the main menu
 - [x] add random up and down swings to the city population count and their happiness (it always will swing around a base value, can not be too extreme, but it should be visible in the population statistics)
