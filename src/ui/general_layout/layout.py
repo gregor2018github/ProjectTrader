@@ -81,7 +81,8 @@ def _draw_town_statistics_panel(
     if is_hovered:
         tooltip_text = [
             ("Current:", f"{current_population} Souls"),
-            ("Maximum:", f"{maximum_population} Souls"),
+            ("Housing Capacity:", f"{maximum_population} Souls"),
+            ("Housing Fillgrade:", f"{current_population / maximum_population * 100:.1f} %" if maximum_population else "N/A"),
             ("Happiness:", f"{happiness:.0f} %"),
             ("Poor:", f"{int(population_groups.get('Poor', 0))} Souls"),
             ("Commons:", f"{int(population_groups.get('Commons', 0))} Souls"),

@@ -50,7 +50,7 @@ class Town(House):
             if house.max_inhabitants <= 0:
                 continue
 
-            house.inhabitants = house.max_inhabitants
+            house.inhabitants = round(house.max_inhabitants * 0.8)
             max_citizens += house.max_inhabitants
             citizens += house.inhabitants
 
