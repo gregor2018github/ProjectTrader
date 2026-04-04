@@ -117,26 +117,27 @@ class PopulationManager:
         self.average_happiness_history.append(self.town.happiness)
 
     def update_population(self) -> None:
-        """Adjust each group's population based on average happiness (called daily).
+        """Adjust population based on average happiness (called daily).
 
-        Average happiness above HAPPINESS_THRESHOLD causes population to grow;
-        below it causes population to shrink.  The daily change rate scales
-        linearly with distance from the threshold, up to MAX_DAILY_POPULATION_CHANGE.
-        Each group is hard-clamped to [base * MIN_FACTOR, base * MAX_FACTOR].
+        Computes the new total first, then redistributes it proportionally
+        across groups using the configured shares so no single group absorbs
+        all the rounding error.  Each group is hard-clamped to
+        [base * MIN_FACTOR, base * MAX_FACTOR].
         """
         avg = self.average_happiness
         # Scale: threshold maps to 0, extremes map to ±MAX_DAILY_POPULATION_CHANGE.
         delta_rate = (avg - HAPPINESS_THRESHOLD) / (100.0 - HAPPINESS_THRESHOLD) * MAX_DAILY_POPULATION_CHANGE
 
+        new_total = round(self.town.citizens * (1.0 + delta_rate))
+        new_groups = self.town._split_population_into_groups(new_total)
+
         for group in self.town.population_groups:
             base = self.base_groups.get(group, 0)
             if base == 0:
                 continue
-            current = self.town.population_groups[group]
-            new_pop = round(current * (1.0 + delta_rate))
             lo = round(base * POPULATION_MIN_FACTOR)
             hi = round(base * POPULATION_MAX_FACTOR)
-            self.town.population_groups[group] = max(lo, min(hi, new_pop))
+            self.town.population_groups[group] = max(lo, min(hi, new_groups.get(group, 0)))
 
         self.town.citizens = sum(self.town.population_groups.values())
 
