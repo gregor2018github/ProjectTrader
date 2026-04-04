@@ -64,6 +64,12 @@ POPULATION_MAX_FACTOR = 1.2         # A group can grow to at most 120% of its ma
 HAPPINESS_DRIFT_SIGMA = 1.5         # Std dev of hourly happiness noise (points)
 MAX_DAILY_POPULATION_CHANGE = 0.01  # Max daily population change rate (1% per day at extreme happiness)
 OVERPOP_MALUS_PER_PERCENT = 3       # Each 1% of overpopulation reduces happiness score by this many points
+NEAR_CAPACITY_THRESHOLD = 90.0      # Fill grade (%) above which crowding penalty begins (before full overpopulation)
+NEAR_CAPACITY_MALUS_PER_PERCENT = 1 # Each 1% fill grade above threshold reduces happiness equilibrium by this many points
+UNDERPOP_THRESHOLD_LOW = 60.0       # Fill grade (%) below which the strong underpopulation bonus applies
+UNDERPOP_THRESHOLD_HIGH = 75.0      # Fill grade (%) below which the mild underpopulation bonus applies
+UNDERPOP_BONUS_LOW = 3              # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_LOW
+UNDERPOP_BONUS_HIGH = 1             # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_HIGH
 
 # monthly base contract fees for each good, used in contract overview and license acquisition
 BASE_CONTRACT_FEE = 50

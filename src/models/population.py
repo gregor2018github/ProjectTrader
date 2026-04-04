@@ -9,6 +9,12 @@ from ..config.constants import (
     HAPPINESS_DRIFT_SIGMA,
     MAX_DAILY_POPULATION_CHANGE,
     OVERPOP_MALUS_PER_PERCENT,
+    NEAR_CAPACITY_THRESHOLD,
+    NEAR_CAPACITY_MALUS_PER_PERCENT,
+    UNDERPOP_THRESHOLD_LOW,
+    UNDERPOP_THRESHOLD_HIGH,
+    UNDERPOP_BONUS_LOW,
+    UNDERPOP_BONUS_HIGH,
 )
 
 if TYPE_CHECKING:
@@ -77,11 +83,25 @@ class PopulationManager:
             current_pop = self.town.population_groups.get(group, 0)
 
             # Overpopulation penalty shifts the happiness equilibrium downward.
+            # Two-stage: crowding starts at NEAR_CAPACITY_THRESHOLD%, full penalty above 100%.
             if base_pop > 0:
-                overpop_pct = max(0.0, (current_pop / base_pop - 1.0) * 100.0)
+                fill_pct = current_pop / base_pop * 100.0
+                near_capacity_pct = max(0.0, min(fill_pct, 100.0) - NEAR_CAPACITY_THRESHOLD)
+                overpop_pct = max(0.0, fill_pct - 100.0)
             else:
+                fill_pct = 0.0
+                near_capacity_pct = 0.0
                 overpop_pct = 0.0
-            effective_equilibrium = HAPPINESS_EQUILIBRIUM - overpop_pct * OVERPOP_MALUS_PER_PERCENT
+            if fill_pct < UNDERPOP_THRESHOLD_LOW:
+                underpop_bonus = UNDERPOP_BONUS_LOW
+            elif fill_pct < UNDERPOP_THRESHOLD_HIGH:
+                underpop_bonus = UNDERPOP_BONUS_HIGH
+            else:
+                underpop_bonus = 0
+            effective_equilibrium = (HAPPINESS_EQUILIBRIUM
+                                     + underpop_bonus
+                                     - near_capacity_pct * NEAR_CAPACITY_MALUS_PER_PERCENT
+                                     - overpop_pct * OVERPOP_MALUS_PER_PERCENT)
 
             noise = random.normalvariate(0.0, HAPPINESS_DRIFT_SIGMA)
             reversion = 0.05 * (effective_equilibrium - current)
