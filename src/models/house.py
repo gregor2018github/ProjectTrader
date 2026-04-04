@@ -2,6 +2,7 @@ import pygame
 import os
 import random
 from typing import Optional, Dict
+from ..config.constants import KNOCK_VOLUME
 
 class House:
     """Represents a house object on the map."""
@@ -92,7 +93,9 @@ class House:
         knock_num = random.randint(1, 5)
         sound_name = f"knock_{knock_num}"
         if game_state.game:
-            game_state.game.play_sound(sound_name)
+            channel = game_state.game.play_sound(sound_name)
+            if channel:
+                channel.set_volume(KNOCK_VOLUME)
 
         # 2. Light interaction if it's night
         hour = game_state.date.hour + game_state.date.minute / 60.0

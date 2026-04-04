@@ -120,6 +120,7 @@ class Game:
         self.music_paths: Dict[str, str] = self._load_music()
         
         self.church_bell_channel: Optional[pygame.mixer.Channel] = None
+        self.church_bell_sound: Optional[pygame.mixer.Sound] = None
         self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
         
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
@@ -365,6 +366,7 @@ class Game:
                         # Check if church bell should ring (midday or midnight)
                         if self.state.date.hour in (0, 12):
                             self.church_bell_channel = self.play_sound("church_bell_12_rings")
+                            self.church_bell_sound = self.sounds.get("church_bell_12_rings")
                             # Start silent; the per-frame volume update sets the correct level.
                             # Without this, pygame resets the channel to 1.0 on play().
                             if self.church_bell_channel:
@@ -434,7 +436,7 @@ class Game:
                     self.game_map.map_player.stop_footstep_sound()
                 
                 # Update church bell volume if it's playing
-                if self.church_bell_channel and self.church_bell_channel.get_sound():
+                if self.church_bell_channel and self.church_bell_channel.get_sound() is self.church_bell_sound:
                     if self.state.time_level == 1:
                         self.church_bell_channel.pause()
                     else:
@@ -465,7 +467,10 @@ class Game:
                                 self.church_bell_channel.set_volume(0.0)
                         else:
                             self.church_bell_channel.set_volume(0.0)
-                
+                elif self.church_bell_channel:
+                    self.church_bell_channel = None
+                    self.church_bell_sound = None
+
                 # Helper function to render a module in a specific rect
                 def render_module(mode, rect):
                     if mode == 'map':
