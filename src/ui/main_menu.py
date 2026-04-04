@@ -55,6 +55,17 @@ class MainMenu:
             self.subtitle_font = pygame.font.SysFont("arial", 22)
             self.button_font = pygame.font.SysFont("arial", 28)
 
+        # Custom cursor
+        self.cursor_img: Optional[pygame.Surface] = None
+        try:
+            cursor_path = os.path.join(PICTURES_PATH, "cursor_1.png")
+            if os.path.exists(cursor_path):
+                raw_cursor = pygame.image.load(cursor_path).convert_alpha()
+                self.cursor_img = pygame.transform.smoothscale(raw_cursor, (30, 41))
+        except Exception:
+            pass
+        pygame.mouse.set_visible(self.cursor_img is None)
+
         # Game icon displayed inside the panel
         self.icon_surf: Optional[pygame.Surface] = None
         try:
@@ -268,6 +279,9 @@ class MainMenu:
         back_surf = self.button_font.render("Back", True, DARK_BROWN)
         self.screen.blit(back_surf, back_surf.get_rect(center=self._back_rect.center))
 
+        if self.cursor_img and pygame.mouse.get_focused():
+            self.screen.blit(self.cursor_img, mouse_pos)
+
     # ------------------------------------------------------------------
     # Drawing
     # ------------------------------------------------------------------
@@ -337,3 +351,5 @@ class MainMenu:
             text_surf = self.button_font.render(label, True, text_color)
             self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
 
+        if self.cursor_img and pygame.mouse.get_focused():
+            self.screen.blit(self.cursor_img, mouse_pos)
