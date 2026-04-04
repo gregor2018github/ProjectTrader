@@ -39,6 +39,12 @@ GOLD = (218, 165, 32)
 DARK_BLUE = (0, 0, 139)
 DARK_RED = (139, 0, 0)
 
+# Population group colors
+POP_COLOR_POOR = (180, 60, 60)          # Muted red for the poor
+POP_COLOR_COMMONS = (140, 140, 140)     # Grey for the commons
+POP_COLOR_MIDDLING_SORT = (100, 160, 210)  # Light blue for the middling sort
+POP_COLOR_NOBILITY = (110, 60, 160)     # Muted purple for the nobility
+
 # Button colors
 BUY_BUTTON = (76, 175, 80)  # Softer green
 BUY_BUTTON_HOVER = (46, 132, 50)  # Darker shade for hover

@@ -491,7 +491,7 @@ class Game:
                     mode = self.state.left_side_mode
                     if mode == 'depot':
                         # Special case for Depot Full View: Chart on left, List on right
-                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state, self.population_manager)
+                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state, self.population_manager, self.goods)
                         draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
                     else:
                         # Standard full view (Map, Market, etc.)

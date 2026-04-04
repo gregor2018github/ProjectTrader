@@ -1,13 +1,15 @@
 import pygame
-from typing import TYPE_CHECKING, Optional
+import datetime
+from typing import TYPE_CHECKING, Optional, List
 from ...config.colors import *
 
 if TYPE_CHECKING:
     from ...models.depot import Depot
     from ...game_state import GameState
     from ...models.population import PopulationManager
+    from ...models.good import Good
 
-def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', population_manager: Optional['PopulationManager'] = None) -> None:
+def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', population_manager: Optional['PopulationManager'] = None, goods: Optional[List['Good']] = None) -> None:
     """Draws the depot chart view with wealth, money, stock, house, population and happiness statistics.
 
     Args:
@@ -66,7 +68,11 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         color = DARK_ORANGE
 
     # 4. Draw Chart
-    if len(data_points) > 1:
+    if active_chart == "Population" and population_manager is not None:
+        _draw_population_stacked_bars(screen, chart_rect, font, population_manager, game_state.date)
+    elif active_chart == "Stock" and goods is not None:
+        _draw_stock_stacked_bars(screen, chart_rect, font, depot, goods, game_state.date)
+    elif len(data_points) > 1:
         # Determine scaling
         # We show a maximum of X points, similar to market chart, or adjust to fit
         # For now, let's limit to the last N points that fit (e.g., width of chart)
@@ -210,3 +216,208 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         screen.blit(text_surf, text_rect)
 
         current_x += btn_width + button_margin
+
+
+def _draw_population_stacked_bars(
+    screen: pygame.Surface,
+    chart_rect: pygame.Rect,
+    font: pygame.font.Font,
+    population_manager: 'PopulationManager',
+    current_date: datetime.datetime,
+) -> None:
+    """Draw a stacked bar chart of per-group population history."""
+    GROUPS = ["Poor", "Commons", "Middling Sort", "Nobility"]
+    GROUP_COLORS = {
+        "Poor":          POP_COLOR_POOR,
+        "Commons":       POP_COLOR_COMMONS,
+        "Middling Sort": POP_COLOR_MIDDLING_SORT,
+        "Nobility":      POP_COLOR_NOBILITY,
+    }
+
+    history = population_manager.population_history
+    valid_groups = [g for g in GROUPS if g in history and len(history[g]) > 0]
+    min_len = min(len(history[g]) for g in valid_groups) if valid_groups else 0
+
+    if min_len < 1:
+        text = font.render("Not enough data yet", True, DARK_BROWN)
+        screen.blit(text, text.get_rect(center=chart_rect.center))
+        return
+
+    margin = 4
+    bar_w = 12
+    bar_gap = 2
+    max_bars = (chart_rect.width - margin * 2) // (bar_w + bar_gap)
+    start_idx = max(0, min_len - max_bars)
+
+    max_total = max(
+        sum(history[g][i] for g in valid_groups)
+        for i in range(start_idx, min_len)
+    )
+    if max_total == 0:
+        max_total = 1
+    y_max_scale = max_total * 1.1
+    inner_h = chart_rect.height - margin * 2
+
+    mouse_pos = pygame.mouse.get_pos()
+    hover_info = None  # (group_name, val, bar_total, data_idx)
+
+    for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
+        bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
+        bar_bottom = chart_rect.bottom - margin
+        cumulative_h = 0
+        bar_total = sum(history[g][data_idx] for g in valid_groups)
+
+        for group in GROUPS:
+            if group not in valid_groups:
+                continue
+            val = history[group][data_idx]
+            seg_h = round(val / y_max_scale * inner_h)
+            if seg_h < 1 and val > 0:
+                seg_h = 1
+            seg_rect = pygame.Rect(bar_x, bar_bottom - cumulative_h - seg_h, bar_w, seg_h)
+            pygame.draw.rect(screen, GROUP_COLORS[group], seg_rect)
+            if hover_info is None and seg_rect.collidepoint(mouse_pos):
+                hover_info = (group, val, bar_total, data_idx)
+            cumulative_h += seg_h
+
+    # Y-axis scale label
+    max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
+    screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
+
+    # Title
+    title_surf = font.render("Population History", True, DARK_BROWN)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 10))
+    bg_rect = title_rect.inflate(10, 4)
+    pygame.draw.rect(screen, WHITE, bg_rect)
+    screen.blit(title_surf, title_rect)
+
+    if hover_info:
+        group_name, val, bar_total, data_idx = hover_info
+        days_ago = min_len - 1 - data_idx
+        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        pct = val / bar_total * 100 if bar_total else 0
+        _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
+                                  bar_date, "Group", group_name, val, pct, bar_total)
+
+
+def _draw_stock_stacked_bars(
+    screen: pygame.Surface,
+    chart_rect: pygame.Rect,
+    font: pygame.font.Font,
+    depot: 'Depot',
+    goods: List['Good'],
+    current_date: datetime.datetime,
+) -> None:
+    """Draw a stacked bar chart of per-good stock history."""
+    history = depot.stock_history
+    valid_goods = [g for g in goods if g.name in history and len(history[g.name]) > 0]
+
+    min_len = min(len(history[g.name]) for g in valid_goods) if valid_goods else 0
+
+    if min_len < 1:
+        text = font.render("Not enough data yet", True, DARK_BROWN)
+        screen.blit(text, text.get_rect(center=chart_rect.center))
+        return
+
+    margin = 4
+    bar_w = 12
+    bar_gap = 2
+    max_bars = (chart_rect.width - margin * 2) // (bar_w + bar_gap)
+    start_idx = max(0, min_len - max_bars)
+
+    max_total = max(
+        sum(history[g.name][i] for g in valid_goods)
+        for i in range(start_idx, min_len)
+    )
+    if max_total == 0:
+        max_total = 1
+    y_max_scale = max_total * 1.1
+    inner_h = chart_rect.height - margin * 2
+
+    mouse_pos = pygame.mouse.get_pos()
+    hover_info = None  # (good_name, val, bar_total, data_idx)
+
+    for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
+        bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
+        bar_bottom = chart_rect.bottom - margin
+        cumulative_h = 0
+        bar_total = sum(history[g.name][data_idx] for g in valid_goods)
+
+        for good in valid_goods:
+            val = history[good.name][data_idx]
+            if val == 0:
+                continue
+            seg_h = round(val / y_max_scale * inner_h)
+            if seg_h < 1:
+                seg_h = 1
+            seg_rect = pygame.Rect(bar_x, bar_bottom - cumulative_h - seg_h, bar_w, seg_h)
+            pygame.draw.rect(screen, good.color, seg_rect)
+            if hover_info is None and seg_rect.collidepoint(mouse_pos):
+                hover_info = (good.name, val, bar_total, data_idx)
+            cumulative_h += seg_h
+
+    # Y-axis max label
+    max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
+    screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
+
+    # Title
+    title_surf = font.render("Stock History", True, DARK_BROWN)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 10))
+    bg_rect = title_rect.inflate(10, 4)
+    pygame.draw.rect(screen, WHITE, bg_rect)
+    screen.blit(title_surf, title_rect)
+
+    if hover_info:
+        good_name, val, bar_total, data_idx = hover_info
+        days_ago = min_len - 1 - data_idx
+        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        pct = val / bar_total * 100 if bar_total else 0
+        _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
+                                  bar_date, "Good", good_name, val, pct, bar_total)
+
+
+def _draw_stacked_bar_tooltip(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    mouse_pos: tuple,
+    chart_rect: pygame.Rect,
+    bar_date: str,
+    type_label: str,
+    entry_name: str,
+    val: int,
+    pct: float,
+    bar_total: int,
+) -> None:
+    """Render a 4-line tooltip for a stacked bar segment."""
+    lines = [
+        ("Date:",            bar_date),
+        (f"{type_label}:",   entry_name),
+        ("Amount:",          f"{val:,} ({pct:.1f}%)"),
+        ("Total:",           f"{bar_total:,}"),
+    ]
+
+    padding_x = 8
+    padding_y = 5
+    line_spacing = 2
+    col_gap = 8
+
+    rendered = [(font.render(lbl, True, DARK_BROWN), font.render(val, True, BLACK))
+                for lbl, val in lines]
+    label_w = max(s.get_width() for s, _ in rendered)
+    value_w = max(s.get_width() for _, s in rendered)
+    line_h = rendered[0][0].get_height()
+
+    tp_w = padding_x * 2 + label_w + col_gap + value_w
+    tp_h = padding_y * 2 + len(lines) * line_h + (len(lines) - 1) * line_spacing
+
+    tp_x = min(mouse_pos[0] + 12, chart_rect.right - tp_w - 2)
+    tp_y = max(mouse_pos[1] - tp_h - 6, chart_rect.top + 2)
+    tp_rect = pygame.Rect(tp_x, tp_y, tp_w, tp_h)
+
+    pygame.draw.rect(screen, WHITE, tp_rect)
+    pygame.draw.rect(screen, DARK_BROWN, tp_rect, 1)
+
+    for i, (lbl_surf, val_surf) in enumerate(rendered):
+        y = tp_y + padding_y + i * (line_h + line_spacing)
+        screen.blit(lbl_surf, (tp_x + padding_x, y))
+        screen.blit(val_surf, (tp_x + padding_x + label_w + col_gap, y))
