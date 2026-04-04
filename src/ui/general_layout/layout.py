@@ -483,7 +483,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
             
             # Draw main pictogram image after left and right buttons so it overlaps the buttons by 2 pixels
             screen.blit(img, rect)
-            buttons[f"pictogram_{name}"] = rect
+            buttons[f"pictogram_{name}"] = visible_rect
 
             # Main pictogram hover effect
             is_pictogram_hovered = visible_rect.collidepoint(mouse_pos) and not is_left_hovered and not is_right_hovered and not menu_is_open
