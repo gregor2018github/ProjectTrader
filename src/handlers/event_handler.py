@@ -84,7 +84,8 @@ class EventHandler:
                         try:
                             _save(slot, game_state, game_state.game.player,
                                   game_state.game.depot, game_state.game.goods,
-                                  save_name=save_name)
+                                  save_name=save_name,
+                                  population_manager=game_state.game.population_manager)
                             game_state.info_window = None
                             game_state.show_warning(f"Game saved to Slot {slot}.")
                         except Exception as e:
@@ -107,7 +108,8 @@ class EventHandler:
                             try:
                                 data = _load(slot)
                                 apply_save_data(data, game_state, game_state.game.player,
-                                               game_state.game.depot, game_state.game.goods)
+                                               game_state.game.depot, game_state.game.goods,
+                                               population_manager=game_state.game.population_manager)
                                 game_state.game.game_map.map_player.x = game_state.game.player.position[0]
                                 game_state.game.game_map.map_player.y = game_state.game.player.position[1]
                                 game_state.info_window = None

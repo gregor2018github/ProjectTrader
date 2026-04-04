@@ -3,12 +3,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - Game saving and Loading
     - autosave feature
 
-- Main menu when starting the game
-    - New Game
-    - Load Game
-    - Settings
-    - Exit
-
 - Mini games
     - Shopping wood with an axe in the forest at a forester's shop
     - Fishing mini game at the seeside
@@ -36,7 +30,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - Decoration Buildings
     - fountain
-    - a field of wheat that can be scaled as needed
     - base plowed field texture (farming goods can grow on there later)
     - well
     - statues
@@ -53,8 +46,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - windmill with rotating blades
     - ghost coming out of the graveyard at night
     - water that is actually moving
-    - waving wheat fields
-    - smoke from chimneys
     - bird flocks in highest zoom stage
     - animation for idle main character
     - Blacksmith hammering on an anvil

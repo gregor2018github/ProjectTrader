@@ -70,7 +70,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "") -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -107,6 +107,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "donations": dict(depot.donations),
             "wealth": list(depot.wealth),
             "money_history": list(depot.money_history),
+            "property_value_history": list(depot.property_value_history),
+            "loan_history": list(depot.loan_history),
             "total_stock": list(depot.total_stock),
             "house_history": list(depot.house_history),
             "stock_history": {k: list(v) for k, v in depot.stock_history.items()},
@@ -149,6 +151,25 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             }
             for g in goods
         ],
+        "population": _serialize_population(population_manager),
+    }
+
+
+def _serialize_population(pm: Any) -> Optional[Dict[str, Any]]:
+    """Return a serializable dict for the population manager, or None if absent."""
+    if pm is None:
+        return None
+    return {
+        "happiness_history":         {k: list(v) for k, v in pm.happiness_history.items()},
+        "average_happiness_history": list(pm.average_happiness_history),
+        "population_history":        {k: list(v) for k, v in pm.population_history.items()},
+        "total_population_history":  list(pm.total_population_history),
+        "town": {
+            "citizens":          pm.town.citizens,
+            "happiness":         pm.town.happiness,
+            "population_groups": dict(pm.town.population_groups),
+            "happiness_groups":  dict(pm.town.happiness_groups),
+        },
     }
 
 
@@ -156,10 +177,10 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "") -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None) -> None:
     """Serialize the full game state and write it to the given slot file (1-based)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods, save_name)
+    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)
@@ -214,7 +235,7 @@ def delete_save(slot: int) -> None:
         os.remove(path)
 
 
-def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any]) -> None:
+def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
     """Apply a loaded save dict to the live game objects in-place."""
     gs = data["game_state"]
     game_state.date = _str_to_dt(gs["date"])
@@ -256,6 +277,8 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.donations = d["donations"]
     depot.wealth = d["wealth"]
     depot.money_history = d["money_history"]
+    depot.property_value_history = d.get("property_value_history", [0.0])
+    depot.loan_history = d.get("loan_history", [0.0])
     depot.total_stock = d["total_stock"]
     depot.house_history = d["house_history"]
     depot.stock_history = d["stock_history"]
@@ -290,3 +313,15 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         g.color_current = tuple(gd["color_current"])
         g.color_temp = g.color_current
         g.color = g.color_temp
+
+    pop_data = data.get("population")
+    if pop_data and population_manager is not None:
+        population_manager.happiness_history         = {k: list(v) for k, v in pop_data["happiness_history"].items()}
+        population_manager.average_happiness_history = list(pop_data["average_happiness_history"])
+        population_manager.population_history        = {k: list(v) for k, v in pop_data["population_history"].items()}
+        population_manager.total_population_history  = list(pop_data["total_population_history"])
+        td = pop_data["town"]
+        population_manager.town.citizens          = td["citizens"]
+        population_manager.town.happiness         = td["happiness"]
+        population_manager.town.population_groups = dict(td["population_groups"])
+        population_manager.town.happiness_groups  = dict(td["happiness_groups"])

@@ -178,7 +178,8 @@ class Game:
 
         # If loading from a save file, restore all game state now that every object exists
         if save_data is not None:
-            apply_save_data(save_data, self.state, self.player, self.depot, self.goods)
+            apply_save_data(save_data, self.state, self.player, self.depot, self.goods,
+                            population_manager=self.population_manager)
             self.game_map.map_player.x = self.player.position[0]
             self.game_map.map_player.y = self.player.position[1]
 

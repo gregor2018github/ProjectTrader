@@ -1,9 +1,9 @@
 # Project Trader TODOs
 
 ## High Priority
+- [ ] also add the fancy mouse cursor already in the main menu
 - [ ] animate the sheep (eating)
 - [ ] add a bank building
-- [ ] add random up and down swings to the city population count and their happiness (it always will swing around a base value, can not be too extreme, but it should be visible in the population statistics)
 
 ## Medium Priority
 - [ ] add a mill building with rotating blades
@@ -38,12 +38,14 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
-- [ ] the depot view window can sometimes not be opened. it will open the map view instead when clicking the big button
-- [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that seems to cause flicker)
+- [ ] the depot view window can sometimes not be opened (especially when starting a new game). it will open the map view instead when clicking the big button for depot view; There must be a bug in the selection procedure
+- [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add random up and down swings to the city population count and their happiness (it always will swing around a base value, can not be too extreme, but it should be visible in the population statistics)
 - [x] reassess and standardize the sound system (currently sound is handled at different places and some combinations bug out, this will become more critical when more sounds are added)
 - [x] add random sheep noises
 - [x] animate the wheat field (swaying in the wind)
