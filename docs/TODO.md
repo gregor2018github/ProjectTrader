@@ -2,7 +2,9 @@
 
 ## High Priority
 - [ ] animate the sheep (eating)
-- [ ] add a bank building
+- [ ] add a bank building 
+- [ ] Negative balance handling (e.g., loans)
+- [ ] add a house click menu for the bank (loan menu, wealth overview, etc.)
 
 ## Medium Priority
 - [ ] add a mill building with rotating blades
@@ -21,7 +23,8 @@
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
-- [ ] Negative balance handling (e.g., loans)
+- [ ] upscale town hall sprite (it is a bit mushy right now)
+- [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Bank Menu 
