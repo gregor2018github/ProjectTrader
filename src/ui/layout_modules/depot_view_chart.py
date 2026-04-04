@@ -167,6 +167,61 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         pygame.draw.rect(screen, (255, 255, 255, 180), bg_rect)
         screen.blit(title_surf, title_rect)
 
+        # Line chart hover tooltips
+        mouse_pos = pygame.mouse.get_pos()
+        if chart_rect.collidepoint(mouse_pos) and active_chart in ("Wealth", "Money", "Happiness"):
+            rel_x = mouse_pos[0] - (chart_rect.left + margin)
+            vis_idx = max(0, min(len(visible_data) - 1, round(rel_x / point_width) if point_width else 0))
+            start_idx = len(data_points) - len(visible_data)
+            actual_idx = start_idx + vis_idx
+            entries_ago = len(data_points) - 1 - actual_idx
+
+            if active_chart == "Wealth":
+                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                total_w = depot.wealth[actual_idx] if actual_idx < len(depot.wealth) else 0
+                money   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
+                goods_v = total_w - money
+                prop_v  = depot.property_value_history[actual_idx] if actual_idx < len(depot.property_value_history) else 0
+                loan_v  = depot.loan_history[actual_idx] if actual_idx < len(depot.loan_history) else 0
+                lines = [
+                    ("Date:",         bar_date),
+                    ("Total Wealth:", f"{total_w:,.0f}"),
+                    ("Money:",        f"{money:,.0f}"),
+                    ("Goods:",        f"{goods_v:,.0f}"),
+                    ("Property:",     f"{prop_v:,.0f}"),
+                    ("Loan:",         f"{loan_v:,.0f}"),
+                ]
+                _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
+            elif active_chart == "Money":
+                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                cash   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
+                loan_v = depot.loan_history[actual_idx] if actual_idx < len(depot.loan_history) else 0
+                lines = [
+                    ("Date:",  bar_date),
+                    ("Cash:",  f"{cash:,.0f}"),
+                    ("Loans:", f"{loan_v:,.0f}"),
+                ]
+                _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
+            elif active_chart == "Happiness" and population_manager is not None:
+                bar_date = (game_state.date - datetime.timedelta(hours=entries_ago)).strftime("%d.%m.%Y %H:00")
+                h_hist = population_manager.happiness_history
+                total_h = population_manager.average_happiness_history[actual_idx] if actual_idx < len(population_manager.average_happiness_history) else 0
+                poor_h  = h_hist["Poor"][actual_idx]   if "Poor"          in h_hist and actual_idx < len(h_hist["Poor"])          else 0
+                comm_h  = h_hist["Commons"][actual_idx] if "Commons"       in h_hist and actual_idx < len(h_hist["Commons"])       else 0
+                mid_h   = h_hist["Middling Sort"][actual_idx] if "Middling Sort" in h_hist and actual_idx < len(h_hist["Middling Sort"]) else 0
+                nob_h   = h_hist["Nobility"][actual_idx] if "Nobility"     in h_hist and actual_idx < len(h_hist["Nobility"])      else 0
+                lines = [
+                    ("Date:",           bar_date),
+                    ("Happiness Total:", f"{total_h:.1f}"),
+                    ("Poor:",           f"{poor_h:.1f}"),
+                    ("Common:",         f"{comm_h:.1f}"),
+                    ("Middling Sort:",   f"{mid_h:.1f}"),
+                    ("Nobility:",        f"{nob_h:.1f}"),
+                ]
+                _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
     else:
         # Not enough data
         text = font.render("Not enough data yet", True, DARK_BROWN)
@@ -396,6 +451,41 @@ def _draw_stacked_bar_tooltip(
         ("Total:",           f"{bar_total:,}"),
     ]
 
+    padding_x = 8
+    padding_y = 5
+    line_spacing = 2
+    col_gap = 8
+
+    rendered = [(font.render(lbl, True, DARK_BROWN), font.render(val, True, BLACK))
+                for lbl, val in lines]
+    label_w = max(s.get_width() for s, _ in rendered)
+    value_w = max(s.get_width() for _, s in rendered)
+    line_h = rendered[0][0].get_height()
+
+    tp_w = padding_x * 2 + label_w + col_gap + value_w
+    tp_h = padding_y * 2 + len(lines) * line_h + (len(lines) - 1) * line_spacing
+
+    tp_x = min(mouse_pos[0] + 12, chart_rect.right - tp_w - 2)
+    tp_y = max(mouse_pos[1] - tp_h - 6, chart_rect.top + 2)
+    tp_rect = pygame.Rect(tp_x, tp_y, tp_w, tp_h)
+
+    pygame.draw.rect(screen, WHITE, tp_rect)
+    pygame.draw.rect(screen, DARK_BROWN, tp_rect, 1)
+
+    for i, (lbl_surf, val_surf) in enumerate(rendered):
+        y = tp_y + padding_y + i * (line_h + line_spacing)
+        screen.blit(lbl_surf, (tp_x + padding_x, y))
+        screen.blit(val_surf, (tp_x + padding_x + label_w + col_gap, y))
+
+
+def _draw_wealth_tooltip(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    mouse_pos: tuple,
+    chart_rect: pygame.Rect,
+    lines: list,
+) -> None:
+    """Render a multi-line tooltip for the wealth line chart."""
     padding_x = 8
     padding_y = 5
     line_spacing = 2

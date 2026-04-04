@@ -58,6 +58,8 @@ class Depot:
 
         self.wealth: List[float] = [money]              # wealth tracking for bookkeeping
         self.money_history: List[float] = [money]       # money tracking for bookkeeping
+        self.property_value_history: List[float] = [0.0]  # property value history (placeholder for future)
+        self.loan_history: List[float] = [0.0]          # outstanding loan history (placeholder for future)
         self.total_stock: List[int] = [0]               # total stock tracking for bookkeeping
         self.house_history: List[int] = [0]             # history of owned houses
         self.stock_history: Dict[str, List[int]] = {    # stock tracking for bookkeeping
@@ -372,7 +374,9 @@ class Depot:
                     break
                     
         self.wealth.append(total_value)
-        self.money_history.append(self.money)  # Record current money
+        self.money_history.append(self.money)
+        self.property_value_history.append(0.0)  # updated when property system is implemented
+        self.loan_history.append(0.0)            # updated when loan system is implemented
         return total_value
     
     def update_income_and_expenditures(self) -> None:
