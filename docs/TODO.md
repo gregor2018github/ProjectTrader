@@ -45,6 +45,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: the main menu was lagging
 - [x] add a bank building 
 - [x] bugfix: the depot view window can sometimes not be opened (especially when starting a new game). it will open the map view instead when clicking the big button for depot view; There must be a bug in the selection procedure
 - [x] also add the fancy mouse cursor already in the main menu

@@ -28,8 +28,13 @@ class MainMenu:
     """
 
     def __init__(self) -> None:
-        pygame.init()
-        self.screen = pygame.display.set_mode((_TOTAL_WIDTH, SCREEN_HEIGHT))
+        if not pygame.get_init():
+            pygame.init()
+        existing = pygame.display.get_surface()
+        if existing is None:
+            self.screen = pygame.display.set_mode((_TOTAL_WIDTH, SCREEN_HEIGHT))
+        else:
+            self.screen = existing
         pygame.display.set_caption("Merchant's Rise")
         self.clock = pygame.time.Clock()
 
