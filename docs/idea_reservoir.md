@@ -7,6 +7,13 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - add a delete save file option
     - collect playtime for each save file and show it in the save file selection screen
 
+- add a building mode
+    - available via a main button at the right side of the screen
+    - will be some special map view, a bit more zoomed out where the player can place new buildings and roads
+    - you have to pay in materials + money to build them (when you don't have the necessary materials you can get them immediately for thrice the market value, so that you can still build when you don't have the time to gather the materials yourself)
+    - upgrading for existing building, also repairs are possible
+    - the map view will have colored areas that tell you what is yours and where you may place buildings
+
 - Mini games
     - Shopping wood with an axe in the forest at a forester's shop
     - Fishing mini game at the seeside

@@ -6,7 +6,6 @@
 - [ ] add a house click menu for the bank (loan menu, wealth overview, etc.)
 
 ## Medium Priority
-- [ ] add a mill building with rotating blades
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
@@ -45,6 +44,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a mill building with rotating blades
 - [x] bugfix: the main menu was lagging
 - [x] add a bank building 
 - [x] bugfix: the depot view window can sometimes not be opened (especially when starting a new game). it will open the map view instead when clicking the big button for depot view; There must be a bug in the selection procedure
