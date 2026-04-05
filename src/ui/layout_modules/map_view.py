@@ -315,6 +315,23 @@ def _build_render_queue(
                     'y_sort': house.y_sort
                 })
 
+    # Add mill blade overlays — same y_sort as the mill building so they
+    # sort together; appended after the house entry so they render on top.
+    for mill in tmx_map.mills:
+        blade_sprite = mill.get_blade_sprite(camera.zoom)
+        if blade_sprite and mill.blade_pivot:
+            px, py = mill.blade_pivot
+            screen_x, screen_y = camera.apply(px, py)
+            draw_x = screen_x + offset_x - blade_sprite.get_width() / 2
+            draw_y = screen_y + offset_y - blade_sprite.get_height() / 2
+            if (draw_x + blade_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                    draw_y + blade_sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                render_queue.append({
+                    'sprite': blade_sprite,
+                    'pos': (draw_x, draw_y),
+                    'y_sort': mill.y_sort,
+                })
+
     # Add active lights to queue
     for light in tmx_map.lights:
         if light.is_on(current_time):

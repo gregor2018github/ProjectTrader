@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="28" nextobjectid="316">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="29" nextobjectid="320">
  <tileset firstgid="1" name="Test-Tiles" tilewidth="64" tileheight="64" tilecount="54" columns="9">
   <image source="test_tileset.png" width="576" height="384"/>
  </tileset>
@@ -5435,6 +5435,14 @@
    <point/>
   </object>
  </objectgroup>
+ <objectgroup id="28" name="Special">
+  <object id="318" name="Mill_Blades" x="4280.45" y="5246.36">
+   <properties>
+    <property name="File_Name" value="Mill_Blades"/>
+   </properties>
+   <point/>
+  </object>
+ </objectgroup>
  <objectgroup id="22" name="Smoke">
   <object id="284" name="Smoke_House_3" x="4565.27" y="4050.73" width="19.4545" height="1.36364"/>
   <object id="285" name="Smoke_House_12" x="4442.13" y="4442.13" width="9.25" height="0.875"/>
@@ -5453,8 +5461,9 @@
   <object id="298" name="Smoke_House_8" x="3143.04" y="4379.22" width="13.8696" height="0.608696"/>
   <object id="299" name="Smoke_House_5" x="3161.13" y="4563.83" width="14.9565" height="0.652174"/>
   <object id="300" name="Smoke_House_1" x="3506.36" y="4303.09" width="17.5455" height="0.909091"/>
-  <object id="313" name="Smoke_House_14" x="4245.08" y="4010.98" width="20" height="0.875"/>
-  <object id="314" name="Smoke_House_14_2" x="4290.91" y="4015.02" width="16.0667" height="0.875"/>
+  <object id="313" name="Smoke_Bank" x="4245.08" y="4010.98" width="20" height="0.875"/>
+  <object id="314" name="Smoke_Bank_2" x="4290.91" y="4015.02" width="16.0667" height="0.875"/>
+  <object id="316" name="Smoke_Mill" x="4305.99" y="5159.23" width="20.9511" height="0.913043"/>
  </objectgroup>
  <objectgroup id="20" name="Areas" offsetx="-9" offsety="-6">
   <object id="233" name="Market_Area" x="4638.67" y="4451" width="636.667" height="338"/>

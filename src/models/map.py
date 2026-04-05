@@ -16,6 +16,7 @@ from .house import House
 from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
+from .institutions.mill import Mill
 from .tree import Tree
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
@@ -120,6 +121,7 @@ class TMXMap:
         self.tile_size: int = self.tmx_data.tilewidth
         self.scaled_tile_cache: Dict[float, Dict[Any, pygame.Surface]] = {}
         self.houses: List[House] = []
+        self.mills: List[Mill] = []
         self.trees: List[Tree] = []
         self.lights: List[Light] = []
         self.building_light_groups: Dict[str, BuildingLightGroup] = {}
@@ -129,6 +131,7 @@ class TMXMap:
         self.sheep: List[Sheep] = []
 
         self._load_houses()
+        self._load_special_points()
         self._load_trees()
         self._load_fields()
         self._load_lights()
@@ -223,6 +226,26 @@ class TMXMap:
                             name=obj.name,
                             house_class=obj_class
                         )
+                    elif obj.name.startswith("Mill"):
+                        house = Mill(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
+                            name=obj.name,
+                            house_class=obj_class
+                        )
+                        self.mills.append(house)
                     else:
                         house = House(
                             x=obj.x,
@@ -358,6 +381,20 @@ class TMXMap:
                         outlet_width=obj.width,
                         y_sort=y_sort,
                     ))
+
+    def _load_special_points(self) -> None:
+        """Parse the 'Special' object layer and assign named pivot points to mills."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Special":
+                for obj in layer:
+                    if obj.name == "Mill_Blades":
+                        for mill in self.mills:
+                            mill.set_blade_pivot(obj.x, obj.y)
+
+    def update_mills(self, dt: float) -> None:
+        """Advance blade rotation for all mills (call once per frame when not paused)."""
+        for mill in self.mills:
+            mill.update_blades(dt)
 
     def _load_movements(self) -> None:
         """Load NPC movement zones from the 'Movements' object layer."""
@@ -990,6 +1027,7 @@ class GameMap:
         self.tmx_map.update_sheep(dt, player_rect)
         self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)
+        self.tmx_map.update_mills(dt)
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,
             self.map_player.y + self.map_player.height / 2.0,
