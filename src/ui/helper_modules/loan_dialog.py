@@ -1,15 +1,14 @@
 """Loan dialogs for the Bank building.
 
-Three dialogs:
-  LoanDialog        — take out a new loan
-  RepayDialog       — repay an active loan early
-  LoanOverviewDialog — read-only summary of active loans
+Two dialogs:
+  LoanDialog            — take out a new loan
+  LoanManagementDialog  — overview of active loans with inline repay buttons
 """
 
 import pygame
 import os
 from typing import Optional, Tuple, List, TYPE_CHECKING
-from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, LIGHT_GRAY
+from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, LIGHT_GRAY, DARK_ORANGE
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
     LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,
@@ -112,14 +111,14 @@ def open_loan_dialog(game_state: 'GameState') -> None:
     game_state.active_house_menu = None
 
 
-def open_repay_dialog(game_state: 'GameState') -> None:
-    game_state.info_window = RepayDialog(game_state.screen, game_state)
+def open_loan_management_dialog(game_state: 'GameState') -> None:
+    game_state.info_window = LoanManagementDialog(game_state.screen, game_state)
     game_state.active_house_menu = None
 
 
-def open_loan_overview_dialog(game_state: 'GameState') -> None:
-    game_state.info_window = LoanOverviewDialog(game_state.screen, game_state)
-    game_state.active_house_menu = None
+# Aliases kept so any future callers don't break
+open_repay_dialog = open_loan_management_dialog
+open_loan_overview_dialog = open_loan_management_dialog
 
 
 # ---------------------------------------------------------------------------
@@ -435,33 +434,43 @@ class LoanDialog(_BaseDialog):
 
 
 # ---------------------------------------------------------------------------
-# RepayDialog — early repayment of active loans
+# LoanManagementDialog — overview + repay (replaces RepayDialog + LoanOverviewDialog)
 # ---------------------------------------------------------------------------
 
-class RepayDialog(_BaseDialog):
-    """Dialog listing active loans with a Repay button for each."""
+class LoanManagementDialog(_BaseDialog):
+    """Unified loan overview and repayment dialog.
 
-    W = 520
-    ROW_H = 72    # 3 lines × 22px + 6px padding
-    PAD_TOP = 12
+    Each loan card shows:
+      - Identity header (amount, start date, progress)
+      - Two decisive numbers: "Close now" vs "Let it run"
+      - Daily breakdown and days remaining
+      - Repay Now button (green border if affordable, red if not)
+    Footer shows totals and interest savings across all loans.
+    """
+
+    W = 640
+    ROW_H = 130   # header(22) + decisive(26) + detail1(22) + detail2(22) + btn(26) + divider(12)
+    FOOTER_H = 82  # separator(16) + 3 lines at 22px each
+    BTN_W = 104
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState') -> None:
         loans = game_state.game.depot.active_loans
         n = max(1, len(loans))
-        h = self.HDR + self.PAD_TOP + n * self.ROW_H + self.PAD * 2
-        h = max(160, min(h, 500))
+        h = self.HDR + self.PAD + n * self.ROW_H + self.PAD + self.FOOTER_H + self.PAD
+        h = max(200, min(h, SCREEN_HEIGHT - 60))
         super().__init__(screen, game_state, self.W, h)
         self._build_repay_btns()
 
     def _build_repay_btns(self) -> None:
         loans = self.game_state.game.depot.active_loans
         self.repay_btns: List[pygame.Rect] = []
-        btn_w = 80
-        y = self.panel.top + self.HDR + self.PAD_TOP
+        y = self.panel.top + self.HDR + self.PAD
         for _ in loans:
-            # Button centred vertically in each row
-            r = pygame.Rect(self.panel.right - self.PAD - btn_w,
-                            y + (self.ROW_H - 30) // 2, btn_w, 30)
+            # Button on the decisive-numbers row, right-aligned (y+26 matches decisive row)
+            r = pygame.Rect(
+                self.panel.right - self.PAD - self.BTN_W,
+                y + 22, self.BTN_W, 26
+            )
             self.repay_btns.append(r)
             y += self.ROW_H
 
@@ -493,141 +502,101 @@ class RepayDialog(_BaseDialog):
 
         self._draw_panel(surf, off)
         self._draw_close_btn(surf, off)
-        self._draw_title(surf, off, "Bank — Repay Loans")
+        self._draw_title(surf, off, "Bank — Manage Loans")
 
         mouse = pygame.mouse.get_pos()
-        loans = self.game_state.game.depot.active_loans
-        p = self.panel.move(*off)
-        y = p.top + self.HDR + self.PAD_TOP
-        btn_area_w = 80 + self.PAD  # width to reserve on right for repay button
-
-        if not loans:
-            self._text(surf, "No active loans.", p.centerx, y + 20, center=True)
-        else:
-            for i, loan in enumerate(loans):
-                days_left = loan["duration_days"] - loan["days_elapsed"]
-                remaining = loan.get("remaining_principal", loan.get("original_amount", loan.get("amount", 0.0)))
-                daily_principal = loan.get("daily_principal", 0.0)
-                daily_interest = loan.get("daily_interest", 0.0)
-                settlement = loan.get("settlement_principal", 0.0)
-                original = loan.get("original_amount", loan.get("amount", remaining))
-
-                # Line 1: principal + date
-                self._text(surf, f"{original:.0f} gold  ·  since {loan['start_date']}",
-                           p.left + self.PAD, y + 4, color=DARK_BROWN)
-                # Line 2: days left + daily payment
-                self._text(surf,
-                           f"Days left: {days_left}  |  Daily: {daily_principal:.2f} + {daily_interest:.2f} interest",
-                           p.left + self.PAD, y + 26, color=BLACK)
-                # Line 3: settlement
-                self._text(surf, f"Settlement at end: {settlement:.2f}",
-                           p.left + self.PAD, y + 48, color=DARK_GRAY)
-
-                # Repay button
-                if i < len(self.repay_btns):
-                    btn_r = self.repay_btns[i].move(*off)
-                    remaining = loan.get("remaining_principal", loan.get("original_amount", loan.get("amount", 0.0)))
-                    can_repay = self.game_state.game.depot.money >= remaining
-                    border_col = DARK_GREEN if can_repay else DARK_RED
-                    pygame.draw.rect(surf, SANDY_BROWN, btn_r, border_radius=4)
-                    pygame.draw.rect(surf, border_col, btn_r, 2, border_radius=4)
-                    if btn_r.collidepoint(mouse):
-                        ov = pygame.Surface(btn_r.size, pygame.SRCALPHA)
-                        ov.fill((0, 0, 0, 30))
-                        surf.blit(ov, btn_r)
-                    ts = self.body_font.render("Repay", True, BLACK)
-                    surf.blit(ts, ts.get_rect(center=btn_r.center))
-
-                # Divider
-                if i < len(loans) - 1:
-                    pygame.draw.line(surf, LIGHT_GRAY,
-                                     (p.left + self.PAD, y + self.ROW_H - 2),
-                                     (p.right - self.PAD, y + self.ROW_H - 2), 1)
-                y += self.ROW_H
-
-        if use_temp:
-            surf.set_alpha(int(255 * alpha_scale))
-            self.screen.blit(surf, (self.panel.left, self.panel.top))
-
-
-# ---------------------------------------------------------------------------
-# LoanOverviewDialog — read-only summary
-# ---------------------------------------------------------------------------
-
-class LoanOverviewDialog(_BaseDialog):
-    """Read-only overview of all active loans."""
-
-    W = 520
-    ROW_H = 76   # 3 lines × 22px + 10px padding
-
-    def __init__(self, screen: pygame.Surface, game_state: 'GameState') -> None:
-        loans = game_state.game.depot.active_loans
-        n = max(1, len(loans))
-        h = self.HDR + self.PAD + n * self.ROW_H + self.PAD + 56 + self.PAD
-        h = max(200, min(h, 520))
-        super().__init__(screen, game_state, self.W, h)
-
-    def draw(self, alpha_scale: float = 1.0) -> None:
-        if alpha_scale <= 0:
-            return
-        use_temp = alpha_scale < 1.0
-        if use_temp:
-            surf = pygame.Surface((self.panel.w + 10, self.panel.h + 10), pygame.SRCALPHA)
-            off = (-self.panel.left, -self.panel.top)
-        else:
-            surf = self.screen
-            off = (0, 0)
-
-        self._draw_panel(surf, off)
-        self._draw_close_btn(surf, off)
-        self._draw_title(surf, off, "Bank — Loan Overview")
-
         loans = self.game_state.game.depot.active_loans
         p = self.panel.move(*off)
         y = p.top + self.HDR + self.PAD
 
         if not loans:
-            self._text(surf, "No active loans.", p.centerx, y + 20, center=True)
+            self._text(surf, "No active loans.", p.centerx, y + 30, center=True)
         else:
-            total_principal = 0.0
-            total_upcoming = 0.0
+            total_close_now = 0.0
+            total_let_run = 0.0
+            total_interest_saved = 0.0
+
             for i, loan in enumerate(loans):
                 original = loan.get("original_amount", loan.get("amount", 0.0))
-                remaining = loan.get("remaining_principal", original)
-                total_principal += remaining
+                close_now = loan.get("remaining_principal", original)
                 days_left = loan["duration_days"] - loan["days_elapsed"]
                 daily_principal = loan.get("daily_principal", 0.0)
                 daily_interest = loan.get("daily_interest", 0.0)
                 settlement = loan.get("settlement_principal", 0.0)
-                upcoming_interest = daily_interest * days_left
-                total_upcoming += upcoming_interest
+                future_interest = daily_interest * days_left
+                let_run = close_now + future_interest   # settlement is already part of remaining_principal
+                interest_saved = future_interest
                 daily_total = daily_principal + daily_interest
 
-                # Line 1: original principal + date
-                self._text(surf, f"Loan {i + 1}:  {original:.0f} gold  ·  since {loan['start_date']}",
-                           p.left + self.PAD, y, color=DARK_BROWN)
-                # Line 2: days + daily payment breakdown
-                self._text(surf,
-                           f"  Days left: {days_left}  |  Daily: {daily_total:.2f}  ({daily_principal:.2f} + {daily_interest:.2f})",
-                           p.left + self.PAD, y + 22, color=BLACK)
-                # Line 3: settlement + remaining interest
-                self._text(surf, f"  Settlement: {settlement:.2f}  |  Interest remaining: {upcoming_interest:.2f}",
-                           p.left + self.PAD, y + 44, color=DARK_RED)
+                total_close_now += close_now
+                total_let_run += let_run
+                total_interest_saved += interest_saved
 
+                lx = p.left + self.PAD   # left text column
+                rx = p.left + 320        # right decisive-number column
+
+                # -- Header line --
+                progress = f"{loan['days_elapsed']}/{loan['duration_days']} days"
+                self._text(surf,
+                           f"Loan {i+1}  ·  {original:.0f} gold  ·  since {loan['start_date']}  ·  {progress}",
+                           lx, y, color=DARK_BROWN)
+
+                # -- Decisive numbers row --
+                self._text(surf, "Close now:", lx, y + 26, color=BLACK)
+                self._text(surf, f"{close_now:.2f} gold", lx + 92, y + 26, color=DARK_RED)
+                self._text(surf, "Let it run:", rx, y + 26, color=BLACK)
+                self._text(surf, f"{let_run:.2f} gold", rx + 92, y + 26, color=DARK_ORANGE)
+
+                # -- Detail line 1: daily breakdown + days left --
+                self._text(surf,
+                           f"Daily: {daily_principal:.2f} principal + {daily_interest:.2f} interest"
+                           f" = {daily_total:.2f} total  ·  {days_left} days left",
+                           lx, y + 52, color=DARK_GRAY)
+
+                # -- Detail line 2: settlement + future interest --
+                self._text(surf,
+                           f"Settlement at end: {settlement:.2f}  ·  Future interest: {future_interest:.2f}",
+                           lx, y + 74, color=DARK_GRAY)
+
+                # -- Repay button (bottom-right of row) --
+                if i < len(self.repay_btns):
+                    btn_r = self.repay_btns[i].move(*off)
+                    can_repay = self.game_state.game.depot.money >= close_now
+                    border_col = DARK_GREEN if can_repay else DARK_RED
+                    pygame.draw.rect(surf, SANDY_BROWN, btn_r, border_radius=4)
+                    pygame.draw.rect(surf, border_col, btn_r, 2, border_radius=4)
+                    if btn_r.collidepoint(mouse) and can_repay:
+                        ov = pygame.Surface(btn_r.size, pygame.SRCALPHA)
+                        ov.fill((0, 0, 0, 30))
+                        surf.blit(ov, btn_r)
+                    label = "Repay Now" if can_repay else "Can't Afford"
+                    ts = self.body_font.render(label, True, BLACK)
+                    surf.blit(ts, ts.get_rect(center=btn_r.center))
+
+                # -- Row divider --
                 if i < len(loans) - 1:
                     pygame.draw.line(surf, LIGHT_GRAY,
-                                     (p.left + self.PAD, y + self.ROW_H - 4),
-                                     (p.right - self.PAD, y + self.ROW_H - 4), 1)
+                                     (p.left + self.PAD, y + self.ROW_H - 6),
+                                     (p.right - self.PAD, y + self.ROW_H - 6), 1)
                 y += self.ROW_H
 
-            # Footer totals
-            pygame.draw.line(surf, DARK_BROWN, (p.left + self.PAD, y + 4), (p.right - self.PAD, y + 4), 2)
-            y += 12
-            self._text(surf, f"Total remaining principal: {total_principal:.0f}",
-                       p.left + self.PAD, y, color=DARK_BROWN)
-            y += 24
-            self._text(surf, f"Total interest still to pay: {total_upcoming:.2f}",
-                       p.left + self.PAD, y, color=DARK_RED)
+            # -- Footer --
+            pygame.draw.line(surf, DARK_BROWN,
+                             (p.left + self.PAD, y + 6),
+                             (p.right - self.PAD, y + 6), 2)
+            y += 16
+            val_x = p.right - self.PAD  # right-align values against panel edge
+            self._text(surf, "Total to close all now:", p.left + self.PAD, y, color=BLACK)
+            val = self.body_font.render(f"{total_close_now:.2f} gold", True, DARK_RED)
+            surf.blit(val, (val_x - val.get_width(), y))
+            y += 22
+            self._text(surf, "Total if all run to term:", p.left + self.PAD, y, color=BLACK)
+            val = self.body_font.render(f"{total_let_run:.2f} gold", True, DARK_ORANGE)
+            surf.blit(val, (val_x - val.get_width(), y))
+            y += 22
+            self._text(surf, "Interest saved by closing now:", p.left + self.PAD, y, color=BLACK)
+            val = self.body_font.render(f"{total_interest_saved:.2f} gold", True, DARK_GREEN)
+            surf.blit(val, (val_x - val.get_width(), y))
 
         if use_temp:
             surf.set_alpha(int(255 * alpha_scale))

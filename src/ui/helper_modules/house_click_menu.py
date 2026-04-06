@@ -278,8 +278,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Trading Licenses")
 
     if isinstance(house, Bank):
-        options.insert(0, "Loan Overview")
-        options.insert(0, "Repay Loan")
+        options.insert(0, "Manage Loans")
         options.insert(0, "Take Out Loan")
 
     if isinstance(house, Market):
@@ -298,14 +297,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             open_loan_dialog(game_state)
             return
 
-        if option_text == "Repay Loan" and isinstance(house, Bank):
-            from .loan_dialog import open_repay_dialog
-            open_repay_dialog(game_state)
-            return
-
-        if option_text == "Loan Overview" and isinstance(house, Bank):
-            from .loan_dialog import open_loan_overview_dialog
-            open_loan_overview_dialog(game_state)
+        if option_text == "Manage Loans" and isinstance(house, Bank):
+            from .loan_dialog import open_loan_management_dialog
+            open_loan_management_dialog(game_state)
             return
 
         if option_text == "Inspect":
