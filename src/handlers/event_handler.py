@@ -125,7 +125,11 @@ class EventHandler:
         elif event.type == pygame.MOUSEWHEEL:
             mouse_pos = pygame.mouse.get_pos()
             scroll_speed = 20
-            
+
+            # Don't zoom the map when a scrollable dialog has consumed the event
+            if game_state.info_window and hasattr(game_state.info_window, '_max_scroll'):
+                return self.running
+
             # Check if map is active and mouse is over map area
             if game_state.is_map_visible and hasattr(game_state.game, 'game_map'):
                 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH

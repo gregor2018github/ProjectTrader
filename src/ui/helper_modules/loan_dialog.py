@@ -8,7 +8,7 @@ Two dialogs:
 import pygame
 import os
 from typing import Optional, Tuple, List, TYPE_CHECKING
-from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, LIGHT_GRAY, DARK_ORANGE
+from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, DARK_ORANGE, WHEAT
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
     LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,
@@ -452,27 +452,59 @@ class LoanManagementDialog(_BaseDialog):
     ROW_H = 130   # header(22) + decisive(26) + detail1(22) + detail2(22) + btn(26) + divider(12)
     FOOTER_H = 82  # separator(16) + 3 lines at 22px each
     BTN_W = 104
+    MAX_VISIBLE_ROWS = 4
+    SCROLLBAR_W = 6   # thin bar, inset from the right border
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState') -> None:
         loans = game_state.game.depot.active_loans
         n = max(1, len(loans))
-        h = self.HDR + self.PAD + n * self.ROW_H + self.PAD + self.FOOTER_H + self.PAD
+        visible = min(n, self.MAX_VISIBLE_ROWS)
+        h = self.HDR + self.PAD + visible * self.ROW_H + self.PAD + self.FOOTER_H + self.PAD
         h = max(200, min(h, SCREEN_HEIGHT - 60))
         super().__init__(screen, game_state, self.W, h)
+        self.scroll_offset = 0  # pixels scrolled in the loan list area
         self._build_repay_btns()
+
+    # -- scroll area geometry --------------------------------------------------
+
+    def _scroll_area_rect(self) -> pygame.Rect:
+        """The clipped area that shows loan rows (excludes header, footer, scrollbar)."""
+        visible_h = min(len(self.game_state.game.depot.active_loans),
+                        self.MAX_VISIBLE_ROWS) * self.ROW_H
+        # Leave 4px gap on the right for the scrollbar + its 4px inset from border
+        return pygame.Rect(
+            self.panel.left,
+            self.panel.top + self.HDR + self.PAD,
+            self.panel.width - self.SCROLLBAR_W - 8,
+            visible_h,
+        )
+
+    def _total_content_h(self) -> int:
+        return len(self.game_state.game.depot.active_loans) * self.ROW_H
+
+    def _max_scroll(self) -> int:
+        return max(0, self._total_content_h() - self._scroll_area_rect().height)
+
+    # -- repay button positions (in panel coords, scroll-adjusted at draw time) -
 
     def _build_repay_btns(self) -> None:
         loans = self.game_state.game.depot.active_loans
         self.repay_btns: List[pygame.Rect] = []
-        y = self.panel.top + self.HDR + self.PAD
-        for _ in loans:
-            # Button on the decisive-numbers row, right-aligned (y+26 matches decisive row)
+        for i in range(len(loans)):
+            # Stored at un-scrolled y; draw() shifts by scroll_offset
+            y_base = self.panel.top + self.HDR + self.PAD + i * self.ROW_H
             r = pygame.Rect(
-                self.panel.right - self.PAD - self.BTN_W,
-                y + 22, self.BTN_W, 26
+                self.panel.right - self.SCROLLBAR_W - 2 - self.PAD - self.BTN_W,
+                y_base + 22, self.BTN_W, 26,
             )
             self.repay_btns.append(r)
-            y += self.ROW_H
+
+    # -- events ----------------------------------------------------------------
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.MOUSEWHEEL:
+            self.scroll_offset = max(0, min(self._max_scroll(),
+                                            self.scroll_offset - event.y * 30))
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         if self.close_rect.collidepoint(pos):
@@ -482,10 +514,15 @@ class LoanManagementDialog(_BaseDialog):
             _close_dialog(self.game_state)
             return True
         loans = self.game_state.game.depot.active_loans
+        scroll_area = self._scroll_area_rect()
         for i, r in enumerate(self.repay_btns):
-            if i < len(loans) and r.collidepoint(pos):
+            # Adjust stored rect for current scroll
+            scrolled_r = r.move(0, -self.scroll_offset)
+            if (i < len(loans) and scrolled_r.collidepoint(pos)
+                    and scroll_area.collidepoint(pos)):
                 if self.game_state.game.depot.repay_loan(i, self.game_state):
                     self._build_repay_btns()
+                    self.scroll_offset = min(self.scroll_offset, self._max_scroll())
                 return True
         return True
 
@@ -507,16 +544,37 @@ class LoanManagementDialog(_BaseDialog):
         mouse = pygame.mouse.get_pos()
         loans = self.game_state.game.depot.active_loans
         p = self.panel.move(*off)
-        y = p.top + self.HDR + self.PAD
 
         if not loans:
-            self._text(surf, "No active loans.", p.centerx, y + 30, center=True)
+            self._text(surf, "No active loans.", p.centerx,
+                       p.top + self.HDR + self.PAD + 30, center=True)
         else:
+            # -- Pre-compute footer totals (all loans, not just visible) --------
             total_close_now = 0.0
             total_let_run = 0.0
             total_interest_saved = 0.0
+            for loan in loans:
+                original = loan.get("original_amount", loan.get("amount", 0.0))
+                close_now = loan.get("remaining_principal", original)
+                days_left = loan["duration_days"] - loan["days_elapsed"]
+                future_interest = loan.get("daily_interest", 0.0) * days_left
+                total_close_now += close_now
+                total_let_run += close_now + future_interest
+                total_interest_saved += future_interest
+
+            # -- Scroll area clipping -------------------------------------------
+            scroll_area = self._scroll_area_rect().move(*off)
+            old_clip = surf.get_clip()
+            surf.set_clip(scroll_area)
+
+            content_y = scroll_area.top - self.scroll_offset  # top of first row
 
             for i, loan in enumerate(loans):
+                y = content_y + i * self.ROW_H
+                # Skip rows entirely outside the clip
+                if y + self.ROW_H < scroll_area.top or y > scroll_area.bottom:
+                    continue
+
                 original = loan.get("original_amount", loan.get("amount", 0.0))
                 close_now = loan.get("remaining_principal", original)
                 days_left = loan["duration_days"] - loan["days_elapsed"]
@@ -524,43 +582,38 @@ class LoanManagementDialog(_BaseDialog):
                 daily_interest = loan.get("daily_interest", 0.0)
                 settlement = loan.get("settlement_principal", 0.0)
                 future_interest = daily_interest * days_left
-                let_run = close_now + future_interest   # settlement is already part of remaining_principal
-                interest_saved = future_interest
+                let_run = close_now + future_interest
                 daily_total = daily_principal + daily_interest
 
-                total_close_now += close_now
-                total_let_run += let_run
-                total_interest_saved += interest_saved
+                lx = scroll_area.left + self.PAD
+                rx = scroll_area.left + 320
 
-                lx = p.left + self.PAD   # left text column
-                rx = p.left + 320        # right decisive-number column
-
-                # -- Header line --
+                # -- Header --
                 progress = f"{loan['days_elapsed']}/{loan['duration_days']} days"
                 self._text(surf,
                            f"Loan {i+1}  ·  {original:.0f} gold  ·  since {loan['start_date']}  ·  {progress}",
                            lx, y, color=DARK_BROWN)
 
-                # -- Decisive numbers row --
+                # -- Decisive numbers --
                 self._text(surf, "Close now:", lx, y + 26, color=BLACK)
                 self._text(surf, f"{close_now:.2f} gold", lx + 92, y + 26, color=DARK_RED)
                 self._text(surf, "Let it run:", rx, y + 26, color=BLACK)
                 self._text(surf, f"{let_run:.2f} gold", rx + 92, y + 26, color=DARK_ORANGE)
 
-                # -- Detail line 1: daily breakdown + days left --
+                # -- Detail line 1 --
                 self._text(surf,
                            f"Daily: {daily_principal:.2f} principal + {daily_interest:.2f} interest"
                            f" = {daily_total:.2f} total  ·  {days_left} days left",
                            lx, y + 52, color=DARK_GRAY)
 
-                # -- Detail line 2: settlement + future interest --
+                # -- Detail line 2 --
                 self._text(surf,
                            f"Settlement at end: {settlement:.2f}  ·  Future interest: {future_interest:.2f}",
                            lx, y + 74, color=DARK_GRAY)
 
-                # -- Repay button (bottom-right of row) --
+                # -- Repay button --
                 if i < len(self.repay_btns):
-                    btn_r = self.repay_btns[i].move(*off)
+                    btn_r = self.repay_btns[i].move(*off).move(0, -self.scroll_offset)
                     can_repay = self.game_state.game.depot.money >= close_now
                     border_col = DARK_GREEN if can_repay else DARK_RED
                     pygame.draw.rect(surf, SANDY_BROWN, btn_r, border_radius=4)
@@ -569,23 +622,38 @@ class LoanManagementDialog(_BaseDialog):
                         ov = pygame.Surface(btn_r.size, pygame.SRCALPHA)
                         ov.fill((0, 0, 0, 30))
                         surf.blit(ov, btn_r)
-                    label = "Repay Now" if can_repay else "Can't Afford"
-                    ts = self.body_font.render(label, True, BLACK)
+                    ts = self.body_font.render("Repay Now" if can_repay else "Can't Afford", True, BLACK)
                     surf.blit(ts, ts.get_rect(center=btn_r.center))
 
-                # -- Row divider --
+                # -- Row divider (brown) --
                 if i < len(loans) - 1:
-                    pygame.draw.line(surf, LIGHT_GRAY,
-                                     (p.left + self.PAD, y + self.ROW_H - 6),
-                                     (p.right - self.PAD, y + self.ROW_H - 6), 1)
-                y += self.ROW_H
+                    div_y = y + self.ROW_H - 6
+                    pygame.draw.line(surf, DARK_BROWN,
+                                     (scroll_area.left + self.PAD, div_y),
+                                     (scroll_area.right - self.PAD, div_y), 1)
 
-            # -- Footer --
-            pygame.draw.line(surf, DARK_BROWN,
-                             (p.left + self.PAD, y + 6),
-                             (p.right - self.PAD, y + 6), 2)
-            y += 16
-            val_x = p.right - self.PAD  # right-align values against panel edge
+            surf.set_clip(old_clip)
+
+            # -- Scrollbar (only when needed) -----------------------------------
+            max_scroll = self._max_scroll()
+            if max_scroll > 0:
+                # Inset 4px from the right panel border so it stays inside
+                sb_x = p.right - 4 - self.SCROLLBAR_W
+                sb_rect = pygame.Rect(sb_x, scroll_area.top, self.SCROLLBAR_W, scroll_area.height)
+                pygame.draw.rect(surf, WHEAT, sb_rect, border_radius=3)
+                handle_h = max(24, int(scroll_area.height * scroll_area.height / self._total_content_h()))
+                handle_y = sb_rect.top + int(self.scroll_offset / max_scroll * (sb_rect.height - handle_h))
+                pygame.draw.rect(surf, DARK_BROWN,
+                                 pygame.Rect(sb_x, handle_y, self.SCROLLBAR_W, handle_h),
+                                 border_radius=3)
+
+            # -- Footer (black separator, always fully visible) -----------------
+            footer_top = p.top + self.panel.height - self.FOOTER_H - self.PAD
+            pygame.draw.line(surf, BLACK,
+                             (p.left + self.PAD, footer_top),
+                             (p.right - self.PAD, footer_top), 2)
+            y = footer_top + 14
+            val_x = p.right - self.PAD
             self._text(surf, "Total to close all now:", p.left + self.PAD, y, color=BLACK)
             val = self.body_font.render(f"{total_close_now:.2f} gold", True, DARK_RED)
             surf.blit(val, (val_x - val.get_width(), y))
