@@ -378,22 +378,33 @@ class Game:
                         self.depot.update_income_and_expenditures() # archive yesterday's counters first
                         self.depot.book_cost_of_living(self.player.daily_cost_of_living) # then charge today's cost of living
 
-                        # Process active loans: daily interest + maturity
+                        # Process active loans: daily principal + interest, settlement at maturity
                         for loan in list(self.depot.active_loans):
                             loan["days_elapsed"] += 1
-                            daily_interest = loan["amount"] * loan["daily_rate"]
+
+                            # Daily principal repayment (reduces remaining balance, not an expense)
+                            daily_principal = loan.get("daily_principal", 0.0)
+                            if daily_principal > 0:
+                                self.depot.money -= daily_principal
+                                loan["remaining_principal"] = max(
+                                    0.0, loan.get("remaining_principal", 0.0) - daily_principal
+                                )
+
+                            # Daily interest (recorded as loan expenditure)
+                            daily_interest = loan.get("daily_interest", 0.0)
                             if daily_interest > 0:
                                 self.depot.book_loan_interest(daily_interest)
+
+                            # At maturity: settlement principal closes out the loan
                             if loan["days_elapsed"] >= loan["duration_days"]:
-                                lump = loan["amount"] * loan["lump_rate"]
-                                if lump > 0:
-                                    self.depot.book_loan_interest(lump)
-                                self.depot.money -= loan["amount"]  # forced principal repayment
+                                settlement = loan.get("settlement_principal", loan.get("remaining_principal", 0.0))
+                                if settlement > 0:
+                                    self.depot.money -= settlement
                                 self.depot.active_loans.remove(loan)
 
                         # Overdraft penalty: 2% of negative balance per day
                         if self.depot.money < 0:
-                            penalty = abs(self.depot.money) * OVERDRAFT_DAILY_RATE
+                            penalty = max(0.01, round(abs(self.depot.money) * OVERDRAFT_DAILY_RATE, 2))
                             self.depot.book_loan_interest(penalty)
 
                         self.depot.update_wealth(self.goods)

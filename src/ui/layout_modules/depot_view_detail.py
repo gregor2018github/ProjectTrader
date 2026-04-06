@@ -451,6 +451,16 @@ class DepotViewDetail:
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
         self.cached_stats["Expenses"].append("__SEPARATOR__")
 
+        # Loans
+        loans = breakdown.get("loans", {"total": 0.0, "Loan Interest": 0.0})
+        self.cached_stats["Expenses"].append(f"Loans")
+        self.cached_stats["Expenses"].append(f"      Total: {loans['total']:,.2f}")
+        for sub_name, sub_val in loans.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+
     def draw(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
         """Draw the detail panel and its content to the screen.
         

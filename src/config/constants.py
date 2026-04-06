@@ -129,10 +129,10 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
 OVERDRAFT_DAILY_RATE = 0.02          # 2% of negative balance charged per day as penalty
 LOAN_BASE_RATES = [                  # (wealth_threshold, annual_rate) — lower wealth = higher rate
-    (200,  0.18),
-    (500,  0.14),
-    (2000, 0.10),
-    (float('inf'), 0.07),
+    (200,  0.54),
+    (500,  0.42),
+    (2000, 0.30),
+    (float('inf'), 0.21),
 ]
 LOAN_DURATION_FACTORS = [            # (max_days, factor) — longer term = higher total interest
     (10,  1.0),
@@ -148,6 +148,7 @@ LOAN_EQUITY_RATIOS = [               # (wealth_threshold, equity_ratio) — dete
 ]
 LOAN_MAX_DURATION_DAYS = 90         # Maximum loan term in days
 LOAN_MIN_AMOUNT = 50                # Minimum loan amount
+LOAN_MIN_DAILY_PCT = 5              # Minimum % of principal repaid through daily installments
 
 # DEBUGGING
 SHOW_MAP_DEBUG = True                 # Set to True to show FPS, position and zoom on map view

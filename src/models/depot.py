@@ -376,7 +376,10 @@ class Depot:
                     total_value += quantity * good.get_price()
                     break
 
-        outstanding = sum(loan["amount"] for loan in self.active_loans)
+        outstanding = sum(
+            loan.get("remaining_principal", loan.get("amount", 0.0))
+            for loan in self.active_loans
+        )
         total_value -= outstanding
 
         self.wealth.append(total_value)
@@ -515,29 +518,37 @@ class Depot:
         self.expenditures += amount
         self.loan_expenditures += amount
 
-    def take_loan(self, amount: float, daily_rate: float, lump_rate: float,
+    def take_loan(self, original_amount: float, daily_principal: float,
+                  daily_interest: float, settlement_principal: float,
                   duration_days: int, start_date: str) -> None:
         """Record a new loan and credit the principal to the player's cash.
 
+        Each day the player pays daily_principal (principal repayment) plus
+        daily_interest (interest cost). At maturity, settlement_principal covers
+        whatever principal was not yet repaid through daily installments.
+
         Args:
-            amount: Principal amount borrowed.
-            daily_rate: Fraction of principal charged per day as daily interest.
-            lump_rate: Fraction of principal owed as lump sum at maturity.
+            original_amount: Total principal borrowed.
+            daily_principal: Principal amount repaid each day.
+            daily_interest: Fixed interest charged each day.
+            settlement_principal: Remaining principal paid at maturity.
             duration_days: Term length in days.
-            start_date: ISO-format date string for display purposes.
+            start_date: Display date string.
         """
-        self.money += amount
+        self.money += original_amount
         self.active_loans.append({
-            "amount": amount,
-            "daily_rate": daily_rate,
-            "lump_rate": lump_rate,
+            "original_amount": original_amount,
+            "remaining_principal": original_amount,
+            "daily_principal": daily_principal,
+            "daily_interest": daily_interest,
+            "settlement_principal": settlement_principal,
             "duration_days": duration_days,
             "days_elapsed": 0,
             "start_date": start_date,
         })
 
     def repay_loan(self, loan_index: int, game_state: Any) -> bool:
-        """Repay the principal of a loan early.
+        """Repay the remaining principal of a loan early.
 
         Args:
             loan_index: Index into self.active_loans.
@@ -549,10 +560,11 @@ class Depot:
         if loan_index < 0 or loan_index >= len(self.active_loans):
             return False
         loan = self.active_loans[loan_index]
-        if self.money < loan["amount"]:
+        remaining = loan.get("remaining_principal", loan.get("amount", 0.0))
+        if self.money < remaining:
             game_state.show_warning("Not enough money to repay loan.")
             return False
-        self.money -= loan["amount"]
+        self.money -= remaining
         self.active_loans.pop(loan_index)
         return True
 

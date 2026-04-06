@@ -12,7 +12,7 @@ from typing import Optional, Tuple, List, TYPE_CHECKING
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, LIGHT_GRAY
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
-    LOAN_MIN_AMOUNT, FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH,
+    LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH,
 )
 
 if TYPE_CHECKING:
@@ -34,10 +34,13 @@ def _calc_max_loan(wealth: float) -> int:
     return max(500, int(wealth * ratio))
 
 
-def _calc_loan_params(amount: float, duration_days: int, daily_pct: float, wealth: float):
-    """Return (daily_rate, lump_rate, daily_payment, lump_sum) for a proposed loan.
+def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct: float, wealth: float):
+    """Compute loan payment breakdown for a proposed loan.
 
-    daily_pct: 0 = all interest as lump sum at end, 100 = all interest as daily payments.
+    repayment_pct: LOAN_MIN_DAILY_PCT–100 — percentage of principal repaid through
+    daily installments. The rest is paid as a settlement at maturity.
+
+    Returns: (daily_principal, daily_interest, settlement_principal, total_interest, total_payback)
     """
     base_rate = 0.07
     for threshold, rate in LOAN_BASE_RATES:
@@ -49,15 +52,24 @@ def _calc_loan_params(amount: float, duration_days: int, daily_pct: float, wealt
         if duration_days <= max_days:
             dur_factor = factor
             break
-    if amount <= 0 or duration_days <= 0:
-        return 0.0, 0.0, 0.0, 0.0
-    total_interest = amount * base_rate / 365 * duration_days * dur_factor
-    daily_total = total_interest * (daily_pct / 100.0)
-    lump_total = total_interest * (1.0 - daily_pct / 100.0)
-    daily_rate = daily_total / duration_days / amount
-    lump_rate = lump_total / amount
-    daily_payment = daily_total / duration_days
-    return daily_rate, lump_rate, daily_payment, lump_total
+    if original_amount <= 0 or duration_days <= 0:
+        return 0.0, 0.0, 0.0, 0.0, 0.0
+
+    repayment_pct = max(float(LOAN_MIN_DAILY_PCT), min(100.0, repayment_pct))
+
+    # Daily principal: share of total principal spread across the term
+    daily_principal = round(original_amount * (repayment_pct / 100.0) / duration_days, 2)
+    # Settlement: whatever principal is left after all daily repayments
+    settlement_principal = round(max(0.0, original_amount - daily_principal * duration_days), 2)
+
+    # Fixed daily interest on the original amount (simple interest with duration factor)
+    raw_daily_interest = original_amount * base_rate / 365 * dur_factor
+    daily_interest = max(0.01, round(raw_daily_interest, 2))
+
+    total_interest = round(daily_interest * duration_days, 2)
+    total_payback = round(original_amount + total_interest, 2)
+
+    return daily_principal, daily_interest, settlement_principal, total_interest, total_payback
 
 
 def _close_dialog(game_state: 'GameState') -> None:
@@ -197,7 +209,7 @@ class _BaseDialog:
 class LoanDialog(_BaseDialog):
     """Dialog for taking out a new loan from the bank."""
 
-    W, H = 450, 430
+    W, H = 460, 450
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState', wealth: float) -> None:
         super().__init__(screen, game_state, self.W, self.H)
@@ -224,8 +236,8 @@ class LoanDialog(_BaseDialog):
             r = pygame.Rect(self.panel.left + self.PAD + i * (btn_w + 6), dur_y, btn_w, 30)
             self.dur_btns.append((r, days))
 
-        # Split slider: after dur_btns(30) + PAD(14) + split_label(22)
-        self.daily_pct: float = 50.0
+        # Repayment slider: after dur_btns(30) + PAD(14) + split_label(22)
+        self.repayment_pct: float = 50.0   # % of principal repaid through daily installments
         spl_y = dur_y + 30 + self.PAD + 22
         self.split_slider = pygame.Rect(
             self.panel.left + self.PAD, spl_y,
@@ -252,7 +264,9 @@ class LoanDialog(_BaseDialog):
         return self.amount_slider.x + int(ratio * self.amount_slider.width)
 
     def _split_thumb_x(self) -> int:
-        return self.split_slider.x + int((self.daily_pct / 100.0) * self.split_slider.width)
+        # Slider maps LOAN_MIN_DAILY_PCT..100 across the full track width
+        ratio = (self.repayment_pct - LOAN_MIN_DAILY_PCT) / (100.0 - LOAN_MIN_DAILY_PCT)
+        return self.split_slider.x + int(ratio * self.split_slider.width)
 
     def _update_amount_from_x(self, x: int) -> None:
         x = max(self.amount_slider.x, min(x, self.amount_slider.right))
@@ -262,7 +276,8 @@ class LoanDialog(_BaseDialog):
 
     def _update_split_from_x(self, x: int) -> None:
         x = max(self.split_slider.x, min(x, self.split_slider.right))
-        self.daily_pct = round((x - self.split_slider.x) / self.split_slider.width * 100)
+        ratio = (x - self.split_slider.x) / self.split_slider.width
+        self.repayment_pct = round(LOAN_MIN_DAILY_PCT + ratio * (100.0 - LOAN_MIN_DAILY_PCT))
 
     # -- events ----------------------------------------------------------------
 
@@ -296,12 +311,12 @@ class LoanDialog(_BaseDialog):
                 return True
         if self.confirm_btn.collidepoint(pos) and self.max_loan >= self.min_loan:
             duration = DURATION_OPTIONS[self.duration_idx]
-            daily_rate, lump_rate, _, _ = _calc_loan_params(
-                self.amount, duration, self.daily_pct, self.wealth
+            daily_principal, daily_interest, settlement_principal, _, _ = _calc_loan_params(
+                self.amount, duration, self.repayment_pct, self.wealth
             )
             start_str = self.game_state.date.strftime("%d.%m.%Y")
             self.game_state.game.depot.take_loan(
-                self.amount, daily_rate, lump_rate, duration, start_str
+                self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
             _close_dialog(self.game_state)
             return True
@@ -355,9 +370,11 @@ class LoanDialog(_BaseDialog):
                            active=(i == self.duration_idx))
         y = self.dur_btns[0][0].move(*off).bottom + self.PAD
 
-        # Split slider label
-        lump_pct = 100 - int(self.daily_pct)
-        self._text(surf, f"Payment Split: {int(self.daily_pct)}% daily / {lump_pct}% lump sum", cx, y, center=True)
+        # Repayment slider label
+        settlement_pct = 100 - int(self.repayment_pct)
+        self._text(surf,
+                   f"Daily repayment: {int(self.repayment_pct)}%  ·  Settlement: {settlement_pct}%",
+                   cx, y, center=True)
         y += 22
 
         spl = self.split_slider.move(*off)
@@ -371,15 +388,20 @@ class LoanDialog(_BaseDialog):
         pygame.draw.circle(surf, DARK_BROWN, (stx, spl.centery), 10, 2)
         y = spl.bottom + self.PAD + 4
 
-        # Interest preview
+        # Payment preview
         duration = DURATION_OPTIONS[self.duration_idx]
-        _, _, daily_pmt, lump_sum = _calc_loan_params(self.amount, duration, self.daily_pct, self.wealth)
-        self._text(surf, f"Daily interest: {daily_pmt:.2f}  |  Lump sum at end: {lump_sum:.2f}", cx, y,
+        daily_principal, daily_interest, settlement_principal, total_interest, total_payback = \
+            _calc_loan_params(self.amount, duration, self.repayment_pct, self.wealth)
+        daily_total = daily_principal + daily_interest
+        self._text(surf,
+                   f"Daily payment: {daily_total:.2f}  ({daily_principal:.2f} principal + {daily_interest:.2f} interest)",
+                   cx, y, color=DARK_BROWN, center=True)
+        y += 22
+        self._text(surf, f"Settlement at end: {settlement_principal:.2f}", cx, y,
                    color=DARK_BROWN, center=True)
         y += 22
-        total_cost = daily_pmt * duration + lump_sum
-        self._text(surf, f"Total interest cost: {total_cost:.2f}", cx, y,
-                   color=DARK_RED, center=True)
+        self._text(surf, f"Total interest: {total_interest:.2f}  |  Total payback: {total_payback:.2f}",
+                   cx, y, color=DARK_RED, center=True)
 
         # Confirm button
         self._draw_btn(surf, self.confirm_btn.move(*off), "Confirm Loan", mouse)
@@ -461,17 +483,21 @@ class RepayDialog(_BaseDialog):
         else:
             for i, loan in enumerate(loans):
                 days_left = loan["duration_days"] - loan["days_elapsed"]
-                daily_pmt = loan["amount"] * loan["daily_rate"]
-                lump = loan["amount"] * loan["lump_rate"]
+                remaining = loan.get("remaining_principal", loan.get("original_amount", loan.get("amount", 0.0)))
+                daily_principal = loan.get("daily_principal", 0.0)
+                daily_interest = loan.get("daily_interest", 0.0)
+                settlement = loan.get("settlement_principal", 0.0)
+                original = loan.get("original_amount", loan.get("amount", remaining))
 
                 # Line 1: principal + date
-                self._text(surf, f"{loan['amount']:.0f} gold  ·  since {loan['start_date']}",
+                self._text(surf, f"{original:.0f} gold  ·  since {loan['start_date']}",
                            p.left + self.PAD, y + 4, color=DARK_BROWN)
-                # Line 2: time + daily interest
-                self._text(surf, f"Days left: {days_left}  |  Daily interest: {daily_pmt:.3f}",
+                # Line 2: days left + daily payment
+                self._text(surf,
+                           f"Days left: {days_left}  |  Daily: {daily_principal:.2f} + {daily_interest:.2f} interest",
                            p.left + self.PAD, y + 26, color=BLACK)
-                # Line 3: lump sum
-                self._text(surf, f"Lump sum due at end: {lump:.2f}",
+                # Line 3: settlement
+                self._text(surf, f"Settlement at end: {settlement:.2f}",
                            p.left + self.PAD, y + 48, color=DARK_GRAY)
 
                 # Repay button
@@ -542,21 +568,26 @@ class LoanOverviewDialog(_BaseDialog):
             total_principal = 0.0
             total_upcoming = 0.0
             for i, loan in enumerate(loans):
-                total_principal += loan["amount"]
+                original = loan.get("original_amount", loan.get("amount", 0.0))
+                remaining = loan.get("remaining_principal", original)
+                total_principal += remaining
                 days_left = loan["duration_days"] - loan["days_elapsed"]
-                lump = loan["amount"] * loan["lump_rate"]
-                daily_pmt = loan["amount"] * loan["daily_rate"]
-                upcoming = daily_pmt * days_left + lump
-                total_upcoming += upcoming
+                daily_principal = loan.get("daily_principal", 0.0)
+                daily_interest = loan.get("daily_interest", 0.0)
+                settlement = loan.get("settlement_principal", 0.0)
+                upcoming_interest = daily_interest * days_left
+                total_upcoming += upcoming_interest
+                daily_total = daily_principal + daily_interest
 
-                # Line 1: principal + date
-                self._text(surf, f"Loan {i + 1}:  {loan['amount']:.0f} gold  ·  since {loan['start_date']}",
+                # Line 1: original principal + date
+                self._text(surf, f"Loan {i + 1}:  {original:.0f} gold  ·  since {loan['start_date']}",
                            p.left + self.PAD, y, color=DARK_BROWN)
-                # Line 2: days + daily interest
-                self._text(surf, f"  Days remaining: {days_left}  |  Daily interest: {daily_pmt:.3f}",
+                # Line 2: days + daily payment breakdown
+                self._text(surf,
+                           f"  Days left: {days_left}  |  Daily: {daily_total:.2f}  ({daily_principal:.2f} + {daily_interest:.2f})",
                            p.left + self.PAD, y + 22, color=BLACK)
-                # Line 3: lump sum + upcoming total
-                self._text(surf, f"  Lump sum due: {lump:.2f}  |  Interest remaining: {upcoming:.2f}",
+                # Line 3: settlement + remaining interest
+                self._text(surf, f"  Settlement: {settlement:.2f}  |  Interest remaining: {upcoming_interest:.2f}",
                            p.left + self.PAD, y + 44, color=DARK_RED)
 
                 if i < len(loans) - 1:
@@ -568,10 +599,10 @@ class LoanOverviewDialog(_BaseDialog):
             # Footer totals
             pygame.draw.line(surf, DARK_BROWN, (p.left + self.PAD, y + 4), (p.right - self.PAD, y + 4), 2)
             y += 12
-            self._text(surf, f"Total outstanding principal: {total_principal:.0f}",
+            self._text(surf, f"Total remaining principal: {total_principal:.0f}",
                        p.left + self.PAD, y, color=DARK_BROWN)
             y += 24
-            self._text(surf, f"Total upcoming interest costs: {total_upcoming:.2f}",
+            self._text(surf, f"Total interest still to pay: {total_upcoming:.2f}",
                        p.left + self.PAD, y, color=DARK_RED)
 
         if use_temp:
