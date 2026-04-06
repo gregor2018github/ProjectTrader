@@ -1,7 +1,9 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] animate the sheep (eating)
+- [ ] add an eating animation for the sheep
+- [ ] place the farm down (below the wheat field), more up will be the town including town walls
+- [ ] add wooden fences and a big old tree for the sheep
 - [ ] Negative balance handling (e.g., loans)
 - [ ] add a house click menu for the bank (loan menu, wealth overview, etc.)
 
@@ -44,6 +46,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] update the readme with new screenshots and a small video where animations are visible
 - [x] add a mill building with rotating blades
 - [x] bugfix: the main menu was lagging
 - [x] add a bank building 

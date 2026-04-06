@@ -14,6 +14,22 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - upgrading for existing building, also repairs are possible
     - the map view will have colored areas that tell you what is yours and where you may place buildings
 
+- auto building system
+    - the city develops itself when in good economic conditions, with new buildings and infrastructure appearing over time
+    - on the other hand building can also deteriorate when the necessary building material is not invested into them anymore - leads to optical effect and diminished functionality (like less storage space in warehouses, less customers in shops, etc)
+
+- reputation system
+    - the player has a reputation score that is influenced by their actions in the game (like paying back loans on time, fulfilling contracts, treating NPCs well, etc)
+    - a high reputation can lead to better prices, more contract opportunities, and even special events or interactions with NPCs
+    - a low reputation can lead to worse prices, fewer contract opportunities, and negative interactions with NPCs (like being refused service at shops or being targeted by thieves)
+    - reputation can be different per pop type (nobility, middling sort, commons, poor) and can influence the happiness of the different social classes in the city
+
+- Bank system
+    - player can take out loans with interest rates that depend on the amount of money you want to borrow and your current wealth (the more you have, the better the interest rate)
+    - you can also invest money in the bank and get interest on it, but the interest rate is lower than the one for loans
+    - if you don't pay back your loan on time, the bank will take over your properties and goods until you pay back your debt
+    - when you buy an extra license, you can give out loans to specific people yourself. Then the interest earned is higher but the risk is too (should be higher income on average though). When the induvidual cannot pay you can decide to take over their properties and goods to get some money back or to just write off the debt, but then you lose money. Both actions will have an effect on your reputation.
+
 - Mini games
     - Shopping wood with an axe in the forest at a forester's shop
     - Fishing mini game at the seeside
@@ -128,4 +144,3 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - bad warehouses will deteriorate and lose items over time
     - breakins can occur if the warehouse is not secure enough, player home can be the same
 
-- building system - player can build houses, shops, warehouses, etc -> thus shape the town themselves
