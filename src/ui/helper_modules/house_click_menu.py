@@ -5,9 +5,11 @@ within interaction range of the player, and provides hover effect rendering.
 """
 
 import pygame
+import os
 from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 
-from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK
+from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE
+from ...config.constants import FONTS_PATH
 
 if TYPE_CHECKING:
     from ...models.house import House
@@ -376,34 +378,37 @@ class HouseMenu:
         self.game_state = game_state
         self.callback = callback
         
+        # Fancy title font (same as bank sub-menus)
+        try:
+            self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 26)
+        except Exception:
+            self.title_font = font
+
         # Menu dimensions
-        self.width = 200
+        self.width = 240
         self.button_height = 40
         self.padding = 10
-        self.header_height = 30
+        self.header_height = 44  # taller to give the fancy font breathing room
         self.total_height = self.header_height + (len(options) * (self.button_height + self.padding)) + self.padding
-        
-        self.close_button_size = 24
-        
-        # Position at click with screen clamping
+
+        self.close_button_size = 20
+
+        # Position at click with screen clamping (close button is now inside the panel)
         screen_w, screen_h = screen.get_size()
-        
-        # We need space for the close button on the right
-        total_width = self.width + self.close_button_size
-        
-        self.x = max(0, min(click_pos[0], screen_w - total_width))
+        self.x = max(0, min(click_pos[0], screen_w - self.width))
         self.y = max(0, min(click_pos[1], screen_h - self.total_height))
-        
+
         self.rect = pygame.Rect(self.x, self.y, self.width, self.total_height)
-        
-        # Close button rect (outside, to the right of the header)
+
+        # Close button rect — inside the header, top-right corner
+        close_pad = (self.header_height - self.close_button_size) // 2
         self.close_rect = pygame.Rect(
-            self.x + self.width,
-            self.y,
+            self.x + self.width - self.close_button_size - close_pad,
+            self.y + close_pad,
             self.close_button_size,
-            self.header_height,
+            self.close_button_size,
         )
-        
+
         # Create button rects
         self.buttons: List[Tuple[pygame.Rect, str]] = []
         current_y = self.y + self.header_height + self.padding
@@ -449,86 +454,60 @@ class HouseMenu:
         if alpha_scale <= 0:
             return
 
-        # Determine bounding area for all parts
-        bounding_rect = self.rect.union(self.close_rect)
-        
-        # Setup target surface
+        # Setup target surface — close button is inside the panel so only self.rect matters
         target_surf = self.screen
-        offset_x, offset_y = 0, 0
-        
+        ox, oy = 0, 0
+
         if alpha_scale < 1.0:
-            # Create a surface big enough for both menu and close button
-            temp_surf = pygame.Surface((bounding_rect.width, bounding_rect.height), pygame.SRCALPHA)
+            temp_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
             target_surf = temp_surf
-            offset_x = -bounding_rect.x
-            offset_y = -bounding_rect.y
+            ox, oy = -self.rect.x, -self.rect.y
         else:
             temp_surf = None
 
-        # Draw Menu Body
-        body_draw_rect = self.rect.move(offset_x, offset_y)
-        pygame.draw.rect(target_surf, SANDY_BROWN, body_draw_rect)
-        pygame.draw.rect(target_surf, DARK_BROWN, body_draw_rect, 3)
-        
-        # Draw header (Title) - House Name or Generic
-        raw_name = self.house.name or "House"
-        display_name = raw_name.split('_')[0]
-        title_surf = self.font.render(display_name, True, BLACK)
-        title_rect = title_surf.get_rect(center=(body_draw_rect.centerx, body_draw_rect.y + self.header_height // 2))
-        target_surf.blit(title_surf, title_rect)
-
         mouse_pos = pygame.mouse.get_pos()
 
-        # Draw Close Button (outside main panel)
-        close_draw_rect = self.close_rect.move(offset_x, offset_y)
-        pygame.draw.rect(target_surf, SANDY_BROWN, close_draw_rect)
-        pygame.draw.rect(target_surf, DARK_BROWN, close_draw_rect, 2)
-        
+        # Draw menu body (no rounded corners)
+        body_rect = self.rect.move(ox, oy)
+        pygame.draw.rect(target_surf, SANDY_BROWN, body_rect)
+        pygame.draw.rect(target_surf, DARK_BROWN, body_rect, 3)
+
+        # Draw header title with fancy font (centred, leaving room for X on the right)
+        raw_name = self.house.name or "House"
+        display_name = raw_name.split('_')[0]
+        title_surf = self.title_font.render(display_name, True, DARK_BROWN)
+        title_rect = title_surf.get_rect(center=(body_rect.centerx, body_rect.y + self.header_height // 2))
+        target_surf.blit(title_surf, title_rect)
+
+        # Draw close button (inside header, top-right)
+        close_draw_rect = self.close_rect.move(ox, oy)
+        pygame.draw.rect(target_surf, DARK_BROWN, close_draw_rect)
         is_close_hovered = alpha_scale >= 1.0 and self.close_rect.collidepoint(mouse_pos)
         if is_close_hovered:
-            overlay = pygame.Surface((close_draw_rect.width, close_draw_rect.height), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 30))
-            target_surf.blit(overlay, close_draw_rect)
+            ov = pygame.Surface(close_draw_rect.size, pygame.SRCALPHA)
+            ov.fill((255, 255, 255, 40))
+            target_surf.blit(ov, close_draw_rect)
+        mg = 5
+        pygame.draw.line(target_surf, WHITE,
+                         (close_draw_rect.left + mg, close_draw_rect.top + mg),
+                         (close_draw_rect.right - mg, close_draw_rect.bottom - mg), 2)
+        pygame.draw.line(target_surf, WHITE,
+                         (close_draw_rect.left + mg, close_draw_rect.bottom - mg),
+                         (close_draw_rect.right - mg, close_draw_rect.top + mg), 2)
 
-        # Draw X using lines
-        margin = 6
-        dx, dy = -1, 0
-        start1 = (close_draw_rect.left + margin + dx, close_draw_rect.top + margin + dy)
-        end1 = (close_draw_rect.right - margin + dx, close_draw_rect.bottom - margin + dy)
-        start2 = (close_draw_rect.left + margin + dx, close_draw_rect.bottom - margin + dy)
-        end2 = (close_draw_rect.right - margin + dx, close_draw_rect.top + margin + dy)
-        
-        pygame.draw.line(target_surf, DARK_BROWN, start1, end1, 2)
-        pygame.draw.line(target_surf, DARK_BROWN, start2, end2, 2)
-        
-        # Draw buttons
+        # Draw option buttons
         for rect, text in self.buttons:
-            # Adjust rect for local coordinates if drawing to temp surface
-            btn_draw_rect = rect.move(offset_x, offset_y)
-
-            # Check hover (only if fully visible)
-            is_hovered = alpha_scale >= 1.0 and rect.collidepoint(mouse_pos)
-            
-            # Button background
-            color = SANDY_BROWN
-            pygame.draw.rect(target_surf, color, btn_draw_rect)
-            
-            # Dark border for buttons
-            pygame.draw.rect(target_surf, DARK_BROWN, btn_draw_rect, 2)
-            
-            # Hover effect (overlay)
-            if is_hovered:
-                overlay = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
-                overlay.fill((0, 0, 0, 30)) # Transparent black
-                target_surf.blit(overlay, btn_draw_rect)
-            
-            # Text
+            btn_rect = rect.move(ox, oy)
+            pygame.draw.rect(target_surf, SANDY_BROWN, btn_rect)
+            pygame.draw.rect(target_surf, DARK_BROWN, btn_rect, 2)
+            if alpha_scale >= 1.0 and rect.collidepoint(mouse_pos):
+                ov = pygame.Surface(btn_rect.size, pygame.SRCALPHA)
+                ov.fill((0, 0, 0, 30))
+                target_surf.blit(ov, btn_rect)
             text_surf = self.font.render(text, True, BLACK)
-            text_rect = text_surf.get_rect(center=btn_draw_rect.center)
-            target_surf.blit(text_surf, text_rect)
+            target_surf.blit(text_surf, text_surf.get_rect(center=btn_rect.center))
 
-        # Final blit if we used a temp surface
         if temp_surf:
             temp_surf.set_alpha(int(255 * alpha_scale))
-            self.screen.blit(temp_surf, (bounding_rect.x, bounding_rect.y))
+            self.screen.blit(temp_surf, (self.rect.x, self.rect.y))
 

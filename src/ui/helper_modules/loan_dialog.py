@@ -88,10 +88,10 @@ def _close_dialog(game_state: 'GameState') -> None:
 
 def _load_fonts():
     try:
-        title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 28)
+        title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 34)
         body_font = pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), 20)
     except Exception:
-        title_font = pygame.font.SysFont("arial", 24)
+        title_font = pygame.font.SysFont("arial", 28)
         body_font = pygame.font.SysFont("arial", 18)
     return title_font, body_font
 
@@ -108,12 +108,12 @@ def open_loan_dialog(game_state: 'GameState') -> None:
         for loan in depot.active_loans
     )
     game_state.info_window = LoanDialog(game_state.screen, game_state, wealth, active_debt)
-    game_state.active_house_menu = None
+    # Keep active_house_menu set to the bank so the distance check in map_view closes this dialog
 
 
 def open_loan_management_dialog(game_state: 'GameState') -> None:
     game_state.info_window = LoanManagementDialog(game_state.screen, game_state)
-    game_state.active_house_menu = None
+    # Keep active_house_menu set to the bank so the distance check in map_view closes this dialog
 
 
 # Aliases kept so any future callers don't break
@@ -127,7 +127,7 @@ open_loan_overview_dialog = open_loan_management_dialog
 
 class _BaseDialog:
     PAD = 14
-    HDR = 34
+    HDR = 48  # taller header to give the larger title font more breathing room
     BTN_H = 32
     CLOSE_SIZE = 24
 
@@ -153,20 +153,20 @@ class _BaseDialog:
 
     def _draw_panel(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         r = self.panel.move(*off)
-        pygame.draw.rect(surf, SANDY_BROWN, r, border_radius=6)
-        pygame.draw.rect(surf, DARK_BROWN, r, 3, border_radius=6)
+        pygame.draw.rect(surf, SANDY_BROWN, r)
+        pygame.draw.rect(surf, DARK_BROWN, r, 3)
 
     def _draw_close_btn(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         r = self.close_rect.move(*off)
-        pygame.draw.rect(surf, DARK_BROWN, r, border_radius=4)
+        pygame.draw.rect(surf, DARK_BROWN, r)
         mg = 5
         pygame.draw.line(surf, WHITE, (r.left + mg, r.top + mg), (r.right - mg, r.bottom - mg), 2)
         pygame.draw.line(surf, WHITE, (r.left + mg, r.bottom - mg), (r.right - mg, r.top + mg), 2)
 
     def _draw_title(self, surf: pygame.Surface, off: Tuple[int, int], text: str) -> None:
         ts = self.title_font.render(text, True, DARK_BROWN)
-        tr = ts.get_rect(centerx=self.panel.move(*off).centerx,
-                         top=self.panel.move(*off).top + 6)
+        p = self.panel.move(*off)
+        tr = ts.get_rect(centerx=p.centerx, top=p.top + 10)
         surf.blit(ts, tr)
 
     def _text(self, surf: pygame.Surface, text: str, x: int, y: int,
@@ -186,8 +186,8 @@ class _BaseDialog:
                   mouse_pos: Tuple[int, int], color=SANDY_BROWN,
                   border=DARK_BROWN, active: bool = False) -> None:
         bg = (180, 130, 60) if active else color
-        pygame.draw.rect(surf, bg, rect, border_radius=4)
-        pygame.draw.rect(surf, border, rect, 2, border_radius=4)
+        pygame.draw.rect(surf, bg, rect)
+        pygame.draw.rect(surf, border, rect, 2)
         if rect.collidepoint(mouse_pos) and not active:
             ov = pygame.Surface(rect.size, pygame.SRCALPHA)
             ov.fill((0, 0, 0, 30))
@@ -220,10 +220,11 @@ class _BaseDialog:
 class LoanDialog(_BaseDialog):
     """Dialog for taking out a new loan from the bank."""
 
-    W, H = 460, 472
+    W, H = 460, 486  # +14 for taller HDR (34 → 48)
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState', wealth: float, active_debt: float = 0.0) -> None:
         super().__init__(screen, game_state, self.W, self.H)
+        self.house = game_state.active_house_menu  # enables distance-based close in map_view
         self.wealth = wealth
         self.active_debt = active_debt
         # Max new loan = total borrowing ceiling minus what's already owed
@@ -231,7 +232,7 @@ class LoanDialog(_BaseDialog):
         self.min_loan = LOAN_MIN_AMOUNT
 
         # Amount slider
-        # Layout mirrors draw(): HDR(34) + PAD(14) + info_line1(22) + info_line2(22) + amount_label(22) = 114
+        # Layout mirrors draw(): HDR(48) + PAD(14) + info_line1(22) + info_line2(22) + amount_label(22) = 128
         self.amount = min(self.max_loan, max(self.min_loan, self.max_loan // 2))
         asl_y = self.panel.top + self.HDR + self.PAD + 22 + 22 + 22
         self.amount_slider = pygame.Rect(
@@ -347,7 +348,7 @@ class LoanDialog(_BaseDialog):
 
         self._draw_panel(surf, off)
         self._draw_close_btn(surf, off)
-        self._draw_title(surf, off, "Bank — Take Out a Loan")
+        self._draw_title(surf, off, "Take Out a Loan")
 
         mouse = pygame.mouse.get_pos()
         p = self.panel.move(*off)
@@ -462,6 +463,7 @@ class LoanManagementDialog(_BaseDialog):
         h = self.HDR + self.PAD + visible * self.ROW_H + self.PAD + self.FOOTER_H + self.PAD
         h = max(200, min(h, SCREEN_HEIGHT - 60))
         super().__init__(screen, game_state, self.W, h)
+        self.house = game_state.active_house_menu  # enables distance-based close in map_view
         self.scroll_offset = 0  # pixels scrolled in the loan list area
         self._build_repay_btns()
 
@@ -539,7 +541,7 @@ class LoanManagementDialog(_BaseDialog):
 
         self._draw_panel(surf, off)
         self._draw_close_btn(surf, off)
-        self._draw_title(surf, off, "Bank — Manage Loans")
+        self._draw_title(surf, off, "Manage Loans")
 
         mouse = pygame.mouse.get_pos()
         loans = self.game_state.game.depot.active_loans
