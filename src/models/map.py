@@ -17,6 +17,7 @@ from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
 from .institutions.mill import Mill
+from .institutions.bank import Bank
 from .tree import Tree
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
@@ -246,6 +247,25 @@ class TMXMap:
                             house_class=obj_class
                         )
                         self.mills.append(house)
+                    elif obj.name.startswith("Bank"):
+                        house = Bank(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
+                            name=obj.name,
+                            house_class=obj_class
+                        )
                     else:
                         house = House(
                             x=obj.x,

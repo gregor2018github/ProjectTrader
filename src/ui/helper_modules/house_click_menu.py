@@ -261,6 +261,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.church import Church
     from ...models.institutions.town import Town
     from ...models.institutions.market import Market
+    from ...models.institutions.bank import Bank
     
     # Create an info window styled as a menu
     options = ["Inspect"]
@@ -276,6 +277,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Population Stats")
         options.insert(0, "Trading Licenses")
 
+    if isinstance(house, Bank):
+        options.insert(0, "Loan Overview")
+        options.insert(0, "Repay Loan")
+        options.insert(0, "Take Out Loan")
+
     if isinstance(house, Market):
         goods = house.get_trade_options()
         for good in reversed(goods): # Insert in reverse so they appear in correct order at top
@@ -287,6 +293,21 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Knock":
             house.interact_knock(game_state)
             
+        if option_text == "Take Out Loan" and isinstance(house, Bank):
+            from .loan_dialog import open_loan_dialog
+            open_loan_dialog(game_state)
+            return
+
+        if option_text == "Repay Loan" and isinstance(house, Bank):
+            from .loan_dialog import open_repay_dialog
+            open_repay_dialog(game_state)
+            return
+
+        if option_text == "Loan Overview" and isinstance(house, Bank):
+            from .loan_dialog import open_loan_overview_dialog
+            open_loan_overview_dialog(game_state)
+            return
+
         if option_text == "Inspect":
             msg = f"Object Name: {house.name}\nClass: {house.house_class}\nCoordinates: X={round(house.x, 1)}, Y={round(house.y, 1)}\nSprite: {house.file_name}"
             if getattr(house, "has_max_inhabitants_property", False):

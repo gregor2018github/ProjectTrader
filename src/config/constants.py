@@ -125,5 +125,29 @@ SMOKE_START_HOUR_RANGE = 3.5         # latest activation: 21:00
 SMOKE_DURATION_MIN = 4.0             # burns at least 4 hours
 SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
+# LOAN SYSTEM CONSTANTS
+
+OVERDRAFT_DAILY_RATE = 0.02          # 2% of negative balance charged per day as penalty
+LOAN_BASE_RATES = [                  # (wealth_threshold, annual_rate) — lower wealth = higher rate
+    (200,  0.18),
+    (500,  0.14),
+    (2000, 0.10),
+    (float('inf'), 0.07),
+]
+LOAN_DURATION_FACTORS = [            # (max_days, factor) — longer term = higher total interest
+    (10,  1.0),
+    (30,  1.1),
+    (60,  1.2),
+    (90,  1.35),
+]
+LOAN_EQUITY_RATIOS = [               # (wealth_threshold, equity_ratio) — determines max loan size
+    (200,  0.50),
+    (500,  0.60),
+    (2000, 0.70),
+    (float('inf'), 0.80),
+]
+LOAN_MAX_DURATION_DAYS = 90         # Maximum loan term in days
+LOAN_MIN_AMOUNT = 50                # Minimum loan amount
+
 # DEBUGGING
 SHOW_MAP_DEBUG = True                 # Set to True to show FPS, position and zoom on map view

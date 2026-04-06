@@ -49,6 +49,7 @@ class Depot:
         self.donation_expenditures: float = 0           # current donation expenditures
         self.cost_of_living_expenditures: float = 0     # current cost of living expenditures
         self.license_expenditures: float = 0            # current license expenditures
+        self.loan_expenditures: float = 0.0             # current loan interest / overdraft paid today
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
             "Town Donations": 0,
@@ -56,10 +57,11 @@ class Depot:
 
         # BOOKKEEPING
 
+        self.active_loans: List[Dict[str, Any]] = []   # list of active loan dicts
         self.wealth: List[float] = [money]              # wealth tracking for bookkeeping
         self.money_history: List[float] = [money]       # money tracking for bookkeeping
         self.property_value_history: List[float] = [0.0]  # property value history (placeholder for future)
-        self.loan_history: List[float] = [0.0]          # outstanding loan history (placeholder for future)
+        self.loan_history: List[float] = [0.0]          # outstanding loan principal history
         self.total_stock: List[int] = [0]               # total stock tracking for bookkeeping
         self.house_history: List[int] = [0]             # history of owned houses
         self.stock_history: Dict[str, List[int]] = {    # stock tracking for bookkeeping
@@ -72,6 +74,7 @@ class Depot:
         self.donation_expenditure_history: List[float] = [0.0]     # donation expenditures tracking for bookkeeping
         self.cost_of_living_expenditure_history: List[float] = [0.0]  # cost of living tracking for bookkeeping
         self.license_expenditure_history: List[float] = [0.0]      # license expenditures tracking for bookkeeping
+        self.loan_expenditure_history: List[float] = [0.0]         # loan interest + overdraft tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
             "Town Donations": [0.0],
@@ -366,17 +369,20 @@ class Depot:
             float: The newly calculated total wealth value.
         """
         total_value = self.money
-        
+
         for good_name, quantity in self.good_stock.items():
             for good in goods:
                 if good.name == good_name:
                     total_value += quantity * good.get_price()
                     break
-                    
+
+        outstanding = sum(loan["amount"] for loan in self.active_loans)
+        total_value -= outstanding
+
         self.wealth.append(total_value)
         self.money_history.append(self.money)
         self.property_value_history.append(0.0)  # updated when property system is implemented
-        self.loan_history.append(0.0)            # updated when loan system is implemented
+        self.loan_history.append(outstanding)
         return total_value
     
     def update_income_and_expenditures(self) -> None:
@@ -387,6 +393,7 @@ class Depot:
         self.donation_expenditure_history.append(self.donation_expenditures)
         self.cost_of_living_expenditure_history.append(self.cost_of_living_expenditures)
         self.license_expenditure_history.append(self.license_expenditures)
+        self.loan_expenditure_history.append(self.loan_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
         self.income = 0
@@ -395,6 +402,7 @@ class Depot:
         self.donation_expenditures = 0
         self.cost_of_living_expenditures = 0
         self.license_expenditures = 0
+        self.loan_expenditures = 0.0
         for category in self.donations:
             self.donations[category] = 0
     
@@ -497,6 +505,57 @@ class Depot:
         
         return True
 
+    def book_loan_interest(self, amount: float) -> None:
+        """Charge loan interest or overdraft penalty.
+
+        Args:
+            amount: The amount to deduct from money and record as loan expenditure.
+        """
+        self.money -= amount
+        self.expenditures += amount
+        self.loan_expenditures += amount
+
+    def take_loan(self, amount: float, daily_rate: float, lump_rate: float,
+                  duration_days: int, start_date: str) -> None:
+        """Record a new loan and credit the principal to the player's cash.
+
+        Args:
+            amount: Principal amount borrowed.
+            daily_rate: Fraction of principal charged per day as daily interest.
+            lump_rate: Fraction of principal owed as lump sum at maturity.
+            duration_days: Term length in days.
+            start_date: ISO-format date string for display purposes.
+        """
+        self.money += amount
+        self.active_loans.append({
+            "amount": amount,
+            "daily_rate": daily_rate,
+            "lump_rate": lump_rate,
+            "duration_days": duration_days,
+            "days_elapsed": 0,
+            "start_date": start_date,
+        })
+
+    def repay_loan(self, loan_index: int, game_state: Any) -> bool:
+        """Repay the principal of a loan early.
+
+        Args:
+            loan_index: Index into self.active_loans.
+            game_state: Used to show a warning if funds are insufficient.
+
+        Returns:
+            bool: True if repayment succeeded, False if insufficient funds.
+        """
+        if loan_index < 0 or loan_index >= len(self.active_loans):
+            return False
+        loan = self.active_loans[loan_index]
+        if self.money < loan["amount"]:
+            game_state.show_warning("Not enough money to repay loan.")
+            return False
+        self.money -= loan["amount"]
+        self.active_loans.pop(loan_index)
+        return True
+
     def get_expense_breakdown(self, period_days: Optional[int] = None) -> Dict[str, Any]:
         """Get a full expense breakdown for a given time period.
         
@@ -520,6 +579,7 @@ class Depot:
                 total_col = sum(self.cost_of_living_expenditure_history[-num_history_days:]) + self.cost_of_living_expenditures
                 total_donation = sum(self.donation_expenditure_history[-num_history_days:]) + self.donation_expenditures
                 total_license = sum(self.license_expenditure_history[-num_history_days:]) + self.license_expenditures
+                total_loan = sum(self.loan_expenditure_history[-num_history_days:]) + self.loan_expenditures
                 by_donation_cat = {}
                 for category, history in self.donation_history.items():
                     by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
@@ -529,6 +589,7 @@ class Depot:
                 total_col = self.cost_of_living_expenditures
                 total_donation = self.donation_expenditures
                 total_license = self.license_expenditures
+                total_loan = self.loan_expenditures
                 by_donation_cat = dict(self.donations)
         else:
             total_exp = sum(self.expenditure_history) + self.expenditures
@@ -536,13 +597,14 @@ class Depot:
             total_col = sum(self.cost_of_living_expenditure_history) + self.cost_of_living_expenditures
             total_donation = sum(self.donation_expenditure_history) + self.donation_expenditures
             total_license = sum(self.license_expenditure_history) + self.license_expenditures
+            total_loan = sum(self.loan_expenditure_history) + self.loan_expenditures
             by_donation_cat = {}
             for category, history in self.donation_history.items():
                 by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
-        
-        # Good cost = trading expenditures minus transaction fees
-        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license
-        
+
+        # Good cost = trading expenditures minus transaction fees and other known categories
+        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license - total_loan
+
         return {
             "total": total_exp,
             "cost_of_living": {
@@ -561,6 +623,10 @@ class Depot:
             "donations": {
                 "total": total_donation,
                 **by_donation_cat,
+            },
+            "loans": {
+                "total": total_loan,
+                "Loan Interest": total_loan,
             },
         }
 

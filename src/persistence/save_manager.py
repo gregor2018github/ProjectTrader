@@ -122,6 +122,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "donation_expenditure_history": list(depot.donation_expenditure_history),
             "cost_of_living_expenditure_history": list(depot.cost_of_living_expenditure_history),
             "license_expenditure_history": list(depot.license_expenditure_history),
+            "loan_expenditure_history": list(depot.loan_expenditure_history),
+            "active_loans": [dict(loan) for loan in depot.active_loans],
             "donation_history": {k: list(v) for k, v in depot.donation_history.items()},
             "purchase_history": {
                 good_name: [
@@ -289,6 +291,8 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.donation_expenditure_history = d["donation_expenditure_history"]
     depot.cost_of_living_expenditure_history = d["cost_of_living_expenditure_history"]
     depot.license_expenditure_history = d["license_expenditure_history"]
+    depot.loan_expenditure_history = d.get("loan_expenditure_history", [0.0])
+    depot.active_loans = d.get("active_loans", [])
     depot.donation_history = d["donation_history"]
     depot.purchase_history = {
         good_name: _dt_list(list(entries), "timestamp")

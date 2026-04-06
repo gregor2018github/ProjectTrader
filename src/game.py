@@ -21,7 +21,7 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .persistence.save_manager import apply_save_data
 
 class Game:
@@ -377,6 +377,25 @@ class Game:
                     if day_changed:
                         self.depot.update_income_and_expenditures() # archive yesterday's counters first
                         self.depot.book_cost_of_living(self.player.daily_cost_of_living) # then charge today's cost of living
+
+                        # Process active loans: daily interest + maturity
+                        for loan in list(self.depot.active_loans):
+                            loan["days_elapsed"] += 1
+                            daily_interest = loan["amount"] * loan["daily_rate"]
+                            if daily_interest > 0:
+                                self.depot.book_loan_interest(daily_interest)
+                            if loan["days_elapsed"] >= loan["duration_days"]:
+                                lump = loan["amount"] * loan["lump_rate"]
+                                if lump > 0:
+                                    self.depot.book_loan_interest(lump)
+                                self.depot.money -= loan["amount"]  # forced principal repayment
+                                self.depot.active_loans.remove(loan)
+
+                        # Overdraft penalty: 2% of negative balance per day
+                        if self.depot.money < 0:
+                            penalty = abs(self.depot.money) * OVERDRAFT_DAILY_RATE
+                            self.depot.book_loan_interest(penalty)
+
                         self.depot.update_wealth(self.goods)
                         self.depot.update_total_stock()
                         self.depot.update_stock_history()
