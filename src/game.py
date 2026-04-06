@@ -405,7 +405,7 @@ class Game:
                         # Overdraft penalty: 2% of negative balance per day
                         if self.depot.money < 0:
                             penalty = max(0.01, round(abs(self.depot.money) * OVERDRAFT_DAILY_RATE, 2))
-                            self.depot.book_loan_interest(penalty)
+                            self.depot.book_overdraft_penalty(penalty)
 
                         self.depot.update_wealth(self.goods)
                         self.depot.update_total_stock()

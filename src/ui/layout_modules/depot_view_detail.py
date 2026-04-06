@@ -461,6 +461,16 @@ class DepotViewDetail:
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
         self.cached_stats["Expenses"].append("__SEPARATOR__")
 
+        # Overdraft Penalties
+        overdraft = breakdown.get("overdraft", {"total": 0.0, "Overdraft Penalty": 0.0})
+        self.cached_stats["Expenses"].append(f"Overdraft")
+        self.cached_stats["Expenses"].append(f"      Total: {overdraft['total']:,.2f}")
+        for sub_name, sub_val in overdraft.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+
     def draw(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
         """Draw the detail panel and its content to the screen.
         
