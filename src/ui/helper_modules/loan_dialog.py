@@ -104,7 +104,11 @@ def _load_fonts():
 def open_loan_dialog(game_state: 'GameState') -> None:
     depot = game_state.game.depot
     wealth = depot.wealth[-1] if depot.wealth else depot.money
-    game_state.info_window = LoanDialog(game_state.screen, game_state, wealth)
+    active_debt = sum(
+        loan.get("remaining_principal", loan.get("original_amount", loan.get("amount", 0.0)))
+        for loan in depot.active_loans
+    )
+    game_state.info_window = LoanDialog(game_state.screen, game_state, wealth, active_debt)
     game_state.active_house_menu = None
 
 
@@ -217,19 +221,20 @@ class _BaseDialog:
 class LoanDialog(_BaseDialog):
     """Dialog for taking out a new loan from the bank."""
 
-    W, H = 460, 450
+    W, H = 460, 472
 
-    def __init__(self, screen: pygame.Surface, game_state: 'GameState', wealth: float) -> None:
+    def __init__(self, screen: pygame.Surface, game_state: 'GameState', wealth: float, active_debt: float = 0.0) -> None:
         super().__init__(screen, game_state, self.W, self.H)
-        depot = game_state.game.depot
         self.wealth = wealth
-        self.max_loan = _calc_max_loan(wealth)
+        self.active_debt = active_debt
+        # Max new loan = total borrowing ceiling minus what's already owed
+        self.max_loan = max(0, _calc_max_loan(wealth) - int(active_debt))
         self.min_loan = LOAN_MIN_AMOUNT
 
         # Amount slider
-        # Layout mirrors draw(): HDR(34) + PAD(14) + wealth_line(26) + amount_label(22) = 96
+        # Layout mirrors draw(): HDR(34) + PAD(14) + info_line1(22) + info_line2(22) + amount_label(22) = 114
         self.amount = min(self.max_loan, max(self.min_loan, self.max_loan // 2))
-        asl_y = self.panel.top + self.HDR + self.PAD + 26 + 22
+        asl_y = self.panel.top + self.HDR + self.PAD + 22 + 22 + 22
         self.amount_slider = pygame.Rect(
             self.panel.left + self.PAD, asl_y,
             self.W - 2 * self.PAD, 10
@@ -350,10 +355,14 @@ class LoanDialog(_BaseDialog):
         cx = p.centerx
         y = p.top + self.HDR + self.PAD
 
-        # Wealth / max loan info
-        self._text(surf, f"Your Wealth: {self.wealth:.0f}  |  Max Loan: {self.max_loan}", cx, y,
+        # Wealth / max loan info (two lines to avoid overflow)
+        self._text(surf, f"Your Wealth: {self.wealth:.0f}  |  Max New Loan: {self.max_loan}", cx, y,
                    color=DARK_BROWN, center=True)
-        y += 26
+        y += 22
+        if self.active_debt > 0:
+            self._text(surf, f"Active Debt: {self.active_debt:.0f}  (reducing available credit)", cx, y,
+                       color=DARK_RED, center=True)
+        y += 22
 
         # Amount slider label
         self._text(surf, f"Loan Amount: {self.amount}", cx, y, center=True)

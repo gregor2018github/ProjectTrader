@@ -4,7 +4,6 @@
 - [ ] add an eating animation for the sheep
 - [ ] place the farm down (below the wheat field), more up will be the town including town walls
 - [ ] add wooden fences and a big old tree for the sheep
-- [ ] when the player wants to pay back more money at the end of the loan period (and less on a daily basis), their conditions must become worse (higher interest rates) 
 - [ ] take the nice house click design from the bank subwindows and apply it to the general house click menu (that will send you to the respective undermenus in all clickable buildings)
 
 ## Medium Priority
@@ -40,6 +39,7 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
+- [ ] bugfix: currently the player can take an unlimited amount of loans as long as each of them is smaller than 500, the actual idea was that the player is allowed to borrow up to 500 in total, so the sum of all active loans must not exceed 500 (that number will later exceed with player wealth, as already implemented)
 - [ ] sometime the player does not have enough money to pay transaction cost but selling the goods would cover the cost of the transaction, then the transaction should still go through (currently it gets blocked)
 - [ ] church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
@@ -47,6 +47,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when the player wants to pay back more money at the end of the loan period (and less on a daily basis), their conditions must become worse (higher interest rates) 
 - [x] in the expenditure overview, there should be a difference between loan expenses and expenses due to a negative balance (as the latter have worse conditions)
 - [x] Negative balance handling (e.g., loans)
 - [x] add a house click menu for the bank (loan menu, wealth overview, etc.)
