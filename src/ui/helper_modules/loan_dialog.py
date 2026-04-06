@@ -12,7 +12,8 @@ from typing import Optional, Tuple, List, TYPE_CHECKING
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, LIGHT_GRAY
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
-    LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH,
+    LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,
+    FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH,
 )
 
 if TYPE_CHECKING:
@@ -40,7 +41,7 @@ def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct:
     repayment_pct: LOAN_MIN_DAILY_PCT–100 — percentage of principal repaid through
     daily installments. The rest is paid as a settlement at maturity.
 
-    Returns: (daily_principal, daily_interest, settlement_principal, total_interest, total_payback)
+    Returns: (daily_principal, daily_interest, settlement_principal, total_interest, total_payback, yearly_rate_pct)
     """
     base_rate = 0.07
     for threshold, rate in LOAN_BASE_RATES:
@@ -53,7 +54,7 @@ def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct:
             dur_factor = factor
             break
     if original_amount <= 0 or duration_days <= 0:
-        return 0.0, 0.0, 0.0, 0.0, 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
     repayment_pct = max(float(LOAN_MIN_DAILY_PCT), min(100.0, repayment_pct))
 
@@ -62,14 +63,21 @@ def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct:
     # Settlement: whatever principal is left after all daily repayments
     settlement_principal = round(max(0.0, original_amount - daily_principal * duration_days), 2)
 
-    # Fixed daily interest on the original amount (simple interest with duration factor)
-    raw_daily_interest = original_amount * base_rate / 365 * dur_factor
+    # Settlement penalty: back-loading repayment increases the interest rate.
+    # At 100% daily repayment → no penalty (factor = 1.0).
+    # At LOAN_MIN_DAILY_PCT daily repayment → maximum penalty (factor = 1 + LOAN_SETTLEMENT_RATE_PENALTY).
+    settlement_ratio = (100.0 - repayment_pct) / (100.0 - LOAN_MIN_DAILY_PCT)
+    settlement_factor = 1.0 + settlement_ratio * LOAN_SETTLEMENT_RATE_PENALTY
+
+    # Fixed daily interest on the original amount (simple interest with duration and settlement factors)
+    raw_daily_interest = original_amount * base_rate / 365 * dur_factor * settlement_factor
     daily_interest = max(0.01, round(raw_daily_interest, 2))
 
     total_interest = round(daily_interest * duration_days, 2)
     total_payback = round(original_amount + total_interest, 2)
+    yearly_rate_pct = round(base_rate * dur_factor * settlement_factor * 100, 1)
 
-    return daily_principal, daily_interest, settlement_principal, total_interest, total_payback
+    return daily_principal, daily_interest, settlement_principal, total_interest, total_payback, yearly_rate_pct
 
 
 def _close_dialog(game_state: 'GameState') -> None:
@@ -311,7 +319,7 @@ class LoanDialog(_BaseDialog):
                 return True
         if self.confirm_btn.collidepoint(pos) and self.max_loan >= self.min_loan:
             duration = DURATION_OPTIONS[self.duration_idx]
-            daily_principal, daily_interest, settlement_principal, _, _ = _calc_loan_params(
+            daily_principal, daily_interest, settlement_principal, _, _, _ = _calc_loan_params(
                 self.amount, duration, self.repayment_pct, self.wealth
             )
             start_str = self.game_state.date.strftime("%d.%m.%Y")
@@ -370,10 +378,13 @@ class LoanDialog(_BaseDialog):
                            active=(i == self.duration_idx))
         y = self.dur_btns[0][0].move(*off).bottom + self.PAD
 
-        # Repayment slider label
+        # Repayment slider label (show interest penalty for back-loading)
         settlement_pct = 100 - int(self.repayment_pct)
+        settlement_ratio = (100.0 - self.repayment_pct) / (100.0 - LOAN_MIN_DAILY_PCT)
+        penalty_pct = round(settlement_ratio * LOAN_SETTLEMENT_RATE_PENALTY * 100)
+        penalty_str = f"  (+{penalty_pct}% rate)" if penalty_pct > 0 else ""
         self._text(surf,
-                   f"Daily repayment: {int(self.repayment_pct)}%  ·  Settlement: {settlement_pct}%",
+                   f"Daily: {int(self.repayment_pct)}%  ·  Settlement: {settlement_pct}%{penalty_str}",
                    cx, y, center=True)
         y += 22
 
@@ -390,7 +401,7 @@ class LoanDialog(_BaseDialog):
 
         # Payment preview
         duration = DURATION_OPTIONS[self.duration_idx]
-        daily_principal, daily_interest, settlement_principal, total_interest, total_payback = \
+        daily_principal, daily_interest, settlement_principal, total_interest, total_payback, yearly_rate_pct = \
             _calc_loan_params(self.amount, duration, self.repayment_pct, self.wealth)
         daily_total = daily_principal + daily_interest
         self._text(surf,
@@ -401,6 +412,9 @@ class LoanDialog(_BaseDialog):
                    color=DARK_BROWN, center=True)
         y += 22
         self._text(surf, f"Total interest: {total_interest:.2f}  |  Total payback: {total_payback:.2f}",
+                   cx, y, color=DARK_RED, center=True)
+        y += 22
+        self._text(surf, f"Effective yearly interest rate: {yearly_rate_pct:.1f}%",
                    cx, y, color=DARK_RED, center=True)
 
         # Confirm button
@@ -503,7 +517,8 @@ class RepayDialog(_BaseDialog):
                 # Repay button
                 if i < len(self.repay_btns):
                     btn_r = self.repay_btns[i].move(*off)
-                    can_repay = self.game_state.game.depot.money >= loan["amount"]
+                    remaining = loan.get("remaining_principal", loan.get("original_amount", loan.get("amount", 0.0)))
+                    can_repay = self.game_state.game.depot.money >= remaining
                     border_col = DARK_GREEN if can_repay else DARK_RED
                     pygame.draw.rect(surf, SANDY_BROWN, btn_r, border_radius=4)
                     pygame.draw.rect(surf, border_col, btn_r, 2, border_radius=4)

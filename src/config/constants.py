@@ -149,6 +149,7 @@ LOAN_EQUITY_RATIOS = [               # (wealth_threshold, equity_ratio) — dete
 LOAN_MAX_DURATION_DAYS = 90         # Maximum loan term in days
 LOAN_MIN_AMOUNT = 50                # Minimum loan amount
 LOAN_MIN_DAILY_PCT = 5              # Minimum % of principal repaid through daily installments
+LOAN_SETTLEMENT_RATE_PENALTY = 0.5  # Additional interest multiplier at maximum settlement (0 = no penalty, 0.5 = +50%)
 
 # DEBUGGING
 SHOW_MAP_DEBUG = True                 # Set to True to show FPS, position and zoom on map view
