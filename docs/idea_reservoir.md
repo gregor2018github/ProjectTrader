@@ -1,11 +1,9 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
 - Game saving and Loading
-    - add mini screenshots for each save file that show the current state of the city when saving, so that the player can easily find the right save file when loading
     - autosave feature
     - add an option to have more save slots, that also means a scroll mechanic for the save file selection screens
     - add a delete save file option
-    - collect playtime for each save file and show it in the save file selection screen
 
 - add a building mode
     - available via a main button at the right side of the screen
