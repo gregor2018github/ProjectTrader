@@ -10,8 +10,6 @@
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a well in the middle of the city as a decorative element
 - [ ] add a functionality to throw down a rock into the lake
-- [ ] add mini screenshots for each save file that show the current state of the city when saving, so that the player can easily find the right save file when loading
-
 - [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
@@ -45,6 +43,9 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] collect playtime for each save file and show it in the save file selection screen
+- [x] preview picture from save files can be hovered to load in full size
+- [x] add mini screenshots for each save file that show the current state of the city when saving, so that the player can easily find the right save file when loading
 - [x] bugfix: currently the player can take an unlimited amount of loans as long as each of them is smaller than 500, the actual idea was that the player is allowed to borrow up to 500 in total, so the sum of all active loans must not exceed 500 (that number will later exceed with player wealth, as already implemented)
 - [x] place the farm down (below the wheat field), more up will be the town including town walls
 - [x] take the nice house click design from the bank subwindows and apply it to the general house click menu (that will send you to the respective undermenus in all clickable buildings), on the other hand adjust the submenus for the bank

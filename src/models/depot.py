@@ -261,11 +261,12 @@ class Depot:
         current_sale_price = good.get_price()
         total_revenue = current_sale_price * quantity_to_sell
         
-        if self.money + total_revenue < self.transaction_cost:
+        net = total_revenue - self.transaction_cost
+        if net < 0 and self.money + net < 0:
             game_state.show_warning("Not enough money to cover transaction costs.")
             return False
 
-        self.money += (total_revenue - self.transaction_cost)
+        self.money += net
         self.good_stock[good.name] -= quantity_to_sell
         self.income += total_revenue
         self.expenditures += self.transaction_cost
