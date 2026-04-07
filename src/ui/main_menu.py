@@ -116,6 +116,7 @@ class MainMenu:
         self._slot_rects: List[pygame.Rect] = []
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._load_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._thumb_cache: dict = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -171,7 +172,7 @@ class MainMenu:
 
     def _build_slot_rects(self) -> None:
         # Panel geometry — wide enough to display all save info on one line
-        panel_w = 660
+        panel_w = 760
         panel_margin = 24
         slot_w = panel_w - 2 * panel_margin
         slot_h = 74
@@ -252,6 +253,25 @@ class MainMenu:
             pygame.draw.rect(self.screen, bg, rect, border_radius=4)
             pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
+            # Thumbnail (right side of slot)
+            _THUMB_W, _THUMB_H = 105, 64
+            thumb_surf = None
+            thumb_path = slot_info.get("thumbnail_path") if slot_info else None
+            if thumb_path and os.path.exists(thumb_path):
+                if i not in self._thumb_cache:
+                    try:
+                        raw = pygame.image.load(thumb_path).convert()
+                        self._thumb_cache[i] = pygame.transform.smoothscale(raw, (_THUMB_W, _THUMB_H))
+                    except Exception:
+                        self._thumb_cache[i] = None
+                thumb_surf = self._thumb_cache.get(i)
+            if thumb_surf is not None:
+                thumb_x = rect.right - _THUMB_W - 6
+                thumb_y = rect.centery - _THUMB_H // 2
+                self.screen.blit(thumb_surf, (thumb_x, thumb_y))
+                pygame.draw.rect(self.screen, DARK_BROWN,
+                                 pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H), 1)
+
             label_color = DARK_BROWN if slot_info else DARK_GRAY
             label_str = (slot_info.get("save_name") or f"Slot {i + 1}") if slot_info else f"Slot {i + 1}"
             label_surf = self.button_font.render(label_str, True, label_color)
@@ -275,6 +295,12 @@ class MainMenu:
                 info_surf = self.subtitle_font.render(info_str, True, DARK_BROWN)
             else:
                 info_surf = self.subtitle_font.render("Empty", True, DARK_GRAY)
+            text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
+            max_w = text_right - rect.left - 14
+            if info_surf.get_width() > max_w:
+                clip_surf = pygame.Surface((max_w, info_surf.get_height()), pygame.SRCALPHA)
+                clip_surf.blit(info_surf, (0, 0))
+                info_surf = clip_surf
             self.screen.blit(info_surf, (rect.left + 14, rect.bottom - 30))
 
         # Back button

@@ -78,9 +78,20 @@ class EventHandler:
                     elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
                         game_state.info_window = None
                     elif isinstance(choice, str) and choice.startswith("save_slot_"):
+                        import os
                         from ..persistence.save_manager import save_game as _save
+                        from ..config.constants import SAVES_PATH
                         slot = int(choice[-1])
                         save_name = getattr(game_state.info_window, "save_name", "")
+                        # Save thumbnail before writing the save file
+                        screenshot = getattr(game_state.info_window, "screenshot", None)
+                        if screenshot is not None:
+                            try:
+                                os.makedirs(SAVES_PATH, exist_ok=True)
+                                thumb = pygame.transform.smoothscale(screenshot, (384, 232))
+                                pygame.image.save(thumb, os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png"))
+                            except Exception:
+                                pass
                         try:
                             _save(slot, game_state, game_state.game.player,
                                   game_state.game.depot, game_state.game.goods,

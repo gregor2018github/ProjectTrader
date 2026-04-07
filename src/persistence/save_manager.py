@@ -219,12 +219,14 @@ def get_save_slots() -> List[Optional[Dict[str, Any]]]:
             with open(path, "rb") as f:
                 blob = f.read()
             data = _unpack(blob)
+            thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
             result.append({
                 "slot": slot,
                 "saved_at": data["saved_at"],
                 "game_date": data["game_state"]["date"],
                 "money": data["depot"]["money"],
                 "save_name": data.get("save_name", ""),
+                "thumbnail_path": thumb_path if os.path.exists(thumb_path) else None,
             })
         except Exception:
             result.append(None)

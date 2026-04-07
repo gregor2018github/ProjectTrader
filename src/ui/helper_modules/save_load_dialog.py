@@ -19,7 +19,7 @@ from ...persistence.save_manager import get_save_slots
 if TYPE_CHECKING:
     from ...game import Game
 
-_WINDOW_W = 580
+_WINDOW_W = 660
 _SLOT_H = 66
 _SLOT_SPACING = 10
 _SLOT_MARGIN_TOP = 96    # top padding (~30px) + title + divider gap
@@ -77,6 +77,7 @@ class _BaseSlotDialog:
         self.game = game
         self.title = title
         self.slots = get_save_slots()
+        self._thumb_cache: dict = {}
 
         # Title font — matches main menu "Load Game" heading
         try:
@@ -167,6 +168,27 @@ class _BaseSlotDialog:
         pygame.draw.rect(self.screen, bg, rect, border_radius=4)
         pygame.draw.rect(self.screen, border, rect, 2, border_radius=4)
 
+        # Thumbnail (right side of slot)
+        _THUMB_W, _THUMB_H = 92, 56
+        thumb_surf = None
+        thumb_path = slot_info.get("thumbnail_path") if slot_info else None
+        if thumb_path and os.path.exists(thumb_path):
+            if slot_index not in self._thumb_cache:
+                try:
+                    raw = pygame.image.load(thumb_path).convert()
+                    self._thumb_cache[slot_index] = pygame.transform.smoothscale(raw, (_THUMB_W, _THUMB_H))
+                except Exception:
+                    self._thumb_cache[slot_index] = None
+            thumb_surf = self._thumb_cache.get(slot_index)
+        if thumb_surf is not None:
+            thumb_x = rect.right - _THUMB_W - 6
+            thumb_y = rect.centery - _THUMB_H // 2
+            self.screen.blit(thumb_surf, (thumb_x, thumb_y))
+            pygame.draw.rect(self.screen, DARK_BROWN,
+                             pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H), 1)
+
+        text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
+
         label_color = DARK_BROWN if slot_info else DARK_GRAY
         label = (slot_info.get("save_name") or f"Slot {slot_index + 1}") if slot_info else f"Slot {slot_index + 1}"
         _draw_bold(self.screen, self.font, label, label_color, rect.left + 12, rect.top + 8)
@@ -183,6 +205,12 @@ class _BaseSlotDialog:
             info_str = "Empty"
             info_color = DARK_GRAY
         info_surf = small.render(info_str, True, info_color)
+        # Clip info text if it would overlap the thumbnail
+        max_w = text_right - rect.left - 12
+        if info_surf.get_width() > max_w:
+            clip_surf = pygame.Surface((max_w, info_surf.get_height()), pygame.SRCALPHA)
+            clip_surf.blit(info_surf, (0, 0))
+            info_surf = clip_surf
         self.screen.blit(info_surf, (rect.left + 12, rect.bottom - 24))
 
     def _draw_cancel(self, mouse_pos: Tuple[int, int]) -> None:
@@ -213,6 +241,8 @@ class SaveDialog(_BaseSlotDialog):
         self._selected_slot: Optional[int] = None
         self._name_text: str = ""
         self.save_name: str = ""        # read by event_handler after confirm
+        # Capture the game frame before the dialog is drawn (no dialog UI in screenshot)
+        self.screenshot: pygame.Surface = pygame.display.get_surface().copy()
 
         # Name-entry UI rects (relative to window_rect)
         input_top = self.window_rect.top + 200

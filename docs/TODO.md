@@ -10,6 +10,7 @@
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a well in the middle of the city as a decorative element
 - [ ] add a functionality to throw down a rock into the lake
+- [ ] add mini screenshots for each save file that show the current state of the city when saving, so that the player can easily find the right save file when loading
 
 - [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
@@ -37,7 +38,6 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] bugfix: currently the player can take an unlimited amount of loans as long as each of them is smaller than 500, the actual idea was that the player is allowed to borrow up to 500 in total, so the sum of all active loans must not exceed 500 (that number will later exceed with player wealth, as already implemented)
 - [ ] sometime the player does not have enough money to pay transaction cost but selling the goods would cover the cost of the transaction, then the transaction should still go through (currently it gets blocked)
 - [ ] church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
@@ -45,6 +45,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: currently the player can take an unlimited amount of loans as long as each of them is smaller than 500, the actual idea was that the player is allowed to borrow up to 500 in total, so the sum of all active loans must not exceed 500 (that number will later exceed with player wealth, as already implemented)
 - [x] place the farm down (below the wheat field), more up will be the town including town walls
 - [x] take the nice house click design from the bank subwindows and apply it to the general house click menu (that will send you to the respective undermenus in all clickable buildings), on the other hand adjust the submenus for the bank
 - [x] when the player wants to pay back more money at the end of the loan period (and less on a daily basis), their conditions must become worse (higher interest rates) 
