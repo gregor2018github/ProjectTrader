@@ -117,6 +117,10 @@ class MainMenu:
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._load_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._thumb_cache: dict = {}
+        self._preview_cache: dict = {}
+        self._hover_slot: Optional[int] = None
+        self._hover_start: int = 0
+        self._thumb_rects: dict = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -268,9 +272,12 @@ class MainMenu:
             if thumb_surf is not None:
                 thumb_x = rect.right - _THUMB_W - 6
                 thumb_y = rect.centery - _THUMB_H // 2
+                self._thumb_rects[i] = pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H)
                 self.screen.blit(thumb_surf, (thumb_x, thumb_y))
                 pygame.draw.rect(self.screen, DARK_BROWN,
                                  pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H), 1)
+            else:
+                self._thumb_rects.pop(i, None)
 
             label_color = DARK_BROWN if slot_info else DARK_GRAY
             label_str = (slot_info.get("save_name") or f"Slot {i + 1}") if slot_info else f"Slot {i + 1}"
@@ -309,6 +316,38 @@ class MainMenu:
         pygame.draw.rect(self.screen, DARK_BROWN, self._back_rect, 2, border_radius=4)
         back_surf = self.button_font.render("Back", True, DARK_BROWN)
         self.screen.blit(back_surf, back_surf.get_rect(center=self._back_rect.center))
+
+        # Hover preview — show full-res thumbnail after 0.5 s of hovering
+        hovering = None
+        for idx, thumb_rect in self._thumb_rects.items():
+            if thumb_rect.collidepoint(mouse_pos):
+                if self._hover_slot != idx:
+                    self._hover_slot = idx
+                    self._hover_start = pygame.time.get_ticks()
+                hovering = idx
+                break
+        if hovering is None:
+            self._hover_slot = None
+        if self._hover_slot is not None and pygame.time.get_ticks() - self._hover_start >= 500:
+            slot_info = self._slots[self._hover_slot]
+            thumb_path = slot_info.get("thumbnail_path") if slot_info else None
+            if thumb_path and os.path.exists(thumb_path):
+                if self._hover_slot not in self._preview_cache:
+                    try:
+                        self._preview_cache[self._hover_slot] = pygame.image.load(thumb_path).convert()
+                    except Exception:
+                        self._preview_cache[self._hover_slot] = None
+                preview = self._preview_cache.get(self._hover_slot)
+                if preview is not None:
+                    pw, ph = preview.get_size()
+                    px = self.screen.get_width() // 2 - pw // 2
+                    py = self.screen.get_height() // 2 - ph // 2
+                    pad = 6
+                    shadow = pygame.Surface((pw + pad * 2, ph + pad * 2), pygame.SRCALPHA)
+                    shadow.fill((0, 0, 0, 180))
+                    self.screen.blit(shadow, (px - pad, py - pad))
+                    self.screen.blit(preview, (px, py))
+                    pygame.draw.rect(self.screen, DARK_BROWN, pygame.Rect(px, py, pw, ph), 2)
 
         if self.cursor_img and pygame.mouse.get_focused():
             self.screen.blit(self.cursor_img, mouse_pos)

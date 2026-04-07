@@ -78,6 +78,10 @@ class _BaseSlotDialog:
         self.title = title
         self.slots = get_save_slots()
         self._thumb_cache: dict = {}
+        self._thumb_rects: dict = {}       # slot_index → Rect of drawn thumbnail
+        self._preview_cache: dict = {}     # slot_index → full-res Surface
+        self._hover_slot: Optional[int] = None
+        self._hover_start: int = 0
 
         # Title font — matches main menu "Load Game" heading
         try:
@@ -183,9 +187,12 @@ class _BaseSlotDialog:
         if thumb_surf is not None:
             thumb_x = rect.right - _THUMB_W - 6
             thumb_y = rect.centery - _THUMB_H // 2
+            self._thumb_rects[slot_index] = pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H)
             self.screen.blit(thumb_surf, (thumb_x, thumb_y))
             pygame.draw.rect(self.screen, DARK_BROWN,
                              pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H), 1)
+        else:
+            self._thumb_rects.pop(slot_index, None)
 
         text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
 
@@ -212,6 +219,46 @@ class _BaseSlotDialog:
             clip_surf.blit(info_surf, (0, 0))
             info_surf = clip_surf
         self.screen.blit(info_surf, (rect.left + 12, rect.bottom - 24))
+
+    def _check_hover(self, mouse_pos: Tuple[int, int]) -> None:
+        """Track which thumbnail the mouse is hovering over and when it started."""
+        for idx, thumb_rect in self._thumb_rects.items():
+            if thumb_rect.collidepoint(mouse_pos):
+                if self._hover_slot != idx:
+                    self._hover_slot = idx
+                    self._hover_start = pygame.time.get_ticks()
+                return
+        self._hover_slot = None
+
+    def _draw_preview(self) -> None:
+        """If a thumbnail has been hovered for ≥0.5 s, show it at full saved resolution."""
+        if self._hover_slot is None:
+            return
+        if pygame.time.get_ticks() - self._hover_start < 500:
+            return
+        slot_info = self.slots[self._hover_slot]
+        if not slot_info:
+            return
+        thumb_path = slot_info.get("thumbnail_path")
+        if not thumb_path or not os.path.exists(thumb_path):
+            return
+        if self._hover_slot not in self._preview_cache:
+            try:
+                self._preview_cache[self._hover_slot] = pygame.image.load(thumb_path).convert()
+            except Exception:
+                self._preview_cache[self._hover_slot] = None
+        preview = self._preview_cache.get(self._hover_slot)
+        if preview is None:
+            return
+        pw, ph = preview.get_size()
+        px = self.screen.get_width() // 2 - pw // 2
+        py = self.screen.get_height() // 2 - ph // 2
+        pad = 6
+        shadow = pygame.Surface((pw + pad * 2, ph + pad * 2), pygame.SRCALPHA)
+        shadow.fill((0, 0, 0, 180))
+        self.screen.blit(shadow, (px - pad, py - pad))
+        self.screen.blit(preview, (px, py))
+        pygame.draw.rect(self.screen, DARK_BROWN, pygame.Rect(px, py, pw, ph), 2)
 
     def _draw_cancel(self, mouse_pos: Tuple[int, int]) -> None:
         hovered = self.cancel_rect.collidepoint(mouse_pos)
@@ -273,6 +320,8 @@ class SaveDialog(_BaseSlotDialog):
             for i, rect in enumerate(self.slot_rects):
                 self._draw_slot(rect, i, self.slots[i], clickable=True, mouse_pos=mouse_pos)
             self._draw_cancel(mouse_pos)
+            self._check_hover(mouse_pos)
+            self._draw_preview()
         else:
             self._draw_name_entry(mouse_pos)
 
@@ -384,6 +433,8 @@ class LoadDialog(_BaseSlotDialog):
             clickable = self.slots[i] is not None
             self._draw_slot(rect, i, self.slots[i], clickable=clickable, mouse_pos=mouse_pos)
         self._draw_cancel(mouse_pos)
+        self._check_hover(mouse_pos)
+        self._draw_preview()
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
         if self.cancel_rect.collidepoint(pos):

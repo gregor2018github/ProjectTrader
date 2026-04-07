@@ -88,7 +88,7 @@ class EventHandler:
                         if screenshot is not None:
                             try:
                                 os.makedirs(SAVES_PATH, exist_ok=True)
-                                thumb = pygame.transform.smoothscale(screenshot, (384, 232))
+                                thumb = pygame.transform.smoothscale(screenshot, (576, 348))
                                 pygame.image.save(thumb, os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png"))
                             except Exception:
                                 pass
