@@ -75,6 +75,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
         "save_name": save_name,
+        "playtime_seconds": getattr(game_state, "playtime_seconds", 0.0),
         "game_state": {
             "date": _dt_to_str(game_state.date),
             "time_level": game_state.time_level,
@@ -220,11 +221,14 @@ def get_save_slots() -> List[Optional[Dict[str, Any]]]:
                 blob = f.read()
             data = _unpack(blob)
             thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
+            wealth_history = data["depot"].get("wealth", [])
             result.append({
                 "slot": slot,
                 "saved_at": data["saved_at"],
                 "game_date": data["game_state"]["date"],
                 "money": data["depot"]["money"],
+                "wealth": wealth_history[-1] if wealth_history else data["depot"]["money"],
+                "playtime_seconds": data.get("playtime_seconds", 0.0),
                 "save_name": data.get("save_name", ""),
                 "thumbnail_path": thumb_path if os.path.exists(thumb_path) else None,
             })
@@ -242,6 +246,8 @@ def delete_save(slot: int) -> None:
 
 def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
     """Apply a loaded save dict to the live game objects in-place."""
+    game_state.playtime_seconds = data.get("playtime_seconds", 0.0)
+
     gs = data["game_state"]
     game_state.date = _str_to_dt(gs["date"])
     game_state.time_level = gs["time_level"]

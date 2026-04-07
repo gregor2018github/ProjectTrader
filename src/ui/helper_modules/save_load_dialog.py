@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from ...game import Game
 
 _WINDOW_W = 660
-_SLOT_H = 66
+_SLOT_H = 90
 _SLOT_SPACING = 10
 _SLOT_MARGIN_TOP = 96    # top padding (~30px) + title + divider gap
 _SLOT_TO_CANCEL_GAP = 14 # space between last slot and cancel button
@@ -201,24 +201,29 @@ class _BaseSlotDialog:
         _draw_bold(self.screen, self.font, label, label_color, rect.left + 12, rect.top + 8)
 
         small = getattr(self.game, "small_font", self.font)
-        if slot_info:
-            info_str = (
-                f"{_format_game_date(slot_info['game_date'])}"
-                f"   |   {slot_info['money']:.1f} Gold"
-                f"   |   Saved {_format_saved_at(slot_info['saved_at'])}"
-            )
-            info_color = BLACK
-        else:
-            info_str = "Empty"
-            info_color = DARK_GRAY
-        info_surf = small.render(info_str, True, info_color)
-        # Clip info text if it would overlap the thumbnail
         max_w = text_right - rect.left - 12
-        if info_surf.get_width() > max_w:
-            clip_surf = pygame.Surface((max_w, info_surf.get_height()), pygame.SRCALPHA)
-            clip_surf.blit(info_surf, (0, 0))
-            info_surf = clip_surf
-        self.screen.blit(info_surf, (rect.left + 12, rect.bottom - 24))
+
+        def _blit_row(text: str, color: tuple, y: int) -> None:
+            surf = small.render(text, True, color)
+            if surf.get_width() > max_w:
+                clip = pygame.Surface((max_w, surf.get_height()), pygame.SRCALPHA)
+                clip.blit(surf, (0, 0))
+                surf = clip
+            self.screen.blit(surf, (rect.left + 12, y))
+
+        if slot_info:
+            ps = slot_info.get("playtime_seconds", 0.0)
+            h, m = int(ps) // 3600, (int(ps) % 3600) // 60
+            row2 = (
+                f"{_format_game_date(slot_info['game_date'])}"
+                f"   |   {slot_info.get('wealth', slot_info['money']):.1f} G wealth"
+                f"   |   {slot_info['money']:.1f} G cash"
+            )
+            row3 = f"{h:02d}h {m:02d}m played   |   Saved {_format_saved_at(slot_info['saved_at'])}"
+            _blit_row(row2, BLACK, rect.top + 34)
+            _blit_row(row3, BLACK, rect.top + 58)
+        else:
+            _blit_row("Empty", DARK_GRAY, rect.top + 34)
 
     def _check_hover(self, mouse_pos: Tuple[int, int]) -> None:
         """Track which thumbnail the mouse is hovering over and when it started."""

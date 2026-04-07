@@ -344,6 +344,7 @@ class Game:
 
                 # Limit to X frames per second
                 delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
+                self.state.playtime_seconds += delta_time
                 current_time = pygame.time.get_ticks()
 
                 # Keep SDL input state updated before render-time input reads.

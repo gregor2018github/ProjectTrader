@@ -179,7 +179,7 @@ class MainMenu:
         panel_w = 760
         panel_margin = 24
         slot_w = panel_w - 2 * panel_margin
-        slot_h = 74
+        slot_h = 90
         slot_spacing = 12
         top_pad = 22
         title_h = 54       # approximate rendered height of title_font at 52pt
@@ -282,7 +282,18 @@ class MainMenu:
             label_color = DARK_BROWN if slot_info else DARK_GRAY
             label_str = (slot_info.get("save_name") or f"Slot {i + 1}") if slot_info else f"Slot {i + 1}"
             label_surf = self.button_font.render(label_str, True, label_color)
-            self.screen.blit(label_surf, (rect.left + 14, rect.top + 10))
+            self.screen.blit(label_surf, (rect.left + 14, rect.top + 8))
+
+            text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
+            max_w = text_right - rect.left - 14
+
+            def _blit_row(text: str, color: tuple, y: int) -> None:
+                surf = self.subtitle_font.render(text, True, color)
+                if surf.get_width() > max_w:
+                    clip = pygame.Surface((max_w, surf.get_height()), pygame.SRCALPHA)
+                    clip.blit(surf, (0, 0))
+                    surf = clip
+                self.screen.blit(surf, (rect.left + 14, y))
 
             if slot_info:
                 try:
@@ -295,20 +306,18 @@ class MainMenu:
                     saved_str = sd.strftime("%Y-%m-%d %H:%M")
                 except Exception:
                     saved_str = slot_info["saved_at"]
-                info_str = (
-                    f"{game_date_str}   |   {slot_info['money']:.1f} Gold"
-                    f"   |   Saved {saved_str}"
+                ps = slot_info.get("playtime_seconds", 0.0)
+                h, m = int(ps) // 3600, (int(ps) % 3600) // 60
+                row2 = (
+                    f"{game_date_str}"
+                    f"   |   {slot_info.get('wealth', slot_info['money']):.1f} G wealth"
+                    f"   |   {slot_info['money']:.1f} G cash"
                 )
-                info_surf = self.subtitle_font.render(info_str, True, DARK_BROWN)
+                row3 = f"{h:02d}h {m:02d}m played   |   Saved {saved_str}"
+                _blit_row(row2, DARK_BROWN, rect.top + 34)
+                _blit_row(row3, DARK_BROWN, rect.top + 58)
             else:
-                info_surf = self.subtitle_font.render("Empty", True, DARK_GRAY)
-            text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
-            max_w = text_right - rect.left - 14
-            if info_surf.get_width() > max_w:
-                clip_surf = pygame.Surface((max_w, info_surf.get_height()), pygame.SRCALPHA)
-                clip_surf.blit(info_surf, (0, 0))
-                info_surf = clip_surf
-            self.screen.blit(info_surf, (rect.left + 14, rect.bottom - 30))
+                _blit_row("Empty", DARK_GRAY, rect.top + 34)
 
         # Back button
         hovered = self._back_rect.collidepoint(mouse_pos)

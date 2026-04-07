@@ -132,6 +132,7 @@ class GameState:
         
         self.detail_panel: Optional['DepotViewDetail'] = None
         self.small_font: Optional[pygame.font.Font] = None # Will be set by Game class
+        self.playtime_seconds: float = 0.0
         self.depot_scroll_offset: int = 0
         self.depot_plus_buttons: Dict[str, Tuple[int, int, int, int]] = {}
         self.depot_plus_rects: Dict[str, pygame.Rect] = {}
