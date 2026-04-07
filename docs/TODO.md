@@ -2,7 +2,6 @@
 
 ## High Priority
 - [ ] add an eating animation for the sheep
-- [ ] place the farm down (below the wheat field), more up will be the town including town walls
 - [ ] add wooden fences and a big old tree for the sheep
 
 ## Medium Priority
@@ -46,6 +45,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] place the farm down (below the wheat field), more up will be the town including town walls
 - [x] take the nice house click design from the bank subwindows and apply it to the general house click menu (that will send you to the respective undermenus in all clickable buildings), on the other hand adjust the submenus for the bank
 - [x] when the player wants to pay back more money at the end of the loan period (and less on a daily basis), their conditions must become worse (higher interest rates) 
 - [x] in the expenditure overview, there should be a difference between loan expenses and expenses due to a negative balance (as the latter have worse conditions)

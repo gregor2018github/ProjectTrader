@@ -36,11 +36,11 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - Mining mini game at the mine
 
 - Buildings
+    - town walls with gates and towers
     - blacksmith
     - bakery
     - cobbler
     - uncles' trading shop
-    - more houses
     - medium warehouse
     - forester's shop
     - seeside fisherman's shop
@@ -49,9 +49,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - large warehouse
     - graveyard next to the church
     - guild hall
-    - bank
     - bakery
-    - mill
     - butcher
     - more regular houses
 
