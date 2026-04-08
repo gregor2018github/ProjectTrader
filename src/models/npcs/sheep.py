@@ -5,12 +5,17 @@ import random
 import pygame
 from typing import Dict
 
-SHEEP_SPEED = 40.0       # pixels per second at base tile_size=32
+SHEEP_SPEED = 40.0          # pixels per second at base tile_size=32
 STOP_CHANCE_PER_SEC = 0.15  # probability per second to stop mid-walk
-STOP_MIN_DURATION = 10.0  # seconds
-STOP_MAX_DURATION = 20.0  # seconds
-SOUND_MIN_INTERVAL = 15.0  # minimum seconds between sheep sounds
-SOUND_MAX_INTERVAL = 35.0  # maximum seconds between sheep sounds
+STOP_MIN_DURATION = 10.0    # seconds
+STOP_MAX_DURATION = 20.0    # seconds
+SOUND_MIN_INTERVAL = 15.0   # minimum seconds between sheep sounds
+SOUND_MAX_INTERVAL = 35.0   # maximum seconds between sheep sounds
+EAT_CHANCE_PER_STOP = 0.35  # probability to start eating when a rest stop begins
+EAT_MIN_DURATION = 3.0      # minimum eating duration in seconds
+EAT_MAX_DURATION = 8.0      # maximum eating duration in seconds
+EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat2)
+EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 
 
 class Sheep:
@@ -72,6 +77,35 @@ class Sheep:
         self.sprite: pygame.Surface = self.animator.get_current_frame()
         self.source_sprite: pygame.Surface = self.animator.get_current_source_frame()
         self.sprite_height: int = self.sprite.get_height()
+
+        # Load eating frames (eat1, eat2) for left and right directions
+        self.eat_source_frames: Dict[str, list] = {}
+        self.eat_frames: Dict[str, list] = {}
+        for dir_name in ("left", "right"):
+            sources = []
+            scaled_list = []
+            for i in (1, 2):
+                filename = f"sheep_{dir_name}_eat{i}.png"
+                path = os.path.join(sprite_dir, filename)
+                try:
+                    src = pygame.image.load(path).convert_alpha()
+                except Exception:
+                    src = None
+                sources.append(src)
+                if src is not None:
+                    ratio = self.sprite_width / src.get_width()
+                    h = max(1, int(round(src.get_height() * ratio)))
+                    scaled_list.append(pygame.transform.smoothscale(src, (self.sprite_width, h)))
+                else:
+                    scaled_list.append(self.animator.fallback_scaled)
+            self.eat_source_frames[dir_name] = sources
+            self.eat_frames[dir_name] = scaled_list
+
+        # Eating state
+        self.eating: bool = False
+        self.eat_timer: float = 0.0
+        self.eat_frame_index: int = 0
+        self.eat_frame_timer: float = 0.0
 
         # Collision box: 1 tile wide, 0.5 tile tall
         self.collision_width: int = tile_size
@@ -159,6 +193,7 @@ class Sheep:
                 if player_rect is not None and self._would_collide_with_player(new_x, player_rect):
                     self.is_moving = False
                     self.is_blocked = True
+                    self.eating = False
                 else:
                     self.x = new_x
         else:
@@ -172,17 +207,43 @@ class Sheep:
                 if player_rect is None or not self._would_collide_with_player(test_x, player_rect):
                     self.is_blocked = False
                     self.is_moving = True
+            elif self.eating:
+                # Animate eating frames
+                self.eat_frame_timer += dt
+                current_duration = EAT_FRAME_DURATIONS[self.eat_frame_index]
+                if self.eat_frame_timer >= current_duration:
+                    self.eat_frame_timer -= current_duration
+                    self.eat_frame_index = (self.eat_frame_index + 1) % 2
+                # Count down eating duration
+                self.eat_timer -= dt
+                if self.eat_timer <= 0.0:
+                    # Return to static pose briefly before walking again
+                    self.eating = False
+                    self.stop_timer = EAT_RETURN_PAUSE
             else:
                 self.stop_timer -= dt
                 if self.stop_timer <= 0.0:
-                    self.is_moving = True
-                    # Occasionally flip direction when resuming
-                    if random.random() < 0.3:
-                        self.direction = "left" if self.direction == "right" else "right"
+                    if random.random() < EAT_CHANCE_PER_STOP:
+                        # Start eating
+                        self.eating = True
+                        self.eat_timer = random.uniform(EAT_MIN_DURATION, EAT_MAX_DURATION)
+                        self.eat_frame_index = 0
+                        self.eat_frame_timer = 0.0
+                    else:
+                        self.is_moving = True
+                        # Occasionally flip direction when resuming
+                        if random.random() < 0.3:
+                            self.direction = "left" if self.direction == "right" else "right"
 
         self.animator.update(dt, self.direction, self.is_moving)
-        self.sprite = self.animator.get_current_frame()
-        self.source_sprite = self.animator.get_current_source_frame()
+        if self.eating:
+            eat_dir = self.direction if self.direction in self.eat_frames else "right"
+            self.sprite = self.eat_frames[eat_dir][self.eat_frame_index]
+            src = self.eat_source_frames[eat_dir][self.eat_frame_index]
+            self.source_sprite = src if src is not None else self.sprite
+        else:
+            self.sprite = self.animator.get_current_frame()
+            self.source_sprite = self.animator.get_current_source_frame()
 
         # Sound trigger — game.py reads wants_sound and plays the actual audio
         self.wants_sound = False
