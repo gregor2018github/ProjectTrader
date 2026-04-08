@@ -42,9 +42,11 @@ class ContractView:
         self.contract_cost = contract_cost
         
         # Determine file names based on contract type
-        contract_file = f"License_{contract_type}.txt"
-        image_file = f"{contract_type.lower()}.png"
-        extra_file = f"License_{contract_type}_Bottom.txt"
+        # "Hide" is stored internally as "Hide" but its text assets use "Hides"
+        file_type = "Hides" if contract_type == "Hide" else contract_type
+        contract_file = f"License_{file_type}.txt"
+        image_file = f"{file_type.lower()}.png"
+        extra_file = f"License_{file_type}_Bottom.txt"
 
         # Load Fonts
         try:

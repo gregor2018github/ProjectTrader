@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add an eating animation for the sheep
 - [ ] add wooden fences and a big old tree for the sheep
 
 ## Medium Priority
@@ -19,6 +18,7 @@
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
 ## Planned Features
+- [ ] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for buying and selling goods at the market
@@ -42,6 +42,8 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when getting the contract for hides there is a bug and the game cannot retrieve the contract text, probably a naming issue
+- [x] add an eating animation for the sheep
 - [x] bugfix: sometime the player does not have enough money to pay transaction cost but selling the goods would cover the cost of the transaction, then the transaction should still go through (currently it gets blocked)
 - [x] collect playtime for each save file and show it in the save file selection screen
 - [x] preview picture from save files can be hovered to load in full size
