@@ -1,3 +1,4 @@
+import math
 import pygame
 import datetime
 from typing import TYPE_CHECKING, Optional, List
@@ -122,19 +123,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             pygame.draw.lines(screen, color, False, points, line_width)
 
         # Draw horizontal orientation lines
-        # Determine a nice step size based on max value
-        if max_val < 10:
-            step = 2
-        elif max_val < 50:
-            step = 10
-        elif max_val < 200:
-            step = 50
-        elif max_val < 1000:
-            step = 100
-        elif max_val < 5000:
-            step = 500
-        else:
-            step = 1000
+        step = _nice_grid_step(y_range)
 
         # Draw lines at step increments
         # Start at the first multiple of step >= y_min_scale
@@ -322,12 +311,14 @@ def _draw_population_stacked_bars(
         max_total = 1
     y_max_scale = max_total * 1.1
     inner_h = chart_rect.height - margin * 2
+    bar_bottom = chart_rect.bottom - margin
+
+    _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
 
     mouse_pos = pygame.mouse.get_pos()
     hover_info = None      # (group_name, val, bar_total, data_idx)
     hover_seg_rect = None  # rect of the hovered segment for outline
     hover_bar_info = None  # (total_px_h, bar_total) for horizontal line
-    bar_bottom = chart_rect.bottom - margin
 
     for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
         bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
@@ -417,12 +408,14 @@ def _draw_stock_stacked_bars(
         max_total = 1
     y_max_scale = max_total * 1.1
     inner_h = chart_rect.height - margin * 2
+    bar_bottom = chart_rect.bottom - margin
+
+    _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
 
     mouse_pos = pygame.mouse.get_pos()
     hover_info = None      # (good_name, val, bar_total, data_idx)
     hover_seg_rect = None  # rect of the hovered segment for outline
     hover_bar_info = None  # (total_px_h, bar_total) for horizontal line
-    bar_bottom = chart_rect.bottom - margin
 
     for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
         bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
@@ -477,6 +470,44 @@ def _draw_stock_stacked_bars(
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Good", good_name, val, pct, bar_total)
+
+
+def _draw_bar_chart_grid(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    chart_rect: pygame.Rect,
+    bar_bottom: int,
+    inner_h: int,
+    y_max_scale: float,
+) -> None:
+    """Draw horizontal grid lines behind a stacked bar chart."""
+    step = _nice_grid_step(y_max_scale)
+
+    current_line = step
+    while current_line < y_max_scale:
+        line_y = bar_bottom - round(current_line / y_max_scale * inner_h)
+        pygame.draw.line(screen, CHART_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        label = font.render(f"{int(current_line):,}", True, CHART_BROWN)
+        screen.blit(label, (chart_rect.left + 5, line_y - 12))
+        current_line += step
+
+
+def _nice_grid_step(value_range: float, target_lines: int = 5) -> int:
+    """Return a round step size that produces roughly target_lines grid lines."""
+    if value_range <= 0:
+        return 1
+    raw = value_range / target_lines
+    magnitude = 10 ** math.floor(math.log10(raw))
+    residual = raw / magnitude
+    if residual < 1.5:
+        nice = 1
+    elif residual < 3.5:
+        nice = 2
+    elif residual < 7.5:
+        nice = 5
+    else:
+        nice = 10
+    return max(1, int(round(nice * magnitude)))
 
 
 def _draw_stacked_bar_tooltip(
