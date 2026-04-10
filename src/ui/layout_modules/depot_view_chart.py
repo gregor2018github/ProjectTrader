@@ -144,12 +144,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
 
             current_line += step
 
-        # Draw min/max labels
-        max_label = font.render(f"{max_val:,.1f}", True, DARK_BROWN)
-        min_label = font.render(f"{min_val:,.1f}", True, DARK_BROWN)
-
-        screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
-        screen.blit(min_label, (chart_rect.left + 5, chart_rect.bottom - 25))
+        _draw_bar_stat_box(screen, font, chart_rect, max_val, min_val)
 
         # Draw Title
         title_surf = font.render(f"{label} History", True, DARK_BROWN)
@@ -307,6 +302,10 @@ def _draw_population_stacked_bars(
         sum(history[g][i] for g in valid_groups)
         for i in range(start_idx, min_len)
     )
+    min_total = min(
+        sum(history[g][i] for g in valid_groups)
+        for i in range(start_idx, min_len)
+    )
     if max_total == 0:
         max_total = 1
     y_max_scale = max_total * 1.1
@@ -356,9 +355,7 @@ def _draw_population_stacked_bars(
         val_surf = font.render(f"{hb_total:,}", True, DARK_BROWN)
         screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
 
-    # Y-axis scale label
-    max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
-    screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
+    _draw_bar_stat_box(screen, font, chart_rect, max_total, min_total)
 
     # Title
     title_surf = font.render("Population History", True, DARK_BROWN)
@@ -401,6 +398,10 @@ def _draw_stock_stacked_bars(
     start_idx = max(0, min_len - max_bars)
 
     max_total = max(
+        sum(history[g.name][i] for g in valid_goods)
+        for i in range(start_idx, min_len)
+    )
+    min_total = min(
         sum(history[g.name][i] for g in valid_goods)
         for i in range(start_idx, min_len)
     )
@@ -453,9 +454,7 @@ def _draw_stock_stacked_bars(
         val_surf = font.render(f"{hb_total:,}", True, DARK_BROWN)
         screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
 
-    # Y-axis max label
-    max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
-    screen.blit(max_label, (chart_rect.left + 5, chart_rect.top + 5))
+    _draw_bar_stat_box(screen, font, chart_rect, max_total, min_total)
 
     # Title
     title_surf = font.render("Stock History", True, DARK_BROWN)
@@ -490,6 +489,37 @@ def _draw_bar_chart_grid(
         label = font.render(f"{int(current_line):,}", True, CHART_BROWN)
         screen.blit(label, (chart_rect.left + 5, line_y - 12))
         current_line += step
+
+
+def _draw_bar_stat_box(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    chart_rect: pygame.Rect,
+    max_val: float,
+    min_val: float,
+) -> None:
+    """Draw a small Max/Min info box in the top-right of the chart."""
+    lines = [
+        ("Max:", f"{max_val:,.0f}"),
+        ("Min:", f"{min_val:,.0f}"),
+    ]
+    padding_x, padding_y, line_spacing, col_gap = 5, 4, 2, 6
+    rendered = [(font.render(lbl, True, CHART_BROWN), font.render(val, True, DARK_BROWN))
+                for lbl, val in lines]
+    label_w = max(s.get_width() for s, _ in rendered)
+    value_w = max(s.get_width() for _, s in rendered)
+    line_h = rendered[0][0].get_height()
+    box_w = padding_x * 2 + label_w + col_gap + value_w
+    box_h = padding_y * 2 + len(lines) * line_h + (len(lines) - 1) * line_spacing
+    box_x = chart_rect.right - box_w - 4
+    box_y = chart_rect.top + 4
+    box_rect = pygame.Rect(box_x, box_y, box_w, box_h)
+    pygame.draw.rect(screen, SANDY_BROWN, box_rect)
+    pygame.draw.rect(screen, CHART_BROWN, box_rect, 1)
+    for i, (lbl_surf, val_surf) in enumerate(rendered):
+        y = box_y + padding_y + i * (line_h + line_spacing)
+        screen.blit(lbl_surf, (box_x + padding_x, y))
+        screen.blit(val_surf, (box_x + padding_x + label_w + col_gap, y))
 
 
 def _nice_grid_step(value_range: float, target_lines: int = 5) -> int:
