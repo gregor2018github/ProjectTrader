@@ -75,16 +75,28 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         _draw_stock_stacked_bars(screen, chart_rect, font, depot, goods, game_state.date)
     elif len(data_points) > 1:
         # Determine scaling
-        # We show a maximum of X points, similar to market chart, or adjust to fit
-        # For now, let's limit to the last N points that fit (e.g., width of chart)
         max_points = chart_rect.width
         visible_data = data_points[-int(max_points):]
 
         if not visible_data:
             visible_data = [0]
 
+        # For Money chart, also fetch aligned loan history
+        visible_loan_data = []
+        if active_chart == "Money" and len(depot.loan_history) > 1:
+            raw_loans = depot.loan_history[-int(max_points):]
+            # Align to same length as visible_data
+            if len(raw_loans) >= len(visible_data):
+                visible_loan_data = raw_loans[-len(visible_data):]
+            else:
+                visible_loan_data = [0.0] * (len(visible_data) - len(raw_loans)) + list(raw_loans)
+
+        has_loans = bool(visible_loan_data) and any(v > 0 for v in visible_loan_data)
+
         min_val = min(visible_data)
         max_val = max(visible_data)
+        if has_loans:
+            max_val = max(max_val, max(visible_loan_data))
 
         # Add some padding to Y-axis
         range_val = max_val - min_val
@@ -116,11 +128,26 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             points.append((x, y))
 
         # Draw lines
+        loan_points = []
         if len(points) > 1:
             mouse_pos_early = pygame.mouse.get_pos()
             is_hovering = chart_rect.collidepoint(mouse_pos_early) and active_chart in ("Wealth", "Money", "Happiness")
             line_width = 3 if is_hovering else 2
             pygame.draw.lines(screen, color, False, points, line_width)
+
+            # Draw loan line for Money chart
+            if has_loans:
+                loan_color = DARK_RED
+                for i, val in enumerate(visible_loan_data):
+                    x = chart_rect.left + margin + (i * point_width)
+                    if y_range != 0:
+                        normalized_val = (val - y_min_scale) / y_range
+                        y = (chart_rect.bottom - margin) - (normalized_val * inner_height)
+                    else:
+                        y = chart_rect.bottom - margin - (0.5 * inner_height)
+                    loan_points.append((x, y))
+                if len(loan_points) > 1:
+                    pygame.draw.lines(screen, loan_color, False, loan_points, line_width)
 
         # Draw horizontal orientation lines
         step = _nice_grid_step(y_range)
@@ -153,6 +180,17 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         underline_y = title_rect.bottom + 2
         pygame.draw.line(screen, DARK_BROWN, (title_rect.left, underline_y), (title_rect.right, underline_y), 1)
 
+        # Legend for Money chart when loans are visible
+        if has_loans:
+            legend_items = [(color, "Cash"), (DARK_RED, "Loans")]
+            lx, ly = chart_rect.left + 6, chart_rect.top + 6
+            seg_len = 18
+            for leg_color, leg_label in legend_items:
+                pygame.draw.line(screen, leg_color, (lx, ly + 5), (lx + seg_len, ly + 5), 2)
+                lbl = font.render(leg_label, True, DARK_BROWN)
+                screen.blit(lbl, (lx + seg_len + 4, ly))
+                ly += lbl.get_height() + 3
+
         # Line chart hover tooltips
         mouse_pos = pygame.mouse.get_pos()
         if chart_rect.collidepoint(mouse_pos) and active_chart in ("Wealth", "Money", "Happiness"):
@@ -165,10 +203,15 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             # Draw vertical line at the hovered data point
             vx = int(points[vis_idx][0])
             pygame.draw.line(screen, CHART_BROWN, (vx, chart_rect.top + 1), (vx, chart_rect.bottom - 2), 1)
-            # Draw dot at intersection
+            # Draw dot on main line
             dot_pos = (int(points[vis_idx][0]), int(points[vis_idx][1]))
             pygame.draw.circle(screen, color, dot_pos, 4)
             pygame.draw.circle(screen, DARK_BROWN, dot_pos, 4, 1)
+            # Draw dot on loan line if visible
+            if has_loans and vis_idx < len(loan_points):
+                loan_dot = (int(loan_points[vis_idx][0]), int(loan_points[vis_idx][1]))
+                pygame.draw.circle(screen, DARK_RED, loan_dot, 4)
+                pygame.draw.circle(screen, DARK_BROWN, loan_dot, 4, 1)
 
             if active_chart == "Wealth":
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")

@@ -129,16 +129,17 @@ class DepotViewDetail:
             
         # Cache "Current Wealth" statistics
         self.cached_stats["Current Wealth"] = []
-        
+
+        outstanding_loans = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
+        total_wealth = depot.money + total_goods_value - outstanding_loans
+
         # Add summary totals at the top
-        total_wealth = depot.money + total_goods_value
         self.cached_stats["Current Wealth"].append(f"Total: {total_wealth:,.2f}")
         self.cached_stats["Current Wealth"].append("__SEPARATOR__")
         self.cached_stats["Current Wealth"].append(f"Money: {depot.money:,.2f}")
         self.cached_stats["Current Wealth"].append(f"Goods: {total_goods_value:,.2f}")
-        # place holders for future statistics
         self.cached_stats["Current Wealth"].append("Property: 0.00")
-        self.cached_stats["Current Wealth"].append("Loans: 0.00")
+        self.cached_stats["Current Wealth"].append(f"Loans: -{outstanding_loans:,.2f}" if outstanding_loans > 0 else "Loans: 0.00")
         self.cached_stats["Current Wealth"].append("__SEPARATOR__")
         # empty line
         self.cached_stats["Current Wealth"].append("")
@@ -265,14 +266,19 @@ class DepotViewDetail:
             price = start_prices[good_name]
             start_goods_value += qty * price
         
+        # Look up outstanding loan balance at start of period from history
+        if period_days is not None and len(depot.loan_history) > period_days:
+            start_loans = depot.loan_history[-(period_days + 1)]
+        else:
+            start_loans = depot.loan_history[0] if depot.loan_history else 0.0
+
         # Add calculated stats to cache
         self.cached_stats["Wealth Start"].append(f"Total: {start_wealth:,.2f}")
         self.cached_stats["Wealth Start"].append("__SEPARATOR__")
         self.cached_stats["Wealth Start"].append(f"Money: {start_money:,.2f}")
         self.cached_stats["Wealth Start"].append(f"Goods: {start_goods_value:,.2f}")
-        # place holders for future statistics
         self.cached_stats["Wealth Start"].append("Property: 0.00")
-        self.cached_stats["Wealth Start"].append("Loans: 0.00")
+        self.cached_stats["Wealth Start"].append(f"Loans: -{start_loans:,.2f}" if start_loans > 0 else "Loans: 0.00")
         self.cached_stats["Wealth Start"].append("__SEPARATOR__")
         self.cached_stats["Wealth Start"].append("")
         
