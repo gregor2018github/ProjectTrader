@@ -53,7 +53,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         color = DARK_GREEN
     elif active_chart == "Money":
         data_points = depot.money_history
-        color = GOLD
+        color = MATTE_BROWN
     elif active_chart == "Stock":
         data_points = depot.total_stock
         color = DARK_BLUE
@@ -116,7 +116,10 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
 
         # Draw lines
         if len(points) > 1:
-            pygame.draw.lines(screen, color, False, points, 2)
+            mouse_pos_early = pygame.mouse.get_pos()
+            is_hovering = chart_rect.collidepoint(mouse_pos_early) and active_chart in ("Wealth", "Money", "Happiness")
+            line_width = 3 if is_hovering else 2
+            pygame.draw.lines(screen, color, False, points, line_width)
 
         # Draw horizontal orientation lines
         # Determine a nice step size based on max value
@@ -161,11 +164,10 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
 
         # Draw Title
         title_surf = font.render(f"{label} History", True, DARK_BROWN)
-        title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 10))
-        # Draw background for title to make it readable
-        bg_rect = title_rect.inflate(10, 4)
-        pygame.draw.rect(screen, (255, 255, 255, 180), bg_rect)
+        title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
         screen.blit(title_surf, title_rect)
+        underline_y = title_rect.bottom + 2
+        pygame.draw.line(screen, DARK_BROWN, (title_rect.left, underline_y), (title_rect.right, underline_y), 1)
 
         # Line chart hover tooltips
         mouse_pos = pygame.mouse.get_pos()
@@ -175,6 +177,14 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             start_idx = len(data_points) - len(visible_data)
             actual_idx = start_idx + vis_idx
             entries_ago = len(data_points) - 1 - actual_idx
+
+            # Draw vertical line at the hovered data point
+            vx = int(points[vis_idx][0])
+            pygame.draw.line(screen, CHART_BROWN, (vx, chart_rect.top + 1), (vx, chart_rect.bottom - 2), 1)
+            # Draw dot at intersection
+            dot_pos = (int(points[vis_idx][0]), int(points[vis_idx][1]))
+            pygame.draw.circle(screen, color, dot_pos, 4)
+            pygame.draw.circle(screen, DARK_BROWN, dot_pos, 4, 1)
 
             if active_chart == "Wealth":
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
@@ -341,10 +351,9 @@ def _draw_population_stacked_bars(
 
     # Title
     title_surf = font.render("Population History", True, DARK_BROWN)
-    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 10))
-    bg_rect = title_rect.inflate(10, 4)
-    pygame.draw.rect(screen, WHITE, bg_rect)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
     screen.blit(title_surf, title_rect)
+    pygame.draw.line(screen, DARK_BROWN, (title_rect.left, title_rect.bottom + 2), (title_rect.right, title_rect.bottom + 2), 1)
 
     if hover_info:
         group_name, val, bar_total, data_idx = hover_info
@@ -417,10 +426,9 @@ def _draw_stock_stacked_bars(
 
     # Title
     title_surf = font.render("Stock History", True, DARK_BROWN)
-    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 10))
-    bg_rect = title_rect.inflate(10, 4)
-    pygame.draw.rect(screen, WHITE, bg_rect)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
     screen.blit(title_surf, title_rect)
+    pygame.draw.line(screen, DARK_BROWN, (title_rect.left, title_rect.bottom + 2), (title_rect.right, title_rect.bottom + 2), 1)
 
     if hover_info:
         good_name, val, bar_total, data_idx = hover_info
