@@ -324,13 +324,16 @@ def _draw_population_stacked_bars(
     inner_h = chart_rect.height - margin * 2
 
     mouse_pos = pygame.mouse.get_pos()
-    hover_info = None  # (group_name, val, bar_total, data_idx)
+    hover_info = None      # (group_name, val, bar_total, data_idx)
+    hover_seg_rect = None  # rect of the hovered segment for outline
+    hover_bar_info = None  # (total_px_h, bar_total) for horizontal line
+    bar_bottom = chart_rect.bottom - margin
 
     for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
         bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
-        bar_bottom = chart_rect.bottom - margin
         cumulative_h = 0
         bar_total = sum(history[g][data_idx] for g in valid_groups)
+        bar_is_hovered = False
 
         for group in GROUPS:
             if group not in valid_groups:
@@ -341,9 +344,26 @@ def _draw_population_stacked_bars(
                 seg_h = 1
             seg_rect = pygame.Rect(bar_x, bar_bottom - cumulative_h - seg_h, bar_w, seg_h)
             pygame.draw.rect(screen, GROUP_COLORS[group], seg_rect)
-            if hover_info is None and seg_rect.collidepoint(mouse_pos):
-                hover_info = (group, val, bar_total, data_idx)
+            if seg_rect.collidepoint(mouse_pos):
+                bar_is_hovered = True
+                if hover_info is None:
+                    hover_info = (group, val, bar_total, data_idx)
+                    hover_seg_rect = seg_rect
             cumulative_h += seg_h
+
+        if bar_is_hovered and hover_bar_info is None:
+            total_px_h = round(bar_total / y_max_scale * inner_h)
+            hover_bar_info = (total_px_h, bar_total)
+
+    # Hover effects: segment outline + horizontal total line with value
+    if hover_seg_rect:
+        pygame.draw.rect(screen, WHITE, hover_seg_rect.inflate(2, 2), 2)
+    if hover_bar_info:
+        hb_total_px, hb_total = hover_bar_info
+        line_y = bar_bottom - hb_total_px
+        pygame.draw.line(screen, DARK_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        val_surf = font.render(f"{hb_total:,}", True, DARK_BROWN)
+        screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
 
     # Y-axis scale label
     max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
@@ -399,13 +419,16 @@ def _draw_stock_stacked_bars(
     inner_h = chart_rect.height - margin * 2
 
     mouse_pos = pygame.mouse.get_pos()
-    hover_info = None  # (good_name, val, bar_total, data_idx)
+    hover_info = None      # (good_name, val, bar_total, data_idx)
+    hover_seg_rect = None  # rect of the hovered segment for outline
+    hover_bar_info = None  # (total_px_h, bar_total) for horizontal line
+    bar_bottom = chart_rect.bottom - margin
 
     for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
         bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
-        bar_bottom = chart_rect.bottom - margin
         cumulative_h = 0
         bar_total = sum(history[g.name][data_idx] for g in valid_goods)
+        bar_is_hovered = False
 
         for good in valid_goods:
             val = history[good.name][data_idx]
@@ -416,9 +439,26 @@ def _draw_stock_stacked_bars(
                 seg_h = 1
             seg_rect = pygame.Rect(bar_x, bar_bottom - cumulative_h - seg_h, bar_w, seg_h)
             pygame.draw.rect(screen, good.color, seg_rect)
-            if hover_info is None and seg_rect.collidepoint(mouse_pos):
-                hover_info = (good.name, val, bar_total, data_idx)
+            if seg_rect.collidepoint(mouse_pos):
+                bar_is_hovered = True
+                if hover_info is None:
+                    hover_info = (good.name, val, bar_total, data_idx)
+                    hover_seg_rect = seg_rect
             cumulative_h += seg_h
+
+        if bar_is_hovered and hover_bar_info is None:
+            total_px_h = round(bar_total / y_max_scale * inner_h)
+            hover_bar_info = (total_px_h, bar_total)
+
+    # Hover effects: segment outline + horizontal total line with value
+    if hover_seg_rect:
+        pygame.draw.rect(screen, WHITE, hover_seg_rect.inflate(2, 2), 2)
+    if hover_bar_info:
+        hb_total_px, hb_total = hover_bar_info
+        line_y = bar_bottom - hb_total_px
+        pygame.draw.line(screen, DARK_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        val_surf = font.render(f"{hb_total:,}", True, DARK_BROWN)
+        screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
 
     # Y-axis max label
     max_label = font.render(f"{max_total:,}", True, DARK_BROWN)
