@@ -585,7 +585,11 @@ class Game:
                 # Draw contract view if active
                 if self.state.contract_acquisition:
                     self.state.contract_acquisition.update(delta_time)
-                    self.state.contract_acquisition.draw()
+                    if not self.state.contract_acquisition.active:
+                        self.state.contract_acquisition = None
+                        self.state.time_level = self.state.previous_time_level
+                    else:
+                        self.state.contract_acquisition.draw()
 
                 # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
                 if self.state.warning:

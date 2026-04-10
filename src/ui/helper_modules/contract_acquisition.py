@@ -323,7 +323,7 @@ class ContractView:
                 # Fade out over 2 seconds
                 self.global_alpha = int(255 * (self.stamp_timer / 2.0))
             
-            # Shake effect when stamped (only for first 0.3s after impact)
+            # Shake effect when stamped (only for first 0.1s after impact)
             if self.is_stamped and self.stamp_timer > 3.9:
                 shake_intensity = 2
                 self.shake_offset = [random.randint(-shake_intensity, shake_intensity), 
