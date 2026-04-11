@@ -99,8 +99,8 @@ SHEEP_VOLUME = 0.65                   # Maximum volume for sheep sounds (1.0 is 
 KNOCK_VOLUME = 0.8                    # Volume for door knock sounds (1.0 is 100%)
 SHEEP_SOUND_MAX_DISTANCE = 1200.0     # World pixels beyond which sheep are completely silent
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
-START_X_POSITION = 4298               # Player starting X position on the map
-START_Y_POSITION = 4533               # Player starting Y position on the map
+START_X_POSITION = 4308               # Player starting X position on the map
+START_Y_POSITION = 4553               # Player starting Y position on the map
 
 # LIGHTING CONSTANTS (Hours are decimal, for example 18.5 = 18:30)
 
