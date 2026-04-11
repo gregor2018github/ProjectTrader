@@ -24,7 +24,6 @@
 - [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
-- [ ] Bank Menu 
 - [ ] Market events
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
@@ -42,6 +41,7 @@
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] Bank Menu 
 - [x] bugfix:church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [x] bugfix: removed mouse lagging in main menu
 - [x] bugfix: after signing a trading license, the game was paused too long
