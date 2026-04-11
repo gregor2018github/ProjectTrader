@@ -40,6 +40,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - cobbler
     - uncles' trading shop
     - medium warehouse
+    - open warehouse with different optical fillgrades depending on how full they are
     - forester's shop
     - seeside fisherman's shop
     - monestary with wine yard on hill

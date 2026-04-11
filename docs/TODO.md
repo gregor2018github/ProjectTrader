@@ -1,19 +1,20 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add wooden fences and a big old tree for the sheep
+- [ ] add a well in the middle of the city as a decorative element
+- [ ] add fences for the sheep
+- [ ] add a big old tree for the sheep meadow
 
 ## Medium Priority
+- [ ] add a possibility to buy a first warehouse for storing 100 more goods
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
-- [ ] add a well in the middle of the city as a decorative element
 - [ ] add a functionality to throw down a rock into the lake
 - [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
-- [ ] upgrade the charts about personal statistics (hoverinfo, double charts, more data, days vs weeks as x axis)
 - [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 
@@ -36,12 +37,17 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix:church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
+- [x] bugfix: removed mouse lagging in main menu
+- [x] bugfix: after signing a trading license, the game was paused too long
+- [x] upgrade the charts about personal statistics 
+    - [x] hoverinfo
+    - [x] more data
 - [x] when getting the contract for hides there is a bug and the game cannot retrieve the contract text, probably a naming issue
 - [x] add an eating animation for the sheep
 - [x] bugfix: sometime the player does not have enough money to pay transaction cost but selling the goods would cover the cost of the transaction, then the transaction should still go through (currently it gets blocked)
