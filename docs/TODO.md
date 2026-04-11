@@ -38,7 +38,7 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] when loading a new game the character always gets spawned at the same position, it must rather save and read the last position from the save file, if not available use the default starting position from the constants
+- [ ] when loading a saved game the character always gets spawned at the same position, it must rather save and read the last position from the save file, if not available use the default starting position from the constants
 - [ ] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
