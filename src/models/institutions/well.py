@@ -276,7 +276,7 @@ class WishMenu:
         pygame.draw.rect(surf, DARK_BROWN, panel, 3)
 
         # Title
-        title_surf = self.title_font.render("Well", True, DARK_BROWN)
+        title_surf = self.title_font.render("Magic Well", True, DARK_BROWN)
         title_rect = title_surf.get_rect(
             center=(panel.centerx, panel.y + self.header_height // 2)
         )

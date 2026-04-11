@@ -93,6 +93,9 @@ class EventHandler:
                             except Exception:
                                 pass
                         try:
+                            # Sync map player position into the player model before serialising
+                            mp = game_state.game.game_map.map_player
+                            game_state.game.player.position = (int(mp.x), int(mp.y))
                             _save(slot, game_state, game_state.game.player,
                                   game_state.game.depot, game_state.game.goods,
                                   save_name=save_name,
