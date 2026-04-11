@@ -134,7 +134,6 @@ class MainMenu:
             every action except ``"load_game"`` with a valid save slot selected.
         """
         while True:
-            self.clock.tick(60)
             mouse_pos = pygame.mouse.get_pos()
 
             for event in pygame.event.get():
@@ -169,6 +168,7 @@ class MainMenu:
             else:
                 self._draw_load_slots(mouse_pos)
             pygame.display.flip()
+            self.clock.tick(60)
 
     # ------------------------------------------------------------------
     # Load-slots helpers
@@ -359,7 +359,7 @@ class MainMenu:
                     pygame.draw.rect(self.screen, DARK_BROWN, pygame.Rect(px, py, pw, ph), 2)
 
         if self.cursor_img and pygame.mouse.get_focused():
-            self.screen.blit(self.cursor_img, mouse_pos)
+            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
 
     # ------------------------------------------------------------------
     # Drawing
@@ -431,4 +431,4 @@ class MainMenu:
             self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
 
         if self.cursor_img and pygame.mouse.get_focused():
-            self.screen.blit(self.cursor_img, mouse_pos)
+            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
