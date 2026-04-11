@@ -264,6 +264,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.town import Town
     from ...models.institutions.market import Market
     from ...models.institutions.bank import Bank
+    from ...models.institutions.well import Well
     
     # Create an info window styled as a menu
     options = ["Inspect"]
@@ -279,6 +280,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Population Stats")
         options.insert(0, "Trading Licenses")
 
+    if isinstance(house, Well):
+        options.insert(0, "Throw Rock")
+        options.insert(0, "Throw Coin")
+
     if isinstance(house, Bank):
         options.insert(0, "Manage Loans")
         options.insert(0, "Take Out Loan")
@@ -291,6 +296,14 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
+        if option_text == "Throw Coin" and isinstance(house, Well):
+            house.throw_coin(game_state)
+            return
+
+        if option_text == "Throw Rock" and isinstance(house, Well):
+            house.throw_rock(game_state)
+            return
+
         if option_text == "Knock":
             house.interact_knock(game_state)
             

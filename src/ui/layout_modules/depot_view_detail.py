@@ -457,21 +457,27 @@ class DepotViewDetail:
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
         self.cached_stats["Expenses"].append("__SEPARATOR__")
 
-        # Loans
+        # Loans (includes loan interest and overdraft penalties)
         loans = breakdown.get("loans", {"total": 0.0, "Loan Interest": 0.0})
+        overdraft = breakdown.get("overdraft", {"total": 0.0, "Overdraft Penalty": 0.0})
+        loans_total = loans["total"] + overdraft["total"]
         self.cached_stats["Expenses"].append(f"Loans")
-        self.cached_stats["Expenses"].append(f"      Total: {loans['total']:,.2f}")
+        self.cached_stats["Expenses"].append(f"      Total: {loans_total:,.2f}")
         for sub_name, sub_val in loans.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        for sub_name, sub_val in overdraft.items():
             if sub_name == "total":
                 continue
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
         self.cached_stats["Expenses"].append("__SEPARATOR__")
 
-        # Overdraft Penalties
-        overdraft = breakdown.get("overdraft", {"total": 0.0, "Overdraft Penalty": 0.0})
-        self.cached_stats["Expenses"].append(f"Overdraft")
-        self.cached_stats["Expenses"].append(f"      Total: {overdraft['total']:,.2f}")
-        for sub_name, sub_val in overdraft.items():
+        # Miscellaneous
+        misc = breakdown.get("miscellaneous", {"total": 0.0, "Well Coins": 0.0})
+        self.cached_stats["Expenses"].append(f"Miscellaneous")
+        self.cached_stats["Expenses"].append(f"      Total: {misc['total']:,.2f}")
+        for sub_name, sub_val in misc.items():
             if sub_name == "total":
                 continue
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")

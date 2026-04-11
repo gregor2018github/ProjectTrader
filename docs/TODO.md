@@ -1,25 +1,28 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add a well in the middle of the city as a decorative element
 - [ ] add fences for the sheep
 - [ ] add a big old tree for the sheep meadow
+- [ ] add a expenses overview in the depot chart view
+- [ ] add a income overview in the depot chart view
+- [ ] add a possibility to buy a first warehouse for storing 100 more goods
+- [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 
 ## Medium Priority
-- [ ] add a possibility to buy a first warehouse for storing 100 more goods
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a functionality to throw down a rock into the lake
-- [ ] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] Trading at the market should only be available between 6am and 10pm
 - [ ] other people must stand behind the market booths, create and add NPC sprites
+- [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
 - [ ] standardize the window design (remove that old system that tries to build a frame from pieces)
+- [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for buying and selling goods at the market
@@ -36,11 +39,13 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
-- [ ] When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
-- [ ] charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
+- [ ] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
+- [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
+- [ ] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
+- [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a well in the middle of the city as a decorative element
 - [x] Bank Menu 
 - [x] bugfix:church bell sound is sometimes still on when coming back to map view from a statistics window, even if hours in the game have passed and it should be off again
 - [x] bugfix: removed mouse lagging in main menu

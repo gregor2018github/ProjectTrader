@@ -51,6 +51,7 @@ class Depot:
         self.license_expenditures: float = 0            # current license expenditures
         self.loan_expenditures: float = 0.0             # current loan interest paid today
         self.overdraft_expenditures: float = 0.0        # current overdraft penalties paid today
+        self.miscellaneous_expenditures: float = 0.0    # current miscellaneous expenditures today
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
             "Town Donations": 0,
@@ -77,6 +78,7 @@ class Depot:
         self.license_expenditure_history: List[float] = [0.0]      # license expenditures tracking for bookkeeping
         self.loan_expenditure_history: List[float] = [0.0]         # loan interest tracking for bookkeeping
         self.overdraft_expenditure_history: List[float] = [0.0]    # overdraft penalty tracking for bookkeeping
+        self.miscellaneous_expenditure_history: List[float] = [0.0]  # miscellaneous expenditures tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
             "Town Donations": [0.0],
@@ -401,6 +403,7 @@ class Depot:
         self.license_expenditure_history.append(self.license_expenditures)
         self.loan_expenditure_history.append(self.loan_expenditures)
         self.overdraft_expenditure_history.append(self.overdraft_expenditures)
+        self.miscellaneous_expenditure_history.append(self.miscellaneous_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
         self.income = 0
@@ -411,6 +414,7 @@ class Depot:
         self.license_expenditures = 0
         self.loan_expenditures = 0.0
         self.overdraft_expenditures = 0.0
+        self.miscellaneous_expenditures = 0.0
         for category in self.donations:
             self.donations[category] = 0
     
@@ -533,6 +537,22 @@ class Depot:
         self.expenditures += amount
         self.overdraft_expenditures += amount
 
+    def book_miscellaneous(self, amount: float) -> bool:
+        """Charge a miscellaneous expense (e.g. throwing a coin into a well).
+
+        Args:
+            amount: The amount to deduct from money and record as miscellaneous expenditure.
+
+        Returns:
+            bool: True if the expense was booked successfully, False if insufficient funds.
+        """
+        if self.money < amount:
+            return False
+        self.money -= amount
+        self.expenditures += amount
+        self.miscellaneous_expenditures += amount
+        return True
+
     def take_loan(self, original_amount: float, daily_principal: float,
                   daily_interest: float, settlement_principal: float,
                   duration_days: int, start_date: str) -> None:
@@ -608,6 +628,7 @@ class Depot:
                 total_license = sum(self.license_expenditure_history[-num_history_days:]) + self.license_expenditures
                 total_loan = sum(self.loan_expenditure_history[-num_history_days:]) + self.loan_expenditures
                 total_overdraft = sum(self.overdraft_expenditure_history[-num_history_days:]) + self.overdraft_expenditures
+                total_misc = sum(self.miscellaneous_expenditure_history[-num_history_days:]) + self.miscellaneous_expenditures
                 by_donation_cat = {}
                 for category, history in self.donation_history.items():
                     by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
@@ -619,6 +640,7 @@ class Depot:
                 total_license = self.license_expenditures
                 total_loan = self.loan_expenditures
                 total_overdraft = self.overdraft_expenditures
+                total_misc = self.miscellaneous_expenditures
                 by_donation_cat = dict(self.donations)
         else:
             total_exp = sum(self.expenditure_history) + self.expenditures
@@ -628,12 +650,13 @@ class Depot:
             total_license = sum(self.license_expenditure_history) + self.license_expenditures
             total_loan = sum(self.loan_expenditure_history) + self.loan_expenditures
             total_overdraft = sum(self.overdraft_expenditure_history) + self.overdraft_expenditures
+            total_misc = sum(self.miscellaneous_expenditure_history) + self.miscellaneous_expenditures
             by_donation_cat = {}
             for category, history in self.donation_history.items():
                 by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
 
         # Good cost = trading expenditures minus transaction fees and other known categories
-        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license - total_loan - total_overdraft
+        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license - total_loan - total_overdraft - total_misc
 
         return {
             "total": total_exp,
@@ -661,6 +684,10 @@ class Depot:
             "overdraft": {
                 "total": total_overdraft,
                 "Overdraft Penalty": total_overdraft,
+            },
+            "miscellaneous": {
+                "total": total_misc,
+                "Well Coins": total_misc,
             },
         }
 

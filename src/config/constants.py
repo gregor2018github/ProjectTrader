@@ -97,6 +97,8 @@ FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
 CHURCH_BELL_VOLUME = 0.25             # Maximum volume for church music (1.0 is 100%)
 SHEEP_VOLUME = 0.65                   # Maximum volume for sheep sounds (1.0 is 100%)
 KNOCK_VOLUME = 0.8                    # Volume for door knock sounds (1.0 is 100%)
+SPLASH_VOLUME = 0.9                   # Volume for well splash sounds (1.0 is 100%)
+COIN_THROW_COST = 1                   # Gold coins deducted when throwing a coin into the well
 SHEEP_SOUND_MAX_DISTANCE = 1200.0     # World pixels beyond which sheep are completely silent
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
