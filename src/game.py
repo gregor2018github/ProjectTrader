@@ -121,6 +121,7 @@ class Game:
         
         self.church_bell_channel: Optional[pygame.mixer.Channel] = None
         self.church_bell_sound: Optional[pygame.mixer.Sound] = None
+        self.church_bell_audible: bool = False  # True once the bell has been heard
         self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
         
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
@@ -369,6 +370,7 @@ class Game:
                         if self.state.date.hour in (0, 12):
                             self.church_bell_channel = self.play_sound("church_bell_12_rings")
                             self.church_bell_sound = self.sounds.get("church_bell_12_rings")
+                            self.church_bell_audible = False
                             # Start silent; the per-frame volume update sets the correct level.
                             # Without this, pygame resets the channel to 1.0 on play().
                             if self.church_bell_channel:
@@ -473,7 +475,10 @@ class Game:
                         self.church_bell_channel.pause()
                     else:
                         self.church_bell_channel.unpause()
-                        if is_map_visible:
+                        # Allow audible playback if already ringing, or if still within the
+                        # bell hour. Once past hour 0/12 without having been heard, keep it
+                        # silent so it runs out without suddenly starting on map return.
+                        if is_map_visible and (self.church_bell_audible or self.state.date.hour in (0, 12)):
                             from .models.institutions.church import Church
                             church = next((h for h in self.game_map.tmx_map.houses if isinstance(h, Church)), None)
                             if church:
@@ -486,13 +491,15 @@ class Game:
                                 dx = player_center_x - closest_x
                                 dy = player_center_y - closest_y
                                 distance = (dx * dx + dy * dy) ** 0.5
-                                
+
                                 # Max distance to hear the bell
                                 max_distance = 1500.0
                                 if distance < max_distance:
                                     # Scale linearly from CHURCH_BELL_VOLUME (close) to 0.0 (far)
                                     volume = CHURCH_BELL_VOLUME * (1.0 - distance / max_distance)
                                     self.church_bell_channel.set_volume(volume)
+                                    if volume > 0:
+                                        self.church_bell_audible = True
                                 else:
                                     self.church_bell_channel.set_volume(0.0)
                             else:
@@ -502,6 +509,7 @@ class Game:
                 elif self.church_bell_channel:
                     self.church_bell_channel = None
                     self.church_bell_sound = None
+                    self.church_bell_audible = False
 
                 # Helper function to render a module in a specific rect
                 def render_module(mode, rect):
