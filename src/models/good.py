@@ -1,5 +1,6 @@
 import random
 from typing import List, Tuple
+from ..config.constants import WELL_WISH_SHOCK_FACTOR, WELL_WISH_DURATION_DAYS
 
 class Good:
     """Represents a tradeable commodity in the game world.
@@ -34,6 +35,9 @@ class Good:
         self.upper_bound: float = self.price * random.uniform(1.5, 3.5)
         self.lower_bound: float = self.price * random.uniform(0.05, 0.80)
         self.hovered: bool = False
+        self.well_shock_remaining_days: int = 0
+        self._well_shock_saved_upper: float = 0.0
+        self._well_shock_saved_lower: float = 0.0
     
     def buy(self, quantity: int) -> None:
         """Decrease market quantity when units are bought.
@@ -112,6 +116,38 @@ class Good:
         """
         self.market_quantity = int(quantity)
     
+    def apply_well_shock(self, direction: str) -> None:
+        """Apply a temporary price shock from a well wish.
+
+        Shifts the current price and both bounds by WELL_WISH_SHOCK_FACTOR in the
+        given direction so the price stabilises near the new level instead of
+        immediately reverting.  The original bounds are restored after
+        WELL_WISH_DURATION_DAYS daily ticks.
+
+        Args:
+            direction: "Up" to raise the price, "Down" to lower it.
+        """
+        factor = 1.0 + WELL_WISH_SHOCK_FACTOR if direction == "Price goes up" else 1.0 - WELL_WISH_SHOCK_FACTOR
+
+        # Save original bounds only when no shock is already active
+        if self.well_shock_remaining_days == 0:
+            self._well_shock_saved_upper = self.upper_bound
+            self._well_shock_saved_lower = self.lower_bound
+
+        self.price *= factor
+        self.upper_bound *= factor
+        self.lower_bound *= factor
+        self.well_shock_remaining_days = WELL_WISH_DURATION_DAYS
+
+    def tick_well_shock_day(self) -> None:
+        """Decrement the well shock counter and restore bounds when it expires."""
+        if self.well_shock_remaining_days <= 0:
+            return
+        self.well_shock_remaining_days -= 1
+        if self.well_shock_remaining_days == 0:
+            self.upper_bound = self._well_shock_saved_upper
+            self.lower_bound = self._well_shock_saved_lower
+
     def toggle_display(self) -> None:
         """Toggle visibility of this good in charts."""
         self.show_in_charts = not self.show_in_charts

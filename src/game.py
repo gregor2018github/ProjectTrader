@@ -415,6 +415,7 @@ class Game:
                         self.depot.update_stock_history()
                         for good in self.goods:
                             good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
+                            good.tick_well_shock_day()
 
                         if self.population_manager:
                             self.population_manager.update_population()
