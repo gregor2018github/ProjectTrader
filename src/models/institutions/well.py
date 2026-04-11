@@ -79,6 +79,7 @@ class Well(House):
                     if good.name == good_name:
                         good.apply_well_shock(direction)
                         break
+                game_state.game.play_sound("wish_granted")
             cooldown_days = random.randint(_COOLDOWN_MIN_DAYS, _COOLDOWN_MAX_DAYS)
             self._wish_cooldown_until = game_state.date + datetime.timedelta(days=cooldown_days)
             game_state.info_window = None
