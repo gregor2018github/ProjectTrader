@@ -10,6 +10,7 @@ from ..config.colors import (
 )
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
 from ..persistence.save_manager import get_save_slots, load_game as _sm_load_game
+from ..config import settings_store
 
 _TOTAL_WIDTH = SCREEN_WIDTH + SIDEBAR_WIDTH
 
@@ -96,7 +97,7 @@ class MainMenu:
         entries = [
             ("Start New Game", "new_game", True),
             ("Load Game",      "load_game", True),
-            ("Settings",       "settings",  False),
+            ("Settings",       "settings",  True),
             ("Exit",           "exit",      True),
         ]
         btn_area_top = self.panel_rect.top + 248
@@ -111,7 +112,7 @@ class MainMenu:
             self.buttons.append((rect, label, action, enabled))
 
         # Load-game slot selection state
-        self._view: str = "main"  # "main" or "load_slots"
+        self._view: str = "main"  # "main", "load_slots", or "settings"
         self._slots: List[Optional[Dict[str, Any]]] = []
         self._slot_rects: List[pygame.Rect] = []
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
@@ -121,6 +122,13 @@ class MainMenu:
         self._hover_slot: Optional[int] = None
         self._hover_start: int = 0
         self._thumb_rects: dict = {}
+
+        # Settings view state — current in-flight edits before Save is clicked
+        self._settings_pending: Dict[str, Any] = {}
+        self._settings_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_toggle_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_save_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
 
     # ------------------------------------------------------------------
     # Public API
@@ -148,6 +156,10 @@ class MainMenu:
                                     self._slots = get_save_slots()
                                     self._build_slot_rects()
                                     self._view = "load_slots"
+                                elif action == "settings":
+                                    self._settings_pending = settings_store.get_all()
+                                    self._build_settings_rects()
+                                    self._view = "settings"
                                 else:
                                     return (action, None)
 
@@ -163,10 +175,15 @@ class MainMenu:
                                 except Exception:
                                     pass  # Slot corrupted — stay on screen
 
+                    elif self._view == "settings":
+                        self._handle_settings_click(mouse_pos)
+
             if self._view == "main":
                 self._draw(mouse_pos)
-            else:
+            elif self._view == "load_slots":
                 self._draw_load_slots(mouse_pos)
+            else:
+                self._draw_settings(mouse_pos)
             pygame.display.flip()
             self.clock.tick(60)
 
@@ -429,6 +446,123 @@ class MainMenu:
 
             text_surf = self.button_font.render(label, True, text_color)
             self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
+
+        if self.cursor_img and pygame.mouse.get_focused():
+            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
+
+    # ------------------------------------------------------------------
+    # Settings view helpers
+    # ------------------------------------------------------------------
+
+    def _build_settings_rects(self) -> None:
+        panel_w = 480
+        panel_h = 280
+        cx = _TOTAL_WIDTH // 2
+        cy = SCREEN_HEIGHT // 2
+        self._settings_panel_rect = pygame.Rect(
+            cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h
+        )
+
+        # Toggle row sits below the title + divider
+        toggle_y = self._settings_panel_rect.top + 110
+        toggle_w, toggle_h = 52, 28
+        self._settings_toggle_rect = pygame.Rect(
+            self._settings_panel_rect.right - 40 - toggle_w,
+            toggle_y,
+            toggle_w,
+            toggle_h,
+        )
+
+        # Two buttons at the bottom
+        btn_w, btn_h = 140, 42
+        gap = 24
+        total_btn_w = 2 * btn_w + gap
+        btn_y = self._settings_panel_rect.bottom - btn_h - 24
+        self._settings_save_rect = pygame.Rect(
+            cx - total_btn_w // 2, btn_y, btn_w, btn_h
+        )
+        self._settings_back_rect = pygame.Rect(
+            cx - total_btn_w // 2 + btn_w + gap, btn_y, btn_w, btn_h
+        )
+
+    def _handle_settings_click(self, pos: Tuple[int, int]) -> None:
+        if self._settings_toggle_rect.collidepoint(pos):
+            self._settings_pending["show_map_debug"] = not self._settings_pending.get("show_map_debug", True)
+        elif self._settings_save_rect.collidepoint(pos):
+            settings_store.save_all(self._settings_pending)
+            self._view = "main"
+        elif self._settings_back_rect.collidepoint(pos):
+            # Discard changes
+            self._view = "main"
+
+    def _draw_settings(self, mouse_pos: Tuple[int, int]) -> None:
+        self.screen.fill(BEIGE)
+
+        # Panel
+        pygame.draw.rect(self.screen, SANDY_BROWN, self._settings_panel_rect, border_radius=6)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._settings_panel_rect, 3, border_radius=6)
+
+        # Title
+        title_surf = self.title_font.render("Settings", True, DARK_BROWN)
+        title_rect = title_surf.get_rect(
+            centerx=self._settings_panel_rect.centerx,
+            top=self._settings_panel_rect.top + 22,
+        )
+        self.screen.blit(title_surf, title_rect)
+
+        # Divider
+        divider_y = title_rect.bottom + 10
+        pygame.draw.line(
+            self.screen, DARK_BROWN,
+            (self._settings_panel_rect.left + 30, divider_y),
+            (self._settings_panel_rect.right - 30, divider_y),
+            1,
+        )
+
+        # --- Debug overlay toggle row ---
+        row_y = self._settings_toggle_rect.centery
+        label_surf = self.button_font.render("Debug Overlay", True, DARK_BROWN)
+        self.screen.blit(
+            label_surf,
+            label_surf.get_rect(
+                midleft=(self._settings_panel_rect.left + 30, row_y)
+            ),
+        )
+
+        # Toggle pill
+        enabled = bool(self._settings_pending.get("show_map_debug", True))
+        pill_color = DARK_GREEN if enabled else DARK_GRAY
+        pygame.draw.rect(self.screen, pill_color, self._settings_toggle_rect, border_radius=14)
+        pygame.draw.rect(self.screen, DARK_BROWN, self._settings_toggle_rect, 2, border_radius=14)
+
+        # Knob
+        knob_r = self._settings_toggle_rect.height // 2 - 3
+        knob_x = (
+            self._settings_toggle_rect.right - knob_r - 5
+            if enabled
+            else self._settings_toggle_rect.left + knob_r + 5
+        )
+        pygame.draw.circle(self.screen, WHITE, (knob_x, self._settings_toggle_rect.centery), knob_r)
+
+        # On/Off label to the right of the toggle pill
+        state_label = self.subtitle_font.render("On" if enabled else "Off", True, DARK_BROWN)
+        state_rect = state_label.get_rect(
+            midleft=(self._settings_toggle_rect.right + 10, self._settings_toggle_rect.centery)
+        )
+        self.screen.blit(state_label, state_rect)
+
+        # --- Buttons ---
+        for rect, label in (
+            (self._settings_save_rect, "Save"),
+            (self._settings_back_rect, "Discard"),
+        ):
+            hovered = rect.collidepoint(mouse_pos)
+            bg = PALE_BROWN if hovered else TAN
+            text_col = WHITE if hovered else DARK_BROWN
+            pygame.draw.rect(self.screen, bg, rect, border_radius=4)
+            pygame.draw.rect(self.screen, DARK_BROWN, rect, 2, border_radius=4)
+            btn_surf = self.button_font.render(label, True, text_col)
+            self.screen.blit(btn_surf, btn_surf.get_rect(center=rect.center))
 
         if self.cursor_img and pygame.mouse.get_focused():
             self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
