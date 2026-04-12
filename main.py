@@ -14,8 +14,11 @@ _NATIVE_H = SCREEN_HEIGHT                 # 1064
 # logical 1760x1064 coordinate space regardless of the actual window size.
 _render_surf: pygame.Surface | None = None
 _display_surf: pygame.Surface | None = None
-_scale_x: float = 1.0
+_scale_x: float = 1.0   # logical = (physical - _offset_*) / _scale_uniform
 _scale_y: float = 1.0
+_offset_x: int = 0      # black-bar offset in physical pixels
+_offset_y: int = 0
+_scale_uniform: float = 1.0
 
 _orig_display_flip = pygame.display.flip
 _orig_display_get_surface = pygame.display.get_surface
@@ -30,10 +33,14 @@ _MOUSE_EVENT_TYPES = (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSE
 def _present() -> None:
     if _render_surf is None or _display_surf is None:
         return
-    if _render_surf.get_size() == _display_surf.get_size():
+    if _offset_x == 0 and _offset_y == 0 and _scale_uniform == 1.0:
         _display_surf.blit(_render_surf, (0, 0))
     else:
-        pygame.transform.smoothscale(_render_surf, _display_surf.get_size(), _display_surf)
+        fit_w = int(_NATIVE_W * _scale_uniform)
+        fit_h = int(_NATIVE_H * _scale_uniform)
+        _display_surf.fill((0, 0, 0))
+        scaled = pygame.transform.smoothscale(_render_surf, (fit_w, fit_h))
+        _display_surf.blit(scaled, (_offset_x, _offset_y))
     _orig_display_flip()
 
 
@@ -51,13 +58,17 @@ def _patched_get_surface() -> pygame.Surface:
 
 def _patched_mouse_get_pos() -> tuple[int, int]:
     x, y = _orig_mouse_get_pos()
-    return (int(x * _scale_x), int(y * _scale_y))
+    lx = int((x - _offset_x) * _scale_x)
+    ly = int((y - _offset_y) * _scale_y)
+    return (max(0, min(lx, _NATIVE_W - 1)), max(0, min(ly, _NATIVE_H - 1)))
 
 
 def _translate_event(ev: pygame.event.Event) -> pygame.event.Event:
     if ev.type in _MOUSE_EVENT_TYPES:
         px, py = ev.pos
-        new_pos = (int(px * _scale_x), int(py * _scale_y))
+        lx = max(0, min(int((px - _offset_x) * _scale_x), _NATIVE_W - 1))
+        ly = max(0, min(int((py - _offset_y) * _scale_y), _NATIVE_H - 1))
+        new_pos = (lx, ly)
         if ev.type == pygame.MOUSEMOTION:
             rx, ry = ev.rel
             return pygame.event.Event(
@@ -94,7 +105,7 @@ def _install_patches() -> None:
 
 def _setup_display() -> pygame.Surface:
     """Create the physical window and the logical 1760x1064 render surface."""
-    global _render_surf, _display_surf, _scale_x, _scale_y
+    global _render_surf, _display_surf, _scale_x, _scale_y, _offset_x, _offset_y, _scale_uniform
 
     res = settings_store.get("resolution")
 
@@ -108,8 +119,14 @@ def _setup_display() -> pygame.Surface:
         _display_surf = pygame.display.set_mode((win_w, win_h))
 
     pw, ph = _display_surf.get_size()
-    _scale_x = _NATIVE_W / pw
-    _scale_y = _NATIVE_H / ph
+    _scale_uniform = min(pw / _NATIVE_W, ph / _NATIVE_H)
+    fit_w = int(_NATIVE_W * _scale_uniform)
+    fit_h = int(_NATIVE_H * _scale_uniform)
+    _offset_x = (pw - fit_w) // 2
+    _offset_y = (ph - fit_h) // 2
+    # Inverse scale: physical → logical (accounting for black-bar offset)
+    _scale_x = _NATIVE_W / fit_w
+    _scale_y = _NATIVE_H / fit_h
 
     if _render_surf is None or _render_surf.get_size() != (_NATIVE_W, _NATIVE_H):
         _render_surf = pygame.Surface((_NATIVE_W, _NATIVE_H)).convert()
