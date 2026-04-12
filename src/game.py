@@ -6,7 +6,7 @@ from .game_state import GameState
 from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar
 from .ui.layout_modules.chart_view import draw_chart
-from .ui.layout_modules.map_view import draw_map_view
+from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
 from .models.good import Good
 from .models.depot import Depot
@@ -20,7 +20,7 @@ from .ui.helper_modules.menu import Menu
 from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
-from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
+from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH, SHOW_MAP_DEBUG
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .persistence.save_manager import apply_save_data
 
@@ -515,7 +515,7 @@ class Game:
                 # Helper function to render a module in a specific rect
                 def render_module(mode, rect):
                     if mode == 'map':
-                        draw_map_view(self.screen, self.game_map, rect, self.font, self.state)
+                        draw_map_view(self.screen, self.game_map, rect, self.state)
                     elif mode == 'market':
                         self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
                                                           self.goods, self.images['goods_30'], self.state.date, 
@@ -557,6 +557,10 @@ class Game:
                 
                 # 5. Draw right sidebar and other overlays
                 draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)
+
+                # Debug overlay drawn after sidebar so it appears on top
+                if SHOW_MAP_DEBUG and is_map_visible:
+                    draw_map_debug_ui(self.screen, self.game_map, self.font, self.state)
                 # Draw menu above the right sidebar
                 self.menu.draw(self.screen)
                 

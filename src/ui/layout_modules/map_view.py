@@ -9,7 +9,7 @@ import pytmx
 import datetime
 from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
-from ...config.constants import SHOW_MAP_DEBUG
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
 
 if TYPE_CHECKING:
@@ -21,16 +21,14 @@ def draw_map_view(
     screen: pygame.Surface,
     game_map: 'GameMap',
     view_rect: pygame.Rect,
-    main_font: pygame.font.Font,
     game_state: 'GameState'
 ) -> None:
     """Draw the map view within the specified rectangle.
-    
+
     Args:
         screen: The pygame surface to draw on.
         game_map: The GameMap model instance containing all map data.
         view_rect: The rectangle defining the map viewport area on screen.
-        main_font: Font for UI text rendering.
         game_state: The current game state.
     """
     # Draw the background frame for the map area
@@ -123,9 +121,7 @@ def draw_map_view(
     # Restore clipping
     screen.set_clip(old_clip)
     
-    # Draw UI overlay (zoom level, position info, FPS, time) if enabled
-    if SHOW_MAP_DEBUG:
-        _draw_map_ui(screen, game_map, view_rect, main_font, game_state)
+    # Debug overlay is drawn by the caller after the sidebar so it isn't covered
 
 
 def _apply_lighting(
@@ -460,10 +456,9 @@ def _build_render_queue(
     return render_queue
 
 
-def _draw_map_ui(
+def draw_map_debug_ui(
     screen: pygame.Surface,
     game_map: 'GameMap',
-    view_rect: pygame.Rect,
     main_font: pygame.font.Font,
     game_state: 'GameState'
 ) -> None:
@@ -476,28 +471,30 @@ def _draw_map_ui(
         main_font: Font for text rendering.
         game_state: The current game state.
     """
-    # Create semi-transparent background for UI text (consolidated at top)
-    ui_bg = pygame.Surface((200, 95), pygame.SRCALPHA)
-    ui_bg.fill((0, 0, 0, 128))
-    screen.blit(ui_bg, (view_rect.x + 10, view_rect.y + 10))
-    
-    # Draw zoom level
-    zoom_text = main_font.render(f"Zoom: {game_map.camera.zoom:.2f}", True, WHITE)
-    screen.blit(zoom_text, (view_rect.x + 15, view_rect.y + 15))
-    
-    # Draw player position
-    pos_text = main_font.render(
-        f"Pos: ({int(game_map.map_player.x)}, {int(game_map.map_player.y)})",
-        True, WHITE
-    )
-    screen.blit(pos_text, (view_rect.x + 15, view_rect.y + 35))
-    
-    # Draw FPS and Time
+    font = getattr(game_state, 'small_font', main_font)
     fps = game_state.game.clock.get_fps() if game_state.game else 0
     time_str = game_state.date.strftime("%H:%M")
-    
-    fps_text = main_font.render(f"FPS: {fps:.1f}", True, WHITE)
-    screen.blit(fps_text, (view_rect.x + 15, view_rect.y + 55))
-    
-    time_text = main_font.render(f"Time: {time_str}", True, WHITE)
-    screen.blit(time_text, (view_rect.x + 15, view_rect.y + 75))
+
+    lines = [
+        f"Zoom: {game_map.camera.zoom:.2f}",
+        f"X: {int(game_map.map_player.x)}",
+        f"Y: {int(game_map.map_player.y)}",
+        f"FPS: {fps:.1f}",
+        f"Time: {time_str}",
+    ]
+
+    line_h = 20
+    pad = 6
+    panel_w = SIDEBAR_WIDTH
+    panel_h = pad + len(lines) * line_h + pad
+    bottom_bar_h = 60
+    panel_x = SCREEN_WIDTH
+    panel_y = SCREEN_HEIGHT - bottom_bar_h - panel_h
+
+    ui_bg = pygame.Surface((panel_w, panel_h), pygame.SRCALPHA)
+    ui_bg.fill((0, 0, 0, 150))
+    screen.blit(ui_bg, (panel_x, panel_y))
+
+    for i, line in enumerate(lines):
+        text_surf = font.render(line, True, WHITE)
+        screen.blit(text_surf, (panel_x + pad, panel_y + pad + i * line_h))
