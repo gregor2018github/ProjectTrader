@@ -2,7 +2,6 @@
 
 ## High Priority
 - [ ] add fences for the sheep
-- [ ] add a big old tree for the sheep meadow
 - [ ] add a expenses overview in the depot chart view
 - [ ] add a income overview in the depot chart view
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
@@ -45,6 +44,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a big old tree for the sheep meadow
 - [x] add settings menu within the main menu
 - [x] allow user to use different resolutions (for now, only my weird aspect ratio holds true, but later on it should be possible to use more standard ones like 16:9)
 - [x] bugfix: when loading a saved game the character always gets spawned at the same position, it must rather save and read the last position from the save file, if not available use the default starting position from the constants
