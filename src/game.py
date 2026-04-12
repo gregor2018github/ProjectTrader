@@ -637,8 +637,6 @@ class Game:
                 pygame.display.update()
         except KeyboardInterrupt:
             pass
-        finally:
-            pygame.quit()
 
         if getattr(self.state, 'return_to_main_menu', False):
             return "main_menu"

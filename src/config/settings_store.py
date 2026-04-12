@@ -10,7 +10,18 @@ _SETTINGS_PATH = os.path.join(MAIN_PATH, "settings.json")
 
 _DEFAULTS: Dict[str, Any] = {
     "show_map_debug": True,
+    "resolution": "1760x1064",
 }
+
+# Ordered list of windowed resolution presets shown in the settings UI.
+# "Fullscreen" is always appended as the final option.
+RESOLUTION_PRESETS = [
+    "1760x1064",
+    "1540x931",
+    "1320x798",
+    "1100x665",
+    "Fullscreen",
+]
 
 
 def _load_raw() -> Dict[str, Any]:

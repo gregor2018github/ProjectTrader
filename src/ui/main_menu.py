@@ -127,6 +127,8 @@ class MainMenu:
         self._settings_pending: Dict[str, Any] = {}
         self._settings_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_toggle_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_res_btn_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_res_open: bool = False
         self._settings_save_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
 
@@ -158,6 +160,7 @@ class MainMenu:
                                     self._view = "load_slots"
                                 elif action == "settings":
                                     self._settings_pending = settings_store.get_all()
+                                    self._settings_res_open = False
                                     self._build_settings_rects()
                                     self._view = "settings"
                                 else:
@@ -456,46 +459,86 @@ class MainMenu:
 
     def _build_settings_rects(self) -> None:
         panel_w = 480
-        panel_h = 280
+        panel_h = 330
         cx = _TOTAL_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
         self._settings_panel_rect = pygame.Rect(
             cx - panel_w // 2, cy - panel_h // 2, panel_w, panel_h
         )
 
-        # Toggle row sits below the title + divider
-        toggle_y = self._settings_panel_rect.top + 110
+        # Row 1 — Debug overlay toggle (below title + divider)
+        row1_y = self._settings_panel_rect.top + 110
         toggle_w, toggle_h = 52, 28
         self._settings_toggle_rect = pygame.Rect(
             self._settings_panel_rect.right - 40 - toggle_w,
-            toggle_y,
+            row1_y,
             toggle_w,
             toggle_h,
         )
 
-        # Two buttons at the bottom
-        btn_w, btn_h = 140, 42
-        gap = 24
-        total_btn_w = 2 * btn_w + gap
-        btn_y = self._settings_panel_rect.bottom - btn_h - 24
-        self._settings_save_rect = pygame.Rect(
-            cx - total_btn_w // 2, btn_y, btn_w, btn_h
-        )
-        self._settings_back_rect = pygame.Rect(
-            cx - total_btn_w // 2 + btn_w + gap, btn_y, btn_w, btn_h
+        # Row 2 — Resolution dropdown button
+        row2_y = row1_y + 52
+        btn_w, btn_h = 160, 30
+        self._settings_res_btn_rect = pygame.Rect(
+            self._settings_panel_rect.right - 40 - btn_w,
+            row2_y,
+            btn_w,
+            btn_h,
         )
 
+        # Save / Discard buttons at the bottom
+        s_btn_w, s_btn_h = 140, 42
+        gap = 24
+        total_btn_w = 2 * s_btn_w + gap
+        btn_y = self._settings_panel_rect.bottom - s_btn_h - 24
+        self._settings_save_rect = pygame.Rect(
+            cx - total_btn_w // 2, btn_y, s_btn_w, s_btn_h
+        )
+        self._settings_back_rect = pygame.Rect(
+            cx - total_btn_w // 2 + s_btn_w + gap, btn_y, s_btn_w, s_btn_h
+        )
+
+    def _res_option_rects(self) -> List[pygame.Rect]:
+        """Return one rect per resolution preset, stacked below the dropdown button."""
+        from ..config.settings_store import RESOLUTION_PRESETS
+        item_h = 30
+        rects = []
+        for i in range(len(RESOLUTION_PRESETS)):
+            rects.append(pygame.Rect(
+                self._settings_res_btn_rect.x,
+                self._settings_res_btn_rect.bottom + i * item_h,
+                self._settings_res_btn_rect.width,
+                item_h,
+            ))
+        return rects
+
     def _handle_settings_click(self, pos: Tuple[int, int]) -> None:
+        from ..config.settings_store import RESOLUTION_PRESETS
+
+        # ── Dropdown is open — consume the click ──────────────────────
+        if self._settings_res_open:
+            for i, opt_rect in enumerate(self._res_option_rects()):
+                if opt_rect.collidepoint(pos):
+                    self._settings_pending["resolution"] = RESOLUTION_PRESETS[i]
+                    break
+            self._settings_res_open = False
+            return
+
+        # ── Normal row interactions ───────────────────────────────────
         if self._settings_toggle_rect.collidepoint(pos):
             self._settings_pending["show_map_debug"] = not self._settings_pending.get("show_map_debug", True)
+        elif self._settings_res_btn_rect.collidepoint(pos):
+            self._settings_res_open = True
         elif self._settings_save_rect.collidepoint(pos):
             settings_store.save_all(self._settings_pending)
+            self._settings_res_open = False
             self._view = "main"
         elif self._settings_back_rect.collidepoint(pos):
-            # Discard changes
+            self._settings_res_open = False
             self._view = "main"
 
     def _draw_settings(self, mouse_pos: Tuple[int, int]) -> None:
+        from ..config.settings_store import RESOLUTION_PRESETS
         self.screen.fill(BEIGE)
 
         # Panel
@@ -519,23 +562,19 @@ class MainMenu:
             1,
         )
 
-        # --- Debug overlay toggle row ---
-        row_y = self._settings_toggle_rect.centery
+        # ── Row 1: Debug overlay toggle ──────────────────────────────
+        row1_y = self._settings_toggle_rect.centery
         label_surf = self.button_font.render("Debug Overlay", True, DARK_BROWN)
         self.screen.blit(
             label_surf,
-            label_surf.get_rect(
-                midleft=(self._settings_panel_rect.left + 30, row_y)
-            ),
+            label_surf.get_rect(midleft=(self._settings_panel_rect.left + 30, row1_y)),
         )
 
-        # Toggle pill
         enabled = bool(self._settings_pending.get("show_map_debug", True))
         pill_color = DARK_GREEN if enabled else DARK_GRAY
         pygame.draw.rect(self.screen, pill_color, self._settings_toggle_rect, border_radius=14)
         pygame.draw.rect(self.screen, DARK_BROWN, self._settings_toggle_rect, 2, border_radius=14)
 
-        # Knob
         knob_r = self._settings_toggle_rect.height // 2 - 3
         knob_x = (
             self._settings_toggle_rect.right - knob_r - 5
@@ -544,14 +583,70 @@ class MainMenu:
         )
         pygame.draw.circle(self.screen, WHITE, (knob_x, self._settings_toggle_rect.centery), knob_r)
 
-        # On/Off label to the right of the toggle pill
         state_label = self.subtitle_font.render("On" if enabled else "Off", True, DARK_BROWN)
-        state_rect = state_label.get_rect(
-            midleft=(self._settings_toggle_rect.right + 10, self._settings_toggle_rect.centery)
+        self.screen.blit(
+            state_label,
+            state_label.get_rect(midleft=(self._settings_toggle_rect.right + 10, row1_y)),
         )
-        self.screen.blit(state_label, state_rect)
 
-        # --- Buttons ---
+        # ── Row 2: Resolution dropdown ───────────────────────────────
+        row2_y = self._settings_res_btn_rect.centery
+        res_heading = self.button_font.render("Window Size", True, DARK_BROWN)
+        self.screen.blit(
+            res_heading,
+            res_heading.get_rect(midleft=(self._settings_panel_rect.left + 30, row2_y)),
+        )
+
+        cur_res = self._settings_pending.get("resolution", RESOLUTION_PRESETS[0])
+
+        # Dropdown closed button
+        btn_hovered = (not self._settings_res_open
+                       and self._settings_res_btn_rect.collidepoint(mouse_pos))
+        pygame.draw.rect(
+            self.screen,
+            PALE_BROWN if btn_hovered else TAN,
+            self._settings_res_btn_rect,
+            border_radius=4,
+        )
+        pygame.draw.rect(self.screen, DARK_BROWN, self._settings_res_btn_rect, 2, border_radius=4)
+
+        # Current value
+        pad = 8
+        val_surf = self.subtitle_font.render(cur_res, True, DARK_BROWN)
+        self.screen.blit(
+            val_surf,
+            val_surf.get_rect(midleft=(self._settings_res_btn_rect.left + pad, row2_y)),
+        )
+
+        # Filled triangle indicator (down when closed, up when open)
+        tri_cx = self._settings_res_btn_rect.right - pad - 5
+        tri_cy = row2_y
+        tri_hw, tri_hh = 5, 4  # half-width, half-height
+        if self._settings_res_open:
+            tri_pts = [
+                (tri_cx - tri_hw, tri_cy + tri_hh),
+                (tri_cx + tri_hw, tri_cy + tri_hh),
+                (tri_cx,          tri_cy - tri_hh),
+            ]
+        else:
+            tri_pts = [
+                (tri_cx - tri_hw, tri_cy - tri_hh),
+                (tri_cx + tri_hw, tri_cy - tri_hh),
+                (tri_cx,          tri_cy + tri_hh),
+            ]
+        pygame.draw.polygon(self.screen, DARK_BROWN, tri_pts)
+
+        # Note below the dropdown row
+        note_surf = self.subtitle_font.render("(takes effect after restart)", True, DARK_GRAY)
+        self.screen.blit(
+            note_surf,
+            note_surf.get_rect(
+                midleft=(self._settings_panel_rect.left + 30,
+                         self._settings_res_btn_rect.bottom + 14),
+            ),
+        )
+
+        # ── Save / Discard buttons ────────────────────────────────────
         for rect, label in (
             (self._settings_save_rect, "Save"),
             (self._settings_back_rect, "Discard"),
@@ -563,6 +658,44 @@ class MainMenu:
             pygame.draw.rect(self.screen, DARK_BROWN, rect, 2, border_radius=4)
             btn_surf = self.button_font.render(label, True, text_col)
             self.screen.blit(btn_surf, btn_surf.get_rect(center=rect.center))
+
+        # ── Dropdown list (drawn last so it floats above everything) ──
+        if self._settings_res_open:
+            opt_rects = self._res_option_rects()
+            # Background behind the full list
+            list_rect = pygame.Rect(
+                opt_rects[0].x,
+                opt_rects[0].y,
+                opt_rects[0].width,
+                sum(r.height for r in opt_rects),
+            )
+            # Border drawn FIRST so fill can never cover it
+            pygame.draw.rect(self.screen, DARK_BROWN, list_rect, 2)
+            # Fill only the interior (inset by the 2 px border on every side)
+            pygame.draw.rect(self.screen, SANDY_BROWN, list_rect.inflate(-4, -4))
+
+            for i, (opt_rect, preset) in enumerate(zip(opt_rects, RESOLUTION_PRESETS)):
+                row_hovered = opt_rect.collidepoint(mouse_pos)
+                if row_hovered or preset == cur_res:
+                    fill_color = PALE_BROWN if row_hovered else TAN
+                    # Inset 2 px from left/right border; also from top/bottom border on
+                    # the first and last rows so the outer border stays visible.
+                    ix = opt_rect.x + 2
+                    iy = opt_rect.y + (2 if i == 0 else 0)
+                    iw = opt_rect.width - 4
+                    ih = opt_rect.height - (2 if i == 0 else 0) - (2 if i == len(RESOLUTION_PRESETS) - 1 else 0)
+                    pygame.draw.rect(self.screen, fill_color, pygame.Rect(ix, iy, iw, ih))
+                opt_surf = self.subtitle_font.render(preset, True, DARK_BROWN)
+                self.screen.blit(
+                    opt_surf,
+                    opt_surf.get_rect(midleft=(opt_rect.left + 10, opt_rect.centery)),
+                )
+                if i < len(RESOLUTION_PRESETS) - 1:
+                    pygame.draw.line(
+                        self.screen, DARK_BROWN,
+                        (opt_rect.left + 2, opt_rect.bottom),
+                        (opt_rect.right - 3, opt_rect.bottom),
+                    )
 
         if self.cursor_img and pygame.mouse.get_focused():
             self.screen.blit(self.cursor_img, pygame.mouse.get_pos())

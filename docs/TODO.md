@@ -6,6 +6,7 @@
 - [ ] add a expenses overview in the depot chart view
 - [ ] add a income overview in the depot chart view
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
+- [ ] add the sitting corner next to the well with a bench and a table as a decorative element
 
 ## Medium Priority
 - [ ] design water tiles (plan how to animate them before implementing static ones)
@@ -38,13 +39,15 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] when loading a saved game the character always gets spawned at the same position, it must rather save and read the last position from the save file, if not available use the default starting position from the constants
 - [ ] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add settings menu within the main menu
+- [x] allow user to use different resolutions (for now, only my weird aspect ratio holds true, but later on it should be possible to use more standard ones like 16:9)
+- [x] bugfix: when loading a saved game the character always gets spawned at the same position, it must rather save and read the last position from the save file, if not available use the default starting position from the constants
 - [x] add a functionality to make a wish by throwing a coin into the well (choose good and price development for that good)
 - [x] add a well in the middle of the city as a decorative element
 - [x] Bank Menu 
