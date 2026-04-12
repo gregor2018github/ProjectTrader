@@ -20,8 +20,9 @@ from .ui.helper_modules.menu import Menu
 from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
-from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH, SHOW_MAP_DEBUG
+from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config import settings_store
 from .persistence.save_manager import apply_save_data
 
 class Game:
@@ -559,7 +560,7 @@ class Game:
                 draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)
 
                 # Debug overlay drawn after sidebar so it appears on top
-                if SHOW_MAP_DEBUG and is_map_visible:
+                if settings_store.get("show_map_debug"):
                     draw_map_debug_ui(self.screen, self.game_map, self.font, self.state)
                 # Draw menu above the right sidebar
                 self.menu.draw(self.screen)
