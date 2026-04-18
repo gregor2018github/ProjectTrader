@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add fences for the sheep
 - [ ] add a expenses overview in the depot chart view
 - [ ] add a income overview in the depot chart view
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
@@ -47,6 +46,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: fix collision and rendering of the long fence elements at the sheep meadow by cutting the sprite into separarte pieces and giving them proper collision boxes
+- [x] add fences for the sheep
 - [x] add a big old tree for the sheep meadow
 - [x] add settings menu within the main menu
 - [x] allow user to use different resolutions (for now, only my weird aspect ratio holds true, but later on it should be possible to use more standard ones like 16:9)
