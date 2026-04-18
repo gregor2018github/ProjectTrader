@@ -125,6 +125,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "license_expenditure_history": list(depot.license_expenditure_history),
             "loan_expenditure_history": list(depot.loan_expenditure_history),
             "overdraft_expenditure_history": list(depot.overdraft_expenditure_history),
+            "miscellaneous_expenditure_history": list(depot.miscellaneous_expenditure_history),
+            "miscellaneous_expenditures": depot.miscellaneous_expenditures,
             "active_loans": [dict(loan) for loan in depot.active_loans],
             "donation_history": {k: list(v) for k, v in depot.donation_history.items()},
             "purchase_history": {
@@ -302,6 +304,14 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.license_expenditure_history = d["license_expenditure_history"]
     depot.loan_expenditure_history = d.get("loan_expenditure_history", [0.0])
     depot.overdraft_expenditure_history = d.get("overdraft_expenditure_history", [0.0])
+    # Older saves didn't persist miscellaneous history — pad with leading zeros
+    # so it aligns with expenditure_history (tail = today).
+    misc_hist = d.get("miscellaneous_expenditure_history")
+    if misc_hist is None:
+        depot.miscellaneous_expenditure_history = [0.0] * len(depot.expenditure_history)
+    else:
+        depot.miscellaneous_expenditure_history = list(misc_hist)
+    depot.miscellaneous_expenditures = d.get("miscellaneous_expenditures", 0.0)
     depot.active_loans = d.get("active_loans", [])
     depot.donation_history = d["donation_history"]
     depot.purchase_history = {

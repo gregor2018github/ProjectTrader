@@ -73,6 +73,8 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         _draw_population_stacked_bars(screen, chart_rect, font, population_manager, game_state.date)
     elif active_chart == "Stock" and goods is not None:
         _draw_stock_stacked_bars(screen, chart_rect, font, depot, goods, game_state.date)
+    elif active_chart == "Expenses":
+        _draw_expenses_stacked_bars(screen, chart_rect, font, depot, game_state.date)
     elif len(data_points) > 1:
         # Determine scaling
         max_points = chart_rect.width
@@ -266,7 +268,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         screen.blit(text, text_rect)
 
     # 5. Draw Buttons
-    button_labels = ["Wealth", "Money", "Stock", "Houses"]
+    button_labels = ["Wealth", "Money", "Stock", "Expenses", "Houses"]
     if population_manager is not None:
         button_labels += ["Population", "Happiness"]
 
@@ -512,6 +514,200 @@ def _draw_stock_stacked_bars(
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Good", good_name, val, pct, bar_total)
+
+
+def _draw_expenses_stacked_bars(
+    screen: pygame.Surface,
+    chart_rect: pygame.Rect,
+    font: pygame.font.Font,
+    depot: 'Depot',
+    current_date: datetime.datetime,
+) -> None:
+    """Draw a stacked bar chart of daily expenses broken down by category."""
+    # Category list: (display_name, history_list, color)
+    # Good Cost is computed per-day from the totals.
+    categories = [
+        ("Cost of Living",     depot.cost_of_living_expenditure_history,  MATTE_BROWN),
+        ("Good Cost",          None,                                      DARK_GREEN),
+        ("Transaction Cost",   depot.transaction_expenditure_history,     STEELE_BLUE),
+        ("Licenses",           depot.license_expenditure_history,         GOLD),
+        ("Donations",          depot.donation_expenditure_history,        DARK_ORANGE),
+        ("Loan Interest",      depot.loan_expenditure_history,            DARK_RED),
+        ("Overdraft Penalty",  depot.overdraft_expenditure_history,       POP_COLOR_NOBILITY),
+        ("Miscellaneous",      depot.miscellaneous_expenditure_history,   GRAY),
+    ]
+
+    total_hist = depot.expenditure_history
+    total_len = len(total_hist)
+
+    if total_len < 1:
+        text = font.render("Not enough data yet", True, DARK_BROWN)
+        screen.blit(text, text.get_rect(center=chart_rect.center))
+        return
+
+    # Align every subcategory history to the tail of expenditure_history.
+    # Shorter histories (e.g. older saves missing miscellaneous) are padded
+    # with leading zeros so the last entry still represents "today".
+    def _align_to_tail(hist: list, n: int) -> list:
+        if hist is None:
+            return [0.0] * n
+        if len(hist) >= n:
+            return list(hist[-n:])
+        return [0.0] * (n - len(hist)) + list(hist)
+
+    min_len = total_len
+    per_day: dict = {}
+    for name, hist, _ in categories:
+        per_day[name] = _align_to_tail(hist, total_len)
+    for i in range(total_len):
+        subtracted = sum(per_day[name][i] for name, hist, _ in categories if hist is not None)
+        per_day["Good Cost"][i] = max(0.0, total_hist[i] - subtracted)
+
+    margin = 4
+    bar_w = 12
+    bar_gap = 2
+    max_bars = (chart_rect.width - margin * 2) // (bar_w + bar_gap)
+    start_idx = max(0, min_len - max_bars)
+
+    max_total = max(
+        sum(per_day[name][i] for name, _, _ in categories)
+        for i in range(start_idx, min_len)
+    )
+    min_total = min(
+        sum(per_day[name][i] for name, _, _ in categories)
+        for i in range(start_idx, min_len)
+    )
+    if max_total == 0:
+        max_total = 1
+    y_max_scale = max_total * 1.1
+    bar_bottom = chart_rect.bottom - margin
+
+    # Pre-compute legend + Max/Min layout so bars never overlap the header band.
+    legend_items = [(name, color) for name, _, color in categories]
+    rendered_labels = [font.render(name, True, DARK_BROWN) for name, _ in legend_items]
+    leg_cols = 4
+    leg_rows = (len(legend_items) + leg_cols - 1) // leg_cols
+    swatch = 10
+    lbl_h = rendered_labels[0].get_height()
+    leg_row_gap = 2
+    leg_col_gap = 10
+    leg_pad_x, leg_pad_y = 6, 4
+
+    # Per-column widths so narrow labels don't waste space
+    col_widths = []
+    for c in range(leg_cols):
+        indices = [c + r * leg_cols for r in range(leg_rows) if c + r * leg_cols < len(rendered_labels)]
+        col_widths.append(swatch + 4 + max(rendered_labels[i].get_width() for i in indices))
+
+    # Max/Min column appended on the right of the legend box
+    stat_lines = [("Max:", f"{max_total:,.0f}"), ("Min:", f"{min_total:,.0f}")]
+    stat_rendered = [(font.render(lbl, True, CHART_BROWN), font.render(val, True, DARK_BROWN))
+                     for lbl, val in stat_lines]
+    stat_lbl_w = max(s.get_width() for s, _ in stat_rendered)
+    stat_val_w = max(s.get_width() for _, s in stat_rendered)
+    stat_col_w = stat_lbl_w + 4 + stat_val_w
+    stat_sep = 10  # gap between category columns and stat column
+
+    legend_w = leg_pad_x * 2 + sum(col_widths) + (leg_cols - 1) * leg_col_gap + stat_sep + stat_col_w
+    legend_h = leg_pad_y * 2 + leg_rows * lbl_h + (leg_rows - 1) * leg_row_gap
+
+    # Reserve vertical space at the top for title + legend so bars stay below.
+    title_band_h = font.get_height() + 12  # title + underline spacing
+    inner_top = chart_rect.top + margin + title_band_h + legend_h + 6
+    inner_h = max(20, bar_bottom - inner_top)
+
+    _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
+
+    mouse_pos = pygame.mouse.get_pos()
+    hover_info = None
+    hover_seg_rect = None
+    hover_bar_info = None
+
+    for bar_idx, data_idx in enumerate(range(start_idx, min_len)):
+        bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
+        cumulative_h = 0
+        bar_total = sum(per_day[name][data_idx] for name, _, _ in categories)
+        bar_is_hovered = False
+
+        for name, _, color in categories:
+            val = per_day[name][data_idx]
+            if val <= 0:
+                continue
+            seg_h = round(val / y_max_scale * inner_h)
+            if seg_h < 1:
+                seg_h = 1
+            seg_rect = pygame.Rect(bar_x, bar_bottom - cumulative_h - seg_h, bar_w, seg_h)
+            pygame.draw.rect(screen, color, seg_rect)
+            if seg_rect.collidepoint(mouse_pos):
+                bar_is_hovered = True
+                if hover_info is None:
+                    hover_info = (name, val, bar_total, data_idx)
+                    hover_seg_rect = seg_rect
+            cumulative_h += seg_h
+
+        if bar_is_hovered and hover_bar_info is None:
+            total_px_h = round(bar_total / y_max_scale * inner_h)
+            hover_bar_info = (total_px_h, bar_total)
+
+    if hover_seg_rect:
+        pygame.draw.rect(screen, WHITE, hover_seg_rect.inflate(2, 2), 2)
+    if hover_bar_info:
+        hb_total_px, hb_total = hover_bar_info
+        line_y = bar_bottom - hb_total_px
+        pygame.draw.line(screen, DARK_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        val_surf = font.render(f"{hb_total:,.0f}", True, DARK_BROWN)
+        screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
+
+    title_surf = font.render("Expenses History", True, DARK_BROWN)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
+    screen.blit(title_surf, title_rect)
+    pygame.draw.line(screen, DARK_BROWN, (title_rect.left, title_rect.bottom + 2), (title_rect.right, title_rect.bottom + 2), 1)
+
+    # Legend + Max/Min in a single panel below the title, centered horizontally.
+    legend_x = chart_rect.centerx - legend_w // 2
+    legend_y = title_rect.bottom + 6
+    legend_rect = pygame.Rect(legend_x, legend_y, legend_w, legend_h)
+    pygame.draw.rect(screen, SANDY_BROWN, legend_rect)
+    pygame.draw.rect(screen, CHART_BROWN, legend_rect, 1)
+
+    # Pre-compute x offset per column from cumulative column widths
+    col_offsets = []
+    acc = 0
+    for w in col_widths:
+        col_offsets.append(acc)
+        acc += w + leg_col_gap
+
+    # Category swatches (left portion)
+    for idx, ((name, color), lbl_surf) in enumerate(zip(legend_items, rendered_labels)):
+        r = idx // leg_cols
+        c = idx % leg_cols
+        cx = legend_x + leg_pad_x + col_offsets[c]
+        cy = legend_y + leg_pad_y + r * (lbl_h + leg_row_gap)
+        sw_rect = pygame.Rect(cx, cy + (lbl_h - swatch) // 2, swatch, swatch)
+        pygame.draw.rect(screen, color, sw_rect)
+        pygame.draw.rect(screen, DARK_BROWN, sw_rect, 1)
+        screen.blit(lbl_surf, (cx + swatch + 4, cy))
+
+    # Vertical divider before Max/Min column
+    div_x = legend_x + leg_pad_x + sum(col_widths) + (leg_cols - 1) * leg_col_gap + stat_sep // 2
+    pygame.draw.line(screen, CHART_BROWN, (div_x, legend_y + 3), (div_x, legend_y + legend_h - 3), 1)
+
+    # Max/Min values (right column, vertically centred in the legend box)
+    stat_x = div_x + stat_sep // 2 + 2
+    total_stat_h = len(stat_rendered) * lbl_h + (len(stat_rendered) - 1) * leg_row_gap
+    stat_y = legend_y + (legend_h - total_stat_h) // 2
+    for lbl_surf, val_surf in stat_rendered:
+        screen.blit(lbl_surf, (stat_x, stat_y))
+        screen.blit(val_surf, (stat_x + stat_lbl_w + 4, stat_y))
+        stat_y += lbl_h + leg_row_gap
+
+    if hover_info:
+        cat_name, val, bar_total, data_idx = hover_info
+        days_ago = min_len - 1 - data_idx
+        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        pct = val / bar_total * 100 if bar_total else 0
+        _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
+                                  bar_date, "Category", cat_name, int(round(val)), pct, int(round(bar_total)))
 
 
 def _draw_bar_chart_grid(
