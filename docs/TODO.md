@@ -6,8 +6,10 @@
 - [ ] add a income overview in the depot chart view
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
 - [ ] add the sitting corner next to the well with a bench and a table as a decorative element
+- [ ] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
 
 ## Medium Priority
+- [ ] when trading license runs out and you still have goods that require it, there needs to be a warning, maybe even a blackmarket option to sell them at a 60% loss, compared to the normal market price
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
@@ -20,6 +22,7 @@
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
+- [ ] a ledger system where the game stores al incoming messages for you to look at later, especially for important events like signing contracts, market crashes, etc.
 - [ ] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
