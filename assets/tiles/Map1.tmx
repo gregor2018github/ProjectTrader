@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="33" nextobjectid="332">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="33" nextobjectid="337">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -6418,6 +6418,73 @@
     <property name="File_name" value="Fence_3.png"/>
     <property name="Tiles_to_right" type="int" value="18"/>
     <property name="Tiles_up" type="int" value="20"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="332" name="Fence_4" type="Fence_Frontal" x="4352" y="5504">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-20"/>
+    <property name="Col_margin_right_pixel" type="int" value="-20"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="6"/>
+    <property name="File_name" value="Fence_4.png"/>
+    <property name="Tiles_to_right" type="int" value="18"/>
+    <property name="Tiles_up" type="int" value="6"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="333" name="Fence_Col" type="Fence_Frontal" x="4832" y="5952">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-3"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value=""/>
+    <property name="Tiles_to_right" type="int" value="0"/>
+    <property name="Tiles_up" type="int" value="0"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="334" name="Fence_Col" type="Fence_Frontal" x="4896" y="5952">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-10"/>
+    <property name="Col_margin_right_pixel" type="int" value="-3"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="20"/>
+    <property name="File_name" value=""/>
+    <property name="Tiles_to_right" type="int" value="0"/>
+    <property name="Tiles_up" type="int" value="0"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="335" name="Fence_Col" type="Fence_Frontal" x="4608" y="5376">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="14"/>
+    <property name="Col_margin_left_pixel" type="int" value="-15"/>
+    <property name="Col_margin_right_pixel" type="int" value="-3"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
+    <property name="Collision_to_right" type="int" value="10"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="File_name" value=""/>
+    <property name="Tiles_to_right" type="int" value="0"/>
+    <property name="Tiles_up" type="int" value="0"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="336" name="Fence_Col" type="Fence_Frontal" x="4352" y="5376">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="14"/>
+    <property name="Col_margin_left_pixel" type="int" value="-25"/>
+    <property name="Col_margin_right_pixel" type="int" value="-10"/>
+    <property name="Col_margin_up_pixel" type="int" value="-16"/>
+    <property name="Collision_to_right" type="int" value="6"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="File_name" value=""/>
+    <property name="Tiles_to_right" type="int" value="0"/>
+    <property name="Tiles_up" type="int" value="0"/>
    </properties>
    <point/>
   </object>
