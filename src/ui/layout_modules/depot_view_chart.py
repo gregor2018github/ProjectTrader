@@ -75,6 +75,8 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         _draw_stock_stacked_bars(screen, chart_rect, font, depot, goods, game_state.date)
     elif active_chart == "Expenses":
         _draw_expenses_stacked_bars(screen, chart_rect, font, depot, game_state.date)
+    elif active_chart == "Income":
+        _draw_income_bars(screen, chart_rect, font, depot, game_state.date)
     elif len(data_points) > 1:
         # Determine scaling
         max_points = chart_rect.width
@@ -268,7 +270,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         screen.blit(text, text_rect)
 
     # 5. Draw Buttons
-    button_labels = ["Wealth", "Money", "Stock", "Expenses", "Houses"]
+    button_labels = ["Wealth", "Money", "Stock", "Expenses", "Income", "Houses"]
     if population_manager is not None:
         button_labels += ["Population", "Happiness"]
 
@@ -708,6 +710,78 @@ def _draw_expenses_stacked_bars(
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Category", cat_name, int(round(val)), pct, int(round(bar_total)))
+
+
+def _draw_income_bars(
+    screen: pygame.Surface,
+    chart_rect: pygame.Rect,
+    font: pygame.font.Font,
+    depot: 'Depot',
+    current_date: datetime.datetime,
+) -> None:
+    """Draw a bar chart of daily income (goods sales revenue)."""
+    history = depot.income_history
+    n = len(history)
+
+    if n < 1:
+        text = font.render("Not enough data yet", True, DARK_BROWN)
+        screen.blit(text, text.get_rect(center=chart_rect.center))
+        return
+
+    margin = 4
+    bar_w = 12
+    bar_gap = 2
+    max_bars = (chart_rect.width - margin * 2) // (bar_w + bar_gap)
+    start_idx = max(0, n - max_bars)
+
+    visible = history[start_idx:]
+    max_val = max(visible) if visible else 1
+    min_val = min(visible) if visible else 0
+    if max_val == 0:
+        max_val = 1
+    y_max_scale = max_val * 1.1
+    bar_bottom = chart_rect.bottom - margin
+    inner_h = bar_bottom - (chart_rect.top + margin)
+
+    _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
+
+    mouse_pos = pygame.mouse.get_pos()
+    hover_info = None   # (val, data_idx, bar_rect)
+
+    for bar_idx, data_idx in enumerate(range(start_idx, n)):
+        val = history[data_idx]
+        bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
+        seg_h = round(val / y_max_scale * inner_h) if val > 0 else 0
+        if seg_h < 1 and val > 0:
+            seg_h = 1
+        bar_rect = pygame.Rect(bar_x, bar_bottom - seg_h, bar_w, seg_h)
+        pygame.draw.rect(screen, DARK_GREEN, bar_rect)
+        if bar_rect.collidepoint(mouse_pos) or (
+            seg_h == 0 and
+            pygame.Rect(bar_x, bar_bottom - 4, bar_w, 4).collidepoint(mouse_pos)
+        ):
+            hover_info = (val, data_idx, bar_rect)
+
+    if hover_info:
+        val, data_idx, bar_rect = hover_info
+        pygame.draw.rect(screen, WHITE, bar_rect.inflate(2, 2), 2)
+        # Horizontal total line
+        line_y = bar_rect.top
+        pygame.draw.line(screen, DARK_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        val_surf = font.render(f"{val:,.0f}", True, DARK_BROWN)
+        screen.blit(val_surf, (chart_rect.right - val_surf.get_width() - 4, line_y - val_surf.get_height() - 1))
+        # Tooltip
+        days_ago = n - 1 - data_idx
+        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        lines = [("Date:", bar_date), ("Revenue:", f"{val:,.0f}")]
+        _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
+    _draw_bar_stat_box(screen, font, chart_rect, max_val, min_val)
+
+    title_surf = font.render("Income History", True, DARK_BROWN)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
+    screen.blit(title_surf, title_rect)
+    pygame.draw.line(screen, DARK_BROWN, (title_rect.left, title_rect.bottom + 2), (title_rect.right, title_rect.bottom + 2), 1)
 
 
 def _draw_bar_chart_grid(

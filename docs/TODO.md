@@ -1,8 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add a expenses overview in the depot chart view
-- [ ] add a income overview in the depot chart view
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
 - [ ] add the sitting corner next to the well with a bench and a table as a decorative element
 - [ ] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
@@ -13,6 +11,7 @@
 - [ ] add two more houses with different designs
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a functionality to throw down a rock into the lake
+- [ ] add profit overview in the depot chart view
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
@@ -46,6 +45,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a income overview in the depot chart view
+- [x] add a expenses overview in the depot chart view
 - [x] bugfix: fix collision and rendering of the long fence elements at the sheep meadow by cutting the sprite into separarte pieces and giving them proper collision boxes
 - [x] add fences for the sheep
 - [x] add a big old tree for the sheep meadow
