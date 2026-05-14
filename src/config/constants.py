@@ -93,6 +93,7 @@ CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "
 
 # MAP AND SOUND CONSTANTS
 
+MUSIC_VOLUME = 0.5                    # Default background music volume (1.0 is 100%)
 FOOT_STEP_VOLUME = 0.25               # Volume for footstep sounds (1.0 is 100%)
 CHURCH_BELL_VOLUME = 0.25             # Maximum volume for church music (1.0 is 100%)
 SHEEP_VOLUME = 0.65                   # Maximum volume for sheep sounds (1.0 is 100%)

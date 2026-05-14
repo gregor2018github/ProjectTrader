@@ -66,7 +66,26 @@ class EventHandler:
         if game_state.info_window and hasattr(game_state.info_window, 'handle_event'):
             game_state.info_window.handle_event(event)
             
+        # Right-click: toggle volume slider on the music button
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            if hasattr(game_state.game, 'sound_control'):
+                game_state.game.sound_control.handle_right_click(event.pos)
+
+        # Left mouse-down: may start a slider drag (checked before normal click routing)
+        _slider_consumed = False
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if hasattr(game_state.game, 'sound_control'):
+                _slider_consumed = game_state.game.sound_control.handle_mouse_down(event.pos)
+
+        if event.type == pygame.MOUSEMOTION:
+            if hasattr(game_state.game, 'sound_control'):
+                game_state.game.sound_control.handle_mouse_motion(event.pos)
+
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            if hasattr(game_state.game, 'sound_control'):
+                game_state.game.sound_control.handle_mouse_up()
+
+        if not _slider_consumed and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if game_state.info_window:
                 if hasattr(game_state.info_window, 'handle_click'):
                     choice = game_state.info_window.handle_click(event.pos)

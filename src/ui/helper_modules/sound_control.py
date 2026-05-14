@@ -2,13 +2,19 @@ import pygame
 import random
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
+from ...config.constants import MUSIC_VOLUME
 
 if TYPE_CHECKING:
     from ...game import Game
 
+_SLIDER_WIDTH = 24
+_SLIDER_HEIGHT = 120
+_HANDLE_HEIGHT = 14
+
+
 class SoundControl:
     """A UI component to toggle background music and manage the playlist.
-    
+
     Attributes:
         font: The font used for text rendering.
         button_image: The icon for the music button.
@@ -20,147 +26,215 @@ class SoundControl:
         control_rect: Rectangular area for the background panel.
         button_rect: Rectangular area for the interactive button.
         MUSIC_END_EVENT: Custom event ID for song completion.
+        volume: Current music volume (0.0 – 1.0).
+        show_slider: Whether the volume slider is visible.
+        dragging_slider: Whether the user is currently dragging the slider handle.
     """
 
     def __init__(self, screen_width: int, screen_height: int, font: pygame.font.Font, button_image: pygame.Surface) -> None:
-        """Initialize the sound control panel.
-        
-        Args:
-            screen_width: Width of the game screen.
-            screen_height: Height of the game screen.
-            font: Font for text rendering.
-            button_image: Surface containing the button icon.
-        """
         self.font: pygame.font.Font = font
         self.button_image: pygame.Surface = button_image
         self.playing: bool = False
         self.current_song: Optional[str] = None
         self.last_played_song: Optional[str] = None
         self.play_queue: List[str] = []
-        
-        # Set up button position and size
-        self.button_size: int = 45  # Target size for button
-        
-        # Resize button image if needed
+        self.volume: float = MUSIC_VOLUME
+        self.show_slider: bool = False
+        self.dragging_slider: bool = False
+
+        self.button_size: int = 45
+
         if button_image.get_height() > self.button_size or button_image.get_width() > self.button_size:
             aspect_ratio = button_image.get_width() / button_image.get_height()
             new_height = self.button_size
             new_width = int(new_height * aspect_ratio)
             self.button_image = pygame.transform.scale(button_image, (new_width, new_height))
-        
-        # Create a background panel rect similar to time control
-        padding: int = 3  # Padding around the button
+
+        padding: int = 3
         panel_width: int = self.button_image.get_width() + padding * 2
-        panel_height: int = 50  # Same height as time control panel
-        
-        # Position the button to the left of time control
-        button_x: int = screen_width - 400  # Position left of time control
-        
+        panel_height: int = 50
+
+        button_x: int = screen_width - 400
+
         self.control_rect: pygame.Rect = pygame.Rect(
             button_x - padding,
-            screen_height - 55,  # Same positioning as time control
+            screen_height - 55,
             panel_width,
             panel_height
         )
-        
-        # Create button rectangle centered in the panel
+
         self.button_rect: pygame.Rect = pygame.Rect(
             self.control_rect.x + (self.control_rect.width - self.button_image.get_width()) // 2,
             self.control_rect.y + (self.control_rect.height - self.button_image.get_height()) // 2,
             self.button_image.get_width(),
             self.button_image.get_height()
         )
-        
-        # Register for the music end event
+
+        # Slider panel positioned above the button panel with a gap
+        slider_x = self.control_rect.x + (self.control_rect.width - _SLIDER_WIDTH) // 2
+        slider_panel_y = self.control_rect.y - _SLIDER_HEIGHT - 16
+        self.slider_panel_rect: pygame.Rect = pygame.Rect(
+            slider_x - 6,
+            slider_panel_y,
+            _SLIDER_WIDTH + 12,
+            _SLIDER_HEIGHT + 12,
+        )
+        # The draggable track inside the panel
+        self.slider_track_rect: pygame.Rect = pygame.Rect(
+            slider_x + _SLIDER_WIDTH // 2 - 2,
+            slider_panel_y + 6,
+            4,
+            _SLIDER_HEIGHT,
+        )
+
         self.MUSIC_END_EVENT: int = pygame.USEREVENT + 1
         pygame.mixer.music.set_endevent(self.MUSIC_END_EVENT)
-    
+        pygame.mixer.music.set_volume(self.volume)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _handle_y(self) -> int:
+        """Y pixel of the top of the slider handle based on current volume."""
+        track_top = self.slider_track_rect.top
+        track_bottom = self.slider_track_rect.bottom - _HANDLE_HEIGHT
+        return int(track_top + (1.0 - self.volume) * (track_bottom - track_top))
+
+    def _handle_rect(self) -> pygame.Rect:
+        return pygame.Rect(
+            self.slider_track_rect.x - (_SLIDER_WIDTH // 2 - 2),
+            self._handle_y(),
+            _SLIDER_WIDTH,
+            _HANDLE_HEIGHT,
+        )
+
+    def _volume_from_mouse_y(self, mouse_y: int) -> float:
+        track_top = self.slider_track_rect.top
+        track_bottom = self.slider_track_rect.bottom - _HANDLE_HEIGHT
+        ratio = 1.0 - (mouse_y - track_top) / max(track_bottom - track_top, 1)
+        return max(0.0, min(1.0, ratio))
+
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
+
     def draw(self, screen: pygame.Surface) -> None:
-        """Draw the music control panel and button.
-        
-        Args:
-            screen: The pygame surface to draw on.
-        """
-        # Get mouse position for hover effects
         mouse_pos = pygame.mouse.get_pos()
-        
-        # Draw the background panel first
+
+        # Button panel
         pygame.draw.rect(screen, TAN, self.control_rect)
         pygame.draw.rect(screen, DARK_BROWN, self.control_rect, 2)
-        
-        # Draw the button
         screen.blit(self.button_image, self.button_rect)
-        
-        # If hovered, draw hover effect
+
         if self.button_rect.collidepoint(mouse_pos):
             overlay = pygame.Surface((self.button_rect.width, self.button_rect.height), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 20))  # Semi-transparent black
+            overlay.fill((0, 0, 0, 20))
             screen.blit(overlay, self.button_rect)
-            
-            # Add a highlight border
             pygame.draw.rect(screen, DARK_BROWN, self.button_rect, 1)
-        
-        # Visual indicator when music is playing
+
         if self.playing:
             overlay = pygame.Surface((self.button_rect.width, self.button_rect.height), pygame.SRCALPHA)
-            overlay.fill((0, 255, 0, 40))  # Green tint
+            overlay.fill((0, 255, 0, 40))
             screen.blit(overlay, self.button_rect)
-    
+
+        # Volume slider
+        if self.show_slider:
+            pygame.draw.rect(screen, TAN, self.slider_panel_rect)
+            pygame.draw.rect(screen, DARK_BROWN, self.slider_panel_rect, 2)
+
+            # Track: draw as light/empty rail
+            pygame.draw.rect(screen, WHITE, self.slider_track_rect)
+            pygame.draw.rect(screen, DARK_BROWN, self.slider_track_rect, 1)
+
+            # Fill from track bottom up to handle centre — volume level indicator
+            handle_center_y = self._handle_y() + _HANDLE_HEIGHT // 2
+            fill_rect = pygame.Rect(
+                self.slider_track_rect.x,
+                handle_center_y,
+                self.slider_track_rect.width,
+                self.slider_track_rect.bottom - handle_center_y,
+            )
+            pygame.draw.rect(screen, DARK_BROWN, fill_rect)
+
+            # Handle
+            handle = self._handle_rect()
+            pygame.draw.rect(screen, DARK_BROWN, handle, border_radius=3)
+
+            # Percentage tooltip following the mouse — only when hovering the slider or button area
+            if self.slider_panel_rect.collidepoint(mouse_pos) or self.control_rect.collidepoint(mouse_pos):
+                pct_text = f"{int(self.volume * 100)}%"
+                label_surf = self.font.render(pct_text, True, DARK_BROWN)
+                tip_x = mouse_pos[0] + 35
+                tip_y = mouse_pos[1] - 10
+                tip_rect = label_surf.get_rect(topleft=(tip_x, tip_y))
+                if tip_rect.right > screen.get_width() - 10:
+                    tip_rect.topright = (mouse_pos[0] - 15, tip_y)
+                if tip_rect.bottom > screen.get_height():
+                    tip_rect.bottom = screen.get_height()
+                bg_rect = tip_rect.inflate(10, 8)
+                pygame.draw.rect(screen, WHITE, bg_rect)
+                pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
+                screen.blit(label_surf, tip_rect)
+
     def handle_click(self, pos: Tuple[int, int], game: 'Game') -> bool:
-        """Handle mouse clicks to toggle music playback.
-        
-        Args:
-            pos: The (x, y) mouse position of the click.
-            game: Reference to the main Game instance.
-            
-        Returns:
-            bool: True if the button was clicked, False otherwise.
-        """
+        """Handle left-click: toggle music playback."""
         if self.button_rect.collidepoint(pos):
             if not self.playing:
-                # Start playing music
                 self.play_random_song(game)
                 self.playing = True
                 game.play_sound("button_click")
             else:
-                # Fade out current song
-                pygame.mixer.music.fadeout(1500)  # 1.5 second fadeout
+                pygame.mixer.music.fadeout(1500)
                 self.playing = False
                 self.current_song = None
                 game.play_sound("button_click")
             return True
+        # Left-clicking outside the slider panel closes it
+        if self.show_slider and not self.slider_panel_rect.collidepoint(pos):
+            self.show_slider = False
         return False
-    
+
+    def handle_right_click(self, pos: Tuple[int, int]) -> bool:
+        """Handle right-click on the button: toggle the volume slider."""
+        if self.button_rect.collidepoint(pos) or self.control_rect.collidepoint(pos):
+            self.show_slider = not self.show_slider
+            return True
+        return False
+
+    def handle_mouse_down(self, pos: Tuple[int, int]) -> bool:
+        """Start dragging the slider handle if clicked."""
+        if self.show_slider and self._handle_rect().collidepoint(pos):
+            self.dragging_slider = True
+            return True
+        return False
+
+    def handle_mouse_motion(self, pos: Tuple[int, int]) -> None:
+        """Update volume while dragging."""
+        if self.dragging_slider:
+            self.volume = self._volume_from_mouse_y(pos[1])
+            pygame.mixer.music.set_volume(self.volume)
+
+    def handle_mouse_up(self) -> None:
+        """Stop dragging."""
+        self.dragging_slider = False
+
     def handle_music_end_event(self, game: 'Game') -> None:
-        """Handle when a song ends and play the next song.
-        
-        Args:
-            game: Reference to the main Game instance.
-        """
         if self.playing:
             self.play_random_song(game)
-    
+
     def play_random_song(self, game: 'Game') -> None:
-        """Play a random song that's different from the last played song.
-        
-        Args:
-            game: Reference to the main Game instance.
-        """
         available_songs = list(game.music_paths.keys())
-        
-        # If we've played all songs, refill the queue but exclude the last played song
+
         if not self.play_queue:
             self.play_queue = available_songs.copy()
             if self.last_played_song and self.last_played_song in self.play_queue:
                 self.play_queue.remove(self.last_played_song)
-        
-        # Pick a song from the queue
+
         self.current_song = random.choice(self.play_queue)
         self.play_queue.remove(self.current_song)
-        
-        # Remember this as the last played song
         self.last_played_song = self.current_song
-        
-        # Play the song (no looping)
+
         pygame.mixer.music.load(game.music_paths[self.current_song])
+        pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play()
