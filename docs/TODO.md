@@ -2,7 +2,6 @@
 
 ## High Priority
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
-- [ ] add the sitting corner next to the well with a bench and a table as a decorative element
 - [ ] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
 
 ## Medium Priority
@@ -45,6 +44,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add the sitting corner next to the well with a bench and a table as a decorative element
 - [x] add a income overview in the depot chart view
 - [x] add a expenses overview in the depot chart view
 - [x] bugfix: fix collision and rendering of the long fence elements at the sheep meadow by cutting the sprite into separarte pieces and giving them proper collision boxes

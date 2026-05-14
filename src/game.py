@@ -518,9 +518,9 @@ class Game:
                     if mode == 'map':
                         draw_map_view(self.screen, self.game_map, rect, self.state)
                     elif mode == 'market':
-                        self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border, 
-                                                          self.goods, self.images['goods_30'], self.state.date, 
-                                                          rect)
+                        self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border,
+                                                          self.goods, self.images['goods_30'], self.state.date,
+                                                          rect, self.depot)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
                     elif mode in ['politics', 'trade_routes', 'building']:

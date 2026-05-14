@@ -6,8 +6,9 @@ from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART
 
 if TYPE_CHECKING:
     from ...models.good import Good
+    from ...models.depot import Depot
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect) -> List[pygame.Rect]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None) -> List[pygame.Rect]:
     """Draw the primary price history chart and selection UI.
     
     Args:
@@ -54,7 +55,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Calculate max price using chart history instead of bookkeeping history
     visible_goods = [good for good in goods if good.show_in_charts]
     if not visible_goods:
-        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
+        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date)
 
     max_price = max(max(good.price_history_hourly[-int(max_chart_size):]) for good in visible_goods)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
@@ -64,7 +65,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date)
     
     # Check for proximity hover on the chart itself
     closest_good, hover_idx = _get_closest_good_at_mouse(pygame.mouse.get_pos(), chart_border, max_chart_size, max_chart_height, goods, max_price)
@@ -75,7 +76,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
     # Draw chart hover effects (vertical line and tooltip)
-    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx)
+    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx, depot)
 
     return image_boxes
 
@@ -123,7 +124,7 @@ def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[i
                 
     return closest_good, idx
 
-def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime, closest_good: Optional['Good'] = None, idx: Optional[int] = None) -> None:
+def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime, closest_good: Optional['Good'] = None, idx: Optional[int] = None, depot: 'Depot' = None) -> None:
     """Draw a vertical hover line and price tooltip when hovering over the chart area.
     
     Args:
@@ -155,7 +156,7 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             price_history = closest_good.price_history_hourly[-int(max_chart_size):]
             price = price_history[idx]
             tooltip_text = f"{closest_good.name}: {price:.2f}"
-            
+
             # Calculate date for the hovered data point
             # Use any visible good to get history length (assuming they all have it)
             visible_goods = [g for g in goods if g.show_in_charts]
@@ -163,49 +164,62 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             hours_ago = price_history_len - 1 - idx
             hover_date = current_date - datetime.timedelta(hours=hours_ago)
             date_text = hover_date.strftime("%d.%m.%Y")
-            
+
+            no_license = depot is not None and not depot.has_license(closest_good.name, current_date)
+            license_text = "No trading license!" if no_license else None
+
             # Create a stable width by calculating as if all digits were the widest digit (9)
             # This prevents the tooltip box from "jumping" as prices update.
             stable_text_price = "".join(['9' if c.isdigit() else c for c in tooltip_text])
             stable_text_date = "".join(['9' if c.isdigit() else c for c in date_text])
-            
+
             sw_price, sh_price = main_font.size(stable_text_price)
             sw_date, sh_date = main_font.size(stable_text_date)
-            
+
             total_stable_width = max(sw_price, sw_date)
             row_spacing = 2
             total_stable_height = sh_price + sh_date + row_spacing
-            
+
+            if license_text:
+                sw_license, sh_license = main_font.size(license_text)
+                total_stable_width = max(total_stable_width, sw_license)
+                total_stable_height += sh_license + row_spacing
+
             # Render the actual text using a fixed color for readability
             price_surface = main_font.render(tooltip_text, True, DARK_BROWN)
             date_surface = main_font.render(date_text, True, DARK_BROWN)
-            
+
             # Create a stable-size rect for the background based on "all 9s" dimensions
             tooltip_base_x = mouse_pos[0] + 35
             tooltip_base_y = mouse_pos[1] - 10
             stable_rect = pygame.Rect(tooltip_base_x, tooltip_base_y, total_stable_width, total_stable_height)
-            
+
             # Flip to left if it would go off right edge
             if stable_rect.right > screen.get_width() - 10:
                 stable_rect.topright = (mouse_pos[0] - 15, tooltip_base_y)
-            
+
             # Ensure it doesn't go off the top or bottom of the screen
             if stable_rect.top < 0:
                 stable_rect.top = 0
             if stable_rect.bottom > screen.get_height():
                 stable_rect.bottom = screen.get_height()
-            
+
             # Draw background box with padding using the stable dimensions
             bg_rect = stable_rect.inflate(10, 8)
             pygame.draw.rect(screen, WHITE, bg_rect)
             pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
-            
+
             # Draw the text rows centered within the stable rect
             price_rect = price_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top))
             date_rect = date_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + row_spacing))
-            
+
             screen.blit(price_surface, price_rect)
             screen.blit(date_surface, date_rect)
+
+            if license_text:
+                license_surface = main_font.render(license_text, True, RED)
+                license_rect = license_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + sh_date + row_spacing * 2))
+                screen.blit(license_surface, license_rect)
 
 def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, current_date: datetime.datetime, history_len: int) -> None:
     """Draw vertical lines representing time boundaries (Day, Week, or Month).
@@ -381,7 +395,7 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font) -> List[pygame.Rect]:
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None) -> List[pygame.Rect]:
     """Draw interactive toggles for individual goods.
     
     Args:
@@ -426,13 +440,26 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
             screen.blit(goods_images_30[good.name], (box_x + 10, box_y + 10))
         
         if is_hovered:
-            tooltips.append((good.name, mouse_pos))
+            no_license = depot is not None and current_date is not None and not depot.has_license(good.name, current_date)
+            tooltips.append((good.name, mouse_pos, no_license))
     # Render tooltips after all buttons are drawn.
-    for name, pos in tooltips:
-        tooltip_surface = main_font.render(name, True, BLACK)
-        tooltip_rect = tooltip_surface.get_rect(topleft=(pos[0] + 35, pos[1] + 10))
-        pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(4, 4))
-        pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(4, 4), 1)
-        screen.blit(tooltip_surface, tooltip_rect)
+    for name, pos, no_license in tooltips:
+        name_surface = main_font.render(name, True, BLACK)
+        tooltip_x = pos[0] + 35
+        tooltip_y = pos[1] + 10
+        if no_license:
+            license_surface = main_font.render("No trading license!", True, RED)
+            combined_width = max(name_surface.get_width(), license_surface.get_width())
+            combined_height = name_surface.get_height() + 2 + license_surface.get_height()
+            bg_rect = pygame.Rect(tooltip_x - 2, tooltip_y - 2, combined_width + 4, combined_height + 4)
+            pygame.draw.rect(screen, WHITE, bg_rect)
+            pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
+            screen.blit(name_surface, (tooltip_x, tooltip_y))
+            screen.blit(license_surface, (tooltip_x, tooltip_y + name_surface.get_height() + 2))
+        else:
+            tooltip_rect = name_surface.get_rect(topleft=(tooltip_x, tooltip_y))
+            pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(4, 4))
+            pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(4, 4), 1)
+            screen.blit(name_surface, tooltip_rect)
     
     return image_boxes
