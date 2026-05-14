@@ -146,7 +146,7 @@ class SoundControl:
         Args:
             game: Reference to the main Game instance.
         """
-        available_songs = ["song_1", "song_2", "song_3", "song_4", "song_5"]
+        available_songs = list(game.music_paths.keys())
         
         # If we've played all songs, refill the queue but exclude the last played song
         if not self.play_queue:

@@ -303,18 +303,11 @@ class Game:
         # Define the music directory
         music_dir = os.path.join(os.path.dirname(PICTURES_PATH), "music")
         
-        # Define the music tracks we want to load
-        music_tracks = ["song_1", "song_2", "song_3", "song_4", "song_5"]
-        
-        # Load each music track
-        for track in music_tracks:
-            for ext in [".mp3", ".ogg", ".wav"]:
-                music_path = os.path.join(music_dir, f"{track}{ext}")
-                if os.path.exists(music_path):
-                    music_paths[track] = music_path
-                    break
-            if track not in music_paths:
-                print(f"Could not find music track {track}")
+        if os.path.isdir(music_dir):
+            for filename in sorted(os.listdir(music_dir)):
+                name, ext = os.path.splitext(filename)
+                if ext.lower() in (".mp3", ".ogg", ".wav"):
+                    music_paths[name] = os.path.join(music_dir, filename)
         
         return music_paths
         
