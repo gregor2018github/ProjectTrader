@@ -44,6 +44,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: in the chartview, when the hover text boxes are too close to the egdge that they would become partly invisible, they now flip to the other side of the cursor or slide upwards, so that they are always fully visible
+- [x] bugfix: music menu called an non existing button sound, the reference thereto was thus removed
+- [x] added more options to the music menu so that now you can adjust the volume of the music and jump to the next track with rightclicking the music button
 - [x] add the sitting corner next to the well with a bench and a table as a decorative element
 - [x] add a income overview in the depot chart view
 - [x] add a expenses overview in the depot chart view
