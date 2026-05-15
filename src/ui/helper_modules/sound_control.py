@@ -220,12 +220,10 @@ class SoundControl:
             if not self.playing:
                 self.play_random_song(game)
                 self.playing = True
-                game.play_sound("button_click")
             else:
                 pygame.mixer.music.fadeout(1500)
                 self.playing = False
                 self.current_song = None
-                game.play_sound("button_click")
             return True
         # Next-song button: fade out current song; MUSIC_END_EVENT will advance the queue
         if self.show_slider and self.next_btn_rect.collidepoint(pos):
