@@ -10,6 +10,8 @@ if TYPE_CHECKING:
 _SLIDER_WIDTH = 24
 _SLIDER_HEIGHT = 120
 _HANDLE_HEIGHT = 14
+_NEXT_BTN_SIZE = 28
+_NEXT_BTN_GAP = 4
 
 
 class SoundControl:
@@ -87,6 +89,14 @@ class SoundControl:
             _SLIDER_HEIGHT,
         )
 
+        # Next-song button: sits to the right of the slider panel, vertically centred
+        self.next_btn_rect: pygame.Rect = pygame.Rect(
+            self.slider_panel_rect.right + _NEXT_BTN_GAP,
+            self.slider_panel_rect.centery - _NEXT_BTN_SIZE // 2,
+            _NEXT_BTN_SIZE,
+            _NEXT_BTN_SIZE,
+        )
+
         self.MUSIC_END_EVENT: int = pygame.USEREVENT + 1
         pygame.mixer.music.set_endevent(self.MUSIC_END_EVENT)
         pygame.mixer.music.set_volume(self.volume)
@@ -161,10 +171,37 @@ class SoundControl:
             handle = self._handle_rect()
             pygame.draw.rect(screen, DARK_BROWN, handle, border_radius=3)
 
-            # Percentage tooltip following the mouse — only when hovering the slider or button area
-            if self.slider_panel_rect.collidepoint(mouse_pos) or self.control_rect.collidepoint(mouse_pos):
-                pct_text = f"{int(self.volume * 100)}%"
-                label_surf = self.font.render(pct_text, True, DARK_BROWN)
+            # Next-song button
+            pygame.draw.rect(screen, TAN, self.next_btn_rect)
+            pygame.draw.rect(screen, DARK_BROWN, self.next_btn_rect, 2)
+            # Skip-forward icon: filled triangle + vertical bar
+            tri = 8
+            cx = self.next_btn_rect.centerx - 2
+            cy = self.next_btn_rect.centery
+            pygame.draw.polygon(screen, DARK_BROWN, [
+                (cx - tri // 2, cy - tri // 2),
+                (cx + tri // 2, cy),
+                (cx - tri // 2, cy + tri // 2),
+            ])
+            bar_x = cx + tri // 2 + 2
+            pygame.draw.rect(screen, DARK_BROWN, pygame.Rect(bar_x, cy - tri // 2, 3, tri))
+            if self.next_btn_rect.collidepoint(mouse_pos):
+                overlay = pygame.Surface((self.next_btn_rect.width, self.next_btn_rect.height), pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 20))
+                screen.blit(overlay, self.next_btn_rect)
+
+            # Tooltip — % when hovering slider/button, "Next song" when hovering skip button
+            if self.next_btn_rect.collidepoint(mouse_pos):
+                tip_text = "Next song"
+                tip_color = DARK_BROWN
+            elif self.slider_panel_rect.collidepoint(mouse_pos) or self.control_rect.collidepoint(mouse_pos):
+                tip_text = f"{int(self.volume * 100)}%"
+                tip_color = DARK_BROWN
+            else:
+                tip_text = None
+                tip_color = DARK_BROWN
+            if tip_text:
+                label_surf = self.font.render(tip_text, True, tip_color)
                 tip_x = mouse_pos[0] + 35
                 tip_y = mouse_pos[1] - 10
                 tip_rect = label_surf.get_rect(topleft=(tip_x, tip_y))
@@ -190,8 +227,13 @@ class SoundControl:
                 self.current_song = None
                 game.play_sound("button_click")
             return True
-        # Left-clicking outside the slider panel closes it
-        if self.show_slider and not self.slider_panel_rect.collidepoint(pos):
+        # Next-song button: fade out current song; MUSIC_END_EVENT will advance the queue
+        if self.show_slider and self.next_btn_rect.collidepoint(pos):
+            if self.playing:
+                pygame.mixer.music.fadeout(1500)
+            return True
+        # Left-clicking outside the slider/next-button area closes the panel
+        if self.show_slider and not self.slider_panel_rect.collidepoint(pos) and not self.next_btn_rect.collidepoint(pos):
             self.show_slider = False
         return False
 
@@ -235,6 +277,9 @@ class SoundControl:
         self.play_queue.remove(self.current_song)
         self.last_played_song = self.current_song
 
+        pygame.mixer.music.set_endevent()  # suppress end event from the forced stop
+        pygame.mixer.music.stop()
+        pygame.mixer.music.set_endevent(self.MUSIC_END_EVENT)
         pygame.mixer.music.load(game.music_paths[self.current_song])
         pygame.mixer.music.set_volume(self.volume)
         pygame.mixer.music.play()
