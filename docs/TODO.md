@@ -42,6 +42,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] on the top menu bar, do not only show the total amount of goods stored like 80 but also the maximum storage capacity like 80/100, so that the player can easily see how much storage they have left
 - [x] in the wealth charts, fixed a problem that the amount of taken loans was not correctly shown in the hover text, it always shows 0, even if you have taken loans
 - [x] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
 - [x] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
