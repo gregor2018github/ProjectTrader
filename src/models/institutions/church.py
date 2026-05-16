@@ -30,6 +30,7 @@ class Church(House):
             
             if depot.book_donation(amount, category="Church Donations"):
                 self.treasury += amount
+                game_state.game.play_sound("falling_coins_buy")
                 
                 # Close menu on success
                 game_state.info_window = None 
