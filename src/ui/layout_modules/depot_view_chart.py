@@ -237,7 +237,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             elif active_chart == "Money":
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
                 cash   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
-                loan_v = depot.loan_history[actual_idx] if actual_idx < len(depot.loan_history) else 0
+                loan_v = visible_loan_data[vis_idx] if has_loans and vis_idx < len(visible_loan_data) else 0
                 lines = [
                     ("Date:",  bar_date),
                     ("Cash:",  f"{cash:,.0f}"),

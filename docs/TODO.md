@@ -2,7 +2,6 @@
 
 ## High Priority
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
-- [ ] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
 
 ## Medium Priority
 - [ ] when trading license runs out and you still have goods that require it, there needs to be a warning, maybe even a blackmarket option to sell them at a 60% loss, compared to the normal market price
@@ -38,12 +37,14 @@
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 
 ## Bug Fixes
-- [ ] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] in the wealth charts, fixed a problem that the amount of taken loans was not correctly shown in the hover text, it always shows 0, even if you have taken loans
+- [x] bugfix: interest paid never seems to be calculated in on a daily level in the depot view because it is booked around midnight
+- [x] in the market view, when you hover over a certain item, also communicate to the player if he has no trading license for that good yet
 - [x] bugfix: in the chartview, when the hover text boxes are too close to the egdge that they would become partly invisible, they now flip to the other side of the cursor or slide upwards, so that they are always fully visible
 - [x] bugfix: music menu called an non existing button sound, the reference thereto was thus removed
 - [x] added more options to the music menu so that now you can adjust the volume of the music and jump to the next track with rightclicking the music button
