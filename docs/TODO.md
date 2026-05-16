@@ -23,7 +23,6 @@
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
-- [ ] Add sound effects for buying and selling goods at the market
 - [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Market events
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
@@ -42,6 +41,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] Add sound effects for buying and selling goods at the market
+- [x] Add sound effects for a loan being granted
 - [x] add more information about the trade to happen in the quicktrade menu (how much money in total, how much transaction fee, etc.)
 - [x] in the house click menu of markets there is a quick trade button but it should be greyed out when you have no license and and when you hover over the greyed out button it should say "No trading license" in red letters
 - [x] on the top menu bar, do not only show the total amount of goods stored like 80 but also the maximum storage capacity like 80/100, so that the player can easily see how much storage they have left

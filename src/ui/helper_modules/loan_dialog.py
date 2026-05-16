@@ -331,6 +331,7 @@ class LoanDialog(_BaseDialog):
             self.game_state.game.depot.take_loan(
                 self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
+            self.game_state.game.play_sound("falling_coins_buy")
             _close_dialog(self.game_state)
             return True
         return True
