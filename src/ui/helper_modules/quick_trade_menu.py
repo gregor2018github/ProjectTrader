@@ -34,7 +34,7 @@ class TradeMenu:
         
         # Layout metrics
         self.width = 240
-        self.height = 200
+        self.height = 235
         self.padding = 10
         self.header_height = 30
         self.row_height = 40
@@ -79,13 +79,13 @@ class TradeMenu:
         self.buttons['plus'] = pygame.Rect(cx + 30, qty_center - 10, arrow_size, arrow_size)
         self.buttons['plus10'] = pygame.Rect(cx + 60, qty_center - 10, arrow_size, arrow_size)
         
-        y += 80
-        
+        y += 115
+
         # Buy Button
         self.buttons['buy'] = pygame.Rect(x, y, width, 30)
-        
+
         y += 40
-        
+
         # Sell Button
         self.buttons['sell'] = pygame.Rect(x, y, width, 30)
 
@@ -242,12 +242,28 @@ class TradeMenu:
         target_surf.blit(qty_surf, qty_rect)
 
         # Price Info (below Quantity)
-        price_y = minus_rect.bottom + 10
+        info_y = minus_rect.bottom + 8
+        line_gap = 23
         if self.good:
-            price_text = f"Price: {self.good.get_price():.1f}"
-            price_surf = self.font.render(price_text, True, DARK_GRAY)
-            price_rect = price_surf.get_rect(center=(body_draw_rect.centerx, price_y + 10))
-            target_surf.blit(price_surf, price_rect)
+            unit_price = self.good.get_price()
+            fee = self.depot.transaction_cost
+
+            price_surf = self.font.render(f"Price per Unit: {unit_price:.1f}", True, DARK_GRAY)
+            target_surf.blit(price_surf, price_surf.get_rect(center=(body_draw_rect.centerx, info_y + price_surf.get_height() // 2)))
+
+            fee_surf = self.font.render(f"Trading Fees: {fee:.1f}", True, DARK_GRAY)
+            target_surf.blit(fee_surf, fee_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap + fee_surf.get_height() // 2)))
+
+            hovering_buy  = alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos)
+            hovering_sell = alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos)
+            if hovering_buy:
+                total = unit_price * self.quantity + fee
+                total_surf = self.font.render(f"Total Cost: {total:.1f}", True, DARK_BROWN)
+                target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
+            elif hovering_sell:
+                total = unit_price * self.quantity - fee
+                total_surf = self.font.render(f"Total Income: {total:.1f}", True, DARK_BROWN)
+                target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
 
         # Buy Button
         buy_rect = self.buttons['buy'].move(offset_x, offset_y)
