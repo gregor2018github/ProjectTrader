@@ -8,7 +8,7 @@ import pygame
 import os
 from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 
-from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE
+from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE, DARK_RED, GRAY
 from ...config.constants import FONTS_PATH
 
 if TYPE_CHECKING:
@@ -422,6 +422,16 @@ class HouseMenu:
             self.close_button_size,
         )
 
+        # Determine which QuickTrade buttons lack a license
+        self.disabled_options: set = set()
+        if game_state.game is not None:
+            depot = game_state.game.depot
+            for option in options:
+                if option.startswith("QuickTrade "):
+                    good_name = option[len("QuickTrade "):]
+                    if not depot.has_license(good_name, game_state.date):
+                        self.disabled_options.add(option)
+
         # Create button rects
         self.buttons: List[Tuple[pygame.Rect, str]] = []
         current_y = self.y + self.header_height + self.padding
@@ -450,6 +460,8 @@ class HouseMenu:
             
         for rect, option in self.buttons:
             if rect.collidepoint(pos):
+                if option in self.disabled_options:
+                    return True  # absorb click, do nothing
                 if self.callback:
                     self.callback(option)
                 else:
@@ -509,16 +521,35 @@ class HouseMenu:
                          (close_draw_rect.right - mg, close_draw_rect.top + mg), 2)
 
         # Draw option buttons
+        hovered_disabled_rect = None
         for rect, text in self.buttons:
             btn_rect = rect.move(ox, oy)
-            pygame.draw.rect(target_surf, SANDY_BROWN, btn_rect)
+            is_disabled = text in self.disabled_options
+            is_hovered = alpha_scale >= 1.0 and rect.collidepoint(mouse_pos)
+            bg_color = GRAY if is_disabled else SANDY_BROWN
+            pygame.draw.rect(target_surf, bg_color, btn_rect)
             pygame.draw.rect(target_surf, DARK_BROWN, btn_rect, 2)
-            if alpha_scale >= 1.0 and rect.collidepoint(mouse_pos):
+            if not is_disabled and is_hovered:
                 ov = pygame.Surface(btn_rect.size, pygame.SRCALPHA)
                 ov.fill((0, 0, 0, 30))
                 target_surf.blit(ov, btn_rect)
-            text_surf = self.font.render(text, True, BLACK)
+            label = text[len("QuickTrade "):] if text.startswith("QuickTrade ") else text
+            text_surf = self.font.render(label if is_disabled else text, True, BLACK)
             target_surf.blit(text_surf, text_surf.get_rect(center=btn_rect.center))
+            if is_disabled and is_hovered:
+                hovered_disabled_rect = btn_rect
+
+        # "No trading license" tooltip for hovered disabled buttons
+        if hovered_disabled_rect is not None:
+            tip_surf = self.font.render("No trading license", True, DARK_RED)
+            tip_w = tip_surf.get_width() + 10
+            tip_h = tip_surf.get_height() + 6
+            tip_x = min(mouse_pos[0] + 12, self.screen.get_width() - tip_w - 2)
+            tip_y = max(mouse_pos[1] - tip_h - 6, 0)
+            tip_rect = pygame.Rect(tip_x, tip_y, tip_w, tip_h)
+            pygame.draw.rect(self.screen, WHITE, tip_rect)
+            pygame.draw.rect(self.screen, DARK_RED, tip_rect, 1)
+            self.screen.blit(tip_surf, (tip_x + 5, tip_y + 3))
 
         if temp_surf:
             temp_surf.set_alpha(int(255 * alpha_scale))
