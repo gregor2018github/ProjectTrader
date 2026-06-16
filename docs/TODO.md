@@ -41,6 +41,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add sound effects for when donations are made
 - [x] Add sound effects for buying and selling goods at the market
 - [x] Add sound effects for a loan being granted
 - [x] add more information about the trade to happen in the quicktrade menu (how much money in total, how much transaction fee, etc.)

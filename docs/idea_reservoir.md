@@ -55,7 +55,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - Decoration Buildings
     - fountain
     - base plowed field texture (farming goods can grow on there later)
-    - well
     - statues
     - park bench
     - crates and barrels
