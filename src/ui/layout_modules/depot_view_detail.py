@@ -1,5 +1,5 @@
 import pygame
-from ...config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT
+from ...config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT, DARK_GREEN, DARK_RED
 import datetime
 from typing import Dict, List, Optional, Any
 
@@ -165,38 +165,57 @@ class DepotViewDetail:
             self.cached_stats["Current Wealth"].append(f"      Total Value: {value:,.2f}")
             self.cached_stats["Current Wealth"].append("__SEPARATOR__")
     
+    def _calc_unrealized_pl(self, depot: Any, good_name: str, current_price: float) -> tuple:
+        """Return (total_unrealized_pl, avg_cost) for a good using FIFO purchase history."""
+        entries = depot.purchase_history.get(good_name, [])
+        total_cost = sum(e["price"] * e["quantity"] for e in entries)
+        total_qty = sum(e["quantity"] for e in entries)
+        if total_qty == 0:
+            return 0.0, 0.0
+        avg_cost = total_cost / total_qty
+        unrealized = (current_price - avg_cost) * total_qty
+        return unrealized, avg_cost
+
     def _update_total_stock(self, depot: Any, goods: List[Any]) -> None:
         """Update just the "Total Stock" statistics.
-        
+
         Lists all goods currently in stock, sorted by total units descending.
         """
         self.cached_stats["Total Stock"] = []
-        
+
         # Get current total units
         total_units = sum(depot.good_stock.values())
         self.cached_stats["Total Stock"].append(f"Total Units: {total_units:,}")
-        self.cached_stats["Total Stock"].append("__SEPARATOR__")
-        self.cached_stats["Total Stock"].append("")
-        
-        # Add breakdown for each good that has quantity > 0, sorted by units
+
+        # Build per-good data including unrealized P/L
         goods_with_stock = []
         for good in goods:
             qty = depot.good_stock.get(good.name, 0)
             if qty > 0:
                 price = good.price
                 value = qty * price
-                goods_with_stock.append((good, qty, price, value))
-        
-        # Sort by units descending (as requested)
+                unrealized, avg_cost = self._calc_unrealized_pl(depot, good.name, price)
+                goods_with_stock.append((good, qty, price, value, unrealized, avg_cost))
+
+        # Total unrealized P/L across all held goods
+        total_unrealized = sum(x[4] for x in goods_with_stock)
+        sign = "+" if total_unrealized >= 0 else ""
+        color_tag = "__GREEN__" if total_unrealized >= 0 else "__RED__"
+        self.cached_stats["Total Stock"].append(f"{color_tag}Unrealized P/L: {sign}{total_unrealized:,.2f}")
+        self.cached_stats["Total Stock"].append("__SEPARATOR__")
+        self.cached_stats["Total Stock"].append("")
+
+        # Sort by units descending
         goods_with_stock.sort(key=lambda x: x[1], reverse=True)
-        
-        for good, qty, price, value in goods_with_stock:
-            # Add good name as a heading
+
+        for good, qty, price, value, unrealized, avg_cost in goods_with_stock:
             self.cached_stats["Total Stock"].append(f"{good.name}")
-            # Add indented details
             self.cached_stats["Total Stock"].append(f"      Units: {qty:,}")
             self.cached_stats["Total Stock"].append(f"      Unit Value: {price:,.2f}")
             self.cached_stats["Total Stock"].append(f"      Total Value: {value:,.2f}")
+            pl_sign = "+" if unrealized >= 0 else ""
+            pl_tag = "__GREEN__" if unrealized >= 0 else "__RED__"
+            self.cached_stats["Total Stock"].append(f"      {pl_tag}Unrealized P/L: {pl_sign}{unrealized:,.2f}")
             self.cached_stats["Total Stock"].append("__SEPARATOR__")
     
     def _update_wealth_start(self, depot: Any, goods: List[Any], time_frame: str) -> None:
@@ -539,21 +558,30 @@ class DepotViewDetail:
                 # Check if this is a separator marker
                 if line == "__SEPARATOR__":
                     # Draw separator line
-                    pygame.draw.line(screen, PALE_BROWN, 
-                                    (self.rect.x + 20, y_pos-5), 
+                    pygame.draw.line(screen, PALE_BROWN,
+                                    (self.rect.x + 20, y_pos-5),
                                     (self.rect.x + self.rect.width - 35, y_pos-5), 1)
                     continue  # Skip rendering this line
-                
+
+                # Extract color tag if present
+                text_color = BLACK
+                if line.lstrip().startswith("__GREEN__"):
+                    text_color = DARK_GREEN
+                    line = line.replace("__GREEN__", "", 1)
+                elif line.lstrip().startswith("__RED__"):
+                    text_color = DARK_RED
+                    line = line.replace("__RED__", "", 1)
+
                 # Calculate indentation level (number of spaces at beginning)
                 indent_level = len(line) - len(line.lstrip())
                 indent_pixels = indent_level * 8  # 8 pixels per indentation space
-                
+
                 # Remove leading spaces for rendering
                 display_line = line.lstrip()
-                
+
                 # Check if this line is just a good name (not indented and no colon)
                 is_good_name = indent_level == 0 and ":" not in display_line
-                
+
                 if is_good_name and goods_images and display_line in goods_images:
                     # Render the good icon
                     good_icon = goods_images[display_line]
@@ -561,23 +589,23 @@ class DepotViewDetail:
                     icon_size = 24  # Slightly smaller than the original 30px
                     if good_icon.get_width() > icon_size:
                         good_icon = pygame.transform.scale(good_icon, (icon_size, icon_size))
-                    
+
                     # Render good icon to the left of the name
                     screen.blit(good_icon, (self.rect.x + 20, y_pos - 5))
-                    
+
                     # Render the good name with extra left padding for the icon
-                    good_text = small_font.render(display_line, True, BLACK)
+                    good_text = small_font.render(display_line, True, text_color)
                     screen.blit(good_text, (self.rect.x + 50, y_pos))
                 elif ":" in display_line:
                     parts = display_line.split(":", 1)
                     label_part = parts[0].strip() + ":"
                     value_part = parts[1].strip()
-                    label_surf = small_font.render(label_part, True, BLACK)
-                    value_surf = small_font.render(value_part, True, BLACK)
+                    label_surf = small_font.render(label_part, True, text_color)
+                    value_surf = small_font.render(value_part, True, text_color)
                     screen.blit(label_surf, (self.rect.x + 20 + indent_pixels, y_pos))
                     screen.blit(value_surf, (self.rect.x + 230, y_pos))
                 else:
-                    text = small_font.render(display_line, True, BLACK)
+                    text = small_font.render(display_line, True, text_color)
                     screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))
                 y_pos += line_height
             
