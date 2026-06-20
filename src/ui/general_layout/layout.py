@@ -351,7 +351,10 @@ def _draw_bottom_bar(
 
         # Draw buy button
         paused = game_state.time_level == 1
-        if paused:
+        depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
+        no_license = depot is not None and not depot.has_license(good_name, game_state.date)
+        buy_greyed = paused or no_license
+        if buy_greyed:
             buy_color = LIGHT_GRAY
         elif is_hovering(buy_rect):
             buy_color = BUY_BUTTON_HOVER
@@ -362,10 +365,9 @@ def _draw_bottom_bar(
             buy_color = BUY_BUTTON
 
         pygame.draw.rect(screen, buy_color, buy_rect)
-        pygame.draw.rect(screen, GRAY if paused else BUY_BUTTON_BORDER, buy_rect, 2)
+        pygame.draw.rect(screen, GRAY if buy_greyed else BUY_BUTTON_BORDER, buy_rect, 2)
 
         # Draw sell button
-        depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
         no_stock = depot is not None and depot.good_stock.get(good_name, 0) == 0
         sell_greyed = paused or no_stock
         if sell_greyed:
