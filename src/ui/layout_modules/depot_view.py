@@ -339,7 +339,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         content_y += 30
         
         trade_type = "Purchase" if last_trade["type"] == "purchase" else "Sale"
-        trade_color = RED if last_trade["type"] == "purchase" else GREEN
+        trade_color = DARK_RED if last_trade["type"] == "purchase" else DARK_GREEN
         
         draw_row(content_surface, content_y, "Good", last_trade["good"])
         content_y += 24
