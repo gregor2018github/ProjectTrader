@@ -373,10 +373,18 @@ def handle_mouse_click(pos: Tuple[int, int],
                 # Close all other dropdowns first
                 for dropdown in game_state.dropdowns.values():
                     dropdown.is_open = False
-                # Open clicked dropdown
+                # Open clicked dropdown, filtering out goods already in other slots
                 section = field_name.split('_')[1]
                 dropdown_name = f'dropdown_{section}'
-                game_state.dropdowns[dropdown_name].is_open = True
+                dropdown = game_state.dropdowns[dropdown_name]
+                this_good = game_state.input_fields.get(f'good_{section}', '')
+                other_selected = set(game_state.chart_selection_order) - ({this_good} if this_good else set())
+                filtered = [g for g in game_state.available_goods if g not in other_selected]
+                dropdown.options = filtered
+                dropdown.dropdown_height = len(filtered) * dropdown.item_height
+                dropdown.dropdown_rect.y = dropdown.rect.y - dropdown.dropdown_height
+                dropdown.dropdown_rect.height = dropdown.dropdown_height
+                dropdown.is_open = True
                 game_state.active_dropdown = dropdown_name
                 return
             elif field_name.startswith(('buy_', 'sell_')):
