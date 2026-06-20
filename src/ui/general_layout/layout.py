@@ -314,7 +314,9 @@ def _draw_bottom_bar(
         ('two', 390, "F3", "F4"),
         ('three', 760, "F5", "F6")
     ]
-    
+
+    pending_tooltip: Optional[tuple] = None  # (text, rect) to draw after all sections
+
     for section, x_start, buy_key, sell_key in sections:
         good_name = input_fields[f'good_{section}']
 
@@ -415,6 +417,32 @@ def _draw_bottom_bar(
         screen.blit(qty_value, (qty_rect.x + 10 + qty_label.get_width(), qty_rect.y + 5))
         screen.blit(buy_text, (buy_rect.centerx - buy_text.get_width()//2, buy_rect.centery - buy_text.get_height()//2))
         screen.blit(sell_text, (sell_rect.centerx - sell_text.get_width()//2, sell_rect.centery - sell_text.get_height()//2))
+
+        # Collect tooltip for hovered greyed button (priority: paused > no stock > no license)
+        for btn_rect, is_greyed, btn_no_stock in [
+            (buy_rect,  buy_greyed,  False),
+            (sell_rect, sell_greyed, no_stock),
+        ]:
+            if is_greyed and is_hovering(btn_rect):
+                if paused:
+                    pending_tooltip = "Game paused"
+                elif btn_no_stock:
+                    pending_tooltip = "No Stock"
+                else:
+                    pending_tooltip = "No License"
+                break
+
+    # Draw tooltip on top of everything else
+    if pending_tooltip is not None:
+        tip_surf = main_font.render(pending_tooltip, True, DARK_RED)
+        tip_w = tip_surf.get_width() + 10
+        tip_h = tip_surf.get_height() + 6
+        tip_x = min(mouse_pos[0] + 12, SCREEN_WIDTH - tip_w - 2)
+        tip_y = max(mouse_pos[1] - tip_h - 6, 0)
+        tip_rect = pygame.Rect(tip_x, tip_y, tip_w, tip_h)
+        pygame.draw.rect(screen, WHITE, tip_rect)
+        pygame.draw.rect(screen, DARK_RED, tip_rect, 1)
+        screen.blit(tip_surf, (tip_x + 5, tip_y + 3))
 
     return buttons
 
