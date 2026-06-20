@@ -151,6 +151,43 @@ def _draw_town_statistics_panel(
 
     return panel_rect
 
+def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], depot: "Depot", game_state: "GameState", mouse_pos: tuple) -> None:
+    """Reset good.hovered and pre-set it for any hovered non-greyed quicktrade button.
+
+    Called before the chart renders so bold-line highlighting is same-frame.
+    """
+    for good in goods:
+        good.hovered = False
+
+    if not (hasattr(game_state, 'game') and game_state.game):
+        return
+    player = getattr(game_state.game, 'player', None)
+    if player and not player.in_market_area:
+        return
+    menu_is_open = hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    if menu_is_open:
+        return
+
+    paused = game_state.time_level == 1
+    sections = [('one', 20), ('two', 390), ('three', 760)]
+    for section, x_start in sections:
+        good_name = input_fields.get(f'good_{section}')
+        if not good_name:
+            continue
+        buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
+        sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
+        no_license = not depot.has_license(good_name, game_state.date)
+        no_stock = depot.good_stock.get(good_name, 0) == 0
+        buy_greyed = paused or no_license
+        sell_greyed = paused or no_stock
+        if (not buy_greyed and buy_rect.collidepoint(mouse_pos)) or \
+           (not sell_greyed and sell_rect.collidepoint(mouse_pos)):
+            good_obj = next((g for g in goods if g.name == good_name), None)
+            if good_obj:
+                good_obj.hovered = True
+            return
+
+
 def draw_layout(
     screen: pygame.Surface,
     goods: List["Good"],

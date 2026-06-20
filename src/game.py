@@ -4,7 +4,7 @@ import random
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
-from .ui.general_layout.layout import draw_layout, draw_right_bar
+from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
@@ -510,6 +510,7 @@ class Game:
 
                 # Helper function to render a module in a specific rect
                 mouse_pos = pygame.mouse.get_pos()
+                prescan_quicktrade_hover(self.goods, self.state.input_fields, self.depot, self.state, mouse_pos)
                 suppress_chart_hover = any(
                     d.is_open and d.dropdown_rect.collidepoint(mouse_pos)
                     for d in self.state.dropdowns.values()
