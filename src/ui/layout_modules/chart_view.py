@@ -65,7 +65,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover)
 
     # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
     closest_good, hover_idx = None, None
@@ -398,7 +398,7 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH) -> List[pygame.Rect]:
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False) -> List[pygame.Rect]:
     """Draw interactive toggles for individual goods.
     
     Args:
@@ -426,7 +426,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         image_boxes.append(image_box)
 
         # Check if the mouse is hovering over this good's box
-        is_hovered = image_box.collidepoint(mouse_pos)
+        is_hovered = (not suppress_hover) and image_box.collidepoint(mouse_pos)
         if is_hovered:
             good.hovered = True
 
