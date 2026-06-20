@@ -365,7 +365,10 @@ def _draw_bottom_bar(
         pygame.draw.rect(screen, GRAY if paused else BUY_BUTTON_BORDER, buy_rect, 2)
 
         # Draw sell button
-        if paused:
+        depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
+        no_stock = depot is not None and depot.good_stock.get(good_name, 0) == 0
+        sell_greyed = paused or no_stock
+        if sell_greyed:
             sell_color = LIGHT_GRAY
         elif is_hovering(sell_rect):
             sell_color = SELL_BUTTON_HOVER
@@ -376,7 +379,7 @@ def _draw_bottom_bar(
             sell_color = SELL_BUTTON
 
         pygame.draw.rect(screen, sell_color, sell_rect)
-        pygame.draw.rect(screen, GRAY if paused else SELL_BUTTON_BORDER, sell_rect, 2)
+        pygame.draw.rect(screen, GRAY if sell_greyed else SELL_BUTTON_BORDER, sell_rect, 2)
 
         # Draw click animation overlay on buy and sell buttons if active
         effect = game_state.button_click_effects.get(f'buy_{section}', 0)
