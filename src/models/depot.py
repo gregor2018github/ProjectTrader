@@ -695,6 +695,41 @@ class Depot:
             },
         }
 
+    def get_income_breakdown(self, period_days: Optional[int] = None) -> Dict[str, Any]:
+        """Get a full income breakdown for a given time period.
+
+        Currently the only income source is selling goods. Additional categories
+        (e.g. property rent, contract revenue) can be added here when implemented.
+
+        Args:
+            period_days: Number of days to look back. None for all time.
+
+        Returns:
+            Dict with total income and per-category breakdowns.
+        """
+        if period_days is not None:
+            num_history_days = period_days - 1
+            if num_history_days > 0:
+                total_inc = sum(self.income_history[-num_history_days:]) + self.income
+            else:
+                total_inc = self.income
+        else:
+            total_inc = sum(self.income_history) + self.income
+
+        # All income currently derives from selling goods.
+        total_sold_goods = total_inc
+
+        return {
+            "total": total_inc,
+            "sold_goods": {
+                "total": total_sold_goods,
+                "Market": total_sold_goods,
+            },
+            # Future categories — uncomment and implement when ready:
+            # "property_income": {"total": 0.0, "Rent": 0.0},
+            # "contracts": {"total": 0.0, "Contract Revenue": 0.0},
+        }
+
     def get_donation_stats(self, period_days: Optional[int] = None) -> Dict[str, Any]:
         """Get donation statistics for a given time period.
         

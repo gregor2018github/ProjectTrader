@@ -41,6 +41,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] added depot view detail for Income
 - [x] quicktrade buy/sell buttons grey out when paused, no stock, or no license; show tooltip with reason; hovering bold-highlights the chart line in the same frame
 - [x] depot total actions detail view now shows realized P/L per good and as a total, colored green/red
 - [x] depot stock detail view now shows unrealized P/L per good and as a total, colored green/red

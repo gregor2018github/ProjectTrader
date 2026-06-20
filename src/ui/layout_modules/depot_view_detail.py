@@ -29,6 +29,7 @@ class DepotViewDetail:
         self.cached_stats: Dict[str, List[str]] = {
             "Current Wealth": [],
             "Wealth Start": [],
+            "Income": [],
             "Expenses": [],
             "Total Stock": [],
             "Buy Actions": [],
@@ -47,6 +48,8 @@ class DepotViewDetail:
         self.last_trade_actions_count: int = 0
         self.last_expenses_update_date: Optional[datetime.date] = None
         self.last_expenses_money: Optional[float] = None
+        self.last_income_update_date: Optional[datetime.date] = None
+        self.last_income_money: Optional[float] = None
 
     def toggle(self) -> None:
         """Toggle the visibility of the detail panel."""
@@ -101,6 +104,14 @@ class DepotViewDetail:
             self._update_trade_actions(depot, goods, current_time_frame)
             self.last_trade_actions_update_date = current_date
             self.last_trade_actions_count = current_trade_count
+
+        # Update "Income" if day changed, money changed, time frame changed, or forced
+        if (force or self.last_income_update_date != current_date or
+            self.last_income_money != current_money or
+            self.last_time_frame != current_time_frame):
+            self._update_income(depot, current_time_frame)
+            self.last_income_update_date = current_date
+            self.last_income_money = current_money
 
         # Update "Expenses" if day changed, money changed, time frame changed, or forced
         if (force or self.last_expenses_update_date != current_date or
@@ -422,9 +433,43 @@ class DepotViewDetail:
                     self.cached_stats[action_type].append(f"      {pl_tag}Realized P/L: {pl_sign}{realized:,.2f}")
                 self.cached_stats[action_type].append("__SEPARATOR__")    
 
+    def _update_income(self, depot: Any, time_frame: str) -> None:
+        """Update the 'Income' detail statistics based on selected time frame.
+
+        Breaks down income by source category. Currently only Sold Goods exists;
+        future categories (property rent, contracts, etc.) slot in alongside it.
+        """
+        if time_frame == "Daily":
+            period_days = 1
+        elif time_frame == "Weekly":
+            period_days = 7
+        elif time_frame == "Monthly":
+            period_days = 30
+        elif time_frame == "Yearly":
+            period_days = 365
+        else:  # "Total"
+            period_days = None
+
+        breakdown = depot.get_income_breakdown(period_days)
+
+        self.cached_stats["Income"] = []
+
+        self.cached_stats["Income"].append(f"Total: {breakdown['total']:,.2f}")
+        self.cached_stats["Income"].append("__SEPARATOR__")
+        self.cached_stats["Income"].append("")
+
+        sold = breakdown["sold_goods"]
+        self.cached_stats["Income"].append("Sold Goods")
+        self.cached_stats["Income"].append(f"      Total: {sold['total']:,.2f}")
+        for sub_name, sub_val in sold.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Income"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Income"].append("__SEPARATOR__")
+
     def _update_expenses(self, depot: Any, time_frame: str) -> None:
         """Update the 'Expenses' detail statistics based on selected time frame.
-        
+
         Breaks down expenses into Cost of Living, Trading Expenses, Licenses, and Donations.
         """
         # Determine period days
