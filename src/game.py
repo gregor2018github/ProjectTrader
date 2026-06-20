@@ -78,6 +78,7 @@ class Game:
 
         # Initialize goods
         self.goods: List[Good] = self._initialize_goods()
+        self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
         self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
 
         # Initialize depot

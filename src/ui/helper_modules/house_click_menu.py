@@ -350,6 +350,8 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
                 market_goods = house.get_trade_options()
                 for good in game_state.game.goods:
                     good.show_in_charts = good.name in market_goods
+                from ...persistence.save_manager import _enforce_chart_limit
+                _enforce_chart_limit(game_state.game.goods, game_state)
 
             game_state.info_window = None
             game_state.active_house_menu = None

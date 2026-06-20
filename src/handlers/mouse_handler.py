@@ -10,6 +10,47 @@ if TYPE_CHECKING:
     from ..models.good import Good
     from ..models.depot import Depot
 
+
+def _toggle_chart_good(good: 'Good', goods: List['Good'], game_state: 'GameState') -> None:
+    """Toggle a good's chart visibility, enforcing a maximum of 3 visible goods.
+
+    When turning ON a 4th good, the most recently added good (order[2]) is closed
+    first.  If the order list has fewer than 3 entries (legacy/startup state), the
+    visible good with the highest index is closed instead.
+    Turning OFF is always allowed unless it would leave zero goods visible.
+    """
+    order: List[str] = game_state.chart_selection_order
+
+    if good.show_in_charts:
+        # Turning OFF — prevent closing the last visible good
+        visible_count = sum(1 for g in goods if g.show_in_charts)
+        if visible_count == 1:
+            return
+        good.show_in_charts = False
+        if good.name in order:
+            order.remove(good.name)
+    else:
+        # Turning ON
+        visible = [g for g in goods if g.show_in_charts]
+        if len(visible) >= 3:
+            # Determine which good to close: the one at position 2 in the order,
+            # or the visible good with the highest index if order is incomplete.
+            order_visible = [name for name in order if any(g.name == name and g.show_in_charts for g in goods)]
+            if len(order_visible) >= 3:
+                to_close_name = order_visible[2]
+            else:
+                to_close_name = max(visible, key=lambda g: g.index).name
+            for g in goods:
+                if g.name == to_close_name:
+                    g.show_in_charts = False
+                    break
+            if to_close_name in order:
+                order.remove(to_close_name)
+        good.show_in_charts = True
+        if good.name not in order:
+            order.append(good.name)
+
+
 def handle_mouse_click(pos: Tuple[int, int], 
                        buttons: Dict[str, pygame.Rect], 
                        game_state: 'GameState', 
@@ -305,10 +346,7 @@ def handle_mouse_click(pos: Tuple[int, int],
     # Handle toggle boxes in chart
     for i, box in enumerate(game_state.image_boxes):
         if box.collidepoint(pos):
-            good = goods[i]
-            visible_count = sum(1 for g in goods if g.show_in_charts)
-            if not (visible_count == 1 and good.show_in_charts):
-                good.toggle_display()
+            _toggle_chart_good(goods[i], goods, game_state)
             return
             
     # Check for clicks on Depot Chart buttons

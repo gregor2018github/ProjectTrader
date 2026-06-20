@@ -83,6 +83,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "right_side_mode": game_state.right_side_mode,
             "input_fields": dict(game_state.input_fields),
             "depot_time_frame": game_state.depot_time_frame,
+            "chart_selection_order": list(getattr(game_state, "chart_selection_order", [])),
         },
         "player": {
             "name": player.name,
@@ -246,6 +247,36 @@ def delete_save(slot: int) -> None:
         os.remove(path)
 
 
+def _enforce_chart_limit(goods: List[Any], game_state: Any) -> None:
+    """Enforce max-3 chart visibility and keep chart_selection_order consistent.
+
+    Visible goods beyond three (sorted by index, highest closed first) are turned
+    off.  The order list is then rebuilt: entries already in the list that are
+    still visible stay in place; any remaining visible goods are appended in
+    index order.  Entries in the order list that are no longer visible are
+    removed, and duplicates are deduplicated.
+    """
+    visible = sorted([g for g in goods if g.show_in_charts], key=lambda g: g.index)
+    while len(visible) > 3:
+        visible[-1].show_in_charts = False
+        visible.pop()
+
+    visible_names = {g.name for g in visible}
+    # Rebuild order: keep existing valid entries, then fill from visible by index
+    existing_order = getattr(game_state, "chart_selection_order", [])
+    seen: set = set()
+    new_order: list = []
+    for name in existing_order:
+        if name in visible_names and name not in seen:
+            new_order.append(name)
+            seen.add(name)
+    for g in visible:
+        if g.name not in seen:
+            new_order.append(g.name)
+            seen.add(g.name)
+    game_state.chart_selection_order = new_order
+
+
 def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
     """Apply a loaded save dict to the live game objects in-place."""
     game_state.playtime_seconds = data.get("playtime_seconds", 0.0)
@@ -258,6 +289,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.right_side_mode = gs["right_side_mode"]
     game_state.input_fields = gs["input_fields"]
     game_state.depot_time_frame = gs["depot_time_frame"]
+    game_state.chart_selection_order = gs.get("chart_selection_order", [])
     # Sync time-tracker fields to restored date so hourly/daily events fire correctly
     game_state.last_minute = game_state.date.minute
     game_state.last_hour = game_state.date.hour
@@ -337,6 +369,9 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         g.color_current = tuple(gd["color_current"])
         g.color_temp = g.color_current
         g.color = g.color_temp
+
+    # Enforce max-3 chart selection and sync the order list
+    _enforce_chart_limit(goods, game_state)
 
     pop_data = data.get("population")
     if pop_data and population_manager is not None:

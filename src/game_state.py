@@ -141,6 +141,7 @@ class GameState:
         # State for the depot chart view
         self.depot_active_chart: str = "Wealth"
         self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
+        self.chart_selection_order: List[str] = []  # Tracks order in which goods were added to chart (max 3)
         self.active_house_menu = None
         self.house_last_hovered = None
         self.house_hover_fade_house = None
