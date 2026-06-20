@@ -220,7 +220,7 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             screen.blit(date_surface, date_rect)
 
             if license_text:
-                license_surface = main_font.render(license_text, True, RED)
+                license_surface = main_font.render(license_text, True, DARK_RED)
                 license_rect = license_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + sh_date + row_spacing * 2))
                 screen.blit(license_surface, license_rect)
 
@@ -451,7 +451,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         name_surface = main_font.render(name, True, BLACK)
         tooltip_y = pos[1] + 10
         if no_license:
-            license_surface = main_font.render("No License", True, RED)
+            license_surface = main_font.render("No License", True, DARK_RED)
             combined_width = max(name_surface.get_width(), license_surface.get_width())
             combined_height = name_surface.get_height() + 2 + license_surface.get_height()
             # Flip to left of cursor if it would overflow the right sidebar
