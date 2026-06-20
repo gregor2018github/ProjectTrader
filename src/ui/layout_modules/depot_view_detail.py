@@ -31,6 +31,7 @@ class DepotViewDetail:
             "Wealth Start": [],
             "Income": [],
             "Expenses": [],
+            "Profit": [],
             "Total Stock": [],
             "Buy Actions": [],
             "Sell Actions": [],
@@ -50,6 +51,7 @@ class DepotViewDetail:
         self.last_expenses_money: Optional[float] = None
         self.last_income_update_date: Optional[datetime.date] = None
         self.last_income_money: Optional[float] = None
+        self.last_profit_update_date: Optional[datetime.date] = None
 
     def toggle(self) -> None:
         """Toggle the visibility of the detail panel."""
@@ -104,6 +106,13 @@ class DepotViewDetail:
             self._update_trade_actions(depot, goods, current_time_frame)
             self.last_trade_actions_update_date = current_date
             self.last_trade_actions_count = current_trade_count
+
+        # Update "Profit" if day, hour, money, or time frame changed, or forced
+        if (force or self.last_profit_update_date != current_date or
+            self.last_hour != current_hour or self.last_money != current_money or
+            self.last_time_frame != current_time_frame):
+            self._update_profit(depot, goods, current_time_frame)
+            self.last_profit_update_date = current_date
 
         # Update "Income" if day changed, money changed, time frame changed, or forced
         if (force or self.last_income_update_date != current_date or
@@ -432,6 +441,95 @@ class DepotViewDetail:
                     pl_tag = "__GREEN__" if realized >= 0 else "__RED__"
                     self.cached_stats[action_type].append(f"      {pl_tag}Realized P/L: {pl_sign}{realized:,.2f}")
                 self.cached_stats[action_type].append("__SEPARATOR__")    
+
+    def _update_profit(self, depot: Any, goods: List[Any], time_frame: str) -> None:
+        """Update the 'Profit' detail statistics based on selected time frame.
+
+        Profit = Cash Flow + Stock Value Change + Loan Balance Change.
+        Stock Value Change is derived from the identity rather than reconstructed
+        from historical prices, so it stays consistent with the overview figure.
+        """
+        if time_frame == "Daily":
+            period_days = 1
+        elif time_frame == "Weekly":
+            period_days = 7
+        elif time_frame == "Monthly":
+            period_days = 30
+        elif time_frame == "Yearly":
+            period_days = 365
+        else:
+            period_days = None
+
+        # Current wealth
+        goods_value_now = sum(depot.good_stock.get(g.name, 0) * g.price for g in goods)
+        loans_now = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
+        current_wealth = depot.money + goods_value_now - loans_now
+
+        # Start wealth
+        if period_days is not None and len(depot.wealth) >= period_days:
+            start_wealth = depot.wealth[-period_days]
+        else:
+            start_wealth = depot.wealth[0]
+        total_profit = current_wealth - start_wealth
+
+        # Income and expenses for the period
+        if period_days is not None:
+            num_history_days = period_days - 1
+            if num_history_days > 0:
+                current_income = sum(depot.income_history[-num_history_days:]) + depot.income
+                current_expense = sum(depot.expenditure_history[-num_history_days:]) + depot.expenditures
+            else:
+                current_income = depot.income
+                current_expense = depot.expenditures
+        else:
+            current_income = sum(depot.income_history) + depot.income
+            current_expense = sum(depot.expenditure_history) + depot.expenditures
+        cash_flow = current_income - current_expense
+
+        # Loan balance change (negative = took on more debt, positive = reduced debt)
+        if period_days is not None and len(depot.loan_history) > period_days:
+            loans_start = depot.loan_history[-(period_days + 1)]
+        else:
+            loans_start = depot.loan_history[0] if depot.loan_history else 0.0
+        loan_balance_change = -(loans_now - loans_start)
+
+        # Stock value change derived from the identity:
+        # total_profit = cash_flow + stock_value_change + loan_balance_change
+        stock_value_change = total_profit - cash_flow - loan_balance_change
+
+        def _fmt(val: float) -> str:
+            sign = "+" if val >= 0 else ""
+            return f"{sign}{val:,.2f}"
+
+        def _tag(val: float) -> str:
+            return "__GREEN__" if val >= 0 else "__RED__"
+
+        self.cached_stats["Profit"] = []
+
+        profit_tag = _tag(total_profit)
+        self.cached_stats["Profit"].append(f"{profit_tag}Total: {_fmt(total_profit)}")
+        self.cached_stats["Profit"].append("__SEPARATOR__")
+        self.cached_stats["Profit"].append("")
+
+        # Cash Flow block
+        cf_tag = _tag(cash_flow)
+        self.cached_stats["Profit"].append(f"Cash Flow")
+        self.cached_stats["Profit"].append(f"      {cf_tag}Total: {_fmt(cash_flow)}")
+        self.cached_stats["Profit"].append(f"      Income: {current_income:,.2f}")
+        self.cached_stats["Profit"].append(f"      Expenses: -{current_expense:,.2f}")
+        self.cached_stats["Profit"].append("__SEPARATOR__")
+
+        # Stock Value Change block
+        sv_tag = _tag(stock_value_change)
+        self.cached_stats["Profit"].append(f"Stock Value Change")
+        self.cached_stats["Profit"].append(f"      {sv_tag}Total: {_fmt(stock_value_change)}")
+        self.cached_stats["Profit"].append("__SEPARATOR__")
+
+        # Loan Balance Change block
+        lb_tag = _tag(loan_balance_change)
+        self.cached_stats["Profit"].append(f"Loan Balance Change")
+        self.cached_stats["Profit"].append(f"      {lb_tag}Total: {_fmt(loan_balance_change)}")
+        self.cached_stats["Profit"].append("__SEPARATOR__")
 
     def _update_income(self, depot: Any, time_frame: str) -> None:
         """Update the 'Income' detail statistics based on selected time frame.
