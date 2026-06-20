@@ -509,13 +509,19 @@ class Game:
                     self.church_bell_audible = False
 
                 # Helper function to render a module in a specific rect
+                mouse_pos = pygame.mouse.get_pos()
+                suppress_chart_hover = any(
+                    d.is_open and d.dropdown_rect.collidepoint(mouse_pos)
+                    for d in self.state.dropdowns.values()
+                )
+
                 def render_module(mode, rect):
                     if mode == 'map':
                         draw_map_view(self.screen, self.game_map, rect, self.state)
                     elif mode == 'market':
                         self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border,
                                                           self.goods, self.images['goods_30'], self.state.date,
-                                                          rect, self.depot)
+                                                          rect, self.depot, suppress_chart_hover)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
                     elif mode in ['politics', 'trade_routes', 'building']:

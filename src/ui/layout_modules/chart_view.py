@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from ...models.good import Good
     from ...models.depot import Depot
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None) -> List[pygame.Rect]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False) -> List[pygame.Rect]:
     """Draw the primary price history chart and selection UI.
     
     Args:
@@ -67,16 +67,19 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Store selection boxes for later use with hover effects
     image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right)
 
-    # Check for proximity hover on the chart itself
-    closest_good, hover_idx = _get_closest_good_at_mouse(pygame.mouse.get_pos(), chart_border, max_chart_size, max_chart_height, goods, max_price)
-    if closest_good:
-        closest_good.hovered = True
+    # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
+    closest_good, hover_idx = None, None
+    if not suppress_hover:
+        closest_good, hover_idx = _get_closest_good_at_mouse(pygame.mouse.get_pos(), chart_border, max_chart_size, max_chart_height, goods, max_price)
+        if closest_good:
+            closest_good.hovered = True
 
     # Draw charts for each good with hover effects
     _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
     # Draw chart hover effects (vertical line and tooltip)
-    _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx, depot, view_rect.right)
+    if not suppress_hover:
+        _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx, depot, view_rect.right)
 
     return image_boxes
 
