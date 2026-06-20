@@ -41,6 +41,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] depot total actions detail view now shows realized P/L per good and as a total, colored green/red
 - [x] depot stock detail view now shows unrealized P/L per good and as a total, colored green/red
 - [x] quicktrade buttons synchronize with the charts visible in the chart view. also there is a limit to 3 simultaneous goods now
 - [x] add sound effects for when donations are made

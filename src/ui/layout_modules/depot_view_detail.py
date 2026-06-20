@@ -359,7 +359,7 @@ class DepotViewDetail:
                 type_filter = None
 
             trades = [t for t in filtered_trades if type_filter is None or t["type"] == type_filter]
-            
+
             # Aggregate by good
             good_stats = {}
             total_volume = 0
@@ -368,34 +368,41 @@ class DepotViewDetail:
             volume_sold = 0
             units_bought = 0
             units_sold = 0
-            
+
             for t in trades:
                 name = t["good"]
                 if name not in good_stats:
-                    good_stats[name] = {"units": 0, "total_value": 0}
+                    good_stats[name] = {"units": 0, "total_value": 0, "bought": 0, "sold": 0}
                 good_stats[name]["units"] += t["quantity"]
                 good_stats[name]["total_value"] += t["total"]
                 total_volume += t["total"]
                 total_units += t["quantity"]
-                
-                if action_type == "Total Actions":
-                    if t["type"] == "purchase":
+
+                if t["type"] == "purchase":
+                    good_stats[name]["bought"] += t["total"]
+                    if action_type == "Total Actions":
                         volume_bought += t["total"]
                         units_bought += t["quantity"]
-                    else:
+                else:
+                    good_stats[name]["sold"] += t["total"]
+                    if action_type == "Total Actions":
                         volume_sold += t["total"]
                         units_sold += t["quantity"]
 
             # Add summary
             self.cached_stats[action_type].append(f"Total Volume: {total_volume:,.2f}")
             self.cached_stats[action_type].append(f"Total Units: {total_units:,}")
-            
+
             if action_type == "Total Actions":
                 self.cached_stats[action_type].append(f"Volume Bought: {volume_bought:,.2f}")
                 self.cached_stats[action_type].append(f"Volume Sold: {volume_sold:,.2f}")
                 self.cached_stats[action_type].append(f"Units Bought: {units_bought:,}")
                 self.cached_stats[action_type].append(f"Units Sold: {units_sold:,}")
-                
+                total_realized = volume_sold - volume_bought
+                sign = "+" if total_realized >= 0 else ""
+                color_tag = "__GREEN__" if total_realized >= 0 else "__RED__"
+                self.cached_stats[action_type].append(f"{color_tag}Realized P/L: {sign}{total_realized:,.2f}")
+
             self.cached_stats[action_type].append("__SEPARATOR__")
             self.cached_stats[action_type].append("")
 
@@ -408,6 +415,11 @@ class DepotViewDetail:
                 self.cached_stats[action_type].append(f"      Units: {stats['units']:,}")
                 self.cached_stats[action_type].append(f"      Avg Price: {avg_price:,.2f}")
                 self.cached_stats[action_type].append(f"      Total Value: {stats['total_value']:,.2f}")
+                if action_type == "Total Actions":
+                    realized = stats["sold"] - stats["bought"]
+                    pl_sign = "+" if realized >= 0 else ""
+                    pl_tag = "__GREEN__" if realized >= 0 else "__RED__"
+                    self.cached_stats[action_type].append(f"      {pl_tag}Realized P/L: {pl_sign}{realized:,.2f}")
                 self.cached_stats[action_type].append("__SEPARATOR__")    
 
     def _update_expenses(self, depot: Any, time_frame: str) -> None:
