@@ -6,6 +6,14 @@ if TYPE_CHECKING:
     from ..models.good import Good
     from ..models.depot import Depot
 
+def _mirror_quantity_to_memory(field: str, game_state: 'GameState') -> None:
+    """Persist the edited quantity back to good_quantities for the corresponding good."""
+    section = field.replace('quantity_', '')
+    good_name = game_state.input_fields.get(f'good_{section}', '')
+    if good_name and hasattr(game_state, 'good_quantities'):
+        game_state.good_quantities[good_name] = game_state.input_fields[field]
+
+
 def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
     """Process pygame keyboard events for text input and hotkeys.
     
@@ -27,19 +35,21 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
         elif event.key == pygame.K_BACKSPACE:
             if game_state.cursor_position > 0:
                 # Remove character at cursor position
-                game_state.input_fields[field] = (current_value[:game_state.cursor_position-1] + 
+                game_state.input_fields[field] = (current_value[:game_state.cursor_position-1] +
                                                 current_value[game_state.cursor_position:])
                 game_state.cursor_position -= 1
+                _mirror_quantity_to_memory(field, game_state)
         elif event.key == pygame.K_LEFT:
             game_state.cursor_position = max(0, game_state.cursor_position - 1)
         elif event.key == pygame.K_RIGHT:
             game_state.cursor_position = min(len(current_value), game_state.cursor_position + 1)
         elif event.unicode.isnumeric():
             # Insert number at cursor position
-            game_state.input_fields[field] = (current_value[:game_state.cursor_position] + 
-                                            event.unicode + 
+            game_state.input_fields[field] = (current_value[:game_state.cursor_position] +
+                                            event.unicode +
                                             current_value[game_state.cursor_position:])
             game_state.cursor_position += 1
+            _mirror_quantity_to_memory(field, game_state)
 
     # Handle function keys
     elif event.key in [pygame.K_F1, pygame.K_F2, pygame.K_F3, pygame.K_F4, pygame.K_F5, pygame.K_F6]:

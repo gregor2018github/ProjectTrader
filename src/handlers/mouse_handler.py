@@ -50,6 +50,49 @@ def _toggle_chart_good(good: 'Good', goods: List['Good'], game_state: 'GameState
         if good.name not in order:
             order.append(good.name)
 
+    game_state.sync_quicktrade_fields()
+
+
+def _apply_dropdown_good_change(section: str, selected: str, goods: List['Good'], game_state: 'GameState') -> None:
+    """Handle a good selection via the quicktrade dropdown.
+
+    Replaces the good at the given slot position in chart_selection_order with
+    the newly selected one, updating show_in_charts accordingly.  Selecting a
+    good that is already visible elsewhere in the chart is a no-op.
+    """
+    section_to_index = {'one': 0, 'two': 1, 'three': 2}
+    slot_index = section_to_index.get(section)
+    if slot_index is None:
+        return
+
+    order = game_state.chart_selection_order
+
+    # No-op if the good is already visible somewhere in the chart
+    if selected in order:
+        return
+
+    good_by_name = {g.name: g for g in goods}
+
+    if slot_index < len(order):
+        # Close the good currently occupying this slot
+        old_name = order[slot_index]
+        old_good = good_by_name.get(old_name)
+        if old_good:
+            old_good.show_in_charts = False
+        order[slot_index] = selected
+    else:
+        # Slot was empty — append (only if we're within the 3-good limit)
+        if len(order) < 3:
+            order.append(selected)
+        else:
+            return
+
+    new_good = good_by_name.get(selected)
+    if new_good:
+        new_good.show_in_charts = True
+
+    game_state.sync_quicktrade_fields()
+
 
 def handle_mouse_click(pos: Tuple[int, int], 
                        buttons: Dict[str, pygame.Rect], 
@@ -309,9 +352,9 @@ def handle_mouse_click(pos: Tuple[int, int],
         selected = dropdown.handle_click(pos)
         if selected:
             section = game_state.active_dropdown.split('_')[1]
-            game_state.input_fields[f'good_{section}'] = selected
-            dropdown.is_open = False  # Make sure to close the dropdown
+            dropdown.is_open = False
             game_state.active_dropdown = None
+            _apply_dropdown_good_change(section, selected, goods, game_state)
             return
         # If clicked outside, close all dropdowns
         for dropdown in game_state.dropdowns.values():

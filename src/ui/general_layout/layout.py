@@ -316,42 +316,48 @@ def _draw_bottom_bar(
     ]
     
     for section, x_start, buy_key, sell_key in sections:
+        good_name = input_fields[f'good_{section}']
+
+        # Skip this slot entirely if no good is assigned to it
+        if not good_name:
+            continue
+
         good_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 56, 150, 25)
         qty_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 29, 150, 25)
         buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
         sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
-        
+
         # Store button rectangles
         buttons[f'good_{section}'] = good_rect
         buttons[f'quantity_{section}'] = qty_rect
         buttons[f'buy_{section}'] = buy_rect
         buttons[f'sell_{section}'] = sell_rect
-        
+
         # Create dropdown if it doesn't exist (but don't draw it)
         if f'dropdown_{section}' not in game_state.dropdowns:
             game_state.dropdowns[f'dropdown_{section}'] = Dropdown(
                 x_start, SCREEN_HEIGHT - 56, 150, 25,
                 game_state.available_goods, main_font
             )
-        
+
         # Draw input fields and buttons (but not dropdowns)
         # Apply hover effect to good selection dropdown buttons
         good_bg_color = DROPDOWN_HOVER if is_hovering(good_rect) else WHITE
         pygame.draw.rect(screen, good_bg_color, good_rect)
         pygame.draw.rect(screen, DARK_BROWN, good_rect, 2)
-        
+
         draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
                         mouse_clicked_on == f'quantity_{section}')
-                        
+
         # Draw buy button
         paused = game_state.time_level == 1
         if paused:
             buy_color = LIGHT_GRAY
         elif is_hovering(buy_rect):
             buy_color = BUY_BUTTON_HOVER
-            good_name = input_fields[f'good_{section}']
-            good = next(good for good in goods if good.name == good_name)
-            good.hovered = True
+            good_obj = next((g for g in goods if g.name == good_name), None)
+            if good_obj:
+                good_obj.hovered = True
         else:
             buy_color = BUY_BUTTON
 
@@ -363,16 +369,16 @@ def _draw_bottom_bar(
             sell_color = LIGHT_GRAY
         elif is_hovering(sell_rect):
             sell_color = SELL_BUTTON_HOVER
-            good_name = input_fields[f'good_{section}']
-            good = next(good for good in goods if good.name == good_name)
-            good.hovered = True
+            good_obj = next((g for g in goods if g.name == good_name), None)
+            if good_obj:
+                good_obj.hovered = True
         else:
             sell_color = SELL_BUTTON
 
         pygame.draw.rect(screen, sell_color, sell_rect)
         pygame.draw.rect(screen, GRAY if paused else SELL_BUTTON_BORDER, sell_rect, 2)
-        
-        # NEW: Draw click animation overlay on buy and sell buttons if active
+
+        # Draw click animation overlay on buy and sell buttons if active
         effect = game_state.button_click_effects.get(f'buy_{section}', 0)
         if effect:
             effect_surf = pygame.Surface((buy_rect.width, buy_rect.height), pygame.SRCALPHA)
@@ -383,7 +389,7 @@ def _draw_bottom_bar(
             effect_surf = pygame.Surface((sell_rect.width, sell_rect.height), pygame.SRCALPHA)
             effect_surf.fill((0, 0, 0, 100))
             screen.blit(effect_surf, (sell_rect.x, sell_rect.y))
-        
+
         # Draw small triangle to indicate dropdown - make it darker on hover
         triangle_color = DARK_GRAY if not is_hovering(good_rect) else BLACK
         pygame.draw.polygon(screen, triangle_color, [
@@ -391,22 +397,20 @@ def _draw_bottom_bar(
             (good_rect.right - 10, good_rect.centery - 5),
             (good_rect.right - 15, good_rect.centery + 5)
         ])
-        
+
         # Draw text
-        good_text = main_font.render(f"Good: {input_fields[f'good_{section}']}", True, BLACK)
-        # Separate label from value for quantity
+        good_text = main_font.render(f"Good: {good_name}", True, BLACK)
         qty_label = main_font.render("Quantity: ", True, BLACK)
         qty_value = main_font.render(input_fields[f'quantity_{section}'], True, BLACK)
-        buy_text = main_font.render(f"Buy ({buy_key})", True, BUTTON_TEXT)  # Changed text color for better contrast
-        sell_text = main_font.render(f"Sell ({sell_key})", True, BUTTON_TEXT)  # Changed text color for better contrast
-        
+        buy_text = main_font.render(f"Buy ({buy_key})", True, BUTTON_TEXT)
+        sell_text = main_font.render(f"Sell ({sell_key})", True, BUTTON_TEXT)
+
         screen.blit(good_text, (good_rect.x + 10, good_rect.y + 5))
-        # Draw quantity label and value
         screen.blit(qty_label, (qty_rect.x + 10, qty_rect.y + 5))
         screen.blit(qty_value, (qty_rect.x + 10 + qty_label.get_width(), qty_rect.y + 5))
         screen.blit(buy_text, (buy_rect.centerx - buy_text.get_width()//2, buy_rect.centery - buy_text.get_height()//2))
         screen.blit(sell_text, (sell_rect.centerx - sell_text.get_width()//2, sell_rect.centery - sell_text.get_height()//2))
-        
+
     return buttons
 
 def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font, game_state: "GameState") -> None:

@@ -84,6 +84,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "input_fields": dict(game_state.input_fields),
             "depot_time_frame": game_state.depot_time_frame,
             "chart_selection_order": list(getattr(game_state, "chart_selection_order", [])),
+            "good_quantities": dict(getattr(game_state, "good_quantities", {})),
         },
         "player": {
             "name": player.name,
@@ -275,6 +276,8 @@ def _enforce_chart_limit(goods: List[Any], game_state: Any) -> None:
             new_order.append(g.name)
             seen.add(g.name)
     game_state.chart_selection_order = new_order
+    if hasattr(game_state, 'sync_quicktrade_fields'):
+        game_state.sync_quicktrade_fields()
 
 
 def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
@@ -290,6 +293,14 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.input_fields = gs["input_fields"]
     game_state.depot_time_frame = gs["depot_time_frame"]
     game_state.chart_selection_order = gs.get("chart_selection_order", [])
+    default_qtys = {
+        "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
+        "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
+        "Meat": "2", "Pottery": "2", "Linen": "2",
+    }
+    saved_qtys = gs.get("good_quantities", {})
+    default_qtys.update(saved_qtys)
+    game_state.good_quantities = default_qtys
     # Sync time-tracker fields to restored date so hourly/daily events fire correctly
     game_state.last_minute = game_state.date.minute
     game_state.last_hour = game_state.date.hour

@@ -83,14 +83,22 @@ class GameState:
         self.depot_view_mode: Optional[str] = None  # Deprecated
         self.mouse_clicked_on: str = "none"
         
+        # Remembered quantity per good for quick trading (persisted across sessions)
+        self.good_quantities: Dict[str, str] = {
+            "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
+            "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
+            "Meat": "2", "Pottery": "2", "Linen": "2",
+        }
+
         # Input fields for quick trading at the bottom of the screen
+        # These are derived from chart_selection_order + good_quantities via sync_quicktrade_fields()
         self.input_fields: Dict[str, str] = {
             'good_one': "Wood",
             'good_two': "Stone",
-            'good_three': "Iron",
+            'good_three': "",
             'quantity_one': "6",
-            'quantity_two': "4",
-            'quantity_three': "3"
+            'quantity_two': "6",
+            'quantity_three': ""
         }
         
         self.image_boxes: List[Any] = []
@@ -175,6 +183,22 @@ class GameState:
         elif self.time_level == 5:
             self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_5)
   
+    def sync_quicktrade_fields(self) -> None:
+        """Rebuild input_fields from chart_selection_order and good_quantities.
+
+        Slots without a corresponding chart good are cleared so the layout
+        knows not to render them.
+        """
+        sections = ['one', 'two', 'three']
+        for i, section in enumerate(sections):
+            if i < len(self.chart_selection_order):
+                name = self.chart_selection_order[i]
+                self.input_fields[f'good_{section}'] = name
+                self.input_fields[f'quantity_{section}'] = self.good_quantities.get(name, "2")
+            else:
+                self.input_fields[f'good_{section}'] = ""
+                self.input_fields[f'quantity_{section}'] = ""
+
     def show_warning(self, text: str) -> None:
         """Display a transient warning message on the UI.
         
