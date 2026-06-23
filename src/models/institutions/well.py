@@ -9,6 +9,7 @@ from ...config.constants import (
     SPLASH_VOLUME, COIN_THROW_COST,
     WELL_WISH_PROBABILITY, FONTS_PATH,
 )
+from ...ui.transaction_feedback import show_coin_popup
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, PALE_BROWN
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ class Well(House):
             return
 
         self._play_splash(game_state)
+        show_coin_popup(game_state, COIN_THROW_COST, is_spent=True)
 
         on_cooldown = (
             self._wish_cooldown_until is not None

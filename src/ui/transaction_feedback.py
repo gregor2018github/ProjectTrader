@@ -94,6 +94,11 @@ def on_money_received(game_state: "GameState", amount: float = 0.0) -> None:
     _spawn(game_state, amount, is_spent=False)
 
 
+def show_coin_popup(game_state: "GameState", amount: float, is_spent: bool) -> None:
+    """Spawn only the visual popup, without playing any sound."""
+    _spawn(game_state, amount, is_spent)
+
+
 def _spawn(game_state: "GameState", amount: float, is_spent: bool) -> None:
     pos = pygame.mouse.get_pos()
     game_state.coin_popups.append(CoinPopup(game_state.screen, pos, amount, is_spent))
