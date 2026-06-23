@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict, List, Optional, Any, Union
 from ..config.constants import STARTING_LICENSES
+from ..ui.transaction_feedback import on_money_spent, on_money_received
 
 class Depot:
     """Manages the player's financial state, inventory, and trade history.
@@ -234,8 +235,7 @@ class Depot:
         
         good.buy(quantity_to_buy)
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
-        if game_state.game:
-            game_state.game.play_sound("falling_coins_buy")
+        on_money_spent(game_state)
         return True
 
     def sell(self, good: Any, quantity_to_sell: int, game_state: Any) -> bool:
@@ -297,8 +297,7 @@ class Depot:
         
         good.sell(quantity_to_sell)
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
-        if game_state.game:
-            game_state.game.play_sound("falling_coins_sell")
+        on_money_received(game_state)
         return True
         
     def record_trade(self, good: Any, quantity: int, price: float, is_purchase: bool, game_state: Any) -> None:

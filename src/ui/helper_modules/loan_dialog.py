@@ -8,6 +8,7 @@ Two dialogs:
 import pygame
 import os
 from typing import Optional, Tuple, List, TYPE_CHECKING
+from ..transaction_feedback import on_money_received
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, DARK_ORANGE, WHEAT
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
@@ -331,7 +332,7 @@ class LoanDialog(_BaseDialog):
             self.game_state.game.depot.take_loan(
                 self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
-            self.game_state.game.play_sound("falling_coins_sell")
+            on_money_received(self.game_state)
             _close_dialog(self.game_state)
             return True
         return True

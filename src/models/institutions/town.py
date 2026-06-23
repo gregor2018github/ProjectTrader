@@ -1,5 +1,6 @@
 from ..house import House
 from typing import TYPE_CHECKING, Tuple, List, Dict
+from ...ui.transaction_feedback import on_money_spent
 from ...config.constants import (
     POPULATION_SHARE_POOR,
     POPULATION_SHARE_COMMONS,
@@ -105,7 +106,7 @@ class Town(House):
             
             if depot.book_donation(amount, category="Town Donations"):
                 self.treasury += amount
-                game_state.game.play_sound("falling_coins_buy")
+                on_money_spent(game_state)
                 
                 # Close menu on success
                 game_state.info_window = None 
