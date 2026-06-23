@@ -158,6 +158,7 @@ class GameState:
         self.menu_fade_window = None
         self.menu_fade_timer = 0
         self.menu_fade_duration = 20
+        self.coin_popups: list = []
 
     @property
     def is_map_visible(self) -> bool:

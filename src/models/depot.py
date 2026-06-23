@@ -235,7 +235,7 @@ class Depot:
         
         good.buy(quantity_to_buy)
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
-        on_money_spent(game_state)
+        on_money_spent(game_state, total_cost)
         return True
 
     def sell(self, good: Any, quantity_to_sell: int, game_state: Any) -> bool:
@@ -297,7 +297,7 @@ class Depot:
         
         good.sell(quantity_to_sell)
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
-        on_money_received(game_state)
+        on_money_received(game_state, total_revenue)
         return True
         
     def record_trade(self, good: Any, quantity: int, price: float, is_purchase: bool, game_state: Any) -> None:

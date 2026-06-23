@@ -106,7 +106,7 @@ class Town(House):
             
             if depot.book_donation(amount, category="Town Donations"):
                 self.treasury += amount
-                on_money_spent(game_state)
+                on_money_spent(game_state, amount)
                 
                 # Close menu on success
                 game_state.info_window = None 

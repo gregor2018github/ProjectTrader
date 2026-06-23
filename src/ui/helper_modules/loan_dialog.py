@@ -332,7 +332,7 @@ class LoanDialog(_BaseDialog):
             self.game_state.game.depot.take_loan(
                 self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
-            on_money_received(self.game_state)
+            on_money_received(self.game_state, self.amount)
             _close_dialog(self.game_state)
             return True
         return True

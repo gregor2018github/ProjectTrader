@@ -629,6 +629,13 @@ class Game:
                     running = self.event_handler.handle_events(event, self.state, 
                                                             self.goods, self.depot, buttons)
                 
+                # Update and draw coin popups (above all UI, below cursor)
+                if self.state.coin_popups:
+                    for popup in self.state.coin_popups:
+                        popup.update(delta_time)
+                        popup.draw()
+                    self.state.coin_popups = [p for p in self.state.coin_popups if p.alive]
+
                 # Draw custom cursor on top of everything
                 if self.state.contract_acquisition:
                     self.state.contract_acquisition.draw_cursor()
