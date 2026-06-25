@@ -10,6 +10,7 @@ import os
 from typing import Optional, Tuple, List, TYPE_CHECKING
 from ..transaction_feedback import on_money_received
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, DARK_ORANGE, WHEAT
+from ..ui_utils import draw_9slice
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
     LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,
@@ -154,8 +155,12 @@ class _BaseDialog:
 
     def _draw_panel(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         r = self.panel.move(*off)
-        pygame.draw.rect(surf, SANDY_BROWN, r)
-        pygame.draw.rect(surf, DARK_BROWN, r, 3)
+        game = self.game_state.game
+        if game and hasattr(game, 'pic_info_window'):
+            draw_9slice(surf, game.pic_info_window, r)
+        else:
+            pygame.draw.rect(surf, SANDY_BROWN, r)
+            pygame.draw.rect(surf, DARK_BROWN, r, 3)
 
     def _draw_close_btn(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         r = self.close_rect.move(*off)
