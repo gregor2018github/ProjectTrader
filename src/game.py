@@ -375,7 +375,9 @@ class Game:
                     # update wealth, stock and bookkeeping price history once per day
                     if day_changed:
                         self.depot.update_income_and_expenditures() # archive yesterday's counters first
-                        self.depot.book_cost_of_living(self.player.daily_cost_of_living) # then charge today's cost of living
+                        cost = self.player.daily_cost_of_living
+                        self.depot.book_cost_of_living(cost) # then charge today's cost of living
+                        self.state.log_event("FINANCE", f"Daily costs: {cost:.0f}g")
 
                         # Process active loans: daily principal + interest, settlement at maturity
                         for loan in list(self.depot.active_loans):
@@ -394,17 +396,28 @@ class Game:
                             if daily_interest > 0:
                                 self.depot.book_loan_interest(daily_interest)
 
+                            if daily_principal > 0 or daily_interest > 0:
+                                self.state.log_event(
+                                    "LOAN",
+                                    f"Daily loan payment — principal: {daily_principal:.2f}g, interest: {daily_interest:.2f}g"
+                                )
+
                             # At maturity: settlement principal closes out the loan
                             if loan["days_elapsed"] >= loan["duration_days"]:
                                 settlement = loan.get("settlement_principal", loan.get("remaining_principal", 0.0))
                                 if settlement > 0:
                                     self.depot.money -= settlement
+                                self.state.log_event(
+                                    "LOAN",
+                                    f"Loan settled — final payment {settlement:.0f}g"
+                                )
                                 self.depot.active_loans.remove(loan)
 
                         # Overdraft penalty: 2% of negative balance per day
                         if self.depot.money < 0:
                             penalty = max(0.01, round(abs(self.depot.money) * OVERDRAFT_DAILY_RATE, 2))
                             self.depot.book_overdraft_penalty(penalty)
+                            self.state.log_event("LOAN", f"Overdraft penalty: {penalty:.2f}g")
 
                         self.depot.update_wealth(self.goods)
                         self.depot.update_total_stock()

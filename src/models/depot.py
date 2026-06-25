@@ -236,6 +236,11 @@ class Depot:
         good.buy(quantity_to_buy)
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
         on_money_spent(game_state, total_cost)
+        game_state.log_event(
+            "TRADE",
+            f"Bought {quantity_to_buy}× {good.name} at {good.get_price():.0f}g"
+            f" (total {total_cost:.0f}g)"
+        )
         return True
 
     def sell(self, good: Any, quantity_to_sell: int, game_state: Any) -> bool:
@@ -298,6 +303,13 @@ class Depot:
         good.sell(quantity_to_sell)
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
         on_money_received(game_state, total_revenue)
+        profit = total_revenue - total_cost_of_goods_sold
+        profit_str = f"+{profit:.0f}g" if profit >= 0 else f"{profit:.0f}g"
+        game_state.log_event(
+            "TRADE",
+            f"Sold {quantity_to_sell}× {good.name} at {current_sale_price:.0f}g"
+            f" (profit {profit_str})"
+        )
         return True
         
     def record_trade(self, good: Any, quantity: int, price: float, is_purchase: bool, game_state: Any) -> None:
@@ -529,7 +541,6 @@ class Depot:
             self.donations[category] = 0
             self.donation_history[category] = [0.0] * len(self.donation_expenditure_history)
         self.donations[category] += amount
-        
         return True
 
     def book_loan_interest(self, amount: float) -> None:
@@ -616,6 +627,7 @@ class Depot:
             return False
         self.money -= remaining
         self.active_loans.pop(loan_index)
+        game_state.log_event("LOAN", f"Loan repaid early: {remaining:.0f}g remaining principal")
         return True
 
     def get_expense_breakdown(self, period_days: Optional[int] = None) -> Dict[str, Any]:

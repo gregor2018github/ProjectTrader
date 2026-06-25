@@ -686,53 +686,60 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
     tooltips = []
 
     # Draw pictograms for side menu
-    pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
+    pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building", "ledger"]
     label_map = {
         "map": "Map",
         "market": "Market",
         "depot": "Depot",
         "politics": "Politics",
         "trade_routes": "Trade Routes",
-        "building": "Building"
+        "building": "Building",
+        "ledger": "Ledger",
     }
 
     start_y = 75    # the higher the number the lower the first button
     spacing = -15   # the higher the number (also pos), the further apart the buttons
     
+    # Buttons that open a modal instead of switching layout modules — no sub-buttons
+    modal_buttons = {"ledger"}
+
     for i, name in enumerate(pictogram_names):
         img_key = f"pictogram_{name}"
+        rect = pygame.Rect(SCREEN_WIDTH + 5, start_y + i * (100 + spacing), 100, 100)
+        visible_rect = pygame.Rect(rect.x, rect.y, 100, 50)
+
         if img_key in images:
             img = images[img_key]
-            # Sidebar button rect (100x100)
-            rect = pygame.Rect(SCREEN_WIDTH + 5, start_y + i * (100 + spacing), 100, 100)
-            # the actual visible rect of the pictogram is only 100 x 50, that is visible rect
-            visible_rect = pygame.Rect(rect.x, rect.y, 100, 50)
-            
-            # Sub-buttons logic
-            sub_btn_y = rect.bottom - 100 + 45 
-            sub_btn_width = 47
-            sub_btn_height = 20
-            
-            # Left button "picto_<name>_left"
-            left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
-            is_left_hovered = left_btn_rect.collidepoint(mouse_pos) and not menu_is_open
-            color_left = PALE_BROWN if is_left_hovered else TAN
-            pygame.draw.rect(screen, color_left, left_btn_rect)
-            pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
-            buttons[f"picto_{name}_left"] = left_btn_rect
-            if is_left_hovered:
-                tooltips.append(("Open left", mouse_pos))
-            
-            # Right button "picto_<name>_right"
-            right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
-            is_right_hovered = right_btn_rect.collidepoint(mouse_pos) and not menu_is_open
-            color_right = PALE_BROWN if is_right_hovered else TAN
-            pygame.draw.rect(screen, color_right, right_btn_rect)
-            pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
-            buttons[f"picto_{name}_right"] = right_btn_rect
-            if is_right_hovered:
-                tooltips.append(("Open right", mouse_pos))
-            
+
+            if name not in modal_buttons:
+                # Sub-buttons logic
+                sub_btn_y = rect.bottom - 100 + 45
+                sub_btn_width = 47
+                sub_btn_height = 20
+
+                # Left button "picto_<name>_left"
+                left_btn_rect = pygame.Rect(rect.left+2, sub_btn_y, sub_btn_width, sub_btn_height)
+                is_left_hovered = left_btn_rect.collidepoint(mouse_pos) and not menu_is_open
+                color_left = PALE_BROWN if is_left_hovered else TAN
+                pygame.draw.rect(screen, color_left, left_btn_rect)
+                pygame.draw.rect(screen, DARK_BROWN, left_btn_rect, 1) # 1px border
+                buttons[f"picto_{name}_left"] = left_btn_rect
+                if is_left_hovered:
+                    tooltips.append(("Open left", mouse_pos))
+
+                # Right button "picto_<name>_right"
+                right_btn_rect = pygame.Rect(rect.right-2 - sub_btn_width, sub_btn_y, sub_btn_width, sub_btn_height)
+                is_right_hovered = right_btn_rect.collidepoint(mouse_pos) and not menu_is_open
+                color_right = PALE_BROWN if is_right_hovered else TAN
+                pygame.draw.rect(screen, color_right, right_btn_rect)
+                pygame.draw.rect(screen, DARK_BROWN, right_btn_rect, 1) # 1px border
+                buttons[f"picto_{name}_right"] = right_btn_rect
+                if is_right_hovered:
+                    tooltips.append(("Open right", mouse_pos))
+            else:
+                is_left_hovered = False
+                is_right_hovered = False
+
             # Draw main pictogram image after left and right buttons so it overlaps the buttons by 2 pixels
             screen.blit(img, rect)
             buttons[f"pictogram_{name}"] = visible_rect
@@ -745,6 +752,19 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
                 overlay.fill((0, 0, 0, 50))  # black overlay
                 screen.blit(overlay, visible_rect.topleft)
                 # add tooltip
+                tooltips.append((label_map[name], mouse_pos))
+
+        elif name in modal_buttons:
+            # Fallback tile for modal buttons with no image asset yet
+            pygame.draw.rect(screen, TAN, visible_rect)
+            pygame.draw.rect(screen, DARK_BROWN, visible_rect, 2)
+            lbl = main_font.render(label_map[name], True, DARK_BROWN)
+            screen.blit(lbl, lbl.get_rect(center=visible_rect.center))
+            buttons[f"pictogram_{name}"] = visible_rect
+            if visible_rect.collidepoint(mouse_pos) and not menu_is_open:
+                overlay = pygame.Surface(visible_rect.size, pygame.SRCALPHA)
+                overlay.fill((0, 0, 0, 40))
+                screen.blit(overlay, visible_rect.topleft)
                 tooltips.append((label_map[name], mouse_pos))
 
     # Render tooltips last to ensure they are on top of everything

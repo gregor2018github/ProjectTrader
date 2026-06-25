@@ -159,6 +159,7 @@ class GameState:
         self.menu_fade_timer = 0
         self.menu_fade_duration = 20
         self.coin_popups: list = []
+        self.event_log: List[Dict] = []
 
     @property
     def is_map_visible(self) -> bool:
@@ -199,6 +200,15 @@ class GameState:
             else:
                 self.input_fields[f'good_{section}'] = ""
                 self.input_fields[f'quantity_{section}'] = ""
+
+    def log_event(self, category: str, text: str) -> None:
+        """Append a timestamped entry to the persistent event log.
+
+        Args:
+            category: One of TRADE, LICENSE, LOAN, DONATION, FINANCE, SYSTEM.
+            text: Human-readable description of the event.
+        """
+        self.event_log.append({"timestamp": self.date, "category": category, "text": text})
 
     def show_warning(self, text: str) -> None:
         """Display a transient warning message on the UI.

@@ -338,6 +338,10 @@ class LoanDialog(_BaseDialog):
                 self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
             on_money_received(self.game_state, self.amount)
+            self.game_state.log_event(
+                "LOAN",
+                f"Loan taken: {self.amount:.0f}g over {duration} days"
+            )
             _close_dialog(self.game_state)
             return True
         return True

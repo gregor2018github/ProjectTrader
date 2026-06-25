@@ -32,9 +32,9 @@ class Church(House):
             if depot.book_donation(amount, category="Church Donations"):
                 self.treasury += amount
                 on_money_spent(game_state, amount)
-                
+                game_state.log_event("DONATION", f"Donated {amount:.0f}g to the Church")
                 # Close menu on success
-                game_state.info_window = None 
+                game_state.info_window = None
                 game_state.active_house_menu = None
             else:
                 # Show warning and keep menu open

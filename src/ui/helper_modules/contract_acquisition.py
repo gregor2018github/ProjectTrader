@@ -281,6 +281,10 @@ class ContractView:
 
         # Grant the trading license
         depot.add_license(self.contract_type, self.contract_months, state.date)
+        state.log_event(
+            "LICENSE",
+            f"License acquired: {self.contract_type} ({self.contract_months} months)"
+        )
 
         # Save a screenshot of the signed contract
         self._save_contract_image()

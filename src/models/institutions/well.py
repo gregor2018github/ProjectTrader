@@ -41,6 +41,7 @@ class Well(House):
             game_state.show_warning("Not enough money!")
             return
 
+        game_state.log_event("SYSTEM", f"Threw a coin in the magic well ({COIN_THROW_COST}g)")
         self._play_splash(game_state)
         show_coin_popup(game_state, COIN_THROW_COST, is_spent=True)
 

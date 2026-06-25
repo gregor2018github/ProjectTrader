@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_acquisition import ContractView
 from ..ui.helper_modules.house_click_menu import get_hovered_house, show_house_menu
+from ..ui.helper_modules.ledger_window import LedgerWindow
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -298,6 +299,11 @@ def handle_mouse_click(pos: Tuple[int, int],
         if town:
             town.open_population_stats(game_state, pos)
             return
+
+    # Ledger modal button — opens the event log, no left/right sub-buttons
+    if "pictogram_ledger" in buttons and buttons["pictogram_ledger"].collidepoint(pos):
+        game_state.info_window = LedgerWindow(game_state.screen, game_state)
+        return
 
     # Handle pictogram sub-button clicks (left/right buttons)
     possible_modes = ["map", "market", "depot", "politics", "trade_routes", "building"]
