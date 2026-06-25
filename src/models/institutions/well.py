@@ -11,6 +11,7 @@ from ...config.constants import (
 )
 from ...ui.transaction_feedback import show_coin_popup
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, PALE_BROWN
+from ...ui.ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -274,8 +275,12 @@ class WishMenu:
 
         # ── Main panel ────────────────────────────────────────────────────
         panel = self.rect.move(ox, oy)
-        pygame.draw.rect(surf, SANDY_BROWN, panel)
-        pygame.draw.rect(surf, DARK_BROWN, panel, 3)
+        game = self.game_state.game
+        if game and hasattr(game, 'pic_info_window'):
+            draw_9slice(surf, game.pic_info_window, panel)
+        else:
+            pygame.draw.rect(surf, SANDY_BROWN, panel)
+            pygame.draw.rect(surf, DARK_BROWN, panel, 3)
 
         # Title
         title_surf = self.title_font.render("Magic Well", True, DARK_BROWN)
