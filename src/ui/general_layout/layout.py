@@ -208,11 +208,6 @@ def draw_layout(
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
 
-def _draw_background(screen: pygame.Surface) -> None:
-    """Draws the lowest level monochrome background color."""
-
-    screen.fill(BEIGE)
-
 def _draw_top_bar(
     screen: pygame.Surface,
     main_depot: "Depot",
