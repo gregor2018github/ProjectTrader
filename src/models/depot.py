@@ -627,6 +627,7 @@ class Depot:
             return False
         self.money -= remaining
         self.active_loans.pop(loan_index)
+        on_money_spent(game_state, remaining)
         game_state.log_event("LOAN", f"Loan repaid early: {remaining:.0f}g remaining principal")
         return True
 

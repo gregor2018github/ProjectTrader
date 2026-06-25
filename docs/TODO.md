@@ -2,10 +2,9 @@
 
 ## High Priority
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
-- [ ] fix the surrounding of the dialogue windows (they are currently distorted)
-- [ ] add a ledger system that notes all incoming messages for you to look at later - with message types and filters
 
 ## Medium Priority
+- [ ] start to collect general statistics (tiles walked, ledger entries, money received, money spent, trades made, etc.)
 - [ ] when trading license runs out and you still have goods that require it, there needs to be a warning, maybe even a blackmarket option to sell them at a 60% loss, compared to the normal market price
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
@@ -49,6 +48,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] fix the surrounding of the dialogue windows (they are currently distorted)
+- [x] add a ledger system that notes all incoming messages for you to look at later - with message types and filters
 - [x] added depot view detail for Profit
 - [x] added depot view detail for Income
 - [x] quicktrade buy/sell buttons grey out when paused, no stock, or no license; show tooltip with reason; hovering bold-highlights the chart line in the same frame
