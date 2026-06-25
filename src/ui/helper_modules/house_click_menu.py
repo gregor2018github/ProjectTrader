@@ -10,6 +10,7 @@ from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 
 from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE, DARK_RED, GRAY
 from ...config.constants import FONTS_PATH
+from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...models.house import House
@@ -494,10 +495,14 @@ class HouseMenu:
 
         mouse_pos = pygame.mouse.get_pos()
 
-        # Draw menu body (no rounded corners)
+        # Draw menu body
         body_rect = self.rect.move(ox, oy)
-        pygame.draw.rect(target_surf, SANDY_BROWN, body_rect)
-        pygame.draw.rect(target_surf, DARK_BROWN, body_rect, 3)
+        game = self.game_state.game
+        if game and hasattr(game, 'pic_info_window'):
+            draw_9slice(target_surf, game.pic_info_window, body_rect)
+        else:
+            pygame.draw.rect(target_surf, SANDY_BROWN, body_rect)
+            pygame.draw.rect(target_surf, DARK_BROWN, body_rect, 3)
 
         # Draw header title with fancy font (centred, leaving room for X on the right)
         raw_name = self.house.name or "House"
