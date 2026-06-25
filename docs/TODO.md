@@ -2,11 +2,14 @@
 
 ## High Priority
 - [ ] add a possibility to buy a first warehouse for storing 100 more goods
+- [ ] fix the surrounding of the dialogue windows (they are currently distorted)
+- [ ] add a ledger system that notes all incoming messages for you to look at later - with message types and filters
 
 ## Medium Priority
 - [ ] when trading license runs out and you still have goods that require it, there needs to be a warning, maybe even a blackmarket option to sell them at a 60% loss, compared to the normal market price
 - [ ] design water tiles (plan how to animate them before implementing static ones)
 - [ ] add two more houses with different designs
+- [ ] when pressing the ciphers 1-5 you can switch through the different view modes (map, market, depot, politics, traderoutes, buildings)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a functionality to throw down a rock into the lake
 - [ ] add profit overview in the depot chart view
@@ -34,6 +37,11 @@
 - [ ] contract herbs
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
+- [ ] Let the player hire an support trader, but that one will take a daily wage
+    - [ ] The support trader works with target prices; they can fire a show_warning() or trading action when crossed
+    - [ ] Support Trader can also create alarms based on highest/lowest price in N days
+    - [ ] Support Trader starts as sole market spotter, can be upgraded to a full trader with own license and own trading capacity
+      
 
 ## Bug Fixes
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
