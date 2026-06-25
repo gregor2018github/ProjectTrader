@@ -436,6 +436,18 @@ class Depot:
         
         return total_stock
     
+    def avg_buy_price(self, good_name: str) -> Optional[float]:
+        """Return the FIFO-weighted average buy price for goods currently held.
+
+        Returns None if no stock is held for this good.
+        """
+        entries = self.purchase_history.get(good_name, [])
+        total_cost = sum(e["total_cost"] for e in entries)
+        total_qty = sum(e["quantity"] for e in entries)
+        if total_qty == 0:
+            return None
+        return total_cost / total_qty
+
     def update_stock_history(self) -> None:
         """Update the stock history for all goods for bookkeeping."""
         for good_name, quantity in self.good_stock.items():

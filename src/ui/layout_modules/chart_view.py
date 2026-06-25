@@ -171,6 +171,22 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             no_license = depot is not None and not depot.has_license(closest_good.name, current_date)
             license_text = "No License" if no_license else None
 
+            # Avg buy price / unrealized P/L (only when holding stock)
+            avg_buy_text = None
+            unrealized_text = None
+            unrealized_color = DARK_BROWN
+            if depot is not None:
+                stock_qty = depot.good_stock.get(closest_good.name, 0)
+                if stock_qty > 0:
+                    avg = depot.avg_buy_price(closest_good.name)
+                    if avg is not None:
+                        current_price = closest_good.get_price()
+                        unrealized = (current_price - avg) * stock_qty
+                        avg_buy_text = f"Avg: {avg:.2f}"
+                        sign = "+" if unrealized >= 0 else ""
+                        unrealized_text = f"P/L: {sign}{unrealized:.2f}"
+                        unrealized_color = DARK_GREEN if unrealized >= 0 else DARK_RED
+
             # Create a stable width by calculating as if all digits were the widest digit (9)
             # This prevents the tooltip box from "jumping" as prices update.
             stable_text_price = "".join(['9' if c.isdigit() else c for c in tooltip_text])
@@ -187,6 +203,14 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
                 sw_license, sh_license = main_font.size(license_text)
                 total_stable_width = max(total_stable_width, sw_license)
                 total_stable_height += sh_license + row_spacing
+
+            if avg_buy_text:
+                stable_avg = "".join(['9' if c.isdigit() else c for c in avg_buy_text])
+                stable_unr = "".join(['9' if c.isdigit() else c for c in unrealized_text])
+                sw_avg, sh_avg = main_font.size(stable_avg)
+                sw_unr, sh_unr = main_font.size(stable_unr)
+                total_stable_width = max(total_stable_width, sw_avg, sw_unr)
+                total_stable_height += sh_avg + sh_unr + row_spacing * 2
 
             # Render the actual text using a fixed color for readability
             price_surface = main_font.render(tooltip_text, True, DARK_BROWN)
@@ -213,16 +237,30 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
 
             # Draw the text rows centered within the stable rect
-            price_rect = price_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top))
-            date_rect = date_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + row_spacing))
-
+            row_y = stable_rect.top
+            price_rect = price_surface.get_rect(midtop=(stable_rect.centerx, row_y))
             screen.blit(price_surface, price_rect)
+            row_y += sh_price + row_spacing
+
+            date_rect = date_surface.get_rect(midtop=(stable_rect.centerx, row_y))
             screen.blit(date_surface, date_rect)
+            row_y += sh_date + row_spacing
 
             if license_text:
                 license_surface = main_font.render(license_text, True, DARK_RED)
-                license_rect = license_surface.get_rect(midtop=(stable_rect.centerx, stable_rect.top + sh_price + sh_date + row_spacing * 2))
+                license_rect = license_surface.get_rect(midtop=(stable_rect.centerx, row_y))
                 screen.blit(license_surface, license_rect)
+                row_y += sh_license + row_spacing
+
+            if avg_buy_text:
+                avg_surface = main_font.render(avg_buy_text, True, DARK_BROWN)
+                avg_rect = avg_surface.get_rect(midtop=(stable_rect.centerx, row_y))
+                screen.blit(avg_surface, avg_rect)
+                row_y += sh_avg + row_spacing
+
+                unr_surface = main_font.render(unrealized_text, True, unrealized_color)
+                unr_rect = unr_surface.get_rect(midtop=(stable_rect.centerx, row_y))
+                screen.blit(unr_surface, unr_rect)
 
 def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, current_date: datetime.datetime, history_len: int) -> None:
     """Draw vertical lines representing time boundaries (Day, Week, or Month).
