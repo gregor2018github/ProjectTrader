@@ -285,13 +285,96 @@ def _draw_top_bar(
     total_stock = sum(main_depot.good_stock.values())
     stock_text = main_font.render(f"Total Stock: {total_stock} / {main_depot.storage_capacity}", True, BLACK)
     screen.blit(stock_text, (1365, 35))
+    total_stock_rect = pygame.Rect(1330, 29, 30 + stock_text.get_width(), 31)
 
     # Draw hover tooltip last so it renders above all other top-bar elements
-    for good_name, slot_rect in good_slots:
-        if slot_rect.collidepoint(mouse_pos):
-            small_font = getattr(game_state, 'small_font', main_font)
-            _draw_top_bar_good_tooltip(screen, main_font, small_font, main_depot, good_lookup, good_name, date, mouse_pos)
-            break
+    small_font = getattr(game_state, 'small_font', main_font)
+    if total_stock_rect.collidepoint(mouse_pos) and total_stock > 0:
+        _draw_top_bar_total_tooltip(screen, main_font, small_font, main_depot, good_lookup, date, mouse_pos)
+    else:
+        for good_name, slot_rect in good_slots:
+            if slot_rect.collidepoint(mouse_pos):
+                _draw_top_bar_good_tooltip(screen, main_font, small_font, main_depot, good_lookup, good_name, date, mouse_pos)
+                break
+
+def _draw_top_bar_total_tooltip(
+    screen: pygame.Surface,
+    main_font: pygame.font.Font,
+    small_font: pygame.font.Font,
+    depot: "Depot",
+    good_lookup: Dict[str, Any],
+    date: datetime.datetime,
+    mouse_pos: tuple,
+) -> None:
+    """Draw an aggregated tooltip for the Total Stock indicator."""
+    all_good_names = list(depot.good_stock.keys())
+
+    total_market_value = 0.0
+    total_purchase_value = 0.0
+    for good_name in all_good_names:
+        qty = depot.good_stock.get(good_name, 0)
+        if qty > 0:
+            good = good_lookup.get(good_name)
+            total_market_value += (good.get_price() if good else 0.0) * qty
+            avg = depot.avg_buy_price(good_name)
+            total_purchase_value += (avg * qty) if avg is not None else 0.0
+
+    total_pl = total_market_value - total_purchase_value
+    pl_color = DARK_GREEN if total_pl >= 0 else DARK_RED
+    pl_sign = "+" if total_pl >= 0 else ""
+
+    stocked_names = [n for n in all_good_names if depot.good_stock.get(n, 0) > 0]
+    licenses_held = sum(1 for n in stocked_names if depot.has_license(n, date))
+    license_text = f"{licenses_held}/{len(stocked_names)}"
+    license_color = DARK_GREEN if licenses_held == len(stocked_names) else DARK_RED
+
+    rows = [
+        ("Market Value:", f"{total_market_value:.2f}", DARK_BROWN),
+        ("Purchase Value:", f"{total_purchase_value:.2f}", DARK_BROWN),
+        ("P/L:", f"{pl_sign}{total_pl:.2f}", pl_color),
+        ("Licenses:", license_text, license_color),
+    ]
+
+    row_spacing = 3
+    col_gap = 12
+    pad_x, pad_y = 8, 6
+
+    label_surfs = [main_font.render(label, True, DARK_BROWN) for label, _, _ in rows]
+    license_idx = len(rows) - 1
+    value_surfs = [
+        small_font.render(val, True, color) if i == license_idx else main_font.render(val, True, color)
+        for i, (_, val, color) in enumerate(rows)
+    ]
+    stable_value_surfs = [
+        small_font.render("".join('9' if c.isdigit() else c for c in val), True, DARK_BROWN) if i == license_idx
+        else main_font.render("".join('9' if c.isdigit() else c for c in val), True, DARK_BROWN)
+        for i, (_, val, _) in enumerate(rows)
+    ]
+
+    label_col_w = max(s.get_width() for s in label_surfs)
+    value_col_w = max(s.get_width() for s in stable_value_surfs)
+    line_h = label_surfs[0].get_height()
+    total_w = label_col_w + col_gap + value_col_w
+    total_h = len(rows) * line_h + (len(rows) - 1) * row_spacing
+
+    tip_x = mouse_pos[0] + 34
+    tip_y = mouse_pos[1] + 38
+    bg_rect = pygame.Rect(tip_x - pad_x, tip_y - pad_y, total_w + pad_x * 2, total_h + pad_y * 2)
+
+    if bg_rect.right > SCREEN_WIDTH:
+        bg_rect.right = SCREEN_WIDTH - 4
+
+    pygame.draw.rect(screen, WHITE, bg_rect)
+    pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
+
+    y = bg_rect.top + pad_y
+    value_x = bg_rect.left + pad_x + label_col_w + col_gap
+    for label_surf, value_surf in zip(label_surfs, value_surfs):
+        screen.blit(label_surf, (bg_rect.left + pad_x, y))
+        v_offset = (line_h - value_surf.get_height()) // 2
+        screen.blit(value_surf, (value_x, y + v_offset))
+        y += line_h + row_spacing
+
 
 def _draw_top_bar_good_tooltip(
     screen: pygame.Surface,
