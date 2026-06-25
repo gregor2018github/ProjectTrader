@@ -1,6 +1,7 @@
 import pygame
 from typing import Optional, TYPE_CHECKING
 from ...config.colors import LIGHT_GRAY, DARK_GRAY, BLACK
+from ..ui_utils import scale_9slice
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -65,8 +66,7 @@ class WarningMessage:
         
         # Use the info window background frame if available; apply fading to the frame as well.
         if self.game and getattr(self.game, "pic_info_window", None):
-            scaled_frame = pygame.transform.scale(self.game.pic_info_window, (self.window_rect.width, self.window_rect.height))
-            frame_surface = scaled_frame.copy()
+            frame_surface = scale_9slice(self.game.pic_info_window, (self.window_rect.width, self.window_rect.height))
             frame_surface.set_alpha(current_alpha_box)
             self.screen.blit(frame_surface, self.window_rect)
         else:

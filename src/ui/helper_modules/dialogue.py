@@ -1,6 +1,7 @@
 import pygame
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
+from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -127,12 +128,7 @@ class Dialogue:
         
         # Draw dialogue window with background image if available
         if hasattr(self.game, 'pic_info_window'):
-            # Scale the image to fit the dialogue window
-            scaled_frame = pygame.transform.scale(
-                self.game.pic_info_window,
-                (self.dialogue_rect.width, self.dialogue_rect.height)
-            )
-            self.screen.blit(scaled_frame, self.dialogue_rect)
+            draw_9slice(self.screen, self.game.pic_info_window, self.dialogue_rect)
         else:
             # Fallback to drawing a rectangle
             pygame.draw.rect(self.screen, LIGHT_GRAY, self.dialogue_rect)

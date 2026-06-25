@@ -1,6 +1,7 @@
 import pygame
 from typing import List, Optional, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
+from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -81,10 +82,7 @@ class InfoWindow:
         
         # Use the frame image instead of drawing a rectangle
         if hasattr(game, 'pic_info_window'):
-            # Scale the frame image to fit the window size
-            scaled_frame = pygame.transform.scale(game.pic_info_window, 
-                                               (self.window_rect.width, self.window_rect.height))
-            self.screen.blit(scaled_frame, self.window_rect)
+            draw_9slice(self.screen, game.pic_info_window, self.window_rect)
         else:
             # Fallback to the original rectangle if image not available
             pygame.draw.rect(self.screen, LIGHT_GRAY, self.window_rect)

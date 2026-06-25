@@ -2,6 +2,7 @@ import pygame
 from typing import List, Tuple, Optional, Any, TYPE_CHECKING
 from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK
 from .ui.helper_modules.color_wheel import ColorWheel
+from .ui.ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from .game import Game
@@ -92,8 +93,7 @@ class SettingsWindow:
         
         # Draw background (using game frame image if available)
         if self.game and hasattr(self.game, 'pic_info_window'):
-            scaled_frame = pygame.transform.scale(self.game.pic_info_window, (self.width, self.height))
-            self.screen.blit(scaled_frame, self.window_rect)
+            draw_9slice(self.screen, self.game.pic_info_window, self.window_rect)
         else:
             pygame.draw.rect(self.screen, LIGHT_GRAY, self.window_rect)
             pygame.draw.rect(self.screen, DARK_GRAY, self.window_rect, 2)

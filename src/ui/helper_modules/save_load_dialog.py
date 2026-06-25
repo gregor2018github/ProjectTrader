@@ -15,6 +15,7 @@ from ...config.colors import (
 )
 from ...config.constants import FONTS_PATH
 from ...persistence.save_manager import get_save_slots
+from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -126,10 +127,7 @@ class _BaseSlotDialog:
         self.screen.blit(overlay, (0, 0))
 
         if hasattr(self.game, "pic_info_window"):
-            scaled = pygame.transform.scale(
-                self.game.pic_info_window, (_WINDOW_W, _WINDOW_H)
-            )
-            self.screen.blit(scaled, self.window_rect)
+            draw_9slice(self.screen, self.game.pic_info_window, self.window_rect)
         else:
             pygame.draw.rect(self.screen, BEIGE, self.window_rect)
             pygame.draw.rect(self.screen, DARK_BROWN, self.window_rect, 2)
