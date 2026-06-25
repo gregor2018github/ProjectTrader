@@ -524,9 +524,12 @@ class Game:
                 # Helper function to render a module in a specific rect
                 mouse_pos = pygame.mouse.get_pos()
                 prescan_quicktrade_hover(self.goods, self.state.input_fields, self.depot, self.state, mouse_pos)
-                suppress_chart_hover = any(
-                    d.is_open and d.dropdown_rect.collidepoint(mouse_pos)
-                    for d in self.state.dropdowns.values()
+                suppress_chart_hover = (
+                    bool(self.state.info_window)
+                    or any(
+                        d.is_open and d.dropdown_rect.collidepoint(mouse_pos)
+                        for d in self.state.dropdowns.values()
+                    )
                 )
 
                 def render_module(mode, rect):

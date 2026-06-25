@@ -41,7 +41,10 @@ def _draw_town_statistics_panel(
     small_font = getattr(game_state, "small_font", main_font)
 
     mouse_pos = pygame.mouse.get_pos()
-    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    menu_is_open = (
+        (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
+        or bool(getattr(game_state, 'info_window', None))
+    )
 
     current_population = int(getattr(town, 'citizens', 0))
     maximum_population = int(getattr(town, 'max_citizens', 0))
@@ -489,7 +492,10 @@ def _draw_bottom_bar(
     mouse_pos = pygame.mouse.get_pos()
     
     # Check if menu is open - if so, disable all hover effects on other buttons
-    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    menu_is_open = (
+        (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
+        or bool(getattr(game_state, 'info_window', None))
+    )
     
     def draw_input_field(rect: pygame.Rect, text: str, is_selected: bool) -> None:
         """Helper to draw a text input field with an optional cursor.
@@ -681,7 +687,10 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
     mouse_pos = pygame.mouse.get_pos()
     
     # Check if menu is open - if so, disable all hover effects on other buttons
-    menu_is_open = hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
+    menu_is_open = (
+        (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
+        or bool(getattr(game_state, 'info_window', None))
+    )
     
     tooltips = []
 

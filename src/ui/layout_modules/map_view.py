@@ -75,6 +75,8 @@ def draw_map_view(
             game_state.info_window = None
             game_state.active_house_menu = None
             hovered_house = None
+    elif getattr(game_state, 'info_window', None):
+        hovered_house = None
     else:
         mouse_pos = pygame.mouse.get_pos()
         hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
