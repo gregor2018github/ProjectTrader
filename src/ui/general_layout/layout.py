@@ -204,7 +204,7 @@ def draw_layout(
     Each section is drawn by a dedicated helper function. Only right bar is drawn separately.
     """
 
-    _draw_top_bar(screen, main_depot, main_font, date, images, game_state)
+    _draw_top_bar(screen, main_depot, goods, main_font, date, images, game_state)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
     return buttons
 
@@ -216,6 +216,7 @@ def _draw_background(screen: pygame.Surface) -> None:
 def _draw_top_bar(
     screen: pygame.Surface,
     main_depot: "Depot",
+    goods: List["Good"],
     main_font: pygame.font.Font,
     date: datetime.datetime,
     images: Dict[str, Any],
@@ -227,55 +228,154 @@ def _draw_top_bar(
     goods_images_30 = images['goods_30']
     stock_30 = images['stock_30']
     warehouses_30 = images['warehouses_30']
-    
+
     top_bar = pygame.Rect(0, 0, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, top_bar)
     pygame.draw.rect(screen, DARK_GRAY, top_bar, 2)
-    
+
     # Money display with glow effect if active
     money_color = game_state.money_effect_color if hasattr(game_state, "money_effect_color") and game_state.money_effect_color else BLACK
     money_text = main_font.render(f"Money: {round(main_depot.money, 2)}", True, money_color)
     screen.blit(money_text, (70, 10))
     screen.blit(money_50, (10, 5))
-    
+
     # Date display
     date_text = main_font.render(date.strftime("%d.%m.%Y | %H o'clock"), True, DARK_BROWN)
     screen.blit(date_text, (70, 35))
 
     # Separator bar
     pygame.draw.line(screen, DARK_GRAY, (306, 5), (306, 55), 2)
-    
+
     # Goods inventory display
     start_x = 360
     spacing = 160
-    
+    mouse_pos = pygame.mouse.get_pos()
+
+    # Build a name->Good lookup for price queries
+    good_lookup = {g.name: g for g in goods}
+
+    # Collect (good_name, slot_rect) for hover detection; draw after so tooltip is on top
+    good_slots: List[tuple] = []
+
     # Upper row goods
     upper_goods = ["Wood", "Wool", "Wheat", "Hide", "Beer", "Meat"]
     for i, good_name in enumerate(upper_goods):
         text = main_font.render(f"{good_name}: {round(main_depot.good_stock[good_name], 2)}", True, BLACK)
-        screen.blit(text, (start_x + (i * spacing), 10))
-        screen.blit(goods_images_30[good_name], (start_x + (i * spacing) - 35, 0))
-    
+        text_x = start_x + (i * spacing)
+        screen.blit(text, (text_x, 10))
+        screen.blit(goods_images_30[good_name], (text_x - 35, 0))
+        slot_rect = pygame.Rect(text_x - 35, 0, 35 + text.get_width(), 30)
+        good_slots.append((good_name, slot_rect))
+
     # Lower row goods
     lower_goods = ["Stone", "Iron", "Fish", "Wine", "Linen", "Pottery"]
     for i, good_name in enumerate(lower_goods):
         text = main_font.render(f"{good_name}: {round(main_depot.good_stock[good_name], 2)}", True, BLACK)
-        screen.blit(text, (start_x + (i * spacing), 35))
-        screen.blit(goods_images_30[good_name], (start_x + (i * spacing) - 35, 29))
+        text_x = start_x + (i * spacing)
+        screen.blit(text, (text_x, 35))
+        screen.blit(goods_images_30[good_name], (text_x - 35, 29))
+        slot_rect = pygame.Rect(text_x - 35, 29, 35 + text.get_width(), 31)
+        good_slots.append((good_name, slot_rect))
 
     # Separator bar
     pygame.draw.line(screen, DARK_GRAY, (1310, 5), (1310, 55), 2)
-    
+
     # Warehouses counter
     screen.blit(warehouses_30, (1330, 5))
     warehouses_text = main_font.render(f"Warehouses: {main_depot.warehouse_count}", True, BLACK)
     screen.blit(warehouses_text, (1365, 10))
-    
+
     # Total Stock counter
     screen.blit(stock_30, (1330, 30))
     total_stock = sum(main_depot.good_stock.values())
     stock_text = main_font.render(f"Total Stock: {total_stock} / {main_depot.storage_capacity}", True, BLACK)
     screen.blit(stock_text, (1365, 35))
+
+    # Draw hover tooltip last so it renders above all other top-bar elements
+    for good_name, slot_rect in good_slots:
+        if slot_rect.collidepoint(mouse_pos):
+            small_font = getattr(game_state, 'small_font', main_font)
+            _draw_top_bar_good_tooltip(screen, main_font, small_font, main_depot, good_lookup, good_name, date, mouse_pos)
+            break
+
+def _draw_top_bar_good_tooltip(
+    screen: pygame.Surface,
+    main_font: pygame.font.Font,
+    small_font: pygame.font.Font,
+    depot: "Depot",
+    good_lookup: Dict[str, Any],
+    good_name: str,
+    date: datetime.datetime,
+    mouse_pos: tuple,
+) -> None:
+    """Draw a detailed tooltip for a good in the top bar inventory row."""
+    qty = depot.good_stock.get(good_name, 0)
+    good = good_lookup.get(good_name)
+    current_price = good.get_price() if good else 0.0
+
+    market_value = current_price * qty
+    avg = depot.avg_buy_price(good_name) if qty > 0 else None
+    purchase_value = avg * qty if avg is not None else 0.0
+    pl = market_value - purchase_value
+
+    has_license = depot.has_license(good_name, date)
+    license_value_text = "YES" if has_license else "NO"
+    license_color = DARK_GREEN if has_license else DARK_RED
+    pl_color = DARK_GREEN if pl >= 0 else DARK_RED
+    pl_sign = "+" if pl >= 0 else ""
+
+    # Two-column layout: (label, value_text, value_color)
+    rows = []
+    if qty > 0:
+        rows += [
+            ("Market Value:", f"{market_value:.2f}", DARK_BROWN),
+            ("Purchase Value:", f"{purchase_value:.2f}", DARK_BROWN),
+            ("P/L:", f"{pl_sign}{pl:.2f}", pl_color),
+        ]
+    rows.append(("License:", license_value_text, license_color))
+
+    row_spacing = 3
+    col_gap = 12
+    pad_x, pad_y = 8, 6
+
+    label_surfs = [main_font.render(label, True, DARK_BROWN) for label, _, _ in rows]
+    # License row uses small_font; all others use main_font
+    license_idx = len(rows) - 1
+    value_surfs = [
+        small_font.render(val, True, color) if i == license_idx else main_font.render(val, True, color)
+        for i, (_, val, color) in enumerate(rows)
+    ]
+    stable_value_surfs = [
+        small_font.render("".join('9' if c.isdigit() else c for c in val), True, DARK_BROWN) if i == license_idx
+        else main_font.render("".join('9' if c.isdigit() else c for c in val), True, DARK_BROWN)
+        for i, (_, val, _) in enumerate(rows)
+    ]
+
+    label_col_w = max(s.get_width() for s in label_surfs)
+    value_col_w = max(s.get_width() for s in stable_value_surfs)
+    line_h = label_surfs[0].get_height()
+    total_w = label_col_w + col_gap + value_col_w
+    total_h = len(rows) * line_h + (len(rows) - 1) * row_spacing
+
+    tip_x = mouse_pos[0] + 34
+    tip_y = mouse_pos[1] + 38
+    bg_rect = pygame.Rect(tip_x - pad_x, tip_y - pad_y, total_w + pad_x * 2, total_h + pad_y * 2)
+
+    if bg_rect.right > SCREEN_WIDTH:
+        bg_rect.right = SCREEN_WIDTH - 4
+
+    pygame.draw.rect(screen, WHITE, bg_rect)
+    pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
+
+    y = bg_rect.top + pad_y
+    value_x = bg_rect.left + pad_x + label_col_w + col_gap
+    for label_surf, value_surf in zip(label_surfs, value_surfs):
+        screen.blit(label_surf, (bg_rect.left + pad_x, y))
+        # vertically center the value within the row height
+        v_offset = (line_h - value_surf.get_height()) // 2
+        screen.blit(value_surf, (value_x, y + v_offset))
+        y += line_h + row_spacing
+
 
 def _draw_bottom_bar(
     screen: pygame.Surface,
