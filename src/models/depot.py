@@ -579,6 +579,37 @@ class Depot:
         self.miscellaneous_expenditures += amount
         return True
 
+    def buy_warehouse(self, warehouse: Any, game_state: Any) -> bool:
+        """Purchase a warehouse building, expanding storage capacity.
+
+        Args:
+            warehouse: The Warehouse instance being purchased.
+            game_state: Current game state (for warnings and event logging).
+
+        Returns:
+            bool: True if the purchase succeeded, False if insufficient funds.
+        """
+        if self.money < warehouse.buy_price:
+            game_state.show_warning("Not enough money to purchase this building.")
+            return False
+        self.money -= warehouse.buy_price
+        self.expenditures += warehouse.buy_price
+        self.miscellaneous_expenditures += warehouse.buy_price
+        self.storage_capacity += warehouse.buy_storage
+        self.warehouse_count += 1
+        warehouse.is_owned = True
+        self.properties["warehouses"].append({
+            "tmx_id": warehouse.tmx_id,
+            "name": warehouse.name,
+            "buy_price": warehouse.buy_price,
+            "buy_storage": warehouse.buy_storage,
+        })
+        game_state.log_event(
+            "PROPERTY",
+            f"Purchased {warehouse.name} for {warehouse.buy_price:,}g (+{warehouse.buy_storage} storage)"
+        )
+        return True
+
     def take_loan(self, original_amount: float, daily_principal: float,
                   daily_interest: float, settlement_principal: float,
                   duration_days: int, start_date: str) -> None:

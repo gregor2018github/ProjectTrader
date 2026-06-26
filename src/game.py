@@ -186,6 +186,22 @@ class Game:
                             population_manager=self.population_manager)
             self.game_map.map_player.x = self.player.position[0]
             self.game_map.map_player.y = self.player.position[1]
+            self.restore_owned_buildings()
+
+    def restore_owned_buildings(self) -> None:
+        """After loading a save, mark Warehouse objects on the map as owned
+        based on tmx_ids stored in depot.properties["warehouses"]."""
+        from .models.institutions.warehouse import Warehouse
+        owned_ids = {
+            entry["tmx_id"]
+            for entry in self.depot.properties.get("warehouses", [])
+            if isinstance(entry, dict) and "tmx_id" in entry
+        }
+        if not owned_ids:
+            return
+        for house in self.game_map.tmx_map.houses:
+            if isinstance(house, Warehouse) and house.tmx_id in owned_ids:
+                house.is_owned = True
 
     def _initialize_goods(self) -> List[Good]:
         """Create and initialize the default list of goods for the market.

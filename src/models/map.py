@@ -19,6 +19,7 @@ from .institutions.market import Market
 from .institutions.mill import Mill
 from .institutions.bank import Bank
 from .institutions.well import Well
+from .institutions.warehouse import Warehouse
 from .tree import Tree
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
@@ -285,6 +286,29 @@ class TMXMap:
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class
+                        )
+                    elif obj.properties.get('Buy_type') is not None:
+                        house = Warehouse(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            max_inhabitants=max_inhabitants,
+                            has_max_inhabitants_property=has_max_inhabitants_property,
+                            name=obj.name,
+                            house_class=obj_class,
+                            buy_price=int(obj.properties.get('Buy_price', 0)),
+                            buy_storage=int(obj.properties.get('Buy_storage', 0)),
+                            buy_type=str(obj.properties.get('Buy_type', 'Warehouse')),
+                            tmx_id=int(obj.id),
                         )
                     else:
                         house = House(

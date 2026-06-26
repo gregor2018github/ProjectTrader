@@ -266,6 +266,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.market import Market
     from ...models.institutions.bank import Bank
     from ...models.institutions.well import Well
+    from ...models.institutions.warehouse import Warehouse
     
     # Create an info window styled as a menu
     options = ["Inspect"]
@@ -294,9 +295,17 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         for good in reversed(goods): # Insert in reverse so they appear in correct order at top
              options.insert(0, f"QuickTrade {good}")
         options.insert(0, "Check Prices")
-    
+
+    if isinstance(house, Warehouse) and not house.is_owned:
+        options.insert(0, "Buy Building")
+
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
+        if option_text == "Buy Building" and isinstance(house, Warehouse) and not house.is_owned:
+            from .buy_building_dialog import open_buy_building_dialog
+            open_buy_building_dialog(game_state, house)
+            return
+
         if option_text == "Throw Coin" and isinstance(house, Well):
             house.throw_coin(game_state)
             return
