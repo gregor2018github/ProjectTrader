@@ -515,7 +515,7 @@ class HouseMenu:
 
         # Draw header title with fancy font (centred, leaving room for X on the right)
         raw_name = self.house.name or "House"
-        display_name = raw_name.split('_')[0]
+        display_name = getattr(self.house, 'display_name', '') or raw_name.split('_')[0]
         title_surf = self.title_font.render(display_name, True, DARK_BROWN)
         title_rect = title_surf.get_rect(center=(body_rect.centerx, body_rect.y + self.header_height // 2))
         target_surf.blit(title_surf, title_rect)

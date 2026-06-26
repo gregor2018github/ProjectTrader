@@ -6079,6 +6079,7 @@
     <property name="Col_margin_right_pixel" type="int" value="-13"/>
     <property name="Collision_to_right" type="int" value="6"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Display_name" value="Fred's Shed"/>
     <property name="File_name" value="House_3.png"/>
     <property name="Tiles_to_right" type="int" value="6"/>
     <property name="Tiles_up" type="int" value="4"/>

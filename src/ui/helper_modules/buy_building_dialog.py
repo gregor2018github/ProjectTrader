@@ -70,7 +70,7 @@ class BuyBuildingDialog(_BaseDialog):
         y = p.top + self.HDR + self.PAD
 
         lines = [
-            (self.warehouse.name, DARK_BROWN),
+            (self.warehouse.display_name or self.warehouse.name, DARK_BROWN),
             (f"Price:  {self.warehouse.buy_price:,} gold", DARK_RED if not can_afford else BLACK),
             (f"Storage gained:  +{self.warehouse.buy_storage}", DARK_GREEN),
             (f"Your money:  {depot.money:,.0f} gold", BLACK),

@@ -329,6 +329,7 @@ class TMXMap:
                             name=obj.name,
                             house_class=obj_class
                         )
+                    house.display_name = obj.properties.get('Display_name', '')
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

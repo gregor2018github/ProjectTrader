@@ -604,9 +604,10 @@ class Depot:
             "buy_price": warehouse.buy_price,
             "buy_storage": warehouse.buy_storage,
         })
+        on_money_spent(game_state, warehouse.buy_price)
         game_state.log_event(
             "PROPERTY",
-            f"Purchased {warehouse.name} for {warehouse.buy_price:,}g (+{warehouse.buy_storage} storage)"
+            f"Purchased {warehouse.display_name or warehouse.name} for {warehouse.buy_price:,}g (+{warehouse.buy_storage} storage)"
         )
         return True
 
