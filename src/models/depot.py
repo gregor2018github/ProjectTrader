@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any
 from ..config.constants import STARTING_LICENSES
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 
