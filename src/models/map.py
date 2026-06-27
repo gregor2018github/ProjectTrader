@@ -25,6 +25,7 @@ from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 from .npcs.sheep import Sheep
+from .water import Water
 
 
 
@@ -132,6 +133,7 @@ class TMXMap:
         self.smoke_emitters: List[SmokeEmitter] = []
         self.fields: List[Field] = []
         self.sheep: List[Sheep] = []
+        self.waters: List[Water] = []
 
         self._load_houses()
         self._load_special_points()
@@ -141,6 +143,7 @@ class TMXMap:
         self._load_areas()
         self._load_smoke()
         self._load_movements()
+        self._load_water()
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
@@ -148,6 +151,15 @@ class TMXMap:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Areas":
                 for obj in layer:
                     self.areas[obj.name] = pygame.Rect(obj.x, obj.y, obj.width, obj.height)
+
+    def _load_water(self) -> None:
+        """Load polygon water bodies from the 'Water' object layer."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Water":
+                for obj in layer:
+                    if hasattr(obj, 'points') and obj.points:
+                        world_points = [(obj.x + px, obj.y + py) for px, py in obj.points]
+                        self.waters.append(Water(obj.name or "Water", world_points))
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""
@@ -497,7 +509,7 @@ class TMXMap:
             group.update(current_time)
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
-        """Check if the given rect collides with any map objects (houses, trees, or sheep)."""
+        """Check if the given rect collides with any map objects (houses, trees, sheep, or water)."""
         for house in self.houses:
             if house.collision_rect.colliderect(rect):
                 return True
@@ -506,6 +518,9 @@ class TMXMap:
                 return True
         for sheep in self.sheep:
             if sheep.collision_rect.colliderect(rect):
+                return True
+        for water in self.waters:
+            if water.collides_with_rect(rect):
                 return True
         return False
 
