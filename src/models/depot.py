@@ -2,6 +2,7 @@ import datetime
 from typing import Dict, List, Optional, Any
 from ..config.constants import STARTING_LICENSES
 from ..ui.transaction_feedback import on_money_spent, on_money_received
+from .statistics import Statistics
 
 class Depot:
     """Manages the player's financial state, inventory, and trade history.
@@ -112,6 +113,9 @@ class Depot:
         # TRADING LICENSES
         # Each license maps good_name -> expiry datetime
         self.trading_licenses: Dict[str, datetime.datetime] = {}
+
+        # LIFETIME STATISTICS
+        self.stats: Statistics = Statistics()
 
     def init_starting_licenses(self, start_date: datetime.datetime) -> None:
         """Initialize trading licenses from constants.
@@ -233,6 +237,8 @@ class Depot:
             "total_cost": total_cost
         })
         
+        self.stats.goods_bought += 1
+        self.stats.money_spent_goods += total_cost
         good.buy(quantity_to_buy)
         self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
         on_money_spent(game_state, total_cost)
@@ -300,6 +306,8 @@ class Depot:
             profit = (current_sale_price - oldest_purchase["price"]) * quantity_used
             self._record_trade_cycle(good.name, profit, quantity_used, oldest_purchase["price"], current_sale_price, game_state.date)
         
+        self.stats.goods_sold += 1
+        self.stats.money_received += total_revenue
         good.sell(quantity_to_sell)
         self.record_trade(good, quantity_to_sell, current_sale_price, False, game_state)
         on_money_received(game_state, total_revenue)
@@ -331,7 +339,8 @@ class Depot:
             "total": price * quantity
         }
         self.trades.append(trade)
-    
+        self.stats.ledger_entries += 1
+
     def _record_trade_cycle(self, good_name: str, profit: float, quantity: int, buy_price: float, sell_price: float, timestamp: datetime.datetime) -> Dict[str, Any]:
         """Record statistics for a completed trade cycle and store an individual record.
         
@@ -541,6 +550,7 @@ class Depot:
             self.donations[category] = 0
             self.donation_history[category] = [0.0] * len(self.donation_expenditure_history)
         self.donations[category] += amount
+        self.stats.donations_total += amount
         return True
 
     def book_loan_interest(self, amount: float) -> None:
@@ -562,6 +572,7 @@ class Depot:
         self.money -= amount
         self.expenditures += amount
         self.overdraft_expenditures += amount
+        self.stats.overdraft_count += 1
 
     def book_miscellaneous(self, amount: float) -> bool:
         """Charge a miscellaneous expense (e.g. throwing a coin into a well).
@@ -604,6 +615,7 @@ class Depot:
             "buy_price": warehouse.buy_price,
             "buy_storage": warehouse.buy_storage,
         })
+        self.stats.properties_bought += 1
         on_money_spent(game_state, warehouse.buy_price)
         game_state.log_event(
             "PROPERTY",
@@ -628,6 +640,7 @@ class Depot:
             duration_days: Term length in days.
             start_date: Display date string.
         """
+        self.stats.loans_taken += 1
         self.money += original_amount
         self.active_loans.append({
             "original_amount": original_amount,

@@ -824,6 +824,7 @@ class MapPlayer:
         self.vel_x: float = 0.0
         self.vel_y: float = 0.0
         self.was_moving: bool = False
+        self.frame_distance_px: float = 0.0  # pixels actually moved this frame, read and reset by Game
         self.footstep_sounds: List[pygame.mixer.Sound] = []
         self.last_sound_index: int = -1
         self.current_sound: Optional[pygame.mixer.Sound] = None
@@ -884,6 +885,7 @@ class MapPlayer:
                 # Stopped moving
                 self.stop_footstep_sound()
 
+        self.frame_distance_px = 0.0
         if is_moving:
             move_x = self.vel_x * self.speed * dt
             move_y = self.vel_y * self.speed * dt
@@ -891,11 +893,13 @@ class MapPlayer:
             if move_x != 0:
                 new_x = self.x + move_x
                 if self.can_move_to(new_x, self.y, game_map):
+                    self.frame_distance_px += abs(move_x)
                     self.x = new_x
 
             if move_y != 0:
                 new_y = self.y + move_y
                 if self.can_move_to(self.x, new_y, game_map):
+                    self.frame_distance_px += abs(move_y)
                     self.y = new_y
 
         direction = self._determine_direction(is_moving)

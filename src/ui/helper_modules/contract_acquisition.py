@@ -280,6 +280,7 @@ class ContractView:
             return
 
         # Grant the trading license
+        depot.stats.licenses_acquired += 1
         depot.add_license(self.contract_type, self.contract_months, state.date)
         state.log_event(
             "LICENSE",

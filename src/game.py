@@ -390,6 +390,7 @@ class Game:
 
                     # update wealth, stock and bookkeeping price history once per day
                     if day_changed:
+                        self.depot.stats.days_played += 1
                         self.depot.update_income_and_expenditures() # archive yesterday's counters first
                         cost = self.player.daily_cost_of_living
                         self.depot.book_cost_of_living(cost) # then charge today's cost of living
@@ -472,6 +473,8 @@ class Game:
                         keys = pygame.key.get_pressed()
                         self.game_map.handle_movement_keys(keys)
                         self.game_map.update(delta_time, self.state.date)
+                        tile_size = self.game_map.tmx_map.tile_size
+                        self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size
                         if self.sheep_sounds:
                             px = self.game_map.map_player.x + self.game_map.map_player.width / 2
                             py = self.game_map.map_player.y + self.game_map.map_player.height / 2

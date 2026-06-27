@@ -13,6 +13,8 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from ..models.statistics import Statistics
+
 from ..config.constants import SAVES_PATH, SAVE_SECRET_KEY
 
 SAVE_VERSION = 1
@@ -146,6 +148,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "trading_licenses": {
                 k: _dt_to_str(v) for k, v in depot.trading_licenses.items()
             },
+            "statistics": depot.stats.to_dict(),
         },
         "goods": [
             {
@@ -366,6 +369,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.trading_licenses = {
         k: _str_to_dt(v) for k, v in d["trading_licenses"].items()
     }
+    depot.stats = Statistics.from_dict(d.get("statistics", {}))
 
     good_by_name = {g.name: g for g in goods}
     for gd in data["goods"]:
