@@ -1,6 +1,7 @@
 import pygame
 import os
 import random
+import datetime
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
@@ -20,6 +21,7 @@ from .ui.helper_modules.menu import Menu
 from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
+from .ui.helper_modules.info_window import InfoWindow
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
@@ -107,6 +109,9 @@ class Game:
         
         # Initial check for area
         self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
+
+        # Queue for license-expiry warnings that need to be shown as info dialogs
+        self._pending_license_warnings: List[str] = []
         
         # Load images
         self.images: Dict[str, Any] = self._load_images()
@@ -446,7 +451,29 @@ class Game:
                         if self.population_manager:
                             self.population_manager.update_population()
                             self.population_manager.record_population_history()
-                
+
+                        # Warn about trading licenses that expire tomorrow
+                        tomorrow = self.state.date.date() + datetime.timedelta(days=1)
+                        expiring = sorted(
+                            gname for gname, expiry in self.depot.trading_licenses.items()
+                            if expiry.date() == tomorrow
+                        )
+                        if expiring:
+                            if len(expiring) == 1:
+                                header = f"Your {expiring[0]} license expires tomorrow!"
+                            else:
+                                header = "The following licenses expire tomorrow:"
+                            goods_lines = "\n".join(f"  {name}" for name in expiring)
+                            msg = f"{header}\n{goods_lines}\nPlease renew to continue trading."
+                            self._pending_license_warnings.append(msg)
+
+                # Show one queued license warning if no dialog is currently open
+                if self._pending_license_warnings and not self.state.info_window:
+                    msg = self._pending_license_warnings.pop(0)
+                    self.state.info_window = InfoWindow(
+                        self.state.screen, msg, ["OK"], self.state.font, self
+                    )
+
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []
                 self.state.depot_chart_buttons = {}

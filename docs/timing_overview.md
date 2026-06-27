@@ -25,6 +25,7 @@ These run unconditionally on every iteration of the main loop.
 
 | What | File | Notes |
 |---|---|---|
+| Drain pending license-expiry warning into `info_window` (if queue non-empty and no dialog open) | game.py | Trivial |
 | Reset hover/box state for all 12 goods | game.py:451–455 | Trivial |
 | Draw active content modules (map / chart / depot) | game.py:554–588 | Cost depends on mode; see sections below |
 | Draw top bar, bottom bar | layout.py | Text + progress bars — moderate |
@@ -69,6 +70,7 @@ Triggered when `day_changed` is True.
 | Cost-of-living deduction | game.py:395–397 | Arithmetic — trivial |
 | Loan processing (principal + interest per loan, settle at maturity) | game.py:400–431 | Scales with loan count; currently O(loans) — moderate |
 | Overdraft penalty (2% of negative balance) | game.py:434–437 | Trivial |
+| License expiry check — warn if any license expires tomorrow | game.py, `day_changed` block | Dict scan O(licenses), trivial |
 | `depot.update_wealth(goods)` — money + stock×price − loans | game.py:439, depot.py | 12-good loop — moderate |
 | Total stock sum + append to history | game.py:440 | Trivial |
 | Per-good stock history append × 12 | game.py:441 | Trivial |
