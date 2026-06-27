@@ -459,20 +459,24 @@ class Game:
                             if expiry.date() == tomorrow
                         )
                         if expiring:
-                            if len(expiring) == 1:
-                                header = f"Your {expiring[0]} license expires tomorrow!"
-                            else:
-                                header = "The following licenses expire tomorrow:"
-                            goods_lines = "\n".join(f"  {name}" for name in expiring)
-                            msg = f"{header}\n{goods_lines}\nPlease renew to continue trading."
+                            plural = "licenses" if len(expiring) > 1 else "license"
+                            goods_lines = "\n".join(f"  - {name}" for name in expiring)
+                            msg = (
+                                f"The following {plural} expire{'' if len(expiring) > 1 else 's'} tomorrow:\n"
+                                f"{goods_lines}\n"
+                                f"Please renew to continue trading."
+                            )
                             self._pending_license_warnings.append(msg)
 
                 # Show one queued license warning if no dialog is currently open
                 if self._pending_license_warnings and not self.state.info_window:
                     msg = self._pending_license_warnings.pop(0)
-                    self.state.info_window = InfoWindow(
+                    window = InfoWindow(
                         self.state.screen, msg, ["OK"], self.state.font, self
                     )
+                    window.restore_time_level = self.state.time_level
+                    self.state.time_level = 1
+                    self.state.info_window = window
 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []

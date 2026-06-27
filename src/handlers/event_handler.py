@@ -95,6 +95,8 @@ class EventHandler:
                         game_state.return_to_main_menu = True
                         self.running = False
                     elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
+                        if hasattr(game_state.info_window, 'restore_time_level'):
+                            game_state.time_level = game_state.info_window.restore_time_level
                         game_state.info_window = None
                     elif isinstance(choice, str) and choice.startswith("save_slot_"):
                         import os
