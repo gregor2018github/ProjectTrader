@@ -77,6 +77,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - trading licences
     - prices for licenses can increase on a monthly basis (only when the player also gets richer)
     - licenses can be bought at the townhall (normal price) or at the respective guild building (cheaper price but you have to walk there and know about it)
+    - when trading license runs out and you still have goods that require it, blackmarket option to sell them at a 60% loss, compared to the normal market price, furthermore, there will be risk of legal consequences (like being fined or even jailed) if you get caught selling goods without a valid license
 
 - have a market screamer/NPC that announces change
 - trees can be scalable in size

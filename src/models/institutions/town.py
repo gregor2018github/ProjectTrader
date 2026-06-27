@@ -145,7 +145,7 @@ class Town(House):
 
     def open_population_stats(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
         """Opens the population statistics overview.
-        
+
         Args:
             game_state: The current game state.
             click_pos: The screen position where the user clicked.
@@ -157,4 +157,16 @@ class Town(House):
             game_state,
             house=self
         )
+        game_state.active_house_menu = self
+
+    def open_statistics_view(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
+        """Opens the general lifetime statistics overlay.
+
+        Args:
+            game_state: The current game state.
+            click_pos: The screen position where the user clicked.
+        """
+        from ...ui.helper_modules.statistics_view import StatisticsView
+
+        game_state.info_window = StatisticsView(game_state.screen, game_state)
         game_state.active_house_menu = self

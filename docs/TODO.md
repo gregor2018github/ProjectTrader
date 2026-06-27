@@ -1,9 +1,7 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] start to collect general statistics (tiles walked, ledger entries, money received, good trades made, property trades made etc.) - they must be easy to track (when the respective other function is triggered anyway, statistics value goes += 1; no active listeners wanted)
-- [ ] have a place to display general statistics (submenu in the town hall)
-- [ ] when trading license runs out and you still have goods that require it, there needs to be a warning, maybe even a blackmarket option to sell them at a 60% loss, compared to the normal market price
+- [ ] when trading license runs out and you still have goods that require it, there needs to be a warning
 
 ## Medium Priority
 - [ ] design water tiles (plan how to animate them before implementing static ones)
@@ -48,6 +46,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] start to collect general statistics (tiles walked, ledger entries, money received, good trades made, property trades made etc.) - they must be easy to track (when the respective other function is triggered anyway, statistics value goes += 1; no active listeners wanted)
+- [x] have a place to display general statistics (submenu in the town hall)
+- [x] give collision to the water so that the player cannot walk into it
 - [x] create a base layout of water on the map (blue tiles for now)
 - [x] add a possibility to buy a first warehouse for storing 100 more goods
 - [x] fix the surrounding of the dialogue windows (they are currently distorted)
