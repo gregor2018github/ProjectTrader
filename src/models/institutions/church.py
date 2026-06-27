@@ -1,5 +1,5 @@
 from ..house import House
-from typing import TYPE_CHECKING, Tuple, List, Optional
+from typing import TYPE_CHECKING
 import pygame
 from ...ui.transaction_feedback import on_money_spent
 
@@ -13,7 +13,7 @@ class Church(House):
         super().__init__(*args, **kwargs)
         self.treasury = 0
 
-    def open_donation_menu(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
+    def open_donation_menu(self, game_state: 'GameState', click_pos) -> None:
         """Opens the donation menu replacing the current menu.
         
         Args:
@@ -43,10 +43,9 @@ class Church(House):
         
         # Replace current info window with new one
         game_state.info_window = DonationMenu(
-            game_state.screen, 
-            self, 
-            game_state, 
-            click_pos=click_pos, 
+            game_state.screen,
+            self,
+            game_state,
             callback=donation_callback,
             category="Church Donations"
         )

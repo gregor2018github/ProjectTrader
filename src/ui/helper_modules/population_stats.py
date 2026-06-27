@@ -15,6 +15,7 @@ from ...config.colors import (
 from ...config.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
 )
+from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -136,13 +137,12 @@ class PopulationStats:
         )
 
         # Background
-        surf.fill((*SANDY_BROWN, 255))
-        pygame.draw.rect(
-            surf,
-            DARK_BROWN,
-            pygame.Rect(0, 0, self.panel_rect.width, self.panel_rect.height),
-            4,
-        )
+        game = getattr(self.game_state, 'game', None)
+        if game and hasattr(game, 'pic_info_window'):
+            draw_9slice(surf, game.pic_info_window, pygame.Rect(0, 0, self.panel_rect.width, self.panel_rect.height))
+        else:
+            surf.fill((*SANDY_BROWN, 255))
+            pygame.draw.rect(surf, DARK_BROWN, pygame.Rect(0, 0, self.panel_rect.width, self.panel_rect.height), 4)
 
         # Title
         title = self.title_font.render("Population Statistics", True, DARK_BROWN)
@@ -182,24 +182,10 @@ class PopulationStats:
         close_hovered = (
             alpha_scale >= 1.0 and self.close_rect.collidepoint(mouse_pos)
         )
-        close_bg = (200, 180, 150) if close_hovered else SANDY_BROWN
-        pygame.draw.rect(surf, close_bg, local_close)
-        pygame.draw.rect(surf, DARK_BROWN, local_close, 2)
-        margin = 7
-        pygame.draw.line(
-            surf,
-            DARK_BROWN,
-            (local_close.left + margin, local_close.top + margin),
-            (local_close.right - margin, local_close.bottom - margin),
-            2,
-        )
-        pygame.draw.line(
-            surf,
-            DARK_BROWN,
-            (local_close.left + margin, local_close.bottom - margin),
-            (local_close.right - margin, local_close.top + margin),
-            2,
-        )
+        pygame.draw.rect(surf, (180, 60, 60) if close_hovered else DARK_BROWN, local_close)
+        margin = 5
+        pygame.draw.line(surf, WHITE, (local_close.left + margin, local_close.top + margin), (local_close.right - margin, local_close.bottom - margin), 2)
+        pygame.draw.line(surf, WHITE, (local_close.left + margin, local_close.bottom - margin), (local_close.right - margin, local_close.top + margin), 2)
 
         # Draw cells
         absolute_mouse_pos = pygame.mouse.get_pos()
