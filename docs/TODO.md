@@ -4,7 +4,7 @@
 - [ ] when trading license runs out and you still have goods that require it, there needs to be a warning
 
 ## Medium Priority
-- [ ] design water tiles (plan how to animate them before implementing static ones)
+- [ ] design water tile movement animation
 - [ ] add two more houses with different designs
 - [ ] when pressing the ciphers 1-5 you can switch through the different view modes (map, market, depot, politics, traderoutes, buildings)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
@@ -13,19 +13,22 @@
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
 - [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
-- [ ] Trading at the market should only be available between 6am and 10pm
+- [ ] Trading at the market should only be available between 5am and 12pm
+- [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
+- [ ] logic to actually cover booths at night with tarps
+- [ ] give the player 8 instead of 4 movement directions (diagonals)
+- [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
 - [ ] other people must stand behind the market booths, create and add NPC sprites
+- [ ] implement a merchant rank system
+- [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
-- [ ] a ledger system where the game stores al incoming messages for you to look at later, especially for important events like signing contracts, market crashes, etc.
-- [ ] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Market events
-- [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
 - [ ] add candles, salts and herbs as tradable goods
@@ -46,6 +49,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [x] start to collect general statistics (tiles walked, ledger entries, money received, good trades made, property trades made etc.) - they must be easy to track (when the respective other function is triggered anyway, statistics value goes += 1; no active listeners wanted)
 - [x] have a place to display general statistics (submenu in the town hall)
 - [x] give collision to the water so that the player cannot walk into it

@@ -12,7 +12,7 @@ Fresh feature ideas, grounded in the current codebase. Tags: **Art** [None / Tin
 
 4. REJECTED - ALREADY EXISTS WITH DEPOT VIEW **Net-worth glance panel.** A compact summary: cash, inventory value, outstanding debt, today's realized P&L. All values already exist in `Depot`; this is a layout, not new state. *Art None · Effort S · Plugs into Depot bookkeeping.*
 
-5. ACCEPT - SAVED FOR LATER **Event log / ledger.** ↪ extends (TODO "ledger system"). Concretely: `game_state.event_log: List[(datetime, category, text)]` appended at existing hooks (license signed, contract filled, big trade, crash, milestone). Scrollable modal reusing the standard `info_window` pattern. Closes the noted "no central event log" gap and unlocks alerts, milestones, and news to all write to one place. *Art None · Effort M · Plugs into all time/trade hooks + modal pattern.*
+5. ACCEPT - NOW BUILT IN **Event log / ledger.** ↪ extends (TODO "ledger system"). Concretely: `game_state.event_log: List[(datetime, category, text)]` appended at existing hooks (license signed, contract filled, big trade, crash, milestone). Scrollable modal reusing the standard `info_window` pattern. Closes the noted "no central event log" gap and unlocks alerts, milestones, and news to all write to one place. *Art None · Effort M · Plugs into all time/trade hooks + modal pattern.*
 
 6. ACCEPT - SAVED FOR LATER **"Best price in N days" markers in market view.** Tiny badge when a good is at its cheapest/most expensive in a window — encourages timing. Same calc as #1, different placement. *Art None · Effort S.*
 

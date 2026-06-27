@@ -74,6 +74,14 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - Blacksmith hammering on an anvil
     - Executioner event at the market square randomly happening sometimes when player comes back to the market square (with a chance of 1% every time the player enters the market square, but only if the player has a certain amount of money, like 1000 gold coins, to make it more likely to happen in later stages of the game)
 
+- Tutorials
+    - when the player plays the game for the first time there needs to be more guidance. a basic story should lead them through the game and unlock different features step by step.
+    - first minigame money earning
+    - then market gets unlocked for trading
+    - then contracts
+    - when little or much money give bank option for loans
+    - only when level 2 or 3 trader, access to buy first building and start building mode 
+
 - trading licences
     - prices for licenses can increase on a monthly basis (only when the player also gets richer)
     - licenses can be bought at the townhall (normal price) or at the respective guild building (cheaper price but you have to walk there and know about it)
