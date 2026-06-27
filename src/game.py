@@ -460,7 +460,7 @@ class Game:
                         )
                         if expiring:
                             plural = "licenses" if len(expiring) > 1 else "license"
-                            goods_lines = "\n".join(f"  - {name}" for name in expiring)
+                            goods_lines = "\n".join(f"**  - {name}**" for name in expiring)
                             msg = (
                                 f"The following {plural} expire{'' if len(expiring) > 1 else 's'} tomorrow:\n"
                                 f"{goods_lines}\n"

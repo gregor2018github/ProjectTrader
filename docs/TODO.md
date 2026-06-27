@@ -1,11 +1,12 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] when trading license runs out and you still have goods that require it, there needs to be a warning
-
-## Medium Priority
 - [ ] design water tile movement animation
 - [ ] add two more houses with different designs
+- [ ] add woodhacking minigame (way to earn money in the beginning of the game)
+
+## Medium Priority
+
 - [ ] when pressing the ciphers 1-5 you can switch through the different view modes (map, market, depot, politics, traderoutes, buildings)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a functionality to throw down a rock into the lake
@@ -24,6 +25,7 @@
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
+- [ ] info windows that have a "OK" button at the bottom should have several alternative words at the bottom that sound more medieval (e.g., "I understand", "I will consider it", "So be it"...)
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
@@ -49,6 +51,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when trading license runs out, warn the player the day before: at simulated midnight the game checks which licenses expire tomorrow and shows a modal InfoWindow (pauses time, requires OK to dismiss, bold good names, handles multiple licenses in one dialog)
 - [x] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [x] start to collect general statistics (tiles walked, ledger entries, money received, good trades made, property trades made etc.) - they must be easy to track (when the respective other function is triggered anyway, statistics value goes += 1; no active listeners wanted)
 - [x] have a place to display general statistics (submenu in the town hall)
