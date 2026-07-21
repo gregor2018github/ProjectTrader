@@ -2,6 +2,7 @@
 
 ## High Priority
 - [ ] design water tile movement animation
+- [ ] add the forester hut where the wood mini game will be located
 - [ ] add two more houses with different designs
 - [ ] add woodhacking minigame (way to earn money in the beginning of the game)
 
