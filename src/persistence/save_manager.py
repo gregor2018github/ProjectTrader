@@ -110,6 +110,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "cost_of_living_expenditures": depot.cost_of_living_expenditures,
             "license_expenditures": depot.license_expenditures,
             "donations": dict(depot.donations),
+            "labor_income": dict(depot.labor_income),
             "wealth": list(depot.wealth),
             "money_history": list(depot.money_history),
             "property_value_history": list(depot.property_value_history),
@@ -133,6 +134,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "miscellaneous_expenditures": depot.miscellaneous_expenditures,
             "active_loans": [dict(loan) for loan in depot.active_loans],
             "donation_history": {k: list(v) for k, v in depot.donation_history.items()},
+            "labor_income_history": {k: list(v) for k, v in depot.labor_income_history.items()},
             "purchase_history": {
                 good_name: [
                     {**entry, "timestamp": _dt_to_str(entry["timestamp"])}
@@ -334,6 +336,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.cost_of_living_expenditures = d["cost_of_living_expenditures"]
     depot.license_expenditures = d["license_expenditures"]
     depot.donations = d["donations"]
+    depot.labor_income = d.get("labor_income", {})
     depot.wealth = d["wealth"]
     depot.money_history = d["money_history"]
     depot.property_value_history = d.get("property_value_history", [0.0])
@@ -360,6 +363,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.miscellaneous_expenditures = d.get("miscellaneous_expenditures", 0.0)
     depot.active_loans = d.get("active_loans", [])
     depot.donation_history = d["donation_history"]
+    depot.labor_income_history = d.get("labor_income_history", {})
     depot.purchase_history = {
         good_name: _dt_list(list(entries), "timestamp")
         for good_name, entries in d["purchase_history"].items()

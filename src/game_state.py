@@ -121,6 +121,7 @@ class GameState:
             "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
         ]
         self.contract_acquisition: Optional[Any] = None
+        self.minigame: Optional[Any] = None  # Active minigame overlay (e.g. woodhacking)
         
         # Initialize the time trackers from the start date
         self.last_minute: int = self.date.minute

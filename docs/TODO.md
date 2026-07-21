@@ -4,7 +4,7 @@
 - [ ] design water tile movement animation
 - [ ] add the forester hut where the wood mini game will be located
 - [ ] add two more houses with different designs
-- [ ] add woodhacking minigame (way to earn money in the beginning of the game)
+- [x] add woodhacking minigame (way to earn money in the beginning of the game) — implemented, triggered via the in-game Menu > Woodhacking for now; needs to move to the forester hut once it exists
 
 ## Medium Priority
 

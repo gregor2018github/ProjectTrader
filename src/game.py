@@ -673,6 +673,15 @@ class Game:
                     else:
                         self.state.contract_acquisition.draw()
 
+                # Draw minigame overlay if active (e.g. woodhacking)
+                if self.state.minigame:
+                    self.state.minigame.update(delta_time)
+                    if not self.state.minigame.active:
+                        self.state.minigame = None
+                        self.state.time_level = self.state.previous_time_level
+                    else:
+                        self.state.minigame.draw()
+
                 # UPDATE AND DRAW WARNING MESSAGE IF PRESENT
                 if self.state.warning:
                     # Update warning timer with actual elapsed time

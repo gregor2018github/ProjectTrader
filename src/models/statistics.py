@@ -31,6 +31,10 @@ class Statistics:
         self.donations_total: float = 0.0       # cumulative gold donated
         self.overdraft_count: int = 0           # days ending with a negative balance (penalty fired)
 
+        # Minigames
+        self.minigames_played: int = 0          # completed minigame sessions (all types)
+        self.minigame_income_total: float = 0.0 # cumulative gold earned from minigames
+
         # Time
         self.days_played: int = 0               # in-game days elapsed this session
 
@@ -52,6 +56,8 @@ class Statistics:
             "donations_total": self.donations_total,
             "overdraft_count": self.overdraft_count,
             "days_played": self.days_played,
+            "minigames_played": self.minigames_played,
+            "minigame_income_total": self.minigame_income_total,
         }
 
     @classmethod
@@ -70,4 +76,6 @@ class Statistics:
         obj.donations_total = d.get("donations_total", 0.0)
         obj.overdraft_count = d.get("overdraft_count", 0)
         obj.days_played = d.get("days_played", 0)
+        obj.minigames_played = d.get("minigames_played", 0)
+        obj.minigame_income_total = d.get("minigame_income_total", 0.0)
         return obj

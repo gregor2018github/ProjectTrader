@@ -279,6 +279,12 @@ def handle_mouse_click(pos: Tuple[int, int],
                     "story_teller_1"        # Sound to play
                 )
                 return
+            elif menu_action == "Woodhacking":
+                from ..models.minigames.woodhacking import WoodhackingMinigame
+                game_state.previous_time_level = game_state.time_level
+                game_state.time_level = 1
+                game_state.minigame = WoodhackingMinigame(game_state.screen, game_state.game)
+                return
             elif menu_action == "Main Menu":
                 game_state.info_window = InfoWindow(game_state.screen,
                                                   "Return to main menu?",

@@ -58,6 +58,7 @@ class Depot:
             "Church Donations": 0,
             "Town Donations": 0,
         }
+        self.labor_income: Dict[str, float] = {}        # minigame income subcategories (current day)
 
         # BOOKKEEPING
 
@@ -85,6 +86,7 @@ class Depot:
             "Church Donations": [0.0],
             "Town Donations": [0.0],
         }
+        self.labor_income_history: Dict[str, List[float]] = {}      # minigame income subcategory history for bookkeeping
         # FIFO queue to track purchased goods with their prices
         self.purchase_history: Dict[str, List[Dict[str, Any]]] = {good_name: [] for good_name in self.good_stock}
 
@@ -430,6 +432,8 @@ class Depot:
         self.miscellaneous_expenditure_history.append(self.miscellaneous_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
+        for category, amount in self.labor_income.items():
+            self.labor_income_history[category].append(amount)
         self.income = 0
         self.expenditures = 0
         self.transaction_expenditures = 0
@@ -441,6 +445,8 @@ class Depot:
         self.miscellaneous_expenditures = 0.0
         for category in self.donations:
             self.donations[category] = 0
+        for category in self.labor_income:
+            self.labor_income[category] = 0.0
     
     def update_total_stock(self) -> int:
         """Update the total stock count history.
@@ -552,6 +558,23 @@ class Depot:
         self.donations[category] += amount
         self.stats.donations_total += amount
         return True
+
+    def book_labor_income(self, amount: float, category: str) -> None:
+        """Book income earned directly from a minigame (e.g. woodhacking).
+
+        Unlike selling goods, this money is credited straight to the player's
+        cash with no transaction cost — it represents labor, not a trade.
+
+        Args:
+            amount: The amount earned.
+            category: The minigame/source name (e.g. "Woodhacking").
+        """
+        self.money += amount
+        self.income += amount
+        if category not in self.labor_income:
+            self.labor_income[category] = 0.0
+            self.labor_income_history[category] = [0.0] * len(self.income_history)
+        self.labor_income[category] += amount
 
     def book_loan_interest(self, amount: float) -> None:
         """Charge loan interest.
@@ -767,8 +790,9 @@ class Depot:
     def get_income_breakdown(self, period_days: Optional[int] = None) -> Dict[str, Any]:
         """Get a full income breakdown for a given time period.
 
-        Currently the only income source is selling goods. Additional categories
-        (e.g. property rent, contract revenue) can be added here when implemented.
+        Income currently derives from selling goods and from minigame labor
+        (e.g. woodhacking). Additional categories (e.g. property rent, contract
+        revenue) can be added here when implemented.
 
         Args:
             period_days: Number of days to look back. None for all time.
@@ -780,16 +804,28 @@ class Depot:
             num_history_days = period_days - 1
             if num_history_days > 0:
                 total_inc = sum(self.income_history[-num_history_days:]) + self.income
+                by_labor_cat = {}
+                for category, history in self.labor_income_history.items():
+                    by_labor_cat[category] = sum(history[-num_history_days:]) + self.labor_income.get(category, 0)
             else:
                 total_inc = self.income
+                by_labor_cat = dict(self.labor_income)
         else:
             total_inc = sum(self.income_history) + self.income
+            by_labor_cat = {}
+            for category, history in self.labor_income_history.items():
+                by_labor_cat[category] = sum(history) + self.labor_income.get(category, 0)
 
-        # All income currently derives from selling goods.
-        total_sold_goods = total_inc
+        total_labor = sum(by_labor_cat.values())
+        # Everything else currently derives from selling goods.
+        total_sold_goods = total_inc - total_labor
 
         return {
             "total": total_inc,
+            "labor_income": {
+                "total": total_labor,
+                **by_labor_cat,
+            },
             "sold_goods": {
                 "total": total_sold_goods,
                 "Market": total_sold_goods,

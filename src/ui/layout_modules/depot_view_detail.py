@@ -565,6 +565,16 @@ class DepotViewDetail:
             self.cached_stats["Income"].append(f"      {sub_name}: {sub_val:,.2f}")
         self.cached_stats["Income"].append("__SEPARATOR__")
 
+        # Labor Income (minigames, e.g. woodhacking)
+        labor = breakdown.get("labor_income", {"total": 0.0})
+        self.cached_stats["Income"].append("Labor Income")
+        self.cached_stats["Income"].append(f"      Total: {labor['total']:,.2f}")
+        for sub_name, sub_val in labor.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Income"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Income"].append("__SEPARATOR__")
+
     def _update_expenses(self, depot: Any, time_frame: str) -> None:
         """Update the 'Expenses' detail statistics based on selected time frame.
 

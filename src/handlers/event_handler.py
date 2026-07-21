@@ -42,8 +42,19 @@ class EventHandler:
             if not game_state.contract_acquisition.active:
                 game_state.contract_acquisition = None
                 game_state.time_level = game_state.previous_time_level
-            
+
             # Consume input events if contract is active
+            if event.type in [pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION, pygame.MOUSEWHEEL]:
+                return self.running
+
+        # Handle an active minigame overlay (e.g. woodhacking) — same exclusive
+        # input pattern as the contract view above.
+        if game_state.minigame:
+            game_state.minigame.handle_event(event)
+            if not game_state.minigame.active:
+                game_state.minigame = None
+                game_state.time_level = game_state.previous_time_level
+
             if event.type in [pygame.KEYDOWN, pygame.KEYUP, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSEMOTION, pygame.MOUSEWHEEL]:
                 return self.running
 
