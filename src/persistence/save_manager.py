@@ -87,6 +87,10 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "depot_time_frame": game_state.depot_time_frame,
             "chart_selection_order": list(getattr(game_state, "chart_selection_order", [])),
             "good_quantities": dict(getattr(game_state, "good_quantities", {})),
+            "event_log": [
+                {**e, "timestamp": _dt_to_str(e["timestamp"])}
+                for e in getattr(game_state, "event_log", [])
+            ],
         },
         "player": {
             "name": player.name,
@@ -298,6 +302,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.input_fields = gs["input_fields"]
     game_state.depot_time_frame = gs["depot_time_frame"]
     game_state.chart_selection_order = gs.get("chart_selection_order", [])
+    game_state.event_log = _dt_list(gs.get("event_log", []), "timestamp")
     default_qtys = {
         "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
         "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
