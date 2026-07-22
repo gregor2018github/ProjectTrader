@@ -10,7 +10,6 @@
 ## Medium Priority
 
 - [ ] add sprites of oak trees or linden trees as a second type of tree
-- [ ] add a functionality to throw down a rock into the lake
 - [ ] add profit overview in the depot chart view
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
@@ -52,6 +51,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add a functionality to throw down a stone into the water (plays a splash sound like the well, no other effect yet) — click a water tile while standing next to it to open a small generic interaction menu (fishing will be added here later)
 - [x] when pressing the ciphers 1-6 you can switch through the different view modes (map, market, depot, politics, trade routes, building) — same effect as clicking a pictogram's full-view button
 - [x] collect highscores of minigames and show them in the general statistics menu
 - [x] Improve colors of woodhacking mini game

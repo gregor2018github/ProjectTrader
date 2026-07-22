@@ -4,6 +4,7 @@ from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_acquisition import ContractView
 from ..ui.helper_modules.house_click_menu import get_hovered_house, show_house_menu
+from ..ui.helper_modules.water_click_menu import get_hovered_water, show_water_menu
 from ..ui.helper_modules.ledger_window import LedgerWindow
 
 if TYPE_CHECKING:
@@ -224,6 +225,11 @@ def handle_mouse_click(pos: Tuple[int, int],
                 hovered_house = get_hovered_house(pos, game_state.game.game_map, view_rect)
                 if hovered_house:
                     show_house_menu(game_state, hovered_house, pos)
+                    return
+
+                hovered_water = get_hovered_water(pos, game_state.game.game_map, view_rect)
+                if hovered_water:
+                    show_water_menu(game_state, hovered_water, pos)
                     return
 
     # Handle depot time frame button clicks
