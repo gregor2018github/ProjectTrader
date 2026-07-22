@@ -39,6 +39,16 @@ GOLD = (218, 165, 32)
 DARK_BLUE = (0, 0, 139)
 DARK_RED = (139, 0, 0)
 
+# Muted status colors — earthy tones for in-game feedback (gauges, hit labels)
+# that read as "good/bad" without the harsh saturation of pure RGB primaries.
+# Pitched to match the BUY_BUTTON/SELL_BUTTON/GOLD family already used elsewhere.
+MUTED_DARK_GREEN = (58, 128, 62)
+MUTED_GREEN = (100, 178, 84)
+MUTED_YELLOW = (218, 165, 32)
+MUTED_ORANGE = (214, 138, 48)
+MUTED_RED = (206, 84, 66)
+MUTED_DARK_RED = (154, 48, 38)
+
 # Population group colors
 POP_COLOR_POOR = (180, 60, 60)          # Muted red for the poor
 POP_COLOR_COMMONS = (140, 140, 140)     # Grey for the commons

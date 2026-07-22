@@ -27,7 +27,10 @@ import pygame
 from .base import MinigameOverlay, score_to_coins
 from ...config.colors import (
     BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN,
-    GREEN, DARK_GREEN, RED, DARK_RED, YELLOW, WHITE, BLACK, ORANGE,
+    MUTED_GREEN as GREEN, MUTED_DARK_GREEN as DARK_GREEN,
+    MUTED_RED as RED, MUTED_DARK_RED as DARK_RED,
+    MUTED_YELLOW as YELLOW, MUTED_ORANGE as ORANGE,
+    WHITE, BLACK,
 )
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONTS_PATH
 from ...ui.transaction_feedback import on_money_received
