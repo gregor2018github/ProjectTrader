@@ -9,7 +9,6 @@
 
 ## Medium Priority
 
-- [ ] when pressing the ciphers 1-5 you can switch through the different view modes (map, market, depot, politics, traderoutes, buildings)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
 - [ ] add a functionality to throw down a rock into the lake
 - [ ] add profit overview in the depot chart view
@@ -53,6 +52,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] when pressing the ciphers 1-6 you can switch through the different view modes (map, market, depot, politics, trade routes, building) — same effect as clicking a pictogram's full-view button
 - [x] collect highscores of minigames and show them in the general statistics menu
 - [x] Improve colors of woodhacking mini game
 - [x] add woodhacking minigame (way to earn money in the beginning of the game)

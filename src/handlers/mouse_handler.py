@@ -12,6 +12,28 @@ if TYPE_CHECKING:
     from ..models.depot import Depot
 
 
+VIEW_MODES = ["map", "market", "depot", "politics", "trade_routes", "building"]
+
+
+def set_view_fullscreen(game_state: 'GameState', name: str) -> None:
+    """Show ``name`` on both sides at once (same effect as clicking its main pictogram).
+
+    Toggles back to whatever was showing before if ``name`` is already
+    full-screen on both sides.
+    """
+    if game_state.left_side_mode == name and game_state.right_side_mode == name:
+        game_state.left_side_mode = game_state.left_side_prev_mode
+        game_state.right_side_mode = game_state.right_side_prev_mode
+    else:
+        if game_state.left_side_mode != name:
+            game_state.left_side_prev_mode = game_state.left_side_mode
+            game_state.left_side_mode = name
+
+        if game_state.right_side_mode != name:
+            game_state.right_side_prev_mode = game_state.right_side_mode
+            game_state.right_side_mode = name
+
+
 def _toggle_chart_good(good: 'Good', goods: List['Good'], game_state: 'GameState') -> None:
     """Toggle a good's chart visibility, enforcing a maximum of 3 visible goods.
 
@@ -311,8 +333,7 @@ def handle_mouse_click(pos: Tuple[int, int],
         return
 
     # Handle pictogram sub-button clicks (left/right buttons)
-    possible_modes = ["map", "market", "depot", "politics", "trade_routes", "building"]
-    for name in possible_modes:
+    for name in VIEW_MODES:
         left_key = f"picto_{name}_left"
         right_key = f"picto_{name}_right"
         main_key = f"pictogram_{name}"
@@ -341,20 +362,7 @@ def handle_mouse_click(pos: Tuple[int, int],
 
         # Handle Main Pictogram Button Click (Full View)
         if main_key in buttons and buttons[main_key].collidepoint(pos):
-            if game_state.left_side_mode == name and game_state.right_side_mode == name:
-                # Toggle off if already active on both sides -> switch both back to previous
-                game_state.left_side_mode = game_state.left_side_prev_mode
-                game_state.right_side_mode = game_state.right_side_prev_mode
-            else:
-                # Set full view mode by setting both sides to the target name
-                # Update previous modes only for sides that are changing
-                if game_state.left_side_mode != name:
-                    game_state.left_side_prev_mode = game_state.left_side_mode
-                    game_state.left_side_mode = name
-                
-                if game_state.right_side_mode != name:
-                    game_state.right_side_prev_mode = game_state.right_side_mode
-                    game_state.right_side_mode = name
+            set_view_fullscreen(game_state, name)
             return
 
     # Handle dropdown selection first

@@ -1,10 +1,21 @@
 import pygame
 from typing import List, Any, TYPE_CHECKING
 
+from .mouse_handler import VIEW_MODES, set_view_fullscreen
+
 if TYPE_CHECKING:
     from ..game_state import GameState
     from ..models.good import Good
     from ..models.depot import Depot
+
+_VIEW_MODE_KEYS = {
+    pygame.K_1: VIEW_MODES[0],
+    pygame.K_2: VIEW_MODES[1],
+    pygame.K_3: VIEW_MODES[2],
+    pygame.K_4: VIEW_MODES[3],
+    pygame.K_5: VIEW_MODES[4],
+    pygame.K_6: VIEW_MODES[5],
+}
 
 def _mirror_quantity_to_memory(field: str, game_state: 'GameState') -> None:
     """Persist the edited quantity back to good_quantities for the corresponding good."""
@@ -54,6 +65,9 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
     # Handle function keys
     elif event.key in [pygame.K_F1, pygame.K_F2, pygame.K_F3, pygame.K_F4, pygame.K_F5, pygame.K_F6]:
         _handle_function_key(event.key, game_state, goods, depot)
+    # View-mode hotkeys — same effect as clicking a pictogram's main (full-view) button
+    elif event.key in _VIEW_MODE_KEYS:
+        set_view_fullscreen(game_state, _VIEW_MODE_KEYS[event.key])
     # Add time control hotkeys
     elif event.key == pygame.K_SPACE:
         # Toggle between pause and normal speed
