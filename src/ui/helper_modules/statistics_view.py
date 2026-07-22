@@ -12,6 +12,7 @@ from ...config.colors import (
     BLACK, WHITE, DARK_BROWN, SANDY_BROWN, BEIGE, DARK_GREEN
 )
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONTS_PATH
+from ...models.minigames.woodhacking import MAX_SCORE as _WOODHACKING_MAX_SCORE
 from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 def _fmt_int(v):   return f"{int(v):,}"
 def _fmt_gold(v):  return f"{v:,.0f} g"
 def _fmt_tiles(v): return f"{int(v):,}"
+def _fmt_woodhacking_score(v): return f"{int(v)} / {_WOODHACKING_MAX_SCORE}"
 
 SECTIONS = [
     ("Movement", [
@@ -43,6 +45,11 @@ SECTIONS = [
         ("Loans taken",           "loans_taken",       _fmt_int),
         ("Total donated",         "donations_total",   _fmt_gold),
         ("Overdraft penalties",   "overdraft_count",   _fmt_int),
+    ]),
+    ("Minigames", [
+        ("Minigames played",        "minigames_played",        _fmt_int),
+        ("Minigame income",         "minigame_income_total",   _fmt_gold),
+        ("Woodhacking Highscore",   "woodhacking_highscore",   _fmt_woodhacking_score),
     ]),
     ("Progress", [
         ("Days played",           "days_played",       _fmt_int),

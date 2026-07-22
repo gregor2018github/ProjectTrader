@@ -237,12 +237,19 @@ class WoodhackingMinigame(MinigameOverlay):
             return
         self._payout_booked = True
         coins = score_to_coins(self.score, MAX_SCORE)
-        if coins <= 0:
-            return
         depot = self.game.depot
         state = self.game.state
-        depot.book_labor_income(coins, MINIGAME_NAME)
+
+        # A completed session (all swings played, result screen shown) always
+        # counts as "played" and can set a new highscore, even if the round
+        # itself scored no payout.
         depot.stats.minigames_played += 1
+        if self.score > depot.stats.woodhacking_highscore:
+            depot.stats.woodhacking_highscore = self.score
+
+        if coins <= 0:
+            return
+        depot.book_labor_income(coins, MINIGAME_NAME)
         depot.stats.minigame_income_total += coins
         on_money_received(state, coins)
         state.log_event("FINANCE", f"Earned {coins:.2f}g woodhacking")

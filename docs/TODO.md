@@ -4,7 +4,8 @@
 - [ ] design water tile movement animation
 - [ ] add the forester hut where the wood mini game will be located
 - [ ] add two more houses with different designs
-- [x] add woodhacking minigame (way to earn money in the beginning of the game) — implemented, triggered via the in-game Menu > Woodhacking for now; needs to move to the forester hut once it exists
+- [ ] let the woodhacking mini game be available in the forester hut (clickable building)
+- [ ] woodhacking mini game must only be available once per day 
 
 ## Medium Priority
 
@@ -52,6 +53,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] collect highscores of minigames and show them in the general statistics menu
+- [x] Improve colors of woodhacking mini game
+- [x] add woodhacking minigame (way to earn money in the beginning of the game)
 - [x] when trading license runs out, warn the player the day before: at simulated midnight the game checks which licenses expire tomorrow and shows a modal InfoWindow (pauses time, requires OK to dismiss, bold good names, handles multiple licenses in one dialog)
 - [x] standardize the window design (remove that old system that tries to build a frame from pieces)
 - [x] start to collect general statistics (tiles walked, ledger entries, money received, good trades made, property trades made etc.) - they must be easy to track (when the respective other function is triggered anyway, statistics value goes += 1; no active listeners wanted)
