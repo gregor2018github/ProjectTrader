@@ -25,7 +25,7 @@ from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 from .npcs.sheep import Sheep
-from .water import Water
+from .water import Water, Ripple
 
 
 
@@ -1056,6 +1056,16 @@ class GameMap:
             START_Y_POSITION,
             self.tmx_map.tile_size
         )
+
+        # Transient VFX (e.g. splash ripples from thrown stones) — not part of the
+        # static TMX data, so they live on GameMap rather than TMXMap.
+        self.ripples: List[Ripple] = []
+
+    def add_ripple(self, x: float, y: float, delay: float = 0.0, radius_cap: float = 18.0) -> None:
+        self.ripples.append(Ripple(x, y, delay, radius_cap))
+
+    def update_ripples(self, dt: float) -> None:
+        self.ripples = [r for r in self.ripples if r.update(dt)]
     
     def handle_zoom(self, direction: int) -> None:
         """Handle zoom in/out.
@@ -1112,6 +1122,7 @@ class GameMap:
         self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)
         self.tmx_map.update_mills(dt)
+        self.update_ripples(dt)
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,
             self.map_player.y + self.map_player.height / 2.0,

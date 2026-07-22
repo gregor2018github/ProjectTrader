@@ -431,6 +431,21 @@ def _build_render_queue(
                     'y_sort': emitter.y_sort,
                 })
 
+    # Add water ripples to queue (flat on the water surface, so sort low like ground clutter)
+    for ripple in game_map.ripples:
+        if not ripple.is_visible:
+            continue
+        sprite, pos = ripple.get_render_data(camera, camera.zoom)
+        draw_x = pos[0] + offset_x
+        draw_y = pos[1] + offset_y
+        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            render_queue.append({
+                'sprite': sprite,
+                'pos': (draw_x, draw_y),
+                'y_sort': ripple.y,
+            })
+
     # Add sheep NPCs to queue
     for sheep in game_map.tmx_map.sheep:
         sheep_sprite = sheep._get_scaled_sprite(camera.zoom)
