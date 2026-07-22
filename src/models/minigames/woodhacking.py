@@ -113,6 +113,24 @@ def _arc_pts(cx: int, cy: int, r: int, a0: float, a1: float, steps: int = 48):
     return pts
 
 
+def _arc_ring_poly(cx: int, cy: int, r: float, width: float, a0: float, a1: float, steps: int = 48):
+    """Vertices of a filled ring segment (a thick arc band with smooth edges).
+
+    Drawing thick arcs with ``pygame.draw.lines`` butt-joins each straight
+    segment, which leaves visible notches/gaps along the outer curve. A
+    filled polygon between an inner and outer arc renders as one smooth
+    band instead.
+    """
+    outer = r + width / 2
+    inner = r - width / 2
+    steps = max(steps, int(abs(a1 - a0) / math.radians(2)) + 1)
+    top = [(cx + outer * math.sin(a0 + (a1 - a0) * i / steps),
+            cy + outer * math.cos(a0 + (a1 - a0) * i / steps)) for i in range(steps + 1)]
+    bottom = [(cx + inner * math.sin(a0 + (a1 - a0) * i / steps),
+               cy + inner * math.cos(a0 + (a1 - a0) * i / steps)) for i in range(steps + 1)]
+    return top + bottom[::-1]
+
+
 def _grade_aim(aim: float) -> Tuple[int, str, tuple, bool]:
     """Aim: 0-3 points — right side uses tighter thresholds.
 
@@ -314,9 +332,9 @@ class WoodhackingMinigame(MinigameOverlay):
             (0, _AIM_PERFECT_R, DARK_GREEN, 22),
         ]
         for a0, a1, col, w in zones:
-            pts = _arc_pts(cx, cy, r, a0, a1)
-            if len(pts) > 1:
-                pygame.draw.lines(self.canvas, col, False, pts, w)
+            if a1 > a0:
+                poly = _arc_ring_poly(cx, cy, r, w, a0, a1)
+                pygame.draw.polygon(self.canvas, col, poly)
 
         outline = _arc_pts(cx, cy, r, -_AIM_MAX, _AIM_MAX)
         if len(outline) > 1:
