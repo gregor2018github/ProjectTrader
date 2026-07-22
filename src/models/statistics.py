@@ -20,7 +20,7 @@ class Statistics:
         self.goods_sold: int = 0                # successful sell() calls
         self.money_received: float = 0.0        # gross revenue from all sales
         self.money_spent_goods: float = 0.0     # gross spend on buying goods (excl. transaction fees)
-        self.ledger_entries: int = 0            # record_trade() calls (each buy/sell is one entry)
+        self.ledger_entries: int = 0            # GameState.log_event() calls — one per line in the Ledger window
 
         # Properties & licenses
         self.properties_bought: int = 0         # warehouses (and future buildings) purchased

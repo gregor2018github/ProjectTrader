@@ -374,6 +374,11 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         k: _str_to_dt(v) for k, v in d["trading_licenses"].items()
     }
     depot.stats = Statistics.from_dict(d.get("statistics", {}))
+    # Older saves predate the statistics block, or were saved between the
+    # trade and the stats increment — never let the counter undercount the
+    # trade history that's actually there.
+    if depot.stats.ledger_entries < len(depot.trades):
+        depot.stats.ledger_entries = len(depot.trades)
 
     good_by_name = {g.name: g for g in goods}
     for gd in data["goods"]:

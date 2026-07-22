@@ -210,6 +210,9 @@ class GameState:
             text: Human-readable description of the event.
         """
         self.event_log.append({"timestamp": self.date, "category": category, "text": text})
+        depot = getattr(self.game, 'depot', None)
+        if depot is not None:
+            depot.stats.ledger_entries += 1
 
     def show_warning(self, text: str) -> None:
         """Display a transient warning message on the UI.

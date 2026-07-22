@@ -341,7 +341,6 @@ class Depot:
             "total": price * quantity
         }
         self.trades.append(trade)
-        self.stats.ledger_entries += 1
 
     def _record_trade_cycle(self, good_name: str, profit: float, quantity: int, buy_price: float, sell_price: float, timestamp: datetime.datetime) -> Dict[str, Any]:
         """Record statistics for a completed trade cycle and store an individual record.
