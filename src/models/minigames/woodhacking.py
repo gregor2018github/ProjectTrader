@@ -280,6 +280,13 @@ class WoodhackingMinigame(MinigameOverlay):
                 self.charging = False
                 self._resolve_swing()
 
+    def _play_swing_sound(self, hit: bool) -> None:
+        """Play a random chop sound on a hit, or a random swoosh sound on a miss."""
+        prefix = "chop_" if hit else "swoosh_"
+        candidates = [name for name in self.game.sounds if name.startswith(prefix)]
+        if candidates:
+            self.game.play_sound(random.choice(candidates))
+
     def _resolve_swing(self) -> None:
         self.attempt += 1
         aim_pts, aim_label, aim_color, aim_miss = _grade_aim(self.aim)
@@ -291,6 +298,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
         self.pow_hit_text, self.pow_hit_color = pow_label, pow_color
         self.hit_alpha = 255
+        self._play_swing_sound(hit=pts > 0)
         self.power = 0.0
         if pts >= 3:
             self.aim_speed_bonus = min(
