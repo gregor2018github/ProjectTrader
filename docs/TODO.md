@@ -5,7 +5,6 @@
 - [ ] add the forester hut where the wood mini game will be located
 - [ ] add two more houses with different designs
 - [ ] let the woodhacking mini game be available in the forester hut (clickable building)
-- [ ] woodhacking mini game must only be available once per day 
 
 ## Medium Priority
 
@@ -51,6 +50,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] woodhacking mini game must only be available once per day 
+- [x] add sounds for hitting and missing the wood in the minigame
 - [x] add a functionality to throw down a stone into the water (plays a splash sound like the well, no other effect yet) — click a water tile while standing next to it to open a small generic interaction menu (fishing will be added here later)
 - [x] when pressing the ciphers 1-6 you can switch through the different view modes (map, market, depot, politics, trade routes, building) — same effect as clicking a pictogram's full-view button
 - [x] collect highscores of minigames and show them in the general statistics menu

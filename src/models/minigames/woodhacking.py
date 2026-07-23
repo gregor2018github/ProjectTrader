@@ -270,10 +270,6 @@ class WoodhackingMinigame(MinigameOverlay):
             if event.key == pygame.K_ESCAPE:
                 self.active = False
                 return
-            if event.key == pygame.K_r and self.done and not self._show_congrats:
-                self._reset_round()
-                return
-
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.done:
                 if self._show_congrats:
@@ -447,7 +443,7 @@ class WoodhackingMinigame(MinigameOverlay):
         coin_txt = self.font_large.render(f"+{coins:.2f}g earned today", True, coin_color)
         self.canvas.blit(coin_txt, coin_txt.get_rect(center=(400, 316)))
 
-        hint = self.font.render("R — play again", True, PALE_BROWN)
+        hint = self.font.render("Come back tomorrow for another swing", True, PALE_BROWN)
         self.canvas.blit(hint, hint.get_rect(center=(400, 358)))
 
         self.close_rect.center = (400, 405)
