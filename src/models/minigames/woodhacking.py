@@ -30,7 +30,7 @@ from ...config.colors import (
     MUTED_GREEN as GREEN, MUTED_DARK_GREEN as DARK_GREEN,
     MUTED_RED as RED, MUTED_DARK_RED as DARK_RED,
     MUTED_YELLOW as YELLOW, MUTED_ORANGE as ORANGE,
-    WHITE, BLACK,
+    WHITE, BLACK, GOLD,
 )
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONTS_PATH
 from ...ui.transaction_feedback import on_money_received
@@ -198,6 +198,7 @@ class WoodhackingMinigame(MinigameOverlay):
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
         self.close_rect = pygame.Rect(0, 0, 160, 44)
+        self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)
         self._payout_booked = False
         self._reset_round()
 
@@ -224,6 +225,9 @@ class WoodhackingMinigame(MinigameOverlay):
         self.pow_hit_color = WHITE
         self.hit_alpha = 0
         self._payout_booked = False
+        self.highscore = self.game.depot.stats.woodhacking_highscore
+        self.new_highscore = False
+        self._show_congrats = False
 
     def _to_canvas(self, pos: Tuple[int, int]) -> Tuple[int, int]:
         return (pos[0] - self.canvas_rect.left, pos[1] - self.canvas_rect.top)
@@ -246,6 +250,9 @@ class WoodhackingMinigame(MinigameOverlay):
         depot.stats.minigames_played += 1
         if self.score > depot.stats.woodhacking_highscore:
             depot.stats.woodhacking_highscore = self.score
+            self.new_highscore = True
+            self._show_congrats = True
+        self.highscore = depot.stats.woodhacking_highscore
 
         if coins <= 0:
             return
@@ -263,12 +270,16 @@ class WoodhackingMinigame(MinigameOverlay):
             if event.key == pygame.K_ESCAPE:
                 self.active = False
                 return
-            if event.key == pygame.K_r and self.done:
+            if event.key == pygame.K_r and self.done and not self._show_congrats:
                 self._reset_round()
                 return
 
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.done:
+                if self._show_congrats:
+                    if self.congrats_close_rect.collidepoint(self._to_canvas(event.pos)):
+                        self._show_congrats = False
+                    return
                 if self.close_rect.collidepoint(self._to_canvas(event.pos)):
                     self.active = False
                 return
@@ -426,14 +437,18 @@ class WoodhackingMinigame(MinigameOverlay):
         self.canvas.blit(title, title.get_rect(center=(400, 205)))
 
         score_txt = self.font.render(f"Score:  {self.score} / {MAX_SCORE}", True, BLACK)
-        self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 258)))
+        self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 250)))
+
+        hs_color = GOLD if self.new_highscore else DARK_BROWN
+        hs_txt = self.font.render(f"Highscore:  {self.highscore} / {MAX_SCORE}", True, hs_color)
+        self.canvas.blit(hs_txt, hs_txt.get_rect(center=(400, 276)))
 
         coin_color = DARK_GREEN if coins >= 15 else (ORANGE if coins >= 8 else RED)
         coin_txt = self.font_large.render(f"+{coins:.2f}g earned today", True, coin_color)
-        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(400, 308)))
+        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(400, 316)))
 
         hint = self.font.render("R — play again", True, PALE_BROWN)
-        self.canvas.blit(hint, hint.get_rect(center=(400, 355)))
+        self.canvas.blit(hint, hint.get_rect(center=(400, 358)))
 
         self.close_rect.center = (400, 405)
         mouse_pos = self._to_canvas(pygame.mouse.get_pos())
@@ -442,6 +457,32 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, DARK_BROWN, self.close_rect, 2, border_radius=4)
         close_txt = self.font.render("Close", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.close_rect.center))
+
+    def _draw_congrats_overlay(self) -> None:
+        overlay = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 190))
+        self.canvas.blit(overlay, (0, 0))
+
+        panel = pygame.Rect(220, 190, 360, 220)
+        pygame.draw.rect(self.canvas, BEIGE, panel, border_radius=8)
+        pygame.draw.rect(self.canvas, GOLD, panel, 4, border_radius=8)
+
+        title = self.font_large.render("New Highscore!", True, GOLD)
+        self.canvas.blit(title, title.get_rect(center=(400, 240)))
+
+        score_txt = self.font_hit.render(f"{self.score} / {MAX_SCORE}", True, DARK_BROWN)
+        self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 285)))
+
+        sub = self.font.render("Well hacked, woodcutter!", True, PALE_BROWN)
+        self.canvas.blit(sub, sub.get_rect(center=(400, 325)))
+
+        self.congrats_close_rect.center = (400, 370)
+        mouse_pos = self._to_canvas(pygame.mouse.get_pos())
+        hovered = self.congrats_close_rect.collidepoint(mouse_pos)
+        pygame.draw.rect(self.canvas, PALE_BROWN if hovered else SANDY_BROWN, self.congrats_close_rect, border_radius=4)
+        pygame.draw.rect(self.canvas, DARK_BROWN, self.congrats_close_rect, 2, border_radius=4)
+        close_txt = self.font.render("Nice!", True, DARK_BROWN)
+        self.canvas.blit(close_txt, close_txt.get_rect(center=self.congrats_close_rect.center))
 
     def draw(self) -> None:
         # Darken the game behind the overlay
@@ -473,6 +514,8 @@ class WoodhackingMinigame(MinigameOverlay):
 
         if self.done:
             self._draw_result_overlay(coins)
+            if self._show_congrats:
+                self._draw_congrats_overlay()
 
         pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
         self.screen.blit(self.canvas, self.canvas_rect.topleft)
