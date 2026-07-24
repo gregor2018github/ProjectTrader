@@ -372,3 +372,87 @@ def get_water_edge_overlay_frames(tile_size: int, zoom: float, variant: int = 0)
 
     _water_edge_cache[zoom_key] = frames
     return frames
+
+
+# --- Sub-tile clipping for boundary water tiles -------------------------------
+#
+# The map's water tileset draws boundary/corner tiles (the diagonal-cut edge
+# of a lake or river bank) by leaving the land portion of the tile fully
+# transparent — the same tile image pytmx would normally draw already has
+# the correct "half water" shape baked into its alpha channel. The animated
+# flipbook frames from get_water_tile_frames are always a full opaque
+# square, so drawing one verbatim over a boundary cell would either cover
+# grass that should stay visible or (if the cell were excluded instead)
+# leave that tile un-animated. Clipping the animated frame to the original
+# tile's own alpha shape reproduces the exact hand-cut edge while still
+# animating it.
+
+_gid_mask_cache: Dict[int, Optional[pygame.Surface]] = {}
+_scaled_mask_cache: Dict[Tuple[int, int], pygame.Surface] = {}
+_masked_surface_cache: Dict[Tuple[str, int, int, int], pygame.Surface] = {}
+
+
+def _get_gid_edge_mask(tmx_data, gid: int) -> Optional[pygame.Surface]:
+    """Return a native-resolution clip mask for ``gid``, or None if it's fully opaque.
+
+    The mask is white RGB with the source tile's own per-pixel alpha, so it
+    can be combined with an animated frame via BLEND_RGBA_MULT: alpha is
+    scaled down wherever the original tile was transparent, RGB is
+    untouched (multiplying by 255/255 = 1). None means the tile has no
+    transparency at all — the common case for interior water tiles — so
+    callers can skip clipping entirely and blit the plain animated frame.
+    """
+    if gid in _gid_mask_cache:
+        return _gid_mask_cache[gid]
+
+    mask_surf: Optional[pygame.Surface] = None
+    native = tmx_data.get_tile_image_by_gid(gid)
+    if native is not None:
+        w, h = native.get_size()
+        src = pygame.PixelArray(native)
+        fully_opaque = True
+        built = pygame.Surface((w, h), pygame.SRCALPHA)
+        dst = pygame.PixelArray(built)
+        for y in range(h):
+            for x in range(w):
+                a = native.unmap_rgb(src[x, y]).a
+                if a != 255:
+                    fully_opaque = False
+                dst[x, y] = (255, 255, 255, a)
+        dst.close()
+        src.close()
+        mask_surf = None if fully_opaque else built
+
+    _gid_mask_cache[gid] = mask_surf
+    return mask_surf
+
+
+def get_masked_water_surface(tmx_data, gid: int, base_surface: pygame.Surface, cache_kind: str, frame_idx: int) -> pygame.Surface:
+    """Clip ``base_surface`` (an animated water or foam frame) to gid's own tile shape.
+
+    Returns ``base_surface`` unchanged for interior tiles (no transparency
+    to clip against — the overwhelmingly common case), so the fast opaque
+    blit path is untouched; only boundary/corner cells pay for the
+    per-pixel composite, and even then only once per (gid, size, frame)
+    thanks to caching.
+    """
+    mask_native = _get_gid_edge_mask(tmx_data, gid)
+    if mask_native is None:
+        return base_surface
+
+    size = base_surface.get_width()
+    cache_key = (cache_kind, gid, size, frame_idx)
+    cached = _masked_surface_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    mask_key = (gid, size)
+    scaled_mask = _scaled_mask_cache.get(mask_key)
+    if scaled_mask is None:
+        scaled_mask = pygame.transform.smoothscale(mask_native, (size, size))
+        _scaled_mask_cache[mask_key] = scaled_mask
+
+    composed = base_surface.convert_alpha()
+    composed.blit(scaled_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    _masked_surface_cache[cache_key] = composed
+    return composed

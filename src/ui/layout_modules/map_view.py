@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
-from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
+from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap
@@ -258,15 +258,25 @@ def _render_map_layers(
     end_y = min(tmx_map.height, int((camera.y + world_view_height) // tmx_map.tile_size) + 2)
 
     water_tiles = tmx_map.water_tiles
+    # The static water tile art lives in the "Ground_Mid" layer, and *only*
+    # that layer gets its water cells replaced by the animated surface.
+    # Layers below it (Ground_Low-1, Ground_Low) must still render normally
+    # at those same cells: boundary tiles are only *partly* water (the rest
+    # is cut away via alpha, see water.py's masking), so whatever grass art
+    # sits underneath needs to actually be there for that cut-away part to
+    # reveal — skipping it (as an earlier version did, on the assumption
+    # every water tile is fully opaque) left a black hole instead of grass.
+    # Layers above Ground_Mid, like "Ground_High" (shoreline decoration —
+    # grass overhangs at the water's edge), also always render normally.
+    water_drawn = not water_tiles
 
     for layer in tmx_map.tmx_data.visible_layers:
         # Only render tile layers that start with "Ground"
         if isinstance(layer, pytmx.TiledTileLayer) and layer.name.startswith("Ground"):
+            is_water_layer = layer.name == "Ground_Mid"
             for y in range(start_y, end_y):
                 for x in range(start_x, end_x):
-                    # Water tiles get their own animated surface below instead
-                    # of whatever static ground art sits underneath them.
-                    if (x, y) in water_tiles:
+                    if is_water_layer and not water_drawn and (x, y) in water_tiles:
                         continue
                     gid = layer.data[y][x]
                     if gid:
@@ -280,26 +290,64 @@ def _render_map_layers(
                             screen_y -= (tile_image.get_height() - scaled_grid_size)
                             screen.blit(tile_image, (round(screen_x) + offset_x, round(screen_y) + offset_y))
 
-    # Animated water — drawn once per visible tile, after the ground layers
-    # so it sits cleanly on top. No-op (empty set, zero iterations) on maps
-    # or views without any water on screen.
-    if water_tiles:
-        frame_idx = int(water_anim_time / WATER_FRAME_INTERVAL) % WATER_FRAME_COUNT
-        edge_tiles = tmx_map.water_edge_tiles
-        variants = tmx_map.water_tile_variant
-        for y in range(start_y, end_y):
-            for x in range(start_x, end_x):
-                if (x, y) not in water_tiles:
-                    continue
-                variant = variants.get((x, y), 0)
-                frames = get_water_tile_frames(tmx_map.tile_size, camera.zoom, variant)
-                world_x, world_y = tmx_map.grid_to_world(x, y)
-                screen_x, screen_y = camera.apply(world_x, world_y)
-                pos = (round(screen_x) + offset_x, round(screen_y) + offset_y)
-                screen.blit(frames[frame_idx], pos)
-                if (x, y) in edge_tiles:
-                    overlay = get_water_edge_overlay_frames(tmx_map.tile_size, camera.zoom, variant)
-                    screen.blit(overlay[frame_idx], pos)
+            if not water_drawn and layer.name == "Ground_Mid":
+                _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
+                water_drawn = True
+
+    # Fallback for maps without a "Ground_Mid" layer — still draw the water
+    # somewhere rather than silently dropping it.
+    if not water_drawn:
+        _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
+
+
+def _draw_animated_water(
+    screen: pygame.Surface,
+    tmx_map: 'TMXMap',
+    camera: 'Camera',
+    offset_x: int,
+    offset_y: int,
+    water_anim_time: float,
+    start_x: int,
+    start_y: int,
+    end_x: int,
+    end_y: int,
+) -> None:
+    """Blit the animated water flipbook frame for every visible water tile.
+
+    Boundary/corner cells (part water, part land within the same tile) are
+    clipped to that tile's own alpha-cut shape via get_masked_water_surface,
+    using the "Ground_Mid" gid still sitting under the animation as the
+    shape reference — see water.py's "Sub-tile clipping" section for why.
+    """
+    water_tiles = tmx_map.water_tiles
+    frame_idx = int(water_anim_time / WATER_FRAME_INTERVAL) % WATER_FRAME_COUNT
+    edge_tiles = tmx_map.water_edge_tiles
+    variants = tmx_map.water_tile_variant
+    ground_mid = None
+    for layer in tmx_map.tmx_data.visible_layers:
+        if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "Ground_Mid":
+            ground_mid = layer
+            break
+    for y in range(start_y, end_y):
+        row = ground_mid.data[y] if ground_mid is not None else None
+        for x in range(start_x, end_x):
+            if (x, y) not in water_tiles:
+                continue
+            variant = variants.get((x, y), 0)
+            frames = get_water_tile_frames(tmx_map.tile_size, camera.zoom, variant)
+            gid = row[x] if row is not None else 0
+            water_frame = frames[frame_idx]
+            if gid:
+                water_frame = get_masked_water_surface(tmx_map.tmx_data, gid, water_frame, "water", frame_idx)
+            world_x, world_y = tmx_map.grid_to_world(x, y)
+            screen_x, screen_y = camera.apply(world_x, world_y)
+            pos = (round(screen_x) + offset_x, round(screen_y) + offset_y)
+            screen.blit(water_frame, pos)
+            if (x, y) in edge_tiles:
+                overlay = get_water_edge_overlay_frames(tmx_map.tile_size, camera.zoom, variant)[frame_idx]
+                if gid:
+                    overlay = get_masked_water_surface(tmx_map.tmx_data, gid, overlay, "edge", frame_idx)
+                screen.blit(overlay, pos)
 
 
 def _build_render_queue(

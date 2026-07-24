@@ -169,12 +169,35 @@ class TMXMap:
                         self.waters.append(Water(obj.name or "Water", world_points))
 
     def _rasterize_water_tiles(self) -> None:
-        """Compute which grid cells lie inside a water polygon, once at load time.
+        """Compute which grid cells should render the animated water surface.
 
-        This turns the (potentially complex) polygon test into a plain set
-        membership check that the per-frame render loop can afford to do for
-        every visible tile, even when nothing on screen is water.
+        A pure cell-*center*-in-polygon test (the original approach) can't
+        agree with the hand-placed boundary tiles in the "Ground_Mid" layer:
+        those edge/corner tiles are only *partly* water (the rest of the tile
+        is cut away via the tile image's own alpha channel), so a cell whose
+        centre happens to fall on the land side gets excluded even though the
+        tile clearly shows water, while a cell whose centre falls on the
+        water side gets the animated surface drawn as a *full* opaque square
+        that overshoots the tile's actual (diagonal-cut) water area. Visually
+        that showed up as the water effect eating into the grass on one bank
+        and stopping short of the art on the other.
+
+        So instead the polygon test is only used to discover, once, which
+        Ground_Mid tile ids are actually the map's water tileset (by seeing
+        which ids appear on cells the polygon is confident about). Every cell
+        painted with one of those ids — anywhere on the map, boundary or
+        interior — then gets the animated surface, and get_masked_water_frame
+        (see map_view._draw_animated_water) clips it to that exact tile's own
+        alpha shape, so partial edge tiles stay partial instead of being
+        rounded up to a full square or dropped entirely.
         """
+        ground_mid = None
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledTileLayer) and layer.name == "Ground_Mid":
+                ground_mid = layer
+                break
+
+        polygon_cells: Set[Tuple[int, int]] = set()
         for water in self.waters:
             rect = water._bounding_rect
             gx0 = max(0, rect.left // self.tile_size)
@@ -186,10 +209,28 @@ class TMXMap:
                     cx = gx * self.tile_size + self.tile_size / 2
                     cy = gy * self.tile_size + self.tile_size / 2
                     if water.contains_point(cx, cy):
+                        polygon_cells.add((gx, gy))
+
+        if ground_mid is not None and polygon_cells:
+            water_gids: Set[int] = set()
+            for (gx, gy) in polygon_cells:
+                gid = ground_mid.data[gy][gx]
+                if gid:
+                    water_gids.add(gid)
+
+            for gy in range(self.height):
+                row = ground_mid.data[gy]
+                for gx in range(self.width):
+                    if row[gx] in water_gids:
                         self.water_tiles.add((gx, gy))
-                        self.water_tile_variant[(gx, gy)] = water_tile_variant(gx, gy)
+        else:
+            # No Ground_Mid layer (or no water polygons resolved any tile
+            # ids) — fall back to the plain polygon test so water still
+            # renders, just without sub-tile precision.
+            self.water_tiles = polygon_cells
 
         for (gx, gy) in self.water_tiles:
+            self.water_tile_variant[(gx, gy)] = water_tile_variant(gx, gy)
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 if (gx + dx, gy + dy) not in self.water_tiles:
                     self.water_edge_tiles.add((gx, gy))
