@@ -221,3 +221,154 @@ class Water:
 
         game_state.log_event("SYSTEM", "Threw a stone into the water")
         game_state.info_window = None
+
+
+# --- Animated water surface --------------------------------------------------
+#
+# Water is rendered tile-by-tile, in lockstep with the "Ground" TMX layers
+# (see map_view._render_map_layers): only tiles inside the current camera
+# viewport are ever touched, and the animation frames themselves are baked
+# once per (zoom, variant) and cached forever, so a visible water tile costs
+# exactly one extra blit (same as a normal ground tile) and an off-screen or
+# water-less map costs nothing at all. This mirrors the caching pattern
+# TMXMap._get_scaled_tile already uses for ordinary tiles.
+#
+# For now every water polygon is rendered with the same "ocean" look; river
+# variants can be layered on top of this later by branching on Water.name.
+
+WATER_FRAME_COUNT = 6
+WATER_FRAME_INTERVAL = 0.22  # seconds per animation frame
+
+_WATER_VARIANT_COUNT = 3
+
+_water_tile_cache: Dict[Tuple[float, int], List[pygame.Surface]] = {}
+_water_edge_cache: Dict[Tuple[float, int], List[pygame.Surface]] = {}
+
+_WATER_DEEP = (26, 70, 116)
+_WATER_LIGHT = (96, 160, 196)
+_WATER_FOAM = (235, 248, 255)
+
+# Layered sine components that make up the shimmer field, each written as
+# (cycles_x, cycles_y, phase_speed, weight). ``cycles_x``/``cycles_y`` MUST be
+# integers: a sine whose argument advances by an integer multiple of 2*pi
+# across one tile is exactly periodic over that tile, which is what makes
+# neighbouring (identically-baked) tiles line up with no visible seam,
+# regardless of tile pixel size. Three components at different orientations
+# and speeds keep the shimmer from reading as "everything scrolling the same
+# way" the way a single diagonal stripe family did.
+_WAVE_COMPONENTS = (
+    (2, 1, 1.0, 0.45),
+    (-1, 2, 0.6, 0.30),
+    (3, -2, 1.4, 0.25),
+)
+
+
+def water_tile_variant(grid_x: int, grid_y: int) -> int:
+    """Deterministic pseudo-random variant for a grid cell.
+
+    Used only for a subtle per-tile brightness nudge — never for the wave
+    geometry itself, which must stay identical across every tile so that
+    adjacent tiles (literally the same baked image) line up perfectly.
+
+    Any *linear* combination of grid_x/grid_y (e.g. ``gx*A + gy*B``) is still
+    periodic mod 3 along each axis on its own — that's exactly what produced
+    hard periodic stripes here before (one prime happened to be divisible by
+    3, so the pattern depended only on grid_y). A bit-mixing integer hash
+    (xorshift-multiply, same family as "wang hash") has no such linear
+    structure to alias against.
+    """
+    h = (grid_x * 374761393 + grid_y * 668265263) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    h ^= h >> 16
+    return h % _WATER_VARIANT_COUNT
+
+
+def get_water_tile_frames(tile_size: int, zoom: float, variant: int) -> List[pygame.Surface]:
+    """Return the (lazily baked, cached) animation frames for a water tile variant.
+
+    The tile is filled with a smooth, per-pixel shimmer field built from a
+    few sine waves rather than drawn shapes — drawn rectangles/lines have
+    hard square caps that leave a visible notch where each tile repeats;
+    a continuous periodic function has no such edge to see. Baking is a
+    one-off cost per (zoom, variant, frame) combination (a few thousand
+    pixels, done with plain Python since this project has no numpy
+    dependency); every subsequent lookup is a cache hit, and blitting an
+    already-baked, fully opaque frame costs the same as an ordinary tile.
+
+    ``variant`` is currently unused for the geometry/colour on purpose: an
+    earlier version nudged the palette per variant, but that nudge is a hard
+    step at the tile's edge (unlike the wave field, which is seamless by
+    construction), and it read as faint rectangular patches. It's kept as a
+    parameter — and grid cells are still hashed into a variant in
+    ``water_tile_variant`` — so a future per-variant *pattern* (e.g. a
+    distinct river look) has a slot to plug into without touching callers.
+    """
+    zoom_key = round(float(zoom), 3)
+    # variant intentionally excluded from the cache key: it doesn't affect
+    # the baked output yet (see docstring), so keying on it would just bake
+    # (and store) the same image _WATER_VARIANT_COUNT times over.
+    cache_key = (zoom_key, tile_size)
+    cached = _water_tile_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    size = max(1, int(round(tile_size * zoom)))
+    deep = _WATER_DEEP
+    light = _WATER_LIGHT
+    two_pi = 2.0 * math.pi
+
+    frames: List[pygame.Surface] = []
+    for i in range(WATER_FRAME_COUNT):
+        phase = two_pi * i / WATER_FRAME_COUNT
+        surf = pygame.Surface((size, size))
+        pixels = pygame.PixelArray(surf)
+        for y in range(size):
+            fy = y / size
+            for x in range(size):
+                fx = x / size
+                v = 0.0
+                for cx, cy, speed, weight in _WAVE_COMPONENTS:
+                    v += weight * math.sin(two_pi * (cx * fx + cy * fy) + phase * speed)
+                # v is in roughly [-1, 1]; raise to an odd power to keep the
+                # highlight sparse (soft glints) instead of a smooth 50/50
+                # gradient, which read as too strong/opaque at full spread.
+                t = max(0.0, min(1.0, (v + 1.0) / 2.0))
+                t = t ** 3
+                r = int(deep[0] + (light[0] - deep[0]) * t)
+                g = int(deep[1] + (light[1] - deep[1]) * t)
+                b = int(deep[2] + (light[2] - deep[2]) * t)
+                pixels[x, y] = (r, g, b)
+        pixels.close()
+        frames.append(surf.convert())
+
+    _water_tile_cache[cache_key] = frames
+    return frames
+
+
+def get_water_edge_overlay_frames(tile_size: int, zoom: float, variant: int = 0) -> List[pygame.Surface]:
+    """Return a soft, gently pulsing foam-speckle overlay for shoreline tiles.
+
+    Blitted on top of a normal water tile only for cells that border
+    non-water tiles, so the extra alpha-blit cost is limited to the
+    coastline. ``variant`` just reseeds the speckle layout so the shoreline
+    doesn't repeat an identical dot pattern tile after tile.
+    """
+    zoom_key = (round(float(zoom), 3), variant)
+    cached = _water_edge_cache.get(zoom_key)
+    if cached is not None:
+        return cached
+
+    size = max(1, int(round(tile_size * zoom)))
+    rng = random.Random(1234 + variant)  # fixed seed per variant: stable layout, varies by tile
+    dots = [(rng.uniform(0, size), rng.uniform(0, size), rng.uniform(1.0, 2.0)) for _ in range(4)]
+
+    frames: List[pygame.Surface] = []
+    for i in range(WATER_FRAME_COUNT):
+        surf = pygame.Surface((size, size), pygame.SRCALPHA)
+        pulse = 35 + int(30 * abs((i / WATER_FRAME_COUNT) - 0.5) * 2)
+        for dx, dy, r in dots:
+            pygame.draw.circle(surf, (*_WATER_FOAM, pulse), (int(dx), int(dy)), max(1, int(r * zoom)))
+        frames.append(surf)
+
+    _water_edge_cache[zoom_key] = frames
+    return frames

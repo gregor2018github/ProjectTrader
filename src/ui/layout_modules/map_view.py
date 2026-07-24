@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
+from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
     from ...models.map import GameMap, Camera, TMXMap
@@ -52,7 +53,7 @@ def draw_map_view(
     game_map.camera.screen_height = map_content_rect.height
     
     # Render the map layers
-    _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
+    _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_map.water_anim_time)
     
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
@@ -235,16 +236,18 @@ def _render_map_layers(
     tmx_map: 'TMXMap',
     camera: 'Camera',
     offset_x: int,
-    offset_y: int
+    offset_y: int,
+    water_anim_time: float = 0.0
 ) -> None:
     """Render the base TMX map layers.
-    
+
     Args:
         screen: Target surface for rendering.
         tmx_map: The TMX map data.
         camera: Camera for viewport transformation.
         offset_x: Horizontal offset for the view area.
         offset_y: Vertical offset for the view area.
+        water_anim_time: Elapsed unpaused map time, drives the water flipbook frame.
     """
     world_view_width = camera.screen_width / camera.zoom
     world_view_height = camera.screen_height / camera.zoom
@@ -254,11 +257,17 @@ def _render_map_layers(
     end_x = min(tmx_map.width, int((camera.x + world_view_width) // tmx_map.tile_size) + 2)
     end_y = min(tmx_map.height, int((camera.y + world_view_height) // tmx_map.tile_size) + 2)
 
+    water_tiles = tmx_map.water_tiles
+
     for layer in tmx_map.tmx_data.visible_layers:
         # Only render tile layers that start with "Ground"
         if isinstance(layer, pytmx.TiledTileLayer) and layer.name.startswith("Ground"):
             for y in range(start_y, end_y):
                 for x in range(start_x, end_x):
+                    # Water tiles get their own animated surface below instead
+                    # of whatever static ground art sits underneath them.
+                    if (x, y) in water_tiles:
+                        continue
                     gid = layer.data[y][x]
                     if gid:
                         tile_image = tmx_map._get_scaled_tile(gid, camera.zoom)
@@ -270,6 +279,27 @@ def _render_map_layers(
                             scaled_grid_size = round(tmx_map.tile_size * camera.zoom)
                             screen_y -= (tile_image.get_height() - scaled_grid_size)
                             screen.blit(tile_image, (round(screen_x) + offset_x, round(screen_y) + offset_y))
+
+    # Animated water — drawn once per visible tile, after the ground layers
+    # so it sits cleanly on top. No-op (empty set, zero iterations) on maps
+    # or views without any water on screen.
+    if water_tiles:
+        frame_idx = int(water_anim_time / WATER_FRAME_INTERVAL) % WATER_FRAME_COUNT
+        edge_tiles = tmx_map.water_edge_tiles
+        variants = tmx_map.water_tile_variant
+        for y in range(start_y, end_y):
+            for x in range(start_x, end_x):
+                if (x, y) not in water_tiles:
+                    continue
+                variant = variants.get((x, y), 0)
+                frames = get_water_tile_frames(tmx_map.tile_size, camera.zoom, variant)
+                world_x, world_y = tmx_map.grid_to_world(x, y)
+                screen_x, screen_y = camera.apply(world_x, world_y)
+                pos = (round(screen_x) + offset_x, round(screen_y) + offset_y)
+                screen.blit(frames[frame_idx], pos)
+                if (x, y) in edge_tiles:
+                    overlay = get_water_edge_overlay_frames(tmx_map.tile_size, camera.zoom, variant)
+                    screen.blit(overlay[frame_idx], pos)
 
 
 def _build_render_queue(

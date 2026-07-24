@@ -9,7 +9,7 @@ import random
 import datetime
 import pygame
 import pytmx
-from typing import List, Dict, Tuple, Any, Optional, Union
+from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
 from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
@@ -25,7 +25,7 @@ from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 from .npcs.sheep import Sheep
-from .water import Water, Ripple
+from .water import Water, Ripple, water_tile_variant
 
 
 
@@ -134,6 +134,12 @@ class TMXMap:
         self.fields: List[Field] = []
         self.sheep: List[Sheep] = []
         self.waters: List[Water] = []
+        # Grid cells covered by water (used for the animated water tile
+        # rendering in map_view.py). Rasterized once at load time so the
+        # render loop only ever needs an O(1) set lookup per visible tile.
+        self.water_tiles: Set[Tuple[int, int]] = set()
+        self.water_tile_variant: Dict[Tuple[int, int], int] = {}
+        self.water_edge_tiles: Set[Tuple[int, int]] = set()
 
         self._load_houses()
         self._load_special_points()
@@ -144,6 +150,7 @@ class TMXMap:
         self._load_smoke()
         self._load_movements()
         self._load_water()
+        self._rasterize_water_tiles()
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
@@ -160,6 +167,33 @@ class TMXMap:
                     if hasattr(obj, 'points') and obj.points:
                         world_points = [(obj.x + px, obj.y + py) for px, py in obj.points]
                         self.waters.append(Water(obj.name or "Water", world_points))
+
+    def _rasterize_water_tiles(self) -> None:
+        """Compute which grid cells lie inside a water polygon, once at load time.
+
+        This turns the (potentially complex) polygon test into a plain set
+        membership check that the per-frame render loop can afford to do for
+        every visible tile, even when nothing on screen is water.
+        """
+        for water in self.waters:
+            rect = water._bounding_rect
+            gx0 = max(0, rect.left // self.tile_size)
+            gy0 = max(0, rect.top // self.tile_size)
+            gx1 = min(self.width - 1, rect.right // self.tile_size)
+            gy1 = min(self.height - 1, rect.bottom // self.tile_size)
+            for gy in range(int(gy0), int(gy1) + 1):
+                for gx in range(int(gx0), int(gx1) + 1):
+                    cx = gx * self.tile_size + self.tile_size / 2
+                    cy = gy * self.tile_size + self.tile_size / 2
+                    if water.contains_point(cx, cy):
+                        self.water_tiles.add((gx, gy))
+                        self.water_tile_variant[(gx, gy)] = water_tile_variant(gx, gy)
+
+        for (gx, gy) in self.water_tiles:
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                if (gx + dx, gy + dy) not in self.water_tiles:
+                    self.water_edge_tiles.add((gx, gy))
+                    break
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""
@@ -1061,6 +1095,9 @@ class GameMap:
         # static TMX data, so they live on GameMap rather than TMXMap.
         self.ripples: List[Ripple] = []
 
+        # Shared clock driving the water wave flipbook animation (map_view.py).
+        self.water_anim_time: float = 0.0
+
     def add_ripple(self, x: float, y: float, delay: float = 0.0, radius_cap: float = 18.0) -> None:
         self.ripples.append(Ripple(x, y, delay, radius_cap))
 
@@ -1123,6 +1160,7 @@ class GameMap:
         self.tmx_map.update_smoke(dt, current_time)
         self.tmx_map.update_mills(dt)
         self.update_ripples(dt)
+        self.water_anim_time += dt
         self.camera.update(
             self.map_player.x + self.map_player.width / 2.0,
             self.map_player.y + self.map_player.height / 2.0,
