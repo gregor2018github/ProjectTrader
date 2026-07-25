@@ -45,3 +45,20 @@ def score_to_coins(score: int, max_score: int) -> float:
         return 0.0
     ratio = max(0.0, min(1.0, score / max_score))
     return round(20 * ratio ** 2.5, 2)
+
+
+def score_to_display(score: int, max_score: int) -> int:
+    """Displayed score, reshaped onto the same curve as ``score_to_coins``.
+
+    The raw score is a plain linear sum of per-swing hit points, but the
+    payout it earns is not — near-perfect play is worth disproportionately
+    more coin than the raw score gap suggests (e.g. 110/150 pays far more
+    than 100/150). Showing the raw score alongside that payout reads as
+    unintuitive, so the on-screen score is passed through the identical
+    curve purely for display: it does not affect scoring, highscores, or
+    payout, which all keep using the real linear score.
+    """
+    if max_score == 0:
+        return 0
+    ratio = max(0.0, min(1.0, score / max_score))
+    return round(max_score * ratio ** 2.5)

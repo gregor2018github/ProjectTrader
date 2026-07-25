@@ -24,7 +24,7 @@ from typing import Optional, Tuple
 
 import pygame
 
-from .base import MinigameOverlay, score_to_coins
+from .base import MinigameOverlay, score_to_coins, score_to_display
 from ...config.colors import (
     BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN,
     MUTED_GREEN as GREEN, MUTED_DARK_GREEN as DARK_GREEN,
@@ -411,7 +411,7 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, _CANVAS_H - 46, _CANVAS_W, 46))
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, _CANVAS_H - 46), (_CANVAS_W, _CANVAS_H - 46), 1)
 
-        left = self.font.render(f"Score: {self.score} / {MAX_SCORE}", True, SANDY_BROWN)
+        left = self.font.render(f"Score: {score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, SANDY_BROWN)
         self.canvas.blit(left, (20, _CANVAS_H - 32))
 
         mid = self.font.render(f"Swing  {self.attempt} / {MAX_SWINGS}", True, SANDY_BROWN)
@@ -432,11 +432,11 @@ class WoodhackingMinigame(MinigameOverlay):
         title = self.font_large.render("Session Complete!", True, DARK_BROWN)
         self.canvas.blit(title, title.get_rect(center=(400, 205)))
 
-        score_txt = self.font.render(f"Score:  {self.score} / {MAX_SCORE}", True, BLACK)
+        score_txt = self.font.render(f"Score:  {score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, BLACK)
         self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 250)))
 
         hs_color = GOLD if self.new_highscore else DARK_BROWN
-        hs_txt = self.font.render(f"Highscore:  {self.highscore} / {MAX_SCORE}", True, hs_color)
+        hs_txt = self.font.render(f"Highscore:  {score_to_display(self.highscore, MAX_SCORE)} / {MAX_SCORE}", True, hs_color)
         self.canvas.blit(hs_txt, hs_txt.get_rect(center=(400, 276)))
 
         coin_color = DARK_GREEN if coins >= 15 else (ORANGE if coins >= 8 else RED)
@@ -466,7 +466,7 @@ class WoodhackingMinigame(MinigameOverlay):
         title = self.font_large.render("New Highscore!", True, GOLD)
         self.canvas.blit(title, title.get_rect(center=(400, 240)))
 
-        score_txt = self.font_hit.render(f"{self.score} / {MAX_SCORE}", True, DARK_BROWN)
+        score_txt = self.font_hit.render(f"{score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, DARK_BROWN)
         self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 285)))
 
         sub = self.font.render("Well hacked, woodcutter!", True, PALE_BROWN)
