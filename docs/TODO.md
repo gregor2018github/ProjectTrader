@@ -1,8 +1,9 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] design water tile movement animation
 - [ ] add the forester hut where the wood mini game will be located
+- [ ] create a deco tileset that contains non-collision items like flowers, mushrooms, sticks, etc. that can be placed on the map to make it look more alive
+- [ ] populate the map with a first set of deco items
 - [ ] add two more houses with different designs
 - [ ] let the woodhacking mini game be available in the forester hut (clickable building)
 
@@ -17,6 +18,8 @@
 - [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
 - [ ] logic to actually cover booths at night with tarps
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
+- [ ] improve the water animation, actually split it into sea and river tiles
+- [ ] add a bridge to go over the river
 - [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 - [ ] implement a merchant rank system
@@ -50,6 +53,7 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] design water tile movement animation
 - [x] woodhacking mini game must only be available once per day 
 - [x] add sounds for hitting and missing the wood in the minigame
 - [x] add a functionality to throw down a stone into the water (plays a splash sound like the well, no other effect yet) — click a water tile while standing next to it to open a small generic interaction menu (fishing will be added here later)
