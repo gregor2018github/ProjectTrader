@@ -1,29 +1,28 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] add the forester hut where the wood mini game will be located
 - [ ] create a deco tileset that contains non-collision items like flowers, mushrooms, sticks, etc. that can be placed on the map to make it look more alive
-- [ ] populate the map with a first set of deco items
 - [ ] add two more houses with different designs
-- [ ] let the woodhacking mini game be available in the forester hut (clickable building)
-
-## Medium Priority
-
-- [ ] add sprites of oak trees or linden trees as a second type of tree
+- [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] add profit overview in the depot chart view
-- [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
-- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
-- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] Trading at the market should only be available between 5am and 12pm
 - [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
 - [ ] logic to actually cover booths at night with tarps
-- [ ] give the player 8 instead of 4 movement directions (diagonals)
+
+## Medium Priority
+
+- [ ] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed
+- [ ] have a big warehouse close to the market area, that one will be expensive and needs reputation to be unlocked
+- [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
+- [ ] add sprites of oak trees or linden trees as a second type of tree
+- [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
+- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
+- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] improve the water animation, actually split it into sea and river tiles
 - [ ] add a bridge to go over the river
 - [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
 - [ ] other people must stand behind the market booths, create and add NPC sprites
 - [ ] implement a merchant rank system
-- [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
@@ -53,6 +52,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add the forester hut where the wood mini game will be located
+- [x] populate the map with a first set of deco items
+- [x] let the woodhacking mini game be available in the forester hut (clickable building)
 - [x] design water tile movement animation
 - [x] woodhacking mini game must only be available once per day 
 - [x] add sounds for hitting and missing the wood in the minigame
