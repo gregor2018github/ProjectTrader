@@ -30,7 +30,7 @@ class Menu:
             os.path.join(FONTS_PATH, "RomanAntique.ttf"), 20
         )
         self.is_open: bool = False
-        self.items: List[str] = ["Save Game", "Load Game", "Settings", "Main Menu", "Quit", "Demo", "Woodhacking"]
+        self.items: List[str] = ["Save Game", "Load Game", "Settings", "Main Menu", "Quit", "Demo"]
         
         # Menu button dimensions and position
         self.button_width: int = 100

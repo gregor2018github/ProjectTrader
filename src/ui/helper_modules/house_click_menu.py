@@ -287,6 +287,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Throw Rock")
         options.insert(0, "Throw Coin")
 
+    if house.name == "Stomp":
+        options.insert(0, "Chop Wood")
+
     if isinstance(house, Bank):
         options.insert(0, "Manage Loans")
         options.insert(0, "Take Out Loan")
@@ -302,6 +305,23 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
 
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
+        if option_text == "Chop Wood" and house.name == "Stomp":
+            today = game_state.date.date().isoformat()
+            depot = game_state.game.depot
+            if depot.stats.last_woodhacking_day == today:
+                game_state.show_warning("You already chopped wood today! Come back tomorrow.")
+                game_state.info_window = None
+                game_state.active_house_menu = None
+                return
+            from ...models.minigames.woodhacking import WoodhackingMinigame
+            depot.stats.last_woodhacking_day = today
+            game_state.previous_time_level = game_state.time_level
+            game_state.time_level = 1
+            game_state.info_window = None
+            game_state.active_house_menu = None
+            game_state.minigame = WoodhackingMinigame(game_state.screen, game_state.game)
+            return
+
         if option_text == "Buy Building" and isinstance(house, Warehouse) and not house.is_owned:
             from .buy_building_dialog import open_buy_building_dialog
             open_buy_building_dialog(game_state, house)

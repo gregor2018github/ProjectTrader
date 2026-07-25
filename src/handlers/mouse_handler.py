@@ -307,18 +307,6 @@ def handle_mouse_click(pos: Tuple[int, int],
                     "story_teller_1"        # Sound to play
                 )
                 return
-            elif menu_action == "Woodhacking":
-                today = game_state.date.date().isoformat()
-                depot = game_state.game.depot
-                if depot.stats.last_woodhacking_day == today:
-                    game_state.show_warning("You already chopped wood today! Come back tomorrow.")
-                    return
-                from ..models.minigames.woodhacking import WoodhackingMinigame
-                depot.stats.last_woodhacking_day = today
-                game_state.previous_time_level = game_state.time_level
-                game_state.time_level = 1
-                game_state.minigame = WoodhackingMinigame(game_state.screen, game_state.game)
-                return
             elif menu_action == "Main Menu":
                 game_state.info_window = InfoWindow(game_state.screen,
                                                   "Return to main menu?",
