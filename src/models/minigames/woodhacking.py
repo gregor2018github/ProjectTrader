@@ -143,9 +143,9 @@ def _grade_aim(aim: float) -> Tuple[int, str, tuple, bool]:
     a hard miss (last element True), no matter how good the power was.
     """
     if aim < 0:
-        perfect, very_good, good, ok = _AIM_PERFECT_L, _AIM_VERYGOOD_L, _AIM_GOOD_L, _AIM_OK_L
+        perfect, very_good, good, fair = _AIM_PERFECT_L, _AIM_VERYGOOD_L, _AIM_GOOD_L, _AIM_OK_L
     else:
-        perfect, very_good, good, ok = _AIM_PERFECT_R, _AIM_VERYGOOD_R, _AIM_GOOD_R, _AIM_OK_R
+        perfect, very_good, good, fair = _AIM_PERFECT_R, _AIM_VERYGOOD_R, _AIM_GOOD_R, _AIM_OK_R
     a = abs(aim)
     if a >= _AIM_MAX - _AIM_MISS_MARGIN:
         return 0, "MISS", DARK_RED, True
@@ -155,24 +155,33 @@ def _grade_aim(aim: float) -> Tuple[int, str, tuple, bool]:
         return 3, "VERY GOOD", DARK_GREEN, False
     if a < good:
         return 2, "GOOD", GREEN, False
-    if a < ok:
-        return 1, "OK", YELLOW, False
+    if a < fair:
+        return 1, "FAIR", YELLOW, False
     return 0, "MISS", RED, False
 
 
 def _grade_power(power: float, opt_lo: float, opt_hi: float) -> Tuple[int, str, tuple, bool]:
     """Power: 0-2 points (uses the current dynamic zone).
 
-    Landing in the dark-red zone is a hard miss (last element True) — too
-    weak or too strong to count no matter how good the aim was.
+    The green sweet spot is split into an inner PERFECT sliver and an outer
+    VERY GOOD band (same points/color as PERFECT, just a distinct label —
+    mirrors the aim gauge's PERFECT/VERY GOOD split) so PERFECT reads as
+    genuinely rare. Landing in the dark-red zone is a hard miss (last
+    element True) — too weak or too strong to count no matter how good the
+    aim was.
     """
     ylo, yhi, rlo, rhi = _power_zone_bounds(opt_lo, opt_hi)
+    green_span = opt_hi - opt_lo
+    perfect_lo = opt_lo + green_span * 0.25
+    perfect_hi = opt_hi - green_span * 0.25
     if power < rlo or power > rhi:
         return 0, "MISS", DARK_RED, True
-    if opt_lo <= power <= opt_hi:
+    if perfect_lo <= power <= perfect_hi:
         return 2, "PERFECT", DARK_GREEN, False
+    if opt_lo <= power <= opt_hi:
+        return 2, "VERY GOOD", DARK_GREEN, False
     if ylo <= power < opt_lo or opt_hi < power <= yhi:
-        return 1, "OK", YELLOW, False
+        return 1, "GOOD", YELLOW, False
     return 0, "WEAK", RED, False
 
 
