@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] create a deco tileset that contains non-collision items like flowers, mushrooms, sticks, etc. that can be placed on the map to make it look more alive
 - [ ] add two more houses with different designs
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] add profit overview in the depot chart view
@@ -52,6 +51,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add better floor effects like dirrt and fallen leaves for the forest, these can go to the deco tileset
+- [x] create a deco tileset that contains non-collision items like flowers, mushrooms, sticks, etc. that can be placed on the map to make it look more alive
 - [x] add the forester hut where the wood mini game will be located
 - [x] populate the map with a first set of deco items
 - [x] let the woodhacking mini game be available in the forester hut (clickable building)
