@@ -48,12 +48,17 @@ _AIM_CX, _AIM_CY = _CANVAS_W // 2, 305
 _AIM_R = 148
 
 # Left-side zone boundaries (negative angles, more forgiving)
-_AIM_PERFECT_L = math.radians(7)
+# PERFECT is the tight inner sliver; VERY GOOD covers the rest of what used
+# to be a single (too generous) PERFECT zone — same points and color as
+# PERFECT, just a distinct label so "PERFECT" reads as genuinely rare.
+_AIM_PERFECT_L = math.radians(3.5)
+_AIM_VERYGOOD_L = math.radians(7)
 _AIM_GOOD_L = math.radians(18)
 _AIM_OK_L = math.radians(52)
 
 # Right-side zone boundaries (positive angles, tighter green zones)
-_AIM_PERFECT_R = math.radians(4)
+_AIM_PERFECT_R = math.radians(2)
+_AIM_VERYGOOD_R = math.radians(4)
 _AIM_GOOD_R = math.radians(10)
 _AIM_OK_R = math.radians(40)
 
@@ -138,14 +143,16 @@ def _grade_aim(aim: float) -> Tuple[int, str, tuple, bool]:
     a hard miss (last element True), no matter how good the power was.
     """
     if aim < 0:
-        perfect, good, ok = _AIM_PERFECT_L, _AIM_GOOD_L, _AIM_OK_L
+        perfect, very_good, good, ok = _AIM_PERFECT_L, _AIM_VERYGOOD_L, _AIM_GOOD_L, _AIM_OK_L
     else:
-        perfect, good, ok = _AIM_PERFECT_R, _AIM_GOOD_R, _AIM_OK_R
+        perfect, very_good, good, ok = _AIM_PERFECT_R, _AIM_VERYGOOD_R, _AIM_GOOD_R, _AIM_OK_R
     a = abs(aim)
     if a >= _AIM_MAX - _AIM_MISS_MARGIN:
         return 0, "MISS", DARK_RED, True
     if a < perfect:
         return 3, "PERFECT", DARK_GREEN, False
+    if a < very_good:
+        return 3, "VERY GOOD", DARK_GREEN, False
     if a < good:
         return 2, "GOOD", GREEN, False
     if a < ok:
@@ -348,10 +355,10 @@ class WoodhackingMinigame(MinigameOverlay):
             (_AIM_OK_R, dark_lo, RED, 16),
             (-_AIM_OK_L, -_AIM_GOOD_L, YELLOW, 17),
             (_AIM_GOOD_R, _AIM_OK_R, YELLOW, 17),
-            (-_AIM_GOOD_L, -_AIM_PERFECT_L, GREEN, 18),
-            (_AIM_PERFECT_R, _AIM_GOOD_R, GREEN, 18),
-            (-_AIM_PERFECT_L, 0, DARK_GREEN, 22),
-            (0, _AIM_PERFECT_R, DARK_GREEN, 22),
+            (-_AIM_GOOD_L, -_AIM_VERYGOOD_L, GREEN, 18),
+            (_AIM_VERYGOOD_R, _AIM_GOOD_R, GREEN, 18),
+            (-_AIM_VERYGOOD_L, 0, DARK_GREEN, 22),
+            (0, _AIM_VERYGOOD_R, DARK_GREEN, 22),
         ]
         for a0, a1, col, w in zones:
             if a1 > a0:
