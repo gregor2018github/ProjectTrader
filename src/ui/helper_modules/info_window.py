@@ -77,6 +77,30 @@ class InfoWindow:
             )
             self.buttons.append((button_rect, option))
 
+        # Keyboard selection: the first option starts pre-selected (highlighted
+        # as if hovered). Tab / arrow keys move it, Enter confirms.
+        self.selected_index: int = 0 if options else -1
+
+    def handle_key(self, event: pygame.event.Event) -> Optional[str]:
+        """Process a KEYDOWN event for keyboard navigation.
+
+        Returns the chosen option when the selection is confirmed, else None.
+        """
+        if event.type != pygame.KEYDOWN or not self.buttons:
+            return None
+
+        if event.key == pygame.K_TAB:
+            step = -1 if event.mod & pygame.KMOD_SHIFT else 1
+            self.selected_index = (self.selected_index + step) % len(self.buttons)
+        elif event.key in (pygame.K_RIGHT, pygame.K_DOWN):
+            self.selected_index = (self.selected_index + 1) % len(self.buttons)
+        elif event.key in (pygame.K_LEFT, pygame.K_UP):
+            self.selected_index = (self.selected_index - 1) % len(self.buttons)
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+            if 0 <= self.selected_index < len(self.buttons):
+                return self.buttons[self.selected_index][1]
+        return None
+
     def draw(self) -> None:
         s = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
         s.set_alpha(128)
@@ -113,8 +137,15 @@ class InfoWindow:
                 y += _BOLD_PAD
 
         mouse_pos = pygame.mouse.get_pos()
-        for button_rect, text in self.buttons:
-            is_hovered = button_rect.collidepoint(mouse_pos)
+        # Hovering with the mouse moves the keyboard selection along, so both
+        # input methods always agree on what is currently active.
+        for i, (button_rect, _) in enumerate(self.buttons):
+            if button_rect.collidepoint(mouse_pos):
+                self.selected_index = i
+                break
+
+        for i, (button_rect, text) in enumerate(self.buttons):
+            is_hovered = i == self.selected_index
             button_color = LIGHT_GRAY if is_hovered else WHITE
             text_color = WHITE if is_hovered else BLACK
             pygame.draw.rect(self.screen, button_color, button_rect)

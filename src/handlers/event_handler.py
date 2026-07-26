@@ -70,6 +70,11 @@ class EventHandler:
                                                     ["Back", "Quit"],
                                                     game_state.font,
                                                     game_state.game)
+            elif game_state.info_window and hasattr(game_state.info_window, 'handle_key'):
+                # Modal info window has keyboard focus: Tab/arrows move the
+                # selection, Enter confirms it.
+                choice = game_state.info_window.handle_key(event)
+                self._apply_info_window_choice(choice, game_state)
             elif not (game_state.info_window and hasattr(game_state.info_window, 'handle_event')):
                 handle_keyboard_input(event, game_state, goods, depot)
                 
@@ -100,74 +105,10 @@ class EventHandler:
             if game_state.info_window:
                 if hasattr(game_state.info_window, 'handle_click'):
                     choice = game_state.info_window.handle_click(event.pos)
-                    if choice == "Quit":
-                        self.running = False
-                    elif choice == "Yes":
-                        game_state.return_to_main_menu = True
-                        self.running = False
-                    elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
-                        if hasattr(game_state.info_window, 'restore_time_level'):
-                            game_state.time_level = game_state.info_window.restore_time_level
-                        game_state.info_window = None
-                    elif isinstance(choice, str) and choice.startswith("save_slot_"):
-                        import os
-                        from ..persistence.save_manager import save_game as _save
-                        from ..config.constants import SAVES_PATH
-                        slot = int(choice[-1])
-                        save_name = getattr(game_state.info_window, "save_name", "")
-                        # Save thumbnail before writing the save file
-                        screenshot = getattr(game_state.info_window, "screenshot", None)
-                        if screenshot is not None:
-                            try:
-                                os.makedirs(SAVES_PATH, exist_ok=True)
-                                thumb = pygame.transform.smoothscale(screenshot, (576, 348))
-                                pygame.image.save(thumb, os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png"))
-                            except Exception:
-                                pass
-                        try:
-                            # Sync map player position into the player model before serialising
-                            mp = game_state.game.game_map.map_player
-                            game_state.game.player.position = (int(mp.x), int(mp.y))
-                            _save(slot, game_state, game_state.game.player,
-                                  game_state.game.depot, game_state.game.goods,
-                                  save_name=save_name,
-                                  population_manager=game_state.game.population_manager)
-                            game_state.info_window = None
-                            game_state.show_warning(f"Game saved to Slot {slot}.")
-                        except Exception as e:
-                            game_state.info_window = None
-                            game_state.show_warning(f"Save failed: {e}")
-                    elif isinstance(choice, str) and choice.startswith("load_slot_"):
-                        slot = int(choice[-1])
-                        game_state._pending_load_slot = slot
-                        game_state.info_window = InfoWindow(
-                            game_state.screen,
-                            "Load game?\nCurrent progress will be lost.",
-                            ["No", "Load"],
-                            game_state.font,
-                            game_state.game,
-                        )
-                    elif choice == "Load":
-                        slot = getattr(game_state, "_pending_load_slot", None)
-                        if slot:
-                            from ..persistence.save_manager import load_game as _load, apply_save_data
-                            try:
-                                data = _load(slot)
-                                apply_save_data(data, game_state, game_state.game.player,
-                                               game_state.game.depot, game_state.game.goods,
-                                               population_manager=game_state.game.population_manager)
-                                game_state.game.game_map.map_player.x = game_state.game.player.position[0]
-                                game_state.game.game_map.map_player.y = game_state.game.player.position[1]
-                                game_state.info_window = None
-                                game_state._pending_load_slot = None
-                                game_state.show_warning("Game loaded.")
-                            except Exception as e:
-                                game_state.info_window = None
-                                game_state._pending_load_slot = None
-                                game_state.show_warning(f"Load failed: {e}")
+                    self._apply_info_window_choice(choice, game_state)
             else:
                 handle_mouse_click(pygame.mouse.get_pos(), buttons, game_state, goods, depot)
-                
+
         elif event.type == pygame.MOUSEWHEEL:
             mouse_pos = pygame.mouse.get_pos()
             scroll_speed = 20
@@ -179,24 +120,24 @@ class EventHandler:
             # Check if map is active and mouse is over map area
             if game_state.is_map_visible and hasattr(game_state.game, 'game_map'):
                 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
-                
+
                 # Check for map on left side (includes full screen if left is map)
                 if game_state.left_side_mode == 'map':
                     left_rect = pygame.Rect(0, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
                     if game_state.left_side_mode == game_state.right_side_mode:
                         left_rect.width = MODULE_WIDTH * 2
-                    
+
                     if left_rect.collidepoint(mouse_pos):
                         game_state.game.game_map.handle_zoom(event.y)
                         return self.running
-                
+
                 # Check for map on right side
                 if game_state.right_side_mode == 'map':
                     right_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
                     if right_rect.collidepoint(mouse_pos):
                         game_state.game.game_map.handle_zoom(event.y)
                         return self.running
-            
+
             # Check if detail panel is visible and mouse is over it
             if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
                 game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))
@@ -212,3 +153,78 @@ class EventHandler:
                     game_state.depot_scroll_offset = getattr(game_state, "depot_scroll_offset", 0) - event.y * scroll_speed
 
         return self.running
+
+    def _apply_info_window_choice(self, choice: Optional[str], game_state: Any) -> None:
+        """Execute the action behind a button of the active info window.
+
+        Shared by mouse clicks and keyboard confirmation, so both routes behave
+        identically.
+        """
+        if not choice:
+            return
+
+        if choice == "Quit":
+            self.running = False
+        elif choice == "Yes":
+            game_state.return_to_main_menu = True
+            self.running = False
+        elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
+            if hasattr(game_state.info_window, 'restore_time_level'):
+                game_state.time_level = game_state.info_window.restore_time_level
+            game_state.info_window = None
+        elif isinstance(choice, str) and choice.startswith("save_slot_"):
+            import os
+            from ..persistence.save_manager import save_game as _save
+            from ..config.constants import SAVES_PATH
+            slot = int(choice[-1])
+            save_name = getattr(game_state.info_window, "save_name", "")
+            # Save thumbnail before writing the save file
+            screenshot = getattr(game_state.info_window, "screenshot", None)
+            if screenshot is not None:
+                try:
+                    os.makedirs(SAVES_PATH, exist_ok=True)
+                    thumb = pygame.transform.smoothscale(screenshot, (576, 348))
+                    pygame.image.save(thumb, os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png"))
+                except Exception:
+                    pass
+            try:
+                # Sync map player position into the player model before serialising
+                mp = game_state.game.game_map.map_player
+                game_state.game.player.position = (int(mp.x), int(mp.y))
+                _save(slot, game_state, game_state.game.player,
+                      game_state.game.depot, game_state.game.goods,
+                      save_name=save_name,
+                      population_manager=game_state.game.population_manager)
+                game_state.info_window = None
+                game_state.show_warning(f"Game saved to Slot {slot}.")
+            except Exception as e:
+                game_state.info_window = None
+                game_state.show_warning(f"Save failed: {e}")
+        elif isinstance(choice, str) and choice.startswith("load_slot_"):
+            slot = int(choice[-1])
+            game_state._pending_load_slot = slot
+            game_state.info_window = InfoWindow(
+                game_state.screen,
+                "Load game?\nCurrent progress will be lost.",
+                ["No", "Load"],
+                game_state.font,
+                game_state.game,
+            )
+        elif choice == "Load":
+            slot = getattr(game_state, "_pending_load_slot", None)
+            if slot:
+                from ..persistence.save_manager import load_game as _load, apply_save_data
+                try:
+                    data = _load(slot)
+                    apply_save_data(data, game_state, game_state.game.player,
+                                   game_state.game.depot, game_state.game.goods,
+                                   population_manager=game_state.game.population_manager)
+                    game_state.game.game_map.map_player.x = game_state.game.player.position[0]
+                    game_state.game.game_map.map_player.y = game_state.game.player.position[1]
+                    game_state.info_window = None
+                    game_state._pending_load_slot = None
+                    game_state.show_warning("Game loaded.")
+                except Exception as e:
+                    game_state.info_window = None
+                    game_state._pending_load_slot = None
+                    game_state.show_warning(f"Load failed: {e}")
