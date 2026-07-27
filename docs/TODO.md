@@ -3,6 +3,7 @@
 ## High Priority
 - [ ] give the player 8 instead of 4 movement directions (diagonals)
 - [ ] add profit overview in the depot chart view
+- [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] Trading at the market should only be available between 5am and 12pm
 - [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
 - [ ] logic to actually cover booths at night with tarps
@@ -14,9 +15,10 @@
 - [ ] have a big warehouse close to the market area, that one will be expensive and needs reputation to be unlocked
 - [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
+- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
+- [ ] plant more trees to increase the size of the forest
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
 - [ ] rethink the market mechanics - supply and demand, city size influence, etc.
-- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
 - [ ] improve the water animation, actually split it into sea and river tiles
 - [ ] add a bridge to go over the river
 - [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
