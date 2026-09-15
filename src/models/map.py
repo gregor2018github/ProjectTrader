@@ -673,7 +673,20 @@ class TMXMap:
 class DirectionalAnimator:
     """Handles directional animations with sprite fallbacks."""
 
-    DIRECTIONS: Tuple[str, ...] = ("front", "back", "left", "right")
+    DIRECTIONS: Tuple[str, ...] = (
+        "front", "back", "left", "right",
+        "front_left", "front_right", "back_left", "back_right",
+    )
+
+    # A direction with no artwork of its own borrows the cardinal one it is
+    # closest to. Diagonals fall back to the vertical component, which is what
+    # the movement code picked before diagonals existed.
+    DIRECTION_FALLBACKS: Dict[str, str] = {
+        "front_left": "front",
+        "front_right": "front",
+        "back_left": "back",
+        "back_right": "back",
+    }
 
     # Source frames are kept at this multiple of the target box so that zooming
     # in still downsamples (rather than upsamples) from a crisp original.
@@ -687,6 +700,7 @@ class DirectionalAnimator:
         fallback_static: str,
         normalize: bool = False,
         target_height: Optional[int] = None,
+        box_width: Optional[int] = None,
     ) -> None:
         """Initialize the animator.
         
@@ -701,6 +715,9 @@ class DirectionalAnimator:
                 the source artwork has inconsistent canvas sizes or padding.
             target_height: Height of the normalized box. Defaults to the height the
                 fallback static image would get when scaled to ``target_width``.
+            box_width: Width of the normalized box. Defaults to ``target_width``.
+                Widen it when some poses (diagonals, held items) are broader than
+                the logical width, so they are not shrunk to fit.
         """
         self.base_path: str = base_path
         self.sprite_definitions: Dict[str, Dict[str, Any]] = sprite_definitions
@@ -719,16 +736,23 @@ class DirectionalAnimator:
         if target_height is None:
             target_height = self.fallback_scaled.get_height()
         self.target_height: int = max(1, int(target_height))
+        self.box_width: int = max(1, int(box_width if box_width is not None else target_width))
 
         self.frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
         self.source_frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
         
+        # Directions whose artwork is missing and must borrow another direction's.
+        # Filled during the load pass, resolved afterwards so that a fallback
+        # direction is always fully built before anything points at it.
+        missing: Dict[str, List[str]] = {}
+
         for direction in self.DIRECTIONS:
             config = self.sprite_definitions.get(direction, {})
             source_static = self._load_image(config.get("static", ""))
             static_surface = self._scale_to_target(source_static)
-            
+
             if source_static is None:
+                missing.setdefault(direction, []).append("static")
                 source_static = self.fallback_surface
             if static_surface is None:
                 static_surface = self.fallback_scaled
@@ -759,6 +783,7 @@ class DirectionalAnimator:
                     move_frames = [self._downscale_to_box(f) for f in move_sources]
 
             if not move_frames:
+                missing.setdefault(direction, []).append("move")
                 move_frames = [static_surface]
             if not move_sources:
                 move_sources = [source_static]
@@ -771,6 +796,16 @@ class DirectionalAnimator:
                 "static": [source_static],
                 "move": move_sources,
             }
+
+        # Point directions with no artwork of their own at their fallback, per
+        # animation group — a direction may have walk frames but no static pose.
+        for direction, keys in missing.items():
+            fallback = self.DIRECTION_FALLBACKS.get(direction)
+            if fallback is None or fallback not in self.frames:
+                continue
+            for key in keys:
+                self.frames[direction][key] = self.frames[fallback][key]
+                self.source_frames[direction][key] = self.source_frames[fallback][key]
 
         self.current_direction: str = "front"
         self.is_moving: bool = False
@@ -830,7 +865,7 @@ class DirectionalAnimator:
 
     def _downscale_to_box(self, image: pygame.Surface) -> pygame.Surface:
         """Downscale a supersampled normalized frame to the logical box size."""
-        return pygame.transform.smoothscale(image, (self.target_width, self.target_height))
+        return pygame.transform.smoothscale(image, (self.box_width, self.target_height))
 
     def _normalize_group(self, sources: List[pygame.Surface]) -> List[pygame.Surface]:
         """Render a group of frames into one fixed-size box without distortion.
@@ -848,7 +883,7 @@ class DirectionalAnimator:
             List[pygame.Surface]: Supersampled, uniformly sized frames.
         """
         ss = self.NORMALIZE_SUPERSAMPLE
-        box_w = max(1, self.target_width * ss)
+        box_w = max(1, self.box_width * ss)
         box_h = max(1, self.target_height * ss)
 
         rects = [img.get_bounding_rect() for img in sources]
@@ -969,6 +1004,24 @@ class MapPlayer:
                 "static": "player_right_static.png",
                 "move": ["player_right_move1.png", "player_right_move2.png"],
             },
+            # Diagonals are optional — any direction whose files are absent falls
+            # back to its vertical counterpart (see DIRECTION_FALLBACKS).
+            "front_left": {
+                "static": "player_front_left_static.png",
+                "move": ["player_front_left_move1.png", "player_front_left_move2.png", "player_front_left_move3.png"],
+            },
+            "front_right": {
+                "static": "player_front_right_static.png",
+                "move": ["player_front_right_move1.png", "player_front_right_move2.png", "player_front_right_move3.png"],
+            },
+            "back_left": {
+                "static": "player_back_left_static.png",
+                "move": ["player_back_left_move1.png", "player_back_left_move2.png", "player_back_left_move3.png"],
+            },
+            "back_right": {
+                "static": "player_back_right_static.png",
+                "move": ["player_back_right_move1.png", "player_back_right_move2.png", "player_back_right_move3.png"],
+            },
         }
 
         self.animator: DirectionalAnimator = DirectionalAnimator(
@@ -980,6 +1033,10 @@ class MapPlayer:
             # sizes and padding; normalizing at load time is what keeps frames from
             # being squashed into the static frame's aspect ratio at draw time.
             normalize=True,
+            # Diagonal poses are broader than a tile; give the sprite box some
+            # horizontal slack so they keep full height instead of being shrunk
+            # to fit. The logical collision width stays one tile.
+            box_width=int(round(tile_size * 1.5)),
         )
 
         self.sprite: pygame.Surface = self.animator.get_current_frame()
@@ -988,6 +1045,10 @@ class MapPlayer:
         # They should remain stable even if animation frames have slightly different sizes.
         self.width: int = tile_size
         self.height: int = self.animator.target_height
+        # The drawn sprite is wider than the logical box and centred on it, so it
+        # needs a horizontal draw offset (see _build_render_queue in map_view.py).
+        self.sprite_width: int = self.animator.box_width
+        self.sprite_offset_x: float = -(self.sprite_width - self.width) / 2.0
         self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
         
         # Movement state
@@ -1090,8 +1151,16 @@ class MapPlayer:
         """
         if is_moving:
             if self.vel_y > 0:
+                if self.vel_x < 0:
+                    return "front_left"
+                if self.vel_x > 0:
+                    return "front_right"
                 return "front"
             if self.vel_y < 0:
+                if self.vel_x < 0:
+                    return "back_left"
+                if self.vel_x > 0:
+                    return "back_right"
                 return "back"
             if self.vel_x < 0:
                 return "left"
@@ -1178,7 +1247,7 @@ class MapPlayer:
                 if source_width <= 0 or source_height <= 0:
                     cache[frame_id] = self.sprite
                 else:
-                    target_width = max(1, int(round(self.width * zoom)))
+                    target_width = max(1, int(round(self.sprite_width * zoom)))
                     target_height = max(1, int(round(self.height * zoom)))
                     if target_width >= source_width or target_height >= source_height:
                         cache[frame_id] = pygame.transform.scale(base_frame, (target_width, target_height))
