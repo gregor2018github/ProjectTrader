@@ -675,7 +675,19 @@ class DirectionalAnimator:
 
     DIRECTIONS: Tuple[str, ...] = ("front", "back", "left", "right")
 
-    def __init__(self, base_path: str, sprite_definitions: Dict[str, Dict[str, Any]], target_width: int, fallback_static: str) -> None:
+    # Source frames are kept at this multiple of the target box so that zooming
+    # in still downsamples (rather than upsamples) from a crisp original.
+    NORMALIZE_SUPERSAMPLE: int = 4
+
+    def __init__(
+        self,
+        base_path: str,
+        sprite_definitions: Dict[str, Dict[str, Any]],
+        target_width: int,
+        fallback_static: str,
+        normalize: bool = False,
+        target_height: Optional[int] = None,
+    ) -> None:
         """Initialize the animator.
         
         Args:
@@ -683,10 +695,17 @@ class DirectionalAnimator:
             sprite_definitions: Configuration for directions and animations.
             target_width: Desired pixel width for frames.
             fallback_static: Filename for the emergency fallback image.
+            normalize: If True, every frame is cropped to its opaque content and
+                re-rendered into a fixed ``target_width`` x ``target_height`` box,
+                bottom-centred and with its aspect ratio preserved. Use this when
+                the source artwork has inconsistent canvas sizes or padding.
+            target_height: Height of the normalized box. Defaults to the height the
+                fallback static image would get when scaled to ``target_width``.
         """
         self.base_path: str = base_path
         self.sprite_definitions: Dict[str, Dict[str, Any]] = sprite_definitions
         self.target_width: int = target_width
+        self.normalize: bool = normalize
 
         self.fallback_surface: pygame.Surface = self._load_image(fallback_static)
         if self.fallback_surface is None:
@@ -695,6 +714,11 @@ class DirectionalAnimator:
 
         scaled = self._scale_to_target(self.fallback_surface)
         self.fallback_scaled: pygame.Surface = scaled if scaled else self.fallback_surface.copy()
+
+        # Fixed logical box every normalized frame is rendered into.
+        if target_height is None:
+            target_height = self.fallback_scaled.get_height()
+        self.target_height: int = max(1, int(target_height))
 
         self.frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
         self.source_frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
@@ -711,13 +735,28 @@ class DirectionalAnimator:
 
             move_frames: List[pygame.Surface] = []
             move_sources: List[pygame.Surface] = []
+            move_raw: List[pygame.Surface] = []
             for filename in config.get("move", []):
                 source_frame = self._load_image(filename)
                 frame = self._scale_to_target(source_frame)
                 if source_frame:
                     move_sources.append(source_frame)
+                    move_raw.append(source_frame)
                 if frame:
                     move_frames.append(frame)
+
+            if self.normalize:
+                # Normalize "static" and "move" as separate groups: every frame in a
+                # group shares one scale factor, so pose differences inside a walk
+                # cycle survive while the inconsistent source canvases do not.
+                if source_static is not None:
+                    static_sources = self._normalize_group([source_static])
+                    if static_sources:
+                        source_static = static_sources[0]
+                        static_surface = self._downscale_to_box(source_static)
+                if move_raw:
+                    move_sources = self._normalize_group(move_raw)
+                    move_frames = [self._downscale_to_box(f) for f in move_sources]
 
             if not move_frames:
                 move_frames = [static_surface]
@@ -788,6 +827,58 @@ class DirectionalAnimator:
         scale_ratio = self.target_width / float(original_width)
         scaled_height = max(1, int(round(original_height * scale_ratio)))
         return pygame.transform.smoothscale(image, (self.target_width, scaled_height))
+
+    def _downscale_to_box(self, image: pygame.Surface) -> pygame.Surface:
+        """Downscale a supersampled normalized frame to the logical box size."""
+        return pygame.transform.smoothscale(image, (self.target_width, self.target_height))
+
+    def _normalize_group(self, sources: List[pygame.Surface]) -> List[pygame.Surface]:
+        """Render a group of frames into one fixed-size box without distortion.
+
+        Each frame is cropped to its opaque bounding box, scaled by a factor shared
+        by the whole group (so the character keeps a consistent size and relative
+        pose heights), and blitted bottom-centred into a transparent box of
+        ``NORMALIZE_SUPERSAMPLE`` x the logical frame size. This runs once at load
+        time; nothing about it costs anything per rendered frame.
+
+        Args:
+            sources: Raw loaded surfaces belonging to one animation group.
+
+        Returns:
+            List[pygame.Surface]: Supersampled, uniformly sized frames.
+        """
+        ss = self.NORMALIZE_SUPERSAMPLE
+        box_w = max(1, self.target_width * ss)
+        box_h = max(1, self.target_height * ss)
+
+        rects = [img.get_bounding_rect() for img in sources]
+        # A fully transparent frame yields an empty rect — fall back to full canvas.
+        rects = [
+            r if r.width > 0 and r.height > 0 else pygame.Rect(0, 0, img.get_width(), img.get_height())
+            for img, r in zip(sources, rects)
+        ]
+
+        max_h = max(r.height for r in rects)
+        max_w = max(r.width for r in rects)
+        if max_h <= 0 or max_w <= 0:
+            return list(sources)
+
+        # Fill the box height, then shrink if the widest frame would overflow.
+        scale = box_h / float(max_h)
+        if max_w * scale > box_w:
+            scale = box_w / float(max_w)
+
+        normalized: List[pygame.Surface] = []
+        for img, rect in zip(sources, rects):
+            dest_w = max(1, int(round(rect.width * scale)))
+            dest_h = max(1, int(round(rect.height * scale)))
+            cropped = img.subsurface(rect)
+            scaled = pygame.transform.smoothscale(cropped, (dest_w, dest_h))
+
+            canvas = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+            canvas.blit(scaled, ((box_w - dest_w) // 2, box_h - dest_h))
+            normalized.append(canvas)
+        return normalized
 
     def update(self, dt: float, direction: str, is_moving: bool) -> None:
         """Update animation state.
@@ -864,7 +955,7 @@ class MapPlayer:
         sprite_definitions: Dict[str, Dict[str, Any]] = {
             "front": {
                 "static": "player_front_static.png",
-                "move": ["player_front_move1.png", "player_front_move2.png", "player_front_move3.png"]
+                "move": ["player_front_move1.png", "player_front_move2.png", "player_front_move3.png", "player_front_move4.png"]
             },
             "back": {
                 "static": "player_back_static.png",
@@ -885,6 +976,10 @@ class MapPlayer:
             sprite_definitions=sprite_definitions,
             target_width=tile_size,
             fallback_static="player_front_static.png",
+            # The player artwork comes from several sources with different canvas
+            # sizes and padding; normalizing at load time is what keeps frames from
+            # being squashed into the static frame's aspect ratio at draw time.
+            normalize=True,
         )
 
         self.sprite: pygame.Surface = self.animator.get_current_frame()
@@ -892,7 +987,7 @@ class MapPlayer:
         # width and height are used for logical collision and sorting.
         # They should remain stable even if animation frames have slightly different sizes.
         self.width: int = tile_size
-        self.height: int = self.sprite.get_height()
+        self.height: int = self.animator.target_height
         self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
         
         # Movement state
