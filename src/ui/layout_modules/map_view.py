@@ -541,8 +541,10 @@ def _build_render_queue(
     # Add player to queue
     player_sprite = map_player._get_scaled_sprite(camera.zoom)
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
-    # The sprite box is wider than the logical collision box and centred on it.
+    # The sprite box can be larger than the logical collision box: centred on it
+    # horizontally, standing on its baseline vertically.
     player_screen_x += map_player.sprite_offset_x * camera.zoom
+    player_screen_y += map_player.sprite_draw_offset_y * camera.zoom
     render_queue.append({
         'sprite': player_sprite,
         # Use rounding for draw position to prevent shimmering during slow movement

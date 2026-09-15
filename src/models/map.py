@@ -4,6 +4,7 @@ This module contains the map logic including TMX loading, camera management,
 player movement, collision detection, and map object management.
 """
 
+import math
 import os
 import random
 import datetime
@@ -700,7 +701,6 @@ class DirectionalAnimator:
         fallback_static: str,
         normalize: bool = False,
         target_height: Optional[int] = None,
-        box_width: Optional[int] = None,
     ) -> None:
         """Initialize the animator.
         
@@ -710,14 +710,13 @@ class DirectionalAnimator:
             target_width: Desired pixel width for frames.
             fallback_static: Filename for the emergency fallback image.
             normalize: If True, every frame is cropped to its opaque content and
-                re-rendered into a fixed ``target_width`` x ``target_height`` box,
-                bottom-centred and with its aspect ratio preserved. Use this when
-                the source artwork has inconsistent canvas sizes or padding.
+                re-rendered bottom-centred into one common box at a single shared
+                scale, preserving both aspect ratio and relative size. Use this when
+                the source artwork has inconsistent canvas sizes or padding. The
+                resulting box is ``box_width`` x ``box_height``, which may exceed
+                the logical ``target_width`` x ``target_height``.
             target_height: Height of the normalized box. Defaults to the height the
                 fallback static image would get when scaled to ``target_width``.
-            box_width: Width of the normalized box. Defaults to ``target_width``.
-                Widen it when some poses (diagonals, held items) are broader than
-                the logical width, so they are not shrunk to fit.
         """
         self.base_path: str = base_path
         self.sprite_definitions: Dict[str, Dict[str, Any]] = sprite_definitions
@@ -736,69 +735,54 @@ class DirectionalAnimator:
         if target_height is None:
             target_height = self.fallback_scaled.get_height()
         self.target_height: int = max(1, int(target_height))
-        self.box_width: int = max(1, int(box_width if box_width is not None else target_width))
+        # Actual size of a built frame; set by the build pass below, which derives
+        # it from the artwork rather than from a hard-coded figure.
+        self.box_width: int = target_width
+        self.box_height: int = self.target_height
 
         self.frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
         self.source_frames: Dict[str, Dict[str, List[pygame.Surface]]] = {}
-        
-        # Directions whose artwork is missing and must borrow another direction's.
-        # Filled during the load pass, resolved afterwards so that a fallback
-        # direction is always fully built before anything points at it.
+
+        # Pass 1 — load every frame. Directions with no artwork of their own are
+        # recorded here and resolved after the build, so that the direction they
+        # borrow from is always fully built first.
         missing: Dict[str, List[str]] = {}
+        raw: Dict[str, Dict[str, List[pygame.Surface]]] = {}
+        # Which direction each group's artwork actually came from. Differs from the
+        # key only where a direction borrows another's frames.
+        self.frame_origin: Dict[str, Dict[str, str]] = {
+            direction: {"static": direction, "move": direction} for direction in self.DIRECTIONS
+        }
 
         for direction in self.DIRECTIONS:
             config = self.sprite_definitions.get(direction, {})
-            source_static = self._load_image(config.get("static", ""))
-            static_surface = self._scale_to_target(source_static)
 
+            source_static = self._load_image(config.get("static", ""))
             if source_static is None:
                 missing.setdefault(direction, []).append("static")
-                source_static = self.fallback_surface
-            if static_surface is None:
-                static_surface = self.fallback_scaled
 
-            move_frames: List[pygame.Surface] = []
             move_sources: List[pygame.Surface] = []
-            move_raw: List[pygame.Surface] = []
             for filename in config.get("move", []):
                 source_frame = self._load_image(filename)
-                frame = self._scale_to_target(source_frame)
-                if source_frame:
+                if source_frame is not None:
                     move_sources.append(source_frame)
-                    move_raw.append(source_frame)
-                if frame:
-                    move_frames.append(frame)
-
-            if self.normalize:
-                # Normalize "static" and "move" as separate groups: every frame in a
-                # group shares one scale factor, so pose differences inside a walk
-                # cycle survive while the inconsistent source canvases do not.
-                if source_static is not None:
-                    static_sources = self._normalize_group([source_static])
-                    if static_sources:
-                        source_static = static_sources[0]
-                        static_surface = self._downscale_to_box(source_static)
-                if move_raw:
-                    move_sources = self._normalize_group(move_raw)
-                    move_frames = [self._downscale_to_box(f) for f in move_sources]
-
-            if not move_frames:
-                missing.setdefault(direction, []).append("move")
-                move_frames = [static_surface]
             if not move_sources:
-                move_sources = [source_static]
+                missing.setdefault(direction, []).append("move")
 
-            self.frames[direction] = {
-                "static": [static_surface],
-                "move": move_frames,
-            }
-            self.source_frames[direction] = {
-                "static": [source_static],
+            raw[direction] = {
+                "static": [source_static] if source_static is not None else [],
                 "move": move_sources,
             }
 
-        # Point directions with no artwork of their own at their fallback, per
-        # animation group — a direction may have walk frames but no static pose.
+        # Pass 2 — turn the raw frames into draw-ready ones.
+        if self.normalize:
+            self._build_normalized(raw)
+        else:
+            self._build_scaled(raw)
+
+        # Pass 3 — point directions with no artwork of their own at their
+        # fallback, per animation group: a direction may have walk frames but no
+        # static pose (or the reverse).
         for direction, keys in missing.items():
             fallback = self.DIRECTION_FALLBACKS.get(direction)
             if fallback is None or fallback not in self.frames:
@@ -806,6 +790,7 @@ class DirectionalAnimator:
             for key in keys:
                 self.frames[direction][key] = self.frames[fallback][key]
                 self.source_frames[direction][key] = self.source_frames[fallback][key]
+                self.frame_origin[direction][key] = fallback
 
         self.current_direction: str = "front"
         self.is_moving: bool = False
@@ -815,12 +800,6 @@ class DirectionalAnimator:
         # Use the recalc constant as baseline and slow animation slightly for readability.
         base_interval = 1.0 / max(1, MAX_RECULCULATIONS_PER_SEC)
         self.frame_interval: float = max(base_interval * 8, 0.05)
-
-    @property
-    def current_frame_size(self) -> Tuple[int, int]:
-        """Get dimensions of the current frame."""
-        frame = self.get_current_frame()
-        return frame.get_width(), frame.get_height()
 
     def _load_image(self, filename: str) -> Optional[pygame.Surface]:
         """Load image from disk.
@@ -863,57 +842,107 @@ class DirectionalAnimator:
         scaled_height = max(1, int(round(original_height * scale_ratio)))
         return pygame.transform.smoothscale(image, (self.target_width, scaled_height))
 
-    def _downscale_to_box(self, image: pygame.Surface) -> pygame.Surface:
-        """Downscale a supersampled normalized frame to the logical box size."""
-        return pygame.transform.smoothscale(image, (self.box_width, self.target_height))
-
-    def _normalize_group(self, sources: List[pygame.Surface]) -> List[pygame.Surface]:
-        """Render a group of frames into one fixed-size box without distortion.
-
-        Each frame is cropped to its opaque bounding box, scaled by a factor shared
-        by the whole group (so the character keeps a consistent size and relative
-        pose heights), and blitted bottom-centred into a transparent box of
-        ``NORMALIZE_SUPERSAMPLE`` x the logical frame size. This runs once at load
-        time; nothing about it costs anything per rendered frame.
+    def _build_scaled(self, raw: Dict[str, Dict[str, List[pygame.Surface]]]) -> None:
+        """Build frames by scaling each image to ``target_width`` (legacy path).
 
         Args:
-            sources: Raw loaded surfaces belonging to one animation group.
+            raw: Loaded source surfaces per direction and animation group.
+        """
+        self.box_width = self.target_width
+        self.box_height = self.target_height
+        for direction in self.DIRECTIONS:
+            groups = raw.get(direction, {})
+            built: Dict[str, List[pygame.Surface]] = {}
+            sources: Dict[str, List[pygame.Surface]] = {}
+            for key in ("static", "move"):
+                srcs = groups.get(key) or [self.fallback_surface]
+                sources[key] = srcs
+                built[key] = [self._scale_to_target(img) or self.fallback_scaled for img in srcs]
+            self.frames[direction] = built
+            self.source_frames[direction] = sources
 
-        Returns:
-            List[pygame.Surface]: Supersampled, uniformly sized frames.
+    def _build_normalized(self, raw: Dict[str, Dict[str, List[pygame.Surface]]]) -> None:
+        """Build frames at a single shared scale, bottom-centred in a common box.
+
+        Every frame is cropped to its opaque content and scaled by ONE factor
+        derived from the reference (fallback static) image, so a pose the artist
+        drew taller — walking towards the camera, say — really does render taller.
+        The box is then sized to hold the largest frame, which means the artwork
+        alone decides the proportions; nothing here needs touching when it changes.
+
+        The result is uniform-size frames, so the per-zoom cache stays trivial and
+        nothing costs anything per rendered frame.
+
+        Args:
+            raw: Loaded source surfaces per direction and animation group.
         """
         ss = self.NORMALIZE_SUPERSAMPLE
-        box_w = max(1, self.box_width * ss)
-        box_h = max(1, self.target_height * ss)
 
-        rects = [img.get_bounding_rect() for img in sources]
-        # A fully transparent frame yields an empty rect — fall back to full canvas.
-        rects = [
-            r if r.width > 0 and r.height > 0 else pygame.Rect(0, 0, img.get_width(), img.get_height())
-            for img, r in zip(sources, rects)
+        # One scale for everything: the reference image's content height becomes
+        # exactly target_height, and every other frame keeps its size relative to it.
+        ref = self._content_rect(self.fallback_surface)
+        scale = (self.target_height * ss) / float(max(1, ref.height))
+
+        # Size the box from the largest frame, never smaller than the logical box.
+        all_frames = [
+            (img, self._content_rect(img))
+            for groups in raw.values()
+            for frames in groups.values()
+            for img in frames
         ]
+        box_w = self.target_width * ss
+        box_h = self.target_height * ss
+        for _, rect in all_frames:
+            box_w = max(box_w, int(math.ceil(rect.width * scale)))
+            box_h = max(box_h, int(math.ceil(rect.height * scale)))
+        # Keep the box a whole number of logical pixels so the zoom-1 downscale is exact.
+        self.box_width = int(math.ceil(box_w / float(ss)))
+        self.box_height = int(math.ceil(box_h / float(ss)))
+        box_w, box_h = self.box_width * ss, self.box_height * ss
 
-        max_h = max(r.height for r in rects)
-        max_w = max(r.width for r in rects)
-        if max_h <= 0 or max_w <= 0:
-            return list(sources)
+        cache: Dict[int, pygame.Surface] = {}
 
-        # Fill the box height, then shrink if the widest frame would overflow.
-        scale = box_h / float(max_h)
-        if max_w * scale > box_w:
-            scale = box_w / float(max_w)
+        def normalize(img: pygame.Surface) -> pygame.Surface:
+            key = id(img)
+            if key not in cache:
+                rect = self._content_rect(img)
+                dest_w = max(1, int(round(rect.width * scale)))
+                dest_h = max(1, int(round(rect.height * scale)))
+                scaled = pygame.transform.smoothscale(img.subsurface(rect), (dest_w, dest_h))
+                canvas = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+                # Bottom-centred, so every pose stands on the same baseline.
+                canvas.blit(scaled, ((box_w - dest_w) // 2, box_h - dest_h))
+                cache[key] = canvas
+            return cache[key]
 
-        normalized: List[pygame.Surface] = []
-        for img, rect in zip(sources, rects):
-            dest_w = max(1, int(round(rect.width * scale)))
-            dest_h = max(1, int(round(rect.height * scale)))
-            cropped = img.subsurface(rect)
-            scaled = pygame.transform.smoothscale(cropped, (dest_w, dest_h))
+        for direction in self.DIRECTIONS:
+            groups = raw.get(direction, {})
+            built: Dict[str, List[pygame.Surface]] = {}
+            sources: Dict[str, List[pygame.Surface]] = {}
+            for key in ("static", "move"):
+                srcs = [normalize(img) for img in (groups.get(key) or [self.fallback_surface])]
+                sources[key] = srcs
+                built[key] = [
+                    pygame.transform.smoothscale(img, (self.box_width, self.box_height))
+                    for img in srcs
+                ]
+            self.frames[direction] = built
+            self.source_frames[direction] = sources
 
-            canvas = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
-            canvas.blit(scaled, ((box_w - dest_w) // 2, box_h - dest_h))
-            normalized.append(canvas)
-        return normalized
+    @staticmethod
+    def _content_rect(image: pygame.Surface) -> pygame.Rect:
+        """Opaque bounding box of an image, falling back to its full canvas.
+
+        Args:
+            image: Surface to measure.
+
+        Returns:
+            pygame.Rect: The area holding actual artwork.
+        """
+        rect = image.get_bounding_rect()
+        if rect.width <= 0 or rect.height <= 0:
+            return pygame.Rect(0, 0, image.get_width(), image.get_height())
+        return rect
 
     def update(self, dt: float, direction: str, is_moving: bool) -> None:
         """Update animation state.
@@ -945,6 +974,17 @@ class DirectionalAnimator:
             self.time_since_last_frame %= self.frame_interval
             self.current_frame_index = (self.current_frame_index + 1) % len(frames)
 
+    def current_frame_origin(self) -> Tuple[str, str]:
+        """Identify the artwork behind the current frame.
+
+        Returns:
+            Tuple[str, str]: (direction the frames were authored for, "static"/"move").
+                The direction differs from ``current_direction`` when this direction
+                borrows another's artwork.
+        """
+        key = "move" if self.is_moving else "static"
+        return self.frame_origin[self.current_direction][key], key
+
     def get_current_frame(self) -> pygame.Surface:
         """Get the current scaled frame.
         
@@ -972,7 +1012,21 @@ class DirectionalAnimator:
 
 class MapPlayer:
     """Player character that moves around the map."""
-    
+
+    # Manual per-pose vertical draw correction, in logical pixels at zoom 1
+    # (positive = drawn lower). Keyed by the direction the artwork was authored
+    # for and the animation group, so directions that borrow frames inherit the
+    # correction with them.
+    #
+    # The walk-down frames are drawn taller than the rest of the set, and
+    # bottom-aligning them on the ground baseline leaves the head sitting several
+    # pixels higher than in every other pose, which reads as a jump when you turn.
+    # This nudges that one pose back down onto the others. Purely cosmetic: the
+    # logical box, collision and y-sorting are all unaffected.
+    SPRITE_Y_CORRECTION: Dict[Tuple[str, str], float] = {
+        ("front", "move"): 5.0,
+    }
+
     def __init__(self, x: float, y: float, tile_size: int = TILE_SIZE) -> None:
         """Initialize the player.
         
@@ -1029,26 +1083,27 @@ class MapPlayer:
             sprite_definitions=sprite_definitions,
             target_width=tile_size,
             fallback_static="player_front_static.png",
-            # The player artwork comes from several sources with different canvas
-            # sizes and padding; normalizing at load time is what keeps frames from
-            # being squashed into the static frame's aspect ratio at draw time.
+            # The player artwork has inconsistent canvas sizes and padding, and
+            # some poses are deliberately taller than others. Normalizing at load
+            # time preserves both aspect ratio and relative size, so nothing is
+            # squashed and a taller pose really does render taller.
             normalize=True,
-            # Diagonal poses are broader than a tile; give the sprite box some
-            # horizontal slack so they keep full height instead of being shrunk
-            # to fit. The logical collision width stays one tile.
-            box_width=int(round(tile_size * 1.5)),
         )
 
         self.sprite: pygame.Surface = self.animator.get_current_frame()
         self.source_sprite: pygame.Surface = self.animator.get_current_source_frame()
-        # width and height are used for logical collision and sorting.
-        # They should remain stable even if animation frames have slightly different sizes.
+        # The logical box: one tile wide, and as tall as the reference standing
+        # pose. Collision, y-sorting and every "centre of the player" calculation
+        # use it, so it stays fixed no matter what the artwork does.
         self.width: int = tile_size
         self.height: int = self.animator.target_height
-        # The drawn sprite is wider than the logical box and centred on it, so it
-        # needs a horizontal draw offset (see _build_render_queue in map_view.py).
+        # The drawn sprite may be larger than the logical box: it is centred on it
+        # horizontally and sits on its baseline vertically, so it needs a draw
+        # offset (applied in _build_render_queue in map_view.py).
         self.sprite_width: int = self.animator.box_width
+        self.sprite_height: int = self.animator.box_height
         self.sprite_offset_x: float = -(self.sprite_width - self.width) / 2.0
+        self.sprite_offset_y: float = -(self.sprite_height - self.height)
         self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
         
         # Movement state
@@ -1062,6 +1117,17 @@ class MapPlayer:
         # Channel 0 is reserved exclusively for footsteps (see game.py mixer init).
         self.footstep_channel: pygame.mixer.Channel = pygame.mixer.Channel(0)
     
+    @property
+    def sprite_draw_offset_y(self) -> float:
+        """Vertical draw offset for the current frame, in logical pixels.
+
+        Combines the sprite box's baseline alignment with the manual per-pose
+        correction from ``SPRITE_Y_CORRECTION``.
+        """
+        return self.sprite_offset_y + self.SPRITE_Y_CORRECTION.get(
+            self.animator.current_frame_origin(), 0.0
+        )
+
     def set_footstep_sounds(self, sounds: List[pygame.mixer.Sound]) -> None:
         """Assign footstep sounds to the player.
         
@@ -1248,7 +1314,7 @@ class MapPlayer:
                     cache[frame_id] = self.sprite
                 else:
                     target_width = max(1, int(round(self.sprite_width * zoom)))
-                    target_height = max(1, int(round(self.height * zoom)))
+                    target_height = max(1, int(round(self.sprite_height * zoom)))
                     if target_width >= source_width or target_height >= source_height:
                         cache[frame_id] = pygame.transform.scale(base_frame, (target_width, target_height))
                     else:
