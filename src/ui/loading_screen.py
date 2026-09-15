@@ -7,7 +7,7 @@ import pygame
 from ..config.constants import FONTS_PATH
 from ..config.colors import BEIGE, DARK_BROWN
 
-_PLAYER_DIR = os.path.join('assets', 'map_sprites')
+_PLAYER_DIR = os.path.join('assets', 'map_sprites', 'figurines', 'player')
 _PLAYER_SPRITES = [
     'player_right_static.png',
     'player_right_move1.png',

@@ -1040,7 +1040,7 @@ class MapPlayer:
         self.tile_size: int = tile_size
         self.speed: float = PLAYER_SPEED * TILE_SIZE / 32.0  # pixels per second
 
-        sprite_dir = os.path.join('assets', 'map_sprites')
+        sprite_dir = os.path.join('assets', 'map_sprites', 'figurines', 'player')
         sprite_definitions: Dict[str, Dict[str, Any]] = {
             "front": {
                 "static": "player_front_static.png",
