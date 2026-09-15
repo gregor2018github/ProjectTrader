@@ -28,6 +28,13 @@ from .smoke import SmokeEmitter
 from .npcs.sheep import Sheep
 from .water import Water, Ripple, water_tile_variant
 
+# How far (per RGB channel) a ground tile's average colour may sit from the
+# confirmed water tiles' colour and still count as water art itself. Kept
+# tight: the water tileset is a single flat blue, so anything genuinely made
+# of water pixels lands well inside this, while grass/dirt tiles are nowhere
+# near it. See TMXMap._match_water_tile_gids.
+WATER_TILE_COLOR_TOLERANCE = 12
+
 
 
 class Camera:
@@ -141,6 +148,7 @@ class TMXMap:
         self.water_tiles: Set[Tuple[int, int]] = set()
         self.water_tile_variant: Dict[Tuple[int, int], int] = {}
         self.water_edge_tiles: Set[Tuple[int, int]] = set()
+        self._tile_signature_cache: Dict[int, Optional[Tuple[float, float, float, int]]] = {}
 
         self._load_houses()
         self._load_special_points()
@@ -185,9 +193,11 @@ class TMXMap:
 
         So instead the polygon test is only used to discover, once, which
         Ground_Mid tile ids are actually the map's water tileset (by seeing
-        which ids appear on cells the polygon is confident about). Every cell
-        painted with one of those ids — anywhere on the map, boundary or
-        interior — then gets the animated surface, and get_masked_water_frame
+        which ids appear on cells the polygon is confident about), widened by
+        _match_water_tile_gids to the ids that merely *look* the same (a bank
+        tile whose water half never covers a cell centre is invisible to the
+        polygon test). Every cell painted with one of those ids — anywhere on
+        the map, boundary or interior — then gets the animated surface, and get_masked_water_frame
         (see map_view._draw_animated_water) clips it to that exact tile's own
         alpha shape, so partial edge tiles stay partial instead of being
         rounded up to a full square or dropped entirely.
@@ -219,6 +229,8 @@ class TMXMap:
                 if gid:
                     water_gids.add(gid)
 
+            water_gids |= self._match_water_tile_gids(ground_mid, water_gids)
+
             for gy in range(self.height):
                 row = ground_mid.data[gy]
                 for gx in range(self.width):
@@ -236,6 +248,85 @@ class TMXMap:
                 if (gx + dx, gy + dy) not in self.water_tiles:
                     self.water_edge_tiles.add((gx, gy))
                     break
+
+    def _tile_color_signature(self, gid: int) -> Optional[Tuple[float, float, float, int]]:
+        """Mean colour of a tile's opaque pixels plus its widest channel spread.
+
+        Sampled on a coarse grid (every 4th pixel) — enough to tell one
+        terrain family from another, cheap enough to run over every tile id
+        the ground layer uses. Returns None for tiles with (almost) no
+        opaque pixels, which carry no usable colour.
+        """
+        if gid in self._tile_signature_cache:
+            return self._tile_signature_cache[gid]
+
+        signature: Optional[Tuple[float, float, float, int]] = None
+        image = self.tmx_data.get_tile_image_by_gid(gid)
+        if image is not None:
+            width, height = image.get_size()
+            pixels = pygame.PixelArray(image)
+            count = 0
+            totals = [0, 0, 0]
+            lows = [255, 255, 255]
+            highs = [0, 0, 0]
+            for y in range(0, height, 4):
+                for x in range(0, width, 4):
+                    color = image.unmap_rgb(pixels[x, y])
+                    if color.a <= 200:
+                        continue
+                    count += 1
+                    for i, channel in enumerate((color.r, color.g, color.b)):
+                        totals[i] += channel
+                        lows[i] = min(lows[i], channel)
+                        highs[i] = max(highs[i], channel)
+            pixels.close()
+            if count >= 4:
+                spread = max(highs[i] - lows[i] for i in range(3))
+                signature = (totals[0] / count, totals[1] / count, totals[2] / count, spread)
+
+        self._tile_signature_cache[gid] = signature
+        return signature
+
+    def _match_water_tile_gids(self, ground_mid: pytmx.TiledTileLayer, seed_gids: Set[int]) -> Set[int]:
+        """Find further water tile ids that look like the confirmed ``seed_gids``.
+
+        The cell-centre-in-polygon seeding in ``_rasterize_water_tiles`` only
+        discovers a tile id if at least one cell painted with it has its
+        *centre* inside a water polygon. A diagonal bank tile whose water half
+        never happens to cover a cell centre anywhere on the map is therefore
+        missed entirely, and those cells keep the flat, static tileset art
+        while every neighbour animates — the artefact was plainly visible on
+        the "grass in the top-right corner" bank tile.
+
+        So the seed ids are additionally matched by appearance: any tile id
+        used in the ground layer whose opaque pixels carry the same colour
+        (within a small tolerance, and no more varied than the seeds) is the
+        same water art, just cut to a different shape.
+        """
+        seed_signatures = [sig for sig in (self._tile_color_signature(gid) for gid in seed_gids) if sig]
+        if not seed_signatures:
+            return set()
+        max_spread = max(sig[3] for sig in seed_signatures) + WATER_TILE_COLOR_TOLERANCE
+
+        used_gids: Set[int] = set()
+        for gy in range(self.height):
+            row = ground_mid.data[gy]
+            for gx in range(self.width):
+                gid = row[gx]
+                if gid and gid not in seed_gids:
+                    used_gids.add(gid)
+
+        matched: Set[int] = set()
+        for gid in used_gids:
+            signature = self._tile_color_signature(gid)
+            if signature is None or signature[3] > max_spread:
+                continue
+            if any(
+                all(abs(signature[i] - seed[i]) <= WATER_TILE_COLOR_TOLERANCE for i in range(3))
+                for seed in seed_signatures
+            ):
+                matched.add(gid)
+        return matched
 
     def _load_houses(self) -> None:
         """Load house objects from the "Houses" object layer."""

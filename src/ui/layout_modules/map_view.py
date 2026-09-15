@@ -346,7 +346,10 @@ def _draw_animated_water(
             if (x, y) in edge_tiles:
                 overlay = get_water_edge_overlay_frames(tmx_map.tile_size, camera.zoom, variant)[frame_idx]
                 if gid:
-                    overlay = get_masked_water_surface(tmx_map.tmx_data, gid, overlay, "edge", frame_idx)
+                    # variant is part of the cache kind: the foam speckle layout
+                    # differs per variant, so two cells sharing a gid must not share
+                    # one cached masked overlay.
+                    overlay = get_masked_water_surface(tmx_map.tmx_data, gid, overlay, f"edge{variant}", frame_idx)
                 screen.blit(overlay, pos)
 
 
