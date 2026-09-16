@@ -87,34 +87,11 @@ class MainMenu:
         except Exception:
             pass
 
-        # Panel geometry
-        panel_w = 440
-        panel_h = 530
-        self.panel_rect = pygame.Rect(
-            (_TOTAL_WIDTH - panel_w) // 2,
-            (SCREEN_HEIGHT - panel_h) // 2,
-            panel_w,
-            panel_h,
-        )
-
-        # Buttons: (rect, label, action, enabled)
+        # Panel and buttons: (rect, label, action, enabled)
+        self.panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self.buttons: List[Tuple[pygame.Rect, str, str, bool]] = []
-        entries = [
-            ("Start New Game", "new_game", True),
-            ("Load Game",      "load_game", True),
-            ("Settings",       "settings",  True),
-            ("Exit",           "exit",      True),
-        ]
-        btn_area_top = self.panel_rect.top + 248
-        cx = self.panel_rect.centerx
-        for i, (label, action, enabled) in enumerate(entries):
-            rect = pygame.Rect(
-                cx - _BTN_W // 2,
-                btn_area_top + i * (_BTN_H + _BTN_SPACING),
-                _BTN_W,
-                _BTN_H,
-            )
-            self.buttons.append((rect, label, action, enabled))
+        self._continue_slot: Optional[int] = None
+        self._build_main_buttons()
 
         # Load-game slot selection state
         self._view: str = "main"  # "main", "load_slots", or "settings"
@@ -167,7 +144,14 @@ class MainMenu:
                     if self._view == "main":
                         for rect, _label, action, enabled in self.buttons:
                             if enabled and rect.collidepoint(mouse_pos):
-                                if action == "load_game":
+                                if action == "continue":
+                                    try:
+                                        data = _sm_load_game(self._continue_slot)
+                                        return ("load_game", data)
+                                    except Exception:
+                                        # Save vanished or broke since the menu opened
+                                        self._build_main_buttons()
+                                elif action == "load_game":
                                     self._reload_slots()
                                     self._view = "load_slots"
                                 elif action == "settings":
@@ -182,6 +166,7 @@ class MainMenu:
                         if self._handle_delete_click(mouse_pos):
                             continue
                         if self._back_rect.collidepoint(mouse_pos):
+                            self._build_main_buttons()  # a save may have been deleted
                             self._view = "main"
                             continue
                         if self._slot_list.handle_click(mouse_pos):
@@ -205,6 +190,47 @@ class MainMenu:
                 self._draw_settings(mouse_pos)
             pygame.display.flip()
             self.clock.tick(60)
+
+    # ------------------------------------------------------------------
+    # Main view helpers
+    # ------------------------------------------------------------------
+
+    def _build_main_buttons(self) -> None:
+        """Lay out the main buttons, with Continue on top if a save exists."""
+        readable = [s for s in get_save_slots() if not s["corrupted"]]
+        latest = max(readable, key=lambda s: s["saved_at"], default=None)
+        self._continue_slot = latest["slot"] if latest else None
+
+        entries = [
+            ("Start New Game", "new_game", True),
+            ("Load Game",      "load_game", True),
+            ("Settings",       "settings",  True),
+            ("Exit",           "exit",      True),
+        ]
+        if latest:
+            entries.insert(0, ("Continue", "continue", True))
+
+        # Buttons start below the icon/title/divider block
+        btn_offset = 248
+        panel_w = 440
+        panel_h = btn_offset + len(entries) * (_BTN_H + _BTN_SPACING) - _BTN_SPACING + 16
+        self.panel_rect = pygame.Rect(
+            (_TOTAL_WIDTH - panel_w) // 2,
+            (SCREEN_HEIGHT - panel_h) // 2,
+            panel_w,
+            panel_h,
+        )
+
+        self.buttons = []
+        cx = self.panel_rect.centerx
+        for i, (label, action, enabled) in enumerate(entries):
+            rect = pygame.Rect(
+                cx - _BTN_W // 2,
+                self.panel_rect.top + btn_offset + i * (_BTN_H + _BTN_SPACING),
+                _BTN_W,
+                _BTN_H,
+            )
+            self.buttons.append((rect, label, action, enabled))
 
     # ------------------------------------------------------------------
     # Load-slots helpers

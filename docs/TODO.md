@@ -53,7 +53,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
-- [x] autosave feature: saves every few minutes of play to a single autosave slot (quill "Game saved" notice bottom right); can be switched off and the interval set in the start menu settings
+- [x] made diagonal movement a bit slower
+- [x] autosave feature
 - [x] add an option to have more save slots, that also means a scroll mechanic for the save file selection screens
 - [x] add a delete save file option
 - [x] added a Profit chart to the depot chart view: daily income minus expenses as green/red bars around a zero axis, cumulative profit line on its own right-hand scale, hover tooltip with income/expenses/profit/cumulative
