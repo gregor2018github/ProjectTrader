@@ -77,6 +77,8 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         _draw_expenses_stacked_bars(screen, chart_rect, font, depot, game_state.date)
     elif active_chart == "Income":
         _draw_income_stacked_bars(screen, chart_rect, font, depot, game_state.date)
+    elif active_chart == "Profit":
+        _draw_profit_bars(screen, chart_rect, font, depot, game_state.date)
     elif len(data_points) > 1:
         # Determine scaling
         max_points = chart_rect.width
@@ -270,7 +272,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         screen.blit(text, text_rect)
 
     # 5. Draw Buttons
-    button_labels = ["Wealth", "Money", "Stock", "Expenses", "Income", "Houses"]
+    button_labels = ["Wealth", "Money", "Stock", "Expenses", "Income", "Profit", "Houses"]
     if population_manager is not None:
         button_labels += ["Population", "Happiness"]
 
@@ -306,8 +308,15 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         pygame.draw.rect(screen, bg_color, btn_rect)
         pygame.draw.rect(screen, border_color, btn_rect, 2)
 
-        # Text
+        # Text (scaled down if the label is wider than the button allows)
         text_surf = font.render(label, True, text_color)
+        max_text_w = btn_rect.width - 8
+        if text_surf.get_width() > max_text_w:
+            scale = max_text_w / text_surf.get_width()
+            text_surf = pygame.transform.smoothscale(
+                text_surf,
+                (int(text_surf.get_width() * scale), int(text_surf.get_height() * scale)),
+            )
         text_rect = text_surf.get_rect(center=btn_rect.center)
         screen.blit(text_surf, text_rect)
 
@@ -899,6 +908,262 @@ def _draw_income_stacked_bars(
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Source", cat_name, int(round(val)), pct, int(round(bar_total)))
+
+
+def _draw_profit_bars(
+    screen: pygame.Surface,
+    chart_rect: pygame.Rect,
+    font: pygame.font.Font,
+    depot: 'Depot',
+    current_date: datetime.datetime,
+) -> None:
+    """Draw daily profit (income minus expenses) as signed bars around a zero axis.
+
+    Profitable days grow upwards in green, loss days downwards in red. A blue
+    line overlays the running cumulative profit on its own right-hand scale so
+    small daily swings stay readable next to a large accumulated total.
+    """
+    income_hist = depot.income_history
+    expense_hist = depot.expenditure_history
+    total_len = max(len(income_hist), len(expense_hist))
+
+    if total_len < 1:
+        text = font.render("Not enough data yet", True, DARK_BROWN)
+        screen.blit(text, text.get_rect(center=chart_rect.center))
+        return
+
+    def _align_to_tail(hist: list, n: int) -> list:
+        if hist is None:
+            return [0.0] * n
+        if len(hist) >= n:
+            return list(hist[-n:])
+        return [0.0] * (n - len(hist)) + list(hist)
+
+    inc = _align_to_tail(income_hist, total_len)
+    exp = _align_to_tail(expense_hist, total_len)
+    profit = [inc[i] - exp[i] for i in range(total_len)]
+
+    # Cumulative profit over the whole history, not just the visible window.
+    cumulative = []
+    running = 0.0
+    for value in profit:
+        running += value
+        cumulative.append(running)
+
+    margin = 4
+    bar_w = 12
+    bar_gap = 2
+    max_bars = (chart_rect.width - margin * 2) // (bar_w + bar_gap)
+    start_idx = max(0, total_len - max_bars)
+
+    visible_profit = profit[start_idx:]
+    visible_cum = cumulative[start_idx:]
+
+    max_profit = max(visible_profit)
+    min_profit = min(visible_profit)
+    pos_peak = max(max_profit, 0.0)
+    neg_peak = max(-min_profit, 0.0)
+    if pos_peak == 0 and neg_peak == 0:
+        pos_peak = 1.0
+    y_pos_scale = pos_peak * 1.1
+    y_neg_scale = neg_peak * 1.1
+
+    bar_bottom = chart_rect.bottom - margin
+
+    # Legend layout (mirrors the income/expense charts so the panels line up).
+    legend_items = [
+        ("Profit", MUTED_DARK_GREEN),
+        ("Loss", MUTED_DARK_RED),
+        ("Cumulative", DARK_BLUE),
+    ]
+    rendered_labels = [font.render(name, True, DARK_BROWN) for name, _ in legend_items]
+    leg_cols = len(legend_items)
+    swatch = 10
+    lbl_h = rendered_labels[0].get_height()
+    leg_row_gap = 2
+    leg_col_gap = 10
+    leg_pad_x, leg_pad_y = 6, 4
+
+    col_widths = [swatch + 4 + surf.get_width() for surf in rendered_labels]
+
+    stat_lines = [
+        ("Max:", f"{max_profit:,.0f}"),
+        ("Min:", f"{min_profit:,.0f}"),
+        ("Total:", f"{cumulative[-1]:,.0f}"),
+    ]
+    stat_rendered = [(font.render(lbl, True, CHART_BROWN), font.render(val, True, DARK_BROWN))
+                     for lbl, val in stat_lines]
+    stat_lbl_w = max(s.get_width() for s, _ in stat_rendered)
+    stat_val_w = max(s.get_width() for _, s in stat_rendered)
+    stat_col_w = stat_lbl_w + 4 + stat_val_w
+    stat_sep = 10
+
+    legend_w = leg_pad_x * 2 + sum(col_widths) + (leg_cols - 1) * leg_col_gap + stat_sep + stat_col_w
+    legend_h = leg_pad_y * 2 + len(stat_rendered) * lbl_h + (len(stat_rendered) - 1) * leg_row_gap
+
+    title_band_h = font.get_height() + 12
+    inner_top = chart_rect.top + margin + title_band_h + legend_h + 6
+    inner_h = max(20, bar_bottom - inner_top)
+
+    # Split the plotting band between the positive and negative halves.
+    span = y_pos_scale + y_neg_scale
+    if span <= 0:
+        span = 1.0
+    if y_neg_scale > 0:
+        pos_h = max(1, min(inner_h - 1, int(round(inner_h * (y_pos_scale / span)))))
+    else:
+        pos_h = inner_h
+    neg_h = inner_h - pos_h
+    zero_y = inner_top + pos_h
+
+    _draw_signed_bar_chart_grid(screen, font, chart_rect, zero_y, pos_h, neg_h, y_pos_scale, y_neg_scale)
+
+    mouse_pos = pygame.mouse.get_pos()
+    hover_idx = None
+    hover_rect = None
+
+    for bar_idx, data_idx in enumerate(range(start_idx, total_len)):
+        bar_x = chart_rect.left + margin + bar_idx * (bar_w + bar_gap)
+        value = profit[data_idx]
+        if value >= 0:
+            seg_h = max(1, round(value / y_pos_scale * pos_h)) if y_pos_scale > 0 else 1
+            seg_rect = pygame.Rect(bar_x, zero_y - seg_h, bar_w, seg_h)
+            color = MUTED_DARK_GREEN
+        else:
+            seg_h = max(1, round(-value / y_neg_scale * neg_h)) if y_neg_scale > 0 else 1
+            seg_rect = pygame.Rect(bar_x, zero_y, bar_w, seg_h)
+            color = MUTED_DARK_RED
+        pygame.draw.rect(screen, color, seg_rect)
+
+        # Hover target spans the whole column so near-zero bars stay reachable.
+        hover_col = pygame.Rect(bar_x, inner_top, bar_w, inner_h)
+        if hover_idx is None and hover_col.collidepoint(mouse_pos):
+            hover_idx = data_idx
+            hover_rect = seg_rect
+
+    # Zero axis on top of the bars.
+    pygame.draw.line(screen, DARK_BROWN, (chart_rect.left, zero_y), (chart_rect.right - 2, zero_y), 1)
+
+    # Cumulative profit line on its own scale, spanning the full plotting band.
+    if len(visible_cum) > 1:
+        cum_max = max(max(visible_cum), 0.0)
+        cum_min = min(min(visible_cum), 0.0)
+        cum_range = cum_max - cum_min
+        if cum_range == 0:
+            cum_range = 1.0
+        cum_top = cum_max + cum_range * 0.05
+        cum_bottom = cum_min - cum_range * 0.05
+        cum_span = cum_top - cum_bottom
+
+        def _cum_y(value: float) -> int:
+            return int(round(bar_bottom - (value - cum_bottom) / cum_span * inner_h))
+
+        points = []
+        for bar_idx, data_idx in enumerate(range(start_idx, total_len)):
+            px = chart_rect.left + margin + bar_idx * (bar_w + bar_gap) + bar_w // 2
+            points.append((px, _cum_y(cumulative[data_idx])))
+        pygame.draw.lines(screen, DARK_BLUE, False, points, 2)
+
+        # Right-hand scale markers for the cumulative line, on small plates so
+        # they stay readable where the line or the bars run underneath them.
+        marker_y = []
+        for value in (cum_max, cum_min):
+            label = font.render(f"{value:,.0f}", True, DARK_BLUE)
+            ly = min(max(_cum_y(value) - label.get_height() // 2, inner_top), bar_bottom - label.get_height())
+            # Push apart if both markers would land on the same line.
+            for other in marker_y:
+                if abs(ly - other) < label.get_height():
+                    ly = other + label.get_height() + 2 if ly >= other else other - label.get_height() - 2
+            ly = min(max(ly, inner_top), bar_bottom - label.get_height())
+            marker_y.append(ly)
+            plate = pygame.Rect(chart_rect.right - label.get_width() - 8, ly - 2,
+                                label.get_width() + 6, label.get_height() + 4)
+            pygame.draw.rect(screen, SANDY_BROWN, plate)
+            pygame.draw.rect(screen, DARK_BLUE, plate, 1)
+            screen.blit(label, (plate.x + 3, ly))
+
+    if hover_rect:
+        pygame.draw.rect(screen, WHITE, hover_rect.inflate(2, 2), 2)
+
+    title_surf = font.render("Profit History", True, DARK_BROWN)
+    title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
+    screen.blit(title_surf, title_rect)
+    pygame.draw.line(screen, DARK_BROWN, (title_rect.left, title_rect.bottom + 2), (title_rect.right, title_rect.bottom + 2), 1)
+
+    # Legend + Max/Min/Total in a single panel below the title, centered horizontally.
+    legend_x = chart_rect.centerx - legend_w // 2
+    legend_y = title_rect.bottom + 6
+    legend_rect = pygame.Rect(legend_x, legend_y, legend_w, legend_h)
+    pygame.draw.rect(screen, SANDY_BROWN, legend_rect)
+    pygame.draw.rect(screen, CHART_BROWN, legend_rect, 1)
+
+    col_offsets = []
+    acc = 0
+    for w in col_widths:
+        col_offsets.append(acc)
+        acc += w + leg_col_gap
+
+    items_y = legend_y + (legend_h - lbl_h) // 2
+    for idx, ((name, color), lbl_surf) in enumerate(zip(legend_items, rendered_labels)):
+        cx = legend_x + leg_pad_x + col_offsets[idx]
+        sw_rect = pygame.Rect(cx, items_y + (lbl_h - swatch) // 2, swatch, swatch)
+        pygame.draw.rect(screen, color, sw_rect)
+        pygame.draw.rect(screen, DARK_BROWN, sw_rect, 1)
+        screen.blit(lbl_surf, (cx + swatch + 4, items_y))
+
+    # Vertical divider before the Max/Min/Total column
+    div_x = legend_x + leg_pad_x + sum(col_widths) + (leg_cols - 1) * leg_col_gap + stat_sep // 2
+    pygame.draw.line(screen, CHART_BROWN, (div_x, legend_y + 3), (div_x, legend_y + legend_h - 3), 1)
+
+    stat_x = div_x + stat_sep // 2 + 2
+    total_stat_h = len(stat_rendered) * lbl_h + (len(stat_rendered) - 1) * leg_row_gap
+    stat_y = legend_y + (legend_h - total_stat_h) // 2
+    for lbl_surf, val_surf in stat_rendered:
+        screen.blit(lbl_surf, (stat_x, stat_y))
+        screen.blit(val_surf, (stat_x + stat_lbl_w + 4, stat_y))
+        stat_y += lbl_h + leg_row_gap
+
+    if hover_idx is not None:
+        days_ago = total_len - 1 - hover_idx
+        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        lines = [
+            ("Date:",       bar_date),
+            ("Income:",     f"{inc[hover_idx]:,.0f}"),
+            ("Expenses:",   f"-{exp[hover_idx]:,.0f}"),
+            ("Profit:",     f"{profit[hover_idx]:,.0f}"),
+            ("Cumulative:", f"{cumulative[hover_idx]:,.0f}"),
+        ]
+        _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
+
+def _draw_signed_bar_chart_grid(
+    screen: pygame.Surface,
+    font: pygame.font.Font,
+    chart_rect: pygame.Rect,
+    zero_y: int,
+    pos_h: int,
+    neg_h: int,
+    y_pos_scale: float,
+    y_neg_scale: float,
+) -> None:
+    """Draw horizontal grid lines above and below a zero axis."""
+    step = _nice_grid_step(max(y_pos_scale, y_neg_scale))
+
+    current_line = step
+    while current_line < y_pos_scale and pos_h > 0:
+        line_y = zero_y - round(current_line / y_pos_scale * pos_h)
+        pygame.draw.line(screen, CHART_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        label = font.render(f"{int(current_line):,}", True, CHART_BROWN)
+        screen.blit(label, (chart_rect.left + 5, line_y - 12))
+        current_line += step
+
+    current_line = step
+    while current_line < y_neg_scale and neg_h > 0:
+        line_y = zero_y + round(current_line / y_neg_scale * neg_h)
+        pygame.draw.line(screen, CHART_BROWN, (chart_rect.left, line_y), (chart_rect.right - 2, line_y), 1)
+        label = font.render(f"-{int(current_line):,}", True, CHART_BROWN)
+        screen.blit(label, (chart_rect.left + 5, line_y - 12))
+        current_line += step
 
 
 def _draw_bar_chart_grid(

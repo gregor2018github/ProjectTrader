@@ -1,8 +1,11 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] give the player 8 instead of 4 movement directions (diagonals)
-- [ ] add profit overview in the depot chart view
+- [ ] fix animation to walk down (repeats too fast currently)
+- [ ] add an option to have more save slots, that also means a scroll mechanic for the save file selection screens
+- [ ] add a delete save file option
+- [ ] autosave feature
+- [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] Trading at the market should only be available between 5am and 12pm
 - [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
@@ -53,6 +56,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] added a Profit chart to the depot chart view: daily income minus expenses as green/red bars around a zero axis, cumulative profit line on its own right-hand scale, hover tooltip with income/expenses/profit/cumulative
+- [x] give the player 8 instead of 4 movement directions (diagonals)
 - [x] add two more houses with different designs
 - [x] add better floor effects like dirrt and fallen leaves for the forest, these can go to the deco tileset
 - [x] create a deco tileset that contains non-collision items like flowers, mushrooms, sticks, etc. that can be placed on the map to make it look more alive
