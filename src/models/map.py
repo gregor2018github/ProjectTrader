@@ -12,7 +12,7 @@ import pygame
 import pytmx
 from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, PLAYER_SPEED, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
+from ..config.constants import TILE_SIZE, PLAYER_SPEED, PLAYER_DIAGONAL_SPEED_FACTOR, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .institutions.church import Church
 from .institutions.town import Town
@@ -1275,8 +1275,11 @@ class MapPlayer:
 
         self.frame_distance_px = 0.0
         if is_moving:
-            move_x = self.vel_x * self.speed * dt
-            move_y = self.vel_y * self.speed * dt
+            speed = self.speed
+            if self.vel_x != 0 and self.vel_y != 0:
+                speed *= PLAYER_DIAGONAL_SPEED_FACTOR
+            move_x = self.vel_x * speed * dt
+            move_y = self.vel_y * speed * dt
 
             if move_x != 0:
                 new_x = self.x + move_x

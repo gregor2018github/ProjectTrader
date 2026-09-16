@@ -23,6 +23,7 @@ MODULE_WIDTH = (SCREEN_WIDTH) // 2  # 734 pixels per module
 MAX_RECULCULATIONS_PER_SEC = 60
 TILE_SIZE = 32
 PLAYER_SPEED = 120                  # pixels per second
+PLAYER_DIAGONAL_SPEED_FACTOR = 0.8  # per-axis multiplier when moving diagonally (0.707 = same speed as straight)
 MAX_FRAMES_PER_SEC = 100
 
 # TIME STEP CONSTANTS (minutes per tick for each speed level)
