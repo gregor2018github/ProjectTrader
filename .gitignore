@@ -52,3 +52,10 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+
+# Save games: only the first three slots are part of the repo; any further
+# slots (arbitrarily many, created in-game) stay local.
+# [123] matches a single character, so e.g. slot_12.sav is still ignored.
+saves/slot_*
+!saves/slot_[123].sav
+!saves/slot_[123]_thumb.png
