@@ -18,7 +18,7 @@ from ...config.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH,
     BASE_CONTRACT_FEE, MONTHLY_CONTRACT_FEES,
 )
-from ..ui_utils import draw_9slice
+from ..ui_utils import draw_9slice, draw_mouse_tooltip
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -414,22 +414,12 @@ class ContractOverview:
         # Draw tooltips and inspector if fully active
         if alpha_scale >= 1.0:
             for text, pos in tooltips:
-                self._draw_tooltip(text, pos)
+                draw_mouse_tooltip(self.screen, self.body_font, text, pos)
 
             if self.selecting_good:
                 self._draw_month_selection()
             elif self.inspecting_img:
                 self._draw_full_inspector()
-
-    def _draw_tooltip(self, text: str, pos: Tuple[int, int]) -> None:
-        """Render a small tooltip near the mouse."""
-        tooltip_surf = self.body_font.render(text, True, BLACK)
-        tooltip_rect = tooltip_surf.get_rect(topleft=(pos[0] + 15, pos[1] + 10))
-        
-        # Draw background and border
-        pygame.draw.rect(self.screen, WHITE, tooltip_rect.inflate(10, 6))
-        pygame.draw.rect(self.screen, DARK_BROWN, tooltip_rect.inflate(10, 6), 1)
-        self.screen.blit(tooltip_surf, tooltip_rect)
 
     def _draw_full_inspector(self) -> None:
         """Draw a modal overlay showing the full contract image."""
@@ -642,8 +632,8 @@ class ContractOverview:
             
             # Return tooltip data
             if has_license:
-                return ("  Inspect Contract", mouse_pos)
+                return ("Inspect Contract", mouse_pos)
             else:
-                return ("  Acquire License", mouse_pos)
+                return ("Acquire License", mouse_pos)
         
         return None

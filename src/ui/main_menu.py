@@ -11,9 +11,10 @@ from ..config.colors import (
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
 from ..persistence.save_manager import delete_save, get_save_slots, load_game as _sm_load_game
 from ..config import settings_store
+from .ui_utils import draw_mouse_tooltip
 from .slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
-    delete_cross_rect, draw_delete_cross, draw_tooltip, rows_height,
+    delete_cross_rect, draw_delete_cross, rows_height,
 )
 
 _TOTAL_WIDTH = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -438,7 +439,7 @@ class MainMenu:
                     pygame.draw.rect(self.screen, DARK_BROWN, pygame.Rect(px, py, pw, ph), 2)
 
         if cross_hovered:
-            draw_tooltip(self.screen, self.subtitle_font, DELETE_TOOLTIP, mouse_pos)
+            draw_mouse_tooltip(self.screen, self.subtitle_font, DELETE_TOOLTIP, mouse_pos)
         if self._delete_confirm:
             self._delete_confirm.draw(self.screen, confirm_pos)
 

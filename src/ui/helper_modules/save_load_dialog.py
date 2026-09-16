@@ -17,9 +17,9 @@ from ...config.constants import FONTS_PATH
 from ...persistence.save_manager import delete_save, get_save_slots, next_free_slot
 from ..slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
-    delete_cross_rect, draw_delete_cross, draw_tooltip, rows_height,
+    delete_cross_rect, draw_delete_cross, rows_height,
 )
-from ..ui_utils import draw_9slice
+from ..ui_utils import draw_9slice, draw_mouse_tooltip
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -171,7 +171,7 @@ class _BaseSlotDialog:
         self._draw_preview()
         if self._cross_hovered:
             small = getattr(self.game, "small_font", self.font)
-            draw_tooltip(self.screen, small, DELETE_TOOLTIP, mouse_pos)
+            draw_mouse_tooltip(self.screen, small, DELETE_TOOLTIP, mouse_pos)
 
     def _handle_delete_click(self, pos: Tuple[int, int]) -> bool:
         """Route a click through the delete cross / confirm box. True if consumed."""

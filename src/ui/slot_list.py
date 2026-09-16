@@ -19,7 +19,6 @@ _CROSS_SIZE = 22
 # Width a save row reserves on its right edge for the delete cross
 CROSS_COLUMN_W = _CROSS_SIZE + 14
 DELETE_TOOLTIP = "Delete Save File"
-_CURSOR_W = 30  # width of the custom cursor image drawn at the mouse position
 
 
 def rows_height(rows: int, row_h: int, spacing: int) -> int:
@@ -102,7 +101,7 @@ class SlotList:
 
 
 # ---------------------------------------------------------------------------
-# Delete button, tooltip and confirmation box
+# Delete button and confirmation box
 # ---------------------------------------------------------------------------
 
 def delete_cross_rect(row: pygame.Rect) -> pygame.Rect:
@@ -130,22 +129,6 @@ def draw_delete_cross(surface: pygame.Surface, row: pygame.Rect,
     pygame.draw.line(surface, color, (left, top), (right, bottom), 3)
     pygame.draw.line(surface, color, (left, bottom), (right, top), 3)
     return hovered
-
-
-def draw_tooltip(surface: pygame.Surface, font: pygame.font.Font, text: str,
-                 pos: Tuple[int, int]) -> None:
-    """Draw a small text box beside ``pos``, clear of the custom cursor image."""
-    text_surf = font.render(text, True, BLACK)
-    box = text_surf.get_rect().inflate(14, 8)
-    # The cursor image (30x41) hangs right/down from pos: start right of it,
-    # or flip to the left of pos when there is no room on the right
-    box.midleft = (pos[0] + _CURSOR_W + 6, pos[1] + 12)
-    if box.right > surface.get_width():
-        box.right = pos[0] - 6
-    box.clamp_ip(surface.get_rect())
-    pygame.draw.rect(surface, BEIGE, box, border_radius=3)
-    pygame.draw.rect(surface, DARK_BROWN, box, 1, border_radius=3)
-    surface.blit(text_surf, text_surf.get_rect(center=box.center))
 
 
 class DeleteConfirm:

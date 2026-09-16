@@ -53,3 +53,28 @@ def draw_9slice(surface: pygame.Surface, image: pygame.Surface,
     """Draw *image* onto *surface* at *rect* using 9-slice scaling."""
     scaled = scale_9slice(image, (rect.width, rect.height), corner)
     surface.blit(scaled, rect)
+
+
+# Size of the custom cursor image, which is drawn with its top-left corner at
+# the mouse position (see Game / MainMenu cursor_img).
+CURSOR_W = 30
+
+
+def draw_mouse_tooltip(surface: pygame.Surface, font: pygame.font.Font, text: str,
+                       pos: tuple) -> None:
+    """Draw a one-line tooltip beside the mouse at *pos*, clear of the cursor.
+
+    The box sits right of the cursor image, roughly level with its hand, and
+    flips to the left of the mouse when there is no room on the right.
+    """
+    from ..config.colors import BEIGE, BLACK, DARK_BROWN
+
+    text_surf = font.render(text, True, BLACK)
+    box = text_surf.get_rect().inflate(14, 8)
+    box.midleft = (pos[0] + CURSOR_W + 6, pos[1] + 12)
+    if box.right > surface.get_width():
+        box.right = pos[0] - 6
+    box.clamp_ip(surface.get_rect())
+    pygame.draw.rect(surface, BEIGE, box, border_radius=3)
+    pygame.draw.rect(surface, DARK_BROWN, box, 1, border_radius=3)
+    surface.blit(text_surf, text_surf.get_rect(center=box.center))
