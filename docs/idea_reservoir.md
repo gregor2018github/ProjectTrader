@@ -1,10 +1,5 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
-- Game saving and Loading
-    - autosave feature
-    - add an option to have more save slots, that also means a scroll mechanic for the save file selection screens
-    - add a delete save file option
-
 - add a building mode
     - available via a main button at the right side of the screen
     - will be some special map view, a bit more zoomed out where the player can place new buildings and roads
@@ -29,7 +24,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - when you buy an extra license, you can give out loans to specific people yourself. Then the interest earned is higher but the risk is too (should be higher income on average though). When the induvidual cannot pay you can decide to take over their properties and goods to get some money back or to just write off the debt, but then you lose money. Both actions will have an effect on your reputation.
 
 - Mini games
-    - Shopping wood with an axe in the forest at a forester's shop
     - Fishing mini game at the seeside
     - Mining mini game at the mine
 

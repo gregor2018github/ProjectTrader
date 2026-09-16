@@ -4,8 +4,6 @@
 - [ ] fix animation to walk down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
-- [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
-- [ ] logic to actually cover booths at night with tarps
 - [ ] add two more houses with different designs
 
 ## Medium Priority
@@ -52,6 +50,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] add new closed booth sprites for all market stalls
+- [x] logic to actually cover booths at night with tarps: each booth switches to its "_closed" sprite at a slightly random time around closing/opening hour (booths without one keep their open sprite)
+- [x] make prototype of tarped market booths (they will be closed at night and covered with tarps)
 - [x] market opening hours (05:00–midnight): trade buttons grey out at night with a "Market closed" tooltip, clicking them shows a warning with the opening hours
 - [x] continue button in main menu
 - [x] made diagonal movement a bit slower

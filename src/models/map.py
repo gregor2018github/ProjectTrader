@@ -675,6 +675,12 @@ class TMXMap:
         for group in self.building_light_groups.values():
             group.update(current_time)
 
+    def update_markets(self, current_time: datetime.datetime) -> None:
+        """Switch market booths between their open and closed sprites."""
+        for house in self.houses:
+            if isinstance(house, Market):
+                house.update_sprite(current_time)
+
     def check_object_collision(self, rect: pygame.Rect) -> bool:
         """Check if the given rect collides with any map objects (houses, trees, sheep, or water)."""
         for house in self.houses:

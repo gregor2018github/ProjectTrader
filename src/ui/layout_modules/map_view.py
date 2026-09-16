@@ -57,6 +57,7 @@ def draw_map_view(
     
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
+    game_map.tmx_map.update_markets(game_state.date)
 
     # Detect hovered house before building the render queue
     paused = game_state.time_level == 1
