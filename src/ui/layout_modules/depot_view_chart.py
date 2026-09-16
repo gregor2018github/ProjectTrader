@@ -10,6 +10,10 @@ if TYPE_CHECKING:
     from ...models.population import PopulationManager
     from ...models.good import Good
 
+# Breathing room between the bar baseline and the bottom of the chart frame,
+# so bars don't sit flush on the border.
+_BAR_BASELINE_PAD = 14
+
 def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', population_manager: Optional['PopulationManager'] = None, goods: Optional[List['Good']] = None) -> None:
     """Draws the depot chart view with wealth, money, stock, house, population and happiness statistics.
 
@@ -30,11 +34,13 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
     button_height = 40
     button_margin = 10
 
+    # The chart frame has to end clearly above the button row; it used to reach
+    # 5px past buttons_area_y, so the buttons covered the foot of every bar.
     chart_rect = pygame.Rect(
         rect.x + 20,
         rect.y + 20,
         rect.width - 40,
-        rect.height - button_height - 30
+        rect.height - button_height - 43
     )
 
     buttons_area_y = rect.bottom - button_height - 15
@@ -366,7 +372,7 @@ def _draw_population_stacked_bars(
         max_total = 1
     y_max_scale = max_total * 1.1
     inner_h = chart_rect.height - margin * 2
-    bar_bottom = chart_rect.bottom - margin
+    bar_bottom = chart_rect.bottom - margin - _BAR_BASELINE_PAD
 
     _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
 
@@ -465,7 +471,7 @@ def _draw_stock_stacked_bars(
         max_total = 1
     y_max_scale = max_total * 1.1
     inner_h = chart_rect.height - margin * 2
-    bar_bottom = chart_rect.bottom - margin
+    bar_bottom = chart_rect.bottom - margin - _BAR_BASELINE_PAD
 
     _draw_bar_chart_grid(screen, font, chart_rect, bar_bottom, inner_h, y_max_scale)
 
@@ -591,7 +597,7 @@ def _draw_expenses_stacked_bars(
     if max_total == 0:
         max_total = 1
     y_max_scale = max_total * 1.1
-    bar_bottom = chart_rect.bottom - margin
+    bar_bottom = chart_rect.bottom - margin - _BAR_BASELINE_PAD
 
     # Pre-compute legend + Max/Min layout so bars never overlap the header band.
     legend_items = [(name, color) for name, _, color in categories]
@@ -780,7 +786,7 @@ def _draw_income_stacked_bars(
     if max_total == 0:
         max_total = 1
     y_max_scale = max_total * 1.1
-    bar_bottom = chart_rect.bottom - margin
+    bar_bottom = chart_rect.bottom - margin - _BAR_BASELINE_PAD
 
     # Pre-compute legend + Max/Min layout so bars never overlap the header band.
     legend_items = [(name, color) for name, _, color in categories]
@@ -968,7 +974,7 @@ def _draw_profit_bars(
     y_pos_scale = pos_peak * 1.1
     y_neg_scale = neg_peak * 1.1
 
-    bar_bottom = chart_rect.bottom - margin
+    bar_bottom = chart_rect.bottom - margin - _BAR_BASELINE_PAD
 
     # Legend layout (mirrors the income/expense charts so the panels line up).
     legend_items = [
