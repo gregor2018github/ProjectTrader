@@ -792,6 +792,7 @@ class DirectionalAnimator:
         fallback_static: str,
         normalize: bool = False,
         target_height: Optional[int] = None,
+        scale_overrides: Optional[Dict[Tuple[str, str], float]] = None,
     ) -> None:
         """Initialize the animator.
         
@@ -808,11 +809,15 @@ class DirectionalAnimator:
                 the logical ``target_width`` x ``target_height``.
             target_height: Height of the normalized box. Defaults to the height the
                 fallback static image would get when scaled to ``target_width``.
+            scale_overrides: Extra size multiplier per (direction, "static"/"move")
+                group, applied on top of the shared normalized scale. Frames stay
+                bottom-centred and keep their aspect ratio. Normalized mode only.
         """
         self.base_path: str = base_path
         self.sprite_definitions: Dict[str, Dict[str, Any]] = sprite_definitions
         self.target_width: int = target_width
         self.normalize: bool = normalize
+        self.scale_overrides: Dict[Tuple[str, str], float] = dict(scale_overrides or {})
 
         self.fallback_surface: pygame.Surface = self._load_image(fallback_static)
         if self.fallback_surface is None:
@@ -976,29 +981,29 @@ class DirectionalAnimator:
 
         # Size the box from the largest frame, never smaller than the logical box.
         all_frames = [
-            (img, self._content_rect(img))
-            for groups in raw.values()
-            for frames in groups.values()
+            (self._content_rect(img), scale * self.scale_overrides.get((direction, key), 1.0))
+            for direction, groups in raw.items()
+            for key, frames in groups.items()
             for img in frames
         ]
         box_w = self.target_width * ss
         box_h = self.target_height * ss
-        for _, rect in all_frames:
-            box_w = max(box_w, int(math.ceil(rect.width * scale)))
-            box_h = max(box_h, int(math.ceil(rect.height * scale)))
+        for rect, frame_scale in all_frames:
+            box_w = max(box_w, int(math.ceil(rect.width * frame_scale)))
+            box_h = max(box_h, int(math.ceil(rect.height * frame_scale)))
         # Keep the box a whole number of logical pixels so the zoom-1 downscale is exact.
         self.box_width = int(math.ceil(box_w / float(ss)))
         self.box_height = int(math.ceil(box_h / float(ss)))
         box_w, box_h = self.box_width * ss, self.box_height * ss
 
-        cache: Dict[int, pygame.Surface] = {}
+        cache: Dict[Tuple[int, float], pygame.Surface] = {}
 
-        def normalize(img: pygame.Surface) -> pygame.Surface:
-            key = id(img)
+        def normalize(img: pygame.Surface, frame_scale: float) -> pygame.Surface:
+            key = (id(img), frame_scale)
             if key not in cache:
                 rect = self._content_rect(img)
-                dest_w = max(1, int(round(rect.width * scale)))
-                dest_h = max(1, int(round(rect.height * scale)))
+                dest_w = max(1, int(round(rect.width * frame_scale)))
+                dest_h = max(1, int(round(rect.height * frame_scale)))
                 scaled = pygame.transform.smoothscale(img.subsurface(rect), (dest_w, dest_h))
                 canvas = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
                 # Bottom-centred, so every pose stands on the same baseline.
@@ -1011,7 +1016,8 @@ class DirectionalAnimator:
             built: Dict[str, List[pygame.Surface]] = {}
             sources: Dict[str, List[pygame.Surface]] = {}
             for key in ("static", "move"):
-                srcs = [normalize(img) for img in (groups.get(key) or [self.fallback_surface])]
+                frame_scale = scale * self.scale_overrides.get((direction, key), 1.0)
+                srcs = [normalize(img, frame_scale) for img in (groups.get(key) or [self.fallback_surface])]
                 sources[key] = srcs
                 built[key] = [
                     pygame.transform.smoothscale(img, (self.box_width, self.box_height))
@@ -1118,6 +1124,14 @@ class MapPlayer:
         ("front", "move"): 5.0,
     }
 
+    # Manual per-pose size multiplier, keyed like SPRITE_Y_CORRECTION. The
+    # diagonal walk artwork reads a little small next to the other poses. Purely
+    # cosmetic: frames stay bottom-centred and the logical box is unaffected.
+    SPRITE_SCALE: Dict[Tuple[str, str], float] = {
+        ("front_left", "move"): 1.05,
+        ("front_right", "move"): 1.05,
+    }
+
     def __init__(self, x: float, y: float, tile_size: int = TILE_SIZE) -> None:
         """Initialize the player.
         
@@ -1179,6 +1193,7 @@ class MapPlayer:
             # time preserves both aspect ratio and relative size, so nothing is
             # squashed and a taller pose really does render taller.
             normalize=True,
+            scale_overrides=self.SPRITE_SCALE,
         )
 
         self.sprite: pygame.Surface = self.animator.get_current_frame()
