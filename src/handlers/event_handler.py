@@ -176,7 +176,7 @@ class EventHandler:
             import os
             from ..persistence.save_manager import save_game as _save
             from ..config.constants import SAVES_PATH
-            slot = int(choice[-1])
+            slot = int(choice.rsplit("_", 1)[1])
             save_name = getattr(game_state.info_window, "save_name", "")
             # Save thumbnail before writing the save file
             screenshot = getattr(game_state.info_window, "screenshot", None)
@@ -201,7 +201,7 @@ class EventHandler:
                 game_state.info_window = None
                 game_state.show_warning(f"Save failed: {e}")
         elif isinstance(choice, str) and choice.startswith("load_slot_"):
-            slot = int(choice[-1])
+            slot = int(choice.rsplit("_", 1)[1])
             game_state._pending_load_slot = slot
             game_state.info_window = InfoWindow(
                 game_state.screen,

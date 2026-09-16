@@ -18,7 +18,6 @@ from ..models.statistics import Statistics
 from ..config.constants import SAVES_PATH, SAVE_SECRET_KEY
 
 SAVE_VERSION = 1
-NUM_SLOTS = 3
 
 
 # ---------------------------------------------------------------------------
@@ -27,6 +26,21 @@ NUM_SLOTS = 3
 
 def _slot_path(slot: int) -> str:
     return os.path.join(SAVES_PATH, f"slot_{slot}.sav")
+
+
+def _used_slots() -> List[int]:
+    """Return the sorted slot numbers that have a save file in the saves folder."""
+    try:
+        names = os.listdir(SAVES_PATH)
+    except OSError:
+        return []
+    slots = []
+    for name in names:
+        if name.startswith("slot_") and name.endswith(".sav"):
+            number = name[len("slot_"):-len(".sav")]
+            if number.isdigit() and int(number) > 0:
+                slots.append(int(number))
+    return sorted(slots)
 
 
 def _dt_to_str(dt: datetime.datetime) -> str:
@@ -218,25 +232,24 @@ def load_game(slot: int) -> Dict[str, Any]:
     return _unpack(blob)
 
 
-def get_save_slots() -> List[Optional[Dict[str, Any]]]:
-    """Return a list of NUM_SLOTS slot-info dicts (or None for empty/corrupted slots).
+def get_save_slots() -> List[Dict[str, Any]]:
+    """Return one slot-info dict per save file in the saves folder, by slot number.
 
-    Each non-None entry contains: slot (int), saved_at (str), game_date (str), money (float).
+    Every entry contains slot (int) and corrupted (bool).  Readable saves also
+    contain saved_at (str), game_date (str), money, wealth, playtime_seconds,
+    save_name and thumbnail_path.
     """
-    result: List[Optional[Dict[str, Any]]] = []
-    for slot in range(1, NUM_SLOTS + 1):
-        path = _slot_path(slot)
-        if not os.path.exists(path):
-            result.append(None)
-            continue
+    result: List[Dict[str, Any]] = []
+    for slot in _used_slots():
         try:
-            with open(path, "rb") as f:
+            with open(_slot_path(slot), "rb") as f:
                 blob = f.read()
             data = _unpack(blob)
             thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
             wealth_history = data["depot"].get("wealth", [])
             result.append({
                 "slot": slot,
+                "corrupted": False,
                 "saved_at": data["saved_at"],
                 "game_date": data["game_state"]["date"],
                 "money": data["depot"]["money"],
@@ -246,8 +259,17 @@ def get_save_slots() -> List[Optional[Dict[str, Any]]]:
                 "thumbnail_path": thumb_path if os.path.exists(thumb_path) else None,
             })
         except Exception:
-            result.append(None)
+            result.append({"slot": slot, "corrupted": True})
     return result
+
+
+def next_free_slot() -> int:
+    """Return the lowest slot number without a save file (for a new save)."""
+    used = set(_used_slots())
+    slot = 1
+    while slot in used:
+        slot += 1
+    return slot
 
 
 def delete_save(slot: int) -> None:

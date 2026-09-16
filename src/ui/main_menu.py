@@ -11,6 +11,7 @@ from ..config.colors import (
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
 from ..persistence.save_manager import get_save_slots, load_game as _sm_load_game
 from ..config import settings_store
+from .slot_list import SlotList, rows_height
 
 _TOTAL_WIDTH = SCREEN_WIDTH + SIDEBAR_WIDTH
 
@@ -113,8 +114,8 @@ class MainMenu:
 
         # Load-game slot selection state
         self._view: str = "main"  # "main", "load_slots", or "settings"
-        self._slots: List[Optional[Dict[str, Any]]] = []
-        self._slot_rects: List[pygame.Rect] = []
+        self._slots: List[Dict[str, Any]] = []
+        self._slot_list: Optional[SlotList] = None
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._load_panel_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._thumb_cache: dict = {}
@@ -150,6 +151,9 @@ class MainMenu:
                 if event.type == pygame.QUIT:
                     return ("exit", None)
 
+                if event.type == pygame.MOUSEWHEEL and self._view == "load_slots":
+                    self._slot_list.handle_wheel(event)
+
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self._view == "main":
                         for rect, _label, action, enabled in self.buttons:
@@ -170,10 +174,12 @@ class MainMenu:
                         if self._back_rect.collidepoint(mouse_pos):
                             self._view = "main"
                             continue
-                        for i, rect in enumerate(self._slot_rects):
-                            if rect.collidepoint(mouse_pos) and self._slots[i] is not None:
+                        if self._slot_list.handle_click(mouse_pos):
+                            continue
+                        for i, rect in self._slot_list.visible_rows():
+                            if rect.collidepoint(mouse_pos) and not self._slots[i]["corrupted"]:
                                 try:
-                                    data = _sm_load_game(i + 1)
+                                    data = _sm_load_game(self._slots[i]["slot"])
                                     return ("load_game", data)
                                 except Exception:
                                     pass  # Slot corrupted — stay on screen
@@ -201,6 +207,7 @@ class MainMenu:
         slot_w = panel_w - 2 * panel_margin
         slot_h = 90
         slot_spacing = 12
+        max_visible = 5    # beyond this the slot list scrolls
         top_pad = 22
         title_h = 54       # approximate rendered height of title_font at 52pt
         title_gap = 10
@@ -208,9 +215,11 @@ class MainMenu:
         back_h = 46
         back_gap = 22
         bottom_pad = 24
+        visible = min(max_visible, len(self._slots))
+        # With no saves, reserve one row's height for the "no saves" message
         panel_h = (
             top_pad + title_h + title_gap + 1 + divider_gap
-            + 3 * slot_h + 2 * slot_spacing
+            + rows_height(max(1, visible), slot_h, slot_spacing)
             + back_gap + back_h + bottom_pad
         )
 
@@ -224,18 +233,17 @@ class MainMenu:
             self._load_panel_rect.top
             + top_pad + title_h + title_gap + 1 + divider_gap
         )
-        self._slot_rects = []
-        for i in range(3):
-            self._slot_rects.append(
-                pygame.Rect(
-                    self._load_panel_rect.left + panel_margin,
-                    slots_top + i * (slot_h + slot_spacing),
-                    slot_w,
-                    slot_h,
-                )
-            )
+        self._slot_list = SlotList(
+            count=len(self._slots),
+            visible=visible,
+            left=self._load_panel_rect.left + panel_margin,
+            top=slots_top,
+            width=slot_w,
+            row_h=slot_h,
+            spacing=slot_spacing,
+        )
 
-        back_y = self._slot_rects[-1].bottom + back_gap
+        back_y = slots_top + rows_height(max(1, visible), slot_h, slot_spacing) + back_gap
         self._back_rect = pygame.Rect(cx - 100, back_y, 200, back_h)
 
     def _draw_load_slots(self, mouse_pos: Tuple[int, int]) -> None:
@@ -262,12 +270,20 @@ class MainMenu:
             1,
         )
 
-        # Slots
-        for i, rect in enumerate(self._slot_rects):
+        # Slots — thumbnails scrolled out of view must not trigger the preview
+        self._thumb_rects.clear()
+        self._slot_list.draw_scrollbar(self.screen)
+        if not self._slots:
+            msg = self.subtitle_font.render("No saved games found.", True, DARK_GRAY)
+            area = pygame.Rect(self._load_panel_rect.left, self._slot_list.rows_rect.top,
+                               self._load_panel_rect.width, self._back_rect.top - self._slot_list.rows_rect.top)
+            self.screen.blit(msg, msg.get_rect(center=area.center))
+        for i, rect in self._slot_list.visible_rows():
             slot_info = self._slots[i]
-            hovered = slot_info is not None and rect.collidepoint(mouse_pos)
+            readable = not slot_info["corrupted"]
+            hovered = readable and rect.collidepoint(mouse_pos)
 
-            if not slot_info:
+            if not readable:
                 bg, border = LIGHT_GRAY, GRAY
             elif hovered:
                 bg, border = PALE_BROWN, DARK_BROWN
@@ -280,7 +296,7 @@ class MainMenu:
             # Thumbnail (right side of slot)
             _THUMB_W, _THUMB_H = 105, 64
             thumb_surf = None
-            thumb_path = slot_info.get("thumbnail_path") if slot_info else None
+            thumb_path = slot_info.get("thumbnail_path")
             if thumb_path and os.path.exists(thumb_path):
                 if i not in self._thumb_cache:
                     try:
@@ -299,8 +315,8 @@ class MainMenu:
             else:
                 self._thumb_rects.pop(i, None)
 
-            label_color = DARK_BROWN if slot_info else DARK_GRAY
-            label_str = (slot_info.get("save_name") or f"Slot {i + 1}") if slot_info else f"Slot {i + 1}"
+            label_color = DARK_BROWN if readable else DARK_GRAY
+            label_str = slot_info.get("save_name") or f"Slot {slot_info['slot']}"
             label_surf = self.button_font.render(label_str, True, label_color)
             self.screen.blit(label_surf, (rect.left + 14, rect.top + 8))
 
@@ -315,9 +331,9 @@ class MainMenu:
                     surf = clip
                 self.screen.blit(surf, (rect.left + 14, y))
 
-            if slot_info:
+            if readable:
                 try:
-                    gd = datetime.datetime.fromisoformat(slot_info["game_date"])
+                    gd =datetime.datetime.fromisoformat(slot_info["game_date"])
                     game_date_str = gd.strftime("%d %b %Y  %H:%M")
                 except Exception:
                     game_date_str = slot_info["game_date"]
@@ -337,7 +353,7 @@ class MainMenu:
                 _blit_row(row2, DARK_BROWN, rect.top + 34)
                 _blit_row(row3, DARK_BROWN, rect.top + 58)
             else:
-                _blit_row("Empty", DARK_GRAY, rect.top + 34)
+                _blit_row("Unreadable save file", DARK_GRAY, rect.top + 34)
 
         # Back button
         hovered = self._back_rect.collidepoint(mouse_pos)

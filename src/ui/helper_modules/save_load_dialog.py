@@ -14,7 +14,8 @@ from ...config.colors import (
     DARK_BROWN, TAN, SANDY_BROWN, BEIGE, WHEAT,
 )
 from ...config.constants import FONTS_PATH
-from ...persistence.save_manager import get_save_slots
+from ...persistence.save_manager import get_save_slots, next_free_slot
+from ..slot_list import SlotList, rows_height
 from ..ui_utils import draw_9slice
 
 if TYPE_CHECKING:
@@ -27,14 +28,8 @@ _SLOT_MARGIN_TOP = 96    # top padding (~30px) + title + divider gap
 _SLOT_TO_CANCEL_GAP = 14 # space between last slot and cancel button
 _CANCEL_H = 36
 _CANCEL_BOTTOM_PAD = 32  # space below cancel button to window edge
-# Window height derived so every gap is explicit
-_WINDOW_H = (
-    _SLOT_MARGIN_TOP
-    + 3 * _SLOT_H + 2 * _SLOT_SPACING
-    + _SLOT_TO_CANCEL_GAP
-    + _CANCEL_H
-    + _CANCEL_BOTTOM_PAD
-)  # = 96 + 198 + 20 + 14 + 36 + 32 = 396
+_MIN_VISIBLE_SLOTS = 3   # keeps the name-entry phase fitting in the window
+_MAX_VISIBLE_SLOTS = 5   # beyond this the slot list scrolls
 
 
 def _format_game_date(iso_str: str) -> str:
@@ -72,15 +67,18 @@ class _BaseSlotDialog:
         font: pygame.font.Font,
         game: "Game",
         title: str,
+        entries: List[Optional[dict]],
     ) -> None:
         self.screen = screen
         self.font = font
         self.game = game
         self.title = title
-        self.slots = get_save_slots()
+        # One row per entry: a slot-info dict from get_save_slots(), or None
+        # for the "New Save Game..." row
+        self.entries = entries
         self._thumb_cache: dict = {}
-        self._thumb_rects: dict = {}       # slot_index → Rect of drawn thumbnail
-        self._preview_cache: dict = {}     # slot_index → full-res Surface
+        self._thumb_rects: dict = {}       # entry index → Rect of drawn thumbnail
+        self._preview_cache: dict = {}     # entry index → full-res Surface
         self._hover_slot: Optional[int] = None
         self._hover_start: int = 0
 
@@ -92,32 +90,57 @@ class _BaseSlotDialog:
         except Exception:
             self.title_font = font
 
-        self.window_rect = pygame.Rect(0, 0, _WINDOW_W, _WINDOW_H)
+        # Window height derived from the visible rows so every gap is explicit
+        visible = max(_MIN_VISIBLE_SLOTS, min(_MAX_VISIBLE_SLOTS, len(entries)))
+        slots_h = rows_height(visible, _SLOT_H, _SLOT_SPACING)
+        window_h = (
+            _SLOT_MARGIN_TOP
+            + slots_h
+            + _SLOT_TO_CANCEL_GAP
+            + _CANCEL_H
+            + _CANCEL_BOTTOM_PAD
+        )
+        self.window_rect = pygame.Rect(0, 0, _WINDOW_W, window_h)
         self.window_rect.center = (screen.get_width() // 2, screen.get_height() // 2)
 
-        # Slot rects — 30px margin on each side (+10 vs previous 20)
-        self.slot_rects: List[pygame.Rect] = []
+        # Slot list — 30px margin on each side
         slot_margin = 30
-        slot_w = _WINDOW_W - 2 * slot_margin
         slots_top = self.window_rect.top + _SLOT_MARGIN_TOP
-        for i in range(3):
-            self.slot_rects.append(
-                pygame.Rect(
-                    self.window_rect.left + slot_margin,
-                    slots_top + i * (_SLOT_H + _SLOT_SPACING),
-                    slot_w,
-                    _SLOT_H,
-                )
-            )
+        self.slot_list = SlotList(
+            count=len(entries),
+            visible=visible,
+            left=self.window_rect.left + slot_margin,
+            top=slots_top,
+            width=_WINDOW_W - 2 * slot_margin,
+            row_h=_SLOT_H,
+            spacing=_SLOT_SPACING,
+        )
+        # Tells event_handler the mouse wheel belongs to this dialog (no map zoom)
+        self._max_scroll = self.slot_list.max_offset
 
-        # Cancel button — positioned relative to last slot, not window bottom
-        cancel_top = self.slot_rects[-1].bottom + _SLOT_TO_CANCEL_GAP
+        # Cancel button — positioned relative to the slot area, not window bottom
+        cancel_top = slots_top + slots_h + _SLOT_TO_CANCEL_GAP
         self.cancel_rect = pygame.Rect(
             self.window_rect.centerx - 60,
             cancel_top,
             120,
             _CANCEL_H,
         )
+
+    def _draw_slot_list(self, mouse_pos: Tuple[int, int], readable_only: bool) -> None:
+        # Thumbnails of rows scrolled out of view must not trigger the preview
+        self._thumb_rects.clear()
+        for i, rect in self.slot_list.visible_rows():
+            entry = self.entries[i]
+            clickable = not (readable_only and entry and entry["corrupted"])
+            self._draw_slot(rect, i, entry, clickable=clickable, mouse_pos=mouse_pos)
+        self.slot_list.draw_scrollbar(self.screen)
+
+    def _clicked_slot(self, pos: Tuple[int, int]) -> Optional[int]:
+        for i, rect in self.slot_list.visible_rows():
+            if rect.collidepoint(pos):
+                return i
+        return None
 
     def _draw_background(self) -> None:
         overlay = pygame.Surface(
@@ -158,7 +181,10 @@ class _BaseSlotDialog:
         mouse_pos: Tuple[int, int],
     ) -> None:
         hovered = clickable and rect.collidepoint(mouse_pos)
-        if not slot_info:
+        if slot_info is None:
+            self._draw_new_save_row(rect, hovered)
+            return
+        if slot_info["corrupted"]:
             if hovered:
                 bg, border = WHEAT, DARK_GRAY
             else:
@@ -194,8 +220,9 @@ class _BaseSlotDialog:
 
         text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
 
-        label_color = DARK_BROWN if slot_info else DARK_GRAY
-        label = (slot_info.get("save_name") or f"Slot {slot_index + 1}") if slot_info else f"Slot {slot_index + 1}"
+        corrupted = slot_info["corrupted"]
+        label_color = DARK_GRAY if corrupted else DARK_BROWN
+        label = slot_info.get("save_name") or f"Slot {slot_info['slot']}"
         _draw_bold(self.screen, self.font, label, label_color, rect.left + 12, rect.top + 8)
 
         small = getattr(self.game, "small_font", self.font)
@@ -209,7 +236,7 @@ class _BaseSlotDialog:
                 surf = clip
             self.screen.blit(surf, (rect.left + 12, y))
 
-        if slot_info:
+        if not corrupted:
             ps = slot_info.get("playtime_seconds", 0.0)
             h, m = int(ps) // 3600, (int(ps) % 3600) // 60
             row2 = (
@@ -221,7 +248,24 @@ class _BaseSlotDialog:
             _blit_row(row2, BLACK, rect.top + 34)
             _blit_row(row3, BLACK, rect.top + 58)
         else:
-            _blit_row("Empty", DARK_GRAY, rect.top + 34)
+            _blit_row("Unreadable save file", DARK_GRAY, rect.top + 34)
+
+    def _draw_new_save_row(self, rect: pygame.Rect, hovered: bool) -> None:
+        bg = SANDY_BROWN if hovered else WHEAT
+        pygame.draw.rect(self.screen, bg, rect, border_radius=4)
+        pygame.draw.rect(self.screen, DARK_BROWN, rect, 2, border_radius=4)
+        label = "+  New Save Game..."
+        w, h = self.font.size(label)
+        _draw_bold(self.screen, self.font, label, DARK_BROWN,
+                   rect.centerx - w // 2, rect.centery - h // 2)
+
+    def _draw_empty_message(self, text: str) -> None:
+        small = getattr(self.game, "small_font", self.font)
+        surf = small.render(text, True, DARK_GRAY)
+        area = pygame.Rect(self.window_rect.left, self.window_rect.top + _SLOT_MARGIN_TOP,
+                           self.window_rect.width, self.cancel_rect.top - _SLOT_TO_CANCEL_GAP
+                           - self.window_rect.top - _SLOT_MARGIN_TOP)
+        self.screen.blit(surf, surf.get_rect(center=area.center))
 
     def _check_hover(self, mouse_pos: Tuple[int, int]) -> None:
         """Track which thumbnail the mouse is hovering over and when it started."""
@@ -239,8 +283,8 @@ class _BaseSlotDialog:
             return
         if pygame.time.get_ticks() - self._hover_start < 500:
             return
-        slot_info = self.slots[self._hover_slot]
-        if not slot_info:
+        slot_info = self.entries[self._hover_slot]
+        if not slot_info or slot_info["corrupted"]:
             return
         thumb_path = slot_info.get("thumbnail_path")
         if not thumb_path or not os.path.exists(thumb_path):
@@ -276,19 +320,23 @@ _MAX_NAME_LEN = 30
 
 
 class SaveDialog(_BaseSlotDialog):
-    """Modal dialog for saving to one of 3 fixed slots.
+    """Modal dialog for saving to a new slot or overwriting an existing save.
 
-    Phase 1 — slot selection: clicking a slot moves to phase 2.
+    Phase 1 — slot selection: the first row, "New Save Game...", targets the
+              next free slot number; every other row is an existing save.
+              Clicking a row moves to phase 2.
     Phase 2 — name entry: player types a name (max 30 chars), then confirms.
 
-    handle_click() returns "save_slot_1/2/3" (with self.save_name set) or "Cancel".
-    handle_event() handles KEYDOWN for text input in phase 2.
+    handle_click() returns "save_slot_<n>" (with self.save_name set) or "Cancel".
+    handle_event() scrolls the slot list in phase 1 and handles KEYDOWN for
+    text input in phase 2.
     """
 
     def __init__(self, screen: pygame.Surface, font: pygame.font.Font, game: "Game") -> None:
-        super().__init__(screen, font, game, "Save Game")
+        super().__init__(screen, font, game, "Save Game", [None] + get_save_slots())
         self._phase: str = "slot"       # "slot" or "name"
         self._selected_slot: Optional[int] = None
+        self._overwriting: bool = False
         self._name_text: str = ""
         self.save_name: str = ""        # read by event_handler after confirm
         # Capture the game frame before the dialog is drawn (no dialog UI in screenshot)
@@ -320,8 +368,7 @@ class SaveDialog(_BaseSlotDialog):
         self._draw_title()
         mouse_pos = pygame.mouse.get_pos()
         if self._phase == "slot":
-            for i, rect in enumerate(self.slot_rects):
-                self._draw_slot(rect, i, self.slots[i], clickable=True, mouse_pos=mouse_pos)
+            self._draw_slot_list(mouse_pos, readable_only=False)
             self._draw_cancel(mouse_pos)
             self._check_hover(mouse_pos)
             self._draw_preview()
@@ -332,7 +379,9 @@ class SaveDialog(_BaseSlotDialog):
         small = getattr(self.game, "small_font", self.font)
 
         # Slot subtitle
-        slot_label = small.render(f"Slot {self._selected_slot}", True, DARK_GRAY)
+        subtitle = (f"Overwrite Slot {self._selected_slot}" if self._overwriting
+                    else f"New save in Slot {self._selected_slot}")
+        slot_label = small.render(subtitle, True, DARK_GRAY)
         self.screen.blit(slot_label, slot_label.get_rect(
             centerx=self.window_rect.centerx,
             top=self.window_rect.top + 108,
@@ -377,7 +426,10 @@ class SaveDialog(_BaseSlotDialog):
         self.screen.blit(s, s.get_rect(center=self._back_name_rect.center))
 
     def handle_event(self, event: pygame.event.Event) -> None:
-        if self._phase != "name" or event.type != pygame.KEYDOWN:
+        if self._phase == "slot":
+            self.slot_list.handle_wheel(event)
+            return
+        if event.type != pygame.KEYDOWN:
             return
         if event.key == pygame.K_BACKSPACE:
             self._name_text = self._name_text[:-1]
@@ -401,13 +453,20 @@ class SaveDialog(_BaseSlotDialog):
         if self._phase == "slot":
             if self.cancel_rect.collidepoint(pos):
                 return "Cancel"
-            for i, rect in enumerate(self.slot_rects):
-                if rect.collidepoint(pos):
-                    self._phase = "name"
-                    self._selected_slot = i + 1
-                    existing = self.slots[i]
-                    self._name_text = (existing.get("save_name") or "") if existing else ""
-                    return None
+            if self.slot_list.handle_click(pos):
+                return None
+            i = self._clicked_slot(pos)
+            if i is not None:
+                existing = self.entries[i]
+                self._phase = "name"
+                self._overwriting = existing is not None
+                if existing is None:
+                    self._selected_slot = next_free_slot()
+                    self._name_text = ""
+                else:
+                    self._selected_slot = existing["slot"]
+                    self._name_text = existing.get("save_name") or ""
+                return None
         else:
             if self._confirm_rect.collidepoint(pos):
                 self.save_name = self._name_text.strip()
@@ -419,30 +478,36 @@ class SaveDialog(_BaseSlotDialog):
 
 
 class LoadDialog(_BaseSlotDialog):
-    """Modal dialog for loading from one of 3 fixed slots.
+    """Modal dialog listing every save file in the saves folder.
 
-    Empty slots are greyed out and non-clickable.
-    handle_click() returns "load_slot_1/2/3" or "Cancel".
+    Unreadable saves are greyed out and non-clickable.
+    handle_click() returns "load_slot_<n>" or "Cancel".
     """
 
     def __init__(self, screen: pygame.Surface, font: pygame.font.Font, game: "Game") -> None:
-        super().__init__(screen, font, game, "Load Game")
+        super().__init__(screen, font, game, "Load Game", get_save_slots())
 
     def draw(self) -> None:
         self._draw_background()
         self._draw_title()
         mouse_pos = pygame.mouse.get_pos()
-        for i, rect in enumerate(self.slot_rects):
-            clickable = self.slots[i] is not None
-            self._draw_slot(rect, i, self.slots[i], clickable=clickable, mouse_pos=mouse_pos)
+        if self.entries:
+            self._draw_slot_list(mouse_pos, readable_only=True)
+        else:
+            self._draw_empty_message("No saved games found.")
         self._draw_cancel(mouse_pos)
         self._check_hover(mouse_pos)
         self._draw_preview()
 
+    def handle_event(self, event: pygame.event.Event) -> None:
+        self.slot_list.handle_wheel(event)
+
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
         if self.cancel_rect.collidepoint(pos):
             return "Cancel"
-        for i, rect in enumerate(self.slot_rects):
-            if rect.collidepoint(pos) and self.slots[i] is not None:
-                return f"load_slot_{i + 1}"
+        if self.slot_list.handle_click(pos):
+            return None
+        i = self._clicked_slot(pos)
+        if i is not None and not self.entries[i]["corrupted"]:
+            return f"load_slot_{self.entries[i]['slot']}"
         return None
