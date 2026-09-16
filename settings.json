@@ -1,4 +1,6 @@
 {
   "show_map_debug": true,
-  "resolution": "1760x1064"
+  "resolution": "1760x1064",
+  "autosave_enabled": true,
+  "autosave_minutes": 5
 }
