@@ -172,6 +172,7 @@ def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], 
         return
 
     paused = game_state.time_level == 1
+    closed = not game_state.is_market_open
     sections = [('one', 20), ('two', 390), ('three', 760)]
     for section, x_start in sections:
         good_name = input_fields.get(f'good_{section}')
@@ -181,8 +182,8 @@ def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], 
         sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
         no_license = not depot.has_license(good_name, game_state.date)
         no_stock = depot.good_stock.get(good_name, 0) == 0
-        buy_greyed = paused or no_license
-        sell_greyed = paused or no_stock
+        buy_greyed = paused or closed or no_license
+        sell_greyed = paused or closed or no_stock
         if (not buy_greyed and buy_rect.collidepoint(mouse_pos)) or \
            (not sell_greyed and sell_rect.collidepoint(mouse_pos)):
             good_obj = next((g for g in goods if g.name == good_name), None)
@@ -574,9 +575,10 @@ def _draw_bottom_bar(
 
         # Draw buy button
         paused = game_state.time_level == 1
+        closed = not game_state.is_market_open
         depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
         no_license = depot is not None and not depot.has_license(good_name, game_state.date)
-        buy_greyed = paused or no_license
+        buy_greyed = paused or closed or no_license
         if buy_greyed:
             buy_color = LIGHT_GRAY
         elif is_hovering(buy_rect):
@@ -592,7 +594,7 @@ def _draw_bottom_bar(
 
         # Draw sell button
         no_stock = depot is not None and depot.good_stock.get(good_name, 0) == 0
-        sell_greyed = paused or no_stock
+        sell_greyed = paused or closed or no_stock
         if sell_greyed:
             sell_color = LIGHT_GRAY
         elif is_hovering(sell_rect):
@@ -639,7 +641,7 @@ def _draw_bottom_bar(
         screen.blit(buy_text, (buy_rect.centerx - buy_text.get_width()//2, buy_rect.centery - buy_text.get_height()//2))
         screen.blit(sell_text, (sell_rect.centerx - sell_text.get_width()//2, sell_rect.centery - sell_text.get_height()//2))
 
-        # Collect tooltip for hovered greyed button (priority: paused > no stock > no license)
+        # Collect tooltip for hovered greyed button (priority: paused > closed > no stock > no license)
         for btn_rect, is_greyed, btn_no_stock in [
             (buy_rect,  buy_greyed,  False),
             (sell_rect, sell_greyed, no_stock),
@@ -647,6 +649,8 @@ def _draw_bottom_bar(
             if is_greyed and is_hovering(btn_rect):
                 if paused:
                     pending_tooltip = "Game paused"
+                elif closed:
+                    pending_tooltip = "Market closed"
                 elif btn_no_stock:
                     pending_tooltip = "No Stock"
                 else:

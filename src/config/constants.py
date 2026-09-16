@@ -33,6 +33,10 @@ TIME_STEP_LEVEL_3 = 0.10             # Level 3: Normal
 TIME_STEP_LEVEL_4 = 1.00            # Level 4: Fast
 TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 
+# MARKET OPENING HOURS (trading is only possible while the market is open)
+MARKET_OPEN_HOUR = 5                # Market opens at 05:00
+MARKET_CLOSE_HOUR = 24              # Market closes at midnight (24 = end of day)
+
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
 MARKET_PRESIMULATION_DAYS = 60      # Days of price history to simulate before the game starts

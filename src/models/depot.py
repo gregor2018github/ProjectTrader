@@ -207,6 +207,9 @@ class Depot:
         Returns:
             bool: True if purchase was successful, False otherwise.
         """
+        if not game_state.is_market_open:
+            game_state.show_warning(game_state.market_closed_message)
+            return False
         if not self.has_license(good.name, game_state.date):
             game_state.show_warning(f"No trading license for {good.name}.")
             return False
@@ -265,6 +268,9 @@ class Depot:
         Returns:
             bool: True if sale was successful, False otherwise.
         """
+        if not game_state.is_market_open:
+            game_state.show_warning(game_state.market_closed_message)
+            return False
         if not self.has_license(good.name, game_state.date):
             game_state.show_warning(f"No trading license for {good.name}.")
             return False

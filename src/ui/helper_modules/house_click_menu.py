@@ -459,14 +459,14 @@ class HouseMenu:
             self.close_button_size,
         )
 
-        # Determine which QuickTrade buttons lack a license
+        # Determine which QuickTrade buttons are disabled (market closed or no license)
         self.disabled_options: set = set()
         if game_state.game is not None:
             depot = game_state.game.depot
             for option in options:
                 if option.startswith("QuickTrade "):
                     good_name = option[len("QuickTrade "):]
-                    if not depot.has_license(good_name, game_state.date):
+                    if not self._is_market_open() or not depot.has_license(good_name, game_state.date):
                         self.disabled_options.add(option)
 
         # Create button rects
@@ -476,6 +476,11 @@ class HouseMenu:
             btn_rect = pygame.Rect(self.x + self.padding, current_y, self.width - 2 * self.padding, self.button_height)
             self.buttons.append((btn_rect, option))
             current_y += self.button_height + self.padding
+
+    def _is_market_open(self) -> bool:
+        """Market opening hours only matter for market booths."""
+        from ...models.institutions.market import Market
+        return not isinstance(self.house, Market) or self.game_state.is_market_open
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         """Handle clicks on the menu. Returns True if handled/closed."""
@@ -498,6 +503,8 @@ class HouseMenu:
         for rect, option in self.buttons:
             if rect.collidepoint(pos):
                 if option in self.disabled_options:
+                    if not self._is_market_open():
+                        self.game_state.show_warning(self.game_state.market_closed_message)
                     return True  # absorb click, do nothing
                 if self.callback:
                     self.callback(option)
@@ -580,9 +587,10 @@ class HouseMenu:
             if is_disabled and is_hovered:
                 hovered_disabled_rect = btn_rect
 
-        # "No trading license" tooltip for hovered disabled buttons
+        # Tooltip explaining why a hovered button is disabled
         if hovered_disabled_rect is not None:
-            tip_surf = self.font.render("No trading license", True, DARK_RED)
+            tip_text = "Market closed" if not self._is_market_open() else "No trading license"
+            tip_surf = self.font.render(tip_text, True, DARK_RED)
             tip_w = tip_surf.get_width() + 10
             tip_h = tip_surf.get_height() + 6
             tip_x = min(mouse_pos[0] + 12, self.screen.get_width() - tip_w - 2)

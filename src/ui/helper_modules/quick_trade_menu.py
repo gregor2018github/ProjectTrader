@@ -265,26 +265,27 @@ class TradeMenu:
                 total_surf = self.font.render(f"Total Income: {total:.1f}", True, DARK_BROWN)
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
 
-        # Buy Button
+        # Buy Button (greyed out while the market is closed)
+        closed = not self.game_state.is_market_open
         buy_rect = self.buttons['buy'].move(offset_x, offset_y)
-        buy_color = BUY_BUTTON
-        if alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos):
+        buy_color = LIGHT_GRAY if closed else BUY_BUTTON
+        if not closed and alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos):
             buy_color = BUY_BUTTON_HOVER
 
         pygame.draw.rect(target_surf, buy_color, buy_rect)
-        pygame.draw.rect(target_surf, BUY_BUTTON_BORDER, buy_rect, 2)
+        pygame.draw.rect(target_surf, GRAY if closed else BUY_BUTTON_BORDER, buy_rect, 2)
         buy_text = self.font.render("Buy", True, BUTTON_TEXT)
         buy_text_rect = buy_text.get_rect(center=buy_rect.center)
         target_surf.blit(buy_text, buy_text_rect)
 
         # Sell Button
         sell_rect = self.buttons['sell'].move(offset_x, offset_y)
-        sell_color = SELL_BUTTON
-        if alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos):
+        sell_color = LIGHT_GRAY if closed else SELL_BUTTON
+        if not closed and alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos):
             sell_color = SELL_BUTTON_HOVER
 
         pygame.draw.rect(target_surf, sell_color, sell_rect)
-        pygame.draw.rect(target_surf, SELL_BUTTON_BORDER, sell_rect, 2)
+        pygame.draw.rect(target_surf, GRAY if closed else SELL_BUTTON_BORDER, sell_rect, 2)
         sell_text = self.font.render("Sell", True, BUTTON_TEXT)
         sell_text_rect = sell_text.get_rect(center=sell_rect.center)
         target_surf.blit(sell_text, sell_text_rect)

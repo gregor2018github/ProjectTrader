@@ -10,7 +10,9 @@ from .config.constants import (
     TIME_STEP_LEVEL_2, 
     TIME_STEP_LEVEL_3, 
     TIME_STEP_LEVEL_4, 
-    TIME_STEP_LEVEL_5
+    TIME_STEP_LEVEL_5,
+    MARKET_OPEN_HOUR,
+    MARKET_CLOSE_HOUR
 )
 
 if TYPE_CHECKING:
@@ -167,6 +169,18 @@ class GameState:
         """Check if the map is currently being displayed on either side of the screen."""
         return self.left_side_mode == 'map' or self.right_side_mode == 'map'
         
+    @property
+    def is_market_open(self) -> bool:
+        """Check if the market is open for trading at the current game time."""
+        return MARKET_OPEN_HOUR <= self.date.hour < MARKET_CLOSE_HOUR
+
+    @property
+    def market_closed_message(self) -> str:
+        """Message shown when the player tries to trade while the market is closed."""
+        close_text = "midnight" if MARKET_CLOSE_HOUR % 24 == 0 else f"{MARKET_CLOSE_HOUR:02d}:00"
+        return (f"The market is closed. Trading is only possible between "
+                f"{MARKET_OPEN_HOUR:02d}:00 and {close_text}.")
+
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""
         # Enforce map view time restriction: only paused (1) or normal (3) allowed

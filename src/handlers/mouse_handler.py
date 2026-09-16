@@ -408,6 +408,9 @@ def handle_mouse_click(pos: Tuple[int, int],
                 return
             elif field_name.startswith(('buy_', 'sell_')):
                 if game_state.time_level > 1:
+                    if not game_state.is_market_open:
+                        game_state.show_warning(game_state.market_closed_message)
+                        return
                     section = field_name.split('_')[1]
                     good_name = game_state.input_fields.get(f'good_{section}', '')
                     if field_name.startswith('buy_') and not depot.has_license(good_name, game_state.date):

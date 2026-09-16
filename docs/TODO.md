@@ -4,7 +4,6 @@
 - [ ] fix animation to walk down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
-- [ ] Trading at the market should only be available between 5am and 12pm
 - [ ] make prototype of tarped market booths (they will be closed at night and covered with tarps)
 - [ ] logic to actually cover booths at night with tarps
 - [ ] add two more houses with different designs
@@ -53,6 +52,8 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] market opening hours (05:00–midnight): trade buttons grey out at night with a "Market closed" tooltip, clicking them shows a warning with the opening hours
+- [x] continue button in main menu
 - [x] made diagonal movement a bit slower
 - [x] autosave feature
 - [x] add an option to have more save slots, that also means a scroll mechanic for the save file selection screens
