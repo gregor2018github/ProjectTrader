@@ -9,9 +9,12 @@ from ..config.colors import (
     LIGHT_GRAY, DARK_GRAY, GRAY, WHITE, DARK_GREEN, BLACK,
 )
 from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
-from ..persistence.save_manager import get_save_slots, load_game as _sm_load_game
+from ..persistence.save_manager import delete_save, get_save_slots, load_game as _sm_load_game
 from ..config import settings_store
-from .slot_list import SlotList, rows_height
+from .slot_list import (
+    CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
+    delete_cross_rect, draw_delete_cross, draw_tooltip, rows_height,
+)
 
 _TOTAL_WIDTH = SCREEN_WIDTH + SIDEBAR_WIDTH
 
@@ -123,6 +126,7 @@ class MainMenu:
         self._hover_slot: Optional[int] = None
         self._hover_start: int = 0
         self._thumb_rects: dict = {}
+        self._delete_confirm: Optional[DeleteConfirm] = None
 
         # Settings view state — current in-flight edits before Save is clicked
         self._settings_pending: Dict[str, Any] = {}
@@ -151,7 +155,8 @@ class MainMenu:
                 if event.type == pygame.QUIT:
                     return ("exit", None)
 
-                if event.type == pygame.MOUSEWHEEL and self._view == "load_slots":
+                if (event.type == pygame.MOUSEWHEEL and self._view == "load_slots"
+                        and not self._delete_confirm):
                     self._slot_list.handle_wheel(event)
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -159,8 +164,7 @@ class MainMenu:
                         for rect, _label, action, enabled in self.buttons:
                             if enabled and rect.collidepoint(mouse_pos):
                                 if action == "load_game":
-                                    self._slots = get_save_slots()
-                                    self._build_slot_rects()
+                                    self._reload_slots()
                                     self._view = "load_slots"
                                 elif action == "settings":
                                     self._settings_pending = settings_store.get_all()
@@ -171,6 +175,8 @@ class MainMenu:
                                     return (action, None)
 
                     elif self._view == "load_slots":
+                        if self._handle_delete_click(mouse_pos):
+                            continue
                         if self._back_rect.collidepoint(mouse_pos):
                             self._view = "main"
                             continue
@@ -199,6 +205,37 @@ class MainMenu:
     # ------------------------------------------------------------------
     # Load-slots helpers
     # ------------------------------------------------------------------
+
+    def _reload_slots(self) -> None:
+        """(Re)read the saves folder and rebuild the load view, keeping the scroll."""
+        old_offset = self._slot_list.offset if self._slot_list else 0
+        self._slots = get_save_slots()
+        # Caches are keyed by row index, which shifts when a save disappears
+        self._thumb_cache.clear()
+        self._preview_cache.clear()
+        self._thumb_rects.clear()
+        self._hover_slot = None
+        self._build_slot_rects()
+        self._slot_list.scroll(old_offset)
+
+    def _handle_delete_click(self, pos: Tuple[int, int]) -> bool:
+        """Route a click through the delete cross / confirm box. True if consumed."""
+        if self._delete_confirm:
+            confirmed = self._delete_confirm.handle_click(pos)
+            if confirmed is not None:
+                if confirmed:
+                    delete_save(self._delete_confirm.slot)
+                    self._reload_slots()
+                self._delete_confirm = None
+            return True
+        for i, rect in self._slot_list.visible_rows():
+            if delete_cross_rect(rect).collidepoint(pos):
+                self._delete_confirm = DeleteConfirm(
+                    self._slots[i], self._load_panel_rect.center,
+                    self.button_font, self.subtitle_font,
+                )
+                return True
+        return False
 
     def _build_slot_rects(self) -> None:
         # Panel geometry — wide enough to display all save info on one line
@@ -248,6 +285,11 @@ class MainMenu:
 
     def _draw_load_slots(self, mouse_pos: Tuple[int, int]) -> None:
         self.screen.fill(BEIGE)
+        confirm_pos = mouse_pos
+        # While the confirm box is open the list underneath must not react
+        if self._delete_confirm:
+            mouse_pos = (-1, -1)
+        cross_hovered = False
 
         # Panel background and border (matches main menu style)
         pygame.draw.rect(self.screen, SANDY_BROWN, self._load_panel_rect, border_radius=6)
@@ -305,8 +347,9 @@ class MainMenu:
                     except Exception:
                         self._thumb_cache[i] = None
                 thumb_surf = self._thumb_cache.get(i)
+            cross_hovered |= draw_delete_cross(self.screen, rect, mouse_pos)
             if thumb_surf is not None:
-                thumb_x = rect.right - _THUMB_W - 6
+                thumb_x = rect.right - CROSS_COLUMN_W - _THUMB_W
                 thumb_y = rect.centery - _THUMB_H // 2
                 self._thumb_rects[i] = pygame.Rect(thumb_x, thumb_y, _THUMB_W, _THUMB_H)
                 self.screen.blit(thumb_surf, (thumb_x, thumb_y))
@@ -320,7 +363,7 @@ class MainMenu:
             label_surf = self.button_font.render(label_str, True, label_color)
             self.screen.blit(label_surf, (rect.left + 14, rect.top + 8))
 
-            text_right = (rect.right - _THUMB_W - 14) if thumb_surf is not None else rect.right
+            text_right = rect.right - CROSS_COLUMN_W - (_THUMB_W + 8 if thumb_surf is not None else 0)
             max_w = text_right - rect.left - 14
 
             def _blit_row(text: str, color: tuple, y: int) -> None:
@@ -393,6 +436,11 @@ class MainMenu:
                     self.screen.blit(shadow, (px - pad, py - pad))
                     self.screen.blit(preview, (px, py))
                     pygame.draw.rect(self.screen, DARK_BROWN, pygame.Rect(px, py, pw, ph), 2)
+
+        if cross_hovered:
+            draw_tooltip(self.screen, self.subtitle_font, DELETE_TOOLTIP, mouse_pos)
+        if self._delete_confirm:
+            self._delete_confirm.draw(self.screen, confirm_pos)
 
         if self.cursor_img and pygame.mouse.get_focused():
             self.screen.blit(self.cursor_img, pygame.mouse.get_pos())

@@ -273,10 +273,11 @@ def next_free_slot() -> int:
 
 
 def delete_save(slot: int) -> None:
-    """Delete the save file for the given slot, if it exists."""
-    path = _slot_path(slot)
-    if os.path.exists(path):
-        os.remove(path)
+    """Delete the save file and its thumbnail for the given slot, if they exist."""
+    thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
+    for path in (_slot_path(slot), thumb_path):
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def _enforce_chart_limit(goods: List[Any], game_state: Any) -> None:
