@@ -400,7 +400,8 @@ class SaveDialog(_BaseSlotDialog):
         self.screenshot: pygame.Surface = pygame.display.get_surface().copy()
 
     def _read_entries(self) -> List[Optional[dict]]:
-        return [None] + get_save_slots()
+        # The autosave slot is written by the game only, never picked by hand
+        return [None] + [e for e in get_save_slots() if not e["autosave"]]
 
     def _layout(self) -> None:
         super()._layout()

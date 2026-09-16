@@ -135,6 +135,9 @@ class MainMenu:
         self._settings_toggle_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_res_btn_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_res_open: bool = False
+        self._settings_autosave_toggle_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_interval_dec_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_interval_inc_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_save_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
 
@@ -524,7 +527,7 @@ class MainMenu:
 
     def _build_settings_rects(self) -> None:
         panel_w = 480
-        panel_h = 330
+        panel_h = 416
         cx = _TOTAL_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
         self._settings_panel_rect = pygame.Rect(
@@ -549,6 +552,22 @@ class MainMenu:
             row2_y,
             btn_w,
             btn_h,
+        )
+
+        # Row 3 — Autosave toggle (row 2 leaves room for its restart note)
+        row3_y = row2_y + 80
+        self._settings_autosave_toggle_rect = pygame.Rect(
+            self._settings_toggle_rect.x, row3_y, toggle_w, toggle_h
+        )
+
+        # Row 4 — Autosave interval stepper, aligned with the dropdown column
+        row4_y = row3_y + 52
+        arrow_w = 30
+        self._settings_interval_dec_rect = pygame.Rect(
+            self._settings_res_btn_rect.left, row4_y, arrow_w, btn_h
+        )
+        self._settings_interval_inc_rect = pygame.Rect(
+            self._settings_res_btn_rect.right - arrow_w, row4_y, arrow_w, btn_h
         )
 
         # Save / Discard buttons at the bottom
@@ -577,6 +596,40 @@ class MainMenu:
             ))
         return rects
 
+    def _step_autosave_minutes(self, direction: int) -> None:
+        """Move the pending autosave interval one option up or down."""
+        if not self._settings_pending.get("autosave_enabled", True):
+            return
+        options = settings_store.AUTOSAVE_MINUTE_OPTIONS
+        current = self._settings_pending.get("autosave_minutes", 5)
+        # Snap an off-list value (e.g. hand-edited JSON) to its nearest option
+        index = min(range(len(options)), key=lambda i: abs(options[i] - current))
+        index = max(0, min(len(options) - 1, index + direction))
+        self._settings_pending["autosave_minutes"] = options[index]
+
+    def _draw_toggle(self, rect: pygame.Rect, enabled: bool) -> None:
+        """Draw an on/off pill switch with its On/Off label to the right."""
+        pill_color = DARK_GREEN if enabled else DARK_GRAY
+        pygame.draw.rect(self.screen, pill_color, rect, border_radius=14)
+        pygame.draw.rect(self.screen, DARK_BROWN, rect, 2, border_radius=14)
+
+        knob_r = rect.height // 2 - 3
+        knob_x = rect.right - knob_r - 5 if enabled else rect.left + knob_r + 5
+        pygame.draw.circle(self.screen, WHITE, (knob_x, rect.centery), knob_r)
+
+        state_label = self.subtitle_font.render("On" if enabled else "Off", True, DARK_BROWN)
+        self.screen.blit(
+            state_label,
+            state_label.get_rect(midleft=(rect.right + 10, rect.centery)),
+        )
+
+    def _draw_settings_label(self, text: str, centery: int, color: tuple = DARK_BROWN) -> None:
+        label_surf = self.button_font.render(text, True, color)
+        self.screen.blit(
+            label_surf,
+            label_surf.get_rect(midleft=(self._settings_panel_rect.left + 30, centery)),
+        )
+
     def _handle_settings_click(self, pos: Tuple[int, int]) -> None:
         from ..config.settings_store import RESOLUTION_PRESETS
 
@@ -594,6 +647,12 @@ class MainMenu:
             self._settings_pending["show_map_debug"] = not self._settings_pending.get("show_map_debug", True)
         elif self._settings_res_btn_rect.collidepoint(pos):
             self._settings_res_open = True
+        elif self._settings_autosave_toggle_rect.collidepoint(pos):
+            self._settings_pending["autosave_enabled"] = not self._settings_pending.get("autosave_enabled", True)
+        elif self._settings_interval_dec_rect.collidepoint(pos):
+            self._step_autosave_minutes(-1)
+        elif self._settings_interval_inc_rect.collidepoint(pos):
+            self._step_autosave_minutes(1)
         elif self._settings_save_rect.collidepoint(pos):
             settings_store.save_all(self._settings_pending)
             self._settings_res_open = False
@@ -628,30 +687,45 @@ class MainMenu:
         )
 
         # ── Row 1: Debug overlay toggle ──────────────────────────────
-        row1_y = self._settings_toggle_rect.centery
-        label_surf = self.button_font.render("Debug Overlay", True, DARK_BROWN)
-        self.screen.blit(
-            label_surf,
-            label_surf.get_rect(midleft=(self._settings_panel_rect.left + 30, row1_y)),
+        self._draw_settings_label("Debug Overlay", self._settings_toggle_rect.centery)
+        self._draw_toggle(
+            self._settings_toggle_rect,
+            bool(self._settings_pending.get("show_map_debug", True)),
         )
 
-        enabled = bool(self._settings_pending.get("show_map_debug", True))
-        pill_color = DARK_GREEN if enabled else DARK_GRAY
-        pygame.draw.rect(self.screen, pill_color, self._settings_toggle_rect, border_radius=14)
-        pygame.draw.rect(self.screen, DARK_BROWN, self._settings_toggle_rect, 2, border_radius=14)
+        # ── Row 3: Autosave toggle ───────────────────────────────────
+        autosave_on = bool(self._settings_pending.get("autosave_enabled", True))
+        self._draw_settings_label("Autosave", self._settings_autosave_toggle_rect.centery)
+        self._draw_toggle(self._settings_autosave_toggle_rect, autosave_on)
 
-        knob_r = self._settings_toggle_rect.height // 2 - 3
-        knob_x = (
-            self._settings_toggle_rect.right - knob_r - 5
-            if enabled
-            else self._settings_toggle_rect.left + knob_r + 5
+        # ── Row 4: Autosave interval stepper (greyed out while off) ──
+        dec_rect = self._settings_interval_dec_rect
+        inc_rect = self._settings_interval_inc_rect
+        row4_y = dec_rect.centery
+        self._draw_settings_label(
+            "Autosave Every", row4_y, DARK_BROWN if autosave_on else DARK_GRAY
         )
-        pygame.draw.circle(self.screen, WHITE, (knob_x, self._settings_toggle_rect.centery), knob_r)
-
-        state_label = self.subtitle_font.render("On" if enabled else "Off", True, DARK_BROWN)
+        options = settings_store.AUTOSAVE_MINUTE_OPTIONS
+        minutes = self._settings_pending.get("autosave_minutes", 5)
+        for rect, can_step, points in (
+            (dec_rect, minutes > options[0],
+             [(dec_rect.centerx + 4, row4_y - 6), (dec_rect.centerx + 4, row4_y + 6),
+              (dec_rect.centerx - 5, row4_y)]),
+            (inc_rect, minutes < options[-1],
+             [(inc_rect.centerx - 4, row4_y - 6), (inc_rect.centerx - 4, row4_y + 6),
+              (inc_rect.centerx + 5, row4_y)]),
+        ):
+            active = autosave_on and can_step
+            hovered = active and rect.collidepoint(mouse_pos)
+            pygame.draw.rect(self.screen, PALE_BROWN if hovered else TAN, rect, border_radius=4)
+            pygame.draw.rect(self.screen, DARK_BROWN if autosave_on else GRAY, rect, 2, border_radius=4)
+            pygame.draw.polygon(self.screen, DARK_BROWN if active else GRAY, points)
+        value_surf = self.subtitle_font.render(
+            f"{minutes} min", True, DARK_BROWN if autosave_on else DARK_GRAY
+        )
         self.screen.blit(
-            state_label,
-            state_label.get_rect(midleft=(self._settings_toggle_rect.right + 10, row1_y)),
+            value_surf,
+            value_surf.get_rect(center=((dec_rect.right + inc_rect.left) // 2, row4_y)),
         )
 
         # ── Row 2: Resolution dropdown ───────────────────────────────

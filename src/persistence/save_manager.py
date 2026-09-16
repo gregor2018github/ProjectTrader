@@ -19,13 +19,27 @@ from ..config.constants import SAVES_PATH, SAVE_SECRET_KEY
 
 SAVE_VERSION = 1
 
+# Slot number of the single autosave.  Manual slots start at 1, so 0 never
+# collides; the autosave is stored as autosave.sav instead of slot_0.sav.
+AUTOSAVE_SLOT = 0
+AUTOSAVE_NAME = "Autosave"
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+def _file_stem(slot: int) -> str:
+    return "autosave" if slot == AUTOSAVE_SLOT else f"slot_{slot}"
+
+
 def _slot_path(slot: int) -> str:
-    return os.path.join(SAVES_PATH, f"slot_{slot}.sav")
+    return os.path.join(SAVES_PATH, f"{_file_stem(slot)}.sav")
+
+
+def thumbnail_path(slot: int) -> str:
+    """Path of the screenshot thumbnail belonging to *slot*."""
+    return os.path.join(SAVES_PATH, f"{_file_stem(slot)}_thumb.png")
 
 
 def _used_slots() -> List[int]:
@@ -209,7 +223,8 @@ def _serialize_population(pm: Any) -> Optional[Dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None) -> None:
-    """Serialize the full game state and write it to the given slot file (1-based)."""
+    """Serialize the full game state and write it to the given slot file
+    (1-based, or AUTOSAVE_SLOT)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
     data = _serialize_game(game_state, player, depot, goods, save_name, population_manager)
     blob = _pack(data)
@@ -233,22 +248,28 @@ def load_game(slot: int) -> Dict[str, Any]:
 
 
 def get_save_slots() -> List[Dict[str, Any]]:
-    """Return one slot-info dict per save file in the saves folder, by slot number.
+    """Return one slot-info dict per save file in the saves folder.
 
-    Every entry contains slot (int) and corrupted (bool).  Readable saves also
-    contain saved_at (str), game_date (str), money, wealth, playtime_seconds,
-    save_name and thumbnail_path.
+    The autosave (if present) comes first, then the manual slots by number.
+    Every entry contains slot (int), autosave (bool) and corrupted (bool).
+    Readable saves also contain saved_at (str), game_date (str), money,
+    wealth, playtime_seconds, save_name and thumbnail_path.
     """
+    slots = _used_slots()
+    if os.path.exists(_slot_path(AUTOSAVE_SLOT)):
+        slots.insert(0, AUTOSAVE_SLOT)
     result: List[Dict[str, Any]] = []
-    for slot in _used_slots():
+    for slot in slots:
+        autosave = slot == AUTOSAVE_SLOT
         try:
             with open(_slot_path(slot), "rb") as f:
                 blob = f.read()
             data = _unpack(blob)
-            thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
+            thumb_path = thumbnail_path(slot)
             wealth_history = data["depot"].get("wealth", [])
             result.append({
                 "slot": slot,
+                "autosave": autosave,
                 "corrupted": False,
                 "saved_at": data["saved_at"],
                 "game_date": data["game_state"]["date"],
@@ -259,7 +280,12 @@ def get_save_slots() -> List[Dict[str, Any]]:
                 "thumbnail_path": thumb_path if os.path.exists(thumb_path) else None,
             })
         except Exception:
-            result.append({"slot": slot, "corrupted": True})
+            result.append({
+                "slot": slot,
+                "autosave": autosave,
+                "corrupted": True,
+                "save_name": AUTOSAVE_NAME if autosave else "",
+            })
     return result
 
 
@@ -274,8 +300,7 @@ def next_free_slot() -> int:
 
 def delete_save(slot: int) -> None:
     """Delete the save file and its thumbnail for the given slot, if they exist."""
-    thumb_path = os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png")
-    for path in (_slot_path(slot), thumb_path):
+    for path in (_slot_path(slot), thumbnail_path(slot)):
         if os.path.exists(path):
             os.remove(path)
 

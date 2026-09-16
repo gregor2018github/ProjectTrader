@@ -11,7 +11,12 @@ _SETTINGS_PATH = os.path.join(MAIN_PATH, "settings.json")
 _DEFAULTS: Dict[str, Any] = {
     "show_map_debug": True,
     "resolution": "1760x1064",
+    "autosave_enabled": True,
+    "autosave_minutes": 5,
 }
+
+# Autosave intervals (minutes of play time) selectable in the settings UI.
+AUTOSAVE_MINUTE_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30]
 
 # Ordered list of windowed resolution presets shown in the settings UI.
 # "Fullscreen" is always appended as the final option.

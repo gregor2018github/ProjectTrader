@@ -173,28 +173,11 @@ class EventHandler:
                 game_state.time_level = game_state.info_window.restore_time_level
             game_state.info_window = None
         elif isinstance(choice, str) and choice.startswith("save_slot_"):
-            import os
-            from ..persistence.save_manager import save_game as _save
-            from ..config.constants import SAVES_PATH
             slot = int(choice.rsplit("_", 1)[1])
             save_name = getattr(game_state.info_window, "save_name", "")
-            # Save thumbnail before writing the save file
             screenshot = getattr(game_state.info_window, "screenshot", None)
-            if screenshot is not None:
-                try:
-                    os.makedirs(SAVES_PATH, exist_ok=True)
-                    thumb = pygame.transform.smoothscale(screenshot, (576, 348))
-                    pygame.image.save(thumb, os.path.join(SAVES_PATH, f"slot_{slot}_thumb.png"))
-                except Exception:
-                    pass
             try:
-                # Sync map player position into the player model before serialising
-                mp = game_state.game.game_map.map_player
-                game_state.game.player.position = (int(mp.x), int(mp.y))
-                _save(slot, game_state, game_state.game.player,
-                      game_state.game.depot, game_state.game.goods,
-                      save_name=save_name,
-                      population_manager=game_state.game.population_manager)
+                game_state.game.write_save(slot, save_name, screenshot)
                 game_state.info_window = None
                 game_state.show_warning(f"Game saved to Slot {slot}.")
             except Exception as e:
@@ -212,7 +195,7 @@ class EventHandler:
             )
         elif choice == "Load":
             slot = getattr(game_state, "_pending_load_slot", None)
-            if slot:
+            if slot is not None:  # slot 0 is the autosave
                 from ..persistence.save_manager import load_game as _load, apply_save_data
                 try:
                     data = _load(slot)
@@ -221,6 +204,7 @@ class EventHandler:
                                    population_manager=game_state.game.population_manager)
                     game_state.game.game_map.map_player.x = game_state.game.player.position[0]
                     game_state.game.game_map.map_player.y = game_state.game.player.position[1]
+                    game_state.game.reset_autosave_timer()
                     game_state.info_window = None
                     game_state._pending_load_slot = None
                     game_state.show_warning("Game loaded.")

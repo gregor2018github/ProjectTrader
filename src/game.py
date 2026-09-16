@@ -22,10 +22,13 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .ui.helper_modules.info_window import InfoWindow
+from .ui.helper_modules.save_indicator import SaveIndicator
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
-from .persistence.save_manager import apply_save_data
+from .persistence.save_manager import (
+    AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
+)
 
 class Game:
     """The central class that manages the main game loop, initialization, and resource loading.
@@ -112,7 +115,13 @@ class Game:
 
         # Queue for license-expiry warnings that need to be shown as info dialogs
         self._pending_license_warnings: List[str] = []
-        
+
+        # Autosave — settings can only change in the main menu, so read them once
+        self.autosave_enabled: bool = bool(settings_store.get("autosave_enabled"))
+        self.autosave_interval: float = 60.0 * float(settings_store.get("autosave_minutes"))
+        self._autosave_elapsed: float = 0.0
+        self.save_indicator: SaveIndicator = SaveIndicator(self.small_font)
+
         # Load images
         self.images: Dict[str, Any] = self._load_images()
         
@@ -711,6 +720,11 @@ class Game:
                         popup.draw()
                     self.state.coin_popups = [p for p in self.state.coin_popups if p.alive]
 
+                # Autosave before the cursor is drawn so it stays out of the thumbnail
+                self._tick_autosave(delta_time)
+                self.save_indicator.update(delta_time)
+                self.save_indicator.draw(self.screen)
+
                 # Draw custom cursor on top of everything
                 if self.state.contract_acquisition:
                     self.state.contract_acquisition.draw_cursor()
@@ -725,6 +739,50 @@ class Game:
         if getattr(self.state, 'return_to_main_menu', False):
             return "main_menu"
         return None
+
+    def write_save(self, slot: int, save_name: str,
+                   screenshot: Optional[pygame.Surface]) -> None:
+        """Write the current game to *slot*, with *screenshot* as its thumbnail.
+
+        Raises whatever save_game raises; a failed thumbnail is ignored.
+        """
+        if screenshot is not None:
+            try:
+                thumb_file = thumbnail_path(slot)
+                os.makedirs(os.path.dirname(thumb_file), exist_ok=True)
+                thumb = pygame.transform.smoothscale(screenshot, (576, 348))
+                pygame.image.save(thumb, thumb_file)
+            except Exception:
+                pass
+        # Sync map player position into the player model before serialising
+        mp = self.game_map.map_player
+        self.player.position = (int(mp.x), int(mp.y))
+        save_game(slot, self.state, self.player, self.depot, self.goods,
+                  save_name=save_name, population_manager=self.population_manager)
+
+    def reset_autosave_timer(self) -> None:
+        """Start a full autosave interval from now (e.g. after loading a save)."""
+        self._autosave_elapsed = 0.0
+
+    def _tick_autosave(self, delta_time: float) -> None:
+        """Count play time and write the autosave once the interval has passed.
+
+        When due while a dialog or exclusive overlay is open, the save waits
+        until it closes so the thumbnail shows the game itself.
+        """
+        if not self.autosave_enabled:
+            return
+        self._autosave_elapsed += delta_time
+        if self._autosave_elapsed < self.autosave_interval:
+            return
+        if self.state.info_window or self.state.contract_acquisition or self.state.minigame:
+            return
+        self._autosave_elapsed = 0.0
+        try:
+            self.write_save(AUTOSAVE_SLOT, AUTOSAVE_NAME, self.screen.copy())
+            self.save_indicator.show()
+        except Exception as e:
+            self.state.show_warning(f"Autosave failed: {e}")
 
     def _draw_pause_overlay(self) -> None:
         text_surf = self.pause_font.render("Paused", True, (220, 200, 160))

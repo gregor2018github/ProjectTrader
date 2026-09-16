@@ -59,3 +59,5 @@ coverage.xml
 saves/slot_*
 !saves/slot_[123].sav
 !saves/slot_[123]_thumb.png
+# The autosave slot is always local
+saves/autosave*
