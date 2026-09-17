@@ -129,7 +129,8 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     # Calculate live wealth and start wealth based on time frame
     live_goods_value = sum(depot.good_stock.get(g.name, 0) * g.price for g in game_state.game.goods)
     outstanding_loans = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
-    current_wealth = depot.money + live_goods_value - outstanding_loans
+    property_value = depot.get_property_value()
+    current_wealth = depot.money + live_goods_value + property_value - outstanding_loans
 
     if period_days is not None:
         # For Daily (period_days=1), start_wealth is yesterday's closing wealth (depot.wealth[-1])

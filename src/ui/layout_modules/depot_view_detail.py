@@ -151,14 +151,15 @@ class DepotViewDetail:
         self.cached_stats["Current Wealth"] = []
 
         outstanding_loans = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
-        total_wealth = depot.money + total_goods_value - outstanding_loans
+        property_value = depot.get_property_value()
+        total_wealth = depot.money + total_goods_value + property_value - outstanding_loans
 
         # Add summary totals at the top
         self.cached_stats["Current Wealth"].append(f"Total: {total_wealth:,.2f}")
         self.cached_stats["Current Wealth"].append("__SEPARATOR__")
         self.cached_stats["Current Wealth"].append(f"Money: {depot.money:,.2f}")
         self.cached_stats["Current Wealth"].append(f"Goods: {total_goods_value:,.2f}")
-        self.cached_stats["Current Wealth"].append("Property: 0.00")
+        self.cached_stats["Current Wealth"].append(f"Property: {property_value:,.2f}")
         self.cached_stats["Current Wealth"].append(f"Loans: -{outstanding_loans:,.2f}" if outstanding_loans > 0 else "Loans: 0.00")
         self.cached_stats["Current Wealth"].append("__SEPARATOR__")
         # empty line
@@ -311,12 +312,18 @@ class DepotViewDetail:
         else:
             start_loans = depot.loan_history[0] if depot.loan_history else 0.0
 
+        # Look up property value at the start of the period from history
+        if period_days is not None and len(depot.property_value_history) > period_days:
+            start_property = depot.property_value_history[-(period_days + 1)]
+        else:
+            start_property = depot.property_value_history[0] if depot.property_value_history else 0.0
+
         # Add calculated stats to cache
         self.cached_stats["Wealth Start"].append(f"Total: {start_wealth:,.2f}")
         self.cached_stats["Wealth Start"].append("__SEPARATOR__")
         self.cached_stats["Wealth Start"].append(f"Money: {start_money:,.2f}")
         self.cached_stats["Wealth Start"].append(f"Goods: {start_goods_value:,.2f}")
-        self.cached_stats["Wealth Start"].append("Property: 0.00")
+        self.cached_stats["Wealth Start"].append(f"Property: {start_property:,.2f}")
         self.cached_stats["Wealth Start"].append(f"Loans: -{start_loans:,.2f}" if start_loans > 0 else "Loans: 0.00")
         self.cached_stats["Wealth Start"].append("__SEPARATOR__")
         self.cached_stats["Wealth Start"].append("")
@@ -445,7 +452,8 @@ class DepotViewDetail:
     def _update_profit(self, depot: Any, goods: List[Any], time_frame: str) -> None:
         """Update the 'Profit' detail statistics based on selected time frame.
 
-        Profit = Cash Flow + Stock Value Change + Loan Balance Change.
+        Profit = Cash Flow + Stock Value Change + Property Value Change
+        + Loan Balance Change.
         Stock Value Change is derived from the identity rather than reconstructed
         from historical prices, so it stays consistent with the overview figure.
         """
@@ -463,7 +471,8 @@ class DepotViewDetail:
         # Current wealth
         goods_value_now = sum(depot.good_stock.get(g.name, 0) * g.price for g in goods)
         loans_now = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
-        current_wealth = depot.money + goods_value_now - loans_now
+        property_now = depot.get_property_value()
+        current_wealth = depot.money + goods_value_now + property_now - loans_now
 
         # Start wealth
         if period_days is not None and len(depot.wealth) >= period_days:
@@ -500,9 +509,17 @@ class DepotViewDetail:
             loans_start = depot.loan_history[0] if depot.loan_history else 0.0
         loan_balance_change = -(loans_now - loans_start)
 
+        # Property value change over the period
+        if period_days is not None and len(depot.property_value_history) > period_days:
+            property_start = depot.property_value_history[-(period_days + 1)]
+        else:
+            property_start = depot.property_value_history[0] if depot.property_value_history else 0.0
+        property_value_change = property_now - property_start
+
         # Stock value change derived from the identity:
-        # total_profit = cash_flow + stock_value_change + loan_balance_change
-        stock_value_change = total_profit - cash_flow - loan_balance_change
+        # total_profit = cash_flow + stock_value_change + property_value_change
+        #                + loan_balance_change
+        stock_value_change = total_profit - cash_flow - property_value_change - loan_balance_change
 
         def _fmt(val: float) -> str:
             sign = "+" if val >= 0 else ""
@@ -532,6 +549,12 @@ class DepotViewDetail:
         sv_tag = _tag(stock_value_change)
         self.cached_stats["Profit"].append(f"Stock Value Change")
         self.cached_stats["Profit"].append(f"      {sv_tag}Total: {_fmt(stock_value_change)}")
+        self.cached_stats["Profit"].append("__SEPARATOR__")
+
+        # Property Value Change block
+        pv_tag = _tag(property_value_change)
+        self.cached_stats["Profit"].append(f"Property Value Change")
+        self.cached_stats["Profit"].append(f"      {pv_tag}Total: {_fmt(property_value_change)}")
         self.cached_stats["Profit"].append("__SEPARATOR__")
 
         # Loan Balance Change block
@@ -661,6 +684,16 @@ class DepotViewDetail:
                 continue
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
         for sub_name, sub_val in overdraft.items():
+            if sub_name == "total":
+                continue
+            self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")
+        self.cached_stats["Expenses"].append("__SEPARATOR__")
+
+        # Property
+        prop = breakdown.get("property", {"total": 0.0, "Buildings": 0.0})
+        self.cached_stats["Expenses"].append(f"Property")
+        self.cached_stats["Expenses"].append(f"      Total: {prop['total']:,.2f}")
+        for sub_name, sub_val in prop.items():
             if sub_name == "total":
                 continue
             self.cached_stats["Expenses"].append(f"      {sub_name}: {sub_val:,.2f}")

@@ -229,9 +229,9 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
                 total_w = depot.wealth[actual_idx] if actual_idx < len(depot.wealth) else 0
                 money   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
-                goods_v = total_w - money
                 prop_v  = depot.property_value_history[actual_idx] if actual_idx < len(depot.property_value_history) else 0
                 loan_v  = depot.loan_history[actual_idx] if actual_idx < len(depot.loan_history) else 0
+                goods_v = total_w - money - prop_v + loan_v
                 lines = [
                     ("Date:",         bar_date),
                     ("Total Wealth:", f"{total_w:,.0f}"),
@@ -551,6 +551,7 @@ def _draw_expenses_stacked_bars(
         ("Donations",          depot.donation_expenditure_history,        DARK_ORANGE),
         ("Loan Interest",      depot.loan_expenditure_history,            DARK_RED),
         ("Overdraft Penalty",  depot.overdraft_expenditure_history,       POP_COLOR_NOBILITY),
+        ("Property",           depot.property_expenditure_history,        PALE_BROWN),
         ("Miscellaneous",      depot.miscellaneous_expenditure_history,   GRAY),
     ]
 

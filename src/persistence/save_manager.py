@@ -164,6 +164,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "overdraft_expenditure_history": list(depot.overdraft_expenditure_history),
             "miscellaneous_expenditure_history": list(depot.miscellaneous_expenditure_history),
             "miscellaneous_expenditures": depot.miscellaneous_expenditures,
+            "property_expenditure_history": list(depot.property_expenditure_history),
+            "property_expenditures": depot.property_expenditures,
             "active_loans": [dict(loan) for loan in depot.active_loans],
             "donation_history": {k: list(v) for k, v in depot.donation_history.items()},
             "labor_income_history": {k: list(v) for k, v in depot.labor_income_history.items()},
@@ -337,6 +339,64 @@ def _enforce_chart_limit(goods: List[Any], game_state: Any) -> None:
         game_state.sync_quicktrade_fields()
 
 
+def _migrate_property_expenses(depot: Any) -> None:
+    """Reclassify building purchases from miscellaneous into property expenses.
+
+    Saves written before property expenses had their own category booked every
+    building purchase as miscellaneous ("Well Coins") and never recorded a
+    property value, so owned buildings were missing from wealth. Well coins cost
+    1g, so a day whose miscellaneous total covers a building's purchase price is
+    safely attributed to that purchase. The reclassified amount is also written
+    into the property value and wealth histories from that day onward, so past
+    days match how wealth is calculated now.
+    """
+    n = len(depot.expenditure_history)
+    depot.property_expenditure_history = [0.0] * n
+    depot.property_expenditures = 0.0
+
+    misc = depot.miscellaneous_expenditure_history
+    if len(misc) < n:
+        misc = [0.0] * (n - len(misc)) + list(misc)
+    else:
+        misc = list(misc[-n:])
+
+    prices = [
+        building.get("buy_price", 0.0)
+        for buildings in depot.properties.values()
+        for building in buildings
+        if isinstance(building, dict) and building.get("buy_price", 0.0) > 0
+    ]
+
+    property_by_day = [0.0] * n
+    for price in sorted(prices, reverse=True):
+        # Search backwards: the most recent day that can cover this price.
+        for i in range(n - 1, -1, -1):
+            if misc[i] >= price:
+                misc[i] -= price
+                property_by_day[i] += price
+                depot.property_expenditure_history[i] += price
+                break
+
+    depot.miscellaneous_expenditure_history = misc
+
+    # Rebuild the property value history as the running total of those purchases
+    # and fold it into the recorded wealth so both match the current definition.
+    running = 0.0
+    value_by_day = []
+    for i in range(n):
+        running += property_by_day[i]
+        value_by_day.append(running)
+    depot.property_value_history = value_by_day
+
+    offset = len(depot.wealth) - n  # both histories end on the same day
+    for i in range(len(depot.wealth)):
+        day = i - offset
+        if 0 <= day < n:
+            depot.wealth[i] += value_by_day[day]
+        elif day >= n:
+            depot.wealth[i] += running
+
+
 def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
     """Apply a loaded save dict to the live game objects in-place."""
     game_state.playtime_seconds = data.get("playtime_seconds", 0.0)
@@ -414,6 +474,12 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     else:
         depot.miscellaneous_expenditure_history = list(misc_hist)
     depot.miscellaneous_expenditures = d.get("miscellaneous_expenditures", 0.0)
+    prop_hist = d.get("property_expenditure_history")
+    if prop_hist is None:
+        _migrate_property_expenses(depot)
+    else:
+        depot.property_expenditure_history = list(prop_hist)
+        depot.property_expenditures = d.get("property_expenditures", 0.0)
     depot.active_loans = d.get("active_loans", [])
     depot.donation_history = d["donation_history"]
     depot.labor_income_history = d.get("labor_income_history", {})

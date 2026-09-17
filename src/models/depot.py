@@ -54,6 +54,7 @@ class Depot:
         self.loan_expenditures: float = 0.0             # current loan interest paid today
         self.overdraft_expenditures: float = 0.0        # current overdraft penalties paid today
         self.miscellaneous_expenditures: float = 0.0    # current miscellaneous expenditures today
+        self.property_expenditures: float = 0.0         # current property purchase expenditures today
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
             "Town Donations": 0,
@@ -82,6 +83,7 @@ class Depot:
         self.loan_expenditure_history: List[float] = [0.0]         # loan interest tracking for bookkeeping
         self.overdraft_expenditure_history: List[float] = [0.0]    # overdraft penalty tracking for bookkeeping
         self.miscellaneous_expenditure_history: List[float] = [0.0]  # miscellaneous expenditures tracking for bookkeeping
+        self.property_expenditure_history: List[float] = [0.0]     # property purchase expenditures tracking for bookkeeping
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
             "Town Donations": [0.0],
@@ -416,14 +418,29 @@ class Depot:
             loan.get("remaining_principal", loan.get("amount", 0.0))
             for loan in self.active_loans
         )
+        property_value = self.get_property_value()
+        total_value += property_value
         total_value -= outstanding
 
         self.wealth.append(total_value)
         self.money_history.append(self.money)
-        self.property_value_history.append(0.0)  # updated when property system is implemented
+        self.property_value_history.append(property_value)
         self.loan_history.append(outstanding)
         return total_value
     
+    def get_property_value(self) -> float:
+        """Return the total value of all owned properties.
+
+        Buildings are valued at their purchase price for now; a proper
+        valuation (depreciation, upgrades) can replace this later.
+        """
+        total = 0.0
+        for buildings in self.properties.values():
+            for building in buildings:
+                if isinstance(building, dict):
+                    total += building.get("buy_price", 0.0)
+        return total
+
     def update_income_and_expenditures(self) -> None:
         """Update the income and expenditures history for the current day and reset daily counters."""
         self.income_history.append(self.income)
@@ -435,6 +452,7 @@ class Depot:
         self.loan_expenditure_history.append(self.loan_expenditures)
         self.overdraft_expenditure_history.append(self.overdraft_expenditures)
         self.miscellaneous_expenditure_history.append(self.miscellaneous_expenditures)
+        self.property_expenditure_history.append(self.property_expenditures)
         for category, amount in self.donations.items():
             self.donation_history[category].append(amount)
         for category, amount in self.labor_income.items():
@@ -448,6 +466,7 @@ class Depot:
         self.loan_expenditures = 0.0
         self.overdraft_expenditures = 0.0
         self.miscellaneous_expenditures = 0.0
+        self.property_expenditures = 0.0
         for category in self.donations:
             self.donations[category] = 0
         for category in self.labor_income:
@@ -633,7 +652,7 @@ class Depot:
             return False
         self.money -= warehouse.buy_price
         self.expenditures += warehouse.buy_price
-        self.miscellaneous_expenditures += warehouse.buy_price
+        self.property_expenditures += warehouse.buy_price
         self.storage_capacity += warehouse.buy_storage
         self.warehouse_count += 1
         warehouse.is_owned = True
@@ -730,6 +749,7 @@ class Depot:
                 total_loan = sum(self.loan_expenditure_history[-num_history_days:]) + self.loan_expenditures
                 total_overdraft = sum(self.overdraft_expenditure_history[-num_history_days:]) + self.overdraft_expenditures
                 total_misc = sum(self.miscellaneous_expenditure_history[-num_history_days:]) + self.miscellaneous_expenditures
+                total_property = sum(self.property_expenditure_history[-num_history_days:]) + self.property_expenditures
                 by_donation_cat = {}
                 for category, history in self.donation_history.items():
                     by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
@@ -742,6 +762,7 @@ class Depot:
                 total_loan = self.loan_expenditures
                 total_overdraft = self.overdraft_expenditures
                 total_misc = self.miscellaneous_expenditures
+                total_property = self.property_expenditures
                 by_donation_cat = dict(self.donations)
         else:
             total_exp = sum(self.expenditure_history) + self.expenditures
@@ -752,12 +773,15 @@ class Depot:
             total_loan = sum(self.loan_expenditure_history) + self.loan_expenditures
             total_overdraft = sum(self.overdraft_expenditure_history) + self.overdraft_expenditures
             total_misc = sum(self.miscellaneous_expenditure_history) + self.miscellaneous_expenditures
+            total_property = sum(self.property_expenditure_history) + self.property_expenditures
             by_donation_cat = {}
             for category, history in self.donation_history.items():
                 by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
 
         # Good cost = trading expenditures minus transaction fees and other known categories
-        total_good_cost = total_exp - total_transaction - total_col - total_donation - total_license - total_loan - total_overdraft - total_misc
+        total_good_cost = (total_exp - total_transaction - total_col - total_donation
+                           - total_license - total_loan - total_overdraft - total_misc
+                           - total_property)
 
         return {
             "total": total_exp,
@@ -789,6 +813,10 @@ class Depot:
             "miscellaneous": {
                 "total": total_misc,
                 "Well Coins": total_misc,
+            },
+            "property": {
+                "total": total_property,
+                "Buildings": total_property,
             },
         }
 
