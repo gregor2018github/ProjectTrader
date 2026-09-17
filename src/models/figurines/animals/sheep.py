@@ -5,6 +5,8 @@ import random
 import pygame
 from typing import Dict
 
+from .animal import Animal, ANIMAL_SPRITE_ROOT
+
 SHEEP_SPEED = 40.0          # pixels per second at base tile_size=32
 STOP_CHANCE_PER_SEC = 0.15  # probability per second to stop mid-walk
 STOP_MIN_DURATION = 10.0    # seconds
@@ -18,8 +20,8 @@ EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 
 
-class Sheep:
-    """An NPC sheep that walks left and right within a rectangular zone."""
+class Sheep(Animal):
+    """An animal that walks left and right within a rectangular zone."""
 
     def __init__(
         self,
@@ -29,13 +31,10 @@ class Sheep:
         zone_height: float,
         tile_size: int,
     ) -> None:
-        # Lazy import avoids circular dependency with map.py
-        from ..map import DirectionalAnimator
+        super().__init__(zone_x, zone_y, tile_size)
+        self.sprite_width = int(1.5 * tile_size)  # 48 px at base zoom
 
-        self.tile_size: int = tile_size
-        self.sprite_width: int = int(1.5 * tile_size)  # 48 px at base zoom
-
-        sprite_dir = os.path.join('assets', 'map_sprites', 'figurines', 'sheep')
+        sprite_dir = os.path.join(ANIMAL_SPRITE_ROOT, 'sheep')
         sprite_definitions: Dict = {
             "front": {
                 "static": "sheep_right_static.png",
@@ -65,18 +64,15 @@ class Sheep:
             },
         }
 
-        self.animator = DirectionalAnimator(
-            base_path=sprite_dir,
+        self._init_animator(
+            sprite_dir=sprite_dir,
             sprite_definitions=sprite_definitions,
             target_width=self.sprite_width,
             fallback_static="sheep_right_static.png",
         )
         # Sheep are slower than the player — use a wider frame interval
         self.animator.frame_interval *= 1.5
-
-        self.sprite: pygame.Surface = self.animator.get_current_frame()
-        self.source_sprite: pygame.Surface = self.animator.get_current_source_frame()
-        self.sprite_height: int = self.sprite.get_height()
+        self.sprite_height = self.sprite.get_height()
 
         # Load eating frames (eat1, eat2) for left and right directions
         self.eat_source_frames: Dict[str, list] = {}
@@ -107,9 +103,7 @@ class Sheep:
         self.eat_frame_index: int = 0
         self.eat_frame_timer: float = 0.0
 
-        # Collision box: 1 tile wide, 0.5 tile tall
-        self.collision_width: int = tile_size
-        self.collision_height: int = tile_size // 2
+        # Collision box: 1 tile wide, 0.5 tile tall (sized by Animal)
 
         # Zone bounds (in sprite x coordinates)
         self.zone_left: float = float(zone_x)
@@ -123,13 +117,10 @@ class Sheep:
         self.y: float = foot_y - self.sprite_height
 
         # Behaviour state
-        self.direction: str = random.choice(["left", "right"])
-        self.is_moving: bool = True
+        self.direction = random.choice(["left", "right"])
+        self.is_moving = True
         self.stop_timer: float = 0.0
         self.is_blocked: bool = False  # True when stopped because a player is in the way
-
-        # Zoom-scaled sprite cache (keyed by zoom -> {frame_id -> surface})
-        self.scaled_sprite_cache: Dict[float, Dict[int, pygame.Surface]] = {}
 
         # Sound: stagger initial timers so sheep don't all bleat at once
         self.sound_timer: float = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
@@ -139,18 +130,6 @@ class Sheep:
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
-
-    @property
-    def collision_rect(self) -> pygame.Rect:
-        """Collision rectangle, centered horizontally, at the sprite bottom."""
-        col_x = int(self.x + (self.sprite_width - self.collision_width) / 2)
-        col_y = int(self.y + self.sprite_height - self.collision_height)
-        return pygame.Rect(col_x, col_y, self.collision_width, self.collision_height)
-
-    @property
-    def y_sort(self) -> float:
-        """Y-sort key: bottom edge of the collision box."""
-        return self.y + self.sprite_height
 
     # ------------------------------------------------------------------
     # Update
@@ -253,41 +232,3 @@ class Sheep:
         if self.sound_timer <= 0.0 or newly_blocked:
             self.wants_sound = True
             self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
-
-    # ------------------------------------------------------------------
-    # Rendering helpers
-    # ------------------------------------------------------------------
-
-    def _get_scaled_sprite(self, zoom: float) -> pygame.Surface:
-        """Return a zoom-scaled sprite, using a per-zoom cache.
-
-        Args:
-            zoom: Current camera zoom level.
-
-        Returns:
-            pygame.Surface: The scaled frame.
-        """
-        zoom_key = round(float(zoom), 3)
-        cache = self.scaled_sprite_cache.setdefault(zoom_key, {})
-        base_frame = self.source_sprite or self.sprite
-        frame_id = id(base_frame)
-        if frame_id not in cache:
-            if abs(zoom - 1.0) < 1e-3:
-                cache[frame_id] = self.sprite
-            else:
-                src_w = base_frame.get_width()
-                src_h = base_frame.get_height()
-                if src_w <= 0 or src_h <= 0:
-                    cache[frame_id] = self.sprite
-                else:
-                    target_w = max(1, int(round(self.sprite_width * zoom)))
-                    target_h = max(1, int(round(self.sprite_height * zoom)))
-                    if target_w >= src_w or target_h >= src_h:
-                        cache[frame_id] = pygame.transform.scale(base_frame, (target_w, target_h))
-                    else:
-                        cache[frame_id] = pygame.transform.smoothscale(base_frame, (target_w, target_h))
-        return cache[frame_id]
-
-    def on_zoom_change(self) -> None:
-        """Invalidate the sprite cache when the zoom level changes."""
-        self.scaled_sprite_cache.clear()
