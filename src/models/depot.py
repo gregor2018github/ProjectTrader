@@ -69,7 +69,8 @@ class Depot:
         self.property_value_history: List[float] = [0.0]  # property value history (placeholder for future)
         self.loan_history: List[float] = [0.0]          # outstanding loan principal history
         self.total_stock: List[int] = [0]               # total stock tracking for bookkeeping
-        self.house_history: List[int] = [0]             # history of owned houses
+        self.house_history: List[int] = [0]             # history of owned buildings
+        self.storage_capacity_history: List[int] = [storage_capacity]  # storage capacity history for bookkeeping
         self.stock_history: Dict[str, List[int]] = {    # stock tracking for bookkeeping
             good_name: [0] for good_name in self.good_stock
         }
@@ -441,6 +442,10 @@ class Depot:
                     total += building.get("buy_price", 0.0)
         return total
 
+    def get_property_count(self) -> int:
+        """Return the number of buildings the player owns across all categories."""
+        return sum(len(buildings) for buildings in self.properties.values())
+
     def update_income_and_expenditures(self) -> None:
         """Update the income and expenditures history for the current day and reset daily counters."""
         self.income_history.append(self.income)
@@ -481,10 +486,10 @@ class Depot:
         total_stock = sum(self.good_stock.values())
         self.total_stock.append(total_stock)
         
-        # Also update house count history (assuming houses property exists)
-        house_count = len(self.properties.get("houses", []))
-        self.house_history.append(house_count)
-        
+        # Also track owned buildings and the storage they unlock
+        self.house_history.append(self.get_property_count())
+        self.storage_capacity_history.append(self.storage_capacity)
+
         return total_stock
     
     def avg_buy_price(self, good_name: str) -> Optional[float]:

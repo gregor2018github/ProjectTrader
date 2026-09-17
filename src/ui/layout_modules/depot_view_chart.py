@@ -65,7 +65,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         data_points = depot.total_stock
         color = DARK_BLUE
     elif active_chart == "Houses":
-        data_points = depot.house_history
+        data_points = depot.property_value_history
         color = DARK_RED
     elif active_chart == "Population" and population_manager is not None:
         data_points = population_manager.total_population_history
@@ -93,22 +93,37 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         if not visible_data:
             visible_data = [0]
 
-        # For Money chart, also fetch aligned loan history
-        visible_loan_data = []
+        # Some charts overlay a second line: loans on Money, storage on Houses.
+        second_series = None
+        second_color = DARK_RED
+        legend_labels = None
         if active_chart == "Money" and len(depot.loan_history) > 1:
-            raw_loans = depot.loan_history[-int(max_points):]
-            # Align to same length as visible_data
-            if len(raw_loans) >= len(visible_data):
-                visible_loan_data = raw_loans[-len(visible_data):]
-            else:
-                visible_loan_data = [0.0] * (len(visible_data) - len(raw_loans)) + list(raw_loans)
+            second_series = depot.loan_history
+            legend_labels = ("Cash", "Loans")
+        elif active_chart == "Houses" and len(depot.storage_capacity_history) > 1:
+            second_series = depot.storage_capacity_history
+            second_color = DARK_BLUE
+            legend_labels = ("Property Value", "Storage")
 
-        has_loans = bool(visible_loan_data) and any(v > 0 for v in visible_loan_data)
+        visible_second_data = []
+        if second_series is not None:
+            raw_second = second_series[-int(max_points):]
+            # Align to same length as visible_data
+            if len(raw_second) >= len(visible_data):
+                visible_second_data = raw_second[-len(visible_data):]
+            else:
+                visible_second_data = [0.0] * (len(visible_data) - len(raw_second)) + list(raw_second)
+
+        # Loans only earn a second line once there are any; storage always has one.
+        has_second = bool(visible_second_data) and (
+            active_chart != "Money" or any(v > 0 for v in visible_second_data)
+        )
 
         min_val = min(visible_data)
         max_val = max(visible_data)
-        if has_loans:
-            max_val = max(max_val, max(visible_loan_data))
+        if has_second:
+            max_val = max(max_val, max(visible_second_data))
+            min_val = min(min_val, min(visible_second_data))
 
         # Add some padding to Y-axis
         range_val = max_val - min_val
@@ -140,26 +155,25 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             points.append((x, y))
 
         # Draw lines
-        loan_points = []
+        second_points = []
         if len(points) > 1:
             mouse_pos_early = pygame.mouse.get_pos()
-            is_hovering = chart_rect.collidepoint(mouse_pos_early) and active_chart in ("Wealth", "Money", "Happiness")
+            is_hovering = chart_rect.collidepoint(mouse_pos_early) and active_chart in ("Wealth", "Money", "Happiness", "Houses")
             line_width = 3 if is_hovering else 2
             pygame.draw.lines(screen, color, False, points, line_width)
 
-            # Draw loan line for Money chart
-            if has_loans:
-                loan_color = DARK_RED
-                for i, val in enumerate(visible_loan_data):
+            # Draw the overlay line (loans on Money, storage on Houses)
+            if has_second:
+                for i, val in enumerate(visible_second_data):
                     x = chart_rect.left + margin + (i * point_width)
                     if y_range != 0:
                         normalized_val = (val - y_min_scale) / y_range
                         y = (chart_rect.bottom - margin) - (normalized_val * inner_height)
                     else:
                         y = chart_rect.bottom - margin - (0.5 * inner_height)
-                    loan_points.append((x, y))
-                if len(loan_points) > 1:
-                    pygame.draw.lines(screen, loan_color, False, loan_points, line_width)
+                    second_points.append((x, y))
+                if len(second_points) > 1:
+                    pygame.draw.lines(screen, second_color, False, second_points, line_width)
 
         # Draw horizontal orientation lines
         step = _nice_grid_step(y_range)
@@ -186,15 +200,19 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
         _draw_bar_stat_box(screen, font, chart_rect, max_val, min_val)
 
         # Draw Title
-        title_surf = font.render(f"{label} History", True, DARK_BROWN)
+        title_text = f"{label} History"
+        if active_chart == "Houses":
+            owned_now = depot.get_property_count()
+            title_text += f" ({owned_now} owned)"
+        title_surf = font.render(title_text, True, DARK_BROWN)
         title_rect = title_surf.get_rect(midtop=(chart_rect.centerx, chart_rect.top + 8))
         screen.blit(title_surf, title_rect)
         underline_y = title_rect.bottom + 2
         pygame.draw.line(screen, DARK_BROWN, (title_rect.left, underline_y), (title_rect.right, underline_y), 1)
 
-        # Legend for Money chart when loans are visible
-        if has_loans:
-            legend_items = [(color, "Cash"), (DARK_RED, "Loans")]
+        # Legend for charts that draw a second line
+        if has_second and legend_labels is not None:
+            legend_items = [(color, legend_labels[0]), (second_color, legend_labels[1])]
             lx, ly = chart_rect.left + 6, chart_rect.top + 6
             seg_len = 18
             for leg_color, leg_label in legend_items:
@@ -205,7 +223,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
 
         # Line chart hover tooltips
         mouse_pos = pygame.mouse.get_pos()
-        if chart_rect.collidepoint(mouse_pos) and active_chart in ("Wealth", "Money", "Happiness"):
+        if chart_rect.collidepoint(mouse_pos) and active_chart in ("Wealth", "Money", "Happiness", "Houses"):
             rel_x = mouse_pos[0] - (chart_rect.left + margin)
             vis_idx = max(0, min(len(visible_data) - 1, round(rel_x / point_width) if point_width else 0))
             start_idx = len(data_points) - len(visible_data)
@@ -219,11 +237,11 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             dot_pos = (int(points[vis_idx][0]), int(points[vis_idx][1]))
             pygame.draw.circle(screen, color, dot_pos, 4)
             pygame.draw.circle(screen, DARK_BROWN, dot_pos, 4, 1)
-            # Draw dot on loan line if visible
-            if has_loans and vis_idx < len(loan_points):
-                loan_dot = (int(loan_points[vis_idx][0]), int(loan_points[vis_idx][1]))
-                pygame.draw.circle(screen, DARK_RED, loan_dot, 4)
-                pygame.draw.circle(screen, DARK_BROWN, loan_dot, 4, 1)
+            # Draw dot on the overlay line if visible
+            if has_second and vis_idx < len(second_points):
+                second_dot = (int(second_points[vis_idx][0]), int(second_points[vis_idx][1]))
+                pygame.draw.circle(screen, second_color, second_dot, 4)
+                pygame.draw.circle(screen, DARK_BROWN, second_dot, 4, 1)
 
             if active_chart == "Wealth":
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
@@ -245,11 +263,24 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             elif active_chart == "Money":
                 bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
                 cash   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
-                loan_v = visible_loan_data[vis_idx] if has_loans and vis_idx < len(visible_loan_data) else 0
+                loan_v = visible_second_data[vis_idx] if has_second and vis_idx < len(visible_second_data) else 0
                 lines = [
                     ("Date:",  bar_date),
                     ("Cash:",  f"{cash:,.0f}"),
                     ("Loans:", f"{loan_v:,.0f}"),
+                ]
+                _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
+
+            elif active_chart == "Houses":
+                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                prop_v  = depot.property_value_history[actual_idx] if actual_idx < len(depot.property_value_history) else 0
+                storage = depot.storage_capacity_history[actual_idx] if actual_idx < len(depot.storage_capacity_history) else 0
+                owned   = depot.house_history[actual_idx] if actual_idx < len(depot.house_history) else 0
+                lines = [
+                    ("Date:",     bar_date),
+                    ("Buildings:", f"{owned:,}"),
+                    ("Value:",    f"{prop_v:,.0f}"),
+                    ("Storage:",  f"{storage:,}"),
                 ]
                 _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
 

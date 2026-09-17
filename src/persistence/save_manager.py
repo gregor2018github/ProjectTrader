@@ -149,6 +149,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "loan_history": list(depot.loan_history),
             "total_stock": list(depot.total_stock),
             "house_history": list(depot.house_history),
+            "storage_capacity_history": list(depot.storage_capacity_history),
             "stock_history": {k: list(v) for k, v in depot.stock_history.items()},
             "trades": [
                 {**t, "timestamp": _dt_to_str(t["timestamp"])}
@@ -340,15 +341,16 @@ def _enforce_chart_limit(goods: List[Any], game_state: Any) -> None:
 
 
 def _migrate_property_expenses(depot: Any) -> None:
-    """Reclassify building purchases from miscellaneous into property expenses.
+    """Rebuild the property bookkeeping for saves written before it existed.
 
-    Saves written before property expenses had their own category booked every
-    building purchase as miscellaneous ("Well Coins") and never recorded a
-    property value, so owned buildings were missing from wealth. Well coins cost
-    1g, so a day whose miscellaneous total covers a building's purchase price is
-    safely attributed to that purchase. The reclassified amount is also written
-    into the property value and wealth histories from that day onward, so past
-    days match how wealth is calculated now.
+    Those saves booked every building purchase as a miscellaneous expense
+    ("Well Coins"), never recorded a property value, counted only
+    depot.properties["houses"] (always empty) as owned buildings and kept no
+    storage capacity history. Well coins cost 1g, so a day whose miscellaneous
+    total covers a building's purchase price is safely attributed to that
+    purchase; from that day onward the building's value, its storage and the
+    building count are folded into the histories, so past days match how the
+    game keeps books now.
     """
     n = len(depot.expenditure_history)
     depot.property_expenditure_history = [0.0] * n
@@ -360,41 +362,55 @@ def _migrate_property_expenses(depot: Any) -> None:
     else:
         misc = list(misc[-n:])
 
-    prices = [
-        building.get("buy_price", 0.0)
-        for buildings in depot.properties.values()
-        for building in buildings
+    buildings = [
+        building
+        for category in depot.properties.values()
+        for building in category
         if isinstance(building, dict) and building.get("buy_price", 0.0) > 0
     ]
 
-    property_by_day = [0.0] * n
-    for price in sorted(prices, reverse=True):
-        # Search backwards: the most recent day that can cover this price.
+    # Assign each building to the most recent day whose miscellaneous expenses
+    # can still cover its price, most expensive building first.
+    purchases_by_day: Dict[int, List[Dict[str, Any]]] = {}
+    for building in sorted(buildings, key=lambda b: b.get("buy_price", 0.0), reverse=True):
+        price = building.get("buy_price", 0.0)
         for i in range(n - 1, -1, -1):
             if misc[i] >= price:
                 misc[i] -= price
-                property_by_day[i] += price
+                purchases_by_day.setdefault(i, []).append(building)
                 depot.property_expenditure_history[i] += price
                 break
 
     depot.miscellaneous_expenditure_history = misc
 
-    # Rebuild the property value history as the running total of those purchases
-    # and fold it into the recorded wealth so both match the current definition.
-    running = 0.0
-    value_by_day = []
+    # Running totals of value, storage and building count per day.
+    base_storage = depot.storage_capacity - sum(b.get("buy_storage", 0) for b in buildings)
+    value_by_day: List[float] = []
+    storage_by_day: List[int] = []
+    count_by_day: List[int] = []
+    value, storage, count = 0.0, base_storage, 0
     for i in range(n):
-        running += property_by_day[i]
-        value_by_day.append(running)
-    depot.property_value_history = value_by_day
+        for building in purchases_by_day.get(i, []):
+            value += building.get("buy_price", 0.0)
+            storage += building.get("buy_storage", 0)
+            count += 1
+        value_by_day.append(value)
+        storage_by_day.append(storage)
+        count_by_day.append(count)
 
+    depot.property_value_history = value_by_day
+    depot.storage_capacity_history = storage_by_day
+    depot.house_history = count_by_day
+
+    # Fold the property value into the recorded wealth, which was written
+    # before buildings counted toward it.
     offset = len(depot.wealth) - n  # both histories end on the same day
     for i in range(len(depot.wealth)):
         day = i - offset
         if 0 <= day < n:
             depot.wealth[i] += value_by_day[day]
         elif day >= n:
-            depot.wealth[i] += running
+            depot.wealth[i] += value
 
 
 def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
@@ -456,6 +472,10 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.loan_history = d.get("loan_history", [0.0])
     depot.total_stock = d["total_stock"]
     depot.house_history = d["house_history"]
+    depot.storage_capacity_history = d.get(
+        "storage_capacity_history",
+        [depot.storage_capacity] * len(depot.house_history),
+    )
     depot.stock_history = d["stock_history"]
     depot.trades = _dt_list(d["trades"], "timestamp")
     depot.expenditure_history = d["expenditure_history"]
