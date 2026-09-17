@@ -486,6 +486,13 @@ class DepotViewDetail:
             current_expense = sum(depot.expenditure_history) + depot.expenditures
         cash_flow = current_income - current_expense
 
+        # Money at the start of the period (mirrors the wealth indexing above)
+        if period_days is not None and len(depot.money_history) >= period_days:
+            start_money = depot.money_history[-period_days]
+        else:
+            start_money = depot.money_history[0]
+        current_money = depot.money
+
         # Loan balance change (negative = took on more debt, positive = reduced debt)
         if period_days is not None and len(depot.loan_history) > period_days:
             loans_start = depot.loan_history[-(period_days + 1)]
@@ -515,8 +522,10 @@ class DepotViewDetail:
         cf_tag = _tag(cash_flow)
         self.cached_stats["Profit"].append(f"Cash Flow")
         self.cached_stats["Profit"].append(f"      {cf_tag}Total: {_fmt(cash_flow)}")
+        self.cached_stats["Profit"].append(f"      Money Start: {start_money:,.2f}")
         self.cached_stats["Profit"].append(f"      Income: {current_income:,.2f}")
         self.cached_stats["Profit"].append(f"      Expenses: -{current_expense:,.2f}")
+        self.cached_stats["Profit"].append(f"      Money Now: {current_money:,.2f}")
         self.cached_stats["Profit"].append("__SEPARATOR__")
 
         # Stock Value Change block
