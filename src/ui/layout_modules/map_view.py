@@ -542,6 +542,23 @@ def _build_render_queue(
                 'y_sort': sheep.y_sort
             })
 
+    # Add human NPCs to queue
+    for npc in game_map.tmx_map.npcs:
+        npc_sprite = npc._get_scaled_sprite(camera.zoom)
+        npc_screen_x, npc_screen_y = camera.apply(npc.x, npc.y)
+        # Like the player, the sprite box can be larger than the logical box.
+        npc_screen_x += npc.sprite_offset_x * camera.zoom
+        npc_screen_y += npc.sprite_draw_offset_y * camera.zoom
+        draw_x = round(npc_screen_x) + offset_x
+        draw_y = round(npc_screen_y) + offset_y
+        if (draw_x + npc_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + npc_sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            render_queue.append({
+                'sprite': npc_sprite,
+                'pos': (draw_x, draw_y),
+                'y_sort': npc.y + npc.height,
+            })
+
     # Add player to queue
     player_sprite = map_player._get_scaled_sprite(camera.zoom)
     player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)

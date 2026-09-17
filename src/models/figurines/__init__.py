@@ -7,7 +7,7 @@ The package mirrors the artwork tree under
         humans/
             player/
             npcs/
-                butcher_trader/
+                trader_butcher/
         animals/
             sheep/
 """

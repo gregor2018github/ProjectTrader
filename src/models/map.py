@@ -28,6 +28,9 @@ from .smoke import SmokeEmitter
 from .figurines.animator import DirectionalAnimator
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
+from .figurines.humans.npcs.npc import NPC
+from .figurines.humans.npcs.trader_butcher import TraderButcher
+from .figurines.patrol_path import PatrolPath
 from .water import Water, Ripple, water_tile_variant
 
 # How far (per RGB channel) a ground tile's average colour may sit from the
@@ -143,6 +146,7 @@ class TMXMap:
         self.smoke_emitters: List[SmokeEmitter] = []
         self.fields: List[Field] = []
         self.sheep: List[Sheep] = []
+        self.npcs: List[NPC] = []
         self.waters: List[Water] = []
         # Grid cells covered by water (used for the animated water tile
         # rendering in map_view.py). Rasterized once at load time so the
@@ -642,8 +646,19 @@ class TMXMap:
         for mill in self.mills:
             mill.update_blades(dt)
 
+    # Objects on the "Movements" layer whose name matches a key here become that
+    # NPC, walking the polygon (or polyline) drawn for them in Tiled. Add a
+    # trader by drawing a shape, naming it, and adding a line here.
+    NPC_TYPES: Dict[str, Any] = {
+        "Butcher_Market_Stall": TraderButcher,
+    }
+
     def _load_movements(self) -> None:
-        """Load NPC movement zones from the 'Movements' object layer."""
+        """Load NPC movement zones from the 'Movements' object layer.
+
+        Sheep take a rectangle (they only wander left and right inside it).
+        Human NPCs take a polygon or polyline, which they walk along.
+        """
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Movements":
                 for obj in layer:
@@ -651,11 +666,41 @@ class TMXMap:
                         self.sheep.append(
                             Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size)
                         )
+                        continue
+
+                    npc_class = self.NPC_TYPES.get(obj.name)
+                    if npc_class is not None:
+                        self._load_npc(npc_class, obj)
+
+    def _load_npc(self, npc_class: Any, obj: Any) -> None:
+        """Create one NPC from a Tiled object and put it on its path.
+
+        Args:
+            npc_class: The NPC subclass to instantiate.
+            obj: The Tiled object, ideally carrying polygon or polyline points.
+        """
+        points = getattr(obj, "points", None)
+        npc = npc_class(obj.x, obj.y, self.tile_size)
+        if points:
+            path = PatrolPath(points, closed=getattr(obj, "closed", True))
+            if path:
+                npc.set_path(path)
+            else:
+                npc.place_feet(obj.x, obj.y)
+        else:
+            # A plain point or rectangle: he simply stands there.
+            npc.place_feet(obj.x, obj.y)
+        self.npcs.append(npc)
 
     def update_sheep(self, dt: float, player_rect: pygame.Rect = None) -> None:
         """Advance all sheep NPCs (call once per frame when not paused)."""
         for sheep in self.sheep:
             sheep.update(dt, player_rect)
+
+    def update_npcs(self, dt: float, current_time: datetime.datetime) -> None:
+        """Advance all human NPCs (call once per frame when not paused)."""
+        for npc in self.npcs:
+            npc.update(dt, current_time)
 
     def update_fields(self, dt: float) -> None:
         """Advance wind animation for all fields (call once per frame)."""
@@ -836,6 +881,8 @@ class GameMap:
         self.map_player.on_zoom_change()
         for sheep in self.tmx_map.sheep:
             sheep.on_zoom_change()
+        for npc in self.tmx_map.npcs:
+            npc.on_zoom_change()
     
     def handle_movement_keys(self, keys: pygame.key.ScancodeWrapper) -> None:
         """Process movement key states.
@@ -873,6 +920,7 @@ class GameMap:
             int(collision_height),
         )
         self.tmx_map.update_sheep(dt, player_rect)
+        self.tmx_map.update_npcs(dt, current_time)
         self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)
         self.tmx_map.update_mills(dt)

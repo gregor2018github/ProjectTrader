@@ -7,7 +7,7 @@ without importing the map module, which would be circular.
 import math
 import os
 import pygame
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Set, Tuple, Any
 
 from ...config.constants import MAX_RECULCULATIONS_PER_SEC
 
@@ -20,14 +20,33 @@ class DirectionalAnimator:
         "front_left", "front_right", "back_left", "back_right",
     )
 
-    # A direction with no artwork of its own borrows the cardinal one it is
-    # closest to. Diagonals fall back to the vertical component, which is what
-    # the movement code picked before diagonals existed.
-    DIRECTION_FALLBACKS: Dict[str, str] = {
-        "front_left": "front",
-        "front_right": "front",
-        "back_left": "back",
-        "back_right": "back",
+    # A direction with no artwork of its own borrows from another, trying these
+    # in order and taking the first that has frames. The first entry is the
+    # closest match — diagonals fall back to their vertical component, which is
+    # what the movement code picked before diagonals existed — and the rest are
+    # there so that a half-drawn figurine still renders something sensible in
+    # every direction instead of a magenta placeholder.
+    DIRECTION_FALLBACKS: Dict[str, Tuple[str, ...]] = {
+        "front": ("back", "left", "right"),
+        "back": ("front", "left", "right"),
+        "left": ("right", "front", "back"),
+        "right": ("left", "front", "back"),
+        "front_left": ("front", "left", "back", "right"),
+        "front_right": ("front", "right", "back", "left"),
+        "back_left": ("back", "left", "front", "right"),
+        "back_right": ("back", "right", "front", "left"),
+    }
+
+    # Borrowing across this pairing means the figure would face the wrong way,
+    # so the frames are mirrored horizontally instead of copied. That is what
+    # lets an NPC drawn only facing left also walk to the right.
+    MIRRORED_DIRECTIONS: Dict[str, str] = {
+        "left": "right",
+        "right": "left",
+        "front_left": "front_right",
+        "front_right": "front_left",
+        "back_left": "back_right",
+        "back_right": "back_left",
     }
 
     # Source frames are kept at this multiple of the target box so that zooming
@@ -126,17 +145,24 @@ class DirectionalAnimator:
         else:
             self._build_scaled(raw)
 
+        # Which groups were actually drawn. The build pass above fills an empty
+        # group with the emergency fallback image so nothing is ever blank, which
+        # means "has frames" cannot tell real artwork from a placeholder — this
+        # can, and it is what the borrowing below follows.
+        drawn = {
+            (direction, key)
+            for direction, groups in raw.items()
+            for key, frames in groups.items()
+            if frames
+        }
+
         # Pass 3 — point directions with no artwork of their own at their
         # fallback, per animation group: a direction may have walk frames but no
         # static pose (or the reverse).
+        borrowed: Set[Tuple[str, str]] = set()
         for direction, keys in missing.items():
-            fallback = self.DIRECTION_FALLBACKS.get(direction)
-            if fallback is None or fallback not in self.frames:
-                continue
             for key in keys:
-                self.frames[direction][key] = self.frames[fallback][key]
-                self.source_frames[direction][key] = self.source_frames[fallback][key]
-                self.frame_origin[direction][key] = fallback
+                self._resolve_missing_group(direction, key, drawn, borrowed)
 
         self.current_direction: str = "front"
         self.is_moving: bool = False
@@ -146,6 +172,68 @@ class DirectionalAnimator:
         # Use the recalc constant as baseline and slow animation slightly for readability.
         base_interval = 1.0 / max(1, MAX_RECULCULATIONS_PER_SEC)
         self.frame_interval: float = max(base_interval * 8, 0.05)
+
+    def _fallback_candidates(self, direction: str, key: str) -> List[Tuple[str, str]]:
+        """Ordered (direction, group) pairs to borrow frames from.
+
+        Frames are always borrowed from the same animation group first, so a
+        walk borrows a walk and a stand borrows a stand. Only once no direction
+        has that group at all does a group cross over — and a figurine with
+        nothing but a standing pose then simply stands still while it slides
+        along, which reads far better than a magenta placeholder.
+
+        Args:
+            direction: The direction that has no artwork of its own.
+            key: Either ``"static"`` or ``"move"``.
+
+        Returns:
+            List: Candidates to try in order.
+        """
+        chain = self.DIRECTION_FALLBACKS.get(direction, ())
+        other_key = "static" if key == "move" else "move"
+        candidates = [(other, key) for other in chain]
+        candidates.append((direction, other_key))
+        candidates.extend([(other, other_key) for other in chain])
+        # Last resort: anything at all, so a figurine with a single sprite still
+        # renders in all eight directions.
+        for other in self.DIRECTIONS:
+            candidates.extend([(other, "static"), (other, "move")])
+        return candidates
+
+    def _resolve_missing_group(
+        self,
+        direction: str,
+        key: str,
+        drawn: Set[Tuple[str, str]],
+        borrowed: Set[Tuple[str, str]],
+    ) -> None:
+        """Fill in one empty animation group by borrowing frames.
+
+        Frames are mirrored rather than copied when they come from the
+        horizontally opposite direction, so artwork drawn facing one way covers
+        the other way too.
+
+        Args:
+            direction: The direction that has no artwork of its own.
+            key: Either ``"static"`` or ``"move"``.
+            drawn: Groups that have real artwork behind them.
+            borrowed: Groups already filled in by an earlier call, which
+                transitively point at real artwork and so are fair game too.
+        """
+        for source in self._fallback_candidates(direction, key):
+            if source not in drawn and source not in borrowed:
+                continue
+            source_direction, source_key = source
+            frames = self.frames[source_direction][source_key]
+            sources = self.source_frames[source_direction][source_key]
+            if self.MIRRORED_DIRECTIONS.get(direction) == source_direction:
+                frames = [pygame.transform.flip(frame, True, False) for frame in frames]
+                sources = [pygame.transform.flip(frame, True, False) for frame in sources]
+            self.frames[direction][key] = frames
+            self.source_frames[direction][key] = sources
+            self.frame_origin[direction][key] = source_direction
+            borrowed.add((direction, key))
+            return
 
     def _load_image(self, filename: str) -> Optional[pygame.Surface]:
         """Load image from disk.

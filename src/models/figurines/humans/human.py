@@ -108,6 +108,25 @@ class Human(Figurine):
         )
 
     @property
+    def feet(self) -> Tuple[float, float]:
+        """Where the figure stands: the bottom centre of the logical box.
+
+        This is the position map data is authored against — a Tiled point or
+        polygon marks the ground, not the top-left of a sprite box.
+        """
+        return (self.x + self.width / 2.0, self.y + self.height)
+
+    def place_feet(self, x: float, y: float) -> None:
+        """Move the figure so that it stands at the given ground position.
+
+        Args:
+            x: World X to stand at.
+            y: World Y to stand at.
+        """
+        self.x = x - self.width / 2.0
+        self.y = y - self.height
+
+    @property
     def collision_rect(self) -> pygame.Rect:
         """Feet-area collision box: full logical width, half a tile tall."""
         collision_height = self.tile_size // 2
