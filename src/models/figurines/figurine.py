@@ -8,7 +8,7 @@ y-sort key. Behaviour (movement, AI, collision shape) belongs in the subclass.
 
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import pygame
 
@@ -92,6 +92,11 @@ class Figurine(ABC):
     def y_sort(self) -> float:
         """Depth-sort key: the figurine's ground baseline."""
         return self.y + self.sprite_height
+
+    @property
+    def sprite_draw_offset(self) -> Tuple[float, float]:
+        """Offset from (x, y) to the drawn sprite's top-left, in logical pixels."""
+        return (0.0, 0.0)
 
     # ------------------------------------------------------------------
     # Per-frame update

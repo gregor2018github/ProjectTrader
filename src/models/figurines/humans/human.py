@@ -108,6 +108,16 @@ class Human(Figurine):
         )
 
     @property
+    def sprite_draw_offset(self) -> Tuple[float, float]:
+        """Offset from (x, y) to the drawn sprite's top-left, in logical pixels."""
+        return (self.sprite_offset_x, self.sprite_draw_offset_y)
+
+    @property
+    def y_sort(self) -> float:
+        """Depth-sort key: the logical box's baseline, not the sprite box's."""
+        return self.y + self.height
+
+    @property
     def feet(self) -> Tuple[float, float]:
         """Where the figure stands: the bottom centre of the logical box.
 

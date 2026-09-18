@@ -154,10 +154,11 @@ class GameState:
         self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
         self.chart_selection_order: List[str] = []  # Tracks order in which goods were added to chart (max 3)
         self.active_house_menu = None
-        self.house_last_hovered = None
-        self.house_hover_fade_house = None
-        self.house_hover_fade_duration = 12
-        self.house_hover_fade_timer = 0
+        # Hover glow on the map: the hovered House or Figurine, and the one fading out
+        self.hover_last_target = None
+        self.hover_fade_target = None
+        self.hover_fade_duration = 12
+        self.hover_fade_timer = 0
         self.menu_fade_window = None
         self.menu_fade_timer = 0
         self.menu_fade_duration = 20

@@ -78,7 +78,7 @@ def get_hovered_house(
             continue
 
         # Check if player is close enough to interact
-        if not is_player_near_house(player, house):
+        if not is_player_near(player, house):
             continue
         
         # Get the house sprite and calculate its screen rect
@@ -114,25 +114,25 @@ def get_hovered_house(
     return candidates[0][1]
 
 
-def is_player_near_house(player, house: 'House') -> bool:
-    """Check if the player is close enough to a house to interact.
-    
-    Uses the house's collision rect for distance calculation, checking if
+def is_player_near(player, target) -> bool:
+    """Check if the player is close enough to a house or figurine to interact.
+
+    Uses the target's collision rect for distance calculation, checking if
     the player's center is within HOUSE_INTERACTION_DISTANCE of the collision box.
-    
+
     Args:
         player: The MapPlayer instance.
-        house: The House to check proximity to.
-        
+        target: The House or Figurine to check proximity to.
+
     Returns:
         True if the player is within interaction distance.
     """
     # Player center position in world coordinates
     player_center_x = player.x + player.width / 2
     player_center_y = player.y + player.height / 2
-    
-    # Get the house collision rect
-    col_rect = house.collision_rect
+
+    # Get the target collision rect
+    col_rect = target.collision_rect
     
     # Find the closest point on the collision rect to the player center
     closest_x = max(col_rect.left, min(player_center_x, col_rect.right))
@@ -146,25 +146,28 @@ def is_player_near_house(player, house: 'House') -> bool:
     return distance_sq <= HOUSE_INTERACTION_DISTANCE * HOUSE_INTERACTION_DISTANCE
 
 
-# Cache for hover glow sprites to avoid recreating them every frame
-_hover_glow_cache: Dict[Tuple[int, float], pygame.Surface] = {}
+# Cache for hover glow sprites to avoid recreating them every frame.
+# Values keep a reference to the source sprite so its id cannot be reused
+# by another surface while the entry lives (figurine frames get rebuilt on zoom).
+_hover_glow_cache: Dict[Tuple[int, float], Tuple[pygame.Surface, pygame.Surface]] = {}
 
 
 def _create_hover_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Surface:
     """Create a monocolor beige silhouette, slightly larger, for hover effect.
-    
+
     Args:
         sprite: The original scaled sprite.
         zoom: Current zoom level (used for cache key).
-        
+
     Returns:
         The monocolor glow effect sprite.
     """
     # Use sprite id and zoom as cache key
     cache_key = (id(sprite), round(zoom, 3))
-    
-    if cache_key in _hover_glow_cache:
-        return _hover_glow_cache[cache_key]
+
+    cached = _hover_glow_cache.get(cache_key)
+    if cached is not None and cached[0] is sprite:
+        return cached[1]
     
     # Calculate new size based on fixed pixel extension
     orig_w, orig_h = sprite.get_size()
@@ -186,55 +189,51 @@ def _create_hover_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Sur
     if len(_hover_glow_cache) > 50:
         _hover_glow_cache.clear()
     
-    _hover_glow_cache[cache_key] = result
+    _hover_glow_cache[cache_key] = (sprite, result)
     return result
 
 
 def inject_hover_effect_into_queue(
     render_queue: List[Dict[str, Any]],
-    hovered_house: Optional['House'],
+    hovered: Optional[Any],
     camera: 'Camera',
     offset_x: int,
     offset_y: int,
     alpha_scale: Optional[float] = None
 ) -> None:
     """Inject hover effect sprites into the render queue for proper z-ordering.
-    
+
     This modifies the render queue in place, adding a glow layer just before
-    the hovered house's normal sprite. This ensures proper layering with
+    the hovered object's normal sprite. This ensures proper layering with
     other objects (player, trees, other houses).
-    
+
     Args:
         render_queue: The list of render items to modify.
-        hovered_house: The house being hovered (or None).
+        hovered: The house or figurine being hovered (or None). It is found
+            in the queue through the entries' 'owner' key.
         camera: Camera for zoom level.
         offset_x: Horizontal offset for the view area.
         offset_y: Vertical offset for the view area.
     """
-    if not hovered_house:
+    if hovered is None:
         return
-    
-    sprite = hovered_house.get_scaled_sprite(camera.zoom)
-    if not sprite:
-        return
-    
-    # Find the house in the render queue
-    house_index = None
-    house_entry = None
-    
+
+    # Find the hovered object's own entry in the render queue
+    target_index = None
+    target_entry = None
+
     for i, obj in enumerate(render_queue):
-        # Match by checking if this is the hovered house
-        # Houses have unique y_sort based on their y position
-        if obj.get('y_sort') == hovered_house.y_sort and 'flags' not in obj:
-            # Verify this is actually a house by checking sprite dimensions match
-            if obj['sprite'].get_size() == sprite.get_size():
-                house_index = i
-                house_entry = obj
-                break
-    
-    if house_index is None or house_entry is None:
+        if obj.get('owner') is hovered:
+            target_index = i
+            target_entry = obj
+            break
+
+    if target_index is None or target_entry is None:
         return
-    
+
+    # Figurines are animated, so glow the frame actually being drawn
+    sprite = target_entry['sprite']
+
     # Create the glow sprite
     glow_sprite = _create_hover_glow_sprite(sprite, camera.zoom)
     if alpha_scale is not None:
@@ -246,18 +245,18 @@ def inject_hover_effect_into_queue(
     size_diff_x = (glow_sprite.get_width() - sprite.get_width()) // 2
     size_diff_y = (glow_sprite.get_height() - sprite.get_height()) // 2
     
-    glow_x = house_entry['pos'][0] - size_diff_x + HOVER_OFFSET_X
-    glow_y = house_entry['pos'][1] - size_diff_y + HOVER_OFFSET_Y
+    glow_x = target_entry['pos'][0] - size_diff_x + HOVER_OFFSET_X
+    glow_y = target_entry['pos'][1] - size_diff_y + HOVER_OFFSET_Y
     
-    # Insert the glow layer just before the house in the queue
-    # Use a slightly lower y_sort so it renders behind the house
+    # Insert the glow layer just before the hovered object in the queue
+    # Use a slightly lower y_sort so it renders behind it
     glow_entry = {
         'sprite': glow_sprite,
         'pos': (glow_x, glow_y),
-        'y_sort': hovered_house.y_sort - 0.001  # Tiny offset to ensure it's behind
+        'y_sort': target_entry['y_sort'] - 0.001  # Tiny offset to ensure it's behind
     }
     
-    render_queue.insert(house_index, glow_entry)
+    render_queue.insert(target_index, glow_entry)
 
 
 def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[int, int]) -> None:

@@ -10,7 +10,8 @@ import datetime
 from typing import List, Dict, Any, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
-from ..helper_modules.house_click_menu import get_hovered_house, inject_hover_effect_into_queue, is_player_near_house
+from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is_player_near
+from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -59,58 +60,58 @@ def draw_map_view(
     game_map.tmx_map.update_lights(game_state.date)
     game_map.tmx_map.update_markets(game_state.date)
 
-    # Detect hovered house before building the render queue
+    # Detect the hovered house or figurine before building the render queue
     paused = game_state.time_level == 1
     active_house_menu = getattr(game_state, "active_house_menu", None)
     if paused:
-        hovered_house = None
-        game_state.house_last_hovered = None
-        game_state.house_hover_fade_house = None
-        game_state.house_hover_fade_timer = 0
+        hovered = None
+        game_state.hover_last_target = None
+        game_state.hover_fade_target = None
+        game_state.hover_fade_timer = 0
     elif active_house_menu and getattr(game_state, "info_window", None) and getattr(game_state.info_window, "house", None) == active_house_menu:
-        if is_player_near_house(game_map.map_player, active_house_menu):
-            hovered_house = active_house_menu
+        if is_player_near(game_map.map_player, active_house_menu):
+            hovered = active_house_menu
         else:
             # Trigger fade out for the menu
             game_state.menu_fade_window = game_state.info_window
             game_state.menu_fade_timer = game_state.menu_fade_duration
             game_state.info_window = None
             game_state.active_house_menu = None
-            hovered_house = None
+            hovered = None
     elif getattr(game_state, 'info_window', None):
-        hovered_house = None
+        hovered = None
     else:
         mouse_pos = pygame.mouse.get_pos()
-        hovered_house = get_hovered_house(mouse_pos, game_map, view_rect)
+        hovered = get_hovered_map_object(mouse_pos, game_map, view_rect)
 
     if not paused:
-        if hovered_house:
-            game_state.house_last_hovered = hovered_house
-            game_state.house_hover_fade_house = None
-            game_state.house_hover_fade_timer = 0
-        elif game_state.house_last_hovered and game_state.house_hover_fade_house is None:
-            game_state.house_hover_fade_house = game_state.house_last_hovered
-            game_state.house_hover_fade_timer = game_state.house_hover_fade_duration
-            game_state.house_last_hovered = None
-    
-    # Build render queue for Y-sorting (houses and player)
+        if hovered is not None:
+            game_state.hover_last_target = hovered
+            game_state.hover_fade_target = None
+            game_state.hover_fade_timer = 0
+        elif game_state.hover_last_target is not None and game_state.hover_fade_target is None:
+            game_state.hover_fade_target = game_state.hover_last_target
+            game_state.hover_fade_timer = game_state.hover_fade_duration
+            game_state.hover_last_target = None
+
+    # Build render queue for Y-sorting (houses and figurines)
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)
-    
+
     # Inject hover effect into the queue (before sorting) for proper z-ordering
-    inject_hover_effect_into_queue(render_queue, hovered_house, game_map.camera, offset_x, offset_y)
-    if not hovered_house and game_state.house_hover_fade_timer > 0 and game_state.house_hover_fade_house:
-        fade_alpha = game_state.house_hover_fade_timer / game_state.house_hover_fade_duration
+    inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)
+    if hovered is None and game_state.hover_fade_timer > 0 and game_state.hover_fade_target is not None:
+        fade_alpha = game_state.hover_fade_timer / game_state.hover_fade_duration
         inject_hover_effect_into_queue(
             render_queue,
-            game_state.house_hover_fade_house,
+            game_state.hover_fade_target,
             game_map.camera,
             offset_x,
             offset_y,
             alpha_scale=fade_alpha
         )
-        game_state.house_hover_fade_timer -= 1
-        if game_state.house_hover_fade_timer <= 0:
-            game_state.house_hover_fade_house = None
+        game_state.hover_fade_timer -= 1
+        if game_state.hover_fade_timer <= 0:
+            game_state.hover_fade_target = None
     
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
@@ -374,8 +375,7 @@ def _build_render_queue(
     render_queue: List[Dict[str, Any]] = []
     tmx_map = game_map.tmx_map
     camera = game_map.camera
-    map_player = game_map.map_player
-    
+
     # Add houses to queue
     for house in tmx_map.houses:
         sprite = house.get_scaled_sprite(camera.zoom)
@@ -392,7 +392,8 @@ def _build_render_queue(
                 render_queue.append({
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),
-                    'y_sort': house.y_sort
+                    'y_sort': house.y_sort,
+                    'owner': house,  # lets the hover glow find this entry
                 })
 
     # Add mill blade overlays — same y_sort as the mill building so they
@@ -528,51 +529,22 @@ def _build_render_queue(
                 'y_sort': ripple.y,
             })
 
-    # Add sheep NPCs to queue
-    for sheep in game_map.tmx_map.sheep:
-        sheep_sprite = sheep._get_scaled_sprite(camera.zoom)
-        sheep_screen_x, sheep_screen_y = camera.apply(sheep.x, sheep.y)
-        draw_x = round(sheep_screen_x) + offset_x
-        draw_y = round(sheep_screen_y) + offset_y
-        if (draw_x + sheep_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                draw_y + sheep_sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+    # Add figurines (sheep, human NPCs, player last) to queue
+    for figurine in iter_figurines(game_map):
+        sprite = figurine._get_scaled_sprite(camera.zoom)
+        # Rounded draw position prevents shimmering during slow movement
+        screen_x, screen_y = figurine_screen_pos(figurine, camera)
+        draw_x = screen_x + offset_x
+        draw_y = screen_y + offset_y
+        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
             render_queue.append({
-                'sprite': sheep_sprite,
+                'sprite': sprite,
                 'pos': (draw_x, draw_y),
-                'y_sort': sheep.y_sort
+                'y_sort': figurine.y_sort,
+                'owner': figurine,  # lets the hover glow find this entry
             })
 
-    # Add human NPCs to queue
-    for npc in game_map.tmx_map.npcs:
-        npc_sprite = npc._get_scaled_sprite(camera.zoom)
-        npc_screen_x, npc_screen_y = camera.apply(npc.x, npc.y)
-        # Like the player, the sprite box can be larger than the logical box.
-        npc_screen_x += npc.sprite_offset_x * camera.zoom
-        npc_screen_y += npc.sprite_draw_offset_y * camera.zoom
-        draw_x = round(npc_screen_x) + offset_x
-        draw_y = round(npc_screen_y) + offset_y
-        if (draw_x + npc_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                draw_y + npc_sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
-            render_queue.append({
-                'sprite': npc_sprite,
-                'pos': (draw_x, draw_y),
-                'y_sort': npc.y + npc.height,
-            })
-
-    # Add player to queue
-    player_sprite = map_player._get_scaled_sprite(camera.zoom)
-    player_screen_x, player_screen_y = camera.apply(map_player.x, map_player.y)
-    # The sprite box can be larger than the logical collision box: centred on it
-    # horizontally, standing on its baseline vertically.
-    player_screen_x += map_player.sprite_offset_x * camera.zoom
-    player_screen_y += map_player.sprite_draw_offset_y * camera.zoom
-    render_queue.append({
-        'sprite': player_sprite,
-        # Use rounding for draw position to prevent shimmering during slow movement
-        'pos': (round(player_screen_x) + offset_x, round(player_screen_y) + offset_y),
-        'y_sort': map_player.y + map_player.height  # Use world Y of player bottom
-    })
-    
     return render_queue
 
 
