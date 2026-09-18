@@ -206,7 +206,7 @@ class NPC(Human):
         )
 
     def _animate(self, dt: float, is_moving: bool) -> None:
-        """Advance the animator and refresh the current frame.
+        """Advance the animator and any fade, and refresh the current frame.
 
         Args:
             dt: Delta time in seconds.
@@ -216,6 +216,7 @@ class NPC(Human):
         self.sprite = self.animator.get_current_frame()
         self.source_sprite = self.animator.get_current_source_frame()
         self.was_moving = is_moving
+        self._update_fade(dt)
 
     def inspect_lines(self, observer=None) -> List[str]:
         """Debug lines for the "Inspect" window, plus the patrol path."""

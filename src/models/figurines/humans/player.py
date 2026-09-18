@@ -196,6 +196,7 @@ class MapPlayer(Human):
         self.source_sprite = self.animator.get_current_source_frame()
         # self.width and self.height are kept stable for collision consistency
         self.was_moving = is_moving
+        self._update_fade(dt)
 
     def can_move_to(self, x: float, y: float, game_map: "TMXMap") -> bool:
         """Check if player can move to the given position.

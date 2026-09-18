@@ -17,6 +17,9 @@ from ..figurine import Figurine, FIGURINE_SPRITE_ROOT
 # Artwork root shared by every human figurine.
 HUMAN_SPRITE_ROOT = os.path.join(FIGURINE_SPRITE_ROOT, 'humans')
 
+# How long fade_out() and fade_in() take by default, in seconds.
+FADE_SECONDS = 1.0
+
 
 class Human(Figurine):
     """A humanoid figurine with an eight-direction walk cycle."""
@@ -51,6 +54,11 @@ class Human(Figurine):
         self.vel_x: float = 0.0
         self.vel_y: float = 0.0
         self.was_moving: bool = False
+
+        # Fading, e.g. when someone steps through a door. 1.0 is fully drawn,
+        # 0.0 is gone; the speed is opacity per second, negative fading out.
+        self.opacity: float = 1.0
+        self.fade_speed: float = 0.0
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -137,6 +145,16 @@ class Human(Figurine):
         self.y = y - self.height
 
     @property
+    def is_hidden(self) -> bool:
+        """True once fully faded out: neither drawn nor clickable."""
+        return self.opacity <= 0.0
+
+    @property
+    def is_fading(self) -> bool:
+        """True while a fade in either direction is still running."""
+        return self.fade_speed != 0.0
+
+    @property
     def collision_rect(self) -> pygame.Rect:
         """Feet-area collision box: full logical width, half a tile tall."""
         collision_height = self.tile_size // 2
@@ -146,6 +164,60 @@ class Human(Figurine):
             int(self.width),
             int(collision_height),
         )
+
+    # ------------------------------------------------------------------
+    # Fading
+    # ------------------------------------------------------------------
+
+    def fade_out(self, duration: float = FADE_SECONDS) -> None:
+        """Start fading the figure away until it is hidden.
+
+        Args:
+            duration: Seconds a full fade takes. Zero hides it at once.
+        """
+        if duration <= 0.0:
+            self.opacity, self.fade_speed = 0.0, 0.0
+        elif self.opacity > 0.0:
+            self.fade_speed = -1.0 / duration
+
+    def fade_in(self, duration: float = FADE_SECONDS) -> None:
+        """Start fading the figure back into view.
+
+        Args:
+            duration: Seconds a full fade takes. Zero shows it at once.
+        """
+        if duration <= 0.0:
+            self.opacity, self.fade_speed = 1.0, 0.0
+        elif self.opacity < 1.0:
+            self.fade_speed = 1.0 / duration
+
+    def _update_fade(self, dt: float) -> None:
+        """Advance a running fade. Subclasses call this from update().
+
+        Args:
+            dt: Delta time in seconds.
+        """
+        if self.fade_speed == 0.0:
+            return
+        self.opacity = max(0.0, min(1.0, self.opacity + self.fade_speed * dt))
+        if self.opacity in (0.0, 1.0):
+            self.fade_speed = 0.0
+
+    def _get_scaled_sprite(self, zoom: float) -> pygame.Surface:
+        """The current frame at the camera zoom, see-through while fading.
+
+        Args:
+            zoom: Current camera zoom level.
+
+        Returns:
+            pygame.Surface: The frame to draw.
+        """
+        sprite = super()._get_scaled_sprite(zoom)
+        if self.opacity >= 1.0:
+            return sprite
+        faded = sprite.copy()
+        faded.fill((255, 255, 255, round(255 * self.opacity)), special_flags=pygame.BLEND_RGBA_MULT)
+        return faded
 
     # ------------------------------------------------------------------
     # Movement

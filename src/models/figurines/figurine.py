@@ -94,6 +94,11 @@ class Figurine(ABC):
         return type(self).__name__
 
     @property
+    def is_hidden(self) -> bool:
+        """True while the figurine is out of sight: not drawn, not clickable."""
+        return False
+
+    @property
     def y_sort(self) -> float:
         """Depth-sort key: the figurine's ground baseline."""
         return self.y + self.sprite_height

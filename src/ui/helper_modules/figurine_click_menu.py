@@ -45,10 +45,10 @@ SPEECH_TEXT_GAP = 5                    # Extra space between the title rule and 
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
-    """Yield every figurine on the map, in render-queue order (player last)."""
-    yield from game_map.tmx_map.sheep
-    yield from game_map.tmx_map.npcs
-    yield game_map.map_player
+    """Yield every figurine in sight on the map, in render-queue order (player last)."""
+    for figurine in (*game_map.tmx_map.sheep, *game_map.tmx_map.npcs, game_map.map_player):
+        if not figurine.is_hidden:
+            yield figurine
 
 
 def figurine_screen_pos(figurine: 'Figurine', camera: 'Camera') -> Tuple[int, int]:
@@ -488,13 +488,14 @@ class FigurineSpeech(_FigurineBubble):
         self.close_hit_rect = self.close_rect.inflate(8, 8)
 
     def draw(self, alpha_scale: float = 1.0) -> None:
-        """Move along with the figurine, and close once it has left the map view.
+        """Move along with the figurine, and close once it has left the map view or vanished.
 
         Args:
             alpha_scale: Transparency scale from 0.0 to 1.0.
         """
         sprite_rect = figurine_screen_rect(self.figurine, self.camera, self.map_content_rect)
-        in_view = self.game_state.is_map_visible and sprite_rect.colliderect(self.map_content_rect)
+        in_view = (self.game_state.is_map_visible and not self.figurine.is_hidden
+                   and sprite_rect.colliderect(self.map_content_rect))
         if in_view:
             self.sprite_rect = sprite_rect
             self._layout()

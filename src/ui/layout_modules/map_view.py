@@ -69,7 +69,9 @@ def draw_map_view(
         game_state.hover_fade_target = None
         game_state.hover_fade_timer = 0
     elif active_house_menu and getattr(game_state, "info_window", None) and getattr(game_state.info_window, "house", None) == active_house_menu:
-        if is_player_near(game_map.map_player, active_house_menu):
+        # A figurine that fades away (goes indoors) takes its menu with it
+        if (is_player_near(game_map.map_player, active_house_menu)
+                and not getattr(active_house_menu, "is_hidden", False)):
             hovered = active_house_menu
         else:
             # Trigger fade out for the menu
