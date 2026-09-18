@@ -27,6 +27,9 @@ ARRIVAL_TOLERANCE = 1.0
 # rather than flickering between "left" and "front_left".
 DIAGONAL_THRESHOLD = 0.4
 
+# The town's four population groups, named as in the population statistics.
+SOCIAL_CLASSES = ("Poor", "Commons", "Middling Sort", "Nobility")
+
 
 class NPC(Human):
     """A self-directed human figurine that walks a patrol path."""
@@ -36,6 +39,8 @@ class NPC(Human):
     #: Filename prefix of this NPC's PNGs, e.g. ``"butcher"`` for
     #: ``butcher_left_static.png``.
     SPRITE_PREFIX: str = ""
+    #: Which of SOCIAL_CLASSES the NPC belongs to.
+    SOCIAL_CLASS: str = "Commons"
 
     def __init__(self, name: str, x: float, y: float, tile_size: int) -> None:
         """Initialize shared NPC state.
@@ -194,6 +199,7 @@ class NPC(Human):
         """Debug lines for the "Inspect" window, plus the patrol path."""
         lines = super().inspect_lines(observer) + [
             "**Behaviour**",
+            f"Social class: {self.SOCIAL_CLASS}",
             f"Speed: {self.speed:.0f} px/s",
         ]
         if self.path is None:

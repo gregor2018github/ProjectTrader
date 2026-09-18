@@ -33,6 +33,9 @@ class TraderButcher(NPC):
 
     SPRITE_FOLDER = 'trader_butcher'
     SPRITE_PREFIX = 'butcher'
+    # A master butcher is a guild member who owns his stall and tools: a
+    # respectable burgher, well above the commons but no gentleman.
+    SOCIAL_CLASS = "Middling Sort"
 
     def __init__(self, x: float, y: float, tile_size: int, name: str = "Butcher") -> None:
         """Place the butcher on the map.
