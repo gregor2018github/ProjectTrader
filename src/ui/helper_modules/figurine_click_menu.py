@@ -41,6 +41,7 @@ OPTION_HEIGHT = 28
 OPTION_HOVER_FILL = (218, 198, 154)    # Darker parchment tone behind the hovered option
 SPEECH_MAX_TEXT_WIDTH = 280            # Speech bubbles wrap their text at this width
 CLOSE_CROSS_SIZE = 10
+SPEECH_TEXT_GAP = 5                    # Extra space between the title rule and spoken text
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -65,6 +66,24 @@ def figurine_screen_pos(figurine: 'Figurine', camera: 'Camera') -> Tuple[int, in
     # The sprite box can be larger than the logical box (see Human)
     return (round(screen_x + sprite_offset_x * camera.zoom),
             round(screen_y + sprite_offset_y * camera.zoom))
+
+
+def figurine_screen_rect(figurine: 'Figurine', camera: 'Camera',
+                         map_content_rect: pygame.Rect) -> pygame.Rect:
+    """The figurine's drawn sprite in screen coordinates.
+
+    Args:
+        figurine: The figurine to place.
+        camera: Camera for the world-to-screen transform.
+        map_content_rect: The map's drawing area on screen.
+
+    Returns:
+        The sprite's screen rectangle.
+    """
+    draw_x, draw_y = figurine_screen_pos(figurine, camera)
+    sprite = figurine._get_scaled_sprite(camera.zoom)
+    return pygame.Rect(map_content_rect.x + draw_x, map_content_rect.y + draw_y,
+                       sprite.get_width(), sprite.get_height())
 
 
 def get_hovered_figurine(
@@ -175,21 +194,19 @@ def show_figurine_menu(
             game_state.active_house_menu = None
             return
         if option_text == "Chat" and isinstance(figurine, NPC):
-            # The speech bubble takes the menu's place, pointing at the same figurine
+            # The speech bubble takes the menu's place. It follows the NPC and
+            # closes itself once they leave the map view, not on distance
             game_state.info_window = FigurineSpeech(game_state.screen, figurine, figurine.chat_line(),
-                                                    game_state, sprite_rect)
+                                                    game_state, map_content_rect)
+            game_state.active_house_menu = None
             return
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
         menu.close()
 
     # The tail points at the top centre of the sprite, or its bottom if the bubble flips below
-    camera = game_state.game.game_map.camera
     map_content_rect = view_rect.inflate(-10, -10)
-    draw_x, draw_y = figurine_screen_pos(figurine, camera)
-    sprite = figurine._get_scaled_sprite(camera.zoom)
-    sprite_rect = pygame.Rect(map_content_rect.x + draw_x, map_content_rect.y + draw_y,
-                              sprite.get_width(), sprite.get_height())
+    sprite_rect = figurine_screen_rect(figurine, game_state.game.game_map.camera, map_content_rect)
 
     menu = FigurineMenu(game_state.screen, figurine, options, game_state, sprite_rect, menu_callback)
     game_state.info_window = menu
@@ -413,7 +430,9 @@ class FigurineMenu(_FigurineBubble):
 class FigurineSpeech(_FigurineBubble):
     """A speech bubble with a line the figurine says, closed with a small cross.
 
-    Clicking outside the bubble closes it as well.
+    Clicking outside the bubble closes it as well. The bubble follows the
+    figurine as it walks, and closes by itself once the figurine has left the
+    map view.
     """
 
     def __init__(
@@ -422,7 +441,7 @@ class FigurineSpeech(_FigurineBubble):
         figurine: 'Figurine',
         text: str,
         game_state: 'GameState',
-        sprite_rect: pygame.Rect,
+        map_content_rect: pygame.Rect,
     ):
         """Wrap the text and lay out the bubble.
 
@@ -431,9 +450,14 @@ class FigurineSpeech(_FigurineBubble):
             figurine: The figurine speaking.
             text: What it says.
             game_state: The current game state.
-            sprite_rect: The figurine's drawn sprite, in screen coordinates.
+            map_content_rect: The map's drawing area on screen, to follow the figurine in.
         """
-        super().__init__(screen, figurine, game_state, sprite_rect)
+        self.map_content_rect = map_content_rect
+        self.camera = game_state.game.game_map.camera
+        super().__init__(screen, figurine, game_state,
+                         figurine_screen_rect(figurine, self.camera, map_content_rect))
+        # Not tied to the player's interaction range; see draw()
+        self.house = None
         # Rendered once; the text never changes while the bubble is open
         self.line_surfs = [self.text_font.render(line, True, BLACK)
                            for line in _wrap_text(text, self.text_font, SPEECH_MAX_TEXT_WIDTH)]
@@ -446,9 +470,14 @@ class FigurineSpeech(_FigurineBubble):
             [self.title_font.size(self.title)[0] + 2 * cross_space]
             + [line_surf.get_width() for line_surf in self.line_surfs]
         )
-        width = max(BUBBLE_MIN_WIDTH, content_width + 2 * BUBBLE_PADDING)
-        self._place(width, self.content_top + len(self.line_surfs) * self.line_height + BUBBLE_PADDING)
+        self.width = max(BUBBLE_MIN_WIDTH, content_width + 2 * BUBBLE_PADDING)
+        self.height = (self.content_top + SPEECH_TEXT_GAP
+                       + len(self.line_surfs) * self.line_height + BUBBLE_PADDING)
+        self._layout()
 
+    def _layout(self) -> None:
+        """Place the bubble at the figurine's current sprite, with the cross in its corner."""
+        self._place(self.width, self.height)
         self.close_rect = pygame.Rect(
             self.rect.right - BUBBLE_PADDING - CLOSE_CROSS_SIZE,
             self.rect.y + BUBBLE_PADDING + (self.title_height - CLOSE_CROSS_SIZE) // 2,
@@ -457,6 +486,24 @@ class FigurineSpeech(_FigurineBubble):
         )
         # The cross is small, so it is a little easier to hit than it looks
         self.close_hit_rect = self.close_rect.inflate(8, 8)
+
+    def draw(self, alpha_scale: float = 1.0) -> None:
+        """Move along with the figurine, and close once it has left the map view.
+
+        Args:
+            alpha_scale: Transparency scale from 0.0 to 1.0.
+        """
+        sprite_rect = figurine_screen_rect(self.figurine, self.camera, self.map_content_rect)
+        in_view = self.game_state.is_map_visible and sprite_rect.colliderect(self.map_content_rect)
+        if in_view:
+            self.sprite_rect = sprite_rect
+            self._layout()
+        elif alpha_scale >= 1.0:
+            # Fully opaque means still open. The fade-out then stays where the
+            # figurine was last seen
+            self.close()
+            return
+        super().draw(alpha_scale)
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         """Close on the cross or outside the bubble. Returns True if handled."""
@@ -474,7 +521,7 @@ class FigurineSpeech(_FigurineBubble):
         pygame.draw.line(surf, DARK_BROWN, cross.bottomleft, cross.topright, 2)
 
         body = self.rect.move(offset)
-        y = body.y + self.content_top
+        y = body.y + self.content_top + SPEECH_TEXT_GAP
         for line_surf in self.line_surfs:
             surf.blit(line_surf, line_surf.get_rect(midtop=(body.centerx, y)))
             y += self.line_height
