@@ -58,7 +58,7 @@ Any modal dialog (quit confirm, house menus, donation menu, contract overview, p
 
 `GameMap` (src/models/map.py) loads a Tiled `.tmx` file via `pytmx`. Map objects are parsed into typed Python objects: `House`, `Town` (extends House — the town hall), `Church`, `Market`, `Tree`. Population is initialized on `Town` by summing `max_inhabitants` from all House objects. The `Camera` class handles zoom and panning.
 
-The `Movements` object layer drives map inhabitants: a rectangle named `Sheep` becomes a grazing zone, and a polygon/polyline whose name is a key in `TMXMap.NPC_TYPES` (e.g. `Butcher_Market_Stall`) becomes a human NPC that walks that path. Add a trader by drawing a shape in Tiled, naming it, and adding one line to `NPC_TYPES`.
+The `Movements` object layer drives map inhabitants: a rectangle named `Sheep` becomes a grazing zone, and a polygon/polyline whose name is a key in `TMXMap.NPC_TYPES` (e.g. `Butcher_Market_Stall`) becomes a human NPC that walks that path. An optional `margin` float property on that polygon, **in tiles**, pulls the walked outline inwards so the NPC keeps clear of its own edges (`inset_polygon` in `src/models/figurines/patrol_path.py`); a margin too large to fit is ignored. Add a trader by drawing a shape in Tiled, naming it, and adding one line to `NPC_TYPES`.
 
 ### Trading System
 

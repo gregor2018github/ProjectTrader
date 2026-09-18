@@ -4,15 +4,13 @@ This module contains the map logic including TMX loading, camera management,
 player movement, collision detection, and map object management.
 """
 
-import math
 import os
-import random
 import datetime
 import pygame
 import pytmx
 from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, PLAYER_SPEED, PLAYER_DIAGONAL_SPEED_FACTOR, MAX_RECULCULATIONS_PER_SEC, FOOT_STEP_VOLUME, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
+from ..config.constants import TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .institutions.church import Church
 from .institutions.town import Town
@@ -25,7 +23,6 @@ from .tree import Tree
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
-from .figurines.animator import DirectionalAnimator
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
 from .figurines.humans.npcs.npc import NPC
@@ -682,7 +679,12 @@ class TMXMap:
         points = getattr(obj, "points", None)
         npc = npc_class(obj.x, obj.y, self.tile_size)
         if points:
-            path = PatrolPath(points, closed=getattr(obj, "closed", True))
+            # Optional "margin" property on the Tiled object, in tiles: how far
+            # to keep the walker off the polygon's own edges. Movement polygons
+            # are traced along whole tiles, so without it he brushes the stall
+            # he is standing at.
+            margin = float(obj.properties.get("margin", 0.0)) * self.tile_size
+            path = PatrolPath(points, closed=getattr(obj, "closed", True), margin=margin)
             if path:
                 npc.set_path(path)
             else:

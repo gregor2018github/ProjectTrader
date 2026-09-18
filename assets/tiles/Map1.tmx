@@ -6281,6 +6281,9 @@
   <object id="306" name="Sheep" x="4448" y="5408" width="384.004" height="31.9961"/>
   <object id="308" name="Sheep" x="4416" y="5600" width="480" height="31.9961"/>
   <object id="368" name="Butcher_Market_Stall" x="5056" y="4480">
+   <properties>
+    <property name="margin" type="float" value="0.3"/>
+   </properties>
    <polygon points="0,0 0,64 224,64 224,0 192,0 192,32 32,32 32,0 0,0"/>
   </object>
  </objectgroup>
