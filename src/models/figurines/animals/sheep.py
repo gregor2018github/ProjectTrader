@@ -3,7 +3,7 @@
 import os
 import random
 import pygame
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .animal import Animal, ANIMAL_SPRITE_ROOT
 
@@ -18,6 +18,7 @@ EAT_MIN_DURATION = 3.0      # minimum eating duration in seconds
 EAT_MAX_DURATION = 8.0      # maximum eating duration in seconds
 EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat2)
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
+HEART_DURATION = 1.4        # seconds the heart floats up after petting
 
 
 class Sheep(Animal):
@@ -129,6 +130,9 @@ class Sheep(Animal):
         self.wants_sound: bool = False
         self._was_blocked: bool = False
 
+        # Seconds since the last petting while its heart is floating up, else None
+        self.heart_age: Optional[float] = None
+
     # ------------------------------------------------------------------
     # Interaction
     # ------------------------------------------------------------------
@@ -151,6 +155,7 @@ class Sheep(Animal):
             self.stop_timer = random.uniform(STOP_MIN_DURATION, STOP_MAX_DURATION)
         # Petting counts as a bleat, so the next idle one isn't right behind it
         self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
+        self.heart_age = 0.0
 
     def inspect_lines(self, observer=None) -> List[str]:
         """Debug lines for the "Inspect" window, plus the grazing behaviour."""
@@ -187,6 +192,11 @@ class Sheep(Animal):
             dt: Delta time in seconds.
             player_rect: The player's current collision rectangle, used for blocking.
         """
+        if self.heart_age is not None:
+            self.heart_age += dt
+            if self.heart_age >= HEART_DURATION:
+                self.heart_age = None
+
         if self.is_moving:
             # Random chance to stop for a rest
             if random.random() < STOP_CHANCE_PER_SEC * dt:

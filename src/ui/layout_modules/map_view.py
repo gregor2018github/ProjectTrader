@@ -4,6 +4,7 @@ This module handles the visualization of the map on screen, similar to other
 UI layout modules like chart_view or depot_view.
 """
 
+import math
 import pygame
 import pytmx
 import datetime
@@ -12,6 +13,7 @@ from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is_player_near
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
+from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -124,11 +126,68 @@ def draw_map_view(
     
     # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed)
     _apply_lighting(screen, map_content_rect, game_state.date, render_queue)
+
+    # Hearts float above everything and stay visible at night
+    _draw_pet_hearts(screen, game_map, offset_x, offset_y)
     
     # Restore clipping
     screen.set_clip(old_clip)
     
     # Debug overlay is drawn by the caller after the sidebar so it isn't covered
+
+
+# Pixel-art heart shown above a petted sheep
+_HEART_PATTERN = (
+    ".XX.XX.",
+    "XHXXXXX",
+    "XXXXXXX",
+    ".XXXXX.",
+    "..XXX..",
+    "...X...",
+)
+_HEART_COLOR = (214, 74, 88)
+_HEART_HIGHLIGHT = (245, 160, 165)
+_HEART_PIXEL = 2          # screen pixels per heart pixel at zoom 1
+_HEART_RISE = 0.9         # tiles the heart floats up over its lifetime
+_HEART_MAX_ALPHA = 210    # kept below 255 so the heart stays subtle
+_heart_cache: Dict[int, pygame.Surface] = {}
+
+
+def _get_heart_surface(pixel_size: int) -> pygame.Surface:
+    """Build (and cache) the pixel heart with square pixels of the given size."""
+    heart = _heart_cache.get(pixel_size)
+    if heart is None:
+        heart = pygame.Surface((len(_HEART_PATTERN[0]) * pixel_size, len(_HEART_PATTERN) * pixel_size),
+                               pygame.SRCALPHA)
+        for row, line in enumerate(_HEART_PATTERN):
+            for col, char in enumerate(line):
+                if char != ".":
+                    color = _HEART_HIGHLIGHT if char == "H" else _HEART_COLOR
+                    heart.fill(color, (col * pixel_size, row * pixel_size, pixel_size, pixel_size))
+        _heart_cache[pixel_size] = heart
+    return heart
+
+
+def _draw_pet_hearts(screen: pygame.Surface, game_map: 'GameMap', offset_x: int, offset_y: int) -> None:
+    """Draw a small heart rising from each recently petted sheep and fading out."""
+    camera = game_map.camera
+    for sheep in game_map.tmx_map.sheep:
+        if sheep.heart_age is None:
+            continue
+        progress = sheep.heart_age / HEART_DURATION
+        # Quick fade in, then a long fade out
+        alpha = min(1.0, progress / 0.12) * min(1.0, (1.0 - progress) / 0.6)
+        heart = _get_heart_surface(max(1, round(_HEART_PIXEL * camera.zoom))).copy()
+        heart.set_alpha(int(_HEART_MAX_ALPHA * alpha))
+
+        # Start just above the head (the side the sheep faces), rise with a gentle sway
+        head_side = 1 if sheep.direction == "right" else -1
+        world_x = sheep.x + sheep.sprite_width * (0.5 + 0.28 * head_side)
+        world_y = sheep.y + sheep.sprite_height * 0.1 - _HEART_RISE * sheep.tile_size * progress
+        screen_x, screen_y = camera.apply(world_x, world_y)
+        sway = math.sin(sheep.heart_age * 5.0) * 2.0 * camera.zoom
+        screen.blit(heart, (round(screen_x + sway - heart.get_width() / 2 + offset_x),
+                            round(screen_y - heart.get_height() + offset_y)))
 
 
 def _apply_lighting(
