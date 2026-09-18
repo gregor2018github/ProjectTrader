@@ -6295,9 +6295,6 @@
   <object id="371" name="Butcher_Homeway_Start" x="5280" y="4544">
    <point/>
   </object>
-  <object id="372" x="5534.5" y="4283">
-   <point/>
-  </object>
  </objectgroup>
  <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="3584" y="4608">
