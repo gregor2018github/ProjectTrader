@@ -61,6 +61,11 @@ class NPC(Human):
     # ------------------------------------------------------------------
 
     @property
+    def display_name(self) -> str:
+        """Name shown to the player, e.g. as a menu title."""
+        return self.name
+
+    @property
     def sprite_dir(self) -> str:
         """Directory holding this NPC's artwork."""
         return os.path.join(NPC_SPRITE_ROOT, self.SPRITE_FOLDER)

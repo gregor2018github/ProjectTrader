@@ -153,11 +153,15 @@ def show_figurine_menu(
     options: List[str] = []
     if isinstance(figurine, Sheep):
         options.append("Pet Sheep")
-
-    if not options:
-        return False
+    options.append("Inspect")
 
     def menu_callback(option_text: str) -> None:
+        if option_text == "Inspect":
+            from .info_window import InfoWindow
+            game_state.info_window = InfoWindow(game_state.screen, "\n".join(figurine.inspect_lines()),
+                                                ["OK"], game_state.font, game_state.game)
+            game_state.active_house_menu = None
+            return
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
         menu.close()
@@ -228,7 +232,7 @@ class FigurineMenu:
         except Exception:
             self.title_font = self.option_font = game_state.font
 
-        self.title = getattr(figurine, 'display_name', type(figurine).__name__)
+        self.title = figurine.display_name
         self.title_height = self.title_font.get_linesize()
 
         content_width = max(

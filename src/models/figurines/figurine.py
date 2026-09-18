@@ -8,7 +8,7 @@ y-sort key. Behaviour (movement, AI, collision shape) belongs in the subclass.
 
 import os
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pygame
 
@@ -89,6 +89,11 @@ class Figurine(ABC):
         """The rectangle other entities collide with (usually the feet area)."""
 
     @property
+    def display_name(self) -> str:
+        """Name shown to the player, e.g. as a menu title."""
+        return type(self).__name__
+
+    @property
     def y_sort(self) -> float:
         """Depth-sort key: the figurine's ground baseline."""
         return self.y + self.sprite_height
@@ -97,6 +102,20 @@ class Figurine(ABC):
     def sprite_draw_offset(self) -> Tuple[float, float]:
         """Offset from (x, y) to the drawn sprite's top-left, in logical pixels."""
         return (0.0, 0.0)
+
+    # ------------------------------------------------------------------
+    # Inspection
+    # ------------------------------------------------------------------
+
+    def inspect_lines(self) -> List[str]:
+        """Lines for the "Inspect" window, in the style of the house one."""
+        sprite_dir = self.animator.base_path if self.animator else "-"
+        return [
+            f"Object Name: {self.display_name}",
+            f"Class: {type(self).__name__}",
+            f"Coordinates: X={round(self.x, 1)}, Y={round(self.y, 1)}",
+            f"Sprites: {sprite_dir}",
+        ]
 
     # ------------------------------------------------------------------
     # Per-frame update

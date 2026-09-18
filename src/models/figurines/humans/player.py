@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 class MapPlayer(Human):
     """Player character that moves around the map."""
 
+    display_name = "You"
+
     # Manual per-pose vertical draw correction, in logical pixels at zoom 1
     # (positive = drawn lower). Keyed by the direction the artwork was authored
     # for and the animation group, so directions that borrow frames inherit the
