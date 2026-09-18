@@ -1,7 +1,7 @@
 import pygame
-from typing import List, Optional, Tuple, Any, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 from ...config.colors import *
-from ..ui_utils import draw_9slice
+from ..ui_utils import scale_9slice
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -21,6 +21,20 @@ def _display(line: str) -> str:
     return line[2:-2] if _is_bold(line) else line
 
 
+# Semi-transparent black that dims the game behind the window, per screen size
+_dim_overlays: Dict[Tuple[int, int], pygame.Surface] = {}
+
+
+def _dim_overlay(size: Tuple[int, int]) -> pygame.Surface:
+    overlay = _dim_overlays.get(size)
+    if overlay is None:
+        overlay = pygame.Surface(size)
+        overlay.set_alpha(128)
+        overlay.fill((0, 0, 0))
+        _dim_overlays[size] = overlay
+    return overlay
+
+
 class InfoWindow:
     """A pop-up information window with customizable message and buttons.
 
@@ -38,16 +52,17 @@ class InfoWindow:
 
         lines = message.split('\n')
 
-        # Measure line widths (bold lines get measured with bold on)
-        max_line_width = 0
+        # Render every line once here. Toggling bold on the shared game font
+        # flushes its glyph cache, so doing it per frame slows down all text.
+        self._line_surfs: List[Tuple[pygame.Surface, bool]] = []
         for line in lines:
             bold = _is_bold(line)
             if bold:
                 self.font.bold = True
-            surf = self.font.render(_display(line), True, BLACK)
+            self._line_surfs.append((self.font.render(_display(line), True, BLACK), bold))
             if bold:
                 self.font.bold = False
-            max_line_width = max(max_line_width, surf.get_width())
+        max_line_width = max((surf.get_width() for surf, _ in self._line_surfs), default=0)
 
         # Content height: normal lines take _LINE_H, bold lines take _LINE_H + 2*_BOLD_PAD
         content_h = sum(
@@ -81,6 +96,9 @@ class InfoWindow:
         # as if hovered). Tab / arrow keys move it, Enter confirms.
         self.selected_index: int = 0 if options else -1
 
+        # 9-slice frame, built on the first draw
+        self._frame_surf: Optional[pygame.Surface] = None
+
     def handle_key(self, event: pygame.event.Event) -> Optional[str]:
         """Process a KEYDOWN event for keyboard navigation.
 
@@ -102,34 +120,29 @@ class InfoWindow:
         return None
 
     def draw(self) -> None:
-        s = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
-        s.set_alpha(128)
-        s.fill((0, 0, 0))
-        self.screen.blit(s, (0, 0))
+        self.screen.blit(_dim_overlay(self.screen.get_size()), (0, 0))
 
-        if hasattr(self, 'game') and self.game:
-            game = self.game
-        else:
-            from ...game_state import GameState
-            game = GameState().game  # type: ignore
+        if self._frame_surf is None:
+            if hasattr(self, 'game') and self.game:
+                game = self.game
+            else:
+                from ...game_state import GameState
+                game = GameState().game  # type: ignore
+            if hasattr(game, 'pic_info_window'):
+                # The 9-slice scale is costly, and the window never resizes
+                self._frame_surf = scale_9slice(game.pic_info_window, self.window_rect.size)
 
-        if hasattr(game, 'pic_info_window'):
-            draw_9slice(self.screen, game.pic_info_window, self.window_rect)
+        if self._frame_surf is not None:
+            self.screen.blit(self._frame_surf, self.window_rect)
         else:
             pygame.draw.rect(self.screen, LIGHT_GRAY, self.window_rect)
             pygame.draw.rect(self.screen, DARK_GRAY, self.window_rect, 2)
 
-        lines = self.message.split('\n')
         y = self.window_rect.top + _TOP_PAD
 
-        for line in lines:
-            bold = _is_bold(line)
+        for text, bold in self._line_surfs:
             if bold:
                 y += _BOLD_PAD
-                self.font.bold = True
-            text = self.font.render(_display(line), True, BLACK)
-            if bold:
-                self.font.bold = False
             text_rect = text.get_rect(center=(self.window_rect.centerx, y + _LINE_H // 2))
             self.screen.blit(text, text_rect)
             y += _LINE_H
