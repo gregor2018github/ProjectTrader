@@ -177,7 +177,12 @@ class TMXMap:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Water":
                 for obj in layer:
                     if hasattr(obj, 'points') and obj.points:
-                        world_points = [(obj.x + px, obj.y + py) for px, py in obj.points]
+                        # pytmx has already offset polygon points by the object's
+                        # own position, so they are world coordinates as they come
+                        # (same as the building lights below). Adding obj.x/obj.y
+                        # again would double the offset for any Water object not
+                        # sitting at the origin.
+                        world_points = [(p.x, p.y) for p in obj.points]
                         self.waters.append(Water(obj.name or "Water", world_points))
 
     def _rasterize_water_tiles(self) -> None:
