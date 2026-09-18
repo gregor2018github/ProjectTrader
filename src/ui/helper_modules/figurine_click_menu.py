@@ -13,6 +13,7 @@ from typing import Callable, Iterator, List, Optional, Tuple, Union, TYPE_CHECKI
 
 import pygame
 
+from ...config import settings_store
 from ...config.colors import DARK_BROWN, BLACK
 from ...config.constants import FONTS_PATH, SHEEP_VOLUME
 from .house_click_menu import get_hovered_house, is_player_near
@@ -153,12 +154,18 @@ def show_figurine_menu(
     options: List[str] = []
     if isinstance(figurine, Sheep):
         options.append("Pet Sheep")
-    options.append("Inspect")
+    # Inspect is a debugging aid, only offered with the debug overlay on
+    if settings_store.get("show_map_debug"):
+        options.append("Inspect")
+
+    if not options:
+        return False
 
     def menu_callback(option_text: str) -> None:
         if option_text == "Inspect":
             from .info_window import InfoWindow
-            game_state.info_window = InfoWindow(game_state.screen, "\n".join(figurine.inspect_lines()),
+            lines = figurine.inspect_lines(observer=game_state.game.game_map.map_player)
+            game_state.info_window = InfoWindow(game_state.screen, "\n".join(lines),
                                                 ["OK"], game_state.font, game_state.game)
             game_state.active_house_menu = None
             return

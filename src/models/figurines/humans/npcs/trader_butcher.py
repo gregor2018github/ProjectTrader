@@ -7,7 +7,7 @@ somewhere else. Trading and a real daily schedule still have to be written.
 
 import datetime
 import random
-from typing import Optional
+from typing import List, Optional
 
 from .npc import NPC
 
@@ -56,6 +56,13 @@ class TraderButcher(NPC):
         # In-game time at which he next feels like moving. None means "decide on
         # the first update", since the clock is not known at construction.
         self.idle_until: Optional[datetime.datetime] = None
+
+    def inspect_lines(self, observer=None) -> List[str]:
+        """Debug lines for the "Inspect" window, plus when he moves on."""
+        lines = super().inspect_lines(observer)
+        if self.path_target is None and self.idle_until is not None:
+            lines.append(f"Idle until: {self.idle_until:%H:%M}")
+        return lines
 
     def _rest(self, current_time: datetime.datetime) -> None:
         """Stand still until some way into the next in-game hour.

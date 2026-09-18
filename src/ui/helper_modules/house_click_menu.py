@@ -8,6 +8,7 @@ import pygame
 import os
 from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
 
+from ...config import settings_store
 from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE, DARK_RED, GRAY
 from ...config.constants import FONTS_PATH
 from ..ui_utils import draw_9slice
@@ -274,9 +275,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.well import Well
     from ...models.institutions.warehouse import Warehouse
     
-    # Create an info window styled as a menu
-    options = ["Inspect"]
-    
+    # Create an info window styled as a menu. Inspect is a debugging aid,
+    # only offered with the debug overlay on
+    options = ["Inspect"] if settings_store.get("show_map_debug") else []
+
     # Only show Knock option if building name starts with "House"
     if house.name and house.name.startswith("House"):
         options.insert(0, "Knock")
@@ -308,6 +310,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
 
     if isinstance(house, Warehouse) and not house.is_owned:
         options.insert(0, "Buy Building")
+
+    if not options:
+        return
 
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):

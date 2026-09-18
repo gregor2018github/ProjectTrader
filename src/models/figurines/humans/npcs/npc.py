@@ -9,7 +9,7 @@ butcher, and whoever follows) subclass it and decide *when* to move.
 
 import os
 from abc import abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import pygame
 
@@ -189,6 +189,29 @@ class NPC(Human):
         self.sprite = self.animator.get_current_frame()
         self.source_sprite = self.animator.get_current_source_frame()
         self.was_moving = is_moving
+
+    def inspect_lines(self, observer=None) -> List[str]:
+        """Debug lines for the "Inspect" window, plus the patrol path."""
+        lines = super().inspect_lines(observer) + [
+            "**Behaviour**",
+            f"Speed: {self.speed:.0f} px/s",
+        ]
+        if self.path is None:
+            return lines + ["Path: none"]
+        path = self.path
+        shape = "closed" if path.closed else "open"
+        # A closed path repeats its first point at the end
+        corners = len(path.points) - 1 if path.closed else len(path.points)
+        lines += [
+            f"Path: {corners} corners, {path.length:.0f} px, {shape}, margin {path.margin:.0f} px",
+            f"On path at: {self.path_distance:.0f} px",
+        ]
+        if self.path_target is None:
+            lines.append("Heading to: standing still")
+        else:
+            gap = path.signed_gap(self.path_distance, self.path_target)
+            lines.append(f"Heading to: {self.path_target:.0f} px ({abs(gap):.0f} px away)")
+        return lines
 
     @abstractmethod
     def update(self, dt: float, *args: Any, **kwargs: Any) -> None:

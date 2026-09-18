@@ -107,15 +107,43 @@ class Figurine(ABC):
     # Inspection
     # ------------------------------------------------------------------
 
-    def inspect_lines(self) -> List[str]:
-        """Lines for the "Inspect" window, in the style of the house one."""
-        sprite_dir = self.animator.base_path if self.animator else "-"
-        return [
+    def inspect_lines(self, observer: Optional['Figurine'] = None) -> List[str]:
+        """Debug lines for the "Inspect" window. ``**...**`` lines are section headers.
+
+        Subclasses append their own behaviour section.
+
+        Args:
+            observer: The figurine looking (the player), to report the distance to it.
+        """
+        col = self.collision_rect
+        lines = [
             f"Object Name: {self.display_name}",
             f"Class: {type(self).__name__}",
+            "**Position**",
             f"Coordinates: X={round(self.x, 1)}, Y={round(self.y, 1)}",
-            f"Sprites: {sprite_dir}",
+            f"Collision: X={col.x}, Y={col.y}, {col.width}x{col.height}",
+            f"Depth (y-sort): {round(self.y_sort, 1)}",
         ]
+        if observer is not None and observer is not self:
+            other = observer.collision_rect
+            distance = ((col.centerx - other.centerx) ** 2 + (col.centery - other.centery) ** 2) ** 0.5
+            lines.append(f"Distance to you: {distance / self.tile_size:.1f} tiles")
+
+        if self.animator is not None:
+            animator = self.animator
+            group = "move" if animator.is_moving else "static"
+            frame_count = len(animator.frames[animator.current_direction][group])
+            origin_direction, _ = animator.current_frame_origin()
+            borrowed = "" if origin_direction == animator.current_direction else f" (art: {origin_direction})"
+            lines += [
+                "**Animation**",
+                f"Pose: {animator.current_direction} {group}{borrowed}",
+                f"Frame: {animator.current_frame_index + 1}/{max(1, frame_count)}"
+                f", every {animator.frame_interval:.2f} s",
+                f"Sprite box: {self.sprite_width}x{self.sprite_height}",
+                f"Sprites: {animator.base_path}",
+            ]
+        return lines
 
     # ------------------------------------------------------------------
     # Per-frame update

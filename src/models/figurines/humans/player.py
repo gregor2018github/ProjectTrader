@@ -126,6 +126,14 @@ class MapPlayer(Human):
         """
         self.footstep_sounds = sounds
 
+    def inspect_lines(self, observer=None) -> List[str]:
+        """Debug lines for the "Inspect" window, plus movement input."""
+        return super().inspect_lines(observer) + [
+            "**Movement**",
+            f"Speed: {self.speed:.0f} px/s",
+            f"Input: dx={self.vel_x:+.0f}, dy={self.vel_y:+.0f}",
+        ]
+
     def stop_footstep_sound(self) -> None:
         """Stop any currently playing footstep sound."""
         self.footstep_channel.stop()

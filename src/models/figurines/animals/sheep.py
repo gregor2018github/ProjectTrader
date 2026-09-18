@@ -3,7 +3,7 @@
 import os
 import random
 import pygame
-from typing import Dict
+from typing import Dict, List
 
 from .animal import Animal, ANIMAL_SPRITE_ROOT
 
@@ -151,6 +151,23 @@ class Sheep(Animal):
             self.stop_timer = random.uniform(STOP_MIN_DURATION, STOP_MAX_DURATION)
         # Petting counts as a bleat, so the next idle one isn't right behind it
         self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
+
+    def inspect_lines(self, observer=None) -> List[str]:
+        """Debug lines for the "Inspect" window, plus the grazing behaviour."""
+        if self.is_blocked:
+            state = "blocked by you"
+        elif self.is_moving:
+            state = f"walking {self.direction}"
+        elif self.eating:
+            state = f"eating, {self.eat_timer:.1f} s left"
+        else:
+            state = f"resting, {self.stop_timer:.1f} s left"
+        return super().inspect_lines(observer) + [
+            "**Behaviour**",
+            f"State: {state}",
+            f"Zone: X={round(self.zone_left, 1)} to {round(self.zone_right, 1)}",
+            f"Next bleat in: {self.sound_timer:.1f} s",
+        ]
 
     # ------------------------------------------------------------------
     # Update
