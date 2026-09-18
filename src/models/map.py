@@ -648,19 +648,21 @@ class TMXMap:
         for mill in self.mills:
             mill.update_blades(dt)
 
-    # Objects on the "Movements" layer whose name matches a key here become that
-    # NPC, walking the polygon (or polyline) drawn for them in Tiled. Add a
-    # trader by drawing a shape, naming it, and adding a line here.
-    NPC_TYPES: Dict[str, Any] = {
-        "Butcher_Market_Stall": TraderButcher,
-    }
+    # Traders placed from the "Movements" layer. Each class names its own Tiled
+    # objects through TILED_PREFIX (see Trader), so adding a trader is drawing
+    # his shapes in Tiled and adding his class here.
+    TRADER_TYPES: Tuple[type, ...] = (
+        TraderButcher,
+    )
 
     def _load_movements(self) -> None:
         """Load NPC movement zones from the 'Movements' object layer.
 
         Sheep take a rectangle (they only wander left and right inside it).
-        Human NPCs take a polygon or polyline, which they walk along.
+        Traders take a polygon or polyline around their stall, which they walk
+        along, plus an optional way home.
         """
+        objects_by_name: Dict[str, Any] = {}
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Movements":
                 for obj in layer:
@@ -668,36 +670,78 @@ class TMXMap:
                         self.sheep.append(
                             Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size)
                         )
-                        continue
+                    elif obj.name:
+                        objects_by_name[obj.name] = obj
 
-                    npc_class = self.NPC_TYPES.get(obj.name)
-                    if npc_class is not None:
-                        self._load_npc(npc_class, obj)
+        for trader_class in self.TRADER_TYPES:
+            self._load_trader(trader_class, objects_by_name)
 
-    def _load_npc(self, npc_class: Any, obj: Any) -> None:
-        """Create one NPC from a Tiled object and put it on its path.
+    def _movement_path(self, obj: Any) -> Optional[PatrolPath]:
+        """Build a walkable path from a Tiled polygon or polyline.
 
         Args:
-            npc_class: The NPC subclass to instantiate.
-            obj: The Tiled object, ideally carrying polygon or polyline points.
+            obj: The Tiled object.
+
+        Returns:
+            The path, or None if the object has no usable shape.
         """
         points = getattr(obj, "points", None)
-        npc = npc_class(obj.x, obj.y, self.tile_size)
-        if points:
-            # Optional "margin" property on the Tiled object, in tiles: how far
-            # to keep the walker off the polygon's own edges. Movement polygons
-            # are traced along whole tiles, so without it he brushes the stall
-            # he is standing at.
-            margin = float(obj.properties.get("margin", 0.0)) * self.tile_size
-            path = PatrolPath(points, closed=getattr(obj, "closed", True), margin=margin)
-            if path:
-                npc.set_path(path)
-            else:
-                npc.place_feet(obj.x, obj.y)
-        else:
+        if not points:
+            return None
+        # Optional "margin" property on the Tiled object, in tiles: how far to
+        # keep the walker off the polygon's own edges. Movement polygons are
+        # traced along whole tiles, so without it he brushes the stall he is
+        # standing at.
+        margin = float(obj.properties.get("margin", 0.0)) * self.tile_size
+        path = PatrolPath(points, closed=getattr(obj, "closed", True), margin=margin)
+        return path if path else None
+
+    def _load_trader(self, trader_class: Any, objects_by_name: Dict[str, Any]) -> None:
+        """Create one trader from his Tiled objects and send him to work.
+
+        Args:
+            trader_class: The Trader subclass to instantiate.
+            objects_by_name: The "Movements" layer's objects, keyed by name.
+        """
+        prefix = trader_class.TILED_PREFIX
+        stall = objects_by_name.get(f"{prefix}_Market_Stall")
+        if stall is None:
+            return
+
+        trader = trader_class(stall.x, stall.y, self.tile_size)
+        market = next(
+            (house for house in self.houses
+             if isinstance(house, Market) and house.name == trader_class.MARKET_NAME),
+            None,
+        )
+        stall_path = self._movement_path(stall)
+        if stall_path is None:
             # A plain point or rectangle: he simply stands there.
-            npc.place_feet(obj.x, obj.y)
-        self.npcs.append(npc)
+            trader.market = market
+            trader.place_feet(stall.x, stall.y)
+            self.npcs.append(trader)
+            return
+        trader.set_workplace(stall_path, market)
+
+        homeway_path = objects_by_name.get(f"{prefix}_Homeway_Path")
+        home_path = self._movement_path(homeway_path) if homeway_path is not None else None
+        if home_path is not None:
+            start = objects_by_name.get(f"{prefix}_Homeway_Start")
+            end = objects_by_name.get(f"{prefix}_Homeway_End")
+            start_point = (start.x, start.y) if start is not None else home_path.points[0]
+            end_point = (end.x, end.y) if end is not None else home_path.points[-1]
+            # Step off the stall where it comes closest to the start point, then
+            # follow the drawn path the short way round to the front door.
+            stall_exit = stall_path.position_at(stall_path.closest_distance(start_point))
+            route = [stall_exit, start_point] + home_path.points_between(
+                home_path.closest_distance(start_point),
+                home_path.closest_distance(end_point),
+            ) + [end_point]
+            homeway = PatrolPath(route, closed=False)
+            if homeway:
+                trader.set_homeway(homeway)
+
+        self.npcs.append(trader)
 
     def update_sheep(self, dt: float, player_rect: pygame.Rect = None) -> None:
         """Advance all sheep NPCs (call once per frame when not paused)."""

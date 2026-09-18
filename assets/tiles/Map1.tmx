@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="37" nextobjectid="369">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="37" nextobjectid="373">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -6285,6 +6285,18 @@
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 0,64 224,64 224,0 192,0 192,32 32,32 32,0 0,0"/>
+  </object>
+  <object id="369" name="Butcher_Homeway_Path" x="5376" y="4256">
+   <polygon points="0,0 -64,0 -64,288 -96,288 -96,-32 0,-32"/>
+  </object>
+  <object id="370" name="Butcher_Homeway_End" x="5376" y="4256">
+   <point/>
+  </object>
+  <object id="371" name="Butcher_Homeway_Start" x="5280" y="4544">
+   <point/>
+  </object>
+  <object id="372" x="5534.5" y="4283">
+   <point/>
   </object>
  </objectgroup>
  <objectgroup id="2" name="Houses">

@@ -6,13 +6,25 @@ a handful of class attributes.
 
 For now a trader walks the patrol path around his stall to a new spot, stands
 there for the best part of an in-game hour, then shuffles somewhere else.
+
+Where he works and lives is drawn on the Tiled "Movements" layer, named after
+his ``TILED_PREFIX`` (``Butcher`` for the butcher):
+
+* ``<prefix>_Market_Stall`` — polygon he walks while minding his stall.
+* ``<prefix>_Homeway_Path`` — polygon or polyline leading to his house.
+* ``<prefix>_Homeway_Start`` — point where he steps off the stall onto it.
+* ``<prefix>_Homeway_End`` — point at his front door.
 """
 
 import datetime
 import random
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 
+from ...patrol_path import PatrolPath
 from .npc import NPC
+
+if TYPE_CHECKING:
+    from ....institutions.market import Market
 
 #: Default walking speed in pixels per second at tile_size 32. Well under the
 #: player's 120 — a trader is minding a stall, not going anywhere.
@@ -39,6 +51,10 @@ class Trader(NPC):
     DEFAULT_NAME: str = "Trader"
     #: Walking speed in pixels per second at tile_size 32.
     SPEED: float = TRADER_SPEED
+    #: Name stem of his objects on the Tiled "Movements" layer, e.g. "Butcher".
+    TILED_PREFIX: str = ""
+    #: Name of the Market object (on the "Houses" layer) his stall belongs to.
+    MARKET_NAME: str = ""
 
     def __init__(self, x: float, y: float, tile_size: int, name: Optional[str] = None) -> None:
         """Place the trader on the map.
@@ -63,9 +79,43 @@ class Trader(NPC):
         # the first update", since the clock is not known at construction.
         self.idle_until: Optional[datetime.datetime] = None
 
+        # Filled in by the map loader from the Tiled data.
+        #: The market booth he keeps; its opening hours are his working hours.
+        self.market: Optional['Market'] = None
+        #: The path around his stall that he walks while at work.
+        self.stall_path: Optional[PatrolPath] = None
+        #: Open path from his stall to his front door. None if he has no home
+        #: drawn, in which case he never leaves the stall.
+        self.homeway: Optional[PatrolPath] = None
+
+    def set_workplace(self, stall_path: PatrolPath, market: Optional['Market']) -> None:
+        """Put the trader to work at his stall.
+
+        Args:
+            stall_path: The path around his stall.
+            market: The market booth his stall belongs to, if found.
+        """
+        self.stall_path = stall_path
+        self.market = market
+        self.set_path(stall_path)
+
+    def set_homeway(self, homeway: PatrolPath) -> None:
+        """Tell the trader how he gets home.
+
+        Args:
+            homeway: Open path starting on his stall path and ending at his
+                front door.
+        """
+        self.homeway = homeway
+
     def inspect_lines(self, observer=None) -> List[str]:
         """Debug lines for the "Inspect" window, plus when he moves on."""
         lines = super().inspect_lines(observer)
+        lines.append(f"Market: {self.market.name if self.market else 'none'}")
+        if self.homeway is not None:
+            lines.append(f"Way home: {self.homeway.length:.0f} px")
+        else:
+            lines.append("Way home: none")
         if self.path_target is None and self.idle_until is not None:
             lines.append(f"Idle until: {self.idle_until:%H:%M}")
         return lines

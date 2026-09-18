@@ -111,7 +111,11 @@ class PatrolPath:
                 walker clear of whatever the polygon is drawn around. Closed
                 paths only — an open polyline has no inside.
         """
-        self.points: List[Tuple[float, float]] = [(float(x), float(y)) for x, y in points]
+        self.points: List[Tuple[float, float]] = []
+        for x, y in points:
+            # Repeated points make zero-length segments, which walk nowhere
+            if not self.points or self.points[-1] != (float(x), float(y)):
+                self.points.append((float(x), float(y)))
         # Tiled writes the closing point explicitly in some shapes and leaves it
         # implicit in others, so drop it and re-add it below either way.
         if len(self.points) > 2 and self.points[0] == self.points[-1]:
@@ -207,3 +211,60 @@ class PatrolPath:
         if self.closed and self.length > 0.0:
             gap = (gap + self.length / 2.0) % self.length - self.length / 2.0
         return gap
+
+    def closest_distance(self, point: Tuple[float, float]) -> float:
+        """The distance along the path of the spot nearest to a world point.
+
+        Args:
+            point: World (x, y), e.g. a Tiled point object marking a doorway.
+
+        Returns:
+            float: Distance along the path.
+        """
+        best_distance, best_gap = 0.0, math.inf
+        previous_end = 0.0
+        for index, end in enumerate(self.segment_ends):
+            start, finish = self.points[index], self.points[index + 1]
+            span = end - previous_end
+            t = 0.0
+            if span > 0.0:
+                t = ((point[0] - start[0]) * (finish[0] - start[0])
+                     + (point[1] - start[1]) * (finish[1] - start[1])) / (span * span)
+                t = max(0.0, min(1.0, t))
+            spot = (start[0] + (finish[0] - start[0]) * t, start[1] + (finish[1] - start[1]) * t)
+            gap = math.dist(spot, point)
+            if gap < best_gap:
+                best_distance, best_gap = previous_end + span * t, gap
+            previous_end = end
+        return best_distance
+
+    def points_between(self, start: float, target: float) -> List[Tuple[float, float]]:
+        """The corner points walked through going from one distance to another.
+
+        Takes the same way round as :meth:`signed_gap`, so the result is the
+        route an NPC on this path would actually walk.
+
+        Args:
+            start: Distance along the path to set off from.
+            target: Distance along the path to arrive at.
+
+        Returns:
+            List: World points, beginning at ``start`` and ending at ``target``.
+        """
+        start, target = self.normalize(start), self.normalize(target)
+        gap = self.signed_gap(start, target)
+        corners = []
+        for corner_distance, corner in zip([0.0] + self.segment_ends, self.points):
+            offset = corner_distance - start if gap >= 0.0 else start - corner_distance
+            if self.closed:
+                offset %= self.length
+            if 0.0 < offset < abs(gap):
+                corners.append((offset, corner))
+        corners.sort(key=lambda item: item[0])
+
+        route = [self.position_at(start)]
+        for _, corner in corners + [(0.0, self.position_at(target))]:
+            # A closed path lists its first corner twice, once at each end
+            if math.dist(corner, route[-1]) > 1e-6:
+                route.append(corner)
+        return route

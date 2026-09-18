@@ -13,6 +13,8 @@ class TraderButcher(Trader):
     SPRITE_FOLDER = 'trader_butcher'
     SPRITE_PREFIX = 'butcher'
     DEFAULT_NAME = "Butcher"
+    TILED_PREFIX = "Butcher"
+    MARKET_NAME = "Meat Market"
     # A master butcher is a guild member who owns his stall and tools: a
     # respectable burgher, well above the commons but no gentleman.
     SOCIAL_CLASS = "Middling Sort"
