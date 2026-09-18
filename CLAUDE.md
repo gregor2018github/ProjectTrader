@@ -70,7 +70,7 @@ The `Movements` object layer drives map inhabitants: a rectangle named `Sheep` b
 |------|---------|
 | `src/config/constants.py` | All game balance values, screen dims, paths, speed levels |
 | `src/config/colors.py` | Named color constants (imported with `*` in many files) |
-| `src/models/figurines/` | Animated map entities: `Figurine` ABC → `Human`/`Animal` → `MapPlayer`, `NPC` subclasses, `Sheep`. Mirrors `assets/map_sprites/figurines/`. |
+| `src/models/figurines/` | Animated map entities: `Figurine` ABC → `Human`/`Animal` → `MapPlayer`, `NPC` → `Trader` → `TraderButcher` etc., `Sheep`. Mirrors `assets/map_sprites/figurines/`. |
 | `src/ui/general_layout/layout.py` | Top bar, bottom bar, right sidebar drawing |
 | `src/ui/layout_modules/` | Main content modules: market chart, map view, depot views |
 | `src/ui/helper_modules/` | Overlay components: menus, dialogs, contract UI, etc. |
