@@ -46,11 +46,19 @@ class Market(House):
                 print(f"Failed to load closed market image: {path} - {e}")
         return None
 
-    def update_sprite(self, current_time: datetime.datetime) -> None:
-        """Swap between open and closed sprite depending on the time of day."""
-        if self.closed_image is None:
-            return
+    def is_closed_at(self, current_time: datetime.datetime) -> bool:
+        """Whether the booth is shut at the given time.
 
+        Each booth closes and opens at a slightly random time around closing
+        and opening hour, drawn afresh every night. Its trader keeps the same
+        hours, so this works for booths without a closed sprite too.
+
+        Args:
+            current_time: The current in-game time.
+
+        Returns:
+            bool: True between this night's closing and opening time.
+        """
         # Shift by 12 hours so one night belongs to one schedule (like the window lights)
         shifted = current_time - datetime.timedelta(hours=12)
         cycle_date = shifted.strftime("%Y-%m-%d")
@@ -61,7 +69,14 @@ class Market(House):
             self.last_schedule_date = cycle_date
 
         minute_of_cycle = shifted.hour * 60 + shifted.minute + shifted.second / 60
-        closed = self.close_minute <= minute_of_cycle < self.open_minute
+        return self.close_minute <= minute_of_cycle < self.open_minute
+
+    def update_sprite(self, current_time: datetime.datetime) -> None:
+        """Swap between open and closed sprite depending on the time of day."""
+        if self.closed_image is None:
+            return
+
+        closed = self.is_closed_at(current_time)
         if closed != self.is_closed_sprite:
             self.is_closed_sprite = closed
             self.image = self.closed_image if closed else self.open_image
