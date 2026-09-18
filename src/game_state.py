@@ -49,6 +49,8 @@ class GameState:
         cursor_timer: Ticks elapsed since last cursor toggle.
         cursor_blink_rate: Ticks between cursor blink toggles.
         cursor_position: Index within active input field text.
+        input_text_selected: Whether the active input field's text is fully selected.
+        last_input_click: Field name and tick time of the last input field click.
         available_goods: List of all valid commodity names.
         money_effect_timer: Duration of money change highlight.
         money_effect_color: Color of money change highlight.
@@ -115,6 +117,8 @@ class GameState:
         self.cursor_timer: int = 0
         self.cursor_blink_rate: int = 30
         self.cursor_position: int = 0
+        self.input_text_selected: bool = False  # Whole text of the active input field is selected (double click)
+        self.last_input_click: tuple = ("none", 0)  # (field name, ticks) for double click detection
         self.current_day: int = 1
         
         # List of available goods for dropdown

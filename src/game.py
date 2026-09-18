@@ -510,8 +510,12 @@ class Game:
                 if is_map_visible:
                     # Update map with player movement
                     if self.state.time_level > 1:  # Only update if game is not paused
-                        keys = pygame.key.get_pressed()
-                        self.game_map.handle_movement_keys(keys)
+                        if self.state.mouse_clicked_on.startswith("quantity_"):
+                            # Arrow keys move the text cursor while a quantity field is focused
+                            self.game_map.map_player.set_movement(0.0, 0.0)
+                        else:
+                            keys = pygame.key.get_pressed()
+                            self.game_map.handle_movement_keys(keys)
                         self.game_map.update(delta_time, self.state.date)
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size

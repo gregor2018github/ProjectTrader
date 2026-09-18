@@ -17,6 +17,19 @@ if TYPE_CHECKING:
 
 VIEW_MODES = ["map", "market", "depot", "politics", "trade_routes", "building"]
 
+# Max time between two clicks on an input field to count as a double click
+DOUBLE_CLICK_MS = 400
+
+
+def _cursor_index_at(x: int, rect: pygame.Rect, text: str, font: pygame.font.Font) -> int:
+    """Return the character gap in a quantity field's text closest to screen x.
+
+    Mirrors the text layout in the bottom bar: "Quantity: " label, then the value.
+    Clicks right of the text land at the end.
+    """
+    text_x = rect.x + 10 + font.size("Quantity: ")[0]
+    return min(range(len(text) + 1), key=lambda i: abs(text_x + font.size(text[:i])[0] - x))
+
 
 def set_view_fullscreen(game_state: 'GameState', name: str) -> None:
     """Show ``name`` on both sides at once (same effect as clicking its main pictogram).
@@ -391,8 +404,13 @@ def handle_mouse_click(pos: Tuple[int, int],
         if rect.collidepoint(pos):
             if field_name.startswith('quantity_'):
                 game_state.mouse_clicked_on = field_name
-                # Set cursor position to end of input when clicking field
-                game_state.cursor_position = len(game_state.input_fields[field_name])
+                game_state.cursor_position = _cursor_index_at(pos[0], rect, game_state.input_fields[field_name], game_state.font)
+                # A second click on the same field within the interval selects the whole text
+                now = pygame.time.get_ticks()
+                last_field, last_time = game_state.last_input_click
+                is_double_click = last_field == field_name and now - last_time <= DOUBLE_CLICK_MS
+                game_state.input_text_selected = is_double_click and bool(game_state.input_fields[field_name])
+                game_state.last_input_click = ("none", 0) if is_double_click else (field_name, now)
             if field_name.startswith('good_'):
                 # Close all other dropdowns first
                 for dropdown in game_state.dropdowns.values():

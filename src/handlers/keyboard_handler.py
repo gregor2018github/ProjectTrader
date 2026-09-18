@@ -38,11 +38,30 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
     if game_state.mouse_clicked_on.startswith("quantity_"):
         field = game_state.mouse_clicked_on
         current_value = game_state.input_fields[field]
-        
+        selected = game_state.input_text_selected
+        game_state.input_text_selected = False
+
         if event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
             # Accept input and deselect field
             game_state.mouse_clicked_on = "none"
             game_state.cursor_position = 0
+        elif selected and event.key in (pygame.K_BACKSPACE, pygame.K_DELETE):
+            # Delete the selected text
+            game_state.input_fields[field] = ""
+            game_state.cursor_position = 0
+            _mirror_quantity_to_memory(field, game_state)
+        elif selected and event.key == pygame.K_LEFT:
+            game_state.cursor_position = 0
+        elif selected and event.key == pygame.K_RIGHT:
+            game_state.cursor_position = len(current_value)
+        elif selected and event.unicode.isnumeric():
+            # Typing replaces the selected text
+            game_state.input_fields[field] = event.unicode
+            game_state.cursor_position = 1
+            _mirror_quantity_to_memory(field, game_state)
+        elif selected and not event.unicode:
+            # Pure modifier keys (Shift, Ctrl, ...) keep the selection
+            game_state.input_text_selected = True
         elif event.key == pygame.K_BACKSPACE:
             if game_state.cursor_position > 0:
                 # Remove character at cursor position

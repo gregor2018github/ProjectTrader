@@ -508,9 +508,16 @@ def _draw_bottom_bar(
         """
         pygame.draw.rect(screen, WHITE, rect)
         pygame.draw.rect(screen, DARK_BROWN, rect, 2)
-        
+
+        # Highlight the whole text when it is selected (double click), instead of a cursor
+        if is_selected and game_state.input_text_selected and text:
+            label_width = main_font.size("Quantity: ")[0]
+            text_width, text_height = main_font.size(text)
+            highlight = pygame.Surface((text_width + 2, text_height), pygame.SRCALPHA)
+            highlight.fill((0, 0, 0, 90))
+            screen.blit(highlight, (rect.x + 9 + label_width, rect.y + 4))
         # Only draw the cursor if field is selected
-        if is_selected and game_state.cursor_visible:
+        elif is_selected and game_state.cursor_visible:
             # Calculate cursor position based on text width up to cursor
             prefix = "Quantity: " + text[:game_state.cursor_position]
             text_width = main_font.size(prefix)[0]
