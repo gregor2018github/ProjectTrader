@@ -23,6 +23,8 @@ EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk ag
 class Sheep(Animal):
     """An animal that walks left and right within a rectangular zone."""
 
+    display_name = "Sheep"
+
     def __init__(
         self,
         zone_x: float,
@@ -128,8 +130,27 @@ class Sheep(Animal):
         self._was_blocked: bool = False
 
     # ------------------------------------------------------------------
-    # Properties
+    # Interaction
     # ------------------------------------------------------------------
+
+    def pet(self, player_center_x: float) -> None:
+        """React to being petted: turn towards the player and stand still.
+
+        A walking sheep stops for a normal rest; one that is already resting
+        or eating carries on with that.
+
+        Args:
+            player_center_x: World X of the player's centre, to face towards.
+        """
+        sheep_center_x = self.x + self.sprite_width / 2
+        if not self.eating:
+            self.direction = "right" if player_center_x > sheep_center_x else "left"
+        if self.is_moving or self.is_blocked:
+            self.is_moving = False
+            self.is_blocked = False
+            self.stop_timer = random.uniform(STOP_MIN_DURATION, STOP_MAX_DURATION)
+        # Petting counts as a bleat, so the next idle one isn't right behind it
+        self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
 
     # ------------------------------------------------------------------
     # Update

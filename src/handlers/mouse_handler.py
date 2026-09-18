@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_acquisition import ContractView
 from ..ui.helper_modules.house_click_menu import show_house_menu
-from ..ui.helper_modules.figurine_click_menu import get_hovered_map_object
+from ..ui.helper_modules.figurine_click_menu import get_hovered_map_object, show_figurine_menu
 from ..models.figurines.figurine import Figurine
 from ..ui.helper_modules.water_click_menu import get_hovered_water, show_water_menu
 from ..ui.helper_modules.ledger_window import LedgerWindow
@@ -239,7 +239,8 @@ def handle_mouse_click(pos: Tuple[int, int],
             if view_rect.collidepoint(pos):
                 hovered = get_hovered_map_object(pos, game_state.game.game_map, view_rect)
                 if isinstance(hovered, Figurine):
-                    # Figurines glow on hover but have no menu yet; don't click through them
+                    # Figurines without options still absorb the click; don't click through them
+                    show_figurine_menu(game_state, hovered, view_rect)
                     return
                 if hovered is not None:
                     show_house_menu(game_state, hovered, pos)
