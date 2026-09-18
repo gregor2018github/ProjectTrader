@@ -36,6 +36,7 @@ class TraderButcher(NPC):
     # A master butcher is a guild member who owns his stall and tools: a
     # respectable burgher, well above the commons but no gentleman.
     SOCIAL_CLASS = "Middling Sort"
+    IS_TRADER = True
 
     def __init__(self, x: float, y: float, tile_size: int, name: str = "Butcher") -> None:
         """Place the butcher on the map.

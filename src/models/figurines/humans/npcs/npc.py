@@ -8,6 +8,7 @@ butcher, and whoever follows) subclass it and decide *when* to move.
 """
 
 import os
+import random
 from abc import abstractmethod
 from typing import Any, Dict, List, Optional
 
@@ -15,6 +16,7 @@ import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
+from .sentences import sentences_for
 
 # Artwork root shared by every human NPC.
 NPC_SPRITE_ROOT = os.path.join(HUMAN_SPRITE_ROOT, 'npcs')
@@ -41,6 +43,8 @@ class NPC(Human):
     SPRITE_PREFIX: str = ""
     #: Which of SOCIAL_CLASSES the NPC belongs to.
     SOCIAL_CLASS: str = "Commons"
+    #: Traders talk shop: their chat also draws on the trader sentences.
+    IS_TRADER: bool = False
 
     def __init__(self, name: str, x: float, y: float, tile_size: int) -> None:
         """Initialize shared NPC state.
@@ -60,6 +64,8 @@ class NPC(Human):
         # A target of None means standing still.
         self.path_distance: float = 0.0
         self.path_target: Optional[float] = None
+
+        self._last_chat_line: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -106,6 +112,22 @@ class NPC(Human):
                     "move": move,
                 }
         return definitions
+
+    # ------------------------------------------------------------------
+    # Chat
+    # ------------------------------------------------------------------
+
+    def chat_line(self) -> str:
+        """Pick something to say, never the same line twice in a row.
+
+        Returns:
+            A random sentence fitting the NPC's class and trade.
+        """
+        sentences = sentences_for(self.SOCIAL_CLASS, self.IS_TRADER)
+        if len(sentences) > 1 and self._last_chat_line in sentences:
+            sentences.remove(self._last_chat_line)
+        self._last_chat_line = random.choice(sentences) if sentences else "Good day to you."
+        return self._last_chat_line
 
     # ------------------------------------------------------------------
     # Movement

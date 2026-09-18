@@ -39,6 +39,8 @@ TITLE_FONT_SIZE = 20
 OPTION_FONT_SIZE = 20
 OPTION_HEIGHT = 28
 OPTION_HOVER_FILL = (218, 198, 154)    # Darker parchment tone behind the hovered option
+SPEECH_MAX_TEXT_WIDTH = 280            # Speech bubbles wrap their text at this width
+CLOSE_CROSS_SIZE = 10
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -150,8 +152,11 @@ def show_figurine_menu(
         True if a menu was opened.
     """
     from ...models.figurines.animals.sheep import Sheep
+    from ...models.figurines.humans.npcs.npc import NPC
 
     options: List[str] = []
+    if isinstance(figurine, NPC):
+        options.append("Chat")
     if isinstance(figurine, Sheep):
         options.append("Pet Sheep")
     # Inspect is a debugging aid, only offered with the debug overlay on
@@ -168,6 +173,11 @@ def show_figurine_menu(
             game_state.info_window = InfoWindow(game_state.screen, "\n".join(lines),
                                                 ["OK"], game_state.font, game_state.game)
             game_state.active_house_menu = None
+            return
+        if option_text == "Chat" and isinstance(figurine, NPC):
+            # The speech bubble takes the menu's place, pointing at the same figurine
+            game_state.info_window = FigurineSpeech(game_state.screen, figurine, figurine.chat_line(),
+                                                    game_state, sprite_rect)
             return
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
@@ -199,59 +209,54 @@ def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
             channel.set_volume(SHEEP_VOLUME)
 
 
-class FigurineMenu:
-    """A small speech-bubble menu for figurine interactions.
+class _FigurineBubble:
+    """Rounded parchment bubble with a tail pointing at a figurine, and a small title.
 
-    Sparser than HouseMenu: a rounded parchment bubble, a small title, plain
-    text rows instead of framed buttons, and no close button. Clicking
-    anywhere outside the bubble closes it.
+    Subclasses size their content, call _place(), and draw the content in
+    _draw_content(). A bubble is shown as game_state.info_window.
     """
 
     def __init__(
         self,
         screen: pygame.Surface,
         figurine: 'Figurine',
-        options: List[str],
         game_state: 'GameState',
         sprite_rect: pygame.Rect,
-        callback: Optional[Callable[[str], None]] = None,
     ):
-        """Lay out the bubble above the figurine, or below it if there is no room.
+        """Set up what every bubble shares.
 
         Args:
             screen: Surface to draw on.
-            figurine: The figurine the menu belongs to.
-            options: Option labels, top to bottom.
+            figurine: The figurine the bubble belongs to.
             game_state: The current game state.
             sprite_rect: The figurine's drawn sprite, in screen coordinates.
-            callback: Called with the chosen option's label.
         """
         self.screen = screen
         self.figurine = figurine
         self.house = figurine  # map_view's distance-based auto-close looks for .house
-        self.options = options
         self.game_state = game_state
-        self.callback = callback
+        self.sprite_rect = sprite_rect
 
         try:
             self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), TITLE_FONT_SIZE)
-            self.option_font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), OPTION_FONT_SIZE)
+            self.text_font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), OPTION_FONT_SIZE)
         except Exception:
-            self.title_font = self.option_font = game_state.font
+            self.title_font = self.text_font = game_state.font
 
         self.title = figurine.display_name
         self.title_height = self.title_font.get_linesize()
+        # Where the content starts, below the title and its rule
+        self.content_top = BUBBLE_PADDING + self.title_height + BUBBLE_PADDING // 2
 
-        content_width = max(
-            [self.title_font.size(self.title)[0]]
-            + [self.option_font.size(option)[0] + 2 * BUBBLE_PADDING for option in options]
-        )
-        width = max(BUBBLE_MIN_WIDTH, content_width + 2 * BUBBLE_PADDING)
-        self.rows_top = BUBBLE_PADDING + self.title_height + BUBBLE_PADDING // 2
-        height = self.rows_top + len(options) * OPTION_HEIGHT + BUBBLE_PADDING
+    def _place(self, width: int, height: int) -> None:
+        """Position the bubble above the figurine, or below it if there is no room.
 
-        # Prefer sitting above the figurine; flip below when that leaves the screen
-        screen_w, screen_h = screen.get_size()
+        Args:
+            width: Bubble width.
+            height: Bubble height, without the tail.
+        """
+        screen_w, screen_h = self.screen.get_size()
+        sprite_rect = self.sprite_rect
         self.tail_up = sprite_rect.top - TAIL_HEIGHT - height < 0
         if self.tail_up:
             self.tip = sprite_rect.midbottom
@@ -268,33 +273,12 @@ class FigurineMenu:
         self.tail_x = max(self.rect.left + BUBBLE_RADIUS + half_tail,
                           min(self.tip[0], self.rect.right - BUBBLE_RADIUS - half_tail))
 
-        self.buttons: List[Tuple[pygame.Rect, str]] = []
-        row_y = self.rect.y + self.rows_top
-        for option in options:
-            row = pygame.Rect(self.rect.x + BUBBLE_PADDING // 2, row_y, width - BUBBLE_PADDING, OPTION_HEIGHT)
-            self.buttons.append((row, option))
-            row_y += OPTION_HEIGHT
-
     def close(self) -> None:
-        """Close the menu with the shared fade-out."""
+        """Close the bubble with the shared fade-out."""
         self.game_state.menu_fade_window = self
         self.game_state.menu_fade_timer = self.game_state.menu_fade_duration
         self.game_state.info_window = None
         self.game_state.active_house_menu = None
-
-    def handle_click(self, pos: Tuple[int, int]) -> bool:
-        """Run the clicked option, or close when clicked outside. Returns True if handled."""
-        if not self.rect.collidepoint(pos):
-            self.close()
-            return True
-        for rect, option in self.buttons:
-            if rect.collidepoint(pos):
-                if self.callback:
-                    self.callback(option)
-                else:
-                    self.close()
-                return True
-        return True  # Clicks on the title or padding are absorbed
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         """Draw the bubble.
@@ -308,13 +292,13 @@ class FigurineMenu:
         # Draw onto a surface covering bubble and tail, so fading is one set_alpha
         bounds = self.rect.union(pygame.Rect(self.tip[0], self.tip[1], 1, 1))
         surf = pygame.Surface(bounds.size, pygame.SRCALPHA)
-        ox, oy = -bounds.x, -bounds.y
-        body = self.rect.move(ox, oy)
+        offset = (-bounds.x, -bounds.y)
+        body = self.rect.move(offset)
 
         # Tail: an outer triangle in the border colour, then the body, then an
         # inner triangle in the fill colour that erases the border where they join
-        tip = (self.tip[0] + ox, self.tip[1] + oy)
-        tail_x = self.tail_x + ox
+        tip = (self.tip[0] + offset[0], self.tip[1] + offset[1])
+        tail_x = self.tail_x + offset[0]
         base_y = body.top + BUBBLE_BORDER_WIDTH if self.tail_up else body.bottom - BUBBLE_BORDER_WIDTH - 1
         inset = BUBBLE_BORDER_WIDTH + 1
         pygame.draw.polygon(surf, BUBBLE_BORDER,
@@ -331,20 +315,191 @@ class FigurineMenu:
         title_surf = self.title_font.render(self.title, True, DARK_BROWN)
         surf.blit(title_surf, title_surf.get_rect(
             center=(body.centerx, body.y + BUBBLE_PADDING + self.title_height // 2)))
-        rule_y = body.y + self.rows_top - BUBBLE_PADDING // 4
+        rule_y = body.y + self.content_top - BUBBLE_PADDING // 4
         rule_half = title_surf.get_width() // 2 + 10
         pygame.draw.line(surf, BUBBLE_BORDER, (body.centerx - rule_half, rule_y),
                          (body.centerx + rule_half, rule_y), 1)
 
-        # Options: plain text with a soft rounded highlight on hover
-        mouse_pos = pygame.mouse.get_pos()
-        for rect, text in self.buttons:
-            row = rect.move(ox, oy)
-            if alpha_scale >= 1.0 and rect.collidepoint(mouse_pos):
-                pygame.draw.rect(surf, OPTION_HOVER_FILL, row, border_radius=OPTION_HEIGHT // 2)
-            text_surf = self.option_font.render(text, True, BLACK)
-            surf.blit(text_surf, text_surf.get_rect(center=row.center))
+        # Hover feedback only while fully shown, not during the fade-out
+        mouse_pos = pygame.mouse.get_pos() if alpha_scale >= 1.0 else None
+        self._draw_content(surf, offset, mouse_pos)
 
         if alpha_scale < 1.0:
             surf.set_alpha(int(255 * alpha_scale))
         self.screen.blit(surf, bounds.topleft)
+
+    def _draw_content(self, surf: pygame.Surface, offset: Tuple[int, int],
+                      mouse_pos: Optional[Tuple[int, int]]) -> None:
+        """Draw what goes below the title.
+
+        Args:
+            surf: The bubble's surface.
+            offset: Add to a screen position to get a position on surf.
+            mouse_pos: Mouse position on screen, or None while fading out.
+        """
+        raise NotImplementedError
+
+
+class FigurineMenu(_FigurineBubble):
+    """A small speech-bubble menu for figurine interactions.
+
+    Sparser than HouseMenu: a rounded parchment bubble, a small title, plain
+    text rows instead of framed buttons, and no close button. Clicking
+    anywhere outside the bubble closes it.
+    """
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        figurine: 'Figurine',
+        options: List[str],
+        game_state: 'GameState',
+        sprite_rect: pygame.Rect,
+        callback: Optional[Callable[[str], None]] = None,
+    ):
+        """Lay out the options.
+
+        Args:
+            screen: Surface to draw on.
+            figurine: The figurine the menu belongs to.
+            options: Option labels, top to bottom.
+            game_state: The current game state.
+            sprite_rect: The figurine's drawn sprite, in screen coordinates.
+            callback: Called with the chosen option's label.
+        """
+        super().__init__(screen, figurine, game_state, sprite_rect)
+        self.options = options
+        self.callback = callback
+
+        content_width = max(
+            [self.title_font.size(self.title)[0]]
+            + [self.text_font.size(option)[0] + 2 * BUBBLE_PADDING for option in options]
+        )
+        width = max(BUBBLE_MIN_WIDTH, content_width + 2 * BUBBLE_PADDING)
+        self._place(width, self.content_top + len(options) * OPTION_HEIGHT + BUBBLE_PADDING)
+
+        self.buttons: List[Tuple[pygame.Rect, str]] = []
+        row_y = self.rect.y + self.content_top
+        for option in options:
+            row = pygame.Rect(self.rect.x + BUBBLE_PADDING // 2, row_y, width - BUBBLE_PADDING, OPTION_HEIGHT)
+            self.buttons.append((row, option))
+            row_y += OPTION_HEIGHT
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        """Run the clicked option, or close when clicked outside. Returns True if handled."""
+        if not self.rect.collidepoint(pos):
+            self.close()
+            return True
+        for rect, option in self.buttons:
+            if rect.collidepoint(pos):
+                if self.callback:
+                    self.callback(option)
+                else:
+                    self.close()
+                return True
+        return True  # Clicks on the title or padding are absorbed
+
+    def _draw_content(self, surf: pygame.Surface, offset: Tuple[int, int],
+                      mouse_pos: Optional[Tuple[int, int]]) -> None:
+        """Options: plain text with a soft rounded highlight on hover."""
+        for rect, text in self.buttons:
+            row = rect.move(offset)
+            if mouse_pos is not None and rect.collidepoint(mouse_pos):
+                pygame.draw.rect(surf, OPTION_HOVER_FILL, row, border_radius=OPTION_HEIGHT // 2)
+            text_surf = self.text_font.render(text, True, BLACK)
+            surf.blit(text_surf, text_surf.get_rect(center=row.center))
+
+
+class FigurineSpeech(_FigurineBubble):
+    """A speech bubble with a line the figurine says, closed with a small cross.
+
+    Clicking outside the bubble closes it as well.
+    """
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        figurine: 'Figurine',
+        text: str,
+        game_state: 'GameState',
+        sprite_rect: pygame.Rect,
+    ):
+        """Wrap the text and lay out the bubble.
+
+        Args:
+            screen: Surface to draw on.
+            figurine: The figurine speaking.
+            text: What it says.
+            game_state: The current game state.
+            sprite_rect: The figurine's drawn sprite, in screen coordinates.
+        """
+        super().__init__(screen, figurine, game_state, sprite_rect)
+        # Rendered once; the text never changes while the bubble is open
+        self.line_surfs = [self.text_font.render(line, True, BLACK)
+                           for line in _wrap_text(text, self.text_font, SPEECH_MAX_TEXT_WIDTH)]
+        # Measured, because RomanAntique reports a far too small get_linesize()
+        self.line_height = self.text_font.size("Ag")[1]
+
+        # The title is centred, so the cross's space is reserved on both sides
+        cross_space = CLOSE_CROSS_SIZE + BUBBLE_PADDING
+        content_width = max(
+            [self.title_font.size(self.title)[0] + 2 * cross_space]
+            + [line_surf.get_width() for line_surf in self.line_surfs]
+        )
+        width = max(BUBBLE_MIN_WIDTH, content_width + 2 * BUBBLE_PADDING)
+        self._place(width, self.content_top + len(self.line_surfs) * self.line_height + BUBBLE_PADDING)
+
+        self.close_rect = pygame.Rect(
+            self.rect.right - BUBBLE_PADDING - CLOSE_CROSS_SIZE,
+            self.rect.y + BUBBLE_PADDING + (self.title_height - CLOSE_CROSS_SIZE) // 2,
+            CLOSE_CROSS_SIZE,
+            CLOSE_CROSS_SIZE,
+        )
+        # The cross is small, so it is a little easier to hit than it looks
+        self.close_hit_rect = self.close_rect.inflate(8, 8)
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        """Close on the cross or outside the bubble. Returns True if handled."""
+        if self.close_hit_rect.collidepoint(pos) or not self.rect.collidepoint(pos):
+            self.close()
+        return True
+
+    def _draw_content(self, surf: pygame.Surface, offset: Tuple[int, int],
+                      mouse_pos: Optional[Tuple[int, int]]) -> None:
+        """The spoken lines, and the cross in the title row."""
+        cross = self.close_rect.move(offset)
+        if mouse_pos is not None and self.close_hit_rect.collidepoint(mouse_pos):
+            pygame.draw.circle(surf, OPTION_HOVER_FILL, cross.center, CLOSE_CROSS_SIZE)
+        pygame.draw.line(surf, DARK_BROWN, cross.topleft, cross.bottomright, 2)
+        pygame.draw.line(surf, DARK_BROWN, cross.bottomleft, cross.topright, 2)
+
+        body = self.rect.move(offset)
+        y = body.y + self.content_top
+        for line_surf in self.line_surfs:
+            surf.blit(line_surf, line_surf.get_rect(midtop=(body.centerx, y)))
+            y += self.line_height
+
+
+def _wrap_text(text: str, font: pygame.font.Font, max_width: int) -> List[str]:
+    """Break text into lines no wider than max_width (a single long word may exceed it).
+
+    Args:
+        text: The text to wrap.
+        font: Font the text is rendered in.
+        max_width: Maximum line width in pixels.
+
+    Returns:
+        The wrapped lines.
+    """
+    lines: List[str] = []
+    current = ""
+    for word in text.split():
+        candidate = f"{current} {word}" if current else word
+        if current and font.size(candidate)[0] > max_width:
+            lines.append(current)
+            current = word
+        else:
+            current = candidate
+    if current:
+        lines.append(current)
+    return lines
