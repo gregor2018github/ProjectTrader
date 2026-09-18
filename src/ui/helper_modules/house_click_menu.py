@@ -27,6 +27,13 @@ HOVER_OFFSET_X = 0   # Pixel offset to the right
 HOVER_OFFSET_Y = 0  # Pixel offset upwards
 HOVER_TINT = (245, 245, 220, 160)  # Beige with transparency
 
+# House menu sizing: the menu grows to fit its title, and only titles too long
+# for MAX_MENU_WIDTH get a smaller font
+MIN_MENU_WIDTH = 240
+MAX_MENU_WIDTH = 340
+TITLE_FONT_SIZE = 26
+MIN_TITLE_FONT_SIZE = 16
+
 
 def get_hovered_house(
     mouse_pos: Tuple[int, int],
@@ -428,20 +435,23 @@ class HouseMenu:
         self.game_state = game_state
         self.callback = callback
         
-        # Fancy title font (same as bank sub-menus)
-        try:
-            self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 26)
-        except Exception:
-            self.title_font = font
-
         # Menu dimensions
-        self.width = 240
         self.button_height = 40
         self.padding = 10
         self.header_height = 44  # taller to give the fancy font breathing room
         self.total_height = self.header_height + (len(options) * (self.button_height + self.padding)) + self.padding
 
         self.close_button_size = 20
+        close_pad = (self.header_height - self.close_button_size) // 2
+
+        raw_name = house.name or "House"
+        self.display_name = getattr(house, 'display_name', '') or raw_name.split('_')[0]
+
+        # The title is centred, so the close button's space is reserved on both sides
+        title_side_space = self.close_button_size + close_pad + 6
+        self.title_font = self._fit_title_font(font, MAX_MENU_WIDTH - 2 * title_side_space)
+        title_width = self.title_font.size(self.display_name)[0]
+        self.width = max(MIN_MENU_WIDTH, min(MAX_MENU_WIDTH, title_width + 2 * title_side_space))
 
         # Position at click with screen clamping (close button is now inside the panel)
         screen_w, screen_h = screen.get_size()
@@ -451,7 +461,6 @@ class HouseMenu:
         self.rect = pygame.Rect(self.x, self.y, self.width, self.total_height)
 
         # Close button rect — inside the header, top-right corner
-        close_pad = (self.header_height - self.close_button_size) // 2
         self.close_rect = pygame.Rect(
             self.x + self.width - self.close_button_size - close_pad,
             self.y + close_pad,
@@ -476,6 +485,18 @@ class HouseMenu:
             btn_rect = pygame.Rect(self.x + self.padding, current_y, self.width - 2 * self.padding, self.button_height)
             self.buttons.append((btn_rect, option))
             current_y += self.button_height + self.padding
+
+    def _fit_title_font(self, fallback: pygame.font.Font, max_width: int) -> pygame.font.Font:
+        """Fancy title font (same as bank sub-menus), shrunk until the title fits max_width."""
+        font_path = os.path.join(FONTS_PATH, "Medici Text.ttf")
+        for size in range(TITLE_FONT_SIZE, MIN_TITLE_FONT_SIZE - 1, -2):
+            try:
+                title_font = pygame.font.Font(font_path, size)
+            except Exception:
+                return fallback
+            if title_font.size(self.display_name)[0] <= max_width:
+                break
+        return title_font
 
     def _is_market_open(self) -> bool:
         """Market opening hours only matter for market booths."""
@@ -546,9 +567,7 @@ class HouseMenu:
             pygame.draw.rect(target_surf, DARK_BROWN, body_rect, 3)
 
         # Draw header title with fancy font (centred, leaving room for X on the right)
-        raw_name = self.house.name or "House"
-        display_name = getattr(self.house, 'display_name', '') or raw_name.split('_')[0]
-        title_surf = self.title_font.render(display_name, True, DARK_BROWN)
+        title_surf = self.title_font.render(self.display_name, True, DARK_BROWN)
         title_rect = title_surf.get_rect(center=(body_rect.centerx, body_rect.y + self.header_height // 2))
         target_surf.blit(title_surf, title_rect)
 
