@@ -22,6 +22,8 @@ Run from anywhere:
 
     python build_tools/gemini_sprite_import.py
 
+The window can be resized or maximised; F11 switches to full screen.
+
 1. Pick the NPC. Folders in humans/npcs are grouped by their name:
    trader_<trade> for traders, <class>_<name> for townsfolk, e.g.
    poor_matilda (class: poor, commons, middling, nobility). The "+" card of a
@@ -46,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gemini_sprite_sheet import (  # noqa: E402
     BG, BUTTON_BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SIZE, DONE_COLOR, FOOTER_HEIGHT,
     HEADER_HEIGHT, NPC_DIR, OUTPUT_DIR, PLAYER_DIR, ROOT, TEXT, TEXT_DIM, THUMB_BG, THUMB_SIZE,
-    WINDOW_SIZE, Button, Card, find_base, make_thumb,
+    Button, Card, find_base, make_thumb, open_window, toggle_fullscreen, window_size,
 )
 from medieval_names import gender_of, random_name  # noqa: E402
 
@@ -66,10 +68,10 @@ SPECK_RATIO = 0.005      # blobs smaller than this share of the largest blob are
 
 POSE_MATCH_SIZE = (32, 52)
 
-# Layout of the import screen
-SOURCE_RECT = pygame.Rect(20, HEADER_HEIGHT + 10, 520, WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT - 20)
-COMPARE_RECT = pygame.Rect(560, SOURCE_RECT.y, 440, SOURCE_RECT.height)
-POSE_RECT = pygame.Rect(1020, SOURCE_RECT.y, 240, SOURCE_RECT.height)
+# Layout of the import screen (the panels grow with the window, see panel_rects)
+POSE_PANEL_WIDTH = 240
+SOURCE_SHARE = 0.54      # share of the remaining width for the Gemini image
+PANEL_GAP = 20
 POSE_ROW = 27
 CHECKER = ((200, 200, 200), (170, 170, 170))
 CHECKER_SIZE = 12
@@ -99,6 +101,19 @@ INPUT_BG = (30, 28, 26)
 # ---------------------------------------------------------------------------
 # Data
 # ---------------------------------------------------------------------------
+
+def panel_rects():
+    """(source, compare, pose) panel rects of the import screen for the current window."""
+    width, height = window_size()
+    top = HEADER_HEIGHT + 10
+    panel_h = max(200, height - HEADER_HEIGHT - FOOTER_HEIGHT - 20)
+    free = max(400, width - POSE_PANEL_WIDTH - 4 * PANEL_GAP)
+    source_w = int(free * SOURCE_SHARE)
+    source = pygame.Rect(PANEL_GAP, top, source_w, panel_h)
+    compare = pygame.Rect(source.right + PANEL_GAP, top, free - source_w, panel_h)
+    pose = pygame.Rect(compare.right + PANEL_GAP, top, POSE_PANEL_WIDTH, panel_h)
+    return source, compare, pose
+
 
 class Npc:
     def __init__(self, folder):
@@ -462,15 +477,25 @@ class NewNpcDialog:
         self.name = ''
         self.error = ''
         self.rect = pygame.Rect((0, 0), DIALOG_SIZE)
-        self.rect.center = (WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2)
-        x, y = self.rect.x + 30, self.rect.y + 80
-        self.gender_buttons = [(key, Button(label, x + i * 140, y, 120, 40))
-                               for i, (key, label) in enumerate(GENDERS)]
-        self.input_rect = pygame.Rect(x, y + 80, self.rect.w - 60 - 54, 40)
-        self.dice_button = Button('', self.input_rect.right + 10, self.input_rect.y, 44, 40)
-        self.cancel_button = Button('Cancel', self.rect.right - 290, self.rect.bottom - 58, 120)
-        self.create_button = Button('Create', self.rect.right - 150, self.rect.bottom - 58, 120)
+        self.gender_buttons = [(key, Button(label, 0, 0, 120, 40)) for key, label in GENDERS]
+        self.input_rect = pygame.Rect(0, 0, self.rect.w - 60 - 54, 40)
+        self.dice_button = Button('', 0, 0, 44, 40)
+        self.cancel_button = Button('Cancel', 0, 0, 120)
+        self.create_button = Button('Create', 0, 0, 120)
+        self.center()
         pygame.key.start_text_input()
+
+    def center(self):
+        """Place the dialog in the middle of the window."""
+        width, height = window_size()
+        self.rect.center = (width // 2, height // 2)
+        x, y = self.rect.x + 30, self.rect.y + 80
+        for i, (_, button) in enumerate(self.gender_buttons):
+            button.rect.topleft = (x + i * 140, y)
+        self.input_rect.topleft = (x, y + 80)
+        self.dice_button.rect.topleft = (self.input_rect.right + 10, self.input_rect.y)
+        self.cancel_button.rect.topleft = (self.rect.right - 290, self.rect.bottom - 58)
+        self.create_button.rect.topleft = (self.rect.right - 150, self.rect.bottom - 58)
 
     def folder_name(self):
         return f'{self.category}_{self.name.lower()}'
@@ -530,7 +555,7 @@ class NewNpcDialog:
             pygame.draw.circle(screen, PIP_COLOR, (face.centerx + dx * step, face.centery + dy * step), 3)
 
     def draw(self, screen, mouse):
-        shade = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+        shade = pygame.Surface(window_size(), pygame.SRCALPHA)
         shade.fill((0, 0, 0, 150))
         screen.blit(shade, (0, 0))
         pygame.draw.rect(screen, BG, self.rect, border_radius=10)
@@ -567,8 +592,7 @@ class NewNpcDialog:
 class ImportTool:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(WINDOW_SIZE)
-        pygame.display.set_caption("Merchant's Rise - Gemini sprite import")
+        self.screen = open_window("Merchant's Rise - Gemini sprite import")
         self.font = pygame.font.SysFont('segoeui', 18)
         self.small = pygame.font.SysFont('segoeui', 15)
         self.title_font = pygame.font.SysFont('segoeui', 30, bold=True)
@@ -585,7 +609,7 @@ class ImportTool:
         self.placeholder.fill(THUMB_BG)
         text = self.small.render('no sprite yet', True, (120, 120, 120))
         self.placeholder.blit(text, text.get_rect(center=self.placeholder.get_rect().center))
-        self.checker_compare = checkerboard(COMPARE_RECT.size)
+        self.checker_compare = checkerboard((1, 1))  # rebuilt at panel size when drawn
         self.plus_thumb = pygame.Surface(THUMB_SIZE)
         self.plus_thumb.fill(CARD_BG)
         plus = pygame.font.SysFont('segoeui', 90).render('+', True, TEXT_DIM)
@@ -600,10 +624,20 @@ class ImportTool:
         self.status_color = DONE_COLOR
         self.compare_layout = None
 
-        footer_y = WINDOW_SIZE[1] - FOOTER_HEIGHT + 13
-        self.back_button = Button('Back', 20, footer_y, 120)
-        self.open_button = Button('Open image', 160, footer_y)
-        self.save_button = Button('Save', WINDOW_SIZE[0] - 240, footer_y, 220)
+        self.back_button = Button('Back', 20, 0, 120)
+        self.open_button = Button('Open image', 160, 0)
+        self.save_button = Button('Save', 0, 0, 220)
+        self.place_footer()
+
+    def place_footer(self):
+        """Put the footer buttons at the bottom of the window (again after a resize)."""
+        self.screen = pygame.display.get_surface()
+        width, height = window_size()
+        for button in (self.back_button, self.open_button, self.save_button):
+            button.rect.y = height - FOOTER_HEIGHT + 13
+        self.save_button.rect.right = width - 20
+        if self.dialog:
+            self.dialog.center()
 
     # --- state ------------------------------------------------------------
 
@@ -687,9 +721,9 @@ class ImportTool:
         return [card for _, cards in self.sections for card in cards]
 
     def layout_cards(self):
-        per_row = max(1, (WINDOW_SIZE[0] - CARD_GAP) // (CARD_SIZE[0] + CARD_GAP))
+        per_row = max(1, (window_size()[0] - CARD_GAP) // (CARD_SIZE[0] + CARD_GAP))
         row_w = per_row * CARD_SIZE[0] + (per_row - 1) * CARD_GAP
-        left = (WINDOW_SIZE[0] - row_w) // 2
+        left = (window_size()[0] - row_w) // 2
         top = HEADER_HEIGHT + CARD_GAP
         y = top - self.scroll
         self.section_titles = []
@@ -703,7 +737,7 @@ class ImportTool:
             rows = (len(cards) + per_row - 1) // per_row
             y += rows * (CARD_SIZE[1] + CARD_GAP) + CARD_GAP
         content_h = y + self.scroll - top
-        return max(0, content_h - (WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT))
+        return max(0, content_h - (window_size()[1] - HEADER_HEIGHT - FOOTER_HEIGHT))
 
     def draw_card(self, card, mouse):
         color = CARD_HOVER if card.rect.collidepoint(mouse) else CARD_BG
@@ -715,7 +749,7 @@ class ImportTool:
         self.screen.blit(note, note.get_rect(midtop=(card.rect.centerx, card.rect.y + THUMB_SIZE[1] + 34)))
 
     def draw_npc_list(self, mouse):
-        clip = pygame.Rect(0, HEADER_HEIGHT, WINDOW_SIZE[0], WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT)
+        clip = pygame.Rect(0, HEADER_HEIGHT, window_size()[0], window_size()[1] - HEADER_HEIGHT - FOOTER_HEIGHT)
         self.screen.set_clip(clip)
         for title, count, x, y in self.section_titles:
             text = self.font.render(title, True, TEXT)
@@ -723,7 +757,7 @@ class ImportTool:
             number = self.small.render(f'{count} NPC{"" if count == 1 else "s"}', True, TEXT_DIM)
             self.screen.blit(number, (x + text.get_width() + 12, y + 11))
             line_x = x + text.get_width() + number.get_width() + 24
-            pygame.draw.line(self.screen, CARD_BG, (line_x, y + 21), (WINDOW_SIZE[0] - x, y + 21), 1)
+            pygame.draw.line(self.screen, CARD_BG, (line_x, y + 21), (window_size()[0] - x, y + 21), 1)
         for card in self.all_cards():
             if card.rect.colliderect(clip):
                 self.draw_card(card, mouse)
@@ -733,12 +767,14 @@ class ImportTool:
 
     def draw_panel_title(self, rect, text):
         label = self.small.render(text, True, TEXT_DIM)
-        self.screen.blit(label, (rect.x, rect.y - 2))
+        # Cut off at the panel edge rather than run into the next panel.
+        self.screen.blit(label, (rect.x, rect.y - 2), pygame.Rect(0, 0, rect.w, label.get_height()))
 
     def draw_source(self):
-        area = SOURCE_RECT.inflate(0, -24).move(0, 12)
+        source_rect = panel_rects()[0]
+        area = source_rect.inflate(0, -24).move(0, 12)
         pygame.draw.rect(self.screen, CARD_BG, area, border_radius=6)
-        self.draw_panel_title(SOURCE_RECT, 'Gemini image  (green = player, red = new sprite)')
+        self.draw_panel_title(source_rect, 'Gemini image  (green = player, red = new sprite)')
         if not self.result:
             for i, line in enumerate(('Drop the Gemini image here', 'or click "Open image" (Ctrl+O)')):
                 text = self.font.render(line, True, TEXT_DIM)
@@ -754,8 +790,11 @@ class ImportTool:
             pygame.draw.rect(self.screen, color, box, 3)
 
     def draw_compare(self):
-        area = COMPARE_RECT.inflate(0, -24).move(0, 12)
-        self.draw_panel_title(COMPARE_RECT, 'Player and new sprite at the same scale  (click white gaps)')
+        compare_rect = panel_rects()[1]
+        area = compare_rect.inflate(0, -24).move(0, 12)
+        self.draw_panel_title(compare_rect, 'Player and new sprite at the same scale  (click white gaps)')
+        if not self.checker_compare.get_rect().contains(pygame.Rect((0, 0), area.size)):
+            self.checker_compare = checkerboard(area.size)
         self.screen.blit(self.checker_compare, area, pygame.Rect((0, 0), area.size))
         self.compare_layout = None
         if not self.result:
@@ -782,11 +821,14 @@ class ImportTool:
         self.screen.blit(size, size.get_rect(midbottom=(area.centerx, area.bottom - 10)))
 
     def pose_rows(self):
-        return [(pose, pygame.Rect(POSE_RECT.x, POSE_RECT.y + 12 + i * POSE_ROW, POSE_RECT.w, POSE_ROW - 3))
+        pose_rect = panel_rects()[2]
+        # Rows shrink in a small window so every pose stays visible.
+        row = max(14, min(POSE_ROW, (pose_rect.h - 12) // max(1, len(self.player_poses))))
+        return [(pose, pygame.Rect(pose_rect.x, pose_rect.y + 12 + i * row, pose_rect.w, row - 3))
                 for i, pose in enumerate(self.player_poses)]
 
     def draw_poses(self, mouse):
-        self.draw_panel_title(POSE_RECT, 'Pose')
+        self.draw_panel_title(panel_rects()[2], 'Pose')
         for pose, rect in self.pose_rows():
             if self.result and pose == self.result.pose:
                 color = BUTTON_BG
@@ -817,7 +859,7 @@ class ImportTool:
             self.save_button.label = f'{"Overwrite" if exists else "Save"} {self.target_path().name}'
             text_w = self.font.size(self.save_button.label)[0] + 30
             self.save_button.rect.width = max(220, text_w)
-            self.save_button.rect.right = WINDOW_SIZE[0] - 20
+            self.save_button.rect.right = window_size()[0] - 20
         else:
             self.save_button.label = 'Save'
         for button in buttons:
@@ -841,19 +883,20 @@ class ImportTool:
         if self.dialog:
             self.dialog.draw(self.screen, mouse)
 
-        pygame.draw.line(self.screen, CARD_BG, (0, WINDOW_SIZE[1] - FOOTER_HEIGHT),
-                         (WINDOW_SIZE[0], WINDOW_SIZE[1] - FOOTER_HEIGHT), 2)
+        pygame.draw.line(self.screen, CARD_BG, (0, window_size()[1] - FOOTER_HEIGHT),
+                         (window_size()[0], window_size()[1] - FOOTER_HEIGHT), 2)
         if self.status:
             status = self.small.render(self.status, True, self.status_color)
-            self.screen.blit(status, status.get_rect(midleft=(self.open_button.rect.right + 20,
-                                                              WINDOW_SIZE[1] - FOOTER_HEIGHT // 2)))
+            pos = status.get_rect(midleft=(self.open_button.rect.right + 20, window_size()[1] - FOOTER_HEIGHT // 2))
+            right = self.save_button.rect.x - 20 if self.npc else window_size()[0] - 20
+            self.screen.blit(status, pos, pygame.Rect(0, 0, max(0, right - pos.x), status.get_height()))
         pygame.display.flip()
 
     # --- input ------------------------------------------------------------
 
     def click(self, pos):
         if not self.npc:
-            if HEADER_HEIGHT <= pos[1] < WINDOW_SIZE[1] - FOOTER_HEIGHT:
+            if HEADER_HEIGHT <= pos[1] < window_size()[1] - FOOTER_HEIGHT:
                 for card in self.all_cards():
                     if card.rect.collidepoint(pos):
                         if isinstance(card.key, Npc):
@@ -909,6 +952,13 @@ class ImportTool:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
+                if event.type == pygame.VIDEORESIZE:
+                    self.place_footer()
+                    continue
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                    self.place_footer()
+                    continue
                 if self.dialog:
                     self.dialog_event(event)
                     continue

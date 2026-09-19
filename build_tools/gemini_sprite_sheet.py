@@ -16,6 +16,8 @@ Run from anywhere:
 
     python build_tools/gemini_sprite_sheet.py
 
+The window can be resized or maximised; F11 switches to full screen.
+
 1. Pick the NPC (every folder in humans/npcs that holds a standing sprite,
    e.g. vintner_front_static.png; see BASE_POSES). The player is shown in
    the same standing pose next to it.
@@ -50,7 +52,7 @@ TARGET_FRAME_COLOR = (220, 0, 0)
 TARGET_FRAME_WIDTH = 3
 
 # Selector window
-WINDOW_SIZE = (1280, 820)
+WINDOW_SIZE = (1280, 820)  # starting size; the window can be resized, F11 = full screen
 CARD_SIZE = (140, 205)
 THUMB_SIZE = (116, 150)
 CARD_GAP = 14
@@ -77,6 +79,29 @@ Bottom left: the main character in a different pose.
 Bottom right (red frame) is empty. Draw {npc} there, in exactly the same pose as the main character in the bottom left.
 Keep {npc}'s look, clothing, colours, proportions and pixel-art style from the top right sprite, and keep the same size and white background.
 """
+
+
+# ---------------------------------------------------------------------------
+# Window
+# ---------------------------------------------------------------------------
+
+def window_size():
+    """Current size of the (resizable) tool window."""
+    surface = pygame.display.get_surface()
+    return surface.get_size() if surface else WINDOW_SIZE
+
+
+def open_window(caption):
+    screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+    pygame.display.set_caption(caption)
+    return screen
+
+
+def toggle_fullscreen():
+    """Switch between full screen and a normal resizable window."""
+    if pygame.display.get_surface().get_flags() & pygame.FULLSCREEN:
+        return pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+    return pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 
 
 # ---------------------------------------------------------------------------
@@ -224,8 +249,7 @@ class Button:
 class SheetTool:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(WINDOW_SIZE)
-        pygame.display.set_caption("Merchant's Rise - Gemini sprite sheet builder")
+        self.screen = open_window("Merchant's Rise - Gemini sprite sheet builder")
         self.font = pygame.font.SysFont('segoeui', 18)
         self.small = pygame.font.SysFont('segoeui', 15)
         self.title_font = pygame.font.SysFont('segoeui', 30, bold=True)
@@ -242,12 +266,21 @@ class SheetTool:
         self.scroll = 0
         self.status = ''
 
-        footer_y = WINDOW_SIZE[1] - FOOTER_HEIGHT + 13
-        self.back_button = Button('Back', 20, footer_y, 120)
-        self.missing_button = Button('Select missing', 160, footer_y)
-        self.all_button = Button('Select all', 350, footer_y, 130)
-        self.clear_button = Button('Clear', 500, footer_y, 110)
-        self.generate_button = Button('Generate', WINDOW_SIZE[0] - 240, footer_y, 220)
+        self.back_button = Button('Back', 20, 0, 120)
+        self.missing_button = Button('Select missing', 160, 0)
+        self.all_button = Button('Select all', 350, 0, 130)
+        self.clear_button = Button('Clear', 500, 0, 110)
+        self.generate_button = Button('Generate', 0, 0, 220)
+        self.place_footer()
+
+    def place_footer(self):
+        """Put the footer buttons at the bottom of the window (again after a resize)."""
+        self.screen = pygame.display.get_surface()
+        width, height = window_size()
+        for button in (self.back_button, self.missing_button, self.all_button,
+                       self.clear_button, self.generate_button):
+            button.rect.y = height - FOOTER_HEIGHT + 13
+        self.generate_button.rect.right = width - 20
 
     # --- state ------------------------------------------------------------
 
@@ -274,16 +307,16 @@ class SheetTool:
     # --- layout -----------------------------------------------------------
 
     def layout(self, cards):
-        per_row = max(1, (WINDOW_SIZE[0] - CARD_GAP) // (CARD_SIZE[0] + CARD_GAP))
+        per_row = max(1, (window_size()[0] - CARD_GAP) // (CARD_SIZE[0] + CARD_GAP))
         row_w = per_row * CARD_SIZE[0] + (per_row - 1) * CARD_GAP
-        left = (WINDOW_SIZE[0] - row_w) // 2
+        left = (window_size()[0] - row_w) // 2
         for i, card in enumerate(cards):
             row, col = divmod(i, per_row)
             card.rect.topleft = (left + col * (CARD_SIZE[0] + CARD_GAP),
                                  HEADER_HEIGHT + CARD_GAP + row * (CARD_SIZE[1] + CARD_GAP) - self.scroll)
         rows = (len(cards) + per_row - 1) // per_row
         content_h = rows * (CARD_SIZE[1] + CARD_GAP) + CARD_GAP
-        visible_h = WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT
+        visible_h = window_size()[1] - HEADER_HEIGHT - FOOTER_HEIGHT
         return max(0, content_h - visible_h)
 
     def current_cards(self):
@@ -313,7 +346,7 @@ class SheetTool:
         self.screen.fill(BG)
         cards = self.current_cards()
 
-        clip = pygame.Rect(0, HEADER_HEIGHT, WINDOW_SIZE[0], WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT)
+        clip = pygame.Rect(0, HEADER_HEIGHT, window_size()[0], window_size()[1] - HEADER_HEIGHT - FOOTER_HEIGHT)
         self.screen.set_clip(clip)
         for card in cards:
             if card.rect.colliderect(clip):
@@ -331,8 +364,8 @@ class SheetTool:
         self.screen.blit(self.title_font.render(title, True, TEXT), (20, 12))
         self.screen.blit(self.small.render(hint, True, TEXT_DIM), (22, 56))
 
-        pygame.draw.line(self.screen, CARD_BG, (0, WINDOW_SIZE[1] - FOOTER_HEIGHT),
-                         (WINDOW_SIZE[0], WINDOW_SIZE[1] - FOOTER_HEIGHT), 2)
+        pygame.draw.line(self.screen, CARD_BG, (0, window_size()[1] - FOOTER_HEIGHT),
+                         (window_size()[0], window_size()[1] - FOOTER_HEIGHT), 2)
         if self.npc:
             self.generate_button.label = f'Generate ({len(self.selected)})'
             self.generate_button.enabled = bool(self.selected)
@@ -341,8 +374,8 @@ class SheetTool:
                 button.draw(self.screen, self.font, mouse)
         if self.status:
             status = self.small.render(self.status, True, DONE_COLOR)
-            self.screen.blit(status, status.get_rect(midright=(WINDOW_SIZE[0] - 260,
-                                                               WINDOW_SIZE[1] - FOOTER_HEIGHT // 2)))
+            self.screen.blit(status, status.get_rect(midright=(window_size()[0] - 260,
+                                                               window_size()[1] - FOOTER_HEIGHT // 2)))
         pygame.display.flip()
 
     # --- input ------------------------------------------------------------
@@ -367,7 +400,7 @@ class SheetTool:
                 self.run_generate()
                 return
 
-        if not HEADER_HEIGHT <= pos[1] < WINDOW_SIZE[1] - FOOTER_HEIGHT:
+        if not HEADER_HEIGHT <= pos[1] < window_size()[1] - FOOTER_HEIGHT:
             return
         for card in self.current_cards():
             if card.rect.collidepoint(pos):
@@ -385,7 +418,12 @@ class SheetTool:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
-                if event.type == pygame.KEYDOWN:
+                if event.type == pygame.VIDEORESIZE:
+                    self.place_footer()
+                elif event.type == pygame.KEYDOWN and event.key == pygame.K_F11:
+                    toggle_fullscreen()
+                    self.place_footer()
+                elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         if self.npc:
                             self.npc = None
