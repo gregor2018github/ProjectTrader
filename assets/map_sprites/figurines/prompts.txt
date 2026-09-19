@@ -1,2 +1,0 @@
-The attached picture holds a split view. The left side holds a sprite of the main character for my game "Merchant's Rise". It is a medieval trading game. 
-The right side of the split view is empty. I want you to display a new character there. The new character shall hold the same posture as the original character on the left side. The new character on the right side must be a butcher / meat trader.

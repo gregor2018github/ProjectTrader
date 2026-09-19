@@ -1,0 +1,49 @@
+The attached picture holds a split view. The left side holds a sprite of the main character for my game "Merchant's Rise". It is a medieval trading game. 
+The right side of the split view is empty. I want you to display a new character there. The new character shall hold the same posture as the original character on the left side. The new character on the right side must be a butcher / meat trader.
+
+==================== Wine trader ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a wine trader who sells wine at a medieval town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a wine trader:
+- A rounder, well-fed build with rosy cheeks and a reddish nose, like someone who enjoys his own wine.
+- Short dark curly hair or a receding hairline, with a short beard.
+- A wine-red (burgundy) tunic under a long dark-green or cream apron that has a few small purple wine stains.
+- A simple cloth cap or beret in a muted color.
+- A small clay wine jug or a dark green glass bottle in one hand, held low at his side like the pouch in the original. The other hand can hang empty or hold a small wooden cup.
+- Brown boots and dark trousers.
+
+Keep the palette earthy and medieval, with burgundy, deep purple, dark green, brown and cream, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Grain trader (female) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a female grain trader, a medieval farm woman who sells the grain from her own fields at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make her clearly a different person from the player and clearly a farmer who trades grain:
+- A sturdy, hard-working woman with a friendly face, light freckles and sun-tanned cheeks.
+- Straw-blond or light-brown hair in a long braid over one shoulder, partly covered by a simple off-white linen headscarf.
+- A long, plain dress in a muted wheat-yellow or ochre tone, reaching down to her ankles, with the sleeves rolled up to the elbows.
+- A light brown or cream apron over the dress, with a little flour dust on it.
+- A rope or leather belt at the waist with a small cloth pouch hanging from it.
+- Simple brown leather shoes peeking out under the dress.
+
+Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, sacks, baskets, sheaves or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette earthy and rural, with wheat-gold, ochre, straw-yellow, cream, off-white and brown, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
