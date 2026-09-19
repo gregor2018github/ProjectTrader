@@ -4,8 +4,20 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - prices will increase over time, reflecting the effects of inflation
     - especially hits property, cost of living, wages, and everyday goods
     - triggered and introduced by coin cutting event
+    - inflation will rise with the wealth of the player - but it will never go down again - muhahaa
 
-- property
+- player needs a inventory system to manage items
+    - should allow picking up, dropping, and using items
+    - should have a limited capacity, requiring the player to make strategic choices about what to carry
+    - items can have different types (e.g., consumables, equipment, quest items)
+
+- have a lantern at night to carry
+    - shines light around the player (on the floor)
+    - the lantern should be an item
+    - will be blocked by walls and other obstacles
+    - will shine on objects when they are behind the player, otherwise they will stay in shadow but get a partial glow behind them reaching around the corner (same effect as mouse hover but more yellow and only partial)
+
+- property simulation
     - players can not just buy property but also sell it
     - buying and selling property has a real estate agent fee, so that way house flipping is expensive and must be considered carefully
     - there must be monthly taxes or maintenance costs associated with owning property
@@ -36,6 +48,7 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - Mini games
     - Fishing mini game at the seeside
     - Mining mini game at the mine
+    - wood hacking mini game needs a animation of the player chopping wood with an axe
 
 - Buildings
     - town walls with gates and towers
@@ -66,14 +79,12 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - iron gates that can even open when the player approaches
 
 - Animations and NPC
-    - general medieval sentences for NPCs that they say randomly when the player clicks on them
     - fisherman who always tells you to buy fish
-    - Sheeps that can stand on the meadow, eating and walking animations
     - cows on the meadow with eating and walking animations
-    - windmill with rotating blades
     - ghost coming out of the graveyard at night
     - water that is actually moving
     - bird flocks in highest zoom stage
+    - clouds in highest zoom stage
     - animation for idle main character
     - Blacksmith hammering on an anvil
     - Executioner event at the market square randomly happening sometimes when player comes back to the market square (with a chance of 1% every time the player enters the market square, but only if the player has a certain amount of money, like 1000 gold coins, to make it more likely to happen in later stages of the game)

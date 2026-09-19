@@ -1,6 +1,9 @@
 # Project Trader TODOs
 
 ## High Priority
+- [ ] mark doors on the tile map
+- [ ] random town folk must walk the streets, very little at night, more during the day
+- [ ] create a prototype for a automated gemini api script to process sprites in batches
 - [ ] fix animation to walk down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
