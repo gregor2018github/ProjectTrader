@@ -27,7 +27,9 @@ from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
 from .figurines.humans.npcs.npc import NPC
 from .figurines.humans.npcs import (
-    TraderButcher, TraderFarmer, TraderFisherman, TraderPotter, TraderVintner, TraderWeaver,
+    TraderAlewife, TraderBlacksmith, TraderButcher, TraderFarmer, TraderFisherman,
+    TraderPotter, TraderShepherdess, TraderStonemason, TraderTanner, TraderVintner,
+    TraderWeaver, TraderWoodcutter,
 )
 from .figurines.patrol_path import PatrolPath
 from .water import Water, Ripple, water_tile_variant
@@ -654,12 +656,18 @@ class TMXMap:
     # objects through TILED_PREFIX (see Trader), so adding a trader is drawing
     # his shapes in Tiled and adding his class here.
     TRADER_TYPES: Tuple[type, ...] = (
+        TraderAlewife,
+        TraderBlacksmith,
         TraderButcher,
         TraderFarmer,
         TraderFisherman,
         TraderPotter,
+        TraderShepherdess,
+        TraderStonemason,
+        TraderTanner,
         TraderVintner,
         TraderWeaver,
+        TraderWoodcutter,
     )
 
     def _load_movements(self) -> None:
