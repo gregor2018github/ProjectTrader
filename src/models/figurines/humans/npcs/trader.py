@@ -147,14 +147,18 @@ class Trader(NPC):
     # At the stall
     # ------------------------------------------------------------------
 
-    def _rest(self, current_time: datetime.datetime) -> None:
+    def _rest(self, current_time: datetime.datetime, stagger: bool = False) -> None:
         """Stand still until some way into the next in-game hour.
 
         Args:
             current_time: The current in-game time.
+            stagger: Rest anywhere from no time at all up to a full rest. Used
+                when all traders start resting at the same moment, so they
+                do not keep moving in step with each other.
         """
+        min_minutes = 0 if stagger else IDLE_MIN_MINUTES
         self.idle_until = current_time + datetime.timedelta(
-            minutes=random.randint(IDLE_MIN_MINUTES, IDLE_MAX_MINUTES)
+            minutes=random.uniform(min_minutes, IDLE_MAX_MINUTES)
         )
 
     def _pick_new_spot(self) -> None:
@@ -265,7 +269,7 @@ class Trader(NPC):
 
         if self.state == WORKING and self.path_target is None:
             if self.idle_until is None:
-                self._rest(current_time)
+                self._rest(current_time, stagger=True)
             elif current_time >= self.idle_until:
                 self._pick_new_spot()
 
