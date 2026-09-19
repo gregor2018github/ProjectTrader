@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="37" nextobjectid="392">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="37" nextobjectid="410">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -6310,11 +6310,29 @@
    </properties>
    <polygon points="0,0 0,64 160,64 160,0 192,0 192,96 -32,96 -32,0"/>
   </object>
+  <object id="399" name="Potter_Homeway_End" x="4384" y="4544">
+   <point/>
+  </object>
+  <object id="400" name="Potter_Homeway_Start" x="4640" y="4576">
+   <point/>
+  </object>
+  <object id="398" name="Potter_Homeway_Path" x="4352" y="4544">
+   <polygon points="0,0 0,32 288,32 288,0 32,0"/>
+  </object>
   <object id="376" name="Potter_Market_Stall" x="4672" y="4544">
    <properties>
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 0,96 128,96 128,128 -32,128 -32,0"/>
+  </object>
+  <object id="403" name="Fisher_Homeway_End" x="5184" y="4896">
+   <point/>
+  </object>
+  <object id="402" name="Fisher_Homeway_Start" x="5088" y="4640">
+   <point/>
+  </object>
+  <object id="401" name="Fisher_Homeway_Path" x="5088" y="4640">
+   <polygon points="0,0 0,160 96,160 96,256 128,256 128,128 32,128 32,0"/>
   </object>
   <object id="377" name="Fisher_Market_Stall" x="5024" y="4576">
    <properties>
@@ -6322,14 +6340,20 @@
    </properties>
    <polygon points="0,0 0,64 128,64 128,96 -32,96 -32,0 0,0"/>
   </object>
+  <object id="409" name="Weaver_Homeway_End" x="5472" y="4864">
+   <point/>
+  </object>
+  <object id="408" name="Weaver_Homeway_Start" x="5248" y="4768">
+   <point/>
+  </object>
+  <object id="407" name="Weaver_Homeway_Path" x="5248" y="4768">
+   <polygon points="0,0 0,32 224,32 224,96 256,96 256,0"/>
+  </object>
   <object id="378" name="Weaver_Market_Stall" x="5120" y="4672">
    <properties>
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 0,64 160,64 160,96 -32,96 -32,0 0,0"/>
-  </object>
-  <object id="379" name="Farmer_Homeway_Path" x="4576" y="4768">
-   <polygon points="0,0 64,0 64,-256 32,-256 32,-32 0,-32"/>
   </object>
   <object id="380" name="Farmer_Homeway_End" x="4576" y="4768">
    <point/>
@@ -6337,11 +6361,23 @@
   <object id="381" name="Farmer_Homeway_Start" x="4640" y="4512">
    <point/>
   </object>
+  <object id="379" name="Farmer_Homeway_Path" x="4576" y="4768">
+   <polygon points="0,0 64,0 64,-256 32,-256 32,-32 0,-32"/>
+  </object>
   <object id="375" name="Farmer_Market_Stall" x="4672" y="4448">
    <properties>
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 0,64 160,64 160,96 -32,96 -32,0 0,0"/>
+  </object>
+  <object id="406" name="Woodcutter_Homeway_End" x="4928" y="4896">
+   <point/>
+  </object>
+  <object id="405" name="Woodcutter_Homeway_Start" x="4896" y="4640">
+   <point/>
+  </object>
+  <object id="404" name="Woodcutter_Homeway_Path" x="4896" y="4640">
+   <polygon points="0,0 0,256 32,256 32,0"/>
   </object>
   <object id="385" name="Woodcutter_Market_Stall" x="4800" y="4608">
    <properties>
@@ -6349,11 +6385,29 @@
    </properties>
    <polygon points="0,0 160,0 160,32 0,32 0,0"/>
   </object>
+  <object id="394" name="Blacksmith_Homeway_End" x="4992" y="4928">
+   <point/>
+  </object>
+  <object id="393" name="Blacksmith_Homeway_Start" x="4928" y="4768">
+   <point/>
+  </object>
+  <object id="392" name="Blacksmith_Homeway_Path" x="4928" y="4768">
+   <polygon points="0,0 0,160 64,160 64,128 32,128 32,0"/>
+  </object>
   <object id="389" name="Blacksmith_Market_Stall" x="5051" y="4702">
    <properties>
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 0,32 -128,32 -128,-32 -160,-32 -160,64 32,64 32,0 0,0"/>
+  </object>
+  <object id="397" name="Stonemason_Homeway_End" x="4736" y="4928">
+   <point/>
+  </object>
+  <object id="396" name="Stonemason_Homeway_Start" x="4704" y="4800">
+   <point/>
+  </object>
+  <object id="395" name="Stonemason_Homeway_Path" x="4704" y="4800">
+   <polygon points="0,0 0,128 32,128 32,0"/>
   </object>
   <object id="391" name="Stonemason_Market_Stall" x="4864" y="4768">
    <properties>
