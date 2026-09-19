@@ -23,10 +23,11 @@ Run from anywhere:
     python build_tools/gemini_sprite_import.py
 
 1. Pick the NPC. Folders in humans/npcs are grouped by their name:
-   trader_<trade> for traders, <class>_<gender>_<name> for townsfolk, e.g.
-   commons_female_greta (class: poor, commons, middling, nobility). The "+"
-   card of a population class adds a new townsperson: choose woman or man,
-   type a name, and the folder is created.
+   trader_<trade> for traders, <class>_<name> for townsfolk, e.g.
+   poor_matilda (class: poor, commons, middling, nobility). The "+" card of a
+   population class adds a new townsperson: choose woman or man, then type a
+   name or roll the dice for a free one from medieval_names.py. Every name
+   can be used only once. The folder gets an npc.json with name and gender.
 2. Drop the Gemini image onto the window, or click "Open image".
 3. Check the pose (it is detected, click another one to change it). Enclosed
    white areas (e.g. a gap between arm and body) stay white; click them in the
@@ -34,6 +35,7 @@ Run from anywhere:
 4. Save (Enter). The Gemini image is kept in build_tools/output/<npc>/results/.
 """
 
+import json
 import shutil
 import sys
 from pathlib import Path
@@ -46,6 +48,7 @@ from gemini_sprite_sheet import (  # noqa: E402
     HEADER_HEIGHT, NPC_DIR, OUTPUT_DIR, PLAYER_DIR, ROOT, TEXT, TEXT_DIM, THUMB_BG, THUMB_SIZE,
     WINDOW_SIZE, Button, Card, find_base, make_thumb,
 )
+from medieval_names import gender_of, random_name  # noqa: E402
 
 # Cell detection
 DARK_TOLERANCE = 70      # a pixel darker than this in every channel counts as frame line
@@ -86,6 +89,9 @@ OTHER = ('other', 'Other folders', False)
 GENDERS = (('female', 'Woman'), ('male', 'Man'))
 SECTION_HEADER = 42
 NAME_MAX_LENGTH = 16
+PROFILE_FILE = 'npc.json'   # name and gender of a townsperson, in their folder
+DIE_COLOR = (240, 236, 228)
+PIP_COLOR = (60, 50, 40)
 DIALOG_SIZE = (520, 290)
 INPUT_BG = (30, 28, 26)
 
@@ -98,25 +104,31 @@ class Npc:
     def __init__(self, folder):
         self.folder = folder
         self.name = folder.name
-        parts = folder.name.split('_')
+        first = folder.name.split('_', 1)[0]
         keys = [key for key, _, _ in CATEGORIES]
-        self.category = parts[0] if parts[0] in keys else OTHER[0]
-        # 'commons_female_greta' -> 'female'; traders have no gender in the name
-        genders = [key for key, _ in GENDERS]
-        self.gender = parts[1] if len(parts) == 3 and parts[1] in genders else None
+        self.category = first if first in keys else OTHER[0]
+        self.is_townsperson = self.category not in ('trader', OTHER[0])
         base = find_base(folder)
-        # No sprite yet: 'trader_vintner' -> 'vintner', 'commons_female_greta' -> 'greta'
+        # No sprite yet: 'trader_vintner' -> 'vintner', 'poor_matilda' -> 'matilda'
         self.prefix = base[1] if base else folder.name.rsplit('_', 1)[-1]
+
+        self.display_name = self.prefix.capitalize()
+        self.gender = None
+        if self.is_townsperson:
+            profile = read_profile(folder)
+            self.display_name = profile.get('name', self.display_name)
+            self.gender = profile.get('gender') or gender_of(self.prefix)
 
     @property
     def label(self):
         """Card label: the folder for traders, the name for townsfolk."""
-        return self.prefix.capitalize() if self.gender else self.name
+        return self.display_name if self.is_townsperson else self.name
 
     @property
     def title(self):
-        if self.gender:
-            return f'{self.prefix.capitalize()} ({dict(GENDERS)[self.gender].lower()}, {self.category})'
+        if self.is_townsperson:
+            details = [dict(GENDERS)[self.gender].lower()] if self.gender else []
+            return f'{self.display_name} ({", ".join(details + [self.category])})'
         return self.name
 
     @property
@@ -127,6 +139,13 @@ class Npc:
 
     def sprite_path(self, pose):
         return self.folder / f'{self.prefix}_{pose}.png'
+
+
+def read_profile(folder):
+    try:
+        return json.loads((folder / PROFILE_FILE).read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
 
 
 def find_npcs():
@@ -427,9 +446,17 @@ def ask_open_file():
 class NewNpcDialog:
     """Asks for gender and name of a new townsperson."""
 
-    def __init__(self, category, title, fonts):
+    def __init__(self, category, title, taken, fonts):
+        """
+        Args:
+            category: Folder name start, e.g. 'poor'.
+            title: Dialog heading.
+            taken: {lower-case name: folder name} of every existing townsperson.
+            fonts: (font, small, title_font).
+        """
         self.category = category
         self.title = title
+        self.taken = taken
         self.font, self.small, self.title_font = fonts
         self.gender = None
         self.name = ''
@@ -439,20 +466,23 @@ class NewNpcDialog:
         x, y = self.rect.x + 30, self.rect.y + 80
         self.gender_buttons = [(key, Button(label, x + i * 140, y, 120, 40))
                                for i, (key, label) in enumerate(GENDERS)]
-        self.input_rect = pygame.Rect(x, y + 80, self.rect.w - 60, 40)
+        self.input_rect = pygame.Rect(x, y + 80, self.rect.w - 60 - 54, 40)
+        self.dice_button = Button('', self.input_rect.right + 10, self.input_rect.y, 44, 40)
         self.cancel_button = Button('Cancel', self.rect.right - 290, self.rect.bottom - 58, 120)
         self.create_button = Button('Create', self.rect.right - 150, self.rect.bottom - 58, 120)
         pygame.key.start_text_input()
 
     def folder_name(self):
-        return f'{self.category}_{self.gender}_{self.name.lower()}'
+        return f'{self.category}_{self.name.lower()}'
 
     def validate(self):
         """Return an error message, or '' if the NPC can be created."""
         if not self.gender:
             return 'Choose woman or man.'
         if not self.name:
-            return 'Type a name.'
+            return 'Type a name or roll the dice.'
+        if self.name.lower() in self.taken:
+            return f'{self.name.capitalize()} is already taken ({self.taken[self.name.lower()]}).'
         if (NPC_DIR / self.folder_name()).exists():
             return f'{self.folder_name()} already exists.'
         return ''
@@ -463,17 +493,41 @@ class NewNpcDialog:
         self.name = (self.name + text)[:NAME_MAX_LENGTH]
         self.error = ''
 
+    def roll(self):
+        """Propose a random free name for the chosen gender."""
+        if not self.gender:
+            self.error = 'Choose woman or man first.'
+            return
+        name = random_name(self.gender, self.taken)
+        if name is None:
+            self.error = 'Every name in medieval_names.py is taken - type one.'
+            return
+        self.name = name
+        self.error = ''
+
     def click(self, pos):
         """Return 'create', 'cancel' or None."""
         for key, button in self.gender_buttons:
             if button.hit(pos):
                 self.gender = key
                 self.error = ''
+        if self.dice_button.hit(pos):
+            self.roll()
         if self.cancel_button.hit(pos):
             return 'cancel'
         if self.create_button.hit(pos):
             return 'create'
         return None
+
+    def draw_die(self, screen, mouse):
+        self.dice_button.draw(screen, self.font, mouse)
+        face = self.dice_button.rect.inflate(-14, -12)
+        face.width = face.height
+        face.center = self.dice_button.rect.center
+        pygame.draw.rect(screen, DIE_COLOR, face, border_radius=5)
+        step = face.width // 4
+        for dx, dy in ((-1, -1), (1, -1), (0, 0), (-1, 1), (1, 1)):  # the five
+            pygame.draw.circle(screen, PIP_COLOR, (face.centerx + dx * step, face.centery + dy * step), 3)
 
     def draw(self, screen, mouse):
         shade = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
@@ -488,13 +542,14 @@ class NewNpcDialog:
             if key == self.gender:
                 pygame.draw.rect(screen, DONE_COLOR, button.rect, 3, border_radius=6)
 
-        label = self.small.render('Name', True, TEXT_DIM)
+        label = self.small.render('Name  (type one, or roll the dice for a free one)', True, TEXT_DIM)
         screen.blit(label, (self.input_rect.x, self.input_rect.y - 22))
         pygame.draw.rect(screen, INPUT_BG, self.input_rect, border_radius=4)
         pygame.draw.rect(screen, CARD_HOVER, self.input_rect, 1, border_radius=4)
         cursor = '|' if pygame.time.get_ticks() // 500 % 2 else ''
         text = self.font.render(self.name.capitalize() + cursor, True, TEXT)
         screen.blit(text, text.get_rect(midleft=(self.input_rect.x + 10, self.input_rect.centery)))
+        self.draw_die(screen, mouse)
 
         if self.error:
             message = self.small.render(self.error, True, ERROR_COLOR)
@@ -503,7 +558,8 @@ class NewNpcDialog:
         else:
             message = None
         if message:
-            screen.blit(message, message.get_rect(midleft=(self.rect.x + 30, self.cancel_button.rect.centery)))
+            # Errors can be long: they get their own line above the buttons.
+            screen.blit(message, (self.rect.x + 30, self.cancel_button.rect.y - 26))
         self.cancel_button.draw(screen, self.font, mouse)
         self.create_button.draw(screen, self.font, mouse)
 
@@ -572,7 +628,8 @@ class ImportTool:
         self.section_titles = []  # (title, count, x, y), filled by layout_cards
 
     def open_new_dialog(self, key, title):
-        self.dialog = NewNpcDialog(key, f'New NPC: {title}', (self.font, self.small, self.title_font))
+        taken = {n.prefix.lower(): n.name for n in self.npcs if n.is_townsperson}
+        self.dialog = NewNpcDialog(key, f'New NPC: {title}', taken, (self.font, self.small, self.title_font))
 
     def create_npc(self):
         error = self.dialog.validate()
@@ -581,6 +638,8 @@ class ImportTool:
             return
         folder = NPC_DIR / self.dialog.folder_name()
         folder.mkdir()
+        profile = {'name': self.dialog.name.capitalize(), 'gender': self.dialog.gender}
+        (folder / PROFILE_FILE).write_text(json.dumps(profile, indent=2) + '\n', encoding='utf-8')
         self.dialog = None
         self.refresh_npcs()
         self.open_npc(next(n for n in self.npcs if n.folder == folder))
