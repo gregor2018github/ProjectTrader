@@ -17,5 +17,6 @@ class TraderWeaver(Trader):
     DEFAULT_NAME = "Weaver"
     TILED_PREFIX = "Weaver"
     MARKET_NAME = "Wool & Hide Market"
+    EXTRA_GOODS = ("Linen",)
     # A skilled craftswoman working her own loom.
     SOCIAL_CLASS = "Commons"

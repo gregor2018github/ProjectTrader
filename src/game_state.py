@@ -11,8 +11,6 @@ from .config.constants import (
     TIME_STEP_LEVEL_3, 
     TIME_STEP_LEVEL_4, 
     TIME_STEP_LEVEL_5,
-    MARKET_OPEN_HOUR,
-    MARKET_CLOSE_HOUR
 )
 
 if TYPE_CHECKING:
@@ -21,6 +19,7 @@ if TYPE_CHECKING:
     from .ui.helper_modules.info_window import InfoWindow
     from .ui.layout_modules.depot_view_detail import DepotViewDetail
     from .models.map import GameMap
+    from .models.institutions.market import Market
 
 # Named tuple for tracking which time units have changed in a tick
 TimeChanges = namedtuple('TimeChanges', ['minute', 'hour', 'day', 'week', 'month', 'year'])
@@ -174,17 +173,37 @@ class GameState:
         """Check if the map is currently being displayed on either side of the screen."""
         return self.left_side_mode == 'map' or self.right_side_mode == 'map'
         
-    @property
-    def is_market_open(self) -> bool:
-        """Check if the market is open for trading at the current game time."""
-        return MARKET_OPEN_HOUR <= self.date.hour < MARKET_CLOSE_HOUR
+    def _markets_selling(self, good_name: str) -> List['Market']:
+        """The market booths a good is traded at.
 
-    @property
-    def market_closed_message(self) -> str:
-        """Message shown when the player tries to trade while the market is closed."""
-        close_text = "midnight" if MARKET_CLOSE_HOUR % 24 == 0 else f"{MARKET_CLOSE_HOUR:02d}:00"
-        return (f"The market is closed. Trading is only possible between "
-                f"{MARKET_OPEN_HOUR:02d}:00 and {close_text}.")
+        A good without a booth of its own is bought and sold at whichever
+        booths there are, so it can be had while any of them is open.
+        """
+        game_map = getattr(self.game, 'game_map', None)
+        if game_map is None:
+            return []
+        markets = game_map.tmx_map.markets_selling(good_name)
+        if not markets:
+            from .models.institutions.market import Market
+            markets = [house for house in game_map.tmx_map.houses if isinstance(house, Market)]
+        return markets
+
+    def is_good_tradable(self, good_name: str) -> bool:
+        """Check whether a booth selling this good is open at the current game time.
+
+        A booth is open while one of its traders is at his stall, so each good
+        has its own, slightly different hours.
+        """
+        markets = self._markets_selling(good_name)
+        return not markets or any(not market.is_closed_at(self.date) for market in markets)
+
+    def good_closed_message(self, good_name: str) -> str:
+        """Message shown when the player tries to trade a good whose booths are all shut."""
+        names = [market.name for market in self._markets_selling(good_name) if market.name]
+        booth = " and the ".join(names) if names else "market"
+        verb, their = ("are", "Their") if len(names) > 1 else ("is", "Its")
+        return (f"The {booth} {verb} closed. {their} traders have gone home for the night "
+                f"and will be back in the morning.")
 
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""

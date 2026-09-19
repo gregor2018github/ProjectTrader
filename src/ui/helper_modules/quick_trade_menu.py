@@ -266,7 +266,7 @@ class TradeMenu:
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
 
         # Buy Button (greyed out while the market is closed)
-        closed = not self.game_state.is_market_open
+        closed = not self.game_state.is_good_tradable(self.good_name)
         buy_rect = self.buttons['buy'].move(offset_x, offset_y)
         buy_color = LIGHT_GRAY if closed else BUY_BUTTON
         if not closed and alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos):

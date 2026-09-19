@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple, List, Optional, Dict
 from ...config.constants import (
     MARKET_OPEN_HOUR,
     MARKET_CLOSE_HOUR,
-    MARKET_SPRITE_SWITCH_JITTER_MINUTES,
+    MARKET_HOURS_JITTER_MINUTES,
 )
 import datetime
 import os
@@ -12,12 +12,51 @@ import pygame
 
 if TYPE_CHECKING:
     from ...game_state import GameState
+    from ..figurines.humans.npcs.trader import Trader
+
+
+class MarketHours:
+    """When one trader packs up at night and comes back in the morning.
+
+    Every trader keeps roughly the usual market hours, but sets off a little
+    earlier or later each night, drawn afresh at noon.
+    """
+
+    def __init__(self) -> None:
+        # Switch times in minutes since noon, rescheduled every night
+        self.close_minute: float = 0.0
+        self.open_minute: float = 0.0
+        self.last_schedule_date: Optional[str] = None
+
+    def is_closed_at(self, current_time: datetime.datetime) -> bool:
+        """Whether it is past closing time and not yet opening time.
+
+        Args:
+            current_time: The current in-game time.
+
+        Returns:
+            bool: True between this night's closing and opening time.
+        """
+        # Shift by 12 hours so one night belongs to one schedule (like the window lights)
+        shifted = current_time - datetime.timedelta(hours=12)
+        cycle_date = shifted.strftime("%Y-%m-%d")
+        if self.last_schedule_date != cycle_date:
+            jitter = MARKET_HOURS_JITTER_MINUTES
+            self.close_minute = (MARKET_CLOSE_HOUR - 12) * 60 + random.uniform(-jitter, jitter)
+            self.open_minute = (MARKET_OPEN_HOUR + 12) * 60 + random.uniform(-jitter, jitter)
+            self.last_schedule_date = cycle_date
+
+        minute_of_cycle = shifted.hour * 60 + shifted.minute + shifted.second / 60
+        return self.close_minute <= minute_of_cycle < self.open_minute
+
 
 class Market(House):
     """Represents a market institution in the game where goods can be traded.
 
-    At night the booth is shown with its closed (tarped) sprite. Each booth
-    switches at a slightly random time around closing and opening hour.
+    A booth is open for as long as one of its traders is minding it: it shuts
+    when the last of them steps off the stall onto his way home, and opens
+    again when the first one is back. At night the booth is shown with its
+    closed (tarped) sprite.
     """
 
     def __init__(self, *args, **kwargs):
@@ -28,10 +67,10 @@ class Market(House):
         self.closed_image_cache: Dict[float, pygame.Surface] = {}
         self.is_closed_sprite: bool = False
 
-        # Switch times in minutes since noon, rescheduled every night
-        self.close_minute: float = 0.0
-        self.open_minute: float = 0.0
-        self.last_schedule_date: Optional[str] = None
+        #: The traders keeping this booth, filled in by the map loader.
+        self.traders: List['Trader'] = []
+        #: Hours kept by a booth nobody has been drawn in for.
+        self.hours = MarketHours()
 
     def _load_closed_image(self) -> Optional[pygame.Surface]:
         """Load the booth's closed sprite; None if the booth has none (it keeps its open sprite)."""
@@ -49,30 +88,18 @@ class Market(House):
     def is_closed_at(self, current_time: datetime.datetime) -> bool:
         """Whether the booth is shut at the given time.
 
-        Each booth closes and opens at a slightly random time around closing
-        and opening hour, drawn afresh every night. Its trader keeps the same
-        hours, so this works for booths without a closed sprite too.
-
         Args:
             current_time: The current in-game time.
 
         Returns:
-            bool: True between this night's closing and opening time.
+            bool: True once none of its traders is at his stall any more.
         """
-        # Shift by 12 hours so one night belongs to one schedule (like the window lights)
-        shifted = current_time - datetime.timedelta(hours=12)
-        cycle_date = shifted.strftime("%Y-%m-%d")
-        if self.last_schedule_date != cycle_date:
-            jitter = MARKET_SPRITE_SWITCH_JITTER_MINUTES
-            self.close_minute = (MARKET_CLOSE_HOUR - 12) * 60 + random.uniform(-jitter, jitter)
-            self.open_minute = (MARKET_OPEN_HOUR + 12) * 60 + random.uniform(-jitter, jitter)
-            self.last_schedule_date = cycle_date
-
-        minute_of_cycle = shifted.hour * 60 + shifted.minute + shifted.second / 60
-        return self.close_minute <= minute_of_cycle < self.open_minute
+        if not self.traders:
+            return self.hours.is_closed_at(current_time)
+        return not any(trader.is_at_stall(current_time) for trader in self.traders)
 
     def update_sprite(self, current_time: datetime.datetime) -> None:
-        """Swap between open and closed sprite depending on the time of day."""
+        """Swap between open and closed sprite as the booth opens and shuts."""
         if self.closed_image is None:
             return
 
@@ -96,13 +123,18 @@ class Market(House):
         if "&" in core_name:
             # Handle dual markets e.g. "Wine & Beer"
             parts = core_name.split("&")
-            return [part.strip() for part in parts]
+            goods = [part.strip() for part in parts]
         else:
             # Single good market
             # Sometimes the name might have extra spaces or ID numbers, checking for known goods?
             # User instruction says "Name of the good and then the word Market"
             # SO we just take the first word if it's "Wood Market", etc.
-            return [core_name]
+            goods = [core_name]
+
+        # Plus whatever its traders sell that the name does not mention
+        for trader in self.traders:
+            goods.extend(good for good in trader.EXTRA_GOODS if good not in goods)
+        return goods
 
     def open_trade_menu(self, game_state: 'GameState', click_pos: Tuple[int, int], good_name: str) -> None:
         """Opens the trade menu for a specific good.

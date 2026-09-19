@@ -172,12 +172,12 @@ def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], 
         return
 
     paused = game_state.time_level == 1
-    closed = not game_state.is_market_open
     sections = [('one', 20), ('two', 390), ('three', 760)]
     for section, x_start in sections:
         good_name = input_fields.get(f'good_{section}')
         if not good_name:
             continue
+        closed = not game_state.is_good_tradable(good_name)
         buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
         sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
         no_license = not depot.has_license(good_name, game_state.date)
@@ -582,7 +582,7 @@ def _draw_bottom_bar(
 
         # Draw buy button
         paused = game_state.time_level == 1
-        closed = not game_state.is_market_open
+        closed = bool(good_name) and not game_state.is_good_tradable(good_name)
         depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
         no_license = depot is not None and not depot.has_license(good_name, game_state.date)
         buy_greyed = paused or closed or no_license

@@ -5,9 +5,11 @@ differ — so the behaviour lives here and a concrete trader is little more than
 a handful of class attributes.
 
 At work a trader walks the patrol path around his stall to a new spot, stands
-there for the best part of an in-game hour, then shuffles somewhere else. He
-keeps his market's hours: when the booth closes he walks home and disappears
-indoors, and when it opens in the morning he steps out and walks back.
+there for the best part of an in-game hour, then shuffles somewhere else.
+Around midnight he packs up, walks home and disappears indoors, and around
+dawn he steps out and walks back; each night a little earlier or later than
+the last. His booth is open while he is minding it: it shuts as he steps off
+the stall onto his way home, and opens again once he is back.
 
 Where he works and lives is drawn on the Tiled "Movements" layer, named after
 his ``TILED_PREFIX`` (``Butcher`` for the butcher):
@@ -20,8 +22,9 @@ his ``TILED_PREFIX`` (``Butcher`` for the butcher):
 
 import datetime
 import random
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
+from ....institutions.market import MarketHours
 from ...patrol_path import PatrolPath
 from .npc import NPC
 
@@ -69,6 +72,8 @@ class Trader(NPC):
     TILED_PREFIX: str = ""
     #: Name of the Market object (on the "Houses" layer) his stall belongs to.
     MARKET_NAME: str = ""
+    #: Goods he sells that his market's name does not mention.
+    EXTRA_GOODS: Tuple[str, ...] = ()
 
     def __init__(self, x: float, y: float, tile_size: int, name: Optional[str] = None) -> None:
         """Place the trader on the map.
@@ -94,7 +99,7 @@ class Trader(NPC):
         self.idle_until: Optional[datetime.datetime] = None
 
         # Filled in by the map loader from the Tiled data.
-        #: The market booth he keeps; its opening hours are his working hours.
+        #: The market booth he keeps; it is open while he is at his stall.
         self.market: Optional['Market'] = None
         #: The path around his stall that he walks while at work.
         self.stall_path: Optional[PatrolPath] = None
@@ -107,6 +112,8 @@ class Trader(NPC):
         self.state: str = WORKING
         # In-game time of the last update, to notice when time ran on unseen.
         self.last_update_time: Optional[datetime.datetime] = None
+        #: When he packs up and when he comes back, a little different each night.
+        self.hours = MarketHours()
 
     def set_workplace(self, stall_path: PatrolPath, market: Optional['Market']) -> None:
         """Put the trader to work at his stall.
@@ -176,13 +183,38 @@ class Trader(NPC):
     # Daily schedule
     # ------------------------------------------------------------------
 
-    def _market_closed(self, current_time: datetime.datetime) -> bool:
-        """Whether his booth is shut, i.e. he should be at home.
+    def _off_duty(self, current_time: datetime.datetime) -> bool:
+        """Whether it is time for him to be at home rather than at work.
 
         Args:
             current_time: The current in-game time.
         """
-        return self.market is not None and self.market.is_closed_at(current_time)
+        return self.hours.is_closed_at(current_time)
+
+    def _is_unseen(self, current_time: datetime.datetime) -> bool:
+        """Whether time ran on without him, so his state no longer says where he is.
+
+        Args:
+            current_time: The current in-game time.
+        """
+        return (self.last_update_time is None
+                or abs(current_time - self.last_update_time)
+                > datetime.timedelta(minutes=CATCH_UP_MINUTES))
+
+    def is_at_stall(self, current_time: datetime.datetime) -> bool:
+        """Whether he is minding his stall, which keeps his booth open.
+
+        He counts as there until he steps off the stall onto his way home, and
+        again once he is back on it. While the map is not shown he does not
+        move, so he is then taken to be wherever his hours would have put
+        him, just as he is placed when the map is shown again.
+
+        Args:
+            current_time: The current in-game time.
+        """
+        if self.homeway is None or self.stall_path is None or self._is_unseen(current_time):
+            return not self._off_duty(current_time)
+        return self.state in (WORKING, LEAVING_STALL)
 
     def _catch_up(self, current_time: datetime.datetime) -> None:
         """Put him straight where he belongs after time ran on unseen.
@@ -192,7 +224,7 @@ class Trader(NPC):
         """
         self.stop()
         self.idle_until = None
-        if self._market_closed(current_time):
+        if self._off_duty(current_time):
             self.state = AT_HOME
             self.set_path(self.homeway, self.homeway.length)
             self.fade_out(0.0)
@@ -202,15 +234,14 @@ class Trader(NPC):
             self.fade_in(0.0)
 
     def _keep_hours(self, current_time: datetime.datetime) -> None:
-        """Set off home when the booth closes, and back when it opens.
+        """Set off home at the end of his day, and back at the start of the next.
 
         A change of mind on the way simply turns him round.
 
         Args:
             current_time: The current in-game time.
         """
-        closed = self._market_closed(current_time)
-        if closed:
+        if self._off_duty(current_time):
             if self.state == WORKING:
                 self.state = LEAVING_STALL
                 self.walk_to_distance(self.stall_exit_distance)
@@ -259,10 +290,7 @@ class Trader(NPC):
                 his working day.
         """
         if self.homeway is not None and self.stall_path is not None:
-            unseen = (self.last_update_time is None
-                      or abs(current_time - self.last_update_time)
-                      > datetime.timedelta(minutes=CATCH_UP_MINUTES))
-            if unseen:
+            if self._is_unseen(current_time):
                 self._catch_up(current_time)
             self._keep_hours(current_time)
         self.last_update_time = current_time

@@ -729,6 +729,8 @@ class TMXMap:
              if isinstance(house, Market) and house.name == trader_class.MARKET_NAME),
             None,
         )
+        if market is not None:
+            market.traders.append(trader)
         stall_path = self._movement_path(stall)
         if stall_path is None:
             # A plain point or rectangle: he simply stands there.
@@ -787,6 +789,15 @@ class TMXMap:
         # Update building light groups (handles timing and individual light flicker)
         for group in self.building_light_groups.values():
             group.update(current_time)
+
+    def markets_selling(self, good_name: str) -> List[Market]:
+        """The market booths at which the given good is traded.
+
+        Args:
+            good_name: Name of the good.
+        """
+        return [house for house in self.houses
+                if isinstance(house, Market) and good_name in house.get_trade_options()]
 
     def update_markets(self, current_time: datetime.datetime) -> None:
         """Switch market booths between their open and closed sprites."""

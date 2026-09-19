@@ -503,9 +503,9 @@ class HouseMenu:
         return title_font
 
     def _is_market_open(self) -> bool:
-        """Market opening hours only matter for market booths."""
+        """Whether this booth has a trader at it; opening hours only matter for market booths."""
         from ...models.institutions.market import Market
-        return not isinstance(self.house, Market) or self.game_state.is_market_open
+        return not isinstance(self.house, Market) or not self.house.is_closed_at(self.game_state.date)
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         """Handle clicks on the menu. Returns True if handled/closed."""
@@ -529,7 +529,9 @@ class HouseMenu:
             if rect.collidepoint(pos):
                 if option in self.disabled_options:
                     if not self._is_market_open():
-                        self.game_state.show_warning(self.game_state.market_closed_message)
+                        self.game_state.show_warning(
+                            f"The {self.house.name} is closed. Its traders have gone home "
+                            f"for the night and will be back in the morning.")
                     return True  # absorb click, do nothing
                 if self.callback:
                     self.callback(option)
