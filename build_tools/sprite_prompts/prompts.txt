@@ -221,27 +221,23 @@ Keep the palette soft and cozy, with cream, off-white, sheep gray, light brown a
 
 ==================== Beer trader (female) ====================
 
-The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a woman who sells beer at the town market.
 
-The new character is a female beer trader, a medieval alewife who brews her own ale and sells it at the town market.
+The most important thing is that she looks like she comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
 
-Match the original sprite exactly in:
-- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
-- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
-- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
-- Background: plain white, with no shadow, ground or scenery.
+Only her hair and clothes are different:
+- Reddish-brown hair under a simple white head cloth.
+- A dark-green laced bodice over a white blouse with short sleeves.
+- A long brown skirt with a plain amber-yellow apron.
+- Simple brown shoes.
 
-Make her clearly a different person from the player and clearly an alewife who trades beer:
-- A plump, jolly middle-aged woman with round red cheeks and a big smile.
-- Reddish-brown hair pinned up, under a white linen coif.
-- A dark-green bodice laced at the front over a white blouse with puffy short sleeves.
-- A long brown skirt with an amber-yellow apron on top, with a few ale splashes on it.
-- A small wooden tankard hanging from a cord at her belt, not in her hands.
-- Simple brown leather shoes peeking out under the skirt.
+Her hands are empty and hang at her sides, holding nothing.
 
-Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
-
-Keep the palette warm and homely, with amber, honey yellow, dark green, brown and white, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+Keep the colors simple: dark green, amber, brown and white. Change only the right side and leave the left side exactly as it is. Output the full split image.
 
 
 ==================== Linen trader (female) ====================
