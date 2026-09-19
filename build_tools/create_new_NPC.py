@@ -1,9 +1,9 @@
 """Turn a Gemini result image into a finished NPC sprite.
 
-Counterpart of gemini_sprite_sheet.py. Gemini returns the sheet you gave it
+Counterpart of create_new_pose.py. Gemini returns the sheet you gave it
 with the empty cell filled in. Both layouts are understood:
 
-    1x2 (first sprite of a new NPC)       2x2 (sheet from gemini_sprite_sheet.py)
+    1x2 (first sprite of a new NPC)       2x2 (sheet from create_new_pose.py)
     +-----------+-----------+             +-----------+-----------+
     | player    | new NPC   |             | player    | NPC       |
     +-----------+-----------+             +-----------+-----------+
@@ -20,7 +20,7 @@ the player's canvas size, e.g. npcs/trader_vintner/vintner_front_static.png.
 
 Run from anywhere:
 
-    python build_tools/gemini_sprite_import.py
+    python build_tools/create_new_NPC.py
 
 The window can be resized or maximised; F11 switches to full screen.
 
@@ -45,7 +45,7 @@ from pathlib import Path
 import pygame
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from gemini_sprite_sheet import (  # noqa: E402
+from create_new_pose import (  # noqa: E402
     BG, BUTTON_BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SIZE, DONE_COLOR, FOOTER_HEIGHT,
     HEADER_HEIGHT, NPC_DIR, OUTPUT_DIR, PLAYER_DIR, ROOT, TEXT, TEXT_DIM, THUMB_BG, THUMB_SIZE,
     Button, Card, find_base, make_thumb, open_window, toggle_fullscreen, window_size,

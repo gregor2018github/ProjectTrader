@@ -3,7 +3,7 @@
 Every sheet has the same layout:
 
     +---------------------------+---------------------------+
-    | player_<base>.png         | <npc>_<base>.png          |
+    | player_front_static.png   | <npc>_front_static.png    |
     +---------------------------+---------------------------+
     | player_<pose>.png         | (empty - Gemini draws the |
     |                           |  NPC in this pose here)   |
@@ -14,13 +14,14 @@ white margin around each sprite.
 
 Run from anywhere:
 
-    python build_tools/gemini_sprite_sheet.py
+    python build_tools/create_new_pose.py
 
 The window can be resized or maximised; F11 switches to full screen.
 
-1. Pick the NPC (every folder in humans/npcs that holds a standing sprite,
-   e.g. vintner_front_static.png; see BASE_POSES). The player is shown in
-   the same standing pose next to it.
+1. Pick the NPC (every folder in humans/npcs that holds a front standing
+   sprite, e.g. vintner_front_static.png). The top row of every sheet always
+   shows the player and the NPC standing front on (SHEET_BASE_POSE), never a
+   side view, whatever pose is asked for.
 2. Pick one or more player poses. Poses the NPC already has a sprite for are
    marked "done"; "Select missing" picks all the others at once.
 3. Generate. One sheet per pose is written to build_tools/output/<npc>/,
@@ -39,8 +40,10 @@ PLAYER_DIR = HUMANS_DIR / 'player'
 NPC_DIR = HUMANS_DIR / 'npcs'
 OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 
-# Standing poses an NPC sheet can start from, in order of preference
+# Standing poses an NPC can be recognised by, in order of preference
 BASE_POSES = ('front_static', 'left_static', 'right_static', 'back_static')
+# The pose shown in the top row of every sheet
+SHEET_BASE_POSE = 'front_static'
 
 # Sheet appearance
 SHEET_SCALE = 2          # integer upscale of the sprites (nearest neighbour)
@@ -120,12 +123,12 @@ class Npc:
         return self.folder / f'{self.prefix}_{pose}.png'
 
 
-def find_base(folder):
+def find_base(folder, poses=BASE_POSES):
     """Return (pose, prefix) of the NPC's first standing sprite, or None.
 
     'vintner_front_static.png' -> ('front_static', 'vintner')
     """
-    for pose in BASE_POSES:
+    for pose in poses:
         matches = sorted(folder.glob(f'*_{pose}.png'))
         if matches:
             return pose, matches[0].stem[:-len(pose) - 1]
@@ -135,7 +138,7 @@ def find_base(folder):
 def find_npcs():
     npcs = []
     for folder in sorted(p for p in NPC_DIR.iterdir() if p.is_dir()):
-        base = find_base(folder)
+        base = find_base(folder, (SHEET_BASE_POSE,))
         if base:
             npcs.append(Npc(folder, *base))
     return npcs
@@ -358,7 +361,7 @@ class SheetTool:
             hint = 'Click to toggle. Each selected pose becomes one sheet. "done" = the NPC already has that sprite.'
         else:
             title = '1. Choose the NPC'
-            hint = f'Folders in {NPC_DIR.relative_to(ROOT)} that contain a standing sprite ({", ".join(BASE_POSES)})'
+            hint = f'Folders in {NPC_DIR.relative_to(ROOT)} that contain a {SHEET_BASE_POSE} sprite'
             if not cards:
                 hint = 'No NPC found. ' + hint
         self.screen.blit(self.title_font.render(title, True, TEXT), (20, 12))

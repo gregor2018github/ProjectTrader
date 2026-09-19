@@ -1,4 +1,4 @@
-"""Medieval first names for townsfolk, used by gemini_sprite_import.py.
+"""Medieval first names for townsfolk, used by create_new_NPC.py.
 
 Plain lists, so adding a name is adding a line. Keep them letters only: a
 name becomes part of the NPC's folder and sprite file names.
