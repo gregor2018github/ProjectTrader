@@ -16,7 +16,7 @@ out of their white background, recognises which player pose the reference is,
 and scales the NPC by the same factor that brings the reference back to the
 size of the real player sprite. That keeps every NPC frame in proportion with
 the player and with each other. The result is saved as a transparent PNG in
-the player's canvas size, e.g. npcs/trader_vintner/vintner_left_static.png.
+the player's canvas size, e.g. npcs/trader_vintner/vintner_front_static.png.
 
 Run from anywhere:
 
@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gemini_sprite_sheet import (  # noqa: E402
     BG, BUTTON_BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SIZE, DONE_COLOR, FOOTER_HEIGHT,
     HEADER_HEIGHT, NPC_DIR, OUTPUT_DIR, PLAYER_DIR, ROOT, TEXT, TEXT_DIM, THUMB_BG, THUMB_SIZE,
-    WINDOW_SIZE, BASE_SUFFIX, Button, Card, make_thumb,
+    WINDOW_SIZE, Button, Card, find_base, make_thumb,
 )
 
 # Cell detection
@@ -79,17 +79,15 @@ class Npc:
     def __init__(self, folder):
         self.folder = folder
         self.name = folder.name
-        bases = sorted(folder.glob(f'*{BASE_SUFFIX}.png'))
-        if bases:
-            # 'butcher_left_static.png' -> 'butcher'
-            self.prefix = bases[0].stem[:-len(BASE_SUFFIX)]
-        else:
-            # 'trader_vintner' -> 'vintner'
-            self.prefix = folder.name.split('_', 1)[-1]
+        base = find_base(folder)
+        # No sprite yet: 'trader_vintner' -> 'vintner'
+        self.prefix = base[1] if base else folder.name.split('_', 1)[-1]
 
     @property
     def base_path(self):
-        return self.sprite_path(BASE_SUFFIX[1:])
+        """First standing sprite, used as thumbnail; None if there is none."""
+        base = find_base(self.folder)
+        return self.sprite_path(base[0]) if base else None
 
     def sprite_path(self, pose):
         return self.folder / f'{self.prefix}_{pose}.png'
@@ -430,7 +428,7 @@ class ImportTool:
     # --- state ------------------------------------------------------------
 
     def make_npc_card(self, npc):
-        thumb = make_thumb(npc.base_path) if npc.base_path.exists() else self.placeholder
+        thumb = make_thumb(npc.base_path) if npc.base_path else self.placeholder
         done = sum(npc.sprite_path(pose).exists() for pose in self.player_poses)
         return Card(npc, npc.name, thumb, f'{done}/{len(self.player_poses)} sprites')
 

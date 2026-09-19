@@ -3,7 +3,7 @@
 Every sheet has the same layout:
 
     +---------------------------+---------------------------+
-    | player_left_static.png    | <npc>_left_static.png     |
+    | player_<base>.png         | <npc>_<base>.png          |
     +---------------------------+---------------------------+
     | player_<pose>.png         | (empty - Gemini draws the |
     |                           |  NPC in this pose here)   |
@@ -16,7 +16,9 @@ Run from anywhere:
 
     python build_tools/gemini_sprite_sheet.py
 
-1. Pick the NPC (every folder in humans/npcs that holds a *_left_static.png).
+1. Pick the NPC (every folder in humans/npcs that holds a standing sprite,
+   e.g. vintner_front_static.png; see BASE_POSES). The player is shown in
+   the same standing pose next to it.
 2. Pick one or more player poses. Poses the NPC already has a sprite for are
    marked "done"; "Select missing" picks all the others at once.
 3. Generate. One sheet per pose is written to build_tools/output/<npc>/,
@@ -35,8 +37,8 @@ PLAYER_DIR = HUMANS_DIR / 'player'
 NPC_DIR = HUMANS_DIR / 'npcs'
 OUTPUT_DIR = Path(__file__).resolve().parent / 'output'
 
-PLAYER_BASE = 'player_left_static'
-BASE_SUFFIX = '_left_static'
+# Standing poses an NPC sheet can start from, in order of preference
+BASE_POSES = ('front_static', 'left_static', 'right_static', 'back_static')
 
 # Sheet appearance
 SHEET_SCALE = 2          # integer upscale of the sprites (nearest neighbour)
@@ -69,8 +71,8 @@ BUTTON_DISABLED = (70, 66, 60)
 
 PROMPT_TEMPLATE = """\
 The attached picture holds a 2x2 grid of pixel-art sprites for my medieval trading game "Merchant's Rise".
-Top left: the main character in his standard pose (facing left).
-Top right: {npc} in exactly the same standard pose.
+Top left: the main character in a standing pose.
+Top right: {npc} in exactly the same standing pose.
 Bottom left: the main character in a different pose.
 Bottom right (red frame) is empty. Draw {npc} there, in exactly the same pose as the main character in the bottom left.
 Keep {npc}'s look, clothing, colours, proportions and pixel-art style from the top right sprite, and keep the same size and white background.
@@ -82,23 +84,35 @@ Keep {npc}'s look, clothing, colours, proportions and pixel-art style from the t
 # ---------------------------------------------------------------------------
 
 class Npc:
-    def __init__(self, folder, base_path):
+    def __init__(self, folder, base_pose, prefix):
         self.folder = folder
         self.name = folder.name
-        self.base_path = base_path
-        # 'butcher_left_static.png' -> 'butcher'
-        self.prefix = base_path.stem[:-len(BASE_SUFFIX)]
+        self.base_pose = base_pose
+        self.prefix = prefix
+        self.base_path = self.sprite_path(base_pose)
 
     def sprite_path(self, pose):
         return self.folder / f'{self.prefix}_{pose}.png'
 
 
+def find_base(folder):
+    """Return (pose, prefix) of the NPC's first standing sprite, or None.
+
+    'vintner_front_static.png' -> ('front_static', 'vintner')
+    """
+    for pose in BASE_POSES:
+        matches = sorted(folder.glob(f'*_{pose}.png'))
+        if matches:
+            return pose, matches[0].stem[:-len(pose) - 1]
+    return None
+
+
 def find_npcs():
     npcs = []
     for folder in sorted(p for p in NPC_DIR.iterdir() if p.is_dir()):
-        bases = sorted(folder.glob(f'*{BASE_SUFFIX}.png'))
-        if bases:
-            npcs.append(Npc(folder, bases[0]))
+        base = find_base(folder)
+        if base:
+            npcs.append(Npc(folder, *base))
     return npcs
 
 
@@ -106,9 +120,7 @@ def find_player_poses():
     """Return {pose: path}, e.g. {'front_move1': .../player_front_move1.png}."""
     poses = {}
     for path in sorted(PLAYER_DIR.glob('player_*.png')):
-        pose = path.stem[len('player_'):]
-        if path.stem != PLAYER_BASE:
-            poses[pose] = path
+        poses[path.stem[len('player_'):]] = path
     return poses
 
 
@@ -155,7 +167,7 @@ def build_sheet(player_base, npc_base, player_pose):
 def generate(npc, poses, player_poses):
     out_dir = OUTPUT_DIR / npc.name
     out_dir.mkdir(parents=True, exist_ok=True)
-    player_base = PLAYER_DIR / f'{PLAYER_BASE}.png'
+    player_base = player_poses[npc.base_pose]
     for pose in poses:
         sheet = build_sheet(player_base, npc.base_path, player_poses[pose])
         pygame.image.save(sheet, str(out_dir / f'{npc.prefix}_{pose}_sheet.png'))
@@ -313,7 +325,7 @@ class SheetTool:
             hint = 'Click to toggle. Each selected pose becomes one sheet. "done" = the NPC already has that sprite.'
         else:
             title = '1. Choose the NPC'
-            hint = f'Folders in {NPC_DIR.relative_to(ROOT)} that contain a *{BASE_SUFFIX}.png'
+            hint = f'Folders in {NPC_DIR.relative_to(ROOT)} that contain a standing sprite ({", ".join(BASE_POSES)})'
             if not cards:
                 hint = 'No NPC found. ' + hint
         self.screen.blit(self.title_font.render(title, True, TEXT), (20, 12))
