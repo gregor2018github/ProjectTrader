@@ -22,7 +22,11 @@ Run from anywhere:
 
     python build_tools/gemini_sprite_import.py
 
-1. Pick the NPC (every folder in humans/npcs, empty ones included).
+1. Pick the NPC. Folders in humans/npcs are grouped by their name:
+   trader_<trade> for traders, <class>_<gender>_<name> for townsfolk, e.g.
+   commons_female_greta (class: poor, commons, middling, nobility). The "+"
+   card of a population class adds a new townsperson: choose woman or man,
+   type a name, and the folder is created.
 2. Drop the Gemini image onto the window, or click "Open image".
 3. Check the pose (it is detected, click another one to change it). Enclosed
    white areas (e.g. a gap between arm and body) stay white; click them in the
@@ -70,6 +74,21 @@ REF_COLOR = (80, 200, 110)
 TARGET_COLOR = (220, 60, 60)
 ERROR_COLOR = (240, 110, 90)
 
+# NPC groups on the start screen: (folder name start, title, can add new ones)
+CATEGORIES = (
+    ('trader', 'Traders', False),
+    ('poor', 'Poor', True),
+    ('commons', 'Commons', True),
+    ('middling', 'Middling Sort', True),
+    ('nobility', 'Nobility', True),
+)
+OTHER = ('other', 'Other folders', False)
+GENDERS = (('female', 'Woman'), ('male', 'Man'))
+SECTION_HEADER = 42
+NAME_MAX_LENGTH = 16
+DIALOG_SIZE = (520, 290)
+INPUT_BG = (30, 28, 26)
+
 
 # ---------------------------------------------------------------------------
 # Data
@@ -79,9 +98,26 @@ class Npc:
     def __init__(self, folder):
         self.folder = folder
         self.name = folder.name
+        parts = folder.name.split('_')
+        keys = [key for key, _, _ in CATEGORIES]
+        self.category = parts[0] if parts[0] in keys else OTHER[0]
+        # 'commons_female_greta' -> 'female'; traders have no gender in the name
+        genders = [key for key, _ in GENDERS]
+        self.gender = parts[1] if len(parts) == 3 and parts[1] in genders else None
         base = find_base(folder)
-        # No sprite yet: 'trader_vintner' -> 'vintner'
-        self.prefix = base[1] if base else folder.name.split('_', 1)[-1]
+        # No sprite yet: 'trader_vintner' -> 'vintner', 'commons_female_greta' -> 'greta'
+        self.prefix = base[1] if base else folder.name.rsplit('_', 1)[-1]
+
+    @property
+    def label(self):
+        """Card label: the folder for traders, the name for townsfolk."""
+        return self.prefix.capitalize() if self.gender else self.name
+
+    @property
+    def title(self):
+        if self.gender:
+            return f'{self.prefix.capitalize()} ({dict(GENDERS)[self.gender].lower()}, {self.category})'
+        return self.name
 
     @property
     def base_path(self):
@@ -388,6 +424,90 @@ def ask_open_file():
     return path or None
 
 
+class NewNpcDialog:
+    """Asks for gender and name of a new townsperson."""
+
+    def __init__(self, category, title, fonts):
+        self.category = category
+        self.title = title
+        self.font, self.small, self.title_font = fonts
+        self.gender = None
+        self.name = ''
+        self.error = ''
+        self.rect = pygame.Rect((0, 0), DIALOG_SIZE)
+        self.rect.center = (WINDOW_SIZE[0] // 2, WINDOW_SIZE[1] // 2)
+        x, y = self.rect.x + 30, self.rect.y + 80
+        self.gender_buttons = [(key, Button(label, x + i * 140, y, 120, 40))
+                               for i, (key, label) in enumerate(GENDERS)]
+        self.input_rect = pygame.Rect(x, y + 80, self.rect.w - 60, 40)
+        self.cancel_button = Button('Cancel', self.rect.right - 290, self.rect.bottom - 58, 120)
+        self.create_button = Button('Create', self.rect.right - 150, self.rect.bottom - 58, 120)
+        pygame.key.start_text_input()
+
+    def folder_name(self):
+        return f'{self.category}_{self.gender}_{self.name.lower()}'
+
+    def validate(self):
+        """Return an error message, or '' if the NPC can be created."""
+        if not self.gender:
+            return 'Choose woman or man.'
+        if not self.name:
+            return 'Type a name.'
+        if (NPC_DIR / self.folder_name()).exists():
+            return f'{self.folder_name()} already exists.'
+        return ''
+
+    def type_text(self, text):
+        # Letters only: the name becomes part of the folder and file names.
+        text = ''.join(c for c in text if c.isascii() and c.isalpha())
+        self.name = (self.name + text)[:NAME_MAX_LENGTH]
+        self.error = ''
+
+    def click(self, pos):
+        """Return 'create', 'cancel' or None."""
+        for key, button in self.gender_buttons:
+            if button.hit(pos):
+                self.gender = key
+                self.error = ''
+        if self.cancel_button.hit(pos):
+            return 'cancel'
+        if self.create_button.hit(pos):
+            return 'create'
+        return None
+
+    def draw(self, screen, mouse):
+        shade = pygame.Surface(WINDOW_SIZE, pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 150))
+        screen.blit(shade, (0, 0))
+        pygame.draw.rect(screen, BG, self.rect, border_radius=10)
+        pygame.draw.rect(screen, CARD_HOVER, self.rect, 2, border_radius=10)
+        screen.blit(self.title_font.render(self.title, True, TEXT), (self.rect.x + 30, self.rect.y + 22))
+
+        for key, button in self.gender_buttons:
+            button.draw(screen, self.font, mouse)
+            if key == self.gender:
+                pygame.draw.rect(screen, DONE_COLOR, button.rect, 3, border_radius=6)
+
+        label = self.small.render('Name', True, TEXT_DIM)
+        screen.blit(label, (self.input_rect.x, self.input_rect.y - 22))
+        pygame.draw.rect(screen, INPUT_BG, self.input_rect, border_radius=4)
+        pygame.draw.rect(screen, CARD_HOVER, self.input_rect, 1, border_radius=4)
+        cursor = '|' if pygame.time.get_ticks() // 500 % 2 else ''
+        text = self.font.render(self.name.capitalize() + cursor, True, TEXT)
+        screen.blit(text, text.get_rect(midleft=(self.input_rect.x + 10, self.input_rect.centery)))
+
+        if self.error:
+            message = self.small.render(self.error, True, ERROR_COLOR)
+        elif self.gender and self.name:
+            message = self.small.render(self.folder_name(), True, TEXT_DIM)
+        else:
+            message = None
+        if message:
+            screen.blit(message, message.get_rect(midleft=(self.rect.x + 30, self.cancel_button.rect.centery)))
+        self.cancel_button.draw(screen, self.font, mouse)
+        self.create_button.draw(screen, self.font, mouse)
+
+
 class ImportTool:
     def __init__(self):
         pygame.init()
@@ -410,9 +530,13 @@ class ImportTool:
         text = self.small.render('no sprite yet', True, (120, 120, 120))
         self.placeholder.blit(text, text.get_rect(center=self.placeholder.get_rect().center))
         self.checker_compare = checkerboard(COMPARE_RECT.size)
+        self.plus_thumb = pygame.Surface(THUMB_SIZE)
+        self.plus_thumb.fill(CARD_BG)
+        plus = pygame.font.SysFont('segoeui', 90).render('+', True, TEXT_DIM)
+        self.plus_thumb.blit(plus, plus.get_rect(center=self.plus_thumb.get_rect().center))
 
-        self.npcs = find_npcs()
-        self.npc_cards = [self.make_npc_card(n) for n in self.npcs]
+        self.dialog = None
+        self.refresh_npcs()
         self.npc = None
         self.result = None
         self.scroll = 0
@@ -430,7 +554,37 @@ class ImportTool:
     def make_npc_card(self, npc):
         thumb = make_thumb(npc.base_path) if npc.base_path else self.placeholder
         done = sum(npc.sprite_path(pose).exists() for pose in self.player_poses)
-        return Card(npc, npc.name, thumb, f'{done}/{len(self.player_poses)} sprites')
+        note = f'{done}/{len(self.player_poses)} sprites'
+        if npc.gender:
+            note = f'{dict(GENDERS)[npc.gender].lower()}, {note}'
+        return Card(npc, npc.label, thumb, note)
+
+    def refresh_npcs(self):
+        """Re-read the NPC folders and group their cards into sections."""
+        self.npcs = find_npcs()
+        self.sections = []  # (title, [cards])
+        for key, title, can_add in CATEGORIES + (OTHER,):
+            cards = [self.make_npc_card(n) for n in self.npcs if n.category == key]
+            if can_add:
+                cards.append(Card(('add', key, title), 'Add NPC', self.plus_thumb, 'woman or man'))
+            if cards:
+                self.sections.append((title, cards))
+        self.section_titles = []  # (title, count, x, y), filled by layout_cards
+
+    def open_new_dialog(self, key, title):
+        self.dialog = NewNpcDialog(key, f'New NPC: {title}', (self.font, self.small, self.title_font))
+
+    def create_npc(self):
+        error = self.dialog.validate()
+        if error:
+            self.dialog.error = error
+            return
+        folder = NPC_DIR / self.dialog.folder_name()
+        folder.mkdir()
+        self.dialog = None
+        self.refresh_npcs()
+        self.open_npc(next(n for n in self.npcs if n.folder == folder))
+        self.set_status(f'Created {folder.relative_to(ROOT)}')
 
     def open_npc(self, npc):
         self.npc = npc
@@ -438,7 +592,7 @@ class ImportTool:
         self.status = ''
 
     def back(self):
-        self.npc_cards = [self.make_npc_card(n) for n in self.npcs]
+        self.refresh_npcs()
         self.npc = None
         self.result = None
         self.scroll = 0
@@ -470,16 +624,26 @@ class ImportTool:
 
     # --- npc list ---------------------------------------------------------
 
+    def all_cards(self):
+        return [card for _, cards in self.sections for card in cards]
+
     def layout_cards(self):
         per_row = max(1, (WINDOW_SIZE[0] - CARD_GAP) // (CARD_SIZE[0] + CARD_GAP))
         row_w = per_row * CARD_SIZE[0] + (per_row - 1) * CARD_GAP
         left = (WINDOW_SIZE[0] - row_w) // 2
-        for i, card in enumerate(self.npc_cards):
-            row, col = divmod(i, per_row)
-            card.rect.topleft = (left + col * (CARD_SIZE[0] + CARD_GAP),
-                                 HEADER_HEIGHT + CARD_GAP + row * (CARD_SIZE[1] + CARD_GAP) - self.scroll)
-        rows = (len(self.npc_cards) + per_row - 1) // per_row
-        content_h = rows * (CARD_SIZE[1] + CARD_GAP) + CARD_GAP
+        top = HEADER_HEIGHT + CARD_GAP
+        y = top - self.scroll
+        self.section_titles = []
+        for title, cards in self.sections:
+            count = sum(1 for card in cards if isinstance(card.key, Npc))
+            self.section_titles.append((title, count, left, y))
+            y += SECTION_HEADER
+            for i, card in enumerate(cards):
+                row, col = divmod(i, per_row)
+                card.rect.topleft = (left + col * (CARD_SIZE[0] + CARD_GAP), y + row * (CARD_SIZE[1] + CARD_GAP))
+            rows = (len(cards) + per_row - 1) // per_row
+            y += rows * (CARD_SIZE[1] + CARD_GAP) + CARD_GAP
+        content_h = y + self.scroll - top
         return max(0, content_h - (WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT))
 
     def draw_card(self, card, mouse):
@@ -494,7 +658,14 @@ class ImportTool:
     def draw_npc_list(self, mouse):
         clip = pygame.Rect(0, HEADER_HEIGHT, WINDOW_SIZE[0], WINDOW_SIZE[1] - HEADER_HEIGHT - FOOTER_HEIGHT)
         self.screen.set_clip(clip)
-        for card in self.npc_cards:
+        for title, count, x, y in self.section_titles:
+            text = self.font.render(title, True, TEXT)
+            self.screen.blit(text, (x, y + 8))
+            number = self.small.render(f'{count} NPC{"" if count == 1 else "s"}', True, TEXT_DIM)
+            self.screen.blit(number, (x + text.get_width() + 12, y + 11))
+            line_x = x + text.get_width() + number.get_width() + 24
+            pygame.draw.line(self.screen, CARD_BG, (line_x, y + 21), (WINDOW_SIZE[0] - x, y + 21), 1)
+        for card in self.all_cards():
             if card.rect.colliderect(clip):
                 self.draw_card(card, mouse)
         self.screen.set_clip(None)
@@ -600,14 +771,16 @@ class ImportTool:
         self.screen.fill(BG)
         if self.npc:
             self.draw_import(mouse)
-            title = f'2. Load a Gemini result for "{self.npc.name}"'
+            title = f'2. Load a Gemini result for "{self.npc.title}"'
             hint = f'Sprites are saved as {self.npc.prefix}_<pose>.png in {self.npc.folder.relative_to(ROOT)}'
         else:
             self.draw_npc_list(mouse)
             title = '1. Choose the NPC'
-            hint = f'Folders in {NPC_DIR.relative_to(ROOT)}'
+            hint = f'Folders in {NPC_DIR.relative_to(ROOT)}. Click "+" to add a townsperson.'
         self.screen.blit(self.title_font.render(title, True, TEXT), (20, 12))
         self.screen.blit(self.small.render(hint, True, TEXT_DIM), (22, 56))
+        if self.dialog:
+            self.dialog.draw(self.screen, mouse)
 
         pygame.draw.line(self.screen, CARD_BG, (0, WINDOW_SIZE[1] - FOOTER_HEIGHT),
                          (WINDOW_SIZE[0], WINDOW_SIZE[1] - FOOTER_HEIGHT), 2)
@@ -622,9 +795,12 @@ class ImportTool:
     def click(self, pos):
         if not self.npc:
             if HEADER_HEIGHT <= pos[1] < WINDOW_SIZE[1] - FOOTER_HEIGHT:
-                for card in self.npc_cards:
+                for card in self.all_cards():
                     if card.rect.collidepoint(pos):
-                        self.open_npc(card.key)
+                        if isinstance(card.key, Npc):
+                            self.open_npc(card.key)
+                        else:
+                            self.open_new_dialog(*card.key[1:])
             return
 
         if self.back_button.hit(pos):
@@ -644,6 +820,24 @@ class ImportTool:
                 if self.result.target.surface.get_rect().collidepoint(point) and self.result.target.toggle_hole(point):
                     self.result.build()
 
+    def dialog_event(self, event):
+        action = None
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                action = 'cancel'
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                action = 'create'
+            elif event.key == pygame.K_BACKSPACE:
+                self.dialog.name = self.dialog.name[:-1]
+        elif event.type == pygame.TEXTINPUT:
+            self.dialog.type_text(event.text)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            action = self.dialog.click(event.pos)
+        if action == 'cancel':
+            self.dialog = None
+        elif action == 'create':
+            self.create_npc()
+
     def open_dialog(self):
         path = ask_open_file()
         if path:
@@ -656,6 +850,9 @@ class ImportTool:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return
+                if self.dialog:
+                    self.dialog_event(event)
+                    continue
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         if self.npc:
