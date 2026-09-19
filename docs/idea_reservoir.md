@@ -1,5 +1,10 @@
 HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 
+- inflation
+    - prices will increase over time, reflecting the effects of inflation
+    - especially hits property, cost of living, wages, and everyday goods
+    - triggered and introduced by coin cutting event
+
 - add a building mode
     - available via a main button at the right side of the screen
     - will be some special map view, a bit more zoomed out where the player can place new buildings and roads
