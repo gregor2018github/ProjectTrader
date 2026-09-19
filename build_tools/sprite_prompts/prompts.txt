@@ -1,7 +1,7 @@
-The attached picture holds a split view. The left side holds a sprite of the main character for my game "Merchant's Rise". It is a medieval trading game. 
-The right side of the split view is empty. I want you to display a new character there. The new character shall hold the same posture as the original character on the left side. The new character on the right side must be a butcher / meat trader.
+Prompts for Trader Sprites on the market
 
-==================== Wine trader ====================
+
+==================== Wine trader (male) ====================
 
 The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
 
@@ -47,3 +47,223 @@ Make her clearly a different person from the player and clearly a farmer who tra
 Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, sacks, baskets, sheaves or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
 
 Keep the palette earthy and rural, with wheat-gold, ochre, straw-yellow, cream, off-white and brown, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Wood trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a wood trader, a burly woodcutter from the forest who sells timber and firewood at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a woodcutter who trades wood:
+- A broad, strong man with a full, bushy red-brown beard and weathered cheeks.
+- Shaggy hair under a knitted green-brown cap.
+- A moss-green wool tunic with the sleeves pushed up.
+- A thick brown leather vest and a wide leather belt.
+- Dark trousers wrapped with cloth strips below the knee, and heavy brown boots.
+
+In one hand he holds a woodcutter's axe with a wooden handle and a gray iron head, held low at his side with the head pointing down, in the same place as the pouch in the original. The other hand hangs empty.
+
+Keep the palette earthy and woodland-like, with moss green, bark brown, dark brown and a touch of rust red, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Stone trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a stone trader, a stonemason from the quarry who sells cut stone at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a stonemason who trades stone:
+- A lean, wiry older man with a gray stubble beard and a serious, squinting look.
+- Short gray-brown hair, partly covered by a simple off-white cloth cap.
+- A gray or dusty-blue work tunic with a light coat of pale stone dust on it.
+- A heavy leather apron over the tunic, scuffed and pale with dust.
+- A belt with a small mason's hammer and a chisel tucked into it at the hip, not in his hands.
+- Gray trousers and sturdy brown boots.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette muted and dusty, with stone gray, ash, dusty blue, off-white and leather brown, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Iron trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is an iron trader, a blacksmith who sells iron bars and tools at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a blacksmith who trades iron:
+- A very strong, broad-shouldered man with thick forearms and a short black beard.
+- Short dark hair, a few soot smudges on his face.
+- A short-sleeved dark gray shirt that shows his strong arms.
+- A long, thick black-brown leather smith's apron from chest to knees.
+- Dark trousers and heavy black boots.
+
+In one hand he holds a smith's hammer with a short wooden handle and a dark iron head, held low at his side with the head pointing down, in the same place as the pouch in the original. The other hand hangs empty.
+
+Keep the palette dark and smoky, with charcoal, iron gray, black, leather brown and a small touch of glowing orange, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Hide trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a hide trader, a tanner who sells leather and animal hides at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a tanner who trades hides:
+- A gruff, stocky man with a crooked nose, a patchy brown beard and a rough, outdoorsy look.
+- Messy dark-brown hair, no hat.
+- A plain beige linen shirt under a patched leather jerkin made of different shades of brown leather.
+- A short fur collar across the shoulders.
+- Leather trousers, leather wrist guards and worn brown boots.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette earthy and leathery, with tan, saddle brown, dark brown, beige and a little gray fur, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Fish trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a fish trader, a fisherman from the river who sells fresh fish at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a fisherman who trades fish:
+- A weather-beaten, cheerful man with a sunburnt face and a short salt-and-pepper beard.
+- Messy hair under a floppy, wide-brimmed blue-gray cloth hat.
+- A faded blue tunic with white stripes.
+- A long oiled-cloth apron in dark teal, a little wet-looking.
+- Trousers rolled up to below the knee and tall dark leather boots.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette cool and watery, with faded blue, teal, gray, off-white and a little brown, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Pottery trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a pottery trader, a potter who sells jugs, bowls and pots at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a potter who trades pottery:
+- A slim, calm young man with a gentle face and a thin mustache.
+- Curly chestnut hair tied back in a short ponytail, with a cloth headband.
+- A terracotta-orange tunic with the sleeves rolled up and clay smudges on his forearms.
+- A cream apron with reddish-brown clay stains.
+- Brown trousers and simple leather shoes.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette warm and earthy, with terracotta, clay red, burnt orange, cream and brown, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Wool trader (female) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a female wool trader, a shepherdess who sells the wool of her own sheep at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make her clearly a different person from the player and clearly a shepherdess who trades wool:
+- A young, lively woman with rosy cheeks and a friendly smile.
+- Long dark-brown hair in two braids, with a white woolen hood.
+- A thick, knitted cream-colored woolen shawl around her shoulders.
+- A long dress in soft sheep-gray or light brown, reaching down to her ankles.
+- A small ball of wool yarn tucked into a pouch at her belt, not in her hands.
+- Simple brown leather shoes peeking out under the dress.
+
+Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette soft and cozy, with cream, off-white, sheep gray, light brown and a touch of soft green, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Beer trader (female) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a female beer trader, a medieval alewife who brews her own ale and sells it at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make her clearly a different person from the player and clearly an alewife who trades beer:
+- A plump, jolly middle-aged woman with round red cheeks and a big smile.
+- Reddish-brown hair pinned up, under a white linen coif.
+- A dark-green bodice laced at the front over a white blouse with puffy short sleeves.
+- A long brown skirt with an amber-yellow apron on top, with a few ale splashes on it.
+- A small wooden tankard hanging from a cord at her belt, not in her hands.
+- Simple brown leather shoes peeking out under the skirt.
+
+Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette warm and homely, with amber, honey yellow, dark green, brown and white, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Linen trader (female) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a female linen trader, a weaver who sells the linen cloth she weaves at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make her clearly a different person from the player and clearly a weaver who trades linen:
+- A slender, neat and graceful woman with a calm, clever face.
+- Light-blond hair in a tidy bun, with a thin pale-blue ribbon.
+- A long, clean linen dress in natural off-white with a finely woven pale-blue trim at the collar, cuffs and hem.
+- A light-blue sash tied around her waist.
+- A small spindle tucked into her sash, not in her hands.
+- Simple light-brown leather shoes peeking out under the dress.
+
+Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette light and clean, with natural linen white, flax beige, pale blue and soft gray, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
