@@ -78,4 +78,4 @@ The `Movements` object layer drives map inhabitants: a rectangle named `Sheep` b
 | `assets/tiles/` | Tiled tilesets and `.tmx` map file |
 | `assets/pictures/` | All PNG assets (icons, portraits, buttons, goods) |
 | `docs/TODO.md` | Active feature backlog and known bugs |
-| `build_tools/` | Standalone dev scripts, not part of the game (e.g. `gemini_sprite_sheet.py` builds 2x2 reference sheets for generating NPC sprites) |
+| `build_tools/` | Standalone dev scripts, not part of the game (e.g. `gemini_sprite_sheet.py` builds 2x2 reference sheets for generating NPC sprites, `gemini_sprite_import.py` turns Gemini's answer into a finished transparent sprite; prompts live in `sprite_prompts/`) |
