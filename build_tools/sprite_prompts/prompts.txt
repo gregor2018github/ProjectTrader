@@ -263,3 +263,170 @@ Make her clearly a different person from the player and clearly a weaver who tra
 Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
 
 Keep the palette light and clean, with natural linen white, flax beige, pale blue and soft gray, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+######################## Street walkers (one per population class) ########################
+
+==================== Beggar (male, Poor) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a poor beggar who wanders the town streets.
+
+The most important thing is that he looks like he comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only his hair and clothes are different:
+- Messy, uncombed dark hair.
+- A torn, patched gray-brown tunic that is too big for him.
+- A frayed rope as a belt.
+- Ragged dark trousers ending above the ankles.
+- Bare feet or cloth wrapped around the feet.
+
+His hands are empty and hang at his sides, holding nothing.
+
+Keep the colors simple: dull gray, faded brown and dark brown. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Maid (female, Commons) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a simple town maid who runs errands in the streets.
+
+The most important thing is that she looks like she comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only her hair and clothes are different:
+- Dark-blond hair in a short braid under a plain white cap.
+- A plain light-blue dress with long sleeves.
+- A white apron over the dress.
+- Simple brown shoes.
+
+Her hands are empty and hang at her sides, holding nothing.
+
+Keep the colors simple: light blue, white and brown. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Merchant (male, Middling Sort) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a wealthy town merchant who walks the streets.
+
+The most important thing is that he looks like he comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only his hair and clothes are different:
+- Short dark hair under a round dark-red cap.
+- A long dark-red coat reaching to the knees, with a brown fur collar.
+- A black leather belt with a small gold buckle.
+- Dark trousers and polished black boots.
+
+His hands are empty and hang at his sides, holding nothing.
+
+Keep the colors simple: dark red, brown, black and a little gold. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Noble lady (female, Nobility) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a noble lady who strolls through the town.
+
+The most important thing is that she looks like she comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only her hair and clothes are different:
+- Long light-blond hair under a small golden circlet.
+- A long royal-blue gown reaching to the ground, with golden trim at the collar and hem.
+- A short white fur cape over the shoulders.
+- Only the tips of small dark shoes visible under the gown.
+
+Her hands are empty and hang at her sides, holding nothing.
+
+Keep the colors simple: royal blue, gold and white. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+######################## Street walkers, second set (other gender) ########################
+
+==================== Poor woman (female, Poor) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a poor woman in worn-out clothes who wanders the town streets.
+
+The most important thing is that she looks like she comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only her hair and clothes are different:
+- Straggly gray-brown hair, partly covered by a dark, frayed shawl over her head and shoulders.
+- A long, faded olive-green dress with patches and a torn hem.
+- A piece of string as a belt.
+- Worn-out wooden clogs.
+
+Her hands are empty and hang at her sides, holding nothing.
+
+Keep the colors simple: faded olive green, dark gray and dull brown. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Apprentice (male, Commons) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a young craftsman's apprentice who hurries through the town streets.
+
+The most important thing is that he looks like he comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only his hair and clothes are different:
+- Short red hair under a simple brown hood that lies on his shoulders.
+- A plain mustard-yellow tunic with short sleeves over a white shirt.
+- A brown leather belt.
+- Brown trousers and simple brown shoes.
+
+His hands are empty and hang at his sides, holding nothing.
+
+Keep the colors simple: mustard yellow, brown and white. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Burgher's wife (female, Middling Sort) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: the well-dressed wife of a rich town burgher who walks the streets.
+
+The most important thing is that she looks like she comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only her hair and clothes are different:
+- Dark-brown hair, mostly hidden under a white wimple that covers her head, neck and chin edge.
+- A long dark-green gown reaching to the ground, with wide sleeves.
+- A thin golden belt around her waist.
+- Only the tips of dark shoes visible under the gown.
+
+Her hands are empty and hang at her sides, holding nothing.
+
+Keep the colors simple: dark green, white and a little gold. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+==================== Nobleman (male, Nobility) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side: a nobleman who strolls through the town.
+
+The most important thing is that he looks like he comes from the exact same game as the character on the left:
+- Copy his art style exactly: the same big, blocky pixels (same pixel size, not finer), the same thick dark outline, the same flat colors with only one or two shades per color. No anti-aliasing, gradients, blur or extra detail.
+- Copy his body exactly: the same chibi proportions, the same head size and shape, the same height and width, the same front-facing standing pose, arms hanging at the sides, feet in the same place.
+- Copy his face exactly. Do not add or change any facial features.
+- Plain white background, no shadow or ground.
+
+Only his hair and clothes are different:
+- Shoulder-length black hair under a purple velvet hat with a white feather.
+- A purple doublet with silver buttons and puffed sleeves.
+- A short black cloak over one shoulder.
+- Black hose and tall black riding boots.
+
+His hands are empty and hang at his sides, holding nothing.
+
+Keep the colors simple: purple, black, white and a little silver. Change only the right side and leave the left side exactly as it is. Output the full split image.
