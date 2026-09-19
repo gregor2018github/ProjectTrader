@@ -34,9 +34,10 @@ TIME_STEP_LEVEL_4 = 1.00            # Level 4: Fast
 TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 
 # MARKET OPENING HOURS (trading is only possible while the market is open)
-MARKET_OPEN_HOUR = 5                # Traders set off for their stalls around 05:00
-MARKET_CLOSE_HOUR = 24              # Traders pack up around midnight (24 = end of day); a booth shuts once its last trader has left the stall
-MARKET_HOURS_JITTER_MINUTES = 20    # Each trader sets off up to this many minutes before/after those hours, drawn afresh every night
+# Each trader draws his own times from these windows every night (hours of the day, 24 = midnight).
+# A booth shuts once its last trader has left the stall and opens when the first is back.
+MARKET_CLOSE_WINDOW = (22.0, 24.0)  # Traders pack up and walk home between 22:00 and midnight
+MARKET_OPEN_WINDOW = (4.75, 6.75)   # Traders set off for their stalls between 04:45 and 06:45
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 

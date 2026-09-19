@@ -6,9 +6,9 @@ a handful of class attributes.
 
 At work a trader walks the patrol path around his stall to a new spot, stands
 there for the best part of an in-game hour, then shuffles somewhere else.
-Around midnight he packs up, walks home and disappears indoors, and around
-dawn he steps out and walks back; each night a little earlier or later than
-the last. His booth is open while he is minding it: it shuts as he steps off
+Some time between 22:00 and midnight he packs up, walks home and disappears
+indoors, and some time between 04:45 and 06:45 he steps out and walks back;
+each night at a different time. His booth is open while he is minding it: it shuts as he steps off
 the stall onto his way home, and opens again once he is back.
 
 Where he works and lives is drawn on the Tiled "Movements" layer, named after

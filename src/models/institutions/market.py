@@ -1,9 +1,8 @@
 from ..house import House
 from typing import TYPE_CHECKING, Tuple, List, Optional, Dict
 from ...config.constants import (
-    MARKET_OPEN_HOUR,
-    MARKET_CLOSE_HOUR,
-    MARKET_HOURS_JITTER_MINUTES,
+    MARKET_CLOSE_WINDOW,
+    MARKET_OPEN_WINDOW,
 )
 import datetime
 import os
@@ -18,8 +17,8 @@ if TYPE_CHECKING:
 class MarketHours:
     """When one trader packs up at night and comes back in the morning.
 
-    Every trader keeps roughly the usual market hours, but sets off a little
-    earlier or later each night, drawn afresh at noon.
+    Every trader packs up somewhere in ``MARKET_CLOSE_WINDOW`` and comes back
+    somewhere in ``MARKET_OPEN_WINDOW``, drawn afresh at noon each day.
     """
 
     def __init__(self) -> None:
@@ -41,9 +40,8 @@ class MarketHours:
         shifted = current_time - datetime.timedelta(hours=12)
         cycle_date = shifted.strftime("%Y-%m-%d")
         if self.last_schedule_date != cycle_date:
-            jitter = MARKET_HOURS_JITTER_MINUTES
-            self.close_minute = (MARKET_CLOSE_HOUR - 12) * 60 + random.uniform(-jitter, jitter)
-            self.open_minute = (MARKET_OPEN_HOUR + 12) * 60 + random.uniform(-jitter, jitter)
+            self.close_minute = (random.uniform(*MARKET_CLOSE_WINDOW) - 12) * 60
+            self.open_minute = (random.uniform(*MARKET_OPEN_WINDOW) + 12) * 60
             self.last_schedule_date = cycle_date
 
         minute_of_cycle = shifted.hour * 60 + shifted.minute + shifted.second / 60
