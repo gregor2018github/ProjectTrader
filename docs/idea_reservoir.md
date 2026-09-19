@@ -5,6 +5,11 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - especially hits property, cost of living, wages, and everyday goods
     - triggered and introduced by coin cutting event
 
+- property
+    - players can not just buy property but also sell it
+    - buying and selling property has a real estate agent fee, so that way house flipping is expensive and must be considered carefully
+    - there must be monthly taxes or maintenance costs associated with owning property
+
 - add a building mode
     - available via a main button at the right side of the screen
     - will be some special map view, a bit more zoomed out where the player can place new buildings and roads
