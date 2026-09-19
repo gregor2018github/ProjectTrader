@@ -85,7 +85,7 @@ class Trader(NPC):
         self._init_human_animator(
             sprite_dir=self.sprite_dir,
             sprite_definitions=self._sprite_definitions(),
-            fallback_static=f"{self.SPRITE_PREFIX}_left_static.png",
+            fallback_static=self._fallback_static(),
             normalize=True,
         )
 

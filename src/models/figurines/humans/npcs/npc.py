@@ -29,6 +29,9 @@ ARRIVAL_TOLERANCE = 1.0
 # rather than flickering between "left" and "front_left".
 DIAGONAL_THRESHOLD = 0.4
 
+# Standing poses tried, in order, for the fallback / size-reference sprite.
+FALLBACK_DIRECTIONS = ("left", "front", "right", "back")
+
 # The town's four population groups, named as in the population statistics.
 SOCIAL_CLASSES = ("Poor", "Commons", "Middling Sort", "Nobility")
 
@@ -80,6 +83,22 @@ class NPC(Human):
     def sprite_dir(self) -> str:
         """Directory holding this NPC's artwork."""
         return os.path.join(NPC_SPRITE_ROOT, self.SPRITE_FOLDER)
+
+    def _fallback_static(self) -> str:
+        """Filename of the standing sprite used as fallback and size reference.
+
+        The animator scales every frame relative to this one, so it must be
+        real artwork. Traders are drawn from one side first and filled in
+        later, so take the first standing pose that exists.
+
+        Returns:
+            str: e.g. ``"butcher_left_static.png"``.
+        """
+        for direction in FALLBACK_DIRECTIONS:
+            filename = f"{self.SPRITE_PREFIX}_{direction}_static.png"
+            if os.path.exists(os.path.join(self.sprite_dir, filename)):
+                return filename
+        return f"{self.SPRITE_PREFIX}_{FALLBACK_DIRECTIONS[0]}_static.png"
 
     def _sprite_definitions(self) -> Dict[str, Dict[str, Any]]:
         """Build the per-direction filename mapping from ``SPRITE_PREFIX``.

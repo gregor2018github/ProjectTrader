@@ -26,7 +26,9 @@ from .smoke import SmokeEmitter
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
 from .figurines.humans.npcs.npc import NPC
-from .figurines.humans.npcs.trader_butcher import TraderButcher
+from .figurines.humans.npcs import (
+    TraderButcher, TraderFarmer, TraderFisherman, TraderPotter, TraderVintner, TraderWeaver,
+)
 from .figurines.patrol_path import PatrolPath
 from .water import Water, Ripple, water_tile_variant
 
@@ -653,6 +655,11 @@ class TMXMap:
     # his shapes in Tiled and adding his class here.
     TRADER_TYPES: Tuple[type, ...] = (
         TraderButcher,
+        TraderFarmer,
+        TraderFisherman,
+        TraderPotter,
+        TraderVintner,
+        TraderWeaver,
     )
 
     def _load_movements(self) -> None:
