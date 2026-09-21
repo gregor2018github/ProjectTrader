@@ -1,0 +1,3 @@
+# Extra dependencies for the build tools; the game itself needs only ../requirements.txt
+# Image generation in create_new_pose.py (needs GEMINI_API_KEY in the environment or in ../.env)
+google-genai>=1.0.0
