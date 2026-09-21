@@ -16,6 +16,7 @@ import pygame
 from ...config import settings_store
 from ...config.colors import DARK_BROWN, BLACK
 from ...config.constants import FONTS_PATH, SHEEP_VOLUME
+from ..text_reveal import LetterReveal
 from .house_click_menu import get_hovered_house, is_player_near
 
 if TYPE_CHECKING:
@@ -491,8 +492,11 @@ class FigurineSpeech(_FigurineBubble):
         # own, more forgiving distance in draw()
         self.house = None
         # Rendered once; the text never changes while the bubble is open
-        self.line_surfs = [self.text_font.render(line, True, BLACK)
-                           for line in _wrap_text(text, self.text_font, SPEECH_MAX_TEXT_WIDTH)]
+        lines = _wrap_text(text, self.text_font, SPEECH_MAX_TEXT_WIDTH)
+        self.line_surfs = [self.text_font.render(line, True, BLACK).convert_alpha()
+                           for line in lines]
+        # The figurine speaks: the line appears letter by letter
+        self.reveal = LetterReveal(list(zip(self.line_surfs, lines)), self.text_font)
         # Measured, because RomanAntique reports a far too small get_linesize()
         self.line_height = self.text_font.size("Ag")[1]
 
@@ -544,6 +548,9 @@ class FigurineSpeech(_FigurineBubble):
         """Close on the cross or outside the bubble. Returns True if handled."""
         if self.close_hit_rect.collidepoint(pos) or not self.rect.collidepoint(pos):
             self.close()
+        elif not self.reveal.is_complete:
+            # Clicking the bubble itself finishes the line for an impatient player
+            self.reveal.skip()
         return True
 
     def _draw_content(self, surf: pygame.Surface, offset: Tuple[int, int],
@@ -555,11 +562,15 @@ class FigurineSpeech(_FigurineBubble):
         pygame.draw.line(surf, DARK_BROWN, cross.topleft, cross.bottomright, 2)
         pygame.draw.line(surf, DARK_BROWN, cross.bottomleft, cross.topright, 2)
 
+        # The bubble follows the figurine, so the lines are placed fresh each
+        # frame and handed to the reveal rather than positioned once
         body = self.rect.move(offset)
+        positions = []
         y = body.y + self.content_top + SPEECH_TEXT_GAP
         for line_surf in self.line_surfs:
-            surf.blit(line_surf, line_surf.get_rect(midtop=(body.centerx, y)))
+            positions.append(line_surf.get_rect(midtop=(body.centerx, y)).topleft)
             y += self.line_height
+        self.reveal.draw(surf, positions)
 
 
 def _wrap_text(text: str, font: pygame.font.Font, max_width: int) -> List[str]:

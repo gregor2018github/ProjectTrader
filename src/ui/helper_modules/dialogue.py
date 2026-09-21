@@ -1,7 +1,8 @@
 import pygame
-from typing import List, Optional, Tuple, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
 from ..ui_utils import draw_9slice
+from ..text_reveal import LetterReveal
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -10,8 +11,12 @@ class Dialogue:
     """A UI component that provides a semi-transparent dialogue window with portraits and options.
     
     Handles word-wrapped text rendering, portrait scaling, and interactive button logic.
+
+    The dialogue text is revealed one letter at a time: each glyph fades in
+    and drifts up into place, so several neighbouring letters are always
+    mid-fade and the line arrives as a soft wave rather than a hard cursor.
     """
-    
+
     def __init__(self, screen: pygame.Surface, game: 'Game', picture: str, npc_name: str, text: str, answers: Optional[List[str]] = None, sound: Optional[str] = None) -> None:
         """
         Initialize a dialogue with an NPC
@@ -82,6 +87,18 @@ class Dialogue:
             dialogue_height
         )
         
+        # Text area inside the dialogue window (also used by the reveal animation)
+        self.text_rect: pygame.Rect = pygame.Rect(
+            self.dialogue_rect.x + 20,
+            self.dialogue_rect.y + 70,
+            self.dialogue_rect.width - 40,
+            self.dialogue_rect.height - 150
+        )
+
+        # Letter-by-letter reveal state
+        self._word_positions: List[Tuple[int, int]] = []
+        self._layout_text()
+
         # Create buttons for answers
         self.buttons: List[Tuple[pygame.Rect, str]] = []
         button_width: int = min(dialogue_width - 40, 200)
@@ -138,16 +155,8 @@ class Dialogue:
         name_text = self.font.render(self.npc_name, True, DARK_BROWN)
         self.screen.blit(name_text, (self.dialogue_rect.x + 60, self.dialogue_rect.y + 25))
         
-        # Draw dialogue text (with word wrapping)
-        self._draw_wrapped_text(
-            self.text,
-            pygame.Rect(
-                self.dialogue_rect.x + 20,
-                self.dialogue_rect.y + 70,
-                self.dialogue_rect.width - 40,
-                self.dialogue_rect.height - 150
-            )
-        )
+        # Draw dialogue text (word wrapped, revealed letter by letter)
+        self._draw_animated_text()
         
         # Get mouse position for hover effects
         mouse_pos = pygame.mouse.get_pos()
@@ -166,54 +175,65 @@ class Dialogue:
             text_rect = text_surface.get_rect(center=button_rect.center)
             self.screen.blit(text_surface, text_rect)
     
-    def _draw_wrapped_text(self, text: str, rect: pygame.Rect) -> None:
-        """Draw text that automatically wraps within the given rectangle.
-        
-        Ensures that text does not overlap decorated borders.
-        
-        Args:
-            text: The text to render.
-            rect: Target rectangle for text area.
+    def _layout_text(self) -> None:
+        """Word-wrap the text once and hand the words to the reveal animation.
+
+        Wrapping matches the plain rendering exactly: each word is rendered
+        whole and placed at the same position, so the finished text is
+        identical to drawing it in one go.
         """
         font = self.font
+        rect = self.text_rect
         font_height: int = font.size("Tg")[1]
-        
-        words: List[str] = text.split(' ')
         space_width: int = font.size(' ')[0]
-        
-        # Define margins to account for decorative borders
-        x_margin: float = 0.09 * rect.width    # 9% margin necessary for the width
-        y_margin: float = 0.12 * rect.height   # 12% margin necessary for the height
-        
-        # Starting position WITH margin offsets
-        x: int = rect.left + int(x_margin/2)  # Add left margin
-        y: int = rect.top + int(y_margin/2)   # Add top margin
-        
-        # Calculate available space for text
-        max_x: int = rect.right - int(x_margin/2)  # Right boundary
-        max_y: int = rect.bottom - int(y_margin/2)  # Bottom boundary
-        
-        line_spacing: int = int(font_height * 0.2)  # Add 20% of font height as line spacing
-        
-        for word in words:
-            word_surface = font.render(word, True, BLACK)
-            word_width, word_height = word_surface.get_size()
-            
-            # Check if we need to wrap to the next line
+
+        # Margins to account for the decorated borders (as before)
+        x_margin: float = 0.09 * rect.width
+        y_margin: float = 0.12 * rect.height
+
+        left: int = rect.left + int(x_margin / 2)
+        x: int = left
+        y: int = rect.top + int(y_margin / 2)
+        max_x: int = rect.right - int(x_margin / 2)
+        max_y: int = rect.bottom - int(y_margin / 2)
+        line_spacing: int = int(font_height * 0.2)
+
+        segments: List[Tuple[pygame.Surface, str]] = []
+        self._word_positions = []
+
+        for word in self.text.split(' '):
+            word_width, word_height = font.size(word)
+
+            # Wrap to the next line
             if x + word_width >= max_x:
-                x = rect.left + int(x_margin/2)  # Reset to left margin, not left edge
+                x = left
                 y += font_height + line_spacing
-                
-            # Check if we've exceeded the height and need to stop
+
+            # Out of vertical room: reveal an ellipsis and stop
             if y + word_height > max_y:
-                # Add ellipsis to indicate truncated text
-                ellipsis = font.render("...", True, BLACK)
-                self.screen.blit(ellipsis, (x, y))
+                segments.append((font.render("...", True, BLACK).convert_alpha(), "..."))
+                self._word_positions.append((x, y))
                 break
-                
-            self.screen.blit(word_surface, (x, y))
+
+            segments.append((font.render(word, True, BLACK).convert_alpha(), word))
+            self._word_positions.append((x, y))
             x += word_width + space_width
-    
+
+        self._reveal = LetterReveal(segments, font)
+
+    @property
+    def is_text_complete(self) -> bool:
+        """True once every letter of the dialogue text has appeared."""
+        return self._reveal.is_complete
+
+    def skip_text_animation(self) -> None:
+        """Show the whole text at once (used when the player clicks early)."""
+        self._reveal.skip()
+
+    def _draw_animated_text(self) -> None:
+        """Draw the text, each letter fading in and drifting up into place."""
+        self._reveal.draw(self.screen, self._word_positions)
+
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
         """Handle mouse clicks on dialogue options.
         
@@ -225,7 +245,14 @@ class Dialogue:
         """
         if not self.active:
             return None
-            
+
+        # While the text is still appearing, a click finishes it rather than
+        # picking an answer - otherwise an eager click selects something the
+        # player has not finished reading.
+        if not self.is_text_complete:
+            self.skip_text_animation()
+            return None
+
         for button_rect, answer in self.buttons:
             if button_rect.collidepoint(pos):
                 self.result = answer
