@@ -176,10 +176,16 @@ class TMXMap:
 
         # Everything that blocks a walker is parsed by now, so the grid the
         # townsfolk find their way on can be rasterized and the doors placed
-        # against it.
-        self.nav: NavGrid = NavGrid(self)
-        self._load_doors()
+        # against it. The townsfolk come first only so that the grid can be
+        # told how big a figure it is keeping in sight.
         townsfolk = discover_townsfolk(self.tile_size)
+        figure_size = max(
+            ((person.sprite_width, person.sprite_height) for person in townsfolk),
+            key=lambda size: size[0] * size[1],
+            default=None,
+        )
+        self.nav: NavGrid = NavGrid(self, figure_size)
+        self._load_doors()
         self.street_life: StreetLife = StreetLife(self.doors, townsfolk, self.nav)
         # They are ordinary NPCs for drawing, clicking and updating; only the
         # decision to send them out is StreetLife's.
@@ -675,7 +681,7 @@ class TMXMap:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Doors":
                 for obj in layer:
                     door = Door(obj.id, obj.name or "", obj.x, obj.y,
-                                self.tile_size, self.nav)
+                                self.tile_size, self.nav, self.is_standable)
                     if door.is_usable:
                         self.doors.append(door)
                     else:
@@ -843,19 +849,53 @@ class TMXMap:
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
         """Check if the given rect collides with any map objects (houses, trees, sheep, or water)."""
+        if self.check_scenery_collision(rect):
+            return True
+        for sheep in self.sheep:
+            if sheep.collision_rect.colliderect(rect):
+                return True
+        return False
+
+    def check_scenery_collision(self, rect: pygame.Rect) -> bool:
+        """Check the given rect against everything on the map that never moves.
+
+        The same blockers as :meth:`check_object_collision` minus the sheep,
+        for the map data that is worked out once at load time and must not
+        depend on where an animal happened to be standing.
+
+        Args:
+            rect: The rectangle to test, in world pixels.
+        """
         for house in self.houses:
             if house.collision_rect.colliderect(rect):
                 return True
         for tree in self.trees:
             if tree.collision_rect.colliderect(rect):
                 return True
-        for sheep in self.sheep:
-            if sheep.collision_rect.colliderect(rect):
-                return True
         for water in self.waters:
             if water.collides_with_rect(rect):
                 return True
         return False
+
+    def is_standable(self, feet_x: float, feet_y: float) -> bool:
+        """Whether a figurine standing here would keep clear of the scenery.
+
+        Measured with the same feet box :meth:`MapPlayer.can_move_to` moves
+        under, so an NPC stops exactly where the player would -- which, for a
+        house, is far enough out that the building never draws over them (a
+        house y-sorts on its own top edge, above its collision rect).
+
+        Args:
+            feet_x: World X the figure stands at.
+            feet_y: World Y the figure stands at.
+        """
+        collision_height = self.tile_size / 2 - 2
+        return not self.check_scenery_collision(pygame.Rect(
+            int(round(feet_x - self.tile_size / 2)),
+            int(round(feet_y - collision_height)),
+            int(self.tile_size),
+            int(collision_height),
+        ))
 
 
     def is_walkable(self, x: int, y: int) -> bool:

@@ -39,6 +39,12 @@ SPEED_VARIATION = 0.18
 PAUSE_GAP_MIN = 140.0
 PAUSE_GAP_MAX = 520.0
 
+#: How far they walk while fading in or out at a doorway, in tiles. The fade
+#: is paced by distance rather than tied to the doorway itself: a walker stops
+#: at the door's entry, which is only as far in as the player would be let, so
+#: the doorway leg alone is too short a stretch to disappear over.
+DOORWAY_FADE_TILES = 1.5
+
 #: How long such a stop lasts, in real seconds.
 PAUSE_SECONDS_MIN = 1.5
 PAUSE_SECONDS_MAX = 6.0
@@ -181,13 +187,13 @@ class Townsperson(NPC):
             door: The door they live behind from now on.
         """
         self.home_door = door
-        self.rest_left = random.uniform(REST_SECONDS_MIN, REST_SECONDS_MAX)
         self.target_door = None
+        self.rest_left = random.uniform(REST_SECONDS_MIN, REST_SECONDS_MAX)
         self.state = AT_HOME
         self.stop()
         self.path = None
         self.fade_out(0.0)
-        self.place_feet(*door.threshold)
+        self.place_feet(*door.entry)
 
     def begin_outing(
         self,
@@ -208,22 +214,24 @@ class Townsperson(NPC):
         """
         if self.home_door is None or not route:
             return False
-        points = [self.home_door.threshold] + list(route) + [target_door.threshold]
+        # From doorway to doorway, but only as far in as the entry: walking all
+        # the way onto the Tiled point would put them behind the house.
+        points = [self.home_door.entry] + list(route) + [target_door.entry]
         path = PatrolPath(points, closed=False)
-        # Both doorway legs must survive PatrolPath's de-duplication, or there
-        # is nothing to fade across.
-        if not path or len(path.segment_ends) < 3:
+        fade = DOORWAY_FADE_TILES * self.tile_size
+        # A walk too short to fade in and out over is not worth taking
+        if not path or path.length <= fade * 2.0:
             return False
 
         self.target_door = target_door
         self.state = STEPPING_OUT
-        self._emerge_distance = path.segment_ends[0]
-        self._vanish_distance = path.segment_ends[-2]
+        self._emerge_distance = fade
+        self._vanish_distance = path.length - fade
         self.set_path(path, 0.0)
         self.walk_to_distance(path.length)
 
         self.opacity = 0.0
-        self.fade_in(self._emerge_distance / self.speed)
+        self.fade_in(fade / self.speed)
         self._pause_left = 0.0
         self._schedule_pause()
         return True

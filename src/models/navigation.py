@@ -11,11 +11,19 @@ The grid is one cell per tile. A cell counts as walkable when a figurine
 standing in it would not touch a house, a tree or the water -- the same
 blockers :meth:`TMXMap.check_object_collision` tests, minus the sheep, who
 wander and would only make the grid lie.
+
+It blocks one thing collision does not: the cells a walker would be *invisible*
+in. A house is drawn from its own base upwards and sorts on that base, so the
+band of ground behind a tall building is walkable but hidden. The player never
+minds, being steered by someone who can see where they are going, but a
+townsperson routed through it simply disappears into the wall and comes out the
+other side. Those cells are blocked too, so a route goes round what you can
+see, not merely round what you can bump into.
 """
 
 import heapq
 import math
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
 
 import pygame
 
@@ -50,21 +58,39 @@ MAX_SEARCH_CELLS = 20000
 #: How far out from a blocked cell to look for a walkable one, in cells.
 NEAREST_FREE_RADIUS = 6
 
+#: How much of a walker's sprite has to be hidden behind a building before the
+#: ground they stand on counts as no place to walk. Well short of all of it:
+#: passing behind the corner of a house is ordinary, vanishing is not.
+OCCLUSION_COVER = 0.7
+
+#: Figure size assumed when no walker is on hand to measure, as multiples of a
+#: tile: one tile wide and a good head taller.
+DEFAULT_FIGURE_SIZE = (1.0, 1.7)
+
 
 class NavGrid:
     """A walkability grid over the map, with A* routing on top of it."""
 
-    def __init__(self, tmx_map: 'TMXMap') -> None:
+    def __init__(
+        self, tmx_map: 'TMXMap', figure_size: Optional[Tuple[int, int]] = None
+    ) -> None:
         """Rasterize the map's static collision into a grid of tiles.
 
         Args:
             tmx_map: The loaded map. Its houses, trees and waters must already
                 be parsed.
+            figure_size: Width and height of the sprite of whoever walks this
+                grid, in world pixels, for working out where they would be
+                hidden. Defaults to :data:`DEFAULT_FIGURE_SIZE`.
         """
         self.tile_size: int = tmx_map.tile_size
         self.width: int = tmx_map.width
         self.height: int = tmx_map.height
         self.blocked: bytearray = bytearray(self.width * self.height)
+        self.figure_size: Tuple[int, int] = figure_size or (
+            int(DEFAULT_FIGURE_SIZE[0] * self.tile_size),
+            int(DEFAULT_FIGURE_SIZE[1] * self.tile_size),
+        )
         self._rasterize(tmx_map)
 
     # ------------------------------------------------------------------
@@ -94,6 +120,62 @@ class NavGrid:
         for cell_x, cell_y in tmx_map.water_tiles:
             if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
                 self.blocked[cell_y * self.width + cell_x] = 1
+
+        # Last, because it only ever looks at cells the collision left free
+        self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))
+
+    def _block_occluders(self, occluders: Sequence[Any]) -> None:
+        """Block the cells a walker would stand all but hidden in.
+
+        Args:
+            occluders: Everything drawn from a ground baseline and sorted on
+                it -- houses and trees. Each needs ``x``, ``y`` (the bottom
+                left of its sprite), ``y_sort`` and ``image``.
+        """
+        figure_width, figure_height = self.figure_size
+        half_width = figure_width / 2.0
+        # A solid stand-in for the walker, to count how much of them is covered
+        figure_mask = pygame.mask.Mask((figure_width, figure_height), fill=True)
+
+        for occluder in occluders:
+            image = getattr(occluder, "image", None)
+            if image is None:
+                continue
+            art_width, art_height = image.get_width(), image.get_height()
+            art_left, art_top = float(occluder.x), float(occluder.y) - art_height
+            art_box = pygame.Rect(int(art_left), int(art_top), art_width, art_height)
+            mask = pygame.mask.from_surface(image)
+
+            # Every cell whose figure could meet this sprite at all
+            first_x, first_y = self._clamped_cell(art_left - figure_width,
+                                                  art_top - figure_height)
+            last_x, last_y = self._clamped_cell(art_left + art_width + figure_width,
+                                                occluder.y)
+            for cell_y in range(first_y, last_y + 1):
+                feet_y = cell_y * self.tile_size + self.tile_size / 2.0
+                # Standing level with the baseline or below it puts the walker
+                # in front of the sprite, where nothing can hide them.
+                if occluder.y_sort <= feet_y:
+                    continue
+                row = cell_y * self.width
+                for cell_x in range(first_x, last_x + 1):
+                    if self.blocked[row + cell_x]:
+                        continue
+                    feet_x = cell_x * self.tile_size + self.tile_size / 2.0
+                    figure = pygame.Rect(int(feet_x - half_width),
+                                         int(feet_y - figure_height),
+                                         figure_width, figure_height)
+                    if not figure.colliderect(art_box):
+                        continue
+                    # Painted pixels of the sprite falling inside the figure's
+                    # own box. Counting pixels rather than taking the overlap
+                    # whole is what tells a wall from a fence: a fence covers
+                    # the same ground and hides nobody.
+                    hidden = mask.overlap_area(
+                        figure_mask, (figure.x - art_box.x, figure.y - art_box.y)
+                    )
+                    if hidden >= OCCLUSION_COVER * figure_width * figure_height:
+                        self.blocked[row + cell_x] = 1
 
     def _block_polygon(self, points: Sequence[Tuple[float, float]]) -> None:
         """Mark every cell whose centre falls inside a polygon.
