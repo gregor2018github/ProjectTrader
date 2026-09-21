@@ -42,6 +42,7 @@ class Entry:
     created: str = ''
     status: str = PENDING
     note: str = ''        # what the model said, or why a request failed
+    warning: str = ''     # e.g. an image size this model would not take
     width: int = 0        # what the model really delivered, which is not
     height: int = 0       # the same as the image size that was asked for
     prompt_tokens: int = 0
@@ -53,6 +54,10 @@ class Entry:
         parts = [self.model.replace('gemini-', '') or 'unknown model']
         parts += [part for part in (self.aspect_ratio, self.image_size) if part]
         return ', '.join(parts)
+
+    def short_warning(self) -> str:
+        """The warning shortened to what fits on a card."""
+        return self.warning.split(' - ')[0] if self.warning else ''
 
     def delivered(self) -> str:
         """The resolution that came back and what it cost, '' if unknown."""

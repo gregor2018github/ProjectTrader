@@ -67,7 +67,12 @@ DEFAULT_MODEL = IMAGE_MODELS[0][0]
 
 # '' means: let the model keep the proportions/size of the sheet it was given.
 ASPECT_RATIOS = ('', '1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9')
-IMAGE_SIZES = ('', '1K', '2K', '4K')
+# The API takes 1K, 2K, 4K and 512 (also spelled 512P/512PX). 512 is not
+# offered by every model - gemini-3.1-flash-image takes it, the flash-lite
+# and 2.5 builds refuse it - so a model that says no falls back to its own
+# default size and the answer is marked with what happened.
+IMAGE_SIZES = ('', '512', '1K', '2K', '4K')
+SIZE_LABELS = {'': 'model default', '512': '512 (half K)'}
 MAX_TRIES = 4  # answers that can be requested per sheet in one go
 
 RETRYABLE_CODES = {429, 500, 502, 503, 504}
@@ -120,6 +125,7 @@ class GeneratedImage:
     data: bytes
     mime_type: str
     model_text: str = ''
+    warning: str = ''        # e.g. the image size the model would not take
     prompt_tokens: int = 0   # the sheet and the prompt that went in
     output_tokens: int = 0   # the image that came back
     total_tokens: int = 0
@@ -139,9 +145,13 @@ class Settings:
     image_size: str = ''     # '' = the model's own default (1K)
     tries: int = 1           # answers requested per sheet
 
+    def size_label(self) -> str:
+        """How the chosen image size is written in the interface."""
+        return SIZE_LABELS.get(self.image_size, self.image_size)
+
     def summary(self) -> str:
         """One line for the footer, e.g. 'gemini-2.5-flash-image, 1:1, 2K, 2x'."""
-        parts = [self.model, self.aspect_ratio or 'sheet ratio', self.image_size or 'default size']
+        parts = [self.model, self.aspect_ratio or 'sheet ratio', self.size_label()]
         if self.tries > 1:
             parts.append(f'{self.tries} tries')
         return ', '.join(parts)
@@ -311,7 +321,7 @@ class GeminiClient:
                 an image.
         """
         contents = [types.Part.from_bytes(data=sheet_bytes, mime_type=mime_type), prompt]
-        response = self._generate(settings, contents)
+        response, warning = self._generate(settings, contents)
 
         if not response.candidates:
             feedback = response.prompt_feedback
@@ -327,6 +337,7 @@ class GeminiClient:
                     data=part.inline_data.data,
                     mime_type=part.inline_data.mime_type or 'image/png',
                     model_text=model_text,
+                    warning=warning,
                     prompt_tokens=getattr(usage, 'prompt_token_count', 0) or 0,
                     output_tokens=getattr(usage, 'candidates_token_count', 0) or 0,
                     total_tokens=getattr(usage, 'total_token_count', 0) or 0,
@@ -361,17 +372,23 @@ class GeminiClient:
 
         Not every model accepts an aspect ratio or an image size; when one
         rejects the setting the sheet is still worth trying at the model's
-        own default rather than failing the whole run.
+        own default rather than failing the whole run. That costs more than
+        was asked for, so the second try comes back with a warning.
+
+        Returns:
+            (response, warning) - the warning is '' for a plain first try.
         """
         image_config = settings.image_config()
         try:
-            return self._call_with_retry(settings.model, contents, image_config)
+            return self._call_with_retry(settings.model, contents, image_config), ''
         except GeminiError as exc:
             # Only a rejected request is worth a second try; a quota or a key
             # problem would fail exactly the same way without the config.
             if image_config is None or exc.code != 400:
                 raise
-            return self._call_with_retry(settings.model, contents, None)
+            refusal = str(exc).split(': ', 1)[-1].strip().rstrip('.')
+            return (self._call_with_retry(settings.model, contents, None),
+                    f"{refusal} - generated at the model's own size instead")
 
     def _call_with_retry(self, model: str, contents: list, image_config):
         """Calls the model, retrying rate limits and server errors.

@@ -26,7 +26,9 @@ The window can be resized or maximised; F11 switches to full screen.
 2. Pick one or more player poses. Poses the NPC already has a sprite for are
    marked "done"; "Select missing" picks all the others at once.
 3. "Settings" (S) chooses the image model, the aspect ratio and the image
-   size to ask for, and how many answers to request per sheet.
+   size to ask for, and how many answers to request per sheet. 512 is the
+   cheapest size, at roughly half the tokens of 1K, but only some models
+   take it; one that refuses falls back to its own size and says so.
 4. "Generate" (Enter) only writes the sheets and the prompt to
    build_tools/output/<npc>/, to hand in by hand.
    "Generate + Gemini" (Ctrl+Enter) writes them and sends every sheet with
@@ -345,6 +347,7 @@ class GeminiWorker:
                     image_size=self.settings.image_size,
                     created=datetime.now().isoformat(timespec='seconds'),
                     note=image.model_text[:200],
+                    warning=image.warning,
                     prompt_tokens=image.prompt_tokens,
                     output_tokens=image.output_tokens,
                     total_tokens=image.total_tokens,
@@ -604,11 +607,14 @@ class SettingsDialog:
             lambda v: v or 'keep sheet', self.settings.aspect_ratio, x, y, width, mouse)
 
         y += SECTION_GAP
-        screen.blit(self.small.render('Image size', True, TEXT_DIM), (x, y))
+        screen.blit(self.small.render(
+            'Image size  -  512 halves the tokens; a model that refuses it '
+            'falls back to its own size', True, TEXT_DIM), (x, y))
         y += 22
         self.size_chips, y = draw_chips(
             screen, self.small, gemini_client.IMAGE_SIZES,
-            lambda v: v or 'model default', self.settings.image_size, x, y, width, mouse)
+            lambda v: gemini_client.SIZE_LABELS.get(v, v),
+            self.settings.image_size, x, y, width, mouse)
 
         y += SECTION_GAP
         screen.blit(self.small.render('Answers per sheet', True, TEXT_DIM), (x, y))
@@ -856,7 +862,8 @@ class SheetTool:
                 entry, entry.pose, thumb, entry.status,
                 note_color=STATUS_COLORS.get(entry.status, TEXT_DIM),
                 extra=[(entry.delivered() or 'size unknown', TEXT_DIM),
-                       (entry.asked_for(), TEXT_DIM)],
+                       (entry.asked_for(), TEXT_DIM),
+                       (entry.short_warning(), DONE_COLOR)],
                 size=RESULT_CARD_SIZE))
 
     def missing_poses(self):
@@ -937,8 +944,12 @@ class SheetTool:
         except Exception as exc:  # a deleted or unreadable image file
             self.set_status(f'Cannot open {entry.image}: {exc}', error=True)
             return
-        self.set_status(self.detail.error or f'Pose "{entry.pose}", {entry.status}',
-                        error=bool(self.detail.error))
+        if self.detail.error:
+            self.set_status(self.detail.error, error=True)
+        elif entry.warning:
+            self.set_status(entry.warning)
+        else:
+            self.set_status(f'Pose "{entry.pose}", {entry.status}')
         self.set_view('detail')
 
     def accept_detail(self):
