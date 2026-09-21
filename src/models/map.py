@@ -685,11 +685,28 @@ class TMXMap:
                                 self.tile_size, self.nav, self.is_standable)
                     if door.is_usable:
                         self.doors.append(door)
+                        self._attach_door_to_house(door)
                     else:
                         print(f"Door {obj.id} at ({obj.x:.0f}, {obj.y:.0f}) has nowhere "
                               f"to step out to and will not be used: the way out is "
                               f"blocked, or a walker would stand hidden behind something. "
                               f"Move the point in Tiled to use it.")
+
+    def _attach_door_to_house(self, door: Door) -> None:
+        """Tell the building a door belongs to that it has that door.
+
+        A doorway is drawn on the wall, so its point lies inside the
+        building's own collision box and in no other -- that containment is
+        the whole connection. It is what lets a knock at the front door reach
+        the people who live behind it.
+
+        Args:
+            door: The door to hand over to its building.
+        """
+        for house in self.houses:
+            if house.collision_rect.collidepoint(door.threshold):
+                house.doors.append(door)
+                return
 
     def update_mills(self, dt: float) -> None:
         """Advance blade rotation for all mills (call once per frame when not paused)."""

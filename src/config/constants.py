@@ -49,6 +49,9 @@ STROLL_NIGHT_START_HOUR = 21.0      # From 21:00 the streets thin out
 STROLL_NIGHT_END_HOUR = 6.0         # From 06:00 they fill up again
 STROLL_RELEASE_SECONDS_MIN = 1.0    # Shortest real-time gap between two people stepping out
 STROLL_RELEASE_SECONDS_MAX = 5.0    # Longest such gap
+# Knocking on a house someone is in may bring them to the door for a moment.
+KNOCK_ANSWER_CHANCE = 0.50          # Chance that a knock is answered at all
+KNOCK_ANSWER_SECONDS = 5.0          # Real seconds they stand outside before going back in
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 

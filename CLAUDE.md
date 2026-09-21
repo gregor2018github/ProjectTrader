@@ -68,6 +68,8 @@ Townsfolk walk entry-to-entry, never onto the point itself — reaching it would
 
 `StreetLife` (`src/models/town_life.py`) keeps `STROLLERS_BY_DAY` / `STROLLERS_BY_NIGHT` townsfolk out at a time. A `Townsperson` (`src/models/figurines/humans/npcs/townsperson.py`) steps out of their door fading in, walks a cached door-to-door route — stopping to look at something now and then — and fades out into the door they arrive at, which becomes their home for the next outing. Nobody is out twice, because there is only one object per person. There is no `Townsperson` subclass per person: `discover_townsfolk()` creates one per sprite folder holding an `npc.json`, so adding a townsperson is adding the folder. Their positions are session state, not saved. `StreetLife.update()` only directs; the townsfolk themselves are walked by `update_npcs()` like any other NPC.
 
+Each door is handed to the building whose collision rect its point sits in (`TMXMap._attach_door_to_house`), which is what connects a knock to the people behind it. Knocking on a house somebody is home in has a `KNOCK_ANSWER_CHANCE` of being answered: `StreetLife.answer_knock()` picks one of its residents, who opens the door, steps onto the doorstep, stands there `KNOCK_ANSWER_SECONDS` and goes back in. Talking to them holds that wait for as long as the bubble is open.
+
 ### Trading System
 
 `Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility.

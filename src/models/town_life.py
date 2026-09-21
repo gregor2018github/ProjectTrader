@@ -13,9 +13,10 @@ finishes their walk; the town only stops sending new people.
 
 import datetime
 import random
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
 
 from ..config.constants import (
+    KNOCK_ANSWER_CHANCE,
     STROLLERS_BY_DAY,
     STROLLERS_BY_NIGHT,
     STROLL_NIGHT_START_HOUR,
@@ -26,6 +27,9 @@ from ..config.constants import (
 from .door import Door
 from .figurines.humans.npcs.townsperson import Townsperson
 from .navigation import NavGrid
+
+if TYPE_CHECKING:
+    from .house import House
 
 #: Tries at finding a door someone can actually walk to before giving up on
 #: sending them out this tick. A town where most pairs of doors are cut off
@@ -171,6 +175,32 @@ class StreetLife:
             if route and person.begin_outing(route, target):
                 return True
         return False
+
+    def answer_knock(self, house: 'House') -> bool:
+        """Maybe bring one of a building's residents to its door.
+
+        Knocking is worth doing only if it sometimes comes to something, and
+        only annoying if it always does, so a knock at a house somebody is
+        actually in is answered :data:`KNOCK_ANSWER_CHANCE` of the time. The
+        rest of the town carries on regardless: whoever answers is out of the
+        ordinary rotation for as long as they stand there, and goes back in
+        through the door they came out of.
+
+        Args:
+            house: The building knocked on, which knows its own front doors.
+
+        Returns:
+            bool: True if somebody came out.
+        """
+        door_ids = {door.id for door in getattr(house, "doors", ())}
+        if not door_ids:
+            return False
+        at_home = [person for person in self.townsfolk
+                   if not person.is_out and person.home_door is not None
+                   and person.home_door.id in door_ids]
+        if not at_home or random.random() >= KNOCK_ANSWER_CHANCE:
+            return False
+        return random.choice(at_home).answer_door()
 
     # ------------------------------------------------------------------
     # Per-frame update

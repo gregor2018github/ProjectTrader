@@ -7,6 +7,9 @@ town to another door -- stopping to look at something now and then -- and
 disappear inside. Whichever door that was is where they live from then on, so
 the next time they come out, they come out of it.
 
+Knocking on the house they are in may also bring them to the door: they open
+it, stand on the doorstep a moment and go back in.
+
 There is one class for all of them: who they are comes from their sprite
 folder, ``npcs/<class>_<name>/``, and the ``npc.json`` inside it. Adding a
 townsperson is a matter of adding the folder, nothing more.
@@ -18,6 +21,7 @@ import os
 import random
 from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple
 
+from .....config.constants import KNOCK_ANSWER_SECONDS
 from ...patrol_path import PatrolPath
 from .npc import NPC, NPC_SPRITE_ROOT
 
@@ -66,13 +70,24 @@ CLASS_BY_FOLDER_PREFIX = {
 #: Filename holding a townsperson's name and gender, in their sprite folder.
 PROFILE_FILE = "npc.json"
 
-# Where a townsperson is in their outing. STEPPING_OUT and GOING_IN are both
-# spent standing at a door while the fade runs.
+# Where a townsperson is in their outing. STEPPING_OUT, ANSWERING and GOING_IN
+# are all spent standing at a door while the fade runs.
 AT_HOME = "Indoors"
 STEPPING_OUT = "Stepping outside"
 STROLLING = "Walking through town"
 PAUSED = "Stopped to look"
 GOING_IN = "Going indoors"
+
+# Answering a knock: the same door, out and straight back in again. The fade at
+# the start is a doorway fade like any other; the three after it are a walk out
+# to the doorstep, a wait there, and the walk back.
+ANSWERING = "Opening the door"
+STEPPING_UP = "Coming to the door"
+AT_THE_DOOR = "Standing in the doorway"
+TURNING_IN = "Going back inside"
+
+#: The states of answering a knock that are walked or waited rather than faded.
+ANSWERING_STATES = (STEPPING_UP, AT_THE_DOOR, TURNING_IN)
 
 
 def discover_townsfolk(tile_size: int) -> List['Townsperson']:
@@ -155,6 +170,8 @@ class Townsperson(NPC):
         self._pause_left: float = 0.0
         #: Real seconds they still want to spend indoors before going out again.
         self.rest_left: float = 0.0
+        #: Real seconds left standing in the doorway after answering a knock.
+        self._answer_left: float = 0.0
 
     # ------------------------------------------------------------------
     # Properties
@@ -229,6 +246,36 @@ class Townsperson(NPC):
         self._pause_left = 0.0
         return True
 
+    def answer_door(self) -> bool:
+        """Come out of their own door for a moment, as if someone knocked.
+
+        They fade in at the doorway, step out onto the doorstep, stand there
+        for :data:`KNOCK_ANSWER_SECONDS` and go back in the way they came. The
+        wait is held for as long as the player has them in conversation, so
+        nobody turns their back on you mid-sentence.
+
+        Returns:
+            bool: True if they came out. False when they are out already, have
+            no door, or their doorstep is right in the doorway and so leaves
+            them nowhere to step.
+        """
+        if self.state != AT_HOME or self.home_door is None:
+            return False
+        path = PatrolPath([self.home_door.entry, self.home_door.step], closed=False)
+        if not path:
+            return False
+
+        self.target_door = self.home_door
+        self.state = ANSWERING
+        self.set_path(path, 0.0)
+        # Standing in the doorway until the fade is through, as when they set
+        # off on a walk -- the door opens, and only then is there someone in it.
+        self.stop()
+        self.opacity = 0.0
+        self.fade_in(DOORWAY_FADE_SECONDS)
+        self._answer_left = KNOCK_ANSWER_SECONDS
+        return True
+
     def _schedule_pause(self) -> None:
         """Pick how far they walk before they next stop to look at something."""
         self._next_pause_distance = self.path_distance + random.uniform(
@@ -251,10 +298,55 @@ class Townsperson(NPC):
             return
         if going_in:
             self.go_indoors(door)
+        elif self.state == ANSWERING:
+            self.state = STEPPING_UP
+            self.walk_to_distance(self.path.length)
         else:
             self.state = STROLLING
             self.walk_to_distance(self.path.length)
             self._schedule_pause()
+
+    def _answer_the_door(self, dt: float) -> None:
+        """Walk the doorstep, wait there, and walk back in again.
+
+        Covers the three states after the door has opened. Being stopped for a
+        word holds all of it, the wait included: they will stand there as long
+        as the player keeps them talking, and only then turn back inside.
+
+        Args:
+            dt: Delta time in real seconds.
+        """
+        if self._hold_for_talk(dt):
+            return
+
+        if self.state == AT_THE_DOOR:
+            self._answer_left -= dt
+            if self._answer_left > 0.0:
+                self._animate(dt, False, self.home_door.facing_out)
+                return
+            self.state = TURNING_IN
+            self.walk_to_distance(0.0)
+
+        # A word with the player leaves the walk without a target, just as on a
+        # stroll, so it is picked back up here.
+        if self.path is not None and self.path_target is None:
+            self.walk_to_distance(self.path.length if self.state == STEPPING_UP else 0.0)
+
+        is_moving = self._follow_path(dt)
+        if is_moving:
+            self._animate(dt, is_moving)
+            return
+
+        if self.state == STEPPING_UP:
+            self.state = AT_THE_DOOR
+            self.stop()
+            self._animate(dt, False, self.home_door.facing_out)
+            return
+
+        # Back at the doorway: fade out facing it, like any other way in.
+        self.state = GOING_IN
+        self.fade_out(DOORWAY_FADE_SECONDS)
+        self._doorway_fade(dt)
 
     # ------------------------------------------------------------------
     # Per-frame update
@@ -283,8 +375,12 @@ class Townsperson(NPC):
             self._animate(dt, False)
             return
 
-        if self.state in (STEPPING_OUT, GOING_IN):
+        if self.state in (STEPPING_OUT, GOING_IN, ANSWERING):
             self._doorway_fade(dt)
+            return
+
+        if self.state in ANSWERING_STATES:
+            self._answer_the_door(dt)
             return
 
         if self.state == PAUSED:
@@ -323,7 +419,9 @@ class Townsperson(NPC):
         lines.append(f"Doing: {self.state}")
         lines.append(f"Home door: {self.home_door.id if self.home_door else 'none'}")
         lines.append(f"Heading for door: {self.target_door.id if self.target_door else 'none'}")
-        if self.state == PAUSED:
+        if self.state == AT_THE_DOOR:
+            lines.append(f"Standing for: {self._answer_left:.1f} s more")
+        elif self.state == PAUSED:
             lines.append(f"Standing for: {self._pause_left:.1f} s more")
         elif self.state == AT_HOME and self.rest_left > 0.0:
             lines.append(f"Staying in for: {self.rest_left:.0f} s more")

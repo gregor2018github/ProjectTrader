@@ -1,8 +1,11 @@
 import pygame
 import os
 import random
-from typing import Optional, Dict
+from typing import Optional, Dict, List, TYPE_CHECKING
 from ..config.constants import KNOCK_VOLUME
+
+if TYPE_CHECKING:
+    from .door import Door
 
 class House:
     """Represents a house object on the map."""
@@ -87,9 +90,17 @@ class House:
             final_height
         )
         self.associated_lights = []
+        #: Front doors sitting in this building, filled in by TMXMap once the
+        #: "Doors" layer is parsed. Whoever lives behind one lives here.
+        self.doors: List['Door'] = []
 
     def interact_knock(self, game_state) -> None:
-        """Handle knocking on the house door."""
+        """Handle knocking on the house door.
+
+        Plays a knock, fiddles with the lights at night, and now and then
+        brings whoever is in to the door for a moment -- see
+        :meth:`StreetLife.answer_knock`.
+        """
         # 1. Play random knock sound
         knock_num = random.randint(1, 5)
         sound_name = f"knock_{knock_num}"
@@ -98,7 +109,11 @@ class House:
             if channel:
                 channel.set_volume(KNOCK_VOLUME)
 
-        # 2. Light interaction if it's night
+        # 2. Somebody may look out, if anyone is in and the dice agree
+        if game_state.game and self.doors:
+            game_state.game.game_map.tmx_map.street_life.answer_knock(self)
+
+        # 3. Light interaction if it's night
         hour = game_state.date.hour + game_state.date.minute / 60.0
         is_night = hour < 7 or hour > 19
 
