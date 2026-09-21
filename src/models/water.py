@@ -100,6 +100,11 @@ class Water:
         y_min, y_max = min(ys), max(ys)
         return pygame.Rect(int(x_min), int(y_min), int(x_max - x_min), int(y_max - y_min))
 
+    @property
+    def bounding_rect(self) -> pygame.Rect:
+        """The axis-aligned box the polygon fits into."""
+        return self._bounding_rect
+
     def contains_point(self, px: float, py: float) -> bool:
         """Ray casting point-in-polygon test."""
         n = len(self.points)

@@ -31,7 +31,11 @@ from .figurines.humans.npcs import (
     TraderPotter, TraderShepherdess, TraderStonemason, TraderTanner, TraderVintner,
     TraderWeaver, TraderWoodcutter,
 )
+from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.patrol_path import PatrolPath
+from .door import Door
+from .navigation import NavGrid
+from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
 
 # How far (per RGB channel) a ground tile's average colour may sit from the
@@ -156,6 +160,8 @@ class TMXMap:
         self.water_tile_variant: Dict[Tuple[int, int], int] = {}
         self.water_edge_tiles: Set[Tuple[int, int]] = set()
         self._tile_signature_cache: Dict[int, Optional[Tuple[float, float, float, int]]] = {}
+        #: Front doors townsfolk come out of, from the "Doors" object layer.
+        self.doors: List[Door] = []
 
         self._load_houses()
         self._load_special_points()
@@ -167,6 +173,17 @@ class TMXMap:
         self._load_movements()
         self._load_water()
         self._rasterize_water_tiles()
+
+        # Everything that blocks a walker is parsed by now, so the grid the
+        # townsfolk find their way on can be rasterized and the doors placed
+        # against it.
+        self.nav: NavGrid = NavGrid(self)
+        self._load_doors()
+        townsfolk = discover_townsfolk(self.tile_size)
+        self.street_life: StreetLife = StreetLife(self.doors, townsfolk, self.nav)
+        # They are ordinary NPCs for drawing, clicking and updating; only the
+        # decision to send them out is StreetLife's.
+        self.npcs.extend(townsfolk)
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
@@ -647,6 +664,24 @@ class TMXMap:
                         for mill in self.mills:
                             mill.set_blade_pivot(obj.x, obj.y)
 
+    def _load_doors(self) -> None:
+        """Parse the "Doors" object layer into :class:`Door` objects.
+
+        Each object is a point on a doorway; its Tiled name says which way a
+        person faces walking out of it. A door with no walkable spot in front
+        of it is dropped, since nobody could use it.
+        """
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Doors":
+                for obj in layer:
+                    door = Door(obj.id, obj.name or "", obj.x, obj.y,
+                                self.tile_size, self.nav)
+                    if door.is_usable:
+                        self.doors.append(door)
+                    else:
+                        print(f"Door {obj.id} at ({obj.x:.0f}, {obj.y:.0f}) is walled in "
+                              f"and will not be used")
+
     def update_mills(self, dt: float) -> None:
         """Advance blade rotation for all mills (call once per frame when not paused)."""
         for mill in self.mills:
@@ -767,6 +802,7 @@ class TMXMap:
 
     def update_npcs(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all human NPCs (call once per frame when not paused)."""
+        self.street_life.update(dt, current_time)
         for npc in self.npcs:
             npc.update(dt, current_time)
 

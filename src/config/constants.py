@@ -39,6 +39,17 @@ TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 MARKET_CLOSE_WINDOW = (22.0, 24.0)  # Traders pack up and walk home between 22:00 and midnight
 MARKET_OPEN_WINDOW = (4.75, 6.75)   # Traders set off for their stalls between 04:45 and 06:45
 
+# TOWNSFOLK OUT WALKING (see src/models/town_life.py)
+# Townsfolk stroll from one front door on the Tiled "Doors" layer to another.
+# The town tops the streets back up whenever fewer than this many are out;
+# anyone already walking when night falls still finishes their way home.
+STROLLERS_BY_DAY = 5                # People out on the streets during the day
+STROLLERS_BY_NIGHT = 2              # People out on the streets at night
+STROLL_NIGHT_START_HOUR = 21.0      # From 21:00 the streets thin out
+STROLL_NIGHT_END_HOUR = 6.0         # From 06:00 they fill up again
+STROLL_RELEASE_SECONDS_MIN = 1.0    # Shortest real-time gap between two people stepping out
+STROLL_RELEASE_SECONDS_MAX = 5.0    # Longest such gap
+
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
 MARKET_PRESIMULATION_DAYS = 60      # Days of price history to simulate before the game starts

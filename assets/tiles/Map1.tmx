@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="37" nextobjectid="410">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="38" nextobjectid="435">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -6414,6 +6414,80 @@
     <property name="margin" type="float" value="0.3"/>
    </properties>
    <polygon points="0,0 -192,0 -192,-32 -224,-32 -224,32 0,32 0,0"/>
+  </object>
+ </objectgroup>
+ <objectgroup id="37" name="Doors">
+  <object id="411" name="down" x="5580.75" y="5198">
+   <point/>
+  </object>
+  <object id="412" name="down" x="5663" y="5197.5">
+   <point/>
+  </object>
+  <object id="413" name="down" x="5010.75" y="5070.75">
+   <point/>
+  </object>
+  <object id="414" name="down" x="5114" y="5070">
+   <point/>
+  </object>
+  <object id="415" name="down" x="4653" y="5067.67">
+   <point/>
+  </object>
+  <object id="416" name="right" x="5575.64" y="4946.73">
+   <point/>
+  </object>
+  <object id="417" name="left" x="5431.82" y="4974.55">
+   <point/>
+  </object>
+  <object id="418" name="down" x="5651" y="4671.33">
+   <point/>
+  </object>
+  <object id="419" name="left" x="5369.09" y="4613.45">
+   <point/>
+  </object>
+  <object id="420" name="left" x="5344.25" y="4326.25">
+   <point/>
+  </object>
+  <object id="421" name="down" x="5113.25" y="4354.5">
+   <point/>
+  </object>
+  <object id="422" name="down" x="5033.75" y="4352.25">
+   <point/>
+  </object>
+  <object id="423" name="down" x="4952.75" y="4352.25">
+   <point/>
+  </object>
+  <object id="424" name="down" x="4872.5" y="4352.25">
+   <point/>
+  </object>
+  <object id="425" name="down" x="4624.75" y="4357.75">
+   <point/>
+  </object>
+  <object id="426" name="down" x="4351.5" y="4346.25">
+   <point/>
+  </object>
+  <object id="427" name="down" x="3991.38" y="4837">
+   <point/>
+  </object>
+  <object id="428" name="right" x="4575.27" y="4756.55">
+   <point/>
+  </object>
+  <object id="429" name="right" x="4577.45" y="4489.09">
+   <point/>
+  </object>
+  <object id="430" name="down" x="3695.33" y="4580.33">
+   <point/>
+  </object>
+  <object id="431" name="down" x="3474.67" y="4581">
+   <point/>
+  </object>
+  <object id="432" name="down" x="4309.5" y="5481">
+   <point/>
+  </object>
+  <object id="433" name="down" x="4790" y="5931.82">
+   <point/>
+  </object>
+  <object id="434" name="down" x="4711.09" y="5931.64">
+   <point/>
   </object>
  </objectgroup>
  <objectgroup id="2" name="Houses">
