@@ -290,8 +290,12 @@ class Trader(NPC):
                 his working day.
         """
         if self._hold_for_talk(dt):
-            # His day waits: whatever he missed, the catch-up sorts out once
-            # the player lets him get on with it.
+            # His day waits while the player keeps him talking. Time spent in
+            # conversation is time the player watched him stand there, so it
+            # must not pile up as time that ran on unseen: the catch-up would
+            # otherwise put him straight where his hours had moved on to, and
+            # he would jump across the square the moment the talk ended.
+            self.last_update_time = current_time
             return
 
         if self.homeway is not None and self.stall_path is not None:
