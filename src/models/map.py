@@ -674,8 +674,9 @@ class TMXMap:
         """Parse the "Doors" object layer into :class:`Door` objects.
 
         Each object is a point on a doorway; its Tiled name says which way a
-        person faces walking out of it. A door with no walkable spot in front
-        of it is dropped, since nobody could use it.
+        person faces walking out of it. A door with nowhere usable to step out
+        to is dropped rather than left for a walker to get stuck in or vanish
+        at, and says so, since that is a thing to fix in Tiled.
         """
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Doors":
@@ -685,8 +686,10 @@ class TMXMap:
                     if door.is_usable:
                         self.doors.append(door)
                     else:
-                        print(f"Door {obj.id} at ({obj.x:.0f}, {obj.y:.0f}) is walled in "
-                              f"and will not be used")
+                        print(f"Door {obj.id} at ({obj.x:.0f}, {obj.y:.0f}) has nowhere "
+                              f"to step out to and will not be used: the way out is "
+                              f"blocked, or a walker would stand hidden behind something. "
+                              f"Move the point in Tiled to use it.")
 
     def update_mills(self, dt: float) -> None:
         """Advance blade rotation for all mills (call once per frame when not paused)."""

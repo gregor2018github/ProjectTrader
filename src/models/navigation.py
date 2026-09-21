@@ -44,11 +44,6 @@ NEIGHBOURS: Tuple[Tuple[int, int, float], ...] = (
 #: line. A quarter of a tile, so that no corner can hide between two samples.
 LINE_SAMPLE_STEP = 8.0
 
-#: How much room the line-of-sight test leaves around the walker, in world
-#: pixels. A walker is a figure, not a point: a line that only just misses the
-#: corner of a house is one the walker's shoulder would still scrape along, so
-#: the test asks whether a box this big fits, rather than a single point.
-LINE_CLEARANCE = 8.0
 
 #: Cells settled before A* gives up. The town is a few thousand cells across,
 #: so a search that runs past this is looking for somewhere unreachable and is
@@ -322,12 +317,20 @@ class NavGrid:
     def _has_clearance(self, world_x: float, world_y: float) -> bool:
         """Whether a walker standing here would keep clear of every blocker.
 
+        A walker is a figure, not a point. This puts their feet box -- the one
+        :meth:`MapPlayer.can_move_to` is stopped by -- down on the grid and
+        asks whether all four of its corners are on free cells, so a line that
+        only just misses a house is not mistaken for one the walker fits
+        through.
+
         Args:
-            world_x: World X in pixels.
-            world_y: World Y in pixels.
+            world_x: World X the figure stands at.
+            world_y: World Y the figure stands at.
         """
-        for offset_x in (-LINE_CLEARANCE, LINE_CLEARANCE):
-            for offset_y in (-LINE_CLEARANCE, LINE_CLEARANCE):
+        half_width = self.tile_size / 2.0
+        foot_height = self.tile_size / 2.0 - 2.0
+        for offset_x in (-half_width, half_width - 1.0):
+            for offset_y in (-foot_height, -1.0):
                 if not self.is_free_at(world_x + offset_x, world_y + offset_y):
                     return False
         return True

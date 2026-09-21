@@ -39,11 +39,11 @@ SPEED_VARIATION = 0.18
 PAUSE_GAP_MIN = 140.0
 PAUSE_GAP_MAX = 520.0
 
-#: How far they walk while fading in or out at a doorway, in tiles. The fade
-#: is paced by distance rather than tied to the doorway itself: a walker stops
-#: at the door's entry, which is only as far in as the player would be let, so
-#: the doorway leg alone is too short a stretch to disappear over.
-DOORWAY_FADE_TILES = 1.5
+#: How long the fade at a doorway takes, in real seconds. It runs with the
+#: walker standing still at the door, facing it, rather than over a stretch of
+#: walking: they come to a stop at the entry and only then fade, which reads as
+#: a door opening and closing instead of someone dissolving on the move.
+DOORWAY_FADE_SECONDS = 0.9
 
 #: How long such a stop lasts, in real seconds.
 PAUSE_SECONDS_MIN = 1.5
@@ -66,7 +66,8 @@ CLASS_BY_FOLDER_PREFIX = {
 #: Filename holding a townsperson's name and gender, in their sprite folder.
 PROFILE_FILE = "npc.json"
 
-# Where a townsperson is in their outing.
+# Where a townsperson is in their outing. STEPPING_OUT and GOING_IN are both
+# spent standing at a door while the fade runs.
 AT_HOME = "Indoors"
 STEPPING_OUT = "Stepping outside"
 STROLLING = "Walking through town"
@@ -148,10 +149,6 @@ class Townsperson(NPC):
         self.state: str = AT_HOME
         self.opacity = 0.0
 
-        # Distance along the outing at which the fade in finishes and the fade
-        # out starts, so the doorway swallows them exactly as they reach it.
-        self._emerge_distance: float = 0.0
-        self._vanish_distance: float = 0.0
         # Next stop-and-look, as a distance along the outing, and how much of
         # it is left to stand through, in real seconds.
         self._next_pause_distance: float = 0.0
@@ -218,22 +215,18 @@ class Townsperson(NPC):
         # the way onto the Tiled point would put them behind the house.
         points = [self.home_door.entry] + list(route) + [target_door.entry]
         path = PatrolPath(points, closed=False)
-        fade = DOORWAY_FADE_TILES * self.tile_size
-        # A walk too short to fade in and out over is not worth taking
-        if not path or path.length <= fade * 2.0:
+        if not path:
             return False
 
         self.target_door = target_door
         self.state = STEPPING_OUT
-        self._emerge_distance = fade
-        self._vanish_distance = path.length - fade
         self.set_path(path, 0.0)
-        self.walk_to_distance(path.length)
-
+        # They stand in the doorway until the fade is done; the walk only
+        # starts once they are all the way there to be seen.
+        self.stop()
         self.opacity = 0.0
-        self.fade_in(fade / self.speed)
+        self.fade_in(DOORWAY_FADE_SECONDS)
         self._pause_left = 0.0
-        self._schedule_pause()
         return True
 
     def _schedule_pause(self) -> None:
@@ -242,14 +235,26 @@ class Townsperson(NPC):
             PAUSE_GAP_MIN, PAUSE_GAP_MAX
         )
 
-    def _may_pause(self) -> bool:
-        """Whether this is a moment they could stop in.
+    def _doorway_fade(self, dt: float) -> None:
+        """Stand at the door facing it while the fade runs, then move on.
 
-        Only out in the open: stopping half way through a doorway would leave
-        them hanging there half transparent.
+        Nothing interrupts this, not even the player stopping them for a word:
+        it lasts about a second and they are half in the house already.
+
+        Args:
+            dt: Delta time in real seconds.
         """
-        return (self.state == STROLLING
-                and self._emerge_distance < self.path_distance < self._vanish_distance)
+        going_in = self.state == GOING_IN
+        door = (self.target_door or self.home_door) if going_in else self.home_door
+        self._animate(dt, False, door.facing_in if going_in else door.facing_out)
+        if self.is_fading:
+            return
+        if going_in:
+            self.go_indoors(door)
+        else:
+            self.state = STROLLING
+            self.walk_to_distance(self.path.length)
+            self._schedule_pause()
 
     # ------------------------------------------------------------------
     # Per-frame update
@@ -264,18 +269,22 @@ class Townsperson(NPC):
                 keeps no hours of their own; :class:`StreetLife` decides when
                 they go out.
         """
-        if self.state != AT_HOME:
+        if self.state == STROLLING:
             if self._hold_for_talk(dt):
-                # Their outing is on hold; indoors there is nothing to hold up.
+                # Their walk is on hold; a doorway fade is not theirs to hold up.
                 return
-            # Being stopped for a word clears the walk target, so the outing
-            # has to be picked back up once the player is done with them.
-            if self.state != PAUSED and self.path is not None and self.path_target is None:
+            # Being stopped for a word clears the walk target, so the walk has
+            # to be picked back up once the player is done with them.
+            if self.path is not None and self.path_target is None:
                 self.walk_to_distance(self.path.length)
 
         if self.state == AT_HOME:
             self.rest_left = max(0.0, self.rest_left - dt)
             self._animate(dt, False)
+            return
+
+        if self.state in (STEPPING_OUT, GOING_IN):
+            self._doorway_fade(dt)
             return
 
         if self.state == PAUSED:
@@ -289,19 +298,18 @@ class Townsperson(NPC):
 
         is_moving = self._follow_path(dt)
 
-        if self.state == STEPPING_OUT and self.path_distance >= self._emerge_distance:
-            self.state = STROLLING
-        elif self.state == STROLLING and self.path_distance >= self._vanish_distance:
+        if not is_moving:
+            # The far doorway: stop here, a step short of the house, and fade
+            # out on the spot rather than walking on into the wall.
             self.state = GOING_IN
-            remaining = self.path.length - self.path_distance
-            self.fade_out(max(remaining, 1.0) / self.speed)
-        elif self._may_pause() and self.path_distance >= self._next_pause_distance:
+            self.fade_out(DOORWAY_FADE_SECONDS)
+            self._doorway_fade(dt)
+            return
+
+        if self.path_distance >= self._next_pause_distance:
             self.state = PAUSED
             self._pause_left = random.uniform(PAUSE_SECONDS_MIN, PAUSE_SECONDS_MAX)
             self.stop()
-
-        if not is_moving and self.state == GOING_IN:
-            self.go_indoors(self.target_door or self.home_door)
 
         self._animate(dt, is_moving)
 

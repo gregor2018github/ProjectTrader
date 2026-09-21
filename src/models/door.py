@@ -34,6 +34,23 @@ DOOR_DIRECTIONS: Dict[str, Tuple[int, int]] = {
 #: Direction assumed for a door whose Tiled name says nothing useful.
 DEFAULT_DIRECTION = "down"
 
+#: Animation pose of someone who has just come out of a door, looking away
+#: from the house, per door direction.
+FACING_OUT: Dict[str, str] = {
+    "down": "front",
+    "up": "back",
+    "left": "left",
+    "right": "right",
+}
+
+#: Animation pose of someone standing at a door about to go in, looking at it.
+FACING_IN: Dict[str, str] = {
+    "down": "back",
+    "up": "front",
+    "left": "right",
+    "right": "left",
+}
+
 #: How many tiles out from the threshold to look for the step, at most. Most
 #: doors are clear after one tile; the church and the bank have a porch in the
 #: way and need two.
@@ -74,13 +91,25 @@ class Door:
         self.id: int = int(door_id)
         self.direction: str = direction if direction in DOOR_DIRECTIONS else DEFAULT_DIRECTION
         self.threshold: Tuple[float, float] = (float(x), float(y))
-        self.step: Optional[Tuple[float, float]] = self._find_step(tile_size, nav)
+        self.step: Optional[Tuple[float, float]] = self._find_step(
+            tile_size, nav, is_standable
+        )
         self.entry: Optional[Tuple[float, float]] = (
             None if self.step is None else self._find_entry(is_standable)
         )
 
     def __repr__(self) -> str:
         return f"<Door {self.id} {self.direction} at {self.threshold}>"
+
+    @property
+    def facing_out(self) -> str:
+        """Pose of someone standing here having just stepped out."""
+        return FACING_OUT[self.direction]
+
+    @property
+    def facing_in(self) -> str:
+        """Pose of someone standing here about to go in."""
+        return FACING_IN[self.direction]
 
     @property
     def is_usable(self) -> bool:
@@ -91,7 +120,12 @@ class Door:
         """
         return self.step is not None
 
-    def _find_step(self, tile_size: int, nav: 'NavGrid') -> Optional[Tuple[float, float]]:
+    def _find_step(
+        self,
+        tile_size: int,
+        nav: 'NavGrid',
+        is_standable: Callable[[float, float], bool],
+    ) -> Optional[Tuple[float, float]]:
         """The first free spot outside the door, going straight out from it.
 
         Args:
@@ -108,9 +142,39 @@ class Door:
                 self.threshold[0] + step_x * tile_size * tiles,
                 self.threshold[1] + step_y * tile_size * tiles,
             )
-            if nav.is_free_at(*spot):
+            # Three things have to hold here. The grid rule, because every
+            # route runs from this spot; the player's rule, because the walker
+            # stands on it, and a free cell centre is no promise that a figure
+            # standing off-centre in it clears the wall; and a clear line onto
+            # the grid proper, since the first thing a route does is make for
+            # the middle of its own cell and that hop is on no one else's map.
+            if not (nav.is_free_at(*spot) and is_standable(*spot)):
+                continue
+            if self._clear_line(spot, nav.cell_centre(*nav.cell_of(*spot)), is_standable):
                 return spot
         return None
+
+    @staticmethod
+    def _clear_line(
+        start: Tuple[float, float],
+        end: Tuple[float, float],
+        is_standable: Callable[[float, float], bool],
+    ) -> bool:
+        """Whether a figure can walk straight between two spots.
+
+        Args:
+            start: World (x, y) to set off from.
+            end: World (x, y) to arrive at.
+            is_standable: Tells whether a figure could stand at a position.
+        """
+        span = math.dist(start, end)
+        steps = int(span / ENTRY_PROBE_STEP) + 1
+        for step in range(steps + 1):
+            t = step / steps
+            if not is_standable(start[0] + (end[0] - start[0]) * t,
+                                start[1] + (end[1] - start[1]) * t):
+                return False
+        return True
 
     def _find_entry(
         self, is_standable: Callable[[float, float], bool]
