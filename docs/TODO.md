@@ -1,7 +1,11 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] send the sprite sheets through the Gemini Batch API as well (half the price, answers within a day) - single requests already work in build_tools/create_new_pose.py
+- [ ] add option to donate a coin to the poor - a happy symbold like thankful hands will appear over them (same basic style as the heart for the sheep)
+- [ ] also track donations to the poor as new donations type
+- [ ] bring in the traders which are currently missing
+- [ ] come up with new walking animations, apply them for a simple NPC
+- [ ] take simple NPC walking to make proper preview mechanic for the annimations
 - [ ] fix animation to walk down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
@@ -47,10 +51,10 @@
 
 ## Bug Fixes
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
-- [ ] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [x] mark doors on the tile map: a "Doors" point layer in Tiled, each point named after the direction one walks out of it
 - [x] random town folk must walk the streets, very little at night, more during the day: townsfolk fade out of a front door, walk an A* route around the houses with the odd stop to look at something, and fade into another door, which becomes their home for the next time
 - [x] generate NPC poses through the Gemini API from build_tools/create_new_pose.py: pick model, aspect ratio and image size, review every answer and accept it straight into the sprite folder or mark it as not good enough

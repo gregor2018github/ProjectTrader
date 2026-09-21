@@ -124,8 +124,16 @@ class Camera:
         # Ensure we use the same scaling logic as the tile renderer
         scaled_tile_size = round(TILE_SIZE * self.zoom)
         scale_factor = scaled_tile_size / float(TILE_SIZE)
-        
-        return (x * scale_factor - self.x * scale_factor), (y * scale_factor - self.y * scale_factor)
+
+        # The camera origin is snapped to whole pixels. Every caller rounds its
+        # own result, so a fractional origin would make a standing figurine
+        # round differently from the tiles under it from frame to frame - it
+        # wiggles by a pixel while the camera pans. Subtracting one shared
+        # integer keeps everything on the map fixed against everything else.
+        cam_px = round(self.x * scale_factor)
+        cam_py = round(self.y * scale_factor)
+
+        return (x * scale_factor - cam_px), (y * scale_factor - cam_py)
 
 
 class TMXMap:
