@@ -70,6 +70,8 @@ Townsfolk walk entry-to-entry, never onto the point itself — reaching it would
 
 Each door is handed to the building whose collision rect its point sits in (`TMXMap._attach_door_to_house`), which is what connects a knock to the people behind it. Knocking on a house somebody is home in has a `KNOCK_ANSWER_CHANCE` of being answered: `StreetLife.answer_knock()` picks one of its residents, who opens the door, steps onto the doorstep, stands there `KNOCK_ANSWER_SECONDS` and goes back in. Talking to them holds that wait for as long as the bubble is open.
 
+Clicking a figurine opens its menu (`src/ui/helper_modules/figurine_click_menu.py`). Anyone whose `SOCIAL_CLASS` is `"Poor"` is also offered a coin: `ALMS_COIN` is booked as a donation under `ALMS_CATEGORY` ("Alms", a bookkeeping category of its own),, with the usual money-spent feedback (`on_money_spent`).
+
 ### Trading System
 
 `Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility.

@@ -15,8 +15,9 @@ import pygame
 
 from ...config import settings_store
 from ...config.colors import DARK_BROWN, BLACK
-from ...config.constants import FONTS_PATH, SHEEP_VOLUME
+from ...config.constants import ALMS_CATEGORY, ALMS_COIN, FONTS_PATH, SHEEP_VOLUME
 from ..text_reveal import LetterReveal
+from ..transaction_feedback import on_money_spent
 from .house_click_menu import get_hovered_house, is_player_near
 
 if TYPE_CHECKING:
@@ -47,6 +48,9 @@ SPEECH_TEXT_GAP = 5                    # Extra space between the title rule and 
 # little beyond the reach needed to start one, so a step aside does not cut
 # the conversation short, but far from having to leave the map view
 SPEECH_BREAK_DISTANCE = 80             # About 2.5 tiles
+
+# Label of the alms option, used both to offer it and to recognise the choice
+GIVE_COIN_OPTION = "Give a Coin"
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -181,6 +185,9 @@ def show_figurine_menu(
     options: List[str] = []
     if isinstance(figurine, NPC):
         options.append("Chat")
+        # Only the town's poor are offered a coin; the rest would take it ill
+        if figurine.SOCIAL_CLASS == "Poor":
+            options.append(GIVE_COIN_OPTION)
     if isinstance(figurine, Sheep):
         options.append("Pet Sheep")
     # Inspect is a debugging aid, only offered with the debug overlay on
@@ -207,6 +214,8 @@ def show_figurine_menu(
             return
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
+        if option_text == GIVE_COIN_OPTION and isinstance(figurine, NPC):
+            _give_coin(game_state, figurine)
         menu.close()
 
     # The tail points at the top centre of the sprite, or its bottom if the bubble flips below
@@ -237,6 +246,24 @@ def release_ended_conversations(game_state: 'GameState', game_map: 'GameMap') ->
     for npc in game_map.tmx_map.npcs:
         if npc is not talking:
             npc.talking_to = None
+
+
+def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
+    """Hand one of the poor a coin, booked as alms.
+
+    The player gets the usual money-spent feedback for it: the coin sound and
+    the rising amount above the cursor, as when buying anything else.
+
+    Args:
+        game_state: The current game state.
+        npc: The townsperson receiving the coin.
+    """
+    depot = game_state.game.depot
+    if not depot.book_donation(ALMS_COIN, category=ALMS_CATEGORY):
+        game_state.show_warning("You have not a coin to spare.")
+        return
+    on_money_spent(game_state, ALMS_COIN)
+    game_state.log_event("DONATION", f"Gave {ALMS_COIN:.0f}g to {npc.display_name}")
 
 
 def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:

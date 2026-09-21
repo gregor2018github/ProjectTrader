@@ -1,6 +1,6 @@
 import datetime
 from typing import Dict, List, Optional, Any
-from ..config.constants import STARTING_LICENSES
+from ..config.constants import ALMS_CATEGORY, STARTING_LICENSES
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
 
@@ -58,6 +58,7 @@ class Depot:
         self.donations: Dict[str, float] = {            # donation subcategories (current day)
             "Church Donations": 0,
             "Town Donations": 0,
+            ALMS_CATEGORY: 0,
         }
         self.labor_income: Dict[str, float] = {}        # minigame income subcategories (current day)
 
@@ -88,6 +89,7 @@ class Depot:
         self.donation_history: Dict[str, List[float]] = {          # donation subcategory history for bookkeeping
             "Church Donations": [0.0],
             "Town Donations": [0.0],
+            ALMS_CATEGORY: [0.0],
         }
         self.labor_income_history: Dict[str, List[float]] = {}      # minigame income subcategory history for bookkeeping
         # FIFO queue to track purchased goods with their prices

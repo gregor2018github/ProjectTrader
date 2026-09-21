@@ -52,6 +52,9 @@ STROLL_RELEASE_SECONDS_MAX = 5.0    # Longest such gap
 # Knocking on a house someone is in may bring them to the door for a moment.
 KNOCK_ANSWER_CHANCE = 0.50          # Chance that a knock is answered at all
 KNOCK_ANSWER_SECONDS = 5.0          # Real seconds they stand outside before going back in
+# Giving a coin to one of the town's poor, from the figurine menu.
+ALMS_COIN = 1                       # Coins handed over per gift
+ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked under
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
