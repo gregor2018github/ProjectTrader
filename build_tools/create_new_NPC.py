@@ -56,6 +56,7 @@ from medieval_names import gender_of, random_name  # noqa: E402
 DARK_TOLERANCE = 70      # a pixel darker than this in every channel counts as frame line
 LINE_FILL = 0.85         # share of a row/column that must be dark to be a frame line
 BORDER_ZONE = 0.08       # outer frame lines are searched in this share of each edge
+EMPTY_LINE = 0.04        # a row/column with this little ink is white background
 CELL_INSET = 0.012       # at most this much frame leftover is trimmed off a cell edge (share of its smaller side)
 
 # Background removal
@@ -198,10 +199,48 @@ def dark_runs(fills, start, end):
     return runs
 
 
-def split_axis(fills, length):
+def empty_runs(fills, start, end):
+    """Runs [a, b) of consecutive near-white rows/columns within [start, end)."""
+    runs, run_start = [], None
+    for i in range(start, end + 1):
+        empty = i < end and fills[i] <= EMPTY_LINE
+        if empty and run_start is None:
+            run_start = i
+        elif not empty and run_start is not None:
+            runs.append((run_start, i))
+            run_start = None
+    return runs
+
+
+def middle_gap(fills, length, start, end):
+    """Where two cells meet although no frame line was drawn between them.
+
+    Small answers often come back without the line: the cells then only meet
+    in the white margin around their sprites. The widest such gap, nearest
+    the middle, takes the line's place. Without it the two cells would be
+    read as one and the sprite would come out as two figures stacked.
+
+    Returns:
+        (a, b) of the gap, or twice the exact middle if there is no gap.
+    """
+    runs = empty_runs(fills, start, end)
+    if not runs:
+        return length // 2, length // 2
+    return max(runs, key=lambda run: (run[1] - run[0],
+                                      -abs((run[0] + run[1]) / 2 - length / 2)))
+
+
+def split_axis(fills, length, expect_split=False):
     """Return (content_start, split_a, split_b, content_end) along one axis.
 
     split_a..split_b is the inner frame line; both are None if there is none.
+
+    Args:
+        fills: Ink share per row or column.
+        length: Number of rows or columns.
+        expect_split: True when the caller knows the sheet is divided along
+            this axis, so a missing frame line is looked for as a white gap
+            instead of being taken for "there is only one cell here".
     """
     zone = max(1, int(length * BORDER_ZONE))
     first = dark_runs(fills, 0, zone)
@@ -209,20 +248,36 @@ def split_axis(fills, length):
     start = first[-1][1] if first else 0
     end = last[0][0] if last else length
 
-    inner = dark_runs(fills, int(length * 0.3), int(length * 0.7))
-    if not inner:
-        return start, None, None, end
-    a, b = min(inner, key=lambda run: abs((run[0] + run[1]) / 2 - length / 2))
-    return start, a, b, end
+    low, high = int(length * 0.3), int(length * 0.7)
+    inner = dark_runs(fills, low, high)
+    if inner:
+        a, b = min(inner, key=lambda run: abs((run[0] + run[1]) / 2 - length / 2))
+        return start, a, b, end
+    if expect_split:
+        a, b = middle_gap(fills, length, low, high)
+        return start, a, b, end
+    return start, None, None, end
 
 
-def find_cells(image):
-    """Return (reference_rect, target_rect, layout) for a Gemini result."""
+def find_cells(image, layout=None):
+    """Return (reference_rect, target_rect, layout) for a Gemini result.
+
+    Args:
+        image: The image the model returned.
+        layout: '1x2' or '2x2' when the caller knows which sheet was sent.
+            The cells are then separated even where the model drew no frame
+            line, which happens in small answers. None guesses the layout
+            from the frame lines alone.
+    """
     w, h = image.get_size()
+    # A 2x2 sheet is always clearly taller than wide. An answer that is not
+    # did not keep the layout, and guessing beats forcing a split onto it.
+    if layout == '2x2' and w >= h:
+        layout = None
     dark = pygame.mask.from_threshold(
         image, (0, 0, 0, 255), (DARK_TOLERANCE, DARK_TOLERANCE, DARK_TOLERANCE, 255)).to_surface()
-    left, col_a, col_b, right = split_axis(line_fill(dark, w, True), w)
-    top, row_a, row_b, bottom = split_axis(line_fill(dark, h, False), h)
+    left, col_a, col_b, right = split_axis(line_fill(dark, w, True), w, layout is not None)
+    top, row_a, row_b, bottom = split_axis(line_fill(dark, h, False), h, layout == '2x2')
 
     if col_a is None:  # no visible middle line: split in the middle
         col_a = col_b = (left + right) // 2
@@ -376,10 +431,10 @@ def detect_pose(extraction, player_shapes):
 class Result:
     """A loaded Gemini image and the sprite made from it."""
 
-    def __init__(self, path, player_poses, player_shapes):
+    def __init__(self, path, player_poses, player_shapes, layout=None):
         self.path = Path(path)
         self.image = pygame.image.load(str(path)).convert()
-        self.ref_rect, self.target_rect, self.layout = find_cells(self.image)
+        self.ref_rect, self.target_rect, self.layout = find_cells(self.image, layout)
         self.ref = Extraction(self.image.subsurface(self.ref_rect).copy())
         self.target = Extraction(self.image.subsurface(self.target_rect).copy())
         if self.ref.bbox is None:

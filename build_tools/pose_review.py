@@ -206,7 +206,9 @@ def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes:
     Raises:
         ValueError, pygame.error: If the cells or the sprite cannot be found.
     """
-    result = _import_tool().Result(image_path, player_poses, player_shapes)
+    # Every sheet create_new_pose sends is a 2x2 one, so the extraction does
+    # not have to guess - which it gets wrong when the model drew no lines.
+    result = _import_tool().Result(image_path, player_poses, player_shapes, layout='2x2')
     if pose in player_poses and result.pose != pose:
         result.set_pose(pose)
     return result
