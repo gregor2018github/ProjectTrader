@@ -42,12 +42,39 @@ class Entry:
     created: str = ''
     status: str = PENDING
     note: str = ''        # what the model said, or why a request failed
+    width: int = 0        # what the model really delivered, which is not
+    height: int = 0       # the same as the image size that was asked for
+    prompt_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
 
-    def details(self) -> str:
-        """Model and size that produced it, for the card and the header."""
+    def asked_for(self) -> str:
+        """The model and the output settings the request carried."""
         parts = [self.model.replace('gemini-', '') or 'unknown model']
         parts += [part for part in (self.aspect_ratio, self.image_size) if part]
         return ', '.join(parts)
+
+    def delivered(self) -> str:
+        """The resolution that came back and what it cost, '' if unknown."""
+        parts = []
+        if self.width and self.height:
+            parts.append(f'{self.width} x {self.height} px')
+        if self.total_tokens:
+            parts.append(f'{self.total_tokens} tokens')
+        return ', '.join(parts)
+
+    def token_detail(self) -> str:
+        """'1290 tokens (32 in, 1258 out)', or '' when nothing was recorded."""
+        if not self.total_tokens:
+            return ''
+        if self.prompt_tokens or self.output_tokens:
+            return (f'{self.total_tokens} tokens '
+                    f'({self.prompt_tokens} in, {self.output_tokens} out)')
+        return f'{self.total_tokens} tokens'
+
+    def details(self) -> str:
+        """One line describing the request and its answer."""
+        return ', '.join(part for part in (self.asked_for(), self.delivered()) if part)
 
 
 class ReviewStore:

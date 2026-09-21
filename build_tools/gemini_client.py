@@ -115,11 +115,14 @@ def describe_error(exc) -> str:
 
 @dataclass(frozen=True)
 class GeneratedImage:
-    """One image returned by the model."""
+    """One image returned by the model, with what it cost."""
 
     data: bytes
     mime_type: str
     model_text: str = ''
+    prompt_tokens: int = 0   # the sheet and the prompt that went in
+    output_tokens: int = 0   # the image that came back
+    total_tokens: int = 0
 
     @property
     def suffix(self) -> str:
@@ -317,12 +320,16 @@ class GeminiClient:
         candidate = response.candidates[0]
         parts = candidate.content.parts if candidate.content and candidate.content.parts else []
         model_text = '\n'.join(part.text for part in parts if part.text).strip()
+        usage = response.usage_metadata
         for part in parts:
             if part.inline_data and part.inline_data.data:
                 return GeneratedImage(
                     data=part.inline_data.data,
                     mime_type=part.inline_data.mime_type or 'image/png',
                     model_text=model_text,
+                    prompt_tokens=getattr(usage, 'prompt_token_count', 0) or 0,
+                    output_tokens=getattr(usage, 'candidates_token_count', 0) or 0,
+                    total_tokens=getattr(usage, 'total_token_count', 0) or 0,
                 )
         raise GeminiError(f'No image returned ({candidate.finish_reason}): {model_text[:200]}')
 

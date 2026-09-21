@@ -35,7 +35,9 @@ The window can be resized or maximised; F11 switches to full screen.
    as <prefix>_<pose>_gemini.png. Nothing is overwritten: a repeated run
    adds _2, _3 and so on, so several tries per pose can be compared.
 5. "Review" opens the answers that are waiting. Each one shows the image the
-   model returned next to the finished sprite it would become.
+   model returned next to the finished sprite it would become, together with
+   the resolution that really came back (which is not always the image size
+   that was asked for) and the tokens the request cost.
    - "Accept" cuts the sprite out and writes it into the NPC's folder in
      assets/, exactly as create_new_NPC.py would. The pose counts as done.
    - "Not good enough" leaves the image on disk and marks it rejected, to be
@@ -91,8 +93,8 @@ CARD_SIZE = (140, 205)
 THUMB_SIZE = (116, 150)
 NPC_CARD_SIZE = (172, 244)    # the overview cards also carry the counts and a bar
 NPC_THUMB_SIZE = (148, 150)
-RESULT_CARD_SIZE = (210, 215)
-RESULT_THUMB_SIZE = (186, 130)
+RESULT_CARD_SIZE = (222, 234)
+RESULT_THUMB_SIZE = (198, 130)
 CARD_GAP = 14
 HEADER_HEIGHT = 90
 FOOTER_HEIGHT = 70
@@ -343,6 +345,9 @@ class GeminiWorker:
                     image_size=self.settings.image_size,
                     created=datetime.now().isoformat(timespec='seconds'),
                     note=image.model_text[:200],
+                    prompt_tokens=image.prompt_tokens,
+                    output_tokens=image.output_tokens,
+                    total_tokens=image.total_tokens,
                 )))
             except (GeminiError, OSError) as exc:
                 self._queue.put(('error', f'{pose}: {exc}'))
@@ -398,6 +403,28 @@ def make_thumb(path, size=THUMB_SIZE, trim=True):
     return thumb
 
 
+def measure(path, entry, store=None):
+    """Note the answer's real resolution on its entry, once.
+
+    The model does not always deliver the image size that was asked for, and
+    older entries were written before this was recorded, so the file itself
+    is the only source. Runs on the main thread, where pygame can load.
+
+    Args:
+        path: The image file.
+        entry: The pose_review.Entry to fill in.
+        store: Store to save, when the entry gained a size.
+    """
+    if entry.width and entry.height:
+        return
+    try:
+        entry.width, entry.height = pygame.image.load(str(path)).get_size()
+    except (pygame.error, OSError):
+        return
+    if store:
+        store.save()
+
+
 def fit_text(font, text, width):
     """Shorten a label with an ellipsis until it fits into `width` pixels."""
     if font.size(text)[0] <= width:
@@ -408,17 +435,21 @@ def fit_text(font, text, width):
 
 
 class Card:
-    def __init__(self, key, label, thumb, note='', note2='', note_color=None,
-                 note2_color=None, progress=None, size=CARD_SIZE):
+    def __init__(self, key, label, thumb, note='', note_color=None, extra=(),
+                 progress=None, size=CARD_SIZE):
         self.key = key
         self.label = label
         self.thumb = thumb
         self.note = note
-        self.note2 = note2
         self.note_color = note_color
-        self.note2_color = note2_color
+        self.extra = list(extra)   # further (text, colour) lines under the note
         self.progress = progress   # 0..1, drawn as a bar along the card's foot
         self.rect = pygame.Rect((0, 0), size)
+
+    def lines(self):
+        """The (text, colour) lines under the label, empty ones dropped."""
+        rows = [(self.note, self.note_color or TEXT_DIM)] + self.extra
+        return [(text, color or TEXT_DIM) for text, color in rows if text]
 
 
 class Button:
@@ -641,6 +672,7 @@ class Detail:
         self.entry = entry
         self.path = npc.out_dir / entry.image
         self.image = pygame.image.load(str(self.path)).convert()
+        entry.width, entry.height = self.image.get_size()
         self.result = None
         self.error = ''
         try:
@@ -785,17 +817,16 @@ class SheetTool:
             waiting_total += waiting
 
             if waiting:
-                note2, note2_color = f'{waiting} to review', STATUS_COLORS[pose_review.PENDING]
+                extra = [(f'{waiting} to review', STATUS_COLORS[pose_review.PENDING])]
             elif rejected:
-                note2, note2_color = f'{rejected} rejected', ERROR_COLOR
+                extra = [(f'{rejected} rejected', ERROR_COLOR)]
             else:
-                note2, note2_color = '', None
+                extra = []
             self.npc_cards.append(Card(
                 npc, npc.name, self.npc_thumbs[npc.name],
                 note=f'{done}/{poses} sprites',
-                note2=note2,
                 note_color=STATUS_COLORS[pose_review.ACCEPTED] if done == poses else TEXT_DIM,
-                note2_color=note2_color,
+                extra=extra,
                 progress=done / max(1, poses),
                 size=NPC_CARD_SIZE))
         self.totals = (len(self.npcs), done_total, len(self.npcs) * poses, waiting_total)
@@ -820,9 +851,13 @@ class SheetTool:
                 thumb = make_thumb(self.npc.out_dir / entry.image, RESULT_THUMB_SIZE, trim=False)
             except pygame.error:
                 continue
+            measure(self.npc.out_dir / entry.image, entry, self.store)
             self.result_cards.append(Card(
-                entry, entry.pose, thumb, entry.status, entry.details(),
-                note_color=STATUS_COLORS.get(entry.status, TEXT_DIM), size=RESULT_CARD_SIZE))
+                entry, entry.pose, thumb, entry.status,
+                note_color=STATUS_COLORS.get(entry.status, TEXT_DIM),
+                extra=[(entry.delivered() or 'size unknown', TEXT_DIM),
+                       (entry.asked_for(), TEXT_DIM)],
+                size=RESULT_CARD_SIZE))
 
     def missing_poses(self):
         return {c.key for c in self.pose_cards if c.note != 'done'}
@@ -866,8 +901,14 @@ class SheetTool:
         if gemini_client.SDK_ERROR:
             self.set_status(f'Gemini: {gemini_client.SDK_ERROR}', error=True)
             return
-        self.worker = GeminiWorker(self.npc, jobs, prompt_for(self.npc),
-                                   self.settings, self.store.add)
+        npc, store = self.npc, self.store  # the answers belong to these, even
+                                           # if another NPC is opened meanwhile
+
+        def record(entry):
+            measure(npc.out_dir / entry.image, entry)
+            store.add(entry)
+
+        self.worker = GeminiWorker(npc, jobs, prompt_for(npc), self.settings, record)
         self.set_status(self.worker.status())
 
     def poll_worker(self):
@@ -997,12 +1038,10 @@ class SheetTool:
         width = card.rect.w - 12
         label = self.small.render(fit_text(self.small, card.label, width), True, TEXT)
         self.screen.blit(label, label.get_rect(midtop=(card.rect.centerx, y)))
-        for note, color in ((card.note, card.note_color or TEXT_DIM),
-                            (card.note2, card.note2_color or TEXT_DIM)):
-            if note:
-                y += 18
-                text = self.small.render(fit_text(self.small, note, width), True, color)
-                self.screen.blit(text, text.get_rect(midtop=(card.rect.centerx, y)))
+        for note, color in card.lines():
+            y += 18
+            text = self.small.render(fit_text(self.small, note, width), True, color)
+            self.screen.blit(text, text.get_rect(midtop=(card.rect.centerx, y)))
         if card.progress is not None:
             bar = pygame.Rect(card.rect.x + 12, card.rect.bottom - 13, card.rect.w - 24, 5)
             pygame.draw.rect(self.screen, BAR_BG, bar, border_radius=3)
@@ -1031,7 +1070,10 @@ class SheetTool:
         image_rect, preview_rect = self.detail_rects()
         detail = self.detail
 
-        self.draw_panel(image_rect, f'What the model returned  ({detail.entry.image})')
+        returned = f'{detail.image.get_width()} x {detail.image.get_height()} px'
+        tokens = detail.entry.token_detail()
+        self.draw_panel(image_rect, f'What the model returned  -  {returned}'
+                                    + (f'  -  {tokens}' if tokens else ''))
         area = image_rect.inflate(-20, -20)
         size = detail.image.get_size()
         factor = min(area.w / size[0], area.h / size[1], 1.0)
@@ -1093,8 +1135,11 @@ class SheetTool:
             waiting = len(self.store.pending())
             return (f'3. Answers for "{self.npc.name}"  -  {waiting} waiting',
                     'Click an answer to judge it. Accepted ones are already in the game.')
-        return (f'{self.detail.entry.pose}  -  {self.detail.entry.image}',
-                f'{self.detail.entry.details()}  -  Enter = accept, Del = not good enough, S = settings')
+        entry = self.detail.entry
+        asked = f'asked for {entry.asked_for()}'
+        got = f'got {entry.delivered()}' if entry.delivered() else 'size unknown'
+        return (f'{entry.pose}  -  {entry.image}',
+                f'{asked}  -  {got}  -  Enter = accept, Del = not good enough, S = settings')
 
     def draw(self):
         mouse = pygame.mouse.get_pos()
