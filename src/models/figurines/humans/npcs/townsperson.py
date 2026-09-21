@@ -256,6 +256,15 @@ class Townsperson(NPC):
                 keeps no hours of their own; :class:`StreetLife` decides when
                 they go out.
         """
+        if self.state != AT_HOME:
+            if self._hold_for_talk(dt):
+                # Their outing is on hold; indoors there is nothing to hold up.
+                return
+            # Being stopped for a word clears the walk target, so the outing
+            # has to be picked back up once the player is done with them.
+            if self.state != PAUSED and self.path is not None and self.path_target is None:
+                self.walk_to_distance(self.path.length)
+
         if self.state == AT_HOME:
             self.rest_left = max(0.0, self.rest_left - dt)
             self._animate(dt, False)

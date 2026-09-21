@@ -289,6 +289,11 @@ class Trader(NPC):
             current_time: The current in-game time, which paces his rests and
                 his working day.
         """
+        if self._hold_for_talk(dt):
+            # His day waits: whatever he missed, the catch-up sorts out once
+            # the player lets him get on with it.
+            return
+
         if self.homeway is not None and self.stall_path is not None:
             if self._is_unseen(current_time):
                 self._catch_up(current_time)

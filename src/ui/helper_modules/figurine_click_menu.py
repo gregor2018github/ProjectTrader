@@ -42,6 +42,10 @@ OPTION_HOVER_FILL = (218, 198, 154)    # Darker parchment tone behind the hovere
 SPEECH_MAX_TEXT_WIDTH = 280            # Speech bubbles wrap their text at this width
 CLOSE_CROSS_SIZE = 10
 SPEECH_TEXT_GAP = 5                    # Extra space between the title rule and spoken text
+# How far the player may stray before a chat breaks off, in world pixels. A
+# little beyond the reach needed to start one, so a step aside does not cut
+# the conversation short, but far from having to leave the map view
+SPEECH_BREAK_DISTANCE = 80             # About 2.5 tiles
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -195,7 +199,7 @@ def show_figurine_menu(
             return
         if option_text == "Chat" and isinstance(figurine, NPC):
             # The speech bubble takes the menu's place. It follows the NPC and
-            # closes itself once they leave the map view, not on distance
+            # closes itself once the player walks away or they leave the view
             game_state.info_window = FigurineSpeech(game_state.screen, figurine, figurine.chat_line(),
                                                     game_state, map_content_rect)
             game_state.active_house_menu = None
@@ -213,6 +217,25 @@ def show_figurine_menu(
     # Keeps the hover glow on and closes the menu when the player walks away
     game_state.active_house_menu = figurine
     return True
+
+
+def release_ended_conversations(game_state: 'GameState', game_map: 'GameMap') -> None:
+    """Let every NPC get on with their day whose bubble is no longer open.
+
+    A bubble holds its figurine still from the moment it opens and lets go in
+    close(), but it can also be dropped without that — the map view takes one
+    away when the player walks off, and a menu can be replaced by another
+    window. Called once a frame, this makes sure nobody is left standing.
+
+    Args:
+        game_state: The current game state.
+        game_map: The map holding the NPCs.
+    """
+    window = game_state.info_window
+    talking = window.figurine if isinstance(window, _FigurineBubble) else None
+    for npc in game_map.tmx_map.npcs:
+        if npc is not talking:
+            npc.talking_to = None
 
 
 def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
@@ -254,6 +277,12 @@ class _FigurineBubble:
         self.game_state = game_state
         self.sprite_rect = sprite_rect
 
+        # Whoever the bubble belongs to gives the player their attention: an
+        # NPC stands still and faces them for as long as it is open. Game
+        # holds the other end of this, and lets them go when it closes
+        if hasattr(figurine, "talking_to"):
+            figurine.talking_to = game_state.game.game_map.map_player
+
         try:
             self.title_font = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), TITLE_FONT_SIZE)
             self.text_font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), OPTION_FONT_SIZE)
@@ -291,7 +320,9 @@ class _FigurineBubble:
                           min(self.tip[0], self.rect.right - BUBBLE_RADIUS - half_tail))
 
     def close(self) -> None:
-        """Close the bubble with the shared fade-out."""
+        """Close the bubble with the shared fade-out, and let the figurine go."""
+        if getattr(self.figurine, "talking_to", None) is not None:
+            self.figurine.talking_to = None
         self.game_state.menu_fade_window = self
         self.game_state.menu_fade_timer = self.game_state.menu_fade_duration
         self.game_state.info_window = None
@@ -431,8 +462,8 @@ class FigurineSpeech(_FigurineBubble):
     """A speech bubble with a line the figurine says, closed with a small cross.
 
     Clicking outside the bubble closes it as well. The bubble follows the
-    figurine as it walks, and closes by itself once the figurine has left the
-    map view.
+    figurine as it walks, and closes by itself once the player has walked
+    SPEECH_BREAK_DISTANCE away from the figurine, or it has left the map view.
     """
 
     def __init__(
@@ -456,7 +487,8 @@ class FigurineSpeech(_FigurineBubble):
         self.camera = game_state.game.game_map.camera
         super().__init__(screen, figurine, game_state,
                          figurine_screen_rect(figurine, self.camera, map_content_rect))
-        # Not tied to the player's interaction range; see draw()
+        # Not the map view's interaction-range close; this bubble keeps its
+        # own, more forgiving distance in draw()
         self.house = None
         # Rendered once; the text never changes while the bubble is open
         self.line_surfs = [self.text_font.render(line, True, BLACK)
@@ -488,20 +520,22 @@ class FigurineSpeech(_FigurineBubble):
         self.close_hit_rect = self.close_rect.inflate(8, 8)
 
     def draw(self, alpha_scale: float = 1.0) -> None:
-        """Move along with the figurine, and close once it has left the map view or vanished.
+        """Move along with the figurine, and close once the player has left it behind.
 
         Args:
             alpha_scale: Transparency scale from 0.0 to 1.0.
         """
         sprite_rect = figurine_screen_rect(self.figurine, self.camera, self.map_content_rect)
+        player = self.game_state.game.game_map.map_player
         in_view = (self.game_state.is_map_visible and not self.figurine.is_hidden
-                   and sprite_rect.colliderect(self.map_content_rect))
+                   and sprite_rect.colliderect(self.map_content_rect)
+                   and is_player_near(player, self.figurine, SPEECH_BREAK_DISTANCE))
         if in_view:
             self.sprite_rect = sprite_rect
             self._layout()
         elif alpha_scale >= 1.0:
             # Fully opaque means still open. The fade-out then stays where the
-            # figurine was last seen
+            # figurine was last within earshot
             self.close()
             return
         super().draw(alpha_scale)

@@ -10,13 +10,16 @@ butcher, and whoever follows) subclass it and decide *when* to move.
 import os
 import random
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
 from .sentences import sentences_for
+
+if TYPE_CHECKING:
+    from ...figurine import Figurine
 
 # Artwork root shared by every human NPC.
 NPC_SPRITE_ROOT = os.path.join(HUMAN_SPRITE_ROOT, 'npcs')
@@ -69,6 +72,10 @@ class NPC(Human):
         self.path_target: Optional[float] = None
 
         self._last_chat_line: Optional[str] = None
+
+        #: Whoever the player has stopped them for, or None. While someone is
+        #: set, the NPC stands still and turns to face them.
+        self.talking_to: Optional['Figurine'] = None
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -135,6 +142,46 @@ class NPC(Human):
     # ------------------------------------------------------------------
     # Chat
     # ------------------------------------------------------------------
+
+    def _direction_towards(self, other: 'Figurine') -> str:
+        """The animation direction that has the NPC looking at someone.
+
+        Args:
+            other: The figurine to look at.
+
+        Returns:
+            str: Direction identifier understood by the animator; the current
+            one if the two stand in exactly the same spot.
+        """
+        dx = (other.x + other.width / 2) - (self.x + self.width / 2)
+        dy = (other.y + other.height / 2) - (self.y + self.height / 2)
+        largest = max(abs(dx), abs(dy))
+        if largest <= 0.0:
+            return self.animator.current_direction
+        deadzone = largest * DIAGONAL_THRESHOLD
+        horizontal = "" if abs(dx) < deadzone else ("right" if dx > 0 else "left")
+        if abs(dy) < deadzone:
+            return horizontal or self.animator.current_direction
+        vertical = "front" if dy > 0 else "back"
+        return f"{vertical}_{horizontal}" if horizontal else vertical
+
+    def _hold_for_talk(self, dt: float) -> bool:
+        """Stand still and face whoever stopped the NPC for a word.
+
+        Args:
+            dt: Delta time in seconds.
+
+        Returns:
+            bool: True while the NPC is being talked to, which means the
+            caller must not advance any behaviour of its own this frame.
+        """
+        if self.talking_to is None:
+            return False
+        # Only the velocity is cleared, not the walk target: the NPC picks his
+        # way up again where he left it once the player is done.
+        self.set_movement(0.0, 0.0)
+        self._animate(dt, False, self._direction_towards(self.talking_to))
+        return True
 
     def chat_line(self) -> str:
         """Pick something to say, never the same line twice in a row.
@@ -224,14 +271,16 @@ class NPC(Human):
             0.0 if abs(dy) < deadzone else (1.0 if dy > 0 else -1.0),
         )
 
-    def _animate(self, dt: float, is_moving: bool) -> None:
+    def _animate(self, dt: float, is_moving: bool, direction: Optional[str] = None) -> None:
         """Advance the animator and any fade, and refresh the current frame.
 
         Args:
             dt: Delta time in seconds.
             is_moving: Whether the NPC moved this frame.
+            direction: Animation direction to use instead of the one the
+                current velocity implies.
         """
-        self.animator.update(dt, self._determine_direction(is_moving), is_moving)
+        self.animator.update(dt, direction or self._determine_direction(is_moving), is_moving)
         self.sprite = self.animator.get_current_frame()
         self.source_sprite = self.animator.get_current_source_frame()
         self.was_moving = is_moving

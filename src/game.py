@@ -23,6 +23,7 @@ from .ui.helper_modules.sound_control import SoundControl  # Add import for Soun
 from .ui.helper_modules.contract_acquisition import ContractView
 from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
+from .ui.helper_modules.figurine_click_menu import release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
@@ -516,6 +517,9 @@ class Game:
                         else:
                             keys = pygame.key.get_pressed()
                             self.game_map.handle_movement_keys(keys)
+                        # Anyone the player is talking to stands still; the
+                        # rest walk on (see figurine_click_menu)
+                        release_ended_conversations(self.state, self.game_map)
                         self.game_map.update(delta_time, self.state.date)
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size

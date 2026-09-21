@@ -115,15 +115,18 @@ def get_hovered_house(
     return candidates[0][1]
 
 
-def is_player_near(player, target) -> bool:
+def is_player_near(player, target, max_distance: float = HOUSE_INTERACTION_DISTANCE) -> bool:
     """Check if the player is close enough to a house or figurine to interact.
 
     Uses the target's collision rect for distance calculation, checking if
-    the player's center is within HOUSE_INTERACTION_DISTANCE of the collision box.
+    the player's center is within max_distance of the collision box.
 
     Args:
         player: The MapPlayer instance.
         target: The House or Figurine to check proximity to.
+        max_distance: How far apart the two may be, in world pixels.
+            Defaults to HOUSE_INTERACTION_DISTANCE, the reach needed to start
+            an interaction.
 
     Returns:
         True if the player is within interaction distance.
@@ -144,7 +147,7 @@ def is_player_near(player, target) -> bool:
     dy = player_center_y - closest_y
     distance_sq = dx * dx + dy * dy
     
-    return distance_sq <= HOUSE_INTERACTION_DISTANCE * HOUSE_INTERACTION_DISTANCE
+    return distance_sq <= max_distance * max_distance
 
 
 # Cache for hover glow sprites to avoid recreating them every frame.
