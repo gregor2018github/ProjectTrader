@@ -89,6 +89,8 @@ TARGET_FRAME_WIDTH = 3
 WINDOW_SIZE = (1280, 820)  # starting size; the window can be resized, F11 = full screen
 CARD_SIZE = (140, 205)
 THUMB_SIZE = (116, 150)
+NPC_CARD_SIZE = (172, 244)    # the overview cards also carry the counts and a bar
+NPC_THUMB_SIZE = (148, 150)
 RESULT_CARD_SIZE = (210, 215)
 RESULT_THUMB_SIZE = (186, 130)
 CARD_GAP = 14
@@ -112,6 +114,7 @@ DIALOG_LINE = (92, 86, 78)
 CHIP_BG = (70, 66, 60)
 CHIP_HOVER = (95, 89, 80)
 CHIP_ON = (60, 120, 70)
+BAR_BG = (52, 49, 45)
 SHADE = (0, 0, 0, 170)
 
 # Colour of a review card by state
@@ -395,14 +398,26 @@ def make_thumb(path, size=THUMB_SIZE, trim=True):
     return thumb
 
 
+def fit_text(font, text, width):
+    """Shorten a label with an ellipsis until it fits into `width` pixels."""
+    if font.size(text)[0] <= width:
+        return text
+    while text and font.size(text + '...')[0] > width:
+        text = text[:-1]
+    return text + '...'
+
+
 class Card:
-    def __init__(self, key, label, thumb, note='', note2='', note_color=None, size=CARD_SIZE):
+    def __init__(self, key, label, thumb, note='', note2='', note_color=None,
+                 note2_color=None, progress=None, size=CARD_SIZE):
         self.key = key
         self.label = label
         self.thumb = thumb
         self.note = note
         self.note2 = note2
         self.note_color = note_color
+        self.note2_color = note2_color
+        self.progress = progress   # 0..1, drawn as a bar along the card's foot
         self.rect = pygame.Rect((0, 0), size)
 
 
@@ -664,8 +679,10 @@ class SheetTool:
 
         self.npcs = find_npcs()
         self.player_poses = find_player_poses()
-        self.npc_cards = [Card(n, n.name, make_thumb(n.base_path), n.base_path.name)
-                          for n in self.npcs]
+        self.npc_thumbs = {n.name: make_thumb(n.base_path, NPC_THUMB_SIZE) for n in self.npcs}
+        self.npc_cards = []
+        self.totals = (0, 0, 0, 0)
+        self.build_npc_cards()
         self.pose_thumbs = {pose: make_thumb(path) for pose, path in self.player_poses.items()}
         self.player_shapes = None  # built on first use, needs create_new_NPC
 
@@ -749,6 +766,39 @@ class SheetTool:
         self.set_status('')
         self.build_pose_cards()
         self.set_view('poses')
+
+    def build_npc_cards(self):
+        """One card per NPC, showing how far his set of sprites has come.
+
+        Also fills self.totals with (npcs, sprites done, sprites possible,
+        answers waiting) for the header.
+        """
+        self.npc_cards = []
+        poses = len(self.player_poses)
+        done_total = waiting_total = 0
+        for npc in self.npcs:
+            store = ReviewStore(npc.out_dir)
+            done = sum(npc.sprite_path(pose).exists() for pose in self.player_poses)
+            waiting = len(store.pending())
+            rejected = sum(e.status == pose_review.REJECTED for e in store.entries)
+            done_total += done
+            waiting_total += waiting
+
+            if waiting:
+                note2, note2_color = f'{waiting} to review', STATUS_COLORS[pose_review.PENDING]
+            elif rejected:
+                note2, note2_color = f'{rejected} rejected', ERROR_COLOR
+            else:
+                note2, note2_color = '', None
+            self.npc_cards.append(Card(
+                npc, npc.name, self.npc_thumbs[npc.name],
+                note=f'{done}/{poses} sprites',
+                note2=note2,
+                note_color=STATUS_COLORS[pose_review.ACCEPTED] if done == poses else TEXT_DIM,
+                note2_color=note2_color,
+                progress=done / max(1, poses),
+                size=NPC_CARD_SIZE))
+        self.totals = (len(self.npcs), done_total, len(self.npcs) * poses, waiting_total)
 
     def build_pose_cards(self):
         """One card per player pose, with what is known about it."""
@@ -944,13 +994,23 @@ class SheetTool:
         thumb_w, thumb_h = card.thumb.get_size()
         self.screen.blit(card.thumb, (card.rect.x + (card.rect.w - thumb_w) // 2, card.rect.y + 10))
         y = card.rect.y + thumb_h + 16
-        label = self.small.render(card.label, True, TEXT)
+        width = card.rect.w - 12
+        label = self.small.render(fit_text(self.small, card.label, width), True, TEXT)
         self.screen.blit(label, label.get_rect(midtop=(card.rect.centerx, y)))
-        for note, color in ((card.note, card.note_color or TEXT_DIM), (card.note2, TEXT_DIM)):
+        for note, color in ((card.note, card.note_color or TEXT_DIM),
+                            (card.note2, card.note2_color or TEXT_DIM)):
             if note:
                 y += 18
-                text = self.small.render(note, True, color)
+                text = self.small.render(fit_text(self.small, note, width), True, color)
                 self.screen.blit(text, text.get_rect(midtop=(card.rect.centerx, y)))
+        if card.progress is not None:
+            bar = pygame.Rect(card.rect.x + 12, card.rect.bottom - 13, card.rect.w - 24, 5)
+            pygame.draw.rect(self.screen, BAR_BG, bar, border_radius=3)
+            share = max(0.0, min(1.0, card.progress))
+            filled = round(bar.w * share)
+            if filled:
+                color = STATUS_COLORS[pose_review.ACCEPTED] if share >= 1 else DONE_COLOR
+                pygame.draw.rect(self.screen, color, (bar.x, bar.y, filled, bar.h), border_radius=3)
 
     def draw_cards(self, mouse):
         clip = pygame.Rect(0, HEADER_HEIGHT, window_size()[0],
@@ -1015,9 +1075,16 @@ class SheetTool:
     def header_text(self):
         """(title, hint) of the current view."""
         if self.view == 'npcs':
-            return ('1. Choose the NPC',
-                    f'Folders in {NPC_DIR.relative_to(ROOT)} that contain a {SHEET_BASE_POSE} sprite'
-                    + ('' if self.npc_cards else '  -  none found'))
+            npcs, done, possible, waiting = self.totals
+            if not npcs:
+                return ('1. Choose the NPC',
+                        f'No folder in {NPC_DIR.relative_to(ROOT)} has a {SHEET_BASE_POSE} sprite')
+            hint = (f'{npcs} NPCs in {NPC_DIR.relative_to(ROOT)}  -  '
+                    f'{done} of {possible} sprites drawn ({done * 100 // max(1, possible)}%), '
+                    f'{possible - done} still missing')
+            if waiting:
+                hint += f'  -  {waiting} answer(s) waiting for review'
+            return (f'1. Choose the NPC  -  {done}/{possible} sprites', hint)
         if self.view == 'poses':
             return (f'2. Player pose(s) to copy for "{self.npc.name}"',
                     'Click to toggle. Each selected pose becomes one sheet. "done" = the NPC '
@@ -1096,6 +1163,7 @@ class SheetTool:
             self.store = None
             self.worker = None
             self.set_status('')
+            self.build_npc_cards()
             self.set_view('npcs')
         else:
             return False
