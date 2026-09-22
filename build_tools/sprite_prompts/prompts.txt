@@ -265,6 +265,81 @@ Her hands must be completely empty: open or relaxed, hanging at her sides, holdi
 Keep the palette light and clean, with natural linen white, flax beige, pale blue and soft gray, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
 
 
+==================== Candle trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a male candle trader, a chandler who renders tallow and pulls wicks and sells his candles at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a chandler who trades candles:
+- A wiry, slightly stooped man with a narrow face and a soot smudge on one cheek.
+- Thinning dark hair and a short, untidy beard.
+- A dull soot-gray tunic with the sleeves rolled to the elbow.
+- A heavy waxy apron in pale beeswax cream, stiff and streaked with dried drips of tallow.
+- A bundle of pale wicks and a short amber candle tucked into his belt, not in his hands.
+- Scuffed dark-brown boots and dark trousers.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette warm and smoky, with beeswax cream, honey amber, soot gray and dark brown, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Herb trader (female) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a female herb trader, a herbwife who gathers and dries herbs and sells them at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make her clearly a different person from the player and clearly a herbwife who trades herbs:
+- An older, weathered woman with a sharp, knowing face and deep smile lines.
+- Gray-streaked dark hair under a russet-brown headscarf tied at the back.
+- A long mossy-green dress with a laced bodice in darker green.
+- A wide belt of woven cord with small linen pouches and two bundles of dried herbs hanging from it, not in her hands.
+- A sprig of dried lavender pinned at her collar.
+- Plain brown leather shoes peeking out under the dress.
+
+Her hands must be completely empty: open or relaxed, hanging at her sides, holding nothing at all. No tools, goods or other items in or near her hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette earthy and herbal, with moss green, russet brown, dusty lavender and dried-hay beige, so she fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
+==================== Salt trader (male) ====================
+
+The attached picture is a split view. The left side shows a sprite of the main character from my game "Merchant's Rise", a medieval trading game. The right side is empty. Draw a new character in the empty right side.
+
+The new character is a male salt trader, a salter who hauls and weighs salt and sells it at the town market.
+
+Match the original sprite exactly in:
+- Style: the same chunky pixel art, pixel size, dark outline, flat shading and color depth. No anti-aliasing, gradients or blur.
+- Proportions: the same chibi build, with a large head, big black rectangular eyes, a small body and short legs. The new character must be the same height and width as the original and sit at the same position in its panel.
+- Posture: the same front-facing standing pose, with arms hanging at the sides and feet in the same place.
+- Background: plain white, with no shadow, ground or scenery.
+
+Make him clearly a different person from the player and clearly a salter who trades salt:
+- A broad, thickset man with heavy shoulders and a sun-reddened, careful face, like someone who counts every measure twice.
+- Short sandy hair and a close-trimmed beard, both pale as if dusted with salt.
+- A slate-blue tunic with wide sleeves, faded and stiff from brine.
+- A bleached off-white apron with a crust of pale salt along the hem.
+- A broad dark leather belt carrying a small brass weighing scale and a stoppered horn, not in his hands.
+- Sturdy gray-brown boots and dark trousers.
+
+His hands must be completely empty: open or relaxed, hanging at his sides, holding nothing at all. No tools, goods or other items in or near his hands. The hands will be animated later for walking sprites, so they need to stay free.
+
+Keep the palette cool and bleached, with salt white, slate blue, weathered gray and dark leather brown, so he fits the same game world as the original. Change only the right side and leave the left side exactly as it is. Output the full split image.
+
+
 ######################## Street walkers (one per population class) ########################
 
 ==================== Beggar (male, Poor) ====================
