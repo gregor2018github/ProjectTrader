@@ -18,6 +18,10 @@ his ``TILED_PREFIX`` (``Butcher`` for the butcher):
 * ``<prefix>_Homeway_Path`` — polygon or polyline leading to his house.
 * ``<prefix>_Homeway_Start`` — point where he steps off the stall onto it.
 * ``<prefix>_Homeway_End`` — point at his front door.
+
+Several traders may name the same shapes. They then share the one stall and
+take turns at it: one of them is drawn each night to mind it the next day
+(see :class:`StallRota`), and the others stay indoors and out of sight.
 """
 
 import datetime
@@ -58,6 +62,44 @@ LEAVING_STALL = "Leaving the stall"
 WALKING_HOME = "Walking home"
 AT_HOME = "At home"
 WALKING_TO_WORK = "Walking to work"
+
+
+class StallRota:
+    """The traders who share one stall, and whose turn it is to mind it.
+
+    A stall only has room for one trader, so a group sharing one takes turns:
+    every trader in the rota is as likely as the next to be the one who steps
+    out of his door in the morning, and the rest stay indoors for the day.
+
+    The turn is drawn per calendar day, which is the shape of a trader's
+    working day: he sets off in the small hours of the morning and is back
+    indoors before midnight. The draw therefore always falls in the dead of
+    night, with yesterday's trader home and nobody out yet.
+    """
+
+    def __init__(self, traders: List['Trader']) -> None:
+        """Put the traders on one rota and tell each of them it is on it.
+
+        Args:
+            traders: The traders sharing the stall.
+        """
+        self.traders: List['Trader'] = list(traders)
+        self.on_duty: 'Trader' = self.traders[0]
+        self.last_draw_date: Optional[str] = None
+        for trader in self.traders:
+            trader.rota = self
+
+    def whose_turn(self, current_time: datetime.datetime) -> 'Trader':
+        """The trader minding the stall today, drawing anew on a new day.
+
+        Args:
+            current_time: The current in-game time.
+        """
+        today = current_time.strftime("%Y-%m-%d")
+        if self.last_draw_date != today:
+            self.last_draw_date = today
+            self.on_duty = random.choice(self.traders)
+        return self.on_duty
 
 
 class Trader(NPC):
@@ -114,6 +156,9 @@ class Trader(NPC):
         self.last_update_time: Optional[datetime.datetime] = None
         #: When he packs up and when he comes back, a little different each night.
         self.hours = MarketHours()
+        #: The rota he shares his stall on, if he shares it. None if the stall
+        #: is his alone, which is the usual case.
+        self.rota: Optional[StallRota] = None
 
     def set_workplace(self, stall_path: PatrolPath, market: Optional['Market']) -> None:
         """Put the trader to work at his stall.
@@ -142,6 +187,8 @@ class Trader(NPC):
         lines = super().inspect_lines(observer)
         lines.append(f"Day: {self.state}")
         lines.append(f"Market: {self.market.name if self.market else 'none'}")
+        if self.rota is not None and self.last_update_time is not None:
+            lines.append(f"Stall kept today by: {self.rota.whose_turn(self.last_update_time).name}")
         if self.homeway is not None:
             lines.append(f"Way home: {self.homeway.length:.0f} px")
         else:
@@ -186,9 +233,14 @@ class Trader(NPC):
     def _off_duty(self, current_time: datetime.datetime) -> bool:
         """Whether it is time for him to be at home rather than at work.
 
+        A trader who shares his stall stays home all day unless the rota drew
+        him for it, so only ever one of them is out.
+
         Args:
             current_time: The current in-game time.
         """
+        if self.rota is not None and self.rota.whose_turn(current_time) is not self:
+            return True
         return self.hours.is_closed_at(current_time)
 
     def _is_unseen(self, current_time: datetime.datetime) -> bool:

@@ -26,6 +26,7 @@ from .smoke import SmokeEmitter
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
 from .figurines.humans.npcs.npc import NPC
+from .figurines.humans.npcs.trader import StallRota, Trader
 from .figurines.humans.npcs import (
     TraderAlewife, TraderBlacksmith, TraderButcher, TraderFarmer, TraderFisherman,
     TraderPotter, TraderShepherdess, TraderStonemason, TraderTanner, TraderVintner,
@@ -721,9 +722,10 @@ class TMXMap:
         for mill in self.mills:
             mill.update_blades(dt)
 
-    # Traders placed from the "Movements" layer. Each class names its own Tiled
+    # Traders placed from the "Movements" layer. Each class names its Tiled
     # objects through TILED_PREFIX (see Trader), so adding a trader is drawing
-    # his shapes in Tiled and adding his class here.
+    # his shapes in Tiled and adding his class here. Classes naming the same
+    # shapes share the one stall and take turns at it (see StallRota).
     TRADER_TYPES: Tuple[type, ...] = (
         TraderAlewife,
         TraderBlacksmith,
@@ -744,7 +746,8 @@ class TMXMap:
 
         Sheep take a rectangle (they only wander left and right inside it).
         Traders take a polygon or polyline around their stall, which they walk
-        along, plus an optional way home.
+        along, plus an optional way home. Where several traders name the same
+        shapes they are put on one rota, which sends one of them out a day.
         """
         objects_by_name: Dict[str, Any] = {}
         for layer in self.tmx_data.visible_layers:
@@ -757,8 +760,15 @@ class TMXMap:
                     elif obj.name:
                         objects_by_name[obj.name] = obj
 
+        stalls: Dict[str, List[Trader]] = {}
         for trader_class in self.TRADER_TYPES:
-            self._load_trader(trader_class, objects_by_name)
+            trader = self._load_trader(trader_class, objects_by_name)
+            if trader is not None:
+                stalls.setdefault(trader_class.TILED_PREFIX, []).append(trader)
+        for sharers in stalls.values():
+            if len(sharers) > 1:
+                # The rota hands itself to its traders; they are what holds it.
+                StallRota(sharers)
 
     def _movement_path(self, obj: Any) -> Optional[PatrolPath]:
         """Build a walkable path from a Tiled polygon or polyline.
@@ -780,17 +790,21 @@ class TMXMap:
         path = PatrolPath(points, closed=getattr(obj, "closed", True), margin=margin)
         return path if path else None
 
-    def _load_trader(self, trader_class: Any, objects_by_name: Dict[str, Any]) -> None:
+    def _load_trader(self, trader_class: Any,
+                     objects_by_name: Dict[str, Any]) -> Optional[Trader]:
         """Create one trader from his Tiled objects and send him to work.
 
         Args:
             trader_class: The Trader subclass to instantiate.
             objects_by_name: The "Movements" layer's objects, keyed by name.
+
+        Returns:
+            The trader placed on the map, or None if his stall is not drawn.
         """
         prefix = trader_class.TILED_PREFIX
         stall = objects_by_name.get(f"{prefix}_Market_Stall")
         if stall is None:
-            return
+            return None
 
         trader = trader_class(stall.x, stall.y, self.tile_size)
         market = next(
@@ -806,7 +820,7 @@ class TMXMap:
             trader.market = market
             trader.place_feet(stall.x, stall.y)
             self.npcs.append(trader)
-            return
+            return trader
         trader.set_workplace(stall_path, market)
 
         homeway_path = objects_by_name.get(f"{prefix}_Homeway_Path")
@@ -828,6 +842,7 @@ class TMXMap:
                 trader.set_homeway(homeway)
 
         self.npcs.append(trader)
+        return trader
 
     def update_sheep(self, dt: float, player_rect: pygame.Rect = None) -> None:
         """Advance all sheep NPCs (call once per frame when not paused)."""

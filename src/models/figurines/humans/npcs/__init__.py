@@ -1,7 +1,7 @@
 """Human NPCs — self-directed townsfolk."""
 
 from .npc import NPC, NPC_SPRITE_ROOT
-from .trader import Trader
+from .trader import StallRota, Trader
 from .trader_alewife import TraderAlewife
 from .trader_blacksmith import TraderBlacksmith
 from .trader_butcher import TraderButcher
@@ -16,7 +16,7 @@ from .trader_weaver import TraderWeaver
 from .trader_woodcutter import TraderWoodcutter
 
 __all__ = [
-    "NPC", "NPC_SPRITE_ROOT", "Trader", "TraderAlewife", "TraderBlacksmith",
+    "NPC", "NPC_SPRITE_ROOT", "StallRota", "Trader", "TraderAlewife", "TraderBlacksmith",
     "TraderButcher", "TraderFarmer", "TraderFisherman", "TraderPotter",
     "TraderShepherdess", "TraderStonemason", "TraderTanner", "TraderVintner",
     "TraderWeaver", "TraderWoodcutter",

@@ -1,7 +1,6 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] bring in the traders which are currently missing
 - [ ] come up with new walking animations, apply them for a simple NPC
 - [ ] take simple NPC walking to make proper preview mechanic for the annimations
 - [ ] fix animation to walk down (repeats too fast currently)
@@ -22,7 +21,6 @@
 - [ ] improve the water animation, actually split it into sea and river tiles
 - [ ] add a bridge to go over the river
 - [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
-- [ ] other people must stand behind the market booths, create and add NPC sprites
 - [ ] implement a merchant rank system
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
@@ -52,11 +50,14 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] put the alewife, tanner and shepherdess to work: they share a stall with the vintner (alewife) and the weaver (tanner, shepherdess), and a rota draws one of each group per day to mind it while the rest stay indoors
+- [x] bring in the traders which are currently missing
 - [x] give a coin to one of the town's poor from their figurine menu: the coin is booked under a new "Alms" donation category and gives the usual coin sound and popup
 - [x] bugfix: When moving to the sides, the window polygons at night flicker (they never start at a tile corner, that might be related to the flicker), the sheep sprites flicker too when they don't move themselves but the player moves 
 - [x] mark doors on the tile map: a "Doors" point layer in Tiled, each point named after the direction one walks out of it
 - [x] random town folk must walk the streets, very little at night, more during the day: townsfolk fade out of a front door, walk an A* route around the houses with the odd stop to look at something, and fade into another door, which becomes their home for the next time
 - [x] generate NPC poses through the Gemini API from build_tools/create_new_pose.py: pick model, aspect ratio and image size, review every answer and accept it straight into the sprite folder or mark it as not good enough
+- [x] other people must stand behind the market booths, create and add NPC sprites
 - [x] add new closed booth sprites for all market stalls
 - [x] logic to actually cover booths at night with tarps: each booth switches to its "_closed" sprite at a slightly random time around closing/opening hour (booths without one keep their open sprite)
 - [x] make prototype of tarped market booths (they will be closed at night and covered with tarps)
