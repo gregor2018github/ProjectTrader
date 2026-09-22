@@ -955,31 +955,46 @@ def _draw_profit_bars(
     depot: 'Depot',
     current_date: datetime.datetime,
 ) -> None:
-    """Draw daily profit (income minus expenses) as signed bars around a zero axis.
+    """Draw the daily change in total wealth as signed bars around a zero axis.
+
+    Profit is the same figure the depot detail panel shows: cash flow plus the
+    change in stock value, property value and loan balance. Taking it straight
+    from the wealth history keeps both views on one number instead of counting
+    only the money that moved.
 
     Profitable days grow upwards in green, loss days downwards in red. A blue
     line overlays the running cumulative profit on its own right-hand scale so
     small daily swings stay readable next to a large accumulated total.
     """
-    income_hist = depot.income_history
-    expense_hist = depot.expenditure_history
-    total_len = max(len(income_hist), len(expense_hist))
+    wealth_hist = depot.wealth
+    total_len = len(wealth_hist) - 1
 
     if total_len < 1:
         text = font.render("Not enough data yet", True, DARK_BROWN)
         screen.blit(text, text.get_rect(center=chart_rect.center))
         return
 
-    def _align_to_tail(hist: list, n: int) -> list:
-        if hist is None:
+    def _align_to_wealth(hist: list) -> list:
+        """Pad a bookkeeping history to the wealth history's length."""
+        n = len(wealth_hist)
+        if not hist:
             return [0.0] * n
         if len(hist) >= n:
             return list(hist[-n:])
-        return [0.0] * (n - len(hist)) + list(hist)
+        return [hist[0]] * (n - len(hist)) + list(hist)
 
-    inc = _align_to_tail(income_hist, total_len)
-    exp = _align_to_tail(expense_hist, total_len)
-    profit = [inc[i] - exp[i] for i in range(total_len)]
+    money_hist = _align_to_wealth(depot.money_history)
+    property_hist = _align_to_wealth(depot.property_value_history)
+    loan_hist = _align_to_wealth(depot.loan_history)
+
+    # wealth = money + stock value + property - loans, so the day's profit
+    # splits into those four movements and the stock part is what is left over.
+    profit = [wealth_hist[i + 1] - wealth_hist[i] for i in range(total_len)]
+    cash_flow = [money_hist[i + 1] - money_hist[i] for i in range(total_len)]
+    property_change = [property_hist[i + 1] - property_hist[i] for i in range(total_len)]
+    loan_change = [-(loan_hist[i + 1] - loan_hist[i]) for i in range(total_len)]
+    stock_change = [profit[i] - cash_flow[i] - property_change[i] - loan_change[i]
+                    for i in range(total_len)]
 
     # Cumulative profit over the whole history, not just the visible window.
     cumulative = []
@@ -1162,15 +1177,24 @@ def _draw_profit_bars(
         stat_y += lbl_h + leg_row_gap
 
     if hover_idx is not None:
-        days_ago = total_len - 1 - hover_idx
+        # Bar i spans wealth[i] -> wealth[i+1], and the newest of those snapshots
+        # was taken at the start of today, so the last bar is yesterday's day.
+        days_ago = total_len - hover_idx
         bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
         lines = [
             ("Date:",       bar_date),
-            ("Income:",     f"{inc[hover_idx]:,.0f}"),
-            ("Expenses:",   f"-{exp[hover_idx]:,.0f}"),
+            ("Cash Flow:",  f"{cash_flow[hover_idx]:,.0f}"),
+            ("Stock Value:", f"{stock_change[hover_idx]:,.0f}"),
+        ]
+        # Property and loans only earn a line on the days they actually moved.
+        if round(property_change[hover_idx], 2) != 0:
+            lines.append(("Property:", f"{property_change[hover_idx]:,.0f}"))
+        if round(loan_change[hover_idx], 2) != 0:
+            lines.append(("Loans:", f"{loan_change[hover_idx]:,.0f}"))
+        lines.extend([
             ("Profit:",     f"{profit[hover_idx]:,.0f}"),
             ("Cumulative:", f"{cumulative[hover_idx]:,.0f}"),
-        ]
+        ])
         _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
 
 
