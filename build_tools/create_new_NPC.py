@@ -26,10 +26,17 @@ The window can be resized or maximised; F11 switches to full screen.
 
 1. Pick the NPC. Folders in humans/npcs are grouped by their name:
    trader_<trade> for traders, <class>_<name> for townsfolk, e.g.
-   poor_matilda (class: poor, commons, middling, nobility). The "+" card of a
-   population class adds a new townsperson: choose woman or man, then type a
-   name or roll the dice for a free one from medieval_names.py. Every name
-   can be used only once. The folder gets an npc.json with name and gender.
+   poor_matilda (class: poor, commons, middling, nobility). Every group has a
+   "+" card that adds one.
+   For a townsperson: choose woman or man, then type a name or roll the dice
+   for a free one from medieval_names.py. Every name can be used only once.
+   The folder gets an npc.json with name and gender, which is what puts them
+   on the street.
+   For a trader: type the trade, e.g. chandler, and the folder becomes
+   trader_chandler with his sprites named chandler_<pose>.png. He is not
+   asked for a gender or a name, because the folder is named after the craft
+   and the sprite shows the rest. A trader needs no npc.json: he is put in
+   town by his own Trader subclass, which still has to be written.
 2. Drop the Gemini image onto the window, or click "Open image".
 3. Check the pose (it is detected, click another one to change it). Enclosed
    white areas (e.g. a gap between arm and body) stay white; click them in the
@@ -82,7 +89,7 @@ ERROR_COLOR = (240, 110, 90)
 
 # NPC groups on the start screen: (folder name start, title, can add new ones)
 CATEGORIES = (
-    ('trader', 'Traders', False),
+    ('trader', 'Traders', True),
     ('poor', 'Poor', True),
     ('commons', 'Commons', True),
     ('middling', 'Middling Sort', True),
@@ -96,6 +103,8 @@ PROFILE_FILE = 'npc.json'   # name and gender of a townsperson, in their folder
 DIE_COLOR = (240, 236, 228)
 PIP_COLOR = (60, 50, 40)
 DIALOG_SIZE = (520, 290)
+GENDER_ROW_HEIGHT = 80      # the row a trader dialog does without
+TRADER_CATEGORY = 'trader'
 INPUT_BG = (30, 28, 26)
 
 
@@ -514,27 +523,38 @@ def ask_open_file():
 
 
 class NewNpcDialog:
-    """Asks for gender and name of a new townsperson."""
+    """Asks for what a new NPC folder needs.
+
+    A townsperson is a person: they need a gender and a name of their own, and
+    the name can be rolled from the pool in medieval_names.py. A trader is a
+    trade: the folder is named after the craft, not after whoever minds the
+    stall, so the dialog asks for that one word and leaves the gender to the
+    sprite. A trader dialog is therefore shorter by the row it does not need.
+    """
 
     def __init__(self, category, title, taken, fonts):
         """
         Args:
-            category: Folder name start, e.g. 'poor'.
+            category: Folder name start, e.g. 'poor' or 'trader'.
             title: Dialog heading.
-            taken: {lower-case name: folder name} of every existing townsperson.
+            taken: {lower-case name: folder name} of every NPC of this kind.
             fonts: (font, small, title_font).
         """
         self.category = category
         self.title = title
         self.taken = taken
         self.font, self.small, self.title_font = fonts
+        self.is_trader = category == TRADER_CATEGORY
         self.gender = None
         self.name = ''
         self.error = ''
-        self.rect = pygame.Rect((0, 0), DIALOG_SIZE)
-        self.gender_buttons = [(key, Button(label, 0, 0, 120, 40)) for key, label in GENDERS]
-        self.input_rect = pygame.Rect(0, 0, self.rect.w - 60 - 54, 40)
-        self.dice_button = Button('', 0, 0, 44, 40)
+        height = DIALOG_SIZE[1] - (GENDER_ROW_HEIGHT if self.is_trader else 0)
+        self.rect = pygame.Rect((0, 0), (DIALOG_SIZE[0], height))
+        self.gender_buttons = [] if self.is_trader else [
+            (key, Button(label, 0, 0, 120, 40)) for key, label in GENDERS]
+        input_w = self.rect.w - 60 - (0 if self.is_trader else 54)
+        self.input_rect = pygame.Rect(0, 0, input_w, 40)
+        self.dice_button = None if self.is_trader else Button('', 0, 0, 44, 40)
         self.cancel_button = Button('Cancel', 0, 0, 120)
         self.create_button = Button('Create', 0, 0, 120)
         self.center()
@@ -547,8 +567,10 @@ class NewNpcDialog:
         x, y = self.rect.x + 30, self.rect.y + 80
         for i, (_, button) in enumerate(self.gender_buttons):
             button.rect.topleft = (x + i * 140, y)
-        self.input_rect.topleft = (x, y + 80)
-        self.dice_button.rect.topleft = (self.input_rect.right + 10, self.input_rect.y)
+        # Without a gender row the name field moves up into its place.
+        self.input_rect.topleft = (x, y + (0 if self.is_trader else GENDER_ROW_HEIGHT))
+        if self.dice_button:
+            self.dice_button.rect.topleft = (self.input_rect.right + 10, self.input_rect.y)
         self.cancel_button.rect.topleft = (self.rect.right - 290, self.rect.bottom - 58)
         self.create_button.rect.topleft = (self.rect.right - 150, self.rect.bottom - 58)
 
@@ -557,12 +579,15 @@ class NewNpcDialog:
 
     def validate(self):
         """Return an error message, or '' if the NPC can be created."""
-        if not self.gender:
+        if not self.is_trader and not self.gender:
             return 'Choose woman or man.'
         if not self.name:
-            return 'Type a name or roll the dice.'
+            return 'Type the trade, e.g. chandler.' if self.is_trader else 'Type a name or roll the dice.'
         if self.name.lower() in self.taken:
-            return f'{self.name.capitalize()} is already taken ({self.taken[self.name.lower()]}).'
+            taken_by = self.taken[self.name.lower()]
+            if self.is_trader:
+                return f'There is already a {self.name.lower()} ({taken_by}).'
+            return f'{self.name.capitalize()} is already taken ({taken_by}).'
         if (NPC_DIR / self.folder_name()).exists():
             return f'{self.folder_name()} already exists.'
         return ''
@@ -591,7 +616,7 @@ class NewNpcDialog:
             if button.hit(pos):
                 self.gender = key
                 self.error = ''
-        if self.dice_button.hit(pos):
+        if self.dice_button and self.dice_button.hit(pos):
             self.roll()
         if self.cancel_button.hit(pos):
             return 'cancel'
@@ -622,18 +647,23 @@ class NewNpcDialog:
             if key == self.gender:
                 pygame.draw.rect(screen, DONE_COLOR, button.rect, 3, border_radius=6)
 
-        label = self.small.render('Name  (type one, or roll the dice for a free one)', True, TEXT_DIM)
+        if self.is_trader:
+            caption = 'Trade  (one word: the folder and the sprites are named after it)'
+        else:
+            caption = 'Name  (type one, or roll the dice for a free one)'
+        label = self.small.render(caption, True, TEXT_DIM)
         screen.blit(label, (self.input_rect.x, self.input_rect.y - 22))
         pygame.draw.rect(screen, INPUT_BG, self.input_rect, border_radius=4)
         pygame.draw.rect(screen, CARD_HOVER, self.input_rect, 1, border_radius=4)
         cursor = '|' if pygame.time.get_ticks() // 500 % 2 else ''
         text = self.font.render(self.name.capitalize() + cursor, True, TEXT)
         screen.blit(text, text.get_rect(midleft=(self.input_rect.x + 10, self.input_rect.centery)))
-        self.draw_die(screen, mouse)
+        if self.dice_button:
+            self.draw_die(screen, mouse)
 
         if self.error:
             message = self.small.render(self.error, True, ERROR_COLOR)
-        elif self.gender and self.name:
+        elif self.name and (self.gender or self.is_trader):
             message = self.small.render(self.folder_name(), True, TEXT_DIM)
         else:
             message = None
@@ -711,14 +741,20 @@ class ImportTool:
         for key, title, can_add in CATEGORIES + (OTHER,):
             cards = [self.make_npc_card(n) for n in self.npcs if n.category == key]
             if can_add:
-                cards.append(Card(('add', key, title), 'Add NPC', self.plus_thumb, 'woman or man'))
+                note = 'the trade' if key == TRADER_CATEGORY else 'woman or man'
+                label = 'Add trader' if key == TRADER_CATEGORY else 'Add NPC'
+                cards.append(Card(('add', key, title), label, self.plus_thumb, note))
             if cards:
                 self.sections.append((title, cards))
         self.section_titles = []  # (title, count, x, y), filled by layout_cards
 
     def open_new_dialog(self, key, title):
-        taken = {n.prefix.lower(): n.name for n in self.npcs if n.is_townsperson}
-        self.dialog = NewNpcDialog(key, f'New NPC: {title}', taken, (self.font, self.small, self.title_font))
+        # A trade clashes with the other trades, a name with the other people.
+        is_trader = key == TRADER_CATEGORY
+        taken = {n.prefix.lower(): n.name for n in self.npcs
+                 if n.is_townsperson != is_trader and n.category != OTHER[0]}
+        heading = f'New trader: {title}' if is_trader else f'New NPC: {title}'
+        self.dialog = NewNpcDialog(key, heading, taken, (self.font, self.small, self.title_font))
 
     def create_npc(self):
         error = self.dialog.validate()
@@ -727,12 +763,17 @@ class ImportTool:
             return
         folder = NPC_DIR / self.dialog.folder_name()
         folder.mkdir()
-        profile = {'name': self.dialog.name.capitalize(), 'gender': self.dialog.gender}
-        (folder / PROFILE_FILE).write_text(json.dumps(profile, indent=2) + '\n', encoding='utf-8')
+        # Only townsfolk are discovered by their folder, and only they need a
+        # profile; a trader is put in town by his Trader subclass instead.
+        is_trader = self.dialog.is_trader
+        if not is_trader:
+            profile = {'name': self.dialog.name.capitalize(), 'gender': self.dialog.gender}
+            (folder / PROFILE_FILE).write_text(json.dumps(profile, indent=2) + '\n', encoding='utf-8')
         self.dialog = None
         self.refresh_npcs()
         self.open_npc(next(n for n in self.npcs if n.folder == folder))
-        self.set_status(f'Created {folder.relative_to(ROOT)}')
+        note = ' - write his Trader subclass to put him in town' if is_trader else ''
+        self.set_status(f'Created {folder.relative_to(ROOT)}{note}')
 
     def open_npc(self, npc):
         self.npc = npc
@@ -932,7 +973,7 @@ class ImportTool:
         else:
             self.draw_npc_list(mouse)
             title = '1. Choose the NPC'
-            hint = f'Folders in {NPC_DIR.relative_to(ROOT)}. Click "+" to add a townsperson.'
+            hint = f'Folders in {NPC_DIR.relative_to(ROOT)}. Click "+" to add a trader or a townsperson.'
         self.screen.blit(self.title_font.render(title, True, TEXT), (20, 12))
         self.screen.blit(self.small.render(hint, True, TEXT_DIM), (22, 56))
         if self.dialog:
