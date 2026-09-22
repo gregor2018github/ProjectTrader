@@ -259,10 +259,13 @@ class DepotViewDetail:
         else:  # "Total"
             period_days = None
             
-        # Get historical wealth and money values directly from records
-        if period_days is not None and len(depot.wealth) > period_days:
-            start_wealth = depot.wealth[-(period_days+1)]
-            start_money = depot.money_history[-(period_days+1)]  # Use recorded money directly
+        # Get historical wealth and money values directly from records. The
+        # daily snapshot is taken at the turn of the day, so entry -period_days
+        # is the close of the period's first day - the same entry the overview
+        # panel reads for its "Wealth Start" row.
+        if period_days is not None and len(depot.wealth) >= period_days:
+            start_wealth = depot.wealth[-period_days]
+            start_money = depot.money_history[-period_days]  # Use recorded money directly
         else:
             start_wealth = depot.wealth[0]
             start_money = depot.money_history[0]  # Use recorded money directly
@@ -293,8 +296,8 @@ class DepotViewDetail:
         # Get historic prices for each good at the start of the period
         start_prices = {}
         for good in goods:
-            if period_days is not None and len(good.price_history_daily) > period_days:
-                start_prices[good.name] = good.price_history_daily[-(period_days+1)]
+            if period_days is not None and len(good.price_history_daily) >= period_days:
+                start_prices[good.name] = good.price_history_daily[-period_days]
             else:
                 start_prices[good.name] = good.price_history_daily[0]
         
@@ -307,14 +310,14 @@ class DepotViewDetail:
             start_goods_value += qty * price
         
         # Look up outstanding loan balance at start of period from history
-        if period_days is not None and len(depot.loan_history) > period_days:
-            start_loans = depot.loan_history[-(period_days + 1)]
+        if period_days is not None and len(depot.loan_history) >= period_days:
+            start_loans = depot.loan_history[-period_days]
         else:
             start_loans = depot.loan_history[0] if depot.loan_history else 0.0
 
         # Look up property value at the start of the period from history
-        if period_days is not None and len(depot.property_value_history) > period_days:
-            start_property = depot.property_value_history[-(period_days + 1)]
+        if period_days is not None and len(depot.property_value_history) >= period_days:
+            start_property = depot.property_value_history[-period_days]
         else:
             start_property = depot.property_value_history[0] if depot.property_value_history else 0.0
 
@@ -502,16 +505,18 @@ class DepotViewDetail:
             start_money = depot.money_history[0]
         current_money = depot.money
 
-        # Loan balance change (negative = took on more debt, positive = reduced debt)
-        if period_days is not None and len(depot.loan_history) > period_days:
-            loans_start = depot.loan_history[-(period_days + 1)]
+        # Loan balance change (negative = took on more debt, positive = reduced debt).
+        # Indexed like the wealth history above — all four series are appended in
+        # the same daily snapshot, so the period has to start on the same entry.
+        if period_days is not None and len(depot.loan_history) >= period_days:
+            loans_start = depot.loan_history[-period_days]
         else:
             loans_start = depot.loan_history[0] if depot.loan_history else 0.0
         loan_balance_change = -(loans_now - loans_start)
 
         # Property value change over the period
-        if period_days is not None and len(depot.property_value_history) > period_days:
-            property_start = depot.property_value_history[-(period_days + 1)]
+        if period_days is not None and len(depot.property_value_history) >= period_days:
+            property_start = depot.property_value_history[-period_days]
         else:
             property_start = depot.property_value_history[0] if depot.property_value_history else 0.0
         property_value_change = property_now - property_start

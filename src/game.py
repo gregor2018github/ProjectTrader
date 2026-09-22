@@ -407,6 +407,13 @@ class Game:
                     if day_changed:
                         self.depot.stats.days_played += 1
                         self.depot.update_income_and_expenditures() # archive yesterday's counters first
+                        # Snapshot wealth and stock while they still hold yesterday's
+                        # close: today's cost of living and loan payments are booked
+                        # below, and counting them here would put them in yesterday's
+                        # figures as well as today's counters.
+                        self.depot.update_wealth(self.goods)
+                        self.depot.update_total_stock()
+                        self.depot.update_stock_history()
                         cost = self.player.daily_cost_of_living
                         self.depot.book_cost_of_living(cost) # then charge today's cost of living
                         self.state.log_event("FINANCE", f"Daily costs: {cost:.0f}g")
@@ -451,9 +458,6 @@ class Game:
                             self.depot.book_overdraft_penalty(penalty)
                             self.state.log_event("LOAN", f"Overdraft penalty: {penalty:.2f}g")
 
-                        self.depot.update_wealth(self.goods)
-                        self.depot.update_total_stock()
-                        self.depot.update_stock_history()
                         for good in self.goods:
                             good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
                             good.tick_well_shock_day()
