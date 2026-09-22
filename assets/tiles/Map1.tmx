@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="38" nextobjectid="435">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="38" nextobjectid="440">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -6487,6 +6487,21 @@
    <point/>
   </object>
   <object id="434" name="down" x="4711.09" y="5931.64">
+   <point/>
+  </object>
+  <object id="435" name="down" x="2756.25" y="5520.5">
+   <point/>
+  </object>
+  <object id="436" name="down" x="5411" y="3589.75">
+   <point/>
+  </object>
+  <object id="437" name="down" x="3005.09" y="4847.27">
+   <point/>
+  </object>
+  <object id="438" name="left" x="3033.45" y="4619.09">
+   <point/>
+  </object>
+  <object id="439" name="down" x="4379.27" y="4528.91">
    <point/>
   </object>
  </objectgroup>
