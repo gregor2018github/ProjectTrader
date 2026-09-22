@@ -34,9 +34,6 @@
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
 - [ ] add candles, salts and herbs as tradable goods
-- [ ] contract candles
-- [ ] contract salt
-- [ ] contract herbs
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 - [ ] Let the player hire an support trader, but that one will take a daily wage
@@ -50,6 +47,9 @@
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+- [x] contract candles
+- [x] contract salt
+- [x] contract herbs
 - [x] put the alewife, tanner and shepherdess to work: they share a stall with the vintner (alewife) and the weaver (tanner, shepherdess), and a rota draws one of each group per day to mind it while the rest stay indoors
 - [x] bring in the traders which are currently missing
 - [x] give a coin to one of the town's poor from their figurine menu: the coin is booked under a new "Alms" donation category and gives the usual coin sound and popup
