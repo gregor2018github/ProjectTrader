@@ -1,0 +1,14 @@
+License for the Trade of Herbs and Simples
+By the grace of the Town Council of Blackwater and the root-stained oversight of the Venerable Sisterhood of Herbwives and Apothecaries, the bearer is hereby granted the legal right to gather, dry, and dispense the green remedies of hedgerow and gloomy wood. The bearer is strictly forbidden from bulking a bundle of sage with common hay, or from offering any tincture promising to restore a bald man's hair or a widow's youth. Go forth and tend the ailments of our citizens, provided you can tell the herb that cures a fever from the one that quietly settles an inheritance.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these botanical ordinances, they shall forfeit triple the value of every bundle sold and their drying-loft besides. Additionally, the offender shall be "garlanded": wreathed head to knee in wild garlic, rue, and valerian and seated at the church door for one full Sabbath, that the faithful may judge their physick by the nose as they pass.
+
+
+
+
+Witness Thereto:

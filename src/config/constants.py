@@ -110,6 +110,9 @@ MONTHLY_CONTRACT_FEES = {
     "Meat": 200,
     "Linen": 150,
     "Pottery": 150,
+    "Candle": 150,
+    "Herbs": 120,
+    "Salt": 300,
 }
 
 # UI CONSTANTS

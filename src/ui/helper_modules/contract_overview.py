@@ -31,9 +31,13 @@ ALL_GOODS = [
     "Wool", "Hide", "Fish",
     "Wheat", "Wine", "Beer",
     "Meat", "Linen", "Pottery",
+    "Candle", "Herbs", "Salt",
 ]
 
 COLS = 3
+VISIBLE_ROWS = 4      # rows shown at once; the rest is reached by scrolling
+SCROLLBAR_W = 8       # width of the slim scrollbar gutter
+SCROLL_STEP = 40      # pixels scrolled per mouse-wheel notch
 
 
 class ContractOverview:
@@ -96,10 +100,29 @@ class ContractOverview:
         cell_area_w = self.panel_rect.width - 40  # side padding (20 each)
 
         rows = (len(ALL_GOODS) + COLS - 1) // COLS
-        self.cell_w = cell_area_w // COLS
-        self.cell_h = cell_area_h // rows
+        visible_rows = min(rows, VISIBLE_ROWS)
+        self.cell_h = cell_area_h // visible_rows
+        self.scrollable = rows > visible_rows
+
+        # The scrollbar lives in a gutter on the right of the grid
+        grid_w = cell_area_w - (SCROLLBAR_W + 8 if self.scrollable else 0)
+        self.cell_w = grid_w // COLS
         self.cell_origin_x = self.panel_rect.x + 20
         self.cell_origin_y = cell_area_top
+
+        # Viewport the grid is clipped to (screen space)
+        self.view_rect = pygame.Rect(
+            self.cell_origin_x, cell_area_top, cell_area_w, cell_area_h
+        )
+        self.scrollbar_rect = pygame.Rect(
+            self.view_rect.right - SCROLLBAR_W,
+            self.view_rect.top,
+            SCROLLBAR_W,
+            self.view_rect.height,
+        )
+        self._max_scroll = max(0, rows * self.cell_h - cell_area_h)
+        self.dragging_scrollbar = False
+        self._drag_offset = 0
 
         # Pre-load contract screenshots ---------------------------------
         self.contract_images: Dict[str, Optional[pygame.Surface]] = {}
@@ -120,7 +143,7 @@ class ContractOverview:
         self.month_panel_rect: Optional[pygame.Rect] = None
         self.month_cancel_rect: Optional[pygame.Rect] = None
 
-        # Scroll state (not needed now but easy to add later) -----------
+        # Scroll state -------------------------------------------------
         self.scroll_y = 0
 
     # ------------------------------------------------------------------
@@ -169,8 +192,31 @@ class ContractOverview:
         col = index % COLS
         row = index // COLS
         x = self.cell_origin_x + col * self.cell_w
-        y = self.cell_origin_y + row * self.cell_h
+        y = self.cell_origin_y + row * self.cell_h - self.scroll_y
         return pygame.Rect(x, y, self.cell_w, self.cell_h)
+
+    def _thumb_rect(self) -> Optional[pygame.Rect]:
+        """Return the scrollbar thumb rect, or ``None`` when nothing scrolls."""
+        if not self.scrollable or self._max_scroll <= 0:
+            return None
+        sb = self.scrollbar_rect
+        content_h = self._max_scroll + self.view_rect.height
+        thumb_h = max(30, int(sb.height * self.view_rect.height / content_h))
+        travel = sb.height - thumb_h
+        thumb_y = sb.top + int(travel * (self.scroll_y / self._max_scroll))
+        return pygame.Rect(sb.x, thumb_y, sb.width, thumb_h)
+
+    def _scroll_to_thumb_top(self, thumb_top: int) -> None:
+        """Set ``scroll_y`` from a desired thumb top position in screen space."""
+        thumb = self._thumb_rect()
+        if not thumb:
+            return
+        sb = self.scrollbar_rect
+        travel = sb.height - thumb.height
+        if travel <= 0:
+            return
+        frac = (thumb_top - sb.top) / travel
+        self.scroll_y = max(0, min(self._max_scroll, int(frac * self._max_scroll)))
 
     # ------------------------------------------------------------------
     # Event handling
@@ -198,12 +244,25 @@ class ContractOverview:
             self._close()
             return True
 
-        # Check for cell clicks
+        # Scrollbar: grab the thumb, or jump the view on a track click
+        if self.scrollable and self.scrollbar_rect.collidepoint(pos):
+            thumb = self._thumb_rect()
+            if thumb:
+                if thumb.collidepoint(pos):
+                    self.dragging_scrollbar = True
+                    self._drag_offset = pos[1] - thumb.top
+                else:
+                    self._scroll_to_thumb_top(pos[1] - thumb.height // 2)
+                    self.dragging_scrollbar = True
+                    self._drag_offset = thumb.height // 2
+            return True
+
+        # Check for cell clicks (only where the grid is actually visible)
         depot = self.game_state.game.depot
         current_date = self.game_state.date
         for i, good in enumerate(ALL_GOODS):
             cell_rect = self._get_cell_rect(i)
-            if cell_rect.collidepoint(pos):
+            if cell_rect.collidepoint(pos) and self.view_rect.collidepoint(pos):
                 expiry = depot.trading_licenses.get(good)
                 has_license = expiry is not None and expiry > current_date
                 if has_license:
@@ -224,6 +283,23 @@ class ContractOverview:
 
         # Click inside is consumed but doesn't close
         return True
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """Handle wheel scrolling and scrollbar dragging."""
+        if not self.scrollable or self._max_scroll <= 0:
+            return
+        # The sub-panels are modal over the grid, so they swallow scrolling
+        if self.selecting_good or self.inspecting_good:
+            return
+
+        if event.type == pygame.MOUSEWHEEL:
+            self.scroll_y = max(
+                0, min(self._max_scroll, self.scroll_y - event.y * SCROLL_STEP)
+            )
+        elif event.type == pygame.MOUSEMOTION and self.dragging_scrollbar:
+            self._scroll_to_thumb_top(event.pos[1] - self._drag_offset)
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.dragging_scrollbar = False
 
     def _open_month_selection(self, good: str) -> None:
         """Open the month-duration selection sub-panel for *good*."""
@@ -392,14 +468,21 @@ class ContractOverview:
         current_date = self.game_state.date
         tooltips = []
 
+        view_local = self.view_rect.move(-self.panel_rect.x, -self.panel_rect.y)
+        surf.set_clip(view_local)
         for i, good in enumerate(ALL_GOODS):
             cell_screen = self._get_cell_rect(i)
+            if not cell_screen.colliderect(self.view_rect):
+                continue  # scrolled out of sight
             cell_local = cell_screen.move(
                 -self.panel_rect.x, -self.panel_rect.y
             )
             tooltip = self._draw_cell(surf, cell_local, good, depot, current_date)
             if tooltip:
                 tooltips.append(tooltip)
+        surf.set_clip(None)
+
+        self._draw_scrollbar(surf)
 
         # Darken background behind panel
         overlay = pygame.Surface((total_w, SCREEN_HEIGHT), pygame.SRCALPHA)
@@ -420,6 +503,29 @@ class ContractOverview:
                 self._draw_month_selection()
             elif self.inspecting_img:
                 self._draw_full_inspector()
+
+    def _draw_scrollbar(self, surf: pygame.Surface) -> None:
+        """Draw a slim, unobtrusive scrollbar in the grid's right gutter."""
+        thumb = self._thumb_rect()
+        if not thumb:
+            return
+
+        off = (-self.panel_rect.x, -self.panel_rect.y)
+        track = self.scrollbar_rect.move(*off)
+        thumb = thumb.move(*off)
+
+        # Track: barely there, just enough to hint that the list continues
+        track_surf = pygame.Surface(track.size, pygame.SRCALPHA)
+        track_surf.fill((*DARK_BROWN, 30))
+        surf.blit(track_surf, track.topleft)
+
+        hovered = (
+            self.dragging_scrollbar
+            or self.scrollbar_rect.collidepoint(pygame.mouse.get_pos())
+        )
+        thumb_surf = pygame.Surface(thumb.size, pygame.SRCALPHA)
+        thumb_surf.fill((*DARK_BROWN, 190 if hovered else 110))
+        surf.blit(thumb_surf, thumb.topleft)
 
     def _draw_full_inspector(self) -> None:
         """Draw a modal overlay showing the full contract image."""
@@ -540,6 +646,7 @@ class ContractOverview:
         screen_cell_rect = rect.move(self.panel_rect.x, self.panel_rect.y)
         is_hovered = (
             screen_cell_rect.collidepoint(mouse_pos)
+            and self.view_rect.collidepoint(mouse_pos)
             and not self.inspecting_good
             and not self.selecting_good
         )

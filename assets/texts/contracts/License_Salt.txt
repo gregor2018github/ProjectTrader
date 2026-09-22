@@ -1,0 +1,14 @@
+License for the Trade of Salt and Brine
+By the grace of the Town Council of Blackwater and the thrice-counting oversight of the Most Exacting Guild of Salters and Brine-Boilers, the bearer is hereby granted the coveted right to haul, weigh, and vend the white gold that keeps our winters fed and our pork from walking off the hook. As salt is reckoned dearer than the honesty of most men, the bearer is strictly forbidden from stretching a measure with ground chalk or powdered bone, or from wetting the sacks before the weighing. Go forth and preserve the larders of our citizens, provided you do not salt the Miller's field over a dispute of eleven coins.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these crystalline statutes, they shall be fined tenfold the shortfall of every measure, for the Council counts salt closely and forgets nothing. Additionally, the offender shall be "cured": packed to the neck in coarse brine-salt in an open barrel at the market cross for one full day, that the town may see how well the merchant's own goods preserve a thing.
+
+
+
+
+Witness Thereto:

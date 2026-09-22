@@ -1,0 +1,14 @@
+License for the Trade of Tallow and Wax Candles
+By the grace of the Town Council of Blackwater and the smoke-blackened oversight of the Worshipful Guild of Chandlers and Wick-Pullers, the bearer is hereby granted the legal right to render, dip, and vend the little flames by which our townsfolk read, pray, and stumble homeward. The bearer is strictly forbidden from padding a tallow dip with kitchen grease, or from passing off mutton-fat as "Blessed Beeswax of the Abbey." Go forth and hold back the darkness, provided your wares do not set the thatch of the Weaver's Quarter alight.
+
+
+• Term of Validity: [$$contract_months$$] Months
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: Should the merchant violate these luminous statutes, they shall be fined four times the weight of their stock in silver. Additionally, the offender shall be "dipped": lowered thrice by the ankles into a vat of cooling tallow and stood in the market square until set, the town's only candle that burns at neither end.
+
+
+
+
+Witness Thereto:
