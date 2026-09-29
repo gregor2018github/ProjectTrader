@@ -181,6 +181,13 @@ COMPARE_TILES = ('Goal', 'Accepted', 'Both')
 COMPARE_PAD = 12
 COMPARE_OVERLAY_ALPHA = 150
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
+
+# The notice in the middle of the window after something was copied
+TOAST_HOLD_MS = 700      # fully visible for this long
+TOAST_FADE_MS = 600      # then fades out over this long
+TOAST_PAD = (36, 20)
+TOAST_BG = (30, 28, 26)
+TOAST_LINE = (110, 190, 120)
 SELECTED_LINE = (230, 190, 80)
 
 
@@ -465,6 +472,7 @@ class WalkTool:
         self.font = pygame.font.SysFont('segoeui', 18)
         self.small = pygame.font.SysFont('segoeui', 15)
         self.title_font = pygame.font.SysFont('segoeui', 30, bold=True)
+        self.toast = None  # (text, ticks when it appeared)
         self.clock = pygame.time.Clock()
 
         self.counts = {d.key: strip_length(d) for d in DIRECTIONS}
@@ -697,6 +705,7 @@ class WalkTool:
             self.set_status(str(exc), error=True)
             return
         self.set_status(f'Sheet of {sheet.pose} copied - paste it into Gemini, then the prompt')
+        self.show_toast('Sheet copied')
 
     def copy_prompt(self):
         sheet = self.rebuild_current()
@@ -708,6 +717,7 @@ class WalkTool:
             self.set_status(str(exc), error=True)
             return
         self.set_status(f'Prompt of {sheet.pose} copied')
+        self.show_toast('Prompt copied')
 
     def paste_answer(self):
         """Take the image on the clipboard as the answer for the chosen frame."""
@@ -847,11 +857,13 @@ class WalkTool:
         if written:
             verb = 'Replaced' if replaced else 'Saved'
             self.set_status(f'{verb} {written[0].name}, mirrored from {self.partner().label.lower()}')
+            self.show_toast(f'Frame {sheet.frame} mirrored from {self.partner().label.lower()}')
 
     def mirror_missing(self):
         written = self.mirror_frames(self.mirrorable_missing(), replace=False)
         if written:
             self.set_status(f'Mirrored {len(written)} frame(s) from {self.partner().label.lower()}')
+            self.show_toast(f'{len(written)} frame(s) mirrored from {self.partner().label.lower()}')
 
     def poll_worker(self):
         if self.worker is None:
@@ -1150,6 +1162,31 @@ class WalkTool:
             label = self.small.render(name, True, TEXT_DIM)
             self.screen.blit(label, label.get_rect(midbottom=(centre, pos.y - 2)))
 
+    def show_toast(self, text):
+        """Pop a short notice up in the middle of the window."""
+        self.toast = (text, pygame.time.get_ticks())
+
+    def draw_toast(self):
+        """The notice, solid for TOAST_HOLD_MS, then fading out."""
+        if not self.toast:
+            return
+        text, start = self.toast
+        age = pygame.time.get_ticks() - start
+        if age >= TOAST_HOLD_MS + TOAST_FADE_MS:
+            self.toast = None
+            return
+        fade = max(0, age - TOAST_HOLD_MS) / TOAST_FADE_MS
+        label = self.title_font.render(text, True, TEXT)
+        box = pygame.Surface((label.get_width() + 2 * TOAST_PAD[0],
+                              label.get_height() + 2 * TOAST_PAD[1]), pygame.SRCALPHA)
+        rect = box.get_rect()
+        pygame.draw.rect(box, TOAST_BG + (235,), rect, border_radius=12)
+        pygame.draw.rect(box, TOAST_LINE, rect, 3, border_radius=12)
+        box.blit(label, label.get_rect(center=rect.center))
+        box.set_alpha(round(255 * (1 - fade)))
+        width, height = window_size()
+        self.screen.blit(box, box.get_rect(center=(width // 2, height // 2)))
+
     def draw_frames(self, mouse):
         dirs, cards, sheet = self.frame_areas()
         self.draw_directions(dirs, mouse)
@@ -1273,6 +1310,7 @@ class WalkTool:
                 button.draw(self.screen, self.font, mouse)
         if self.dialog:
             self.dialog.draw(self.screen, mouse)
+        self.draw_toast()
         pygame.display.flip()
 
     # --- input ------------------------------------------------------------
