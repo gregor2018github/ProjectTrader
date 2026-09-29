@@ -28,7 +28,8 @@ The window can be resized or maximised; F11 switches to full screen.
    every time a direction or a frame is clicked, so edits to the chibi or
    ghost strips show up straight away. The box under the directions plays
    the frames the NPC already has.
-3. Pick a frame. Then either
+3. Pick a frame. If it is already done, the frame in the game is shown under
+   its sheet next to the ghost it was aimed at, and laid over it. Then either
    - for free, through the Gemini web view: "Copy image" (Ctrl+C) and
      "Copy prompt" (Ctrl+Shift+C), paste both there, copy the answer and
      "Paste answer" (Ctrl+V) - or drop the image file onto the window, or
@@ -170,6 +171,10 @@ BUTTON_H = 40
 BUTTON_GAP = 10
 PANEL_TITLE = 22
 PREVIEW_FRAME_MS = 140
+COMPARE_TILES = ('Goal', 'Accepted', 'Both')
+COMPARE_PAD = 12
+COMPARE_OVERLAY_ALPHA = 150
+COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 SELECTED_LINE = (230, 190, 80)
 
 
@@ -226,6 +231,7 @@ class FrameSheet:
     path: Path
     prompt: str
     auto_ghost: bool
+    ghost: pygame.Surface   # the goal pose, at the scale of the saved frames
 
     @property
     def pose(self):
@@ -326,12 +332,17 @@ def build_sheet(idle, walk, ghost, npc):
 
     Every sprite stands on the ground line of its cell, so the walk frame
     keeps the bob of the cycle and the ghost stands where the NPC will.
+
+    Returns:
+        (sheet, ghost) - the ghost solid, at the scale of the NPC sprite, which
+        is also the scale an accepted frame is saved at.
     """
     # One scale for all chibi sprites, taken from the standing one, so every
     # frame of a cycle comes out the same size.
     factor = max(1, round(npc.get_height() / idle.get_height()))
     sprites = [scaled(idle, factor), scaled(walk, factor), npc]
-    ghost = scaled(ghost, factor)
+    solid_ghost = scaled(ghost, factor)
+    ghost = solid_ghost.copy()
     ghost.set_alpha(GHOST_ALPHA)
 
     max_w = max(s.get_width() for s in sprites + [ghost])
@@ -352,7 +363,7 @@ def build_sheet(idle, walk, ghost, npc):
     for sprite, cell in zip(sprites + [ghost], cells):
         sheet.blit(sprite, sprite.get_rect(midbottom=(cell.centerx, cell.bottom - margin)))
     pygame.draw.rect(sheet, TARGET_FRAME_COLOR, cells[3], TARGET_FRAME_WIDTH)
-    return sheet
+    return sheet, solid_ghost
 
 
 def prompt_for(npc, direction, frame, count):
@@ -382,13 +393,14 @@ def write_sheets(npc, direction, frames=None):
     npc.out_dir.mkdir(parents=True, exist_ok=True)
     sheets = []
     for frame in frames or range(1, count + 1):
-        surface = build_sheet(idle, walks[frame - 1], ghosts[min(frame, len(ghosts)) - 1], reference)
+        surface, ghost = build_sheet(idle, walks[frame - 1], ghosts[min(frame, len(ghosts)) - 1],
+                                     reference)
         stem = f'{npc.prefix}_{direction.pose(frame)}'
         path = npc.out_dir / f'{stem}_sheet.png'
         prompt = prompt_for(npc, direction, frame, count)
         pygame.image.save(surface, str(path))
         (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
-        sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost))
+        sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost))
     return sheets
 
 
@@ -399,6 +411,30 @@ def reference_shapes(npc, pose, base):
     sprite = pygame.image.load(str(path)).convert_alpha()
     mask = shape_mask(pygame.mask.from_surface(sprite), sprite.get_bounding_rect())
     return {pose: path}, {pose: mask}
+
+
+def comparison(ghost, sprite):
+    """Goal, accepted frame and both on top of each other, as COMPARE_TILES tiles.
+
+    The ghost and a saved frame are both at the scale of the NPC's standing
+    sprite, so they are compared pixel for pixel: trimmed, standing on one
+    ground line and centred alike. In the third tile the frame is see-through
+    over the solid ghost, so it shows where the pose drifted from the goal.
+    """
+    ghost, sprite = trim(ghost), trim(sprite)
+    tile_w = max(ghost.get_width(), sprite.get_width()) + 2 * COMPARE_PAD
+    tile_h = max(ghost.get_height(), sprite.get_height()) + 2 * COMPARE_PAD
+    overlay = sprite.copy()
+    overlay.set_alpha(COMPARE_OVERLAY_ALPHA)
+    layers = ((ghost,), (sprite,), (ghost, overlay))
+    image = pygame.Surface((len(layers) * tile_w + (len(layers) - 1) * COMPARE_PAD, tile_h))
+    image.fill(CARD_BG)
+    for index, tile_layers in enumerate(layers):
+        tile = pygame.Rect(index * (tile_w + COMPARE_PAD), 0, tile_w, tile_h)
+        image.fill(THUMB_BG, tile)
+        for layer in tile_layers:
+            image.blit(layer, layer.get_rect(midbottom=(tile.centerx, tile.bottom - COMPARE_PAD)))
+    return image
 
 
 def fitted(surface, size, background=THUMB_BG):
@@ -444,6 +480,7 @@ class WalkTool:
         self.detail = None
         self.preview = []             # the NPC's own frames of the direction
         self.preview_note = ''
+        self.comparison = None        # accepted frame vs. goal, when there is one
         self.scroll = 0
         self.worker = None
         self.status = ''
@@ -585,6 +622,22 @@ class WalkTool:
             self.frame_cards.append(Card(
                 index, f'Frame {sheet.frame}  ({sheet.pose})', fitted(sheet.surface, FRAME_THUMB_SIZE),
                 note, note_color=color, size=FRAME_CARD_SIZE))
+        self.build_comparison()
+
+    def build_comparison(self):
+        """The accepted frame next to its goal, if the chosen frame is done."""
+        self.comparison = None
+        sheet = self.current_sheet()
+        path = self.npc.sprite_path(sheet.pose) if sheet else None
+        if not (path and path.is_file()):
+            return
+        try:
+            sprite = pygame.image.load(str(path)).convert_alpha()
+        except pygame.error as exc:
+            self.set_status(f'Cannot read {path.name}: {exc}', error=True)
+            return
+        if sprite.get_bounding_rect().w:
+            self.comparison = comparison(sheet.ghost, sprite)
 
     def load_preview(self):
         """The frames the NPC already has for this direction, for the little player."""
@@ -985,6 +1038,11 @@ class WalkTool:
         sheet = self.current_sheet()
         self.draw_panel(rect, f'Sheet for {sheet.pose}' if sheet else 'Sheet')
         area = self.place_sheet_buttons(rect)
+        if sheet and self.comparison:
+            compare_area = pygame.Rect(area.x, area.bottom - int(area.h * COMPARE_SHARE),
+                                       area.w, int(area.h * COMPARE_SHARE))
+            area.h = compare_area.y - area.y - BUTTON_GAP
+            self.draw_comparison(compare_area)
         if sheet:
             self.screen.blit(fitted(sheet.surface, area.size, CARD_BG), area)
         ready = bool(sheet)
@@ -998,6 +1056,21 @@ class WalkTool:
         for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button,
                        self.open_button, self.send_button):
             button.draw(self.screen, self.font, mouse)
+
+    def draw_comparison(self, area):
+        """The accepted frame between its goal and the two laid over each other."""
+        image = self.comparison
+        label_h = self.small.get_linesize()
+        w, h = image.get_size()
+        factor = min(area.w / w, (area.h - label_h) / h)
+        shown = pygame.transform.smoothscale(image, (max(1, int(w * factor)), max(1, int(h * factor))))
+        pos = shown.get_rect(midbottom=(area.centerx, area.bottom))
+        self.screen.blit(shown, pos)
+        tile_w = (w - (len(COMPARE_TILES) - 1) * COMPARE_PAD) / len(COMPARE_TILES)
+        for index, name in enumerate(COMPARE_TILES):
+            centre = pos.x + (index * (tile_w + COMPARE_PAD) + tile_w / 2) * factor
+            label = self.small.render(name, True, TEXT_DIM)
+            self.screen.blit(label, label.get_rect(midbottom=(centre, pos.y - 2)))
 
     def draw_frames(self, mouse):
         dirs, cards, sheet = self.frame_areas()
