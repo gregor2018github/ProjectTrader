@@ -44,11 +44,16 @@ The window can be resized or maximised; F11 switches to full screen.
 Directions: the chibi was drawn walking down, up, right, down-right and
 up-right. The left-hand directions are those mirrored; the game mirrors
 right-hand frames on its own for an NPC without left-hand ones, so they are
-only needed where the NPC is not symmetrical. In a direction that has a
-mirror partner (left and right, and both diagonal pairs) "Mirror from ..."
-(M) saves the partner's frame of the same number flipped, replacing the one
-there; "Mirror missing from ..." in the footer does that for every frame the
-direction lacks and its partner has.
+only needed where the NPC is not symmetrical.
+
+Frames from frames: "From other frame" (M) lists every frame the
+NPC already has and saves the one clicked as the chosen frame, mirrored or as
+it is, replacing the one there. The likely ones come first: the mirror
+partner's frame of the same number, and for the walks down and up the frame
+half a cycle on (1 <-> 4, 2 <-> 5, 3 <-> 6), which is the same step with the
+other foot. In a direction with a mirror partner (left and right, and both
+diagonal pairs) "Mirror missing from ..." in the footer mirrors every frame
+the direction lacks and its partner has.
 
 Ghosts: Walk_<strip>_Sheet_Ghost.png is used where it exists. For the other
 strips a ghost is made on the fly (outline black, skin in greys, face left
@@ -74,11 +79,12 @@ import pose_review  # noqa: E402
 import win_clipboard  # noqa: E402
 from create_new_NPC import ask_open_file, read_profile, shape_mask  # noqa: E402
 from create_new_pose import (  # noqa: E402
-    BAR_BG, BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR,
-    FOOTER_HEIGHT, HEADER_HEIGHT, NPC_CARD_SIZE, NPC_THUMB_SIZE, OUTPUT_DIR, PANEL_GAP,
-    RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG,
-    Button, Card, Detail, GeminiWorker, SettingsDialog, checkerboard, find_npcs, fit_text,
-    make_thumb, measure, open_window, toggle_fullscreen, window_size,
+    BAR_BG, BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SELECTED, DIALOG_BG, DIALOG_LINE,
+    DIALOG_PAD, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_CARD_SIZE,
+    NPC_THUMB_SIZE, OUTPUT_DIR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT, SHADE,
+    STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, Button, Card, Detail, GeminiWorker,
+    SettingsDialog, checkerboard, draw_chips, find_npcs, fit_text, make_thumb, measure,
+    open_window, toggle_fullscreen, window_size,
 )
 from gemini_client import Settings, next_free_path  # noqa: E402
 from pose_review import Entry, ReviewStore  # noqa: E402
@@ -188,6 +194,12 @@ TOAST_FADE_MS = 600      # then fades out over this long
 TOAST_PAD = (36, 20)
 TOAST_BG = (30, 28, 26)
 TOAST_LINE = (110, 190, 120)
+
+# The window that makes a frame out of another one
+PICK_CARD_SIZE = (116, 178)
+PICK_THUMB_SIZE = (100, 130)
+PICK_MAX_SIZE = (980, 760)
+PICK_MODES = ((True, 'Mirrored'), (False, 'As it is'))
 SELECTED_LINE = (230, 190, 80)
 
 
@@ -461,6 +473,125 @@ def fitted(surface, size, background=THUMB_BG):
     return tile
 
 
+def suggested_sources(direction, frame, count):
+    """[(direction, frame)] most likely to be this frame mirrored.
+
+    The partner direction's frame of the same number is the same step seen
+    from the other side. A walk seen from the front or the back repeats
+    itself mirrored after half a cycle, the other foot forward.
+    """
+    suggestions = []
+    partner = MIRROR_PARTNER.get(direction.key)
+    if partner:
+        suggestions.append((DIRECTION_BY_KEY[partner], frame))
+    if direction.key not in MIRROR_PARTNER and count % 2 == 0:
+        suggestions.append((direction, (frame - 1 + count // 2) % count + 1))
+    return suggestions
+
+
+class FramePicker:
+    """Pick one of the NPC's frames to save, mirrored or not, as the chosen one."""
+
+    def __init__(self, npc, sheet, counts, fonts):
+        """
+        Args:
+            npc: The WalkNpc.
+            sheet: The FrameSheet the new frame is for.
+            counts: {direction key: frames in its cycle}.
+            fonts: (font, small, title_font).
+        """
+        self.sheet = sheet
+        self.font, self.small, self.title_font = fonts
+        self.mirror = True
+        self.scroll = 0
+        self.max_scroll = 0
+        self.grid = pygame.Rect(0, 0, 0, 0)
+        self.chips = []
+        self.cancel_button = Button('Cancel', w=120)
+
+        suggested = suggested_sources(sheet.direction, sheet.frame, sheet.count)
+        self.cards = []
+        for direction in DIRECTIONS:
+            for frame in range(1, counts[direction.key] + 1):
+                path = npc.sprite_path(direction.pose(frame))
+                if (direction, frame) == (sheet.direction, sheet.frame) or not path.is_file():
+                    continue
+                sprite = pygame.image.load(str(path)).convert_alpha()
+                if not sprite.get_bounding_rect().w:
+                    continue
+                self.cards.append(Card(
+                    (direction, frame, path), f'{direction.label} {frame}',
+                    fitted(trim(sprite), PICK_THUMB_SIZE),
+                    'suggested' if (direction, frame) in suggested else '',
+                    note_color=DONE_COLOR, size=PICK_CARD_SIZE))
+        # Suggestions first, the rest in the order of the direction list.
+        order = {source: index for index, source in enumerate(suggested)}
+        self.cards.sort(key=lambda card: order.get(card.key[:2], len(order)))
+
+    def rect(self):
+        width, height = window_size()
+        size = (min(PICK_MAX_SIZE[0], width - 40), min(PICK_MAX_SIZE[1], height - 40))
+        return pygame.Rect(((width - size[0]) // 2, (height - size[1]) // 2), size)
+
+    def scroll_by(self, steps):
+        self.scroll = max(0, min(self.max_scroll, self.scroll - steps * 60))
+
+    def draw(self, screen, mouse, draw_card):
+        shade = pygame.Surface(window_size(), pygame.SRCALPHA)
+        shade.fill(SHADE)
+        screen.blit(shade, (0, 0))
+        rect = self.rect()
+        pygame.draw.rect(screen, DIALOG_BG, rect, border_radius=10)
+        pygame.draw.rect(screen, DIALOG_LINE, rect, 2, border_radius=10)
+
+        x, y, width = rect.x + DIALOG_PAD, rect.y + DIALOG_PAD, rect.w - 2 * DIALOG_PAD
+        screen.blit(self.title_font.render(f'Make {self.sheet.pose} from another frame', True, TEXT),
+                    (x, y))
+        y += 48
+        self.chips, bottom = draw_chips(screen, self.small, [m for m, _ in PICK_MODES],
+                                        lambda m: dict(PICK_MODES)[m], self.mirror,
+                                        x, y, width, mouse)
+        self.cancel_button.rect.bottomright = (rect.right - DIALOG_PAD, rect.bottom - DIALOG_PAD)
+        self.grid = pygame.Rect(x, bottom + 16, width,
+                                self.cancel_button.rect.y - 16 - bottom - 16)
+
+        if not self.cards:
+            text = self.font.render('This NPC has no other frames yet.', True, TEXT_DIM)
+            screen.blit(text, text.get_rect(center=self.grid.center))
+        per_row = max(1, (self.grid.w + CARD_GAP) // (PICK_CARD_SIZE[0] + CARD_GAP))
+        rows = (len(self.cards) + per_row - 1) // per_row
+        self.max_scroll = max(0, rows * (PICK_CARD_SIZE[1] + CARD_GAP) - CARD_GAP - self.grid.h)
+        self.scroll = min(self.scroll, self.max_scroll)
+        screen.set_clip(self.grid)
+        for index, card in enumerate(self.cards):
+            row, col = divmod(index, per_row)
+            card.rect.topleft = (self.grid.x + col * (PICK_CARD_SIZE[0] + CARD_GAP),
+                                 self.grid.y + row * (PICK_CARD_SIZE[1] + CARD_GAP) - self.scroll)
+            if card.rect.colliderect(self.grid):
+                draw_card(card, mouse, False)
+        screen.set_clip(None)
+
+        hint = 'Click the frame to use. The frame there now is replaced.'
+        screen.blit(self.small.render(hint, True, TEXT_DIM),
+                    (x, self.cancel_button.rect.centery - self.small.get_linesize() // 2))
+        self.cancel_button.draw(screen, self.font, mouse)
+
+    def click(self, pos):
+        """Returns ('pick', (path, source label, mirror)), 'close' or None."""
+        if self.cancel_button.hit(pos) or not self.rect().collidepoint(pos):
+            return 'close'
+        for rect, mode in self.chips:
+            if rect.collidepoint(pos):
+                self.mirror = mode
+                return None
+        if self.grid.collidepoint(pos):
+            for card in self.cards:
+                if card.rect.collidepoint(pos):
+                    direction, frame, path = card.key
+                    return 'pick', (path, f'{direction.label.lower()} {frame}', self.mirror)
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Tool
 # ---------------------------------------------------------------------------
@@ -516,7 +647,7 @@ class WalkTool:
         self.paste_button = Button('Paste answer', h=BUTTON_H)
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
-        self.mirror_button = Button('Mirror', h=BUTTON_H)
+        self.from_frame_button = Button('From other frame', h=BUTTON_H)
         self.mirror_all_button = Button('Mirror missing', w=330)
         self.build_npc_cards()
         self.place_footer()
@@ -832,32 +963,50 @@ class WalkTool:
             target = self.npc.sprite_path(self.direction.pose(frame))
             if not source or (target.is_file() and not replace):
                 continue
-            try:
-                image = pygame.image.load(str(source)).convert_alpha()
-                pygame.image.save(pygame.transform.flip(image, True, False), str(target))
-            except (pygame.error, OSError) as exc:
-                self.set_status(f'Could not mirror {source.name}: {exc}', error=True)
+            if not self.save_copy(source, target, mirror=True):
                 break
             written.append(target)
         self.build_frame_cards()
         self.load_preview()
         return written
 
+    def save_copy(self, source, target, mirror):
+        """Save one frame as another, flipped if asked; False if that failed."""
+        try:
+            image = pygame.image.load(str(source)).convert_alpha()
+            if mirror:
+                image = pygame.transform.flip(image, True, False)
+            pygame.image.save(image, str(target))
+        except (pygame.error, OSError) as exc:
+            self.set_status(f'Could not copy {source.name}: {exc}', error=True)
+            return False
+        return True
+
     def mirrorable_missing(self):
         """Frames this direction lacks and its partner has."""
         return [s.frame for s in self.sheets
                 if not self.npc.sprite_path(s.pose).is_file() and self.mirror_source(s.frame)]
 
-    def mirror_current(self):
+    def open_picker(self):
+        """Choose another frame of the NPC to make the chosen one from."""
         sheet = self.current_sheet()
-        if not (sheet and self.mirror_source(sheet.frame)):
+        if sheet:
+            self.dialog = FramePicker(self.npc, sheet, self.counts,
+                                      (self.font, self.small, self.title_font))
+
+    def copy_frame(self, source, source_label, mirror):
+        """Save another of the NPC's frames as the chosen one."""
+        sheet = self.current_sheet()
+        target = self.npc.sprite_path(sheet.pose)
+        replaced = target.is_file()
+        if not self.save_copy(source, target, mirror):
             return
-        replaced = self.npc.sprite_path(sheet.pose).is_file()
-        written = self.mirror_frames([sheet.frame], replace=True)
-        if written:
-            verb = 'Replaced' if replaced else 'Saved'
-            self.set_status(f'{verb} {written[0].name}, mirrored from {self.partner().label.lower()}')
-            self.show_toast(f'Frame {sheet.frame} mirrored from {self.partner().label.lower()}')
+        self.build_frame_cards()
+        self.load_preview()
+        how = 'mirrored' if mirror else 'copied'
+        verb = 'Replaced' if replaced else 'Saved'
+        self.set_status(f'{verb} {target.name}, {how} from {source_label}')
+        self.show_toast(f'Frame {sheet.frame} {how} from {source_label}')
 
     def mirror_missing(self):
         written = self.mirror_frames(self.mirrorable_missing(), replace=False)
@@ -1016,7 +1165,7 @@ class WalkTool:
         half = (inner.w - BUTTON_GAP) // 2
         rows = ((self.copy_image_button, self.copy_prompt_button),
                 (self.paste_button, self.open_button),
-                (self.send_button, self.mirror_button) if self.partner() else (self.send_button,))
+                (self.send_button, self.from_frame_button))
         y = inner.bottom - len(rows) * (BUTTON_H + BUTTON_GAP) + BUTTON_GAP
         for row in rows:
             if len(row) == 1:
@@ -1137,14 +1286,9 @@ class WalkTool:
         tries = self.settings.tries
         self.send_button.label = 'Sending ...' if self.busy() else (
             f'Send to Gemini ({tries}x)' if tries > 1 else 'Send to Gemini')
-        buttons = [self.copy_image_button, self.copy_prompt_button, self.paste_button,
-                   self.open_button, self.send_button]
-        partner = self.partner()
-        self.mirror_button.enabled = bool(partner and sheet and self.mirror_source(sheet.frame))
-        if partner:
-            self.mirror_button.label = f'Mirror from {partner.label.lower()}'
-            buttons.append(self.mirror_button)
-        for button in buttons:
+        self.from_frame_button.enabled = ready
+        for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button,
+                       self.open_button, self.send_button, self.from_frame_button):
             button.draw(self.screen, self.font, mouse)
 
     def draw_comparison(self, area):
@@ -1308,7 +1452,9 @@ class WalkTool:
         for group in self.footer_buttons():
             for button in group:
                 button.draw(self.screen, self.font, mouse)
-        if self.dialog:
+        if isinstance(self.dialog, FramePicker):
+            self.dialog.draw(self.screen, mouse, self.draw_card)
+        elif self.dialog:
             self.dialog.draw(self.screen, mouse)
         self.draw_toast()
         pygame.display.flip()
@@ -1340,10 +1486,20 @@ class WalkTool:
             return False
         return True
 
+    def close_dialog(self):
+        if isinstance(self.dialog, SettingsDialog):
+            self.close_settings()
+        else:
+            self.dialog = None
+
     def click(self, pos):
         if self.dialog:
-            if self.dialog.click(pos) == 'close':
-                self.close_settings()
+            answer = self.dialog.click(pos)
+            if answer == 'close':
+                self.close_dialog()
+            elif answer and answer[0] == 'pick':
+                self.dialog = None
+                self.copy_frame(*answer[1])
             return
         left, right = self.footer_buttons()
         if self.settings_button in right and self.settings_button.hit(pos):
@@ -1370,7 +1526,7 @@ class WalkTool:
         actions = ((self.review_button, self.open_review),
                    (self.missing_button, self.send_missing),
                    (self.mirror_all_button, self.mirror_missing),
-                   (self.mirror_button, self.mirror_current),
+                   (self.from_frame_button, self.open_picker),
                    (self.copy_image_button, self.copy_image),
                    (self.copy_prompt_button, self.copy_prompt),
                    (self.paste_button, self.paste_answer),
@@ -1405,7 +1561,7 @@ class WalkTool:
     def key(self, event):
         if self.dialog:
             if event.key == pygame.K_ESCAPE:
-                self.close_settings()
+                self.close_dialog()
             return None
         ctrl = event.mod & pygame.KMOD_CTRL
         if event.key == pygame.K_F11:
@@ -1437,7 +1593,7 @@ class WalkTool:
             elif event.key == pygame.K_r and self.store.entries:
                 self.open_review()
             elif event.key == pygame.K_m:
-                self.mirror_current()
+                self.open_picker()
         elif self.view == 'detail':
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.accept_detail()
@@ -1460,7 +1616,9 @@ class WalkTool:
                 elif event.type == pygame.DROPFILE and self.view == 'frames' and not self.dialog:
                     self.import_answer(Path(event.file))
                 elif event.type == pygame.MOUSEWHEEL:
-                    if self.dialog:
+                    if isinstance(self.dialog, FramePicker):
+                        self.dialog.scroll_by(event.y)
+                    elif self.dialog:
                         self.dialog.scroll_models(event.y)
                     else:
                         self.scroll = max(0, min(max_scroll, self.scroll - event.y * 60))
