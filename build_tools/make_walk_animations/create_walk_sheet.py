@@ -44,7 +44,11 @@ The window can be resized or maximised; F11 switches to full screen.
 Directions: the chibi was drawn walking down, up, right, down-right and
 up-right. The left-hand directions are those mirrored; the game mirrors
 right-hand frames on its own for an NPC without left-hand ones, so they are
-only needed where the NPC is not symmetrical.
+only needed where the NPC is not symmetrical. In a direction that has a
+mirror partner (left and right, and both diagonal pairs) "Mirror from ..."
+(M) saves the partner's frame of the same number flipped, replacing the one
+there; "Mirror missing from ..." in the footer does that for every frame the
+direction lacks and its partner has.
 
 Ghosts: Walk_<strip>_Sheet_Ghost.png is used where it exists. For the other
 strips a ghost is made on the fly (outline black, skin in greys, face left
@@ -131,6 +135,8 @@ DIRECTIONS = (
 DIRECTION_BY_KEY = {d.key: d for d in DIRECTIONS}
 # Where the game borrows a left-hand walk from when the NPC has none
 MIRROR_OF = {'left': 'right', 'front_left': 'front_right', 'back_left': 'back_right'}
+# Directions whose frames are each other's mirror image, frame for frame
+MIRROR_PARTNER = {**MIRROR_OF, **{right: left for left, right in MIRROR_OF.items()}}
 
 # Sheet appearance (same look as create_new_pose.py)
 MARGIN_RATIO = 0.06
@@ -502,6 +508,8 @@ class WalkTool:
         self.paste_button = Button('Paste answer', h=BUTTON_H)
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
+        self.mirror_button = Button('Mirror', h=BUTTON_H)
+        self.mirror_all_button = Button('Mirror missing', w=330)
         self.build_npc_cards()
         self.place_footer()
 
@@ -510,7 +518,8 @@ class WalkTool:
     def footer_buttons(self):
         """(left cluster, right cluster) for the current view."""
         if self.view == 'frames':
-            return ((self.back_button, self.folder_button, self.review_button),
+            mirror = (self.mirror_all_button,) if self.partner() else ()
+            return ((self.back_button, self.folder_button, self.review_button) + mirror,
                     (self.settings_button, self.missing_button))
         if self.view == 'review':
             return (self.back_button, self.folder_button), (self.settings_button,)
@@ -583,6 +592,7 @@ class WalkTool:
             self.set_status(f'Cannot build the {direction.label.lower()} sheets: {exc}', error=True)
         self.current = min(frame_index, max(0, len(self.sheets) - 1))
         self.scroll = 0
+        self.place_footer()  # the mirror button comes and goes with the direction
         self.build_frame_cards()
         self.load_preview()
         if self.sheets and self.sheets[0].auto_ghost and not self.status_error:
@@ -781,6 +791,68 @@ class WalkTool:
         self.select_direction(self.direction, self.current)
         self.send(self.missing_sheets())
 
+    # --- mirroring --------------------------------------------------------
+
+    def partner(self):
+        """The direction whose frames are this one's mirror image, or None."""
+        if not self.npc:
+            return None
+        key = MIRROR_PARTNER.get(self.direction.key)
+        return DIRECTION_BY_KEY[key] if key else None
+
+    def mirror_source(self, frame):
+        """The partner's frame to mirror for `frame`, None if it does not exist."""
+        partner = self.partner()
+        path = self.npc.sprite_path(partner.pose(frame)) if partner else None
+        return path if path and path.is_file() else None
+
+    def mirror_frames(self, frames, replace):
+        """Save the partner's frames, flipped, as this direction's.
+
+        Args:
+            frames: Frame numbers (from 1).
+            replace: Whether a frame this direction already has is overwritten.
+
+        Returns:
+            The paths written.
+        """
+        written = []
+        for frame in frames:
+            source = self.mirror_source(frame)
+            target = self.npc.sprite_path(self.direction.pose(frame))
+            if not source or (target.is_file() and not replace):
+                continue
+            try:
+                image = pygame.image.load(str(source)).convert_alpha()
+                pygame.image.save(pygame.transform.flip(image, True, False), str(target))
+            except (pygame.error, OSError) as exc:
+                self.set_status(f'Could not mirror {source.name}: {exc}', error=True)
+                break
+            written.append(target)
+        self.build_frame_cards()
+        self.load_preview()
+        return written
+
+    def mirrorable_missing(self):
+        """Frames this direction lacks and its partner has."""
+        return [s.frame for s in self.sheets
+                if not self.npc.sprite_path(s.pose).is_file() and self.mirror_source(s.frame)]
+
+    def mirror_current(self):
+        sheet = self.current_sheet()
+        if not (sheet and self.mirror_source(sheet.frame)):
+            return
+        replaced = self.npc.sprite_path(sheet.pose).is_file()
+        written = self.mirror_frames([sheet.frame], replace=True)
+        if written:
+            verb = 'Replaced' if replaced else 'Saved'
+            self.set_status(f'{verb} {written[0].name}, mirrored from {self.partner().label.lower()}')
+
+    def mirror_missing(self):
+        written = self.mirror_frames(self.mirrorable_missing(), replace=False)
+        if written:
+            self.set_status(f'Mirrored {len(written)} frame(s) from {self.partner().label.lower()}')
+
     def poll_worker(self):
         if self.worker is None:
             return
@@ -932,7 +1004,7 @@ class WalkTool:
         half = (inner.w - BUTTON_GAP) // 2
         rows = ((self.copy_image_button, self.copy_prompt_button),
                 (self.paste_button, self.open_button),
-                (self.send_button,))
+                (self.send_button, self.mirror_button) if self.partner() else (self.send_button,))
         y = inner.bottom - len(rows) * (BUTTON_H + BUTTON_GAP) + BUTTON_GAP
         for row in rows:
             if len(row) == 1:
@@ -1053,8 +1125,14 @@ class WalkTool:
         tries = self.settings.tries
         self.send_button.label = 'Sending ...' if self.busy() else (
             f'Send to Gemini ({tries}x)' if tries > 1 else 'Send to Gemini')
-        for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button,
-                       self.open_button, self.send_button):
+        buttons = [self.copy_image_button, self.copy_prompt_button, self.paste_button,
+                   self.open_button, self.send_button]
+        partner = self.partner()
+        self.mirror_button.enabled = bool(partner and sheet and self.mirror_source(sheet.frame))
+        if partner:
+            self.mirror_button.label = f'Mirror from {partner.label.lower()}'
+            buttons.append(self.mirror_button)
+        for button in buttons:
             button.draw(self.screen, self.font, mouse)
 
     def draw_comparison(self, area):
@@ -1152,6 +1230,11 @@ class WalkTool:
             waiting = len(self.store.pending())
             self.review_button.label = f'Review ({waiting})' if waiting else 'Review'
             self.review_button.enabled = bool(self.store.entries)
+            partner = self.partner()
+            mirrorable = len(self.mirrorable_missing()) if partner else 0
+            self.mirror_all_button.enabled = bool(mirrorable)
+            if partner:
+                self.mirror_all_button.label = f'Mirror missing from {partner.label.lower()} ({mirrorable})'
             missing = len(self.missing_sheets()) * self.settings.tries
             self.missing_button.label = 'Sending ...' if self.busy() else f'Send missing ({missing})'
             self.missing_button.enabled = bool(missing) and not self.busy() and not gemini_client.SDK_ERROR
@@ -1248,6 +1331,8 @@ class WalkTool:
     def click_frames(self, pos):
         actions = ((self.review_button, self.open_review),
                    (self.missing_button, self.send_missing),
+                   (self.mirror_all_button, self.mirror_missing),
+                   (self.mirror_button, self.mirror_current),
                    (self.copy_image_button, self.copy_image),
                    (self.copy_prompt_button, self.copy_prompt),
                    (self.paste_button, self.paste_answer),
@@ -1313,6 +1398,8 @@ class WalkTool:
                 self.select_direction(DIRECTIONS[(index + step) % len(DIRECTIONS)])
             elif event.key == pygame.K_r and self.store.entries:
                 self.open_review()
+            elif event.key == pygame.K_m:
+                self.mirror_current()
         elif self.view == 'detail':
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.accept_detail()
