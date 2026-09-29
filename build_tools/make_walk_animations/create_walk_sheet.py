@@ -55,6 +55,10 @@ other foot. In a direction with a mirror partner (left and right, and both
 diagonal pairs) "Mirror missing from ..." in the footer mirrors every frame
 the direction lacks and its partner has.
 
+"Edit in GIMP" (G) opens a frame the NPC already has in GIMP (found through
+GIMP_PATH, the PATH or Program Files). Once it is saved back with File >
+Overwrite, the tool notices and shows the new version.
+
 Ghosts: Walk_<strip>_Sheet_Ghost.png is used where it exists. For the other
 strips a ghost is made on the fly (outline black, skin in greys, face left
 out); drawing one by hand gives the model a cleaner guide.
@@ -64,6 +68,8 @@ Sheets, prompts, answers and review.json live in build_tools/output/<npc>/walk/.
 
 import io
 import os
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import datetime
@@ -200,6 +206,12 @@ PICK_CARD_SIZE = (116, 178)
 PICK_THUMB_SIZE = (100, 130)
 PICK_MAX_SIZE = (980, 760)
 PICK_MODES = ((True, 'Mirrored'), (False, 'As it is'))
+
+# GIMP, for touching up a frame by hand
+ENV_GIMP = 'GIMP_PATH'   # the executable, if it is somewhere unusual
+GIMP_NAMES = ('gimp', 'gimp-3', 'gimp-2.10')
+GIMP_GLOBS = ('GIMP*/bin/gimp.exe', 'GIMP*/bin/gimp-*.exe')
+WATCH_EVERY_MS = 1000    # how often the frames on disk are checked for edits
 SELECTED_LINE = (230, 190, 80)
 
 
@@ -299,6 +311,19 @@ def load_strip(path, mirror=False):
             frame = trim(frame)
             frames.append(pygame.transform.flip(frame, True, False) if mirror else frame)
     return frames
+
+
+def load_frame(path):
+    """One of the NPC's saved frames, or None if it cannot be read right now.
+
+    A frame can vanish or be half written at any moment while GIMP or another
+    program saves over it, so a failed read is not an error, only a frame
+    that is not there yet.
+    """
+    try:
+        return pygame.image.load(str(path)).convert_alpha()
+    except (pygame.error, OSError):
+        return None
 
 
 def strip_length(direction):
@@ -473,6 +498,32 @@ def fitted(surface, size, background=THUMB_BG):
     return tile
 
 
+def find_gimp():
+    """The GIMP executable, or None if it cannot be found.
+
+    GIMP_PATH wins, then the PATH, then the usual install folders - the
+    newest version first, since the folder name carries it (GIMP 2, GIMP 3).
+    """
+    named = os.environ.get(ENV_GIMP, '')
+    if named and Path(named).is_file():
+        return Path(named)
+    for name in GIMP_NAMES:
+        found = shutil.which(name)
+        if found:
+            return Path(found)
+    for root in {os.environ.get('ProgramFiles', ''), os.environ.get('ProgramFiles(x86)', ''),
+                 os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Programs')}:
+        if not root or not Path(root).is_dir():
+            continue
+        for pattern in GIMP_GLOBS:
+            # gimp-console / gimp-debug-tool share the prefix but are not the editor
+            found = [p for p in sorted(Path(root).glob(pattern), reverse=True)
+                     if 'console' not in p.name and 'debug' not in p.name and 'test' not in p.name]
+            if found:
+                return found[0]
+    return None
+
+
 def suggested_sources(direction, frame, count):
     """[(direction, frame)] most likely to be this frame mirrored.
 
@@ -516,8 +567,8 @@ class FramePicker:
                 path = npc.sprite_path(direction.pose(frame))
                 if (direction, frame) == (sheet.direction, sheet.frame) or not path.is_file():
                     continue
-                sprite = pygame.image.load(str(path)).convert_alpha()
-                if not sprite.get_bounding_rect().w:
+                sprite = load_frame(path)
+                if not (sprite and sprite.get_bounding_rect().w):
                     continue
                 self.cards.append(Card(
                     (direction, frame, path), f'{direction.label} {frame}',
@@ -648,6 +699,11 @@ class WalkTool:
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
         self.from_frame_button = Button('From other frame', h=BUTTON_H)
+        self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
+        self.gimp = find_gimp()
+        self.watched = {}      # {path: modification time} of the frames shown
+        self.seen = {}         # the same at the last check, to see a save settle
+        self.watched_at = 0
         self.mirror_all_button = Button('Mirror missing', w=330)
         self.build_npc_cards()
         self.place_footer()
@@ -778,14 +834,8 @@ class WalkTool:
         self.comparison = None
         sheet = self.current_sheet()
         path = self.npc.sprite_path(sheet.pose) if sheet else None
-        if not (path and path.is_file()):
-            return
-        try:
-            sprite = pygame.image.load(str(path)).convert_alpha()
-        except pygame.error as exc:
-            self.set_status(f'Cannot read {path.name}: {exc}', error=True)
-            return
-        if sprite.get_bounding_rect().w:
+        sprite = load_frame(path) if path and path.is_file() else None
+        if sprite and sprite.get_bounding_rect().w:
             self.comparison = comparison(sheet.ghost, sprite)
 
     def load_preview(self):
@@ -802,8 +852,8 @@ class WalkTool:
             mirrored = True
         frames = []
         for path in paths:
-            if path.is_file():
-                image = pygame.image.load(str(path)).convert_alpha()
+            image = load_frame(path) if path.is_file() else None
+            if image:
                 frames.append(pygame.transform.flip(image, True, False) if mirrored else image)
         if not frames:
             self.preview_note = 'no frames yet'
@@ -1008,6 +1058,64 @@ class WalkTool:
         self.set_status(f'{verb} {target.name}, {how} from {source_label}')
         self.show_toast(f'Frame {sheet.frame} {how} from {source_label}')
 
+    # --- editing by hand --------------------------------------------------
+
+    def edit_in_gimp(self):
+        """Open the chosen frame in GIMP; watch_frames() picks up the saved result."""
+        sheet = self.current_sheet()
+        path = self.npc.sprite_path(sheet.pose) if sheet else None
+        if not (path and path.is_file()):
+            return
+        if not self.gimp:
+            self.set_status(f'GIMP not found - set {ENV_GIMP} to its gimp.exe', error=True)
+            return
+        try:
+            subprocess.Popen([str(self.gimp), str(path)])
+        except OSError as exc:
+            self.set_status(f'Could not start GIMP: {exc}', error=True)
+            return
+        self.set_status(f'{path.name} opened in GIMP - File > Overwrite {path.name} to save it back')
+        self.show_toast('Opening in GIMP')
+
+    def frame_times(self):
+        """{path: modification time} of the frames of the chosen direction."""
+        times = {}
+        for sheet in self.sheets:
+            path = self.npc.sprite_path(sheet.pose)
+            try:
+                times[path] = path.stat().st_mtime
+            except OSError:
+                times[path] = None
+        return times
+
+    def watch_frames(self):
+        """Refresh the view when a frame was changed outside the tool, e.g. in GIMP.
+
+        A program saving a file replaces it in steps - gone, half written,
+        done - so a change is only taken once two checks in a row agree on
+        it. Refreshing earlier would read the file in the middle of the save.
+        """
+        if self.view != 'frames' or not self.sheets:
+            self.watched = self.seen = {}
+            return
+        now = pygame.time.get_ticks()
+        if now - self.watched_at < WATCH_EVERY_MS:
+            return
+        self.watched_at = now
+        times = self.frame_times()
+        if times.keys() != self.watched.keys():  # another direction: start over
+            self.watched = self.seen = times
+            return
+        settled = times == self.seen
+        self.seen = times
+        if not settled or times == self.watched:
+            return
+        changed = [path.name for path in times if times[path] != self.watched[path]]
+        self.watched = times
+        self.build_frame_cards()
+        self.load_preview()
+        self.set_status(f'Updated from disk: {", ".join(changed)}')
+
     def mirror_missing(self):
         written = self.mirror_frames(self.mirrorable_missing(), replace=False)
         if written:
@@ -1165,7 +1273,8 @@ class WalkTool:
         half = (inner.w - BUTTON_GAP) // 2
         rows = ((self.copy_image_button, self.copy_prompt_button),
                 (self.paste_button, self.open_button),
-                (self.send_button, self.from_frame_button))
+                (self.send_button, self.from_frame_button),
+                (self.gimp_button,))
         y = inner.bottom - len(rows) * (BUTTON_H + BUTTON_GAP) + BUTTON_GAP
         for row in rows:
             if len(row) == 1:
@@ -1287,8 +1396,10 @@ class WalkTool:
         self.send_button.label = 'Sending ...' if self.busy() else (
             f'Send to Gemini ({tries}x)' if tries > 1 else 'Send to Gemini')
         self.from_frame_button.enabled = ready
+        self.gimp_button.enabled = bool(sheet and self.gimp and self.npc.sprite_path(sheet.pose).is_file())
+        self.gimp_button.label = 'Edit in GIMP' if self.gimp else 'Edit in GIMP (GIMP not found)'
         for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button,
-                       self.open_button, self.send_button, self.from_frame_button):
+                       self.open_button, self.send_button, self.from_frame_button, self.gimp_button):
             button.draw(self.screen, self.font, mouse)
 
     def draw_comparison(self, area):
@@ -1527,6 +1638,7 @@ class WalkTool:
                    (self.missing_button, self.send_missing),
                    (self.mirror_all_button, self.mirror_missing),
                    (self.from_frame_button, self.open_picker),
+                   (self.gimp_button, self.edit_in_gimp),
                    (self.copy_image_button, self.copy_image),
                    (self.copy_prompt_button, self.copy_prompt),
                    (self.paste_button, self.paste_answer),
@@ -1594,6 +1706,8 @@ class WalkTool:
                 self.open_review()
             elif event.key == pygame.K_m:
                 self.open_picker()
+            elif event.key == pygame.K_g:
+                self.edit_in_gimp()
         elif self.view == 'detail':
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self.accept_detail()
@@ -1625,6 +1739,7 @@ class WalkTool:
                 elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     self.click(event.pos)
             self.poll_worker()
+            self.watch_frames()
             self.draw()
             self.clock.tick(30)
 
