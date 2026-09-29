@@ -306,8 +306,9 @@ class GeminiWorker:
         Args:
             npc: The NPC the sheets belong to.
             jobs: [(pose, sheet_path)], one entry per request; the same pose
-                may appear several times (Settings.tries).
-            prompt: The prompt sent with every sheet.
+                may appear several times (Settings.tries). A job may carry
+                its own prompt as a third item, (pose, sheet_path, prompt).
+            prompt: The prompt sent with every sheet that has none of its own.
             settings: Model and output size to ask for.
             on_result: Called on the main thread with one pose_review.Entry
                 per answer that was written.
@@ -332,9 +333,10 @@ class GeminiWorker:
         except Exception as exc:  # missing SDK, missing key, bad setup
             self._queue.put(('fatal', str(exc)))
             return
-        for pose, sheet_path in jobs:
+        for pose, sheet_path, *own_prompt in jobs:
             try:
-                image = client.complete_sheet(prompt, sheet_path.read_bytes(), self.settings)
+                image = client.complete_sheet(
+                    own_prompt[0] if own_prompt else prompt, sheet_path.read_bytes(), self.settings)
                 out_path = next_free_path(
                     sheet_path.parent, f'{self.npc.prefix}_{pose}_gemini', image.suffix)
                 out_path.write_bytes(image.data)
