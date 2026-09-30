@@ -134,7 +134,7 @@ def build_sheet(idle, pose, ghost, npc):
 
 
 def prompt_for(npc, direction, frame, count):
-    base_view = BASE_POSES[npc.base_for(direction)][1]
+    base_view = BASE_POSES[npc.base_for(direction)].view
     return PROMPT_TEMPLATE.format(base_view=base_view, frame=frame, count=count,
                                   cycle=direction.motion.key, verb=direction.motion.verb,
                                   motion=direction.description, name=npc.display_name)
@@ -154,9 +154,10 @@ def write_sheets(npc, direction, frames=None):
     Raises:
         One of SHEET_ERRORS if a base file is missing or unreadable.
     """
-    base = npc.base_for(direction)
-    idle = chibi.idle_frame(BASE_POSES[base][0])
-    reference = trim(pygame.image.load(str(npc.sprite_path(base))).convert_alpha())
+    base_pose = npc.base_for(direction)
+    base = BASE_POSES[base_pose]
+    idle = chibi.idle_frame(base.idle, base.mirror)
+    reference = trim(pygame.image.load(str(npc.sprite_path(base_pose))).convert_alpha())
     cycle = chibi.cycle_frames(direction)
     ghosts, auto_ghost = chibi.ghost_frames(direction)
     count = len(cycle)
@@ -189,7 +190,7 @@ def write_standing_sheet(npc, direction):
     Raises:
         One of SHEET_ERRORS if a base file is missing or unreadable.
     """
-    idle = chibi.idle_frame(BASE_POSES[DEFAULT_BASE][0])
+    idle = chibi.idle_frame(BASE_POSES[DEFAULT_BASE].idle)
     target = chibi.idle_frame(f'Idle_{direction.strip}', direction.mirror)
     ghost_source, auto_ghost = chibi.idle_ghost(direction)
     reference = trim(pygame.image.load(str(npc.sprite_path(DEFAULT_BASE))).convert_alpha())
@@ -200,7 +201,7 @@ def write_standing_sheet(npc, direction):
     stem = f'{npc.prefix}_{pose}'
     path = npc.out_dir / f'{stem}_sheet.png'
     prompt = STANDING_PROMPT_TEMPLATE.format(
-        base_view=BASE_POSES[DEFAULT_BASE][1], view=STANDING_VIEWS[direction.key],
+        base_view=BASE_POSES[DEFAULT_BASE].view, view=STANDING_VIEWS[direction.key],
         name=npc.display_name)
     pygame.image.save(surface, str(path))
     (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')

@@ -1,5 +1,7 @@
 """An NPC's or the player's sprite folder, as the Sprite Manager sees it."""
 
+from collections import namedtuple
+
 from create_new_NPC import CATEGORIES, OTHER, read_profile
 from create_new_pose import OUTPUT_DIR, PLAYER_DIR, Npc
 from images import crop_alike, load_frame, mirrored
@@ -8,10 +10,14 @@ from walk import (
     parse_pose, partner_of,
 )
 
-# The NPC's standing pose a sheet starts from: (the chibi's match for it, how the prompt names it)
+# A standing pose a sheet can start from: the chibi's match for it (its idle strip,
+# mirrored or not) and how the prompt names it
+BasePose = namedtuple('BasePose', 'idle mirror view')
 BASE_POSES = {
-    'front_static': ('Idle_Down', 'facing the viewer'),
-    'back_static': ('Idle_Up', 'seen from behind'),
+    'front_static': BasePose('Idle_Down', False, 'facing the viewer'),
+    'back_static': BasePose('Idle_Up', False, 'seen from behind'),
+    'right_static': BasePose('Idle_Side', False, 'seen from the side, facing to the right'),
+    'left_static': BasePose('Idle_Side', True, 'seen from the side, facing to the left'),
 }
 DEFAULT_BASE = 'front_static'
 WALK_FOLDER = 'walk'      # holds the run's output too, for the player
@@ -92,7 +98,16 @@ class WalkNpc:
         return OUTPUT_DIR / self.name / WALK_FOLDER
 
     def base_for(self, direction):
-        """The standing pose a direction's sheets start from."""
+        """The standing pose a direction's sheets start from.
+
+        The one facing the same way where the figure has it - the side view
+        for left and right, the back view for up and its diagonals - else
+        the front one.
+        """
+        if direction.key in ('left', 'right'):
+            side = f'{direction.key}_static'
+            if self.has(side):
+                return side
         if direction.from_behind and self.has('back_static'):
             return 'back_static'
         return DEFAULT_BASE
