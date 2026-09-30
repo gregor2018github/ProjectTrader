@@ -221,10 +221,10 @@ class FramesView(View):
         if not path:
             return None
         sprite = load_frame(path)
-        if not is_blank(sprite):
-            thumb = fitted(trim(sprite), FRAME_THUMB_SIZE)
-        elif self.standing_sheet:
-            thumb = fitted(self.standing_sheet.surface, FRAME_THUMB_SIZE)
+        if self.standing_sheet:
+            thumb = self.sheet_thumb(self.standing_sheet, sprite)
+        elif not is_blank(sprite):
+            thumb = fitted(trim(sprite), FRAME_THUMB_SIZE)  # the front one: the reference itself
         else:
             thumb = fitted(pygame.Surface((1, 1), pygame.SRCALPHA), FRAME_THUMB_SIZE)
         note, color = self.frame_note(standing_pose(self.direction))
@@ -233,13 +233,20 @@ class FramesView(View):
         return Card(STANDING, f'Standing  ({standing_pose(self.direction)})', thumb,
                     note, note_color=color, size=FRAME_CARD_SIZE)
 
+    @staticmethod
+    def sheet_thumb(sheet, sprite):
+        """A card's picture: the sheet, with the accepted sprite in place of the ghost once there is one."""
+        surface = sheet.surface if is_blank(sprite) else sheet.with_result(sprite)
+        return fitted(surface, FRAME_THUMB_SIZE)
+
     def build_frame_cards(self):
         standing = self.standing_card()
         cards = [standing] if standing else []
         for index, sheet in enumerate(self.sheets):
             note, color = self.frame_note(sheet.pose)
+            sprite = load_frame(self.npc.sprite_path(sheet.pose))
             cards.append(Card(
-                index, f'Frame {sheet.frame}  ({sheet.pose})', fitted(sheet.surface, FRAME_THUMB_SIZE),
+                index, f'Frame {sheet.frame}  ({sheet.pose})', self.sheet_thumb(sheet, sprite),
                 note, note_color=color, size=FRAME_CARD_SIZE))
         self.grid.cards = cards
         self.build_comparison()

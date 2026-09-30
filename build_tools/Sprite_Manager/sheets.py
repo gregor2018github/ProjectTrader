@@ -30,6 +30,7 @@ FRAME_COLOR = (0, 0, 0)
 TARGET_FRAME_COLOR = (220, 0, 0)
 TARGET_FRAME_WIDTH = 3
 GHOST_ALPHA = 110        # 0 = invisible, 255 = solid
+DONE_FRAME_COLOR = (80, 180, 90)   # the target cell once its sprite is accepted (cards only)
 
 PROMPT_TEMPLATE = """\
 The attached picture holds a 2x2 grid of pixel-art sprites for my medieval trading game "Merchant's Rise".
@@ -78,6 +79,8 @@ class FrameSheet:
     prompt: str
     auto_ghost: bool
     ghost: pygame.Surface   # the goal pose, at the scale of the saved frames
+    target: pygame.Rect     # the red-framed cell on the surface
+    ground: int             # the y the sprites in the target cell stand on
 
     @property
     def standing(self):
@@ -93,6 +96,20 @@ class FrameSheet:
         """'Frame 3' or 'Standing sprite', for status lines."""
         return 'Standing sprite' if self.standing else f'Frame {self.frame}'
 
+    def with_result(self, sprite):
+        """The sheet with the accepted sprite in the target cell instead of the ghost.
+
+        Only for showing what is done: the sheet that is sent keeps its ghost.
+        The sprite is at the scale of the reference, bottom left, so it goes
+        in as it is, on the same ground line.
+        """
+        surface = self.surface.copy()
+        surface.fill((255, 255, 255), self.target)
+        sprite = trim(sprite)
+        surface.blit(sprite, sprite.get_rect(midbottom=(self.target.centerx, self.ground)))
+        pygame.draw.rect(surface, DONE_FRAME_COLOR, self.target, TARGET_FRAME_WIDTH)
+        return surface
+
 
 def build_sheet(idle, pose, ghost, npc):
     """Lay out the three sprites plus the red-framed target cell holding the ghost.
@@ -101,8 +118,8 @@ def build_sheet(idle, pose, ghost, npc):
     keeps the bob of the cycle and the ghost stands where the NPC will.
 
     Returns:
-        (sheet, ghost) - the ghost solid, at the scale of the NPC sprite, which
-        is also the scale an accepted frame is saved at.
+        (sheet, ghost, target cell, ground line) - the ghost solid, at the scale
+        of the NPC sprite, which is also the scale an accepted frame is saved at.
     """
     # One scale for all chibi sprites, taken from the standing one, so every
     # frame of a cycle comes out the same size.
@@ -130,7 +147,7 @@ def build_sheet(idle, pose, ghost, npc):
     for sprite, cell in zip(sprites + [ghost], cells):
         sheet.blit(sprite, sprite.get_rect(midbottom=(cell.centerx, cell.bottom - margin)))
     pygame.draw.rect(sheet, TARGET_FRAME_COLOR, cells[3], TARGET_FRAME_WIDTH)
-    return sheet, solid_ghost
+    return sheet, solid_ghost, cells[3], cells[3].bottom - margin
 
 
 def prompt_for(npc, direction, frame, count):
@@ -165,14 +182,15 @@ def write_sheets(npc, direction, frames=None):
     npc.out_dir.mkdir(parents=True, exist_ok=True)
     sheets = []
     for frame in frames or range(1, count + 1):
-        surface, ghost = build_sheet(idle, cycle[frame - 1], ghosts[min(frame, len(ghosts)) - 1],
+        surface, ghost, target, ground = build_sheet(idle, cycle[frame - 1], ghosts[min(frame, len(ghosts)) - 1],
                                      reference)
         stem = f'{npc.prefix}_{direction.pose(frame)}'
         path = npc.out_dir / f'{stem}_sheet.png'
         prompt = prompt_for(npc, direction, frame, count)
         pygame.image.save(surface, str(path))
         (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
-        sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost))
+        sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost,
+                                 target, ground))
     return sheets
 
 
@@ -194,7 +212,7 @@ def write_standing_sheet(npc, direction):
     target = chibi.idle_frame(f'Idle_{direction.strip}', direction.mirror)
     ghost_source, auto_ghost = chibi.idle_ghost(direction)
     reference = trim(pygame.image.load(str(npc.sprite_path(DEFAULT_BASE))).convert_alpha())
-    surface, ghost = build_sheet(idle, target, ghost_source, reference)
+    surface, ghost, target_cell, ground = build_sheet(idle, target, ghost_source, reference)
 
     npc.out_dir.mkdir(parents=True, exist_ok=True)
     pose = standing_pose(direction)
@@ -205,7 +223,7 @@ def write_standing_sheet(npc, direction):
         name=npc.display_name)
     pygame.image.save(surface, str(path))
     (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
-    return FrameSheet(direction, 0, 0, surface, path, prompt, auto_ghost, ghost)
+    return FrameSheet(direction, 0, 0, surface, path, prompt, auto_ghost, ghost, target_cell, ground)
 
 
 def reference_shapes(npc, pose, base):
