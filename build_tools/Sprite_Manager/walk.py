@@ -45,6 +45,16 @@ DEFAULT_DIRECTION = DIRECTION_BY_KEY['right']
 MIRROR_OF = {'left': 'right', 'front_left': 'front_right', 'back_left': 'back_right'}
 # Directions whose frames are each other's mirror image, frame for frame
 MIRROR_PARTNER = {**MIRROR_OF, **{right: left for left, right in MIRROR_OF.items()}}
+# Directions with a standing sprite, <prefix>_<key>_static.png
+STANDING_DIRECTIONS = ('front', 'back', 'left', 'right')
+
+
+def standing_pose(direction):
+    """'right_static' for the directions an NPC has a standing sprite in, else None.
+
+    The walks down, up, left and right each have one; the diagonals do not.
+    """
+    return f'{direction.key}_static' if direction.key in STANDING_DIRECTIONS else None
 
 
 def parse_pose(pose):

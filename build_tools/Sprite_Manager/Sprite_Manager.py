@@ -17,7 +17,9 @@ The window can be resized or maximised; F11 switches to full screen.
 2. Pick a direction on the left. Its sheets are rebuilt from the base files
    every time a direction or a frame is clicked, so edits to the chibi or
    ghost strips show up straight away. The box under the directions plays
-   the frames the NPC already has.
+   the frames the NPC already has. Down, up, left and right start with the
+   NPC's standing sprite of that direction (<prefix>_<direction>_static.png);
+   click it to see it large or edit it in GIMP.
 3. Pick a frame. If it is already done, the frame in the game is shown under
    its sheet next to the ghost it was aimed at, and laid over it. Then either
    - for free, through the Gemini web view: "Copy image" (Ctrl+C) and

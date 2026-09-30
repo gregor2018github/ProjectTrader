@@ -21,10 +21,10 @@ from create_new_pose import (
 )
 from frame_picker import FramePicker
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
-from images import fitted, is_blank, load_frame, save_copy, smooth_fit
+from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
 from sheets import SHEET_ERRORS, write_sheets
 from view import View
-from walk import DIRECTIONS, is_optional, parse_pose, partner_of
+from walk import DIRECTIONS, is_optional, parse_pose, partner_of, standing_pose
 from widgets import PANEL_TITLE, CardGrid, Checker, Comparison, draw_panel
 
 # Layout
@@ -41,6 +41,8 @@ PREVIEW_MIN_H = 60
 PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 
+STANDING = 'standing'    # the key of the standing sprite's card, beside the frames' indices
+
 
 class FramesView(View):
     def __init__(self, app, direction):
@@ -49,13 +51,14 @@ class FramesView(View):
         self.store = app.store
         self.direction = direction
         self.sheets = []
-        self.current = 0              # index into self.sheets
+        self.current = 0              # index into self.sheets, or STANDING
         self.grid = CardGrid()
         self.preview = []             # the direction's walk as the game plays it
         self.preview_note = ''
         self.comparison = None        # accepted frame vs. goal, when there is one
         self.dir_rows = []            # [(rect, direction)] as last drawn
         self.preview_checker = Checker()
+        self.standing_checker = Checker()
         self.gimp = find_gimp()
         self.watcher = FileWatcher()
 
@@ -90,12 +93,27 @@ class FramesView(View):
     # --- state ------------------------------------------------------------
 
     def current_sheet(self):
-        return self.sheets[self.current] if self.sheets else None
+        """The chosen frame's sheet; None without sheets or while the standing sprite is chosen."""
+        if self.current == STANDING or not self.sheets:
+            return None
+        return self.sheets[self.current]
+
+    def standing_path(self):
+        """The direction's standing sprite, drawn or not; None for a diagonal."""
+        pose = standing_pose(self.direction)
+        return self.npc.sprite_path(pose) if pose else None
 
     def current_path(self):
-        """Where the chosen frame is saved in the game, done or not; None without sheets."""
+        """Where the chosen frame or standing sprite is saved in the game, done or not."""
+        if self.current == STANDING:
+            return self.standing_path()
         sheet = self.current_sheet()
         return self.npc.sprite_path(sheet.pose) if sheet else None
+
+    def watched_paths(self):
+        """The files the view shows: the frames and the standing sprite."""
+        paths = [self.npc.sprite_path(s.pose) for s in self.sheets]
+        return paths + [self.standing_path()] if self.standing_path() else paths
 
     def partner(self):
         """The direction whose frames are this one's mirror image, or None."""
@@ -104,8 +122,13 @@ class FramesView(View):
     def count(self):
         return self.app.counts[self.direction.key]
 
-    def select_direction(self, direction, frame_index=0):
-        """Rebuild the direction's sheets from the base files and show them."""
+    def select_direction(self, direction, current=0):
+        """Rebuild the direction's sheets from the base files and show them.
+
+        Args:
+            direction: The Direction.
+            current: The card to choose: a frame's index, or STANDING.
+        """
         self.direction = direction
         self.app.last_direction = direction
         try:
@@ -113,7 +136,11 @@ class FramesView(View):
         except SHEET_ERRORS as exc:
             self.sheets = []
             self.app.set_status(f'Cannot build the {direction.label.lower()} sheets: {exc}', error=True)
-        self.current = min(frame_index, max(0, len(self.sheets) - 1))
+        if current == STANDING and standing_pose(direction):
+            self.current = STANDING
+        else:
+            index = current if isinstance(current, int) else 0
+            self.current = min(index, max(0, len(self.sheets) - 1))
         self.grid.scroll = 0
         self.app.place_footer()  # the mirror button comes and goes with the direction
         self.refresh()
@@ -121,9 +148,13 @@ class FramesView(View):
             self.app.set_status(f'Ghost made on the fly - draw {ghost_path(direction).name} '
                                 'for a cleaner one')
 
-    def select_frame(self, index):
-        self.current = index
-        self.rebuild_current()
+    def select_frame(self, key):
+        """Choose a card: a frame's index, or STANDING."""
+        self.current = key
+        if key == STANDING:
+            self.build_comparison()
+        else:
+            self.rebuild_current()
 
     def rebuild_current(self):
         """Rebuild the chosen frame's sheet, so it matches the base files on disk."""
@@ -155,8 +186,24 @@ class FramesView(View):
             return note, ERROR_COLOR
         return note, STATUS_COLORS[pose_review.PENDING]
 
+    def standing_card(self):
+        """The card of the direction's standing sprite, or None for a diagonal."""
+        path = self.standing_path()
+        if not path:
+            return None
+        sprite = load_frame(path)
+        if is_blank(sprite):
+            thumb = fitted(pygame.Surface((1, 1), pygame.SRCALPHA), FRAME_THUMB_SIZE)
+            note, color = 'not drawn', TEXT_DIM
+        else:
+            thumb = fitted(trim(sprite), FRAME_THUMB_SIZE)
+            note, color = 'done', STATUS_COLORS[pose_review.ACCEPTED]
+        return Card(STANDING, f'Standing  ({standing_pose(self.direction)})', thumb,
+                    note, note_color=color, size=FRAME_CARD_SIZE)
+
     def build_frame_cards(self):
-        cards = []
+        standing = self.standing_card()
+        cards = [standing] if standing else []
         for index, sheet in enumerate(self.sheets):
             note, color = self.frame_note(sheet.pose)
             cards.append(Card(
@@ -167,8 +214,8 @@ class FramesView(View):
 
     def build_comparison(self):
         """The accepted frame next to its goal, if the chosen frame is done."""
-        sheet, path = self.current_sheet(), self.current_path()
-        sprite = load_frame(path) if path else None
+        sheet = self.current_sheet()
+        sprite = load_frame(self.current_path()) if sheet else None
         self.comparison = None if is_blank(sprite) else Comparison(sheet.ghost, sprite)
 
     def missing_sheets(self):
@@ -311,7 +358,7 @@ class FramesView(View):
 
     def tick(self):
         """Refresh when a frame was changed outside the tool, e.g. in GIMP."""
-        changed = self.watcher.changed([self.npc.sprite_path(s.pose) for s in self.sheets])
+        changed = self.watcher.changed(self.watched_paths())
         if changed:
             self.refresh()
             self.app.set_status(f'Updated from disk: {", ".join(p.name for p in changed)}')
@@ -438,9 +485,15 @@ class FramesView(View):
     def draw_sheet(self, screen, rect, mouse):
         app = self.app
         sheet = self.current_sheet()
-        draw_panel(screen, app.fonts, rect, f'Sheet for {sheet.pose}' if sheet else 'Sheet')
+        if self.current == STANDING:
+            title = f'Standing sprite {self.standing_path().name}'
+        else:
+            title = f'Sheet for {sheet.pose}' if sheet else 'Sheet'
+        draw_panel(screen, app.fonts, rect, title)
         area = self.place_sheet_buttons(rect)
-        if sheet and self.comparison:
+        if self.current == STANDING:
+            self.draw_standing(screen, area)
+        elif sheet and self.comparison:
             compare_h = int(area.h * COMPARE_SHARE)
             compare_area = pygame.Rect(area.x, area.bottom - compare_h, area.w, compare_h)
             area.h = compare_area.y - area.y - BUTTON_GAP
@@ -457,11 +510,24 @@ class FramesView(View):
         tries = app.settings.tries
         self.send_button.label = 'Sending ...' if app.busy() else (
             f'Send to Gemini ({tries}x)' if tries > 1 else 'Send to Gemini')
-        self.gimp_button.enabled = bool(sheet and self.gimp and self.current_path().is_file())
+        path = self.current_path()
+        self.gimp_button.enabled = bool(self.gimp and path and path.is_file())
         self.gimp_button.label = 'Edit in GIMP' if self.gimp else 'Edit in GIMP (GIMP not found)'
         for row in self.sheet_button_rows:
             for button in row:
                 button.draw(screen, app.fonts.font, mouse)
+
+    def draw_standing(self, screen, area):
+        """The direction's standing sprite, large, on a checkerboard."""
+        self.standing_checker.draw(screen, area)
+        sprite = load_frame(self.standing_path())
+        if is_blank(sprite):
+            small = self.app.fonts.small
+            text = small.render('Not drawn yet', True, TEXT_DIM)
+            screen.blit(text, text.get_rect(center=area.center))
+            return
+        image = pixel_fit(trim(sprite), (area.w - 20, area.h - 20))
+        screen.blit(image, image.get_rect(midbottom=(area.centerx, area.bottom - 10)))
 
     # --- input ------------------------------------------------------------
 
@@ -491,9 +557,11 @@ class FramesView(View):
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:
             self.open_answer()
-        elif event.key in (pygame.K_LEFT, pygame.K_RIGHT) and self.sheets:
+        elif event.key in (pygame.K_LEFT, pygame.K_RIGHT) and self.grid.cards:
             step = 1 if event.key == pygame.K_RIGHT else -1
-            self.select_frame((self.current + step) % len(self.sheets))
+            keys = [card.key for card in self.grid.cards]
+            index = keys.index(self.current) if self.current in keys else 0
+            self.select_frame(keys[(index + step) % len(keys)])
         elif event.key in (pygame.K_UP, pygame.K_DOWN):
             step = 1 if event.key == pygame.K_DOWN else -1
             index = DIRECTIONS.index(self.direction)

@@ -25,6 +25,13 @@ def smooth_fit(surface, size, max_factor=None):
     return pygame.transform.smoothscale(surface, (max(1, int(w * factor)), max(1, int(h * factor))))
 
 
+def pixel_fit(surface, size):
+    """The surface fitted into `size`: blown up by whole pixels, so pixel art stays crisp."""
+    w, h = surface.get_size()
+    factor = int(min(size[0] / w, size[1] / h))
+    return scaled(surface, factor) if factor >= 1 else smooth_fit(surface, size)
+
+
 def fitted(surface, size, background=THUMB_BG):
     """A surface scaled into a tile of `size`, centred."""
     image = smooth_fit(surface, size)
