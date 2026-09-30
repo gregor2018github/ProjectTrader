@@ -51,6 +51,12 @@ His walk is player_<direction>_walk<n>.png, which the game does not load
 yet. Walk / Run above the directions (Tab) switches between the two. The
 NPCs only walk: their walk is <prefix>_<direction>_move<n>.png.
 
+Which figure gets which animations: the player walks and runs in all eight
+directions; an NPC only walks, and only down, right, up and left. NPCs still
+move any way on the map - walking diagonally, the game shows their walk down
+or up (DirectionalAnimator.DIRECTION_FALLBACKS) - so diagonals are not worth
+drawing for them.
+
 Directions: the chibi was drawn walking down, up, right, down-right and
 up-right. The left-hand directions are those mirrored; the game mirrors
 right-hand frames on its own for an NPC without left-hand ones, so they are
@@ -130,7 +136,7 @@ from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
-from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION, DIRECTIONS_OF  # noqa: E402
+from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION  # noqa: E402
 from widgets import PANEL_TITLE, Fonts, Toast  # noqa: E402
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
@@ -178,10 +184,6 @@ class SpriteManager:
     def set_status(self, text, error=False):
         self.status = text
         self.status_error = error
-
-    def total_frames(self, motion):
-        """How many frames a full set of a motion has, in all eight directions."""
-        return sum(self.counts[d] for d in DIRECTIONS_OF[motion])
 
     def busy(self):
         return self.worker is not None and not self.worker.finished

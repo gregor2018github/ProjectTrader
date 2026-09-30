@@ -6,7 +6,8 @@ from create_new_NPC import CATEGORIES, OTHER, read_profile
 from create_new_pose import OUTPUT_DIR, PLAYER_DIR, Npc
 from images import crop_alike, load_frame, mirrored
 from walk import (
-    DIRECTIONS_OF, NPC_MOTIONS, PLAYER_MOTIONS, STANDING_DIRECTIONS, find_direction, game_mirror_source,
+    DIRECTIONS_OF, NPC_DIRECTION_KEYS, NPC_MOTIONS, PLAYER_MOTIONS, STANDING_DIRECTIONS, find_direction,
+    game_mirror_source,
     parse_pose, partner_of,
 )
 
@@ -65,14 +66,32 @@ class WalkNpc:
         return self.display_name if self.is_townsperson else self.name
 
     def directions(self, motion):
-        """The directions of one of the figure's motions."""
-        return DIRECTIONS_OF[motion]
+        """The directions of one of the figure's motions: all eight for the player,
+        down, right, up and left for an NPC."""
+        if self.is_player:
+            return DIRECTIONS_OF[motion]
+        return tuple(d for d in DIRECTIONS_OF[motion] if d.key in NPC_DIRECTION_KEYS)
+
+    def total_frames(self, counts, motion):
+        """How many frames a full set of one of his motions has.
+
+        Args:
+            counts: {Direction: frames in its cycle}.
+        """
+        return sum(counts[d] for d in self.directions(motion))
 
     def direction_like(self, other):
-        """`other` if it is one of the figure's, else the same way in his first motion."""
-        if other.motion in self.motions:
-            return other
-        return find_direction(self.motions[0], other.key)
+        """`other` if the figure has it, else the nearest way he does have.
+
+        Another motion becomes his first one; a diagonal he does not walk
+        becomes its side (down right -> right).
+        """
+        motion = other.motion if other.motion in self.motions else self.motions[0]
+        keys = [d.key for d in self.directions(motion)]
+        key = other.key
+        if key not in keys:
+            key = 'right' if 'right' in key else 'left' if 'left' in key else keys[0]
+        return find_direction(motion, key)
 
     def parse_pose(self, pose):
         """(Direction, frame) of one of the figure's frames, or (None, 0).

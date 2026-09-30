@@ -25,6 +25,8 @@ RUN = Motion('run', 'Run', 'move', 'Run', 'running')
 MOTIONS = (WALK, PLAYER_WALK, RUN)
 NPC_MOTIONS = (WALK,)
 PLAYER_MOTIONS = (PLAYER_WALK, RUN)
+# The player does everything; the NPCs walk only straight: diagonals would be too much work.
+NPC_DIRECTION_KEYS = ('front', 'right', 'back', 'left')
 
 
 @dataclass(frozen=True)

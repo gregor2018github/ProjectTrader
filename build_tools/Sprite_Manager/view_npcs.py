@@ -8,7 +8,7 @@ from create_new_pose import CARD_BG, NPC_THUMB_SIZE, STATUS_COLORS, TEXT_DIM, TH
 from npc import PLAYER_CATEGORY
 from pose_review import ReviewStore
 from view import View
-from walk import DIRECTIONS, STANDING_DIRECTIONS, WALK
+from walk import STANDING_DIRECTIONS
 from widgets import BAR_STEP, SectionGrid
 
 # create_new_pose's NPC card, taller for a line and a bar per motion and the standing sprites
@@ -40,7 +40,7 @@ class NpcListView(View):
         done_color = STATUS_COLORS[pose_review.ACCEPTED]
         lines, shares = [], []
         for motion in npc.motions:
-            total = app.total_frames(motion)
+            total = npc.total_frames(app.counts, motion)
             done = sum(npc.done(d, app.counts[d]) for d in npc.directions(motion))
             lines.append((f'{done}/{total} {motion.key} frames', done_color if done == total else TEXT_DIM))
             shares.append(done / max(1, total))
@@ -88,8 +88,8 @@ class NpcListView(View):
 
     def header(self):
         return ('1. Choose the NPC',
-                f'The player and every NPC; "+" adds one. {self.app.total_frames(WALK)} walk frames '
-                f'make a full set ({len(DIRECTIONS)} directions); the left-hand ones are optional.')
+                'The player walks and runs in all 8 directions, the NPCs only walk: down, right, up '
+                'and left. "+" adds an NPC. The left-hand walks are optional.')
 
     def footer(self):
         return (), (self.app.settings_button,)
