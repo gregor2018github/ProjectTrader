@@ -1,0 +1,513 @@
+"""Screen 2: the walk frames of one NPC, direction by direction.
+
+Left the directions and the walk as the game plays it, in the middle the
+frames of the chosen direction, right the chosen frame's sheet with the
+buttons that get an answer for it.
+"""
+
+from pathlib import Path
+
+import pygame
+
+import gemini_client
+import pose_review
+import win_clipboard
+from answers import AnswerError, clipboard_answer, store_web_answer
+from chibi import ghost_path
+from create_new_NPC import ask_open_file
+from create_new_pose import (
+    BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS,
+    TEXT, TEXT_DIM, Button, Card, fit_text,
+)
+from frame_picker import FramePicker
+from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
+from images import fitted, is_blank, load_frame, save_copy, smooth_fit
+from sheets import SHEET_ERRORS, write_sheets
+from view import View
+from walk import DIRECTIONS, is_optional, parse_pose, partner_of
+from widgets import PANEL_TITLE, CardGrid, Checker, Comparison, draw_panel
+
+# Layout
+DIR_PANEL_W = 230
+DIR_ROW = 34
+SHEET_PANEL_MIN_W = 320
+SHEET_PANEL_SHARE = 0.3
+FRAME_CARD_SIZE = (172, 296)
+FRAME_THUMB_SIZE = (150, 232)
+BUTTON_H = 40
+BUTTON_GAP = 10
+PREVIEW_FRAME_MS = 140
+PREVIEW_MIN_H = 60
+PREVIEW_MAX_ZOOM = 2.0
+COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
+
+
+class FramesView(View):
+    def __init__(self, app, direction):
+        super().__init__(app)
+        self.npc = app.npc
+        self.store = app.store
+        self.direction = direction
+        self.sheets = []
+        self.current = 0              # index into self.sheets
+        self.grid = CardGrid()
+        self.preview = []             # the direction's walk as the game plays it
+        self.preview_note = ''
+        self.comparison = None        # accepted frame vs. goal, when there is one
+        self.dir_rows = []            # [(rect, direction)] as last drawn
+        self.preview_checker = Checker()
+        self.gimp = find_gimp()
+        self.watcher = FileWatcher()
+
+        # Footer
+        self.review_button = Button('Review', w=140)
+        self.mirror_all_button = Button('Mirror missing', w=330)
+        self.missing_button = Button('Send missing', w=220)
+        # Sheet panel, in rows of two
+        self.copy_image_button = Button('Copy image', h=BUTTON_H)
+        self.copy_prompt_button = Button('Copy prompt', h=BUTTON_H)
+        self.paste_button = Button('Paste answer', h=BUTTON_H)
+        self.open_button = Button('Open image', h=BUTTON_H)
+        self.send_button = Button('Send to Gemini', h=BUTTON_H)
+        self.from_frame_button = Button('From other frame', h=BUTTON_H)
+        self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
+        self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
+                                  (self.paste_button, self.open_button),
+                                  (self.send_button, self.from_frame_button),
+                                  (self.gimp_button,))
+        self.actions = ((self.review_button, app.open_review),
+                        (self.missing_button, self.send_missing),
+                        (self.mirror_all_button, self.mirror_missing),
+                        (self.from_frame_button, self.open_picker),
+                        (self.gimp_button, self.edit_in_gimp),
+                        (self.copy_image_button, self.copy_image),
+                        (self.copy_prompt_button, self.copy_prompt),
+                        (self.paste_button, self.paste_answer),
+                        (self.open_button, self.open_answer),
+                        (self.send_button, self.send_current))
+        self.select_direction(direction)
+
+    # --- state ------------------------------------------------------------
+
+    def current_sheet(self):
+        return self.sheets[self.current] if self.sheets else None
+
+    def current_path(self):
+        """Where the chosen frame is saved in the game, done or not; None without sheets."""
+        sheet = self.current_sheet()
+        return self.npc.sprite_path(sheet.pose) if sheet else None
+
+    def partner(self):
+        """The direction whose frames are this one's mirror image, or None."""
+        return partner_of(self.direction)
+
+    def count(self):
+        return self.app.counts[self.direction.key]
+
+    def select_direction(self, direction, frame_index=0):
+        """Rebuild the direction's sheets from the base files and show them."""
+        self.direction = direction
+        self.app.last_direction = direction
+        try:
+            self.sheets = write_sheets(self.npc, direction)
+        except SHEET_ERRORS as exc:
+            self.sheets = []
+            self.app.set_status(f'Cannot build the {direction.label.lower()} sheets: {exc}', error=True)
+        self.current = min(frame_index, max(0, len(self.sheets) - 1))
+        self.grid.scroll = 0
+        self.app.place_footer()  # the mirror button comes and goes with the direction
+        self.refresh()
+        if self.sheets and self.sheets[0].auto_ghost and not self.app.status_error:
+            self.app.set_status(f'Ghost made on the fly - draw {ghost_path(direction).name} '
+                                'for a cleaner one')
+
+    def select_frame(self, index):
+        self.current = index
+        self.rebuild_current()
+
+    def rebuild_current(self):
+        """Rebuild the chosen frame's sheet, so it matches the base files on disk."""
+        sheet = self.current_sheet()
+        if not sheet:
+            return None
+        try:
+            fresh = write_sheets(self.npc, sheet.direction, [sheet.frame])[0]
+        except SHEET_ERRORS as exc:
+            self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
+            return sheet
+        self.sheets[self.current] = fresh
+        self.build_frame_cards()
+        return fresh
+
+    def refresh(self):
+        """Cards, comparison and preview, after answers or frames on disk changed."""
+        self.build_frame_cards()
+        self.preview, self.preview_note = self.npc.game_frames(self.direction, self.count())
+        # What was just read is up to date; only later edits are news.
+        self.watcher.reset()
+
+    def frame_note(self, pose):
+        """(text, colour) of a frame's state."""
+        if self.npc.has(pose):
+            return 'done', STATUS_COLORS[pose_review.ACCEPTED]
+        note = self.store.pose_note(pose)
+        if note == 'rejected':
+            return note, ERROR_COLOR
+        return note, STATUS_COLORS[pose_review.PENDING]
+
+    def build_frame_cards(self):
+        cards = []
+        for index, sheet in enumerate(self.sheets):
+            note, color = self.frame_note(sheet.pose)
+            cards.append(Card(
+                index, f'Frame {sheet.frame}  ({sheet.pose})', fitted(sheet.surface, FRAME_THUMB_SIZE),
+                note, note_color=color, size=FRAME_CARD_SIZE))
+        self.grid.cards = cards
+        self.build_comparison()
+
+    def build_comparison(self):
+        """The accepted frame next to its goal, if the chosen frame is done."""
+        sheet, path = self.current_sheet(), self.current_path()
+        sprite = load_frame(path) if path else None
+        self.comparison = None if is_blank(sprite) else Comparison(sheet.ghost, sprite)
+
+    def missing_sheets(self):
+        return [s for s in self.sheets if not self.npc.has(s.pose)]
+
+    def mirrorable_missing(self):
+        """Frames this direction lacks and its partner has."""
+        return [s.frame for s in self.missing_sheets()
+                if self.npc.mirror_source(self.direction, s.frame)]
+
+    # --- the web view: clipboard, files -----------------------------------
+
+    def copy_image(self):
+        sheet = self.rebuild_current()
+        if not sheet:
+            return
+        try:
+            win_clipboard.copy_image(sheet.surface)
+        except win_clipboard.ClipboardError as exc:
+            self.app.set_status(str(exc), error=True)
+            return
+        self.app.set_status(f'Sheet of {sheet.pose} copied - paste it into Gemini, then the prompt')
+        self.app.toast.show('Sheet copied')
+
+    def copy_prompt(self):
+        sheet = self.rebuild_current()
+        if not sheet:
+            return
+        try:
+            win_clipboard.copy_text(sheet.prompt)
+        except win_clipboard.ClipboardError as exc:
+            self.app.set_status(str(exc), error=True)
+            return
+        self.app.set_status(f'Prompt of {sheet.pose} copied')
+        self.app.toast.show('Prompt copied')
+
+    def paste_answer(self):
+        """Take the image on the clipboard as the answer for the chosen frame."""
+        try:
+            self.import_answer(*clipboard_answer())
+        except AnswerError as exc:
+            self.app.set_status(str(exc), error=True)
+
+    def open_answer(self):
+        path = ask_open_file()
+        if path:
+            self.drop_file(Path(path))
+
+    def drop_file(self, path):
+        try:
+            self.import_answer(path)
+        except AnswerError as exc:
+            self.app.set_status(str(exc), error=True)
+
+    def import_answer(self, source, kind=''):
+        """Store an answer from the web view and open it for review.
+
+        Raises:
+            AnswerError: If the source is not an image.
+        """
+        sheet = self.current_sheet()
+        if not sheet:
+            return
+        entry = store_web_answer(self.npc, self.store, sheet, source, kind)
+        self.build_frame_cards()
+        self.app.open_detail(entry, self)
+
+    # --- the API ----------------------------------------------------------
+
+    def send_current(self):
+        sheet = self.rebuild_current()
+        if sheet:
+            self.app.send([sheet])
+
+    def send_missing(self):
+        self.select_direction(self.direction, self.current)
+        self.app.send(self.missing_sheets())
+
+    # --- frames from frames -----------------------------------------------
+
+    def save_frame(self, source, target, mirror):
+        """Save one frame as another, flipped if asked; False if that failed."""
+        try:
+            save_copy(source, target, mirror)
+        except (pygame.error, OSError) as exc:
+            self.app.set_status(f'Could not copy {source.name}: {exc}', error=True)
+            return False
+        return True
+
+    def mirror_missing(self):
+        """Save the partner's frames, flipped, for every frame this direction lacks."""
+        written = 0
+        for frame in self.mirrorable_missing():
+            source = self.npc.mirror_source(self.direction, frame)
+            if not self.save_frame(source, self.npc.frame_path(self.direction, frame), mirror=True):
+                break
+            written += 1
+        self.refresh()
+        if written:
+            partner = self.partner().label.lower()
+            self.app.set_status(f'Mirrored {written} frame(s) from {partner}')
+            self.app.toast.show(f'{written} frame(s) mirrored from {partner}')
+
+    def open_picker(self):
+        """Choose another frame of the NPC to make the chosen one from."""
+        sheet = self.current_sheet()
+        if sheet:
+            self.app.dialog = FramePicker(self.npc, sheet, self.app.counts, self.app.fonts,
+                                          self.copy_frame)
+
+    def copy_frame(self, source, source_label, mirror):
+        """Save another of the NPC's frames as the chosen one."""
+        sheet, target = self.current_sheet(), self.current_path()
+        replaced = target.is_file()
+        if not self.save_frame(source, target, mirror):
+            return
+        self.refresh()
+        how = 'mirrored' if mirror else 'copied'
+        verb = 'Replaced' if replaced else 'Saved'
+        self.app.set_status(f'{verb} {target.name}, {how} from {source_label}')
+        self.app.toast.show(f'Frame {sheet.frame} {how} from {source_label}')
+
+    # --- editing by hand --------------------------------------------------
+
+    def edit_in_gimp(self):
+        """Open the chosen frame in GIMP; tick() picks up the saved result."""
+        path = self.current_path()
+        if not (path and path.is_file()):
+            return
+        if not self.gimp:
+            self.app.set_status(f'GIMP not found - set {ENV_GIMP} to its gimp.exe', error=True)
+            return
+        try:
+            open_in_gimp(self.gimp, path)
+        except OSError as exc:
+            self.app.set_status(f'Could not start GIMP: {exc}', error=True)
+            return
+        self.app.set_status(f'{path.name} opened in GIMP - File > Overwrite {path.name} to save it back')
+        self.app.toast.show('Opening in GIMP')
+
+    def tick(self):
+        """Refresh when a frame was changed outside the tool, e.g. in GIMP."""
+        changed = self.watcher.changed([self.npc.sprite_path(s.pose) for s in self.sheets])
+        if changed:
+            self.refresh()
+            self.app.set_status(f'Updated from disk: {", ".join(p.name for p in changed)}')
+
+    # --- layout -----------------------------------------------------------
+
+    def areas(self):
+        """(directions, cards, sheet) panels."""
+        body = self.app.body()
+        sheet_w = max(SHEET_PANEL_MIN_W, int(body.w * SHEET_PANEL_SHARE))
+        dirs = pygame.Rect(body.x, body.y, DIR_PANEL_W, body.h)
+        sheet = pygame.Rect(body.right - sheet_w, body.y, sheet_w, body.h)
+        cards = pygame.Rect(dirs.right + PANEL_GAP, body.y,
+                            sheet.x - dirs.right - 2 * PANEL_GAP, body.h)
+        return dirs, cards, sheet
+
+    def place_sheet_buttons(self, sheet_rect):
+        """Put the buttons along the foot of the sheet panel; returns the room left above them."""
+        inner = sheet_rect.inflate(-20, -20)
+        half = (inner.w - BUTTON_GAP) // 2
+        rows = self.sheet_button_rows
+        y = inner.bottom - len(rows) * (BUTTON_H + BUTTON_GAP) + BUTTON_GAP
+        for row in rows:
+            if len(row) == 1:
+                row[0].rect = pygame.Rect(inner.x, y, inner.w, BUTTON_H)
+            else:
+                row[0].rect = pygame.Rect(inner.x, y, half, BUTTON_H)
+                row[1].rect = pygame.Rect(inner.right - half, y, half, BUTTON_H)
+            y += BUTTON_H + BUTTON_GAP
+        top_of_buttons = rows[0][0].rect.y
+        return pygame.Rect(inner.x, inner.y, inner.w, top_of_buttons - BUTTON_GAP - inner.y)
+
+    # --- header and footer ------------------------------------------------
+
+    def header(self):
+        return (f'2. Walk frames for "{self.npc.name}"',
+                'Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = copy '
+                'prompt, Ctrl+V or drop a file = answer from the web view, S = settings.')
+
+    def footer(self):
+        app = self.app
+        mirror = (self.mirror_all_button,) if self.partner() else ()
+        return ((app.back_button, app.folder_button, self.review_button) + mirror,
+                (app.settings_button, self.missing_button))
+
+    def update_footer(self):
+        app = self.app
+        waiting = len(self.store.pending())
+        self.review_button.label = f'Review ({waiting})' if waiting else 'Review'
+        self.review_button.enabled = bool(self.store.entries)
+        partner = self.partner()
+        if partner:
+            mirrorable = len(self.mirrorable_missing())
+            self.mirror_all_button.enabled = bool(mirrorable)
+            self.mirror_all_button.label = f'Mirror missing from {partner.label.lower()} ({mirrorable})'
+        missing = len(self.missing_sheets()) * app.settings.tries
+        self.missing_button.label = 'Sending ...' if app.busy() else f'Send missing ({missing})'
+        self.missing_button.enabled = bool(missing) and not app.busy() and not gemini_client.SDK_ERROR
+
+    # --- drawing ----------------------------------------------------------
+
+    def draw(self, screen, mouse):
+        dirs, cards, sheet = self.areas()
+        self.draw_directions(screen, dirs, mouse)
+        screen.blit(self.app.fonts.small.render(
+            f'Frames of the walk {self.direction.label.lower()}  -  rebuilt from the base files on every click',
+            True, TEXT_DIM), (cards.x + 4, cards.y - 20))
+        self.grid.layout(cards)
+        self.grid.draw(screen, self.app.fonts, mouse, selected_key=self.current)
+        self.draw_sheet(screen, sheet, mouse)
+
+    def direction_note(self, direction):
+        """(text, colour) beside a direction: frames done, answers waiting."""
+        count = self.app.counts[direction.key]
+        done = self.npc.done(direction, count)
+        waiting = sum(parse_pose(e.pose)[0] == direction for e in self.store.pending())
+        if done:
+            note, color = f'{done}/{count}', STATUS_COLORS[pose_review.ACCEPTED]
+        elif is_optional(direction):
+            note, color = 'optional', TEXT_DIM
+        else:
+            note, color = f'0/{count}', TEXT_DIM
+        if waiting:
+            note, color = f'{note}  +{waiting}', DONE_COLOR
+        return note, color
+
+    def draw_directions(self, screen, rect, mouse):
+        small = self.app.fonts.small
+        draw_panel(screen, self.app.fonts, rect, 'Direction')
+        self.dir_rows = []
+        y = rect.y + 8
+        for direction in DIRECTIONS:
+            row = pygame.Rect(rect.x + 8, y, rect.w - 16, DIR_ROW - 4)
+            y += DIR_ROW
+            if direction == self.direction:
+                color = CARD_SELECTED
+            elif row.collidepoint(mouse):
+                color = CARD_HOVER
+            else:
+                color = BG
+            pygame.draw.rect(screen, color, row, border_radius=5)
+            label = small.render(direction.label, True, TEXT)
+            screen.blit(label, label.get_rect(midleft=(row.x + 10, row.centery)))
+            note, note_color = self.direction_note(direction)
+            text = small.render(note, True, note_color)
+            screen.blit(text, text.get_rect(midright=(row.right - 10, row.centery)))
+            self.dir_rows.append((row, direction))
+
+        box = pygame.Rect(rect.x + 8, y + PANEL_TITLE, rect.w - 16, rect.bottom - 8 - y - PANEL_TITLE)
+        if box.h >= PREVIEW_MIN_H:
+            self.draw_preview(screen, box)
+
+    def draw_preview(self, screen, box):
+        """The frames the NPC already has, playing in a loop."""
+        small = self.app.fonts.small
+        title = small.render(fit_text(small, f'In the game: {self.preview_note}', box.w), True, TEXT_DIM)
+        screen.blit(title, (box.x, box.y - 20))
+        self.preview_checker.draw(screen, box)
+        if self.preview:
+            frame = self.preview[pygame.time.get_ticks() // PREVIEW_FRAME_MS % len(self.preview)]
+            image = smooth_fit(frame, (box.w - 20, box.h - 20), PREVIEW_MAX_ZOOM)
+            screen.blit(image, image.get_rect(midbottom=(box.centerx, box.bottom - 10)))
+
+    def draw_sheet(self, screen, rect, mouse):
+        app = self.app
+        sheet = self.current_sheet()
+        draw_panel(screen, app.fonts, rect, f'Sheet for {sheet.pose}' if sheet else 'Sheet')
+        area = self.place_sheet_buttons(rect)
+        if sheet and self.comparison:
+            compare_h = int(area.h * COMPARE_SHARE)
+            compare_area = pygame.Rect(area.x, area.bottom - compare_h, area.w, compare_h)
+            area.h = compare_area.y - area.y - BUTTON_GAP
+            self.comparison.draw(screen, app.fonts, compare_area)
+        if sheet:
+            screen.blit(fitted(sheet.surface, area.size, CARD_BG), area)
+
+        ready = bool(sheet)
+        for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button):
+            button.enabled = ready and win_clipboard.AVAILABLE
+        self.open_button.enabled = ready
+        self.from_frame_button.enabled = ready
+        self.send_button.enabled = ready and not app.busy() and not gemini_client.SDK_ERROR
+        tries = app.settings.tries
+        self.send_button.label = 'Sending ...' if app.busy() else (
+            f'Send to Gemini ({tries}x)' if tries > 1 else 'Send to Gemini')
+        self.gimp_button.enabled = bool(sheet and self.gimp and self.current_path().is_file())
+        self.gimp_button.label = 'Edit in GIMP' if self.gimp else 'Edit in GIMP (GIMP not found)'
+        for row in self.sheet_button_rows:
+            for button in row:
+                button.draw(screen, app.fonts.font, mouse)
+
+    # --- input ------------------------------------------------------------
+
+    def click(self, pos):
+        for button, action in self.actions:
+            if button is self.mirror_all_button and not self.partner():
+                continue  # not shown in this direction
+            if button.hit(pos):
+                action()
+                return
+        for row, direction in self.dir_rows:
+            if row.collidepoint(pos):
+                self.select_direction(direction)
+                return
+        card = self.grid.card_at(pos)
+        if card:
+            self.select_frame(card.key)
+
+    def key(self, event):
+        ctrl = event.mod & pygame.KMOD_CTRL
+        if event.key == pygame.K_c and ctrl:
+            if event.mod & pygame.KMOD_SHIFT:
+                self.copy_prompt()
+            else:
+                self.copy_image()
+        elif event.key == pygame.K_v and ctrl:
+            self.paste_answer()
+        elif event.key == pygame.K_o and ctrl:
+            self.open_answer()
+        elif event.key in (pygame.K_LEFT, pygame.K_RIGHT) and self.sheets:
+            step = 1 if event.key == pygame.K_RIGHT else -1
+            self.select_frame((self.current + step) % len(self.sheets))
+        elif event.key in (pygame.K_UP, pygame.K_DOWN):
+            step = 1 if event.key == pygame.K_DOWN else -1
+            index = DIRECTIONS.index(self.direction)
+            self.select_direction(DIRECTIONS[(index + step) % len(DIRECTIONS)])
+        elif event.key == pygame.K_r and self.store.entries:
+            self.app.open_review()
+        elif event.key == pygame.K_m:
+            self.open_picker()
+        elif event.key == pygame.K_g:
+            self.edit_in_gimp()
+
+    def scroll_by(self, steps):
+        self.grid.scroll_by(steps)
+
+    def back(self):
+        self.app.close_npc()
+        return True
