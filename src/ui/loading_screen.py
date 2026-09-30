@@ -26,8 +26,47 @@ _SHEEP_SPRITES = [
     'sheep_right_move2.png',
     'sheep_right_move1.png',
 ]
+
+# Any NPC with at least this many frames walking right joins the draw.
+_NPC_ROOT = os.path.join('assets', 'map_sprites', 'figurines', 'humans', 'npcs')
+_NPC_MIN_WALK_FRAMES = 4
+
 _FRAME_MS = 150
 _DOT_CYCLE_TICKS = 3
+
+
+def _npc_walk_cycles() -> list[tuple[str, list[str]]]:
+    """Find every NPC with enough right-walk frames for the animation.
+
+    The prefix is read off the ``<prefix>_right_move1.png`` file in each
+    sprite folder, and the frames are counted up from there as the game
+    does (``move1``, ``move2``, ... until one is missing).
+
+    Returns:
+        list: ``(sprite_dir, frame filenames)`` per qualifying NPC.
+    """
+    cycles = []
+    try:
+        folders = sorted(os.listdir(_NPC_ROOT))
+    except OSError:
+        return cycles
+    for folder in folders:
+        sprite_dir = os.path.join(_NPC_ROOT, folder)
+        if not os.path.isdir(sprite_dir):
+            continue
+        for name in os.listdir(sprite_dir):
+            if not name.endswith('_right_move1.png'):
+                continue
+            prefix = name[:-len('_right_move1.png')]
+            frames = []
+            index = 1
+            while os.path.exists(os.path.join(sprite_dir, f"{prefix}_right_move{index}.png")):
+                frames.append(f"{prefix}_right_move{index}.png")
+                index += 1
+            if len(frames) >= _NPC_MIN_WALK_FRAMES:
+                cycles.append((sprite_dir, frames))
+            break
+    return cycles
 
 
 def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
@@ -44,10 +83,9 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
     except Exception:
         font = pygame.font.SysFont("serif", 36)
 
-    if random.random() < 0.5:
-        sprite_dir, sprite_names = _PLAYER_DIR, _PLAYER_SPRITES
-    else:
-        sprite_dir, sprite_names = _SHEEP_DIR, _SHEEP_SPRITES
+    candidates = [(_PLAYER_DIR, _PLAYER_SPRITES), (_SHEEP_DIR, _SHEEP_SPRITES)]
+    candidates += _npc_walk_cycles()
+    sprite_dir, sprite_names = random.choice(candidates)
 
     target_height = 128
     sprites: list[pygame.Surface] = []
