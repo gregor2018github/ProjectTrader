@@ -1,4 +1,4 @@
-"""Screen 2: the walk frames of one NPC, direction by direction.
+"""Screen 2: the walk (or run) frames of one figure, direction by direction.
 
 Left the directions and the walk as the game plays it, in the middle the
 frames of the chosen direction, right the chosen frame's sheet with the
@@ -17,14 +17,14 @@ from chibi import ghost_path
 from create_new_NPC import ask_open_file
 from create_new_pose import (
     BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS,
-    TEXT, TEXT_DIM, Button, Card, fit_text,
+    TEXT, TEXT_DIM, Button, Card, draw_chips, fit_text,
 )
 from frame_picker import FramePicker
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
-from sheets import SHEET_ERRORS, write_sheets
+from sheets import SHEET_ERRORS, can_make_standing, write_sheets, write_standing_sheet
 from view import View
-from walk import DIRECTIONS, is_optional, parse_pose, partner_of, standing_pose
+from walk import find_direction, is_optional, partner_of, standing_pose
 from widgets import PANEL_TITLE, CardGrid, Checker, Comparison, draw_panel
 
 # Layout
@@ -42,6 +42,7 @@ PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 
 STANDING = 'standing'    # the key of the standing sprite's card, beside the frames' indices
+CHECKER_TEXT = (40, 40, 40)   # readable on the light checkerboard
 
 
 class FramesView(View):
@@ -51,12 +52,14 @@ class FramesView(View):
         self.store = app.store
         self.direction = direction
         self.sheets = []
+        self.standing_sheet = None    # the sheet for the standing sprite, where one can be made
         self.current = 0              # index into self.sheets, or STANDING
         self.grid = CardGrid()
         self.preview = []             # the direction's walk as the game plays it
         self.preview_note = ''
         self.comparison = None        # accepted frame vs. goal, when there is one
         self.dir_rows = []            # [(rect, direction)] as last drawn
+        self.motion_chips = []        # [(rect, motion)] as last drawn, for the player
         self.preview_checker = Checker()
         self.standing_checker = Checker()
         self.gimp = find_gimp()
@@ -93,10 +96,10 @@ class FramesView(View):
     # --- state ------------------------------------------------------------
 
     def current_sheet(self):
-        """The chosen frame's sheet; None without sheets or while the standing sprite is chosen."""
-        if self.current == STANDING or not self.sheets:
-            return None
-        return self.sheets[self.current]
+        """The chosen card's sheet; None without one (no sheets, or the front standing sprite)."""
+        if self.current == STANDING:
+            return self.standing_sheet
+        return self.sheets[self.current] if self.sheets else None
 
     def standing_path(self):
         """The direction's standing sprite, drawn or not; None for a diagonal."""
@@ -120,7 +123,20 @@ class FramesView(View):
         return partner_of(self.direction)
 
     def count(self):
-        return self.app.counts[self.direction.key]
+        return self.app.counts[self.direction]
+
+    def directions(self):
+        """The directions of the motion shown."""
+        return self.npc.directions(self.direction.motion)
+
+    def select_motion(self, motion):
+        """Show the same direction of another motion, keeping the chosen frame."""
+        if motion != self.direction.motion:
+            self.select_direction(find_direction(motion, self.direction.key), self.current)
+
+    def next_motion(self):
+        motions = self.npc.motions
+        self.select_motion(motions[(motions.index(self.direction.motion) + 1) % len(motions)])
 
     def select_direction(self, direction, current=0):
         """Rebuild the direction's sheets from the base files and show them.
@@ -135,7 +151,13 @@ class FramesView(View):
             self.sheets = write_sheets(self.npc, direction)
         except SHEET_ERRORS as exc:
             self.sheets = []
-            self.app.set_status(f'Cannot build the {direction.label.lower()} sheets: {exc}', error=True)
+            self.app.set_status(f'Cannot build the {direction.title} sheets: {exc}', error=True)
+        self.standing_sheet = None
+        if can_make_standing(direction):
+            try:
+                self.standing_sheet = write_standing_sheet(self.npc, direction)
+            except SHEET_ERRORS as exc:
+                self.app.set_status(f'Cannot build the standing sheet: {exc}', error=True)
         if current == STANDING and standing_pose(direction):
             self.current = STANDING
         else:
@@ -151,22 +173,22 @@ class FramesView(View):
     def select_frame(self, key):
         """Choose a card: a frame's index, or STANDING."""
         self.current = key
-        if key == STANDING:
-            self.build_comparison()
-        else:
-            self.rebuild_current()
+        if not self.rebuild_current():
+            self.build_comparison()  # the front standing sprite: nothing to rebuild
 
     def rebuild_current(self):
-        """Rebuild the chosen frame's sheet, so it matches the base files on disk."""
+        """Rebuild the chosen card's sheet, so it matches the base files on disk."""
         sheet = self.current_sheet()
         if not sheet:
             return None
         try:
-            fresh = write_sheets(self.npc, sheet.direction, [sheet.frame])[0]
+            if sheet.standing:
+                fresh = self.standing_sheet = write_standing_sheet(self.npc, sheet.direction)
+            else:
+                fresh = self.sheets[self.current] = write_sheets(self.npc, sheet.direction, [sheet.frame])[0]
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
             return sheet
-        self.sheets[self.current] = fresh
         self.build_frame_cards()
         return fresh
 
@@ -187,17 +209,23 @@ class FramesView(View):
         return note, STATUS_COLORS[pose_review.PENDING]
 
     def standing_card(self):
-        """The card of the direction's standing sprite, or None for a diagonal."""
+        """The card of the direction's standing sprite, or None for a diagonal.
+
+        It shows the sprite once there is one, until then the sheet to make it from.
+        """
         path = self.standing_path()
         if not path:
             return None
         sprite = load_frame(path)
-        if is_blank(sprite):
-            thumb = fitted(pygame.Surface((1, 1), pygame.SRCALPHA), FRAME_THUMB_SIZE)
-            note, color = 'not drawn', TEXT_DIM
-        else:
+        if not is_blank(sprite):
             thumb = fitted(trim(sprite), FRAME_THUMB_SIZE)
-            note, color = 'done', STATUS_COLORS[pose_review.ACCEPTED]
+        elif self.standing_sheet:
+            thumb = fitted(self.standing_sheet.surface, FRAME_THUMB_SIZE)
+        else:
+            thumb = fitted(pygame.Surface((1, 1), pygame.SRCALPHA), FRAME_THUMB_SIZE)
+        note, color = self.frame_note(standing_pose(self.direction))
+        if not note:
+            note, color = 'not drawn', TEXT_DIM
         return Card(STANDING, f'Standing  ({standing_pose(self.direction)})', thumb,
                     note, note_color=color, size=FRAME_CARD_SIZE)
 
@@ -336,7 +364,7 @@ class FramesView(View):
         how = 'mirrored' if mirror else 'copied'
         verb = 'Replaced' if replaced else 'Saved'
         self.app.set_status(f'{verb} {target.name}, {how} from {source_label}')
-        self.app.toast.show(f'Frame {sheet.frame} {how} from {source_label}')
+        self.app.toast.show(f'{sheet.name} {how} from {source_label}')
 
     # --- editing by hand --------------------------------------------------
 
@@ -394,9 +422,11 @@ class FramesView(View):
     # --- header and footer ------------------------------------------------
 
     def header(self):
-        return (f'2. Walk frames for "{self.npc.name}"',
-                'Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = copy '
-                'prompt, Ctrl+V or drop a file = answer from the web view, S = settings.')
+        motions = ' / '.join(m.label for m in self.npc.motions)
+        switch = f'Tab = {motions.lower()}. ' if len(self.npc.motions) > 1 else ''
+        return (f'2. {motions} frames for "{self.npc.name}"',
+                f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = '
+                'copy prompt, Ctrl+V or drop a file = answer from the web view, S = settings.')
 
     def footer(self):
         app = self.app
@@ -424,7 +454,7 @@ class FramesView(View):
         dirs, cards, sheet = self.areas()
         self.draw_directions(screen, dirs, mouse)
         screen.blit(self.app.fonts.small.render(
-            f'Frames of the walk {self.direction.label.lower()}  -  rebuilt from the base files on every click',
+            f'Frames of the {self.direction.title}  -  rebuilt from the base files on every click',
             True, TEXT_DIM), (cards.x + 4, cards.y - 20))
         self.grid.layout(cards)
         self.grid.draw(screen, self.app.fonts, mouse, selected_key=self.current)
@@ -432,9 +462,9 @@ class FramesView(View):
 
     def direction_note(self, direction):
         """(text, colour) beside a direction: frames done, answers waiting."""
-        count = self.app.counts[direction.key]
+        count = self.app.counts[direction]
         done = self.npc.done(direction, count)
-        waiting = sum(parse_pose(e.pose)[0] == direction for e in self.store.pending())
+        waiting = sum(self.npc.parse_pose(e.pose)[0] == direction for e in self.store.pending())
         if done:
             note, color = f'{done}/{count}', STATUS_COLORS[pose_review.ACCEPTED]
         elif is_optional(direction):
@@ -450,7 +480,13 @@ class FramesView(View):
         draw_panel(screen, self.app.fonts, rect, 'Direction')
         self.dir_rows = []
         y = rect.y + 8
-        for direction in DIRECTIONS:
+        self.motion_chips = []
+        if len(self.npc.motions) > 1:
+            self.motion_chips, bottom = draw_chips(
+                screen, small, self.npc.motions, lambda m: m.label, self.direction.motion,
+                rect.x + 8, y, rect.w - 16, mouse)
+            y = bottom + 8
+        for direction in self.directions():
             row = pygame.Rect(rect.x + 8, y, rect.w - 16, DIR_ROW - 4)
             y += DIR_ROW
             if direction == self.direction:
@@ -485,13 +521,15 @@ class FramesView(View):
     def draw_sheet(self, screen, rect, mouse):
         app = self.app
         sheet = self.current_sheet()
-        if self.current == STANDING:
-            title = f'Standing sprite {self.standing_path().name}'
+        if sheet:
+            title = f'Sheet for {sheet.pose}'
+        elif self.current == STANDING:
+            title = f'Standing sprite {self.standing_path().name}  -  the reference for the others'
         else:
-            title = f'Sheet for {sheet.pose}' if sheet else 'Sheet'
+            title = 'Sheet'
         draw_panel(screen, app.fonts, rect, title)
         area = self.place_sheet_buttons(rect)
-        if self.current == STANDING:
+        if not sheet and self.current == STANDING:
             self.draw_standing(screen, area)
         elif sheet and self.comparison:
             compare_h = int(area.h * COMPARE_SHARE)
@@ -523,7 +561,7 @@ class FramesView(View):
         sprite = load_frame(self.standing_path())
         if is_blank(sprite):
             small = self.app.fonts.small
-            text = small.render('Not drawn yet', True, TEXT_DIM)
+            text = small.render('Not drawn yet', True, CHECKER_TEXT)
             screen.blit(text, text.get_rect(center=area.center))
             return
         image = pixel_fit(trim(sprite), (area.w - 20, area.h - 20))
@@ -537,6 +575,10 @@ class FramesView(View):
                 continue  # not shown in this direction
             if button.hit(pos):
                 action()
+                return
+        for chip, motion in self.motion_chips:
+            if chip.collidepoint(pos):
+                self.select_motion(motion)
                 return
         for row, direction in self.dir_rows:
             if row.collidepoint(pos):
@@ -564,8 +606,11 @@ class FramesView(View):
             self.select_frame(keys[(index + step) % len(keys)])
         elif event.key in (pygame.K_UP, pygame.K_DOWN):
             step = 1 if event.key == pygame.K_DOWN else -1
-            index = DIRECTIONS.index(self.direction)
-            self.select_direction(DIRECTIONS[(index + step) % len(DIRECTIONS)])
+            directions = self.directions()
+            index = directions.index(self.direction)
+            self.select_direction(directions[(index + step) % len(directions)])
+        elif event.key == pygame.K_TAB and len(self.npc.motions) > 1:
+            self.next_motion()
         elif event.key == pygame.K_r and self.store.entries:
             self.app.open_review()
         elif event.key == pygame.K_m:

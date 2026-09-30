@@ -1,52 +1,64 @@
-"""Screen 1: every NPC, grouped as in create_new_NPC.py, with how far his sprites are."""
+"""Screen 1: the player and every NPC, grouped as in create_new_NPC.py, with how far their sprites are."""
 
 import pose_review
 from create_new_NPC import CATEGORIES, OTHER
 from create_new_pose import STATUS_COLORS, TEXT_DIM, Card
+from npc import PLAYER_CATEGORY
 from pose_review import ReviewStore
 from view import View
-from walk import DIRECTIONS, STANDING_DIRECTIONS
-from widgets import SectionGrid
+from walk import DIRECTIONS, STANDING_DIRECTIONS, WALK
+from widgets import BAR_STEP, SectionGrid
 
-# create_new_pose's NPC card, taller for the standing sprites' line and bar
-NPC_CARD_SIZE = (172, 270)
+# create_new_pose's NPC card, taller for a line and a bar per motion and the standing sprites
+CARD_W = 172
+CARD_BASE_H = 244        # with one line and one bar, as in create_new_pose.py
+LINE_H = 18
+SECTIONS = ((PLAYER_CATEGORY, 'Main character'),) + tuple(
+    (key, title) for key, title, _ in CATEGORIES + (OTHER,))
 
 
 class NpcListView(View):
     def __init__(self, app):
         super().__init__(app)
-        self.grid = SectionGrid('NPC')  # filled by refresh(), when the app shows the view
+        self.grid = SectionGrid('figure')  # filled by refresh(), when the app shows the view
 
     def npc_card(self, npc):
-        """The NPC's card: walk frames and standing sprites done, each with a bar."""
+        """The figure's card: a line and a bar per motion, and the standing sprites."""
         app = self.app
         done_color = STATUS_COLORS[pose_review.ACCEPTED]
-        walk_total = app.total_frames()
-        walk_done = sum(npc.done(d, app.counts[d.key]) for d in DIRECTIONS)
+        lines, shares = [], []
+        for motion in npc.motions:
+            total = app.total_frames(motion)
+            done = sum(npc.done(d, app.counts[d]) for d in npc.directions(motion))
+            lines.append((f'{done}/{total} {motion.key} frames', done_color if done == total else TEXT_DIM))
+            shares.append(done / max(1, total))
         standing_total = len(STANDING_DIRECTIONS)
         standing_done = npc.standing_done()
+        lines.append((f'{standing_done}/{standing_total} standing sprites',
+                      done_color if standing_done == standing_total else TEXT_DIM))
+        shares.append(standing_done / standing_total)
         waiting = len(ReviewStore(npc.out_dir).pending())
-        extra = [(f'{standing_done}/{standing_total} standing sprites',
-                  done_color if standing_done == standing_total else TEXT_DIM)]
         if waiting:
-            extra.append((f'{waiting} to review', STATUS_COLORS[pose_review.PENDING]))
-        return Card(
-            npc, npc.label, app.npc_thumbs[npc.name],
-            note=f'{walk_done}/{walk_total} walk frames',
-            note_color=done_color if walk_done == walk_total else TEXT_DIM,
-            extra=extra, size=NPC_CARD_SIZE,
-            progress=(walk_done / max(1, walk_total), standing_done / standing_total))
+            lines.append((f'{waiting} to review', STATUS_COLORS[pose_review.PENDING]))
+
+        # Room for every line beyond the first, even the review line, so cards stay one size
+        extra_rows = len(shares) - 1
+        size = (CARD_W, CARD_BASE_H + extra_rows * (LINE_H + BAR_STEP))
+        (note, note_color), extra = lines[0], lines[1:]
+        return Card(npc, npc.label, app.npc_thumbs[npc.name], note=note, note_color=note_color,
+                    extra=extra, size=size, progress=tuple(shares))
 
     def refresh(self):
-        """One section per group of create_new_NPC.py, one card per NPC."""
+        """A section for the player, then one per group of create_new_NPC.py."""
         self.grid.set_sections(
             (title, [self.npc_card(n) for n in self.app.npcs if n.category == key])
-            for key, title, _ in CATEGORIES + (OTHER,))
+            for key, title in SECTIONS)
 
     def header(self):
         return ('1. Choose the NPC',
-                f'Every NPC with a front standing sprite. {self.app.total_frames()} walk frames '
-                f'make a full set ({len(DIRECTIONS)} directions); the left-hand ones are optional.')
+                f'The player and every NPC with a front standing sprite. {self.app.total_frames(WALK)} '
+                f'walk frames make a full set ({len(DIRECTIONS)} directions); the left-hand ones '
+                'are optional.')
 
     def footer(self):
         return (), (self.app.settings_button,)

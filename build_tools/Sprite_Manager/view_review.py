@@ -9,9 +9,9 @@ from create_new_pose import (
     STATUS_COLORS, TEXT_DIM, Button, Card, Detail, make_thumb, measure,
 )
 from images import fitted
-from sheets import SHEET_ERRORS, reference_shapes, write_sheets
+from npc import DEFAULT_BASE
+from sheets import SHEET_ERRORS, reference_shapes, write_sheets, write_standing_sheet
 from view import View
-from walk import parse_pose
 from widgets import CardGrid, Checker, draw_panel
 
 
@@ -73,14 +73,15 @@ class DetailView(View):
     def __init__(self, app, entry, return_to):
         """
         Raises:
-            ValueError: If the entry is not a walk frame.
+            ValueError: If the entry is not a frame of one of the figure's motions.
             Exception: If its image cannot be read.
         """
         super().__init__(app)
-        direction, _ = parse_pose(entry.pose)
+        direction, frame = app.npc.parse_pose(entry.pose)
         if direction is None:
-            raise ValueError(f'{entry.pose} is not a walk frame')
-        self.base = app.npc.base_for(direction)
+            raise ValueError(f'{entry.pose} is not a walk or run frame')
+        # A standing sprite is made from the front one, a frame from its direction's base.
+        self.base = DEFAULT_BASE if frame == 0 else app.npc.base_for(direction)
         poses, shapes = reference_shapes(app.npc, entry.pose, self.base)
         self.detail = Detail(app.npc, entry, poses, shapes)
         self.return_to = return_to
@@ -129,11 +130,14 @@ class DetailView(View):
 
     def regenerate(self):
         """Ask the API for another answer to the same frame, from a fresh sheet."""
-        direction, frame = parse_pose(self.entry.pose)
+        direction, frame = self.app.npc.parse_pose(self.entry.pose)
         if self.app.busy() or direction is None:
             return
         try:
-            self.app.send(write_sheets(self.app.npc, direction, [frame]))
+            if frame == 0:
+                self.app.send([write_standing_sheet(self.app.npc, direction)])
+            else:
+                self.app.send(write_sheets(self.app.npc, direction, [frame]))
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
 

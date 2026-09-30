@@ -152,27 +152,31 @@ class SectionGrid(CardGrid):
         self.cards = [card for _, cards in self.sections for card in cards]
 
     def layout(self, area):
+        """Place the sections one under the other; each section's cards share one size."""
         self.area = area
         self.titles = []
         if not self.cards:
             self.max_scroll = self.scroll = 0
             return
-        card_w, card_h = self.cards[0].rect.size
+        # The rows line up on the widest card, whatever the section.
+        card_w = max(card.rect.w for card in self.cards)
         per_row = max(1, (area.w + CARD_GAP) // (card_w + CARD_GAP))
         row_w = per_row * card_w + (per_row - 1) * CARD_GAP
         left = area.x + max(0, (area.w - row_w) // 2)
-        height = sum(SECTION_HEADER + ((len(cards) + per_row - 1) // per_row) * (card_h + CARD_GAP)
-                     for _, cards in self.sections) - CARD_GAP
-        self.max_scroll = max(0, height - area.h)
-        self.scroll = min(self.scroll, self.max_scroll)
         y = area.y - self.scroll
         for title, cards in self.sections:
+            card_h = cards[0].rect.h
             self.titles.append((title, len(cards), left, y))
             y += SECTION_HEADER
             for index, card in enumerate(cards):
                 row, col = divmod(index, per_row)
                 card.rect.topleft = (left + col * (card_w + CARD_GAP), y + row * (card_h + CARD_GAP))
             y += ((len(cards) + per_row - 1) // per_row) * (card_h + CARD_GAP)
+        height = y + self.scroll - area.y - CARD_GAP
+        self.max_scroll = max(0, height - area.h)
+        if self.scroll > self.max_scroll:  # the window grew: lay out again from the new scroll
+            self.scroll = self.max_scroll
+            self.layout(area)
 
     def draw(self, screen, fonts, mouse, selected_key=None):
         screen.set_clip(self.area)

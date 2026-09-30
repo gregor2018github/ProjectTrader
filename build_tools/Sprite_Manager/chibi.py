@@ -1,8 +1,8 @@
-"""The base chibi: horizontal strips of 64x64 frames the walk sheets are built from.
+"""The base chibi: horizontal strips of 64x64 frames the sheets are built from.
 
-base_Chibi/Idle holds the standing chibi, base_Chibi/Walk the walk cycles.
-Walk_<strip>_Sheet_Ghost.png is the pose as a faint guide for the image
-model; where it does not exist, a ghost is made on the fly.
+base_Chibi/Idle holds the standing chibi, base_Chibi/Walk and base_Chibi/Run
+the cycles. <Walk|Run>_<strip>_Sheet_Ghost.png is the pose as a faint guide
+for the image model; where it does not exist, a ghost is made on the fly.
 """
 
 from pathlib import Path
@@ -13,7 +13,6 @@ from images import mirrored, trim
 
 CHIBI_DIR = Path(__file__).resolve().parent / 'base_Chibi'
 IDLE_DIR = CHIBI_DIR / 'Idle'
-WALK_DIR = CHIBI_DIR / 'Walk'
 CHIBI_FRAME_SIZE = 64
 GHOST_SUFFIX = '_Ghost'
 
@@ -28,9 +27,14 @@ def strip_path(folder, name, ghost=False):
     return folder / f'{name}_Sheet{GHOST_SUFFIX if ghost else ""}.png'
 
 
+def motion_strip_path(direction, ghost=False):
+    """The chibi's strip of a direction of a motion, or its hand-drawn ghost, drawn or not."""
+    return strip_path(CHIBI_DIR / direction.motion.folder, direction.strip_name, ghost)
+
+
 def ghost_path(direction):
     """Where the hand-drawn ghost strip of a direction lives, drawn or not."""
-    return strip_path(WALK_DIR, direction.strip, ghost=True)
+    return motion_strip_path(direction, ghost=True)
 
 
 def load_strip(path, mirror=False):
@@ -45,19 +49,30 @@ def load_strip(path, mirror=False):
     return frames
 
 
-def idle_frame(name):
-    """The standing chibi, e.g. 'Idle_Down'."""
-    return load_strip(strip_path(IDLE_DIR, name))[0]
+def idle_frame(name, mirror=False):
+    """The standing chibi, e.g. 'Idle_Down'; the first frame of its idle strip."""
+    return load_strip(strip_path(IDLE_DIR, name), mirror)[0]
 
 
-def walk_frames(direction):
-    """The chibi's walk cycle for a direction, mirrored where it has to be."""
-    return load_strip(strip_path(WALK_DIR, direction.strip), direction.mirror)
+def idle_ghost(direction):
+    """(ghost, made_on_the_fly) of the standing chibi facing a direction.
+
+    Idle_<strip>_Sheet_Ghost.png is used where it exists, like the walk ghosts.
+    """
+    path = strip_path(IDLE_DIR, f'Idle_{direction.strip}', ghost=True)
+    if path.is_file():
+        return load_strip(path, direction.mirror)[0], False
+    return make_ghost(idle_frame(f'Idle_{direction.strip}', direction.mirror)), True
+
+
+def cycle_frames(direction):
+    """The chibi's walk or run cycle for a direction, mirrored where it has to be."""
+    return load_strip(motion_strip_path(direction), direction.mirror)
 
 
 def strip_length(direction):
-    """How many frames the direction's walk cycle has."""
-    image = pygame.image.load(str(strip_path(WALK_DIR, direction.strip)))
+    """How many frames the direction's cycle has."""
+    image = pygame.image.load(str(motion_strip_path(direction)))
     return image.get_width() // CHIBI_FRAME_SIZE
 
 
@@ -98,4 +113,4 @@ def ghost_frames(direction):
     path = ghost_path(direction)
     if path.is_file():
         return load_strip(path, direction.mirror), False
-    return [make_ghost(f) for f in walk_frames(direction)], True
+    return [make_ghost(f) for f in cycle_frames(direction)], True

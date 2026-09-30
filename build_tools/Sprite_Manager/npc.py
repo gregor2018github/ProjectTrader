@@ -1,9 +1,12 @@
-"""An NPC sprite folder, as the Sprite Manager sees it."""
+"""An NPC's or the player's sprite folder, as the Sprite Manager sees it."""
 
 from create_new_NPC import CATEGORIES, OTHER, read_profile
-from create_new_pose import OUTPUT_DIR
+from create_new_pose import OUTPUT_DIR, PLAYER_DIR, Npc
 from images import crop_alike, load_frame, mirrored
-from walk import STANDING_DIRECTIONS, game_mirror_source, partner_of
+from walk import (
+    DIRECTIONS_OF, NPC_MOTIONS, PLAYER_MOTIONS, STANDING_DIRECTIONS, find_direction, game_mirror_source,
+    parse_pose, partner_of,
+)
 
 # The NPC's standing pose a sheet starts from: (the chibi's match for it, how the prompt names it)
 BASE_POSES = {
@@ -11,27 +14,35 @@ BASE_POSES = {
     'back_static': ('Idle_Up', 'seen from behind'),
 }
 DEFAULT_BASE = 'front_static'
-WALK_FOLDER = 'walk'
+WALK_FOLDER = 'walk'      # holds the run's output too, for the player
+PLAYER_CATEGORY = 'player'
 
 
 class WalkNpc:
-    """An NPC folder: its sprites and its walk output."""
+    """An NPC folder, or the player's: its sprites and its walk (and run) output."""
 
     def __init__(self, npc):
         """
         Args:
             npc: A create_new_pose.Npc (a folder with a front standing sprite).
         """
+        self.is_player = npc.folder == PLAYER_DIR
+        self.motions = PLAYER_MOTIONS if self.is_player else NPC_MOTIONS
         self.folder = npc.folder
         self.name = npc.name
         self.prefix = npc.prefix
         self.base_path = npc.base_path
         first = self.name.split('_', 1)[0]
         # The groups of create_new_NPC.py: 'trader', 'poor', ..., or 'other'
-        self.category = first if first in [key for key, _, _ in CATEGORIES] else OTHER[0]
+        if self.is_player:
+            self.category = PLAYER_CATEGORY
+        else:
+            self.category = first if first in [key for key, _, _ in CATEGORIES] else OTHER[0]
         self.is_townsperson = self.category not in ('trader', OTHER[0])
         profile = read_profile(self.folder)
-        if profile.get('name'):
+        if self.is_player:
+            self.display_name = 'the player'
+        elif profile.get('name'):
             self.display_name = profile['name']
         elif self.name.startswith('trader_'):
             self.display_name = f'the {self.prefix}'
@@ -41,7 +52,30 @@ class WalkNpc:
     @property
     def label(self):
         """Card label, as in create_new_NPC.py: the folder for traders, the name for townsfolk."""
+        if self.is_player:
+            return 'Player'
         return self.display_name if self.is_townsperson else self.name
+
+    def directions(self, motion):
+        """The directions of one of the figure's motions."""
+        return DIRECTIONS_OF[motion]
+
+    def direction_like(self, other):
+        """`other` if it is one of the figure's, else the same way in his first motion."""
+        if other.motion in self.motions:
+            return other
+        return find_direction(self.motions[0], other.key)
+
+    def parse_pose(self, pose):
+        """(Direction, frame) of one of the figure's frames, or (None, 0).
+
+        A standing sprite, 'right_static', is frame 0 of the direction in the
+        figure's first motion.
+        """
+        key, _, rest = pose.rpartition('_')
+        if rest == 'static' and key in STANDING_DIRECTIONS:
+            return find_direction(self.motions[0], key), 0
+        return parse_pose(pose, self.motions)
 
     def sprite_path(self, pose):
         return self.folder / f'{self.prefix}_{pose}.png'
@@ -54,7 +88,7 @@ class WalkNpc:
 
     @property
     def out_dir(self):
-        """Sheets, prompts, answers and review.json of the walk frames."""
+        """Sheets, prompts, answers and review.json of the walk and run frames."""
         return OUTPUT_DIR / self.name / WALK_FOLDER
 
     def base_for(self, direction):
@@ -97,3 +131,8 @@ class WalkNpc:
         if mirror:
             note += f', mirrored from {source.label.lower()} as in the game'
         return crop_alike(frames), note
+
+
+def player():
+    """The player, as a WalkNpc."""
+    return WalkNpc(Npc(PLAYER_DIR, 'front_static', 'player'))

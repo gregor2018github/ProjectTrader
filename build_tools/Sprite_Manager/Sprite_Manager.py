@@ -1,6 +1,6 @@
-"""Sprite Manager: make and look after the NPCs' walk animations.
+"""Sprite Manager: make and look after the walk and run animations of the NPCs and the player.
 
-For every frame of a walk cycle the tool builds a 2x2 reference sheet from
+For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
 model draws the NPC into the sheet's red frame; the answer is cut out,
 scaled like the NPC's standing sprite and, once accepted, saved as
@@ -13,13 +13,18 @@ Run from anywhere:
 
 The window can be resized or maximised; F11 switches to full screen.
 
-1. Pick the NPC.
+1. Pick the NPC or the player, grouped as in create_new_NPC.py. Each card
+   shows how many walk (and run) frames and standing sprites there are.
 2. Pick a direction on the left. Its sheets are rebuilt from the base files
    every time a direction or a frame is clicked, so edits to the chibi or
    ghost strips show up straight away. The box under the directions plays
    the frames the NPC already has. Down, up, left and right start with the
-   NPC's standing sprite of that direction (<prefix>_<direction>_static.png);
-   click it to see it large or edit it in GIMP.
+   NPC's standing sprite of that direction (<prefix>_<direction>_static.png).
+   For up, left and right it can be made like a frame: its sheet shows the
+   chibi standing front on and turned that way, the NPC's front standing
+   sprite, and the ghost of the turned chibi to draw him on. "From other
+   frame" also offers the standing sprites, e.g. the right one mirrored for
+   the left. The front one is the reference for all of them; it is only shown.
 3. Pick a frame. If it is already done, the frame in the game is shown under
    its sheet next to the ghost it was aimed at, and laid over it. Then either
    - for free, through the Gemini web view: "Copy image" (Ctrl+C) and
@@ -32,6 +37,12 @@ The window can be resized or maximised; F11 switches to full screen.
 4. Every answer opens for review: the image next to the frame it would
    become. "Accept" (Enter) saves the frame into the game, "Not good enough"
    (Del) keeps it on disk for later. "Review" (R) lists every answer.
+
+The player: in the game he only runs, so for him the run is what the game
+plays, player_<direction>_move<n>.png, built from the chibi's run strips.
+His walk is player_<direction>_walk<n>.png, which the game does not load
+yet. Walk / Run above the directions (Tab) switches between the two. The
+NPCs only walk: their walk is <prefix>_<direction>_move<n>.png.
 
 Directions: the chibi was drawn walking down, up, right, down-right and
 up-right. The left-hand directions are those mirrored; the game mirrors
@@ -51,7 +62,7 @@ the direction lacks and its partner has.
 GIMP_PATH, the PATH or Program Files). Once it is saved back with File >
 Overwrite, the tool notices and shows the new version.
 
-Ghosts: Walk_<strip>_Sheet_Ghost.png is used where it exists. For the other
+Ghosts: <Walk|Run>_<strip>_Sheet_Ghost.png is used where it exists. For the other
 strips a ghost is made on the fly (outline black, skin in greys, face left
 out); drawing one by hand gives the model a cleaner guide.
 
@@ -66,8 +77,8 @@ The code, for whoever works on it next:
     view_review.py     screens 3 and 4, all answers and one answer
     frame_picker.py    the dialog making a frame from another frame
     widgets.py         panels, card grid, notices, the goal comparison
-    walk.py            the directions and their mirror relations (no pygame)
-    npc.py             an NPC folder: its sprites and walk output
+    walk.py            motions, directions, frame names, mirror relations (no pygame)
+    npc.py             an NPC's or the player's folder: sprites and output
     chibi.py           the base chibi strips and ghosts
     sheets.py          the 2x2 sheets and prompts
     answers.py         answers from the web view and the API into review.json
@@ -97,12 +108,12 @@ from create_new_pose import (  # noqa: E402
     make_thumb, open_window, toggle_fullscreen, window_size,
 )
 from gemini_client import Settings  # noqa: E402
-from npc import WalkNpc  # noqa: E402
+from npc import WalkNpc, player  # noqa: E402
 from pose_review import ReviewStore  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
-from walk import DEFAULT_DIRECTION, DIRECTIONS  # noqa: E402
+from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION, DIRECTIONS_OF  # noqa: E402
 from widgets import PANEL_TITLE, Fonts, Toast  # noqa: E402
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
@@ -126,8 +137,8 @@ class SpriteManager:
         self.settings = Settings.load()
         self.worker = None            # the Gemini requests running, or last run
 
-        self.counts = {d.key: strip_length(d) for d in DIRECTIONS}
-        self.npcs = [WalkNpc(n) for n in find_npcs()]
+        self.counts = {d: strip_length(d) for d in ALL_DIRECTIONS}   # {Direction: frames}
+        self.npcs = [player()] + [WalkNpc(n) for n in find_npcs()]
         self.npc_thumbs = {n.name: make_thumb(n.base_path, NPC_THUMB_SIZE) for n in self.npcs}
         self.npc = None               # the NPC being worked on
         self.store = None             # its answers
@@ -148,8 +159,9 @@ class SpriteManager:
         self.status = text
         self.status_error = error
 
-    def total_frames(self):
-        return sum(self.counts.values())
+    def total_frames(self, motion):
+        """How many frames a full set of a motion has, in all eight directions."""
+        return sum(self.counts[d] for d in DIRECTIONS_OF[motion])
 
     def busy(self):
         return self.worker is not None and not self.worker.finished
@@ -167,7 +179,7 @@ class SpriteManager:
         self.store = ReviewStore(npc.out_dir)
         self.worker = None
         self.set_status('')
-        self.frames = FramesView(self, self.last_direction)
+        self.frames = FramesView(self, npc.direction_like(self.last_direction))
         self.show(self.frames)
 
     def close_npc(self):
