@@ -14,7 +14,9 @@ Run from anywhere:
 The window can be resized or maximised; F11 switches to full screen.
 
 1. Pick the NPC or the player, grouped as in create_new_NPC.py. Each card
-   shows how many walk (and run) frames and standing sprites there are.
+   shows how many walk (and run) frames and standing sprites there are; the
+   overview above adds them up over everyone and shows how much of the name
+   pool in medieval_names.py the townsfolk have used (a name only once).
    "+" at the end of a group adds a person, with create_new_NPC.py's dialog
    and folder layout. Someone without a front standing sprite yet opens on
    "First sprite": describe them in description.txt ("Edit description"; the

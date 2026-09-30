@@ -19,6 +19,7 @@ import create_new_NPC
 from create_new_NPC import CATEGORIES, GENDERS, OTHER, TRADER_CATEGORY, NewNpcDialog
 from create_new_pose import OUTPUT_DIR, PLAYER_DIR
 from images import scaled, trim
+from medieval_names import NAMES
 from sheets import FRAME_COLOR, FRAME_WIDTH, MARGIN_RATIO, MIN_MARGIN
 
 FIRST_FOLDER = 'first_sprite'
@@ -100,6 +101,24 @@ class NewFigure:
             path.write_text(DESCRIPTION_TEMPLATE.format(
                 label=self.label, who=self.default_who(), placeholder=PLACEHOLDER), encoding='utf-8')
         return path
+
+
+def name_usage():
+    """How far the name pool of medieval_names.py is used up by the townsfolk.
+
+    Every name may be used once, by one townsperson (traders are named after
+    their trade). A name typed in the dialog need not be from the pool.
+
+    Returns:
+        ({gender: (used, in the pool)}, [typed names not from the pool]).
+    """
+    townsfolk = [n for n in create_new_NPC.find_npcs() if n.is_townsperson]
+    used = {n.display_name.lower() for n in townsfolk}
+    usage = {gender: (sum(name.lower() in used for name in names), len(names))
+             for gender, names in NAMES.items()}
+    pool = {name.lower() for names in NAMES.values() for name in names}
+    typed = sorted(n.display_name for n in townsfolk if n.display_name.lower() not in pool)
+    return usage, typed
 
 
 def find_new_figures():
