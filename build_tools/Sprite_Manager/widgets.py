@@ -19,6 +19,8 @@ Fonts = namedtuple('Fonts', 'font small title')
 
 SCROLL_STEP = 60         # pixels per mouse wheel step
 PANEL_TITLE = 22         # room above a panel for its title
+BAR_STEP = 9             # from one progress bar of a card to the next
+SECTION_HEADER = 42      # a section's title line in a SectionGrid, as in create_new_NPC.py
 
 # The notice in the middle of the window after something was done
 TOAST_HOLD_MS = 700      # fully visible for this long
@@ -69,10 +71,15 @@ def draw_card(screen, fonts, card, mouse, selected=False):
         y += 18
         text = small.render(fit_text(small, note, width), True, note_color)
         screen.blit(text, text.get_rect(midtop=(card.rect.centerx, y)))
-    if card.progress is not None:
-        bar = pygame.Rect(card.rect.x + 12, card.rect.bottom - 13, card.rect.w - 24, 5)
+    if card.progress is None:
+        return
+    # One share, or several drawn as bars stacked in the order of the note lines
+    shares = card.progress if isinstance(card.progress, (tuple, list)) else (card.progress,)
+    for index, share in enumerate(shares):
+        from_bottom = 13 + (len(shares) - 1 - index) * BAR_STEP
+        bar = pygame.Rect(card.rect.x + 12, card.rect.bottom - from_bottom, card.rect.w - 24, 5)
         pygame.draw.rect(screen, BAR_BG, bar, border_radius=3)
-        share = max(0.0, min(1.0, card.progress))
+        share = max(0.0, min(1.0, share))
         if round(bar.w * share):
             bar_color = STATUS_COLORS[pose_review.ACCEPTED] if share >= 1 else DONE_COLOR
             pygame.draw.rect(screen, bar_color, (bar.x, bar.y, round(bar.w * share), bar.h),
@@ -124,6 +131,60 @@ class CardGrid:
                 if card.rect.collidepoint(pos):
                     return card
         return None
+
+
+class SectionGrid(CardGrid):
+    """A CardGrid in titled sections, each starting on a row of its own."""
+
+    def __init__(self, noun='card'):
+        """
+        Args:
+            noun: What a card is, for the count beside each title ('NPC').
+        """
+        super().__init__()
+        self.noun = noun
+        self.sections = []   # [(title, [cards])]
+        self.titles = []     # [(title, count, x, y)] as last laid out
+
+    def set_sections(self, sections):
+        """[(title, [cards])]; empty sections are left out."""
+        self.sections = [(title, cards) for title, cards in sections if cards]
+        self.cards = [card for _, cards in self.sections for card in cards]
+
+    def layout(self, area):
+        self.area = area
+        self.titles = []
+        if not self.cards:
+            self.max_scroll = self.scroll = 0
+            return
+        card_w, card_h = self.cards[0].rect.size
+        per_row = max(1, (area.w + CARD_GAP) // (card_w + CARD_GAP))
+        row_w = per_row * card_w + (per_row - 1) * CARD_GAP
+        left = area.x + max(0, (area.w - row_w) // 2)
+        height = sum(SECTION_HEADER + ((len(cards) + per_row - 1) // per_row) * (card_h + CARD_GAP)
+                     for _, cards in self.sections) - CARD_GAP
+        self.max_scroll = max(0, height - area.h)
+        self.scroll = min(self.scroll, self.max_scroll)
+        y = area.y - self.scroll
+        for title, cards in self.sections:
+            self.titles.append((title, len(cards), left, y))
+            y += SECTION_HEADER
+            for index, card in enumerate(cards):
+                row, col = divmod(index, per_row)
+                card.rect.topleft = (left + col * (card_w + CARD_GAP), y + row * (card_h + CARD_GAP))
+            y += ((len(cards) + per_row - 1) // per_row) * (card_h + CARD_GAP)
+
+    def draw(self, screen, fonts, mouse, selected_key=None):
+        screen.set_clip(self.area)
+        for title, count, x, y in self.titles:
+            text = fonts.font.render(title, True, TEXT)
+            screen.blit(text, (x, y + 8))
+            number = fonts.small.render(f'{count} {self.noun}{"" if count == 1 else "s"}', True, TEXT_DIM)
+            screen.blit(number, (x + text.get_width() + 12, y + 11))
+            line_x = x + text.get_width() + number.get_width() + 24
+            pygame.draw.line(screen, CARD_BG, (line_x, y + 21), (self.area.right - (x - self.area.x), y + 21))
+        screen.set_clip(None)
+        super().draw(screen, fonts, mouse, selected_key)
 
 
 class Checker:

@@ -1,9 +1,9 @@
 """An NPC sprite folder, as the Sprite Manager sees it."""
 
-from create_new_NPC import read_profile
+from create_new_NPC import CATEGORIES, OTHER, read_profile
 from create_new_pose import OUTPUT_DIR
 from images import crop_alike, load_frame, mirrored
-from walk import game_mirror_source, partner_of
+from walk import STANDING_DIRECTIONS, game_mirror_source, partner_of
 
 # The NPC's standing pose a sheet starts from: (the chibi's match for it, how the prompt names it)
 BASE_POSES = {
@@ -26,6 +26,10 @@ class WalkNpc:
         self.name = npc.name
         self.prefix = npc.prefix
         self.base_path = npc.base_path
+        first = self.name.split('_', 1)[0]
+        # The groups of create_new_NPC.py: 'trader', 'poor', ..., or 'other'
+        self.category = first if first in [key for key, _, _ in CATEGORIES] else OTHER[0]
+        self.is_townsperson = self.category not in ('trader', OTHER[0])
         profile = read_profile(self.folder)
         if profile.get('name'):
             self.display_name = profile['name']
@@ -33,6 +37,11 @@ class WalkNpc:
             self.display_name = f'the {self.prefix}'
         else:
             self.display_name = self.prefix.capitalize()
+
+    @property
+    def label(self):
+        """Card label, as in create_new_NPC.py: the folder for traders, the name for townsfolk."""
+        return self.display_name if self.is_townsperson else self.name
 
     def sprite_path(self, pose):
         return self.folder / f'{self.prefix}_{pose}.png'
@@ -57,6 +66,10 @@ class WalkNpc:
     def done(self, direction, count):
         """How many of the direction's frames the NPC has."""
         return sum(self.frame_path(direction, f).is_file() for f in range(1, count + 1))
+
+    def standing_done(self):
+        """How many of the standing sprites (down, up, left, right) the NPC has."""
+        return sum(self.has(f'{key}_static') for key in STANDING_DIRECTIONS)
 
     def mirror_source(self, direction, frame):
         """The partner direction's frame that mirrors to this one, None if it does not exist."""
