@@ -20,6 +20,7 @@ from create_new_pose import (
     TEXT, TEXT_DIM, Button, Card, draw_chips, fit_text,
 )
 from frame_picker import FramePicker
+from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
 from sheets import SHEET_ERRORS, can_make_standing, write_sheets, write_standing_sheet
@@ -77,6 +78,8 @@ class FramesView(View):
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
         self.from_frame_button = Button('From other frame', h=BUTTON_H)
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
+        # Under the animation in the directions panel
+        self.gif_button = Button('Copy as GIF', h=BUTTON_H)
         self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
                                   (self.paste_button, self.open_button),
                                   (self.send_button, self.from_frame_button),
@@ -90,7 +93,8 @@ class FramesView(View):
                         (self.copy_prompt_button, self.copy_prompt),
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
-                        (self.send_button, self.send_current))
+                        (self.send_button, self.send_current),
+                        (self.gif_button, self.copy_gif))
         self.select_direction(direction)
 
     # --- state ------------------------------------------------------------
@@ -366,6 +370,32 @@ class FramesView(View):
         self.app.set_status(f'{verb} {target.name}, {how} from {source_label}')
         self.app.toast.show(f'{sheet.name} {how} from {source_label}')
 
+    # --- sharing ----------------------------------------------------------
+
+    def gif_path(self):
+        """Where the direction's animation is saved as GIF: <prefix>_<direction>_<motion>.gif."""
+        return self.npc.out_dir / f'{self.npc.prefix}_{self.direction.key}_{self.direction.motion.key}.gif'
+
+    def copy_gif(self):
+        """Save the animation as the game plays it as a GIF and put the file on the clipboard."""
+        if not self.preview:
+            return
+        try:
+            data = gif_bytes(self.preview)
+        except (RuntimeError, ValueError, OSError) as exc:
+            self.app.set_status(f'Cannot make the GIF: {exc}', error=True)
+            return
+        path = self.gif_path().resolve()
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            win_clipboard.copy_file(path, data)
+        except (OSError, win_clipboard.ClipboardError) as exc:
+            self.app.set_status(f'Cannot copy the GIF: {exc}', error=True)
+            return
+        self.app.set_status(f'{path.name} saved and copied - paste it wherever it should go')
+        self.app.toast.show('GIF copied')
+
     # --- editing by hand --------------------------------------------------
 
     def edit_in_gimp(self):
@@ -503,9 +533,12 @@ class FramesView(View):
             screen.blit(text, text.get_rect(midright=(row.right - 10, row.centery)))
             self.dir_rows.append((row, direction))
 
-        box = pygame.Rect(rect.x + 8, y + PANEL_TITLE, rect.w - 16, rect.bottom - 8 - y - PANEL_TITLE)
+        box = pygame.Rect(rect.x + 8, y + PANEL_TITLE, rect.w - 16,
+                          rect.bottom - 8 - y - PANEL_TITLE - BUTTON_H - BUTTON_GAP)
+        self.gif_button.enabled = False
         if box.h >= PREVIEW_MIN_H:
             self.draw_preview(screen, box)
+            self.draw_gif_button(screen, box, mouse)
 
     def draw_preview(self, screen, box):
         """The frames the NPC already has, playing in a loop."""
@@ -517,6 +550,13 @@ class FramesView(View):
             frame = self.preview[pygame.time.get_ticks() // PREVIEW_FRAME_MS % len(self.preview)]
             image = smooth_fit(frame, (box.w - 20, box.h - 20), PREVIEW_MAX_ZOOM)
             screen.blit(image, image.get_rect(midbottom=(box.centerx, box.bottom - 10)))
+
+    def draw_gif_button(self, screen, box, mouse):
+        """'Copy as GIF' under the animation."""
+        self.gif_button.rect = pygame.Rect(box.x, box.bottom + BUTTON_GAP, box.w, BUTTON_H)
+        self.gif_button.enabled = bool(self.preview) and win_clipboard.AVAILABLE and not PIL_ERROR
+        self.gif_button.label = 'Copy as GIF (needs Pillow)' if PIL_ERROR else 'Copy as GIF'
+        self.gif_button.draw(screen, self.app.fonts.font, mouse)
 
     def draw_sheet(self, screen, rect, mouse):
         app = self.app

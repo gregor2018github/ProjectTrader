@@ -27,6 +27,8 @@ OPEN_ATTEMPTS = 10       # another program may hold the clipboard for a moment
 OPEN_RETRY_S = 0.03
 BMP_FILE_HEADER = 14
 BI_BITFIELDS = 3
+DROPFILES_SIZE = 20
+DROPEFFECT_COPY = 1
 
 if AVAILABLE:
     _user32 = ctypes.WinDLL('user32', use_last_error=True)
@@ -132,6 +134,27 @@ def copy_image(surface):
         _user32.EmptyClipboard()
         _put(_png_format(), png.getvalue())
         _put(CF_DIB, bmp.getvalue()[BMP_FILE_HEADER:])
+
+
+def copy_file(path, gif=None):
+    """Puts a file on the clipboard as if it was copied in the Explorer.
+
+    Chat programs, browsers and the Explorer paste it as the file itself,
+    which is the only way most of them take an animated GIF.
+
+    Args:
+        path: The file, as an absolute path.
+        gif: The GIF's bytes, also offered as "GIF" for programs that read that.
+    """
+    files = (str(path) + '\0').encode('utf-16-le') + b'\0\0'
+    # DROPFILES: where the file list starts, drop point x/y, not client area, wide chars
+    header = struct.pack('<IiiII', DROPFILES_SIZE, 0, 0, 0, 1)
+    with _Open():
+        _user32.EmptyClipboard()
+        _put(CF_HDROP, header + files)
+        _put(_user32.RegisterClipboardFormatW('Preferred DropEffect'), struct.pack('<I', DROPEFFECT_COPY))
+        if gif:
+            _put(_user32.RegisterClipboardFormatW('GIF'), gif)
 
 
 def _dib_to_bmp(dib):

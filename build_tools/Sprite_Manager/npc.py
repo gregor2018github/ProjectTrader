@@ -27,6 +27,8 @@ PLAYER_CATEGORY = 'player'
 class WalkNpc:
     """An NPC folder, or the player's: its sprites and its walk (and run) output."""
 
+    is_new = False   # has a front standing sprite, unlike a new_figure.NewFigure
+
     def __init__(self, npc):
         """
         Args:

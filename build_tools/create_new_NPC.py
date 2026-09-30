@@ -177,6 +177,32 @@ def find_npcs():
     return [Npc(p) for p in sorted(NPC_DIR.iterdir()) if p.is_dir()]
 
 
+def taken_names(npcs, is_trader):
+    """{lower-case name: folder name} a new NPC's name must not clash with.
+
+    A trade clashes with the other trades, a name with the other people.
+    """
+    return {n.prefix.lower(): n.name for n in npcs
+            if n.is_townsperson != is_trader and n.category != OTHER[0]}
+
+
+def create_npc_folder(category, name, gender=None):
+    """Make the folder of a new NPC, as NewNpcDialog asked for it.
+
+    Only townsfolk are discovered by their folder, and only they need a
+    profile; a trader is put in town by his Trader subclass instead.
+
+    Returns:
+        The new folder.
+    """
+    folder = NPC_DIR / f'{category}_{name.lower()}'
+    folder.mkdir()
+    if category != TRADER_CATEGORY:
+        profile = {'name': name.capitalize(), 'gender': gender}
+        (folder / PROFILE_FILE).write_text(json.dumps(profile, indent=2) + '\n', encoding='utf-8')
+    return folder
+
+
 def find_player_poses():
     """Return {pose: path} for every player sprite, standing poses first."""
     poses = {path.stem[len('player_'):]: path for path in PLAYER_DIR.glob('player_*.png')}
@@ -749,10 +775,8 @@ class ImportTool:
         self.section_titles = []  # (title, count, x, y), filled by layout_cards
 
     def open_new_dialog(self, key, title):
-        # A trade clashes with the other trades, a name with the other people.
         is_trader = key == TRADER_CATEGORY
-        taken = {n.prefix.lower(): n.name for n in self.npcs
-                 if n.is_townsperson != is_trader and n.category != OTHER[0]}
+        taken = taken_names(self.npcs, is_trader)
         heading = f'New trader: {title}' if is_trader else f'New NPC: {title}'
         self.dialog = NewNpcDialog(key, heading, taken, (self.font, self.small, self.title_font))
 
@@ -761,14 +785,8 @@ class ImportTool:
         if error:
             self.dialog.error = error
             return
-        folder = NPC_DIR / self.dialog.folder_name()
-        folder.mkdir()
-        # Only townsfolk are discovered by their folder, and only they need a
-        # profile; a trader is put in town by his Trader subclass instead.
         is_trader = self.dialog.is_trader
-        if not is_trader:
-            profile = {'name': self.dialog.name.capitalize(), 'gender': self.dialog.gender}
-            (folder / PROFILE_FILE).write_text(json.dumps(profile, indent=2) + '\n', encoding='utf-8')
+        folder = create_npc_folder(self.dialog.category, self.dialog.name, self.dialog.gender)
         self.dialog = None
         self.refresh_npcs()
         self.open_npc(next(n for n in self.npcs if n.folder == folder))

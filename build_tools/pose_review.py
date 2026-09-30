@@ -191,7 +191,8 @@ def load_player_shapes(player_poses: dict) -> dict:
     return shapes
 
 
-def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes: dict):
+def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes: dict,
+                 layout: str = '2x2'):
     """Cuts the NPC out of a returned image and scales it like the player.
 
     Args:
@@ -199,6 +200,8 @@ def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes:
         pose: The pose that was asked for; it wins over the detected one.
         player_poses: {pose: player sprite path}.
         player_shapes: As returned by load_player_shapes().
+        layout: '2x2' for a pose sheet, '1x2' for the split image a new NPC's
+            first sprite is drawn on.
 
     Returns:
         A create_new_NPC.Result, holding the finished sprite in .output.
@@ -206,9 +209,9 @@ def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes:
     Raises:
         ValueError, pygame.error: If the cells or the sprite cannot be found.
     """
-    # Every sheet create_new_pose sends is a 2x2 one, so the extraction does
+    # The layout is known from the sheet that was sent, so the extraction does
     # not have to guess - which it gets wrong when the model drew no lines.
-    result = _import_tool().Result(image_path, player_poses, player_shapes, layout='2x2')
+    result = _import_tool().Result(image_path, player_poses, player_shapes, layout=layout)
     if pose in player_poses and result.pose != pose:
         result.set_pose(pose)
     return result

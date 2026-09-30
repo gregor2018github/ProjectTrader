@@ -166,7 +166,8 @@ class SectionGrid(CardGrid):
         y = area.y - self.scroll
         for title, cards in self.sections:
             card_h = cards[0].rect.h
-            self.titles.append((title, len(cards), left, y))
+            # A card with counted = False, like an 'add one' card, is not one of them
+            self.titles.append((title, sum(getattr(c, 'counted', True) for c in cards), left, y))
             y += SECTION_HEADER
             for index, card in enumerate(cards):
                 row, col = divmod(index, per_row)

@@ -675,7 +675,7 @@ def checkerboard(size):
 class Detail:
     """The image of one entry and the sprite the import would make of it."""
 
-    def __init__(self, npc, entry, player_poses, player_shapes):
+    def __init__(self, npc, entry, player_poses, player_shapes, layout='2x2'):
         self.npc = npc
         self.entry = entry
         self.path = npc.out_dir / entry.image
@@ -685,7 +685,7 @@ class Detail:
         self.error = ''
         try:
             self.result = pose_review.build_sprite(
-                self.path, entry.pose, player_poses, player_shapes)
+                self.path, entry.pose, player_poses, player_shapes, layout)
         except Exception as exc:  # cell detection and extraction fail in many ways
             self.error = f'Cannot use this image: {exc}'
         self.preview = None  # (rect, factor) of the sprite in the preview panel

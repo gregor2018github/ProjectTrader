@@ -15,6 +15,13 @@ The window can be resized or maximised; F11 switches to full screen.
 
 1. Pick the NPC or the player, grouped as in create_new_NPC.py. Each card
    shows how many walk (and run) frames and standing sprites there are.
+   "+" at the end of a group adds a person, with create_new_NPC.py's dialog
+   and folder layout. Someone without a front standing sprite yet opens on
+   "First sprite": describe them in description.txt ("Edit description"; the
+   prompt follows the file as it is saved), send the split image - the
+   player's front sprite beside an empty cell - to Gemini like any sheet,
+   and accept an answer. It is scaled like the player, saved as
+   <name>_front_static.png, and the person goes on to his walk frames.
 2. Pick a direction on the left. Its sheets are rebuilt from the base files
    every time a direction or a frame is clicked, so edits to the chibi or
    ghost strips show up straight away. The box under the directions plays
@@ -58,6 +65,11 @@ foot. In a direction with a mirror partner (left and right, and both
 diagonal pairs) "Mirror missing from ..." in the footer mirrors every frame
 the direction lacks and its partner has.
 
+"Copy as GIF" under the animation saves the direction's frames as the game
+plays them as <prefix>_<direction>_<walk|run>.gif in the output folder and
+puts the file on the clipboard, to paste into a chat, a browser or the
+Explorer. It needs Pillow (build_tools/requirements.txt).
+
 "Edit in GIMP" (G) opens a frame the NPC already has in GIMP (found through
 GIMP_PATH, the PATH or Program Files). Once it is saved back with File >
 Overwrite, the tool notices and shows the new version.
@@ -75,6 +87,8 @@ The code, for whoever works on it next:
     view_npcs.py       screen 1, the NPC list
     view_frames.py     screen 2, directions, frames and the chosen sheet
     view_review.py     screens 3 and 4, all answers and one answer
+    view_first.py      screen 2 for a new person: his first sprite
+    new_figure.py      adding a person; his split image, description and prompt
     frame_picker.py    the dialog making a frame from another frame
     widgets.py         panels, card grid, notices, the goal comparison
     walk.py            motions, directions, frame names, mirror relations (no pygame)
@@ -82,6 +96,7 @@ The code, for whoever works on it next:
     chibi.py           the base chibi strips and ghosts
     sheets.py          the 2x2 sheets and prompts
     answers.py         answers from the web view and the API into review.json
+    gif_export.py      animations as GIF files
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard
@@ -104,12 +119,14 @@ from answers import record_answer  # noqa: E402
 from chibi import strip_length  # noqa: E402
 from create_new_pose import (  # noqa: E402
     BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
-    PANEL_GAP, TEXT, TEXT_DIM, Button, GeminiWorker, SettingsDialog, find_npcs, fit_text,
-    make_thumb, open_window, toggle_fullscreen, window_size,
+    PANEL_GAP, ROOT, TEXT, TEXT_DIM, Button, GeminiWorker, SettingsDialog, find_npcs,
+    find_player_poses, fit_text, make_thumb, open_window, toggle_fullscreen, window_size,
 )
 from gemini_client import Settings  # noqa: E402
+from new_figure import AddFigureDialog, find_new_figures  # noqa: E402
 from npc import WalkNpc, player  # noqa: E402
-from pose_review import ReviewStore  # noqa: E402
+from pose_review import ReviewStore, load_player_shapes  # noqa: E402
+from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
@@ -138,8 +155,11 @@ class SpriteManager:
         self.worker = None            # the Gemini requests running, or last run
 
         self.counts = {d: strip_length(d) for d in ALL_DIRECTIONS}   # {Direction: frames}
-        self.npcs = [player()] + [WalkNpc(n) for n in find_npcs()]
-        self.npc_thumbs = {n.name: make_thumb(n.base_path, NPC_THUMB_SIZE) for n in self.npcs}
+        self.npcs = []                # the player and every NPC with a front standing sprite
+        self.new_figures = []         # NPC folders without one yet
+        self.npc_thumbs = {}
+        self.reload_npcs()
+        self._player_references = None
         self.npc = None               # the NPC being worked on
         self.store = None             # its answers
         self.frames = None            # its frames screen, kept while it is open
@@ -166,6 +186,21 @@ class SpriteManager:
     def busy(self):
         return self.worker is not None and not self.worker.finished
 
+    def reload_npcs(self):
+        """Read the sprite folders again, after a person was added or got his first sprite."""
+        self.npcs = [player()] + [WalkNpc(n) for n in find_npcs()]
+        self.new_figures = find_new_figures()
+        for npc in self.npcs:
+            if npc.name not in self.npc_thumbs:
+                self.npc_thumbs[npc.name] = make_thumb(npc.base_path, NPC_THUMB_SIZE)
+
+    def player_references(self):
+        """({pose: path}, {pose: mask}) of the player, which a first sprite is scaled against."""
+        if self._player_references is None:
+            poses = find_player_poses()
+            self._player_references = (poses, load_player_shapes(poses))
+        return self._player_references
+
     # --- screens ----------------------------------------------------------
 
     def show(self, view):
@@ -175,12 +210,33 @@ class SpriteManager:
         self.place_footer()
 
     def open_npc(self, npc):
+        """Work on a figure: his frames, or his first sprite if he has none yet."""
         self.npc = npc
         self.store = ReviewStore(npc.out_dir)
         self.worker = None
         self.set_status('')
+        if getattr(npc, 'is_new', False):
+            self.frames = None
+            self.show(FirstSpriteView(self))
+            return
         self.frames = FramesView(self, npc.direction_like(self.last_direction))
         self.show(self.frames)
+
+    def open_add_dialog(self, category, title):
+        """Add a person to a group, as create_new_NPC.py does."""
+        self.dialog = AddFigureDialog(category, title, self.fonts, self.figure_created)
+
+    def figure_created(self, folder):
+        self.reload_npcs()
+        figure = next(f for f in self.new_figures if f.folder == folder)
+        self.open_npc(figure)
+        note = ' - write his Trader subclass to put him in town' if figure.category == 'trader' else ''
+        self.set_status(f'Created {folder.relative_to(ROOT)}{note}')
+
+    def first_sprite_saved(self, folder):
+        """A new person has his front standing sprite: on to his other sprites."""
+        self.reload_npcs()
+        self.open_npc(next(n for n in self.npcs if n.folder == folder))
 
     def close_npc(self):
         self.npc = self.store = self.frames = self.worker = None
@@ -332,11 +388,18 @@ class SpriteManager:
         else:
             self.view.click(pos)
 
+    def dialog_event(self, event):
+        """Typing into a dialog that takes it; Escape closes any other."""
+        if hasattr(self.dialog, 'event'):
+            if self.dialog.event(event) == 'close':
+                self.close_dialog()
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.close_dialog()
+
     def key(self, event):
         """Handles one key; returns 'quit' when the tool should close."""
         if self.dialog:
-            if event.key == pygame.K_ESCAPE:
-                self.close_dialog()
+            self.dialog_event(event)
             return None
         if event.key == pygame.K_F11:
             toggle_fullscreen()
@@ -367,6 +430,8 @@ class SpriteManager:
                 elif event.type == pygame.KEYDOWN:
                     if self.key(event) == 'quit':
                         return
+                elif event.type == pygame.TEXTINPUT and self.dialog:
+                    self.dialog_event(event)
                 elif event.type == pygame.DROPFILE and not self.dialog:
                     self.view.drop_file(Path(event.file))
                 elif event.type == pygame.MOUSEWHEEL:

@@ -15,6 +15,50 @@ from view import View
 from widgets import CardGrid, Checker, draw_panel
 
 
+CAPTION_ON_CHECKER = (40, 40, 40)
+
+def draw_result(screen, fonts, detail, area, checker, target_name):
+    """What an answer would become, beside the sprite it was scaled against.
+
+    Both stand on one baseline at one scale; detail.preview remembers where
+    the result is drawn, so clicks can open up white gaps in it.
+
+    Args:
+        detail: The create_new_pose.Detail of the answer.
+        area: Where to draw.
+        checker: A widgets.Checker for the backdrop.
+        target_name: The file the result would be saved as, for the caption.
+    """
+    checker.draw(screen, area)
+    detail.preview = None
+    if not detail.result:
+        text = fonts.small.render(detail.error, True, ERROR_COLOR)
+        screen.blit(text, text.get_rect(center=area.center))
+        return
+
+    reference, output = detail.result.player, detail.result.output
+    gap = 20
+    total = (reference.get_width() + output.get_width() + gap,
+             max(reference.get_height(), output.get_height()))
+    factor = min((area.w - 20) / total[0], (area.h - 50) / total[1], 1.5)
+    rw, rh = int(reference.get_width() * factor), int(reference.get_height() * factor)
+    ow, oh = int(output.get_width() * factor), int(output.get_height() * factor)
+    baseline = area.bottom - 40
+    start_x = area.centerx - int(total[0] * factor) // 2
+    # Both canvases stand on the reference's baseline.
+    reference_bottom = detail.result.player_offset[1] + reference.get_height()
+    output_pos = (start_x + rw + int(gap * factor), baseline - int(reference_bottom * factor))
+    screen.blit(pygame.transform.smoothscale(reference, (rw, rh)), (start_x, baseline - rh))
+    screen.blit(pygame.transform.smoothscale(output, (ow, oh)), output_pos)
+    pygame.draw.rect(screen, TEXT_DIM, (*output_pos, ow, oh), 1)
+    detail.preview = (pygame.Rect(output_pos, (ow, oh)), factor)
+
+    caption = fonts.small.render(
+        f'{output.get_width()} x {output.get_height()} px, scale {detail.result.scale:.2f} '
+        f'-> {target_name}', True, CAPTION_ON_CHECKER)
+    screen.blit(caption, caption.get_rect(midbottom=(area.centerx, area.bottom - 10)))
+
+
 class ReviewView(View):
     """Every answer of the NPC, pending ones first."""
 
@@ -176,35 +220,8 @@ class DetailView(View):
 
         draw_panel(screen, fonts, preview_rect,
                    f'{npc.prefix}_{self.base} and the new frame, same scale  (click white gaps)')
-        area = preview_rect.inflate(-20, -20)
-        self.checker.draw(screen, area)
-        detail.preview = None
-        if not detail.result:
-            text = fonts.small.render(detail.error, True, ERROR_COLOR)
-            screen.blit(text, text.get_rect(center=area.center))
-            return
-
-        reference, output = detail.result.player, detail.result.output
-        gap = 20
-        total = (reference.get_width() + output.get_width() + gap,
-                 max(reference.get_height(), output.get_height()))
-        factor = min((area.w - 20) / total[0], (area.h - 50) / total[1], 1.5)
-        rw, rh = int(reference.get_width() * factor), int(reference.get_height() * factor)
-        ow, oh = int(output.get_width() * factor), int(output.get_height() * factor)
-        baseline = area.bottom - 40
-        start_x = area.centerx - int(total[0] * factor) // 2
-        # Both canvases stand on the reference's baseline.
-        reference_bottom = detail.result.player_offset[1] + reference.get_height()
-        output_pos = (start_x + rw + int(gap * factor), baseline - int(reference_bottom * factor))
-        screen.blit(pygame.transform.smoothscale(reference, (rw, rh)), (start_x, baseline - rh))
-        screen.blit(pygame.transform.smoothscale(output, (ow, oh)), output_pos)
-        pygame.draw.rect(screen, TEXT_DIM, (*output_pos, ow, oh), 1)
-        detail.preview = (pygame.Rect(output_pos, (ow, oh)), factor)
-
-        caption = fonts.small.render(
-            f'{output.get_width()} x {output.get_height()} px, scale {detail.result.scale:.2f} '
-            f'-> {npc.sprite_path(self.entry.pose).name}', True, (40, 40, 40))
-        screen.blit(caption, caption.get_rect(midbottom=(area.centerx, area.bottom - 10)))
+        draw_result(screen, fonts, detail, preview_rect.inflate(-20, -20), self.checker,
+                    npc.sprite_path(self.entry.pose).name)
 
     def click(self, pos):
         if self.accept_button.hit(pos):
