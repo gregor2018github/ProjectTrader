@@ -13,7 +13,7 @@ from npc import PLAYER_CATEGORY
 from pose_review import ReviewStore
 from view import View
 from walk import DIRECTIONS, NPC_DIRECTION_KEYS, STANDING_DIRECTIONS
-from widgets import BAR_STEP, SectionGrid, draw_panel
+from widgets import BAR_STEP, SectionGrid, draw_panel, progress_color
 
 # create_new_pose's NPC card, taller for a line and a bar per motion and the standing sprites
 CARD_W = 172
@@ -26,7 +26,7 @@ NPC_CARD_H = CARD_BASE_H + LINE_H + BAR_STEP   # an NPC's card: walk frames and 
 
 # The overview above the cards
 SUMMARY_ROW = 26
-SUMMARY_ROWS = 3         # walk, run, standing - and as many lines of names
+SUMMARY_ROWS = 4         # walk, run, standing, total - and as many lines of names
 SUMMARY_PAD = 10
 SUMMARY_H = SUMMARY_ROWS * SUMMARY_ROW + 2 * SUMMARY_PAD
 SPRITES_SHARE = 0.58     # of the width, for the sprites; the names get the rest
@@ -147,6 +147,9 @@ class NpcListView(View):
         for kind, label in KINDS:
             done, needed = self.totals.get(kind, (0, 0))
             rows.append((label, done, needed, f'{done}/{needed} done, {needed - done} missing'))
+        done, needed = sum(r[1] for r in rows), sum(r[2] for r in rows)
+        percent = done * 100 // needed if needed else 0   # rounded down: 100% only when all are done
+        rows.append(('Total', done, needed, f'{done}/{needed} ({percent}%), {needed - done} missing'))
         self.draw_rows(screen, sprites, rows)
 
         usage, typed = self.names
@@ -180,10 +183,10 @@ class NpcListView(View):
             pygame.draw.rect(screen, BAR_BG, bar, border_radius=3)
             share = part / whole if whole else 0
             if round(bar.w * share):
-                if share < 1:
-                    color = DONE_COLOR
+                if fill_is_good:
+                    color = progress_color(share)
                 else:
-                    color = STATUS_COLORS[pose_review.ACCEPTED] if fill_is_good else POOL_USED_UP
+                    color = DONE_COLOR if share < 1 else POOL_USED_UP
                 pygame.draw.rect(screen, color, (bar.x, bar.y, round(bar.w * share), bar.h), border_radius=3)
             count = small.render(fit_text(small, text, SUMMARY_COUNT_W), True, TEXT_DIM)
             screen.blit(count, (bar.right + SUMMARY_PAD, y + 3))

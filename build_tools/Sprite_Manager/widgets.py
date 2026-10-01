@@ -11,7 +11,7 @@ import pygame
 import pose_review
 from create_new_pose import (
     BAR_BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SELECTED, DIALOG_BG, DIALOG_LINE, DONE_COLOR,
-    SHADE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, checkerboard, fit_text, window_size,
+    ERROR_COLOR, SHADE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, checkerboard, fit_text, window_size,
 )
 from images import smooth_fit, trim
 
@@ -33,6 +33,17 @@ TOAST_LINE = (110, 190, 120)
 COMPARE_TILES = ('Goal', 'Accepted', 'Both')
 COMPARE_PAD = 12
 COMPARE_OVERLAY_ALPHA = 150
+
+
+def progress_color(share):
+    """A progress bar's colour: red when little is done, through yellow, to green when all is."""
+    share = max(0.0, min(1.0, share))
+    if share >= 1:
+        return STATUS_COLORS[pose_review.ACCEPTED]
+    # Red to yellow over the first half, yellow towards green over the second
+    start, end, t = ((ERROR_COLOR, DONE_COLOR, share * 2) if share < 0.5
+                     else (DONE_COLOR, STATUS_COLORS[pose_review.ACCEPTED], share * 2 - 1))
+    return tuple(round(a + (b - a) * t) for a, b in zip(start, end))
 
 
 def draw_panel(screen, fonts, rect, title):
@@ -81,8 +92,7 @@ def draw_card(screen, fonts, card, mouse, selected=False):
         pygame.draw.rect(screen, BAR_BG, bar, border_radius=3)
         share = max(0.0, min(1.0, share))
         if round(bar.w * share):
-            bar_color = STATUS_COLORS[pose_review.ACCEPTED] if share >= 1 else DONE_COLOR
-            pygame.draw.rect(screen, bar_color, (bar.x, bar.y, round(bar.w * share), bar.h),
+            pygame.draw.rect(screen, progress_color(share), (bar.x, bar.y, round(bar.w * share), bar.h),
                              border_radius=3)
 
 
