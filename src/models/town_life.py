@@ -176,6 +176,20 @@ class StreetLife:
                 return True
         return False
 
+    def people_inside(self, house: 'House') -> List[Townsperson]:
+        """The townsfolk who are in a building right now.
+
+        Someone is in the house whose front door they last went in by and have
+        not come out of since; anyone in the doorway answering a knock is out.
+
+        Args:
+            house: The building, which knows its own front doors.
+        """
+        door_ids = {door.id for door in getattr(house, "doors", ())}
+        return [person for person in self.townsfolk
+                if not person.is_out and person.home_door is not None
+                and person.home_door.id in door_ids]
+
     def answer_knock(self, house: 'House') -> bool:
         """Maybe bring one of a building's residents to its door.
 
@@ -192,12 +206,7 @@ class StreetLife:
         Returns:
             bool: True if somebody came out.
         """
-        door_ids = {door.id for door in getattr(house, "doors", ())}
-        if not door_ids:
-            return False
-        at_home = [person for person in self.townsfolk
-                   if not person.is_out and person.home_door is not None
-                   and person.home_door.id in door_ids]
+        at_home = self.people_inside(house)
         if not at_home or random.random() >= KNOCK_ANSWER_CHANCE:
             return False
         return random.choice(at_home).answer_door()
