@@ -31,19 +31,30 @@ their bottom edge itself.
    `build_tools/output/forest/forest_game.png` from an earlier run) and note
    tile coordinates. Tiled shows them in the status bar; a pixel position ÷ 32
    gives the tile.
-3. **Edit `FOREST`** at the top of `grow_forest.py`:
+3. **Edit `PATCHES`** at the top of `grow_forest.py`. Each patch is planted
+   in turn, so one run can add a dense block and an open wood next to it.
+   Only `area` and `shapes` are required:
    - `area`: the box tree points may land in.
-   - `shapes`: ellipses whose union is the forest. A wavy edge is added on top.
+   - `shapes`: ellipses whose union is the patch. A wavy edge is added on top.
    - `clearings`: ellipses kept free, such as a yard, the ground in front of a
      door, or a glade.
-   - `keep_out`: rectangles nothing may go into, both trees and forest floor.
-     Use it for roads.
+   - `density` (0–1, default 1): the share of free spots that get a tree.
+     Below 1 the patch gets gaps.
+   - `spacing` (default 1): how far apart stems stay. 1 is a closed forest
+     like the middle of the western forest; about 1.45 is the open wood
+     towards the map edge.
    - `oaks`: how many broadleaves (`Tree_23`) to plant first.
-   - `floor_source`: a box around one forest-floor patch on `Ground_High_Plus`
-     to copy. `floor_spots`: where to centre the copies. Every other copy is
-     mirrored.
-   - `flowers_source` / `flower_patches`: patches on `Ground_Flowers_Mushrooms`
-     to scatter, and how many.
+   - `floor_spots`: where to centre copies of the forest floor. A copy that
+     would run into water or a `KEEP_OUT` area is nudged up to 8 tiles until
+     it doesn't. If that fails, the script says so and skips the copy.
+   - `flower_patches`: how many patches from `FLOWERS_SOURCE` to scatter.
+
+   Global settings, below the patches:
+   - `KEEP_OUT`: rectangles nothing may go into, for example roads.
+   - `FLOOR_STAMP`: `forest_floor_stamp.json`, the grove's original forest
+     floor, saved as tiles. It's kept as a file because the floor in the map
+     has since merged into one large area that can't be cut out cleanly.
+   - `FLOWERS_SOURCE`: the area of the map whose flower patches get copied.
 4. **Preview:**
    `python build_tools/Forest_Builder/grow_forest.py --preview`
    This writes `forest_game.png` (as in game) and `forest_tiled.png` (as in
@@ -51,6 +62,11 @@ their bottom edge itself.
    alone. Try `--seed N` for a different layout of the same forest.
 5. **Write it:** run the same command without `--preview`, with the seed you
    liked.
+
+**Removing trees:** `--remove ID [ID ...]` takes trees out by their Tiled
+object id, together with their preview tiles, before anything is planted.
+Pair it with a small patch over the same spot to fill the gap, or use
+`--no-plant` to only remove.
 6. **Check:**
    - The script reloads the map and warns if any door lost its way out.
    - Start the game and look for `Door … has nowhere to step out to` messages.
@@ -60,6 +76,10 @@ Running it again over the same area doesn't plant on top of existing trees. It
 keeps its distance from every tree already in the map and only fills the gaps.
 To redo a forest, undo the map with git (`git checkout assets/tiles/Map1.tmx`)
 and run again.
+
+The comment above `PATCHES` records what earlier runs used. The current
+entries are the second run, which removed one oak (`--remove 505`), filled its
+gap, and extended the forest to the map's west edge and down to the river.
 
 ## What it avoids
 

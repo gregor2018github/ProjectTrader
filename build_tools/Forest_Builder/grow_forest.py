@@ -13,7 +13,7 @@ Trees in this game live in two places at once, and this script writes both:
 It also spreads forest floor (``Ground_High_Plus``) and flowers
 (``Ground_Flowers_Mushrooms``) under the new trees; those *are* drawn in game.
 
-Everything about where the forest goes is in the ``FOREST`` block below; see
+Everything about where the forest goes is in ``PATCHES`` below; see
 README.md next to this file for the steps. Run from the project root, with
 Tiled closed::
 
@@ -26,6 +26,7 @@ fills the gaps that are left rather than planting on top.
 """
 
 import argparse
+import json
 import math
 import os
 import random
@@ -49,28 +50,50 @@ OUTPUT_DIR = "build_tools/output/forest"
 TREE_SPRITES = "assets/map_sprites/trees"
 
 # ---------------------------------------------------------------------------
-# The forest. All positions are in tiles (32 px). Ellipses are
-# (centre x, centre y, radius x, radius y).
+# The forest, as patches planted one after the other. All positions are in
+# tiles (32 px); ellipses are (centre x, centre y, radius x, radius y).
+#
+#   area           Box a tree's object point may land in: x0, y0, x1, y1
+#                  (exclusive).
+#   shapes         The patch is the union of these, with a wavy edge added.
+#   clearings      Kept free of trees: yards, the way out of doors, glades.
+#   density        0..1, the share of free spots that get a tree at all.
+#                  Below 1 the patch gets uneven, with gaps.
+#   spacing        Multiplies the distance stems keep. 1 is a closed forest,
+#                  1.5 an open wood.
+#   oaks           Broadleaves (Tree_23) planted first, well apart.
+#   floor_spots    Where to centre copies of FLOOR_STAMP (alternate copies
+#                  are mirrored).
+#   flower_patches How many patches from FLOWERS_SOURCE to scatter.
+#
+# The western forest was grown in two runs. These are the patches of the
+# second; the first was area (18, 145, 95, 187), shapes (51, 168, 25, 16.5)
+# and (79, 161, 9.5, 6), clearings (82, 174.5, 8.5, 6.5) and
+# (44, 171, 4.2, 3.2), 2 oaks, floor at (38, 168), (55, 162), (57, 177),
+# (70, 166), 14 flower patches.
 # ---------------------------------------------------------------------------
-FOREST = {
-    # Tiles a tree's object point may land on: x0, y0, x1, y1 (exclusive)
-    "area": (18, 145, 95, 187),
-    # The forest is the union of these, with a wavy edge added
-    "shapes": [(51, 168, 25, 16.5), (79, 161, 9.5, 6)],
-    # Kept free of trees: yards, the way out of doors, glades
-    "clearings": [(82, 174.5, 8.5, 6.5), (44, 171, 4.2, 3.2)],
-    # Rectangles x0, y0, x1, y1 nothing may go into: roads, paths
-    "keep_out": [(70, 185, 300, 300)],
-    # How many broadleaves (Tree_23) to plant before the pines
-    "oaks": 2,
-    # A region of Ground_High_Plus holding one forest floor blob to copy...
-    "floor_source": (70, 155, 112, 190),
-    # ...and where to centre each copy (alternate copies are mirrored)
-    "floor_spots": [(38, 168), (55, 162), (57, 177), (70, 166)],
-    # A region of Ground_Flowers_Mushrooms whose patches get scattered
-    "flowers_source": (60, 140, 120, 195),
-    "flower_patches": 14,
-}
+PATCHES = [
+    # Where the right-hand oak stood (run with --remove 505)
+    dict(area=(55, 158, 68, 172), shapes=[(61, 166, 6, 6)]),
+    # Out to the map's west edge and down to the river, more open than the
+    # middle
+    dict(area=(0, 136, 46, 235),
+         shapes=[(6, 166, 20, 31), (28, 203, 19, 16)],
+         density=0.7, spacing=1.45,
+         floor_spots=[(6, 158), (10, 182), (34, 192)],
+         flower_patches=8),
+]
+
+#: Rectangles x0, y0, x1, y1 nothing may go into, in any patch: roads, paths
+KEEP_OUT = [(70, 185, 300, 300)]
+
+#: Forest floor to copy: the grove's own, cut out of Ground_High_Plus before
+#: the forest was grown, as [dx, dy, gid] tiles
+FLOOR_STAMP = "build_tools/Forest_Builder/forest_floor_stamp.json"
+#: A region of Ground_Flowers_Mushrooms whose patches get scattered
+FLOWERS_SOURCE = (60, 140, 120, 195)
+
+PATCH_DEFAULTS = dict(clearings=[], density=1.0, spacing=1.0, oaks=0, floor_spots=[], flower_patches=0)
 
 #: Size range a tree is drawn at, around its sprite's own size
 SCALE_RANGE = (0.82, 1.18)
@@ -223,21 +246,30 @@ class Forest:
     def _ellipse(x, y, cx, cy, rx, ry) -> float:
         return 1 - ((x - cx) / rx) ** 2 - ((y - cy) / ry) ** 2
 
-    def depth(self, x: float, y: float) -> float:
-        """Above 0 inside the forest, and the larger the deeper in."""
+    def depth(self, patch: dict, x: float, y: float) -> float:
+        """Above 0 inside a patch, and the larger the deeper in."""
         p = self.phases
-        f = max(self._ellipse(x, y, *e) for e in FOREST["shapes"])
+        f = max(self._ellipse(x, y, *e) for e in patch["shapes"])
         f += (0.13 * math.sin(x * 0.31 + p[0]) + 0.11 * math.sin(y * 0.37 + p[1])
               + 0.09 * math.sin((x + y) * 0.23 + p[2]) + 0.07 * math.sin((x - y) * 0.53 + p[3])
               + 0.06 * math.sin(x * 0.71 + y * 0.19 + p[4]))
-        for clearing in FOREST["clearings"]:
+        for clearing in patch["clearings"]:
             if self._ellipse(x, y, *clearing) > -0.05:
                 return min(f, -0.2)
         return f
 
+    def near_water(self, x: int, y: int, reach: int = 1) -> bool:
+        water = self.game_map.water_tiles
+        return any((x + dx, y + dy) in water for dx in range(-reach, reach + 1) for dy in range(-reach, reach + 1))
+
+    @staticmethod
+    def _flipped(stamp, flip):
+        width = max(c[0] for c in stamp) + 1
+        return [(width - 1 - dx, dy, gid ^ FLIP_H) if flip else (dx, dy, gid) for dx, dy, gid in stamp]
+
     @staticmethod
     def kept_out(x: float, y: float) -> bool:
-        return any(x0 <= x < x1 and y0 <= y < y1 for x0, y0, x1, y1 in FOREST["keep_out"])
+        return any(x0 <= x < x1 and y0 <= y < y1 for x0, y0, x1, y1 in KEEP_OUT)
 
     # --- trees --------------------------------------------------------------
     def _existing_trees(self) -> List[dict]:
@@ -250,7 +282,7 @@ class Forest:
             if number not in SPRITES:
                 continue
             tree = dict(x=int(float(obj.get("x")) // ts), y=int(float(obj.get("y")) // ts),
-                        sprite=number, scale=float(props.get("Scale", 1.0)))
+                        sprite=number, scale=float(props.get("Scale", 1.0)), id=int(obj.get("id")))
             tree["cells"] = self.cells(tree)
             # Whichever layer holds its bottom-left preview tile
             dx, dy, gid = self.blocks[number][-1]
@@ -261,6 +293,32 @@ class Forest:
 
     def cells(self, tree: dict) -> set:
         return {(tree["x"] + dx, tree["y"] - 1 + dy) for dx, dy, _ in self.blocks[tree["sprite"]]}
+
+    def remove(self, ids: List[int]) -> None:
+        """Take trees out of the map, object and preview tiles both.
+
+        Args:
+            ids: Tiled object ids of the trees.
+        """
+        tmx, ts = self.tmx, self.ts
+        for tree_id in ids:
+            tree = next((t for t in self.placed if t.get("id") == tree_id), None)
+            if tree is None:
+                sys.exit(f"No tree with object id {tree_id}")
+            for dx, dy, gid in self.blocks[tree["sprite"]]:
+                spot = (tree["y"] - 1 + dy) * tmx.width + tree["x"] + dx
+                for name in tmx.layer_names:
+                    if tmx.layers[name][spot] & GID_MASK == gid:
+                        tmx.layers[name][spot] = 0
+                        break
+            tmx.text, found = re.subn(r'  <object id="' + str(tree_id) + r'" .*?</object>\n', "", tmx.text,
+                                      count=1, flags=re.S)
+            assert found == 1, tree_id
+            self.placed.remove(tree)
+            # Its stem must not keep blocking the ground it stood on
+            self.game_map.trees = [t for t in self.game_map.trees
+                                   if (int(t.x // ts), int(t.y // ts)) != (tree["x"], tree["y"])]
+            print(f"Removed tree {tree_id} (Tree_{tree['sprite']:02d} at tile {tree['x']}, {tree['y']})")
 
     def stem(self, tree: dict) -> Tuple[float, float]:
         return tree["x"] + SPRITES[tree["sprite"]][2] * tree["scale"], tree["y"]
@@ -291,18 +349,20 @@ class Forest:
                 return False
         return all(math.dist((stem_x * ts, y * ts), door.step) >= 4 * ts for door in self.game_map.doors)
 
-    def room_for(self, tree: dict, gap=None) -> bool:
+    def room_for(self, tree: dict, gap=None, spacing: float = 1.0) -> bool:
         stem = self.stem(tree)
         width = self.sizes[tree["sprite"]][0] / self.ts * tree["scale"]
         for other in self.placed + self.new:
             other_width = self.sizes[other["sprite"]][0] / self.ts * other["scale"]
-            needed = gap or max(MIN_STEM_GAP, GAP_SHARE * (width + other_width))
+            needed = gap or spacing * max(MIN_STEM_GAP, GAP_SHARE * (width + other_width))
             if math.dist(stem, self.stem(other)) < needed:
                 return False
         return True
 
-    def plant(self) -> None:
-        x0, y0, x1, y1 = FOREST["area"]
+    def plant(self, patch: dict) -> int:
+        """Plant one patch; returns how many trees it got."""
+        before = len(self.new)
+        x0, y0, x1, y1 = patch["area"]
         spots = [(x, y) for x in range(x0, x1) for y in range(y0, y1)]
         self.rng.shuffle(spots)
         rng = self.rng
@@ -310,17 +370,19 @@ class Forest:
         # A few broadleaves first, well apart, so the pines grow around them
         oaks = 0
         for x, y in spots:
-            if oaks >= FOREST["oaks"]:
+            if oaks >= patch["oaks"]:
                 break
             tree = dict(x=x, y=y, sprite=BROADLEAF, scale=round(rng.uniform(0.85, 1.0), 2))
-            if self.depth(x, y) >= 0.3 and self.ground_ok(x, y, BROADLEAF, tree["scale"]) and self.room_for(tree, 12):
+            if self.depth(patch, x, y) >= 0.3 and self.ground_ok(x, y, BROADLEAF, tree["scale"]) and self.room_for(tree, 12):
                 self.new.append(tree)
                 oaks += 1
 
         pines = [n for n in SPRITES if n != BROADLEAF]
         weights = [0.8 if n in YOUNG[:4] else 1.0 for n in pines]
         for x, y in spots:
-            f = self.depth(x, y)
+            f = self.depth(patch, x, y)
+            if rng.random() > patch["density"]:
+                continue
             if f <= 0:
                 if not (f > -0.25 and rng.random() < 0.05):  # a few strays outside
                     continue
@@ -331,10 +393,11 @@ class Forest:
                 sprite = rng.choice(YOUNG)
             scale = round(min(SCALE_RANGE[1], max(SCALE_RANGE[0], rng.gauss(1.0, SCALE_SPREAD))), 2)
             tree = dict(x=x, y=y, sprite=sprite, scale=scale)
-            if self.ground_ok(x, y, sprite, scale) and self.room_for(tree):
+            if self.ground_ok(x, y, sprite, scale) and self.room_for(tree, spacing=patch["spacing"]):
                 self.new.append(tree)
         for tree in self.new:
             tree["cells"] = self.cells(tree)
+        return len(self.new) - before
 
     # --- Tiled preview ------------------------------------------------------
     def stamp_previews(self) -> Tuple[int, int]:
@@ -427,14 +490,11 @@ class Forest:
         """
         tmx = self.tmx
         data = tmx.layers[layer]
-        width = max(c[0] for c in stamp) + 1
         cells = []
-        for dx, dy, gid in stamp:
-            if flip:
-                dx, gid = width - 1 - dx, gid ^ FLIP_H
+        for dx, dy, gid in self._flipped(stamp, flip):
             x, y = ox + dx, oy + dy
             free = (0 <= x < tmx.width and 0 <= y < tmx.height and not data[y * tmx.width + x]
-                    and not self.kept_out(x, y))
+                    and not self.kept_out(x, y) and not self.near_water(x, y))
             if not free and whole:
                 return
             if free:
@@ -442,17 +502,28 @@ class Forest:
         for x, y, gid in cells:
             data[y * tmx.width + x] = gid
 
-    def cover_ground(self) -> None:
-        blobs = sorted(self._blobs("Ground_High_Plus", FOREST["floor_source"]), key=len)
-        if blobs:
-            floor = blobs[-1]
-            w, h = max(c[0] for c in floor) + 1, max(c[1] for c in floor) + 1
-            for i, (cx, cy) in enumerate(FOREST["floor_spots"]):
-                self._stamp("Ground_High_Plus", floor, cx - w // 2, cy - h // 2, i % 2 == 0, whole=False)
-        patches = self._blobs("Ground_Flowers_Mushrooms", FOREST["flowers_source"])
-        x0, y0, x1, y1 = FOREST["area"]
-        inside = [(x, y) for x in range(x0, x1) for y in range(y0, y1) if self.depth(x, y) > 0.05]
-        for _ in range(FOREST["flower_patches"] if patches and inside else 0):
+    def cover_ground(self, patch: dict) -> None:
+        """Forest floor and flowers under one patch."""
+        with open(FLOOR_STAMP, encoding="utf-8") as f:
+            floor = [tuple(c) for c in json.load(f)["cells"]]
+        w, h = max(c[0] for c in floor) + 1, max(c[1] for c in floor) + 1
+        for i, (cx, cy) in enumerate(patch["floor_spots"]):
+            flip = i % 2 == 0
+            # A copy cut off by the river or a road shows a stepped edge, so
+            # nudge it until none of it runs into either
+            nudges = sorted(((dx, dy) for dx in range(-8, 9) for dy in range(-8, 9)), key=lambda d: math.hypot(*d))
+            for dx, dy in nudges:
+                ox, oy = cx - w // 2 + dx, cy - h // 2 + dy
+                if not any(self.kept_out(ox + fx, oy + fy) or self.near_water(ox + fx, oy + fy, 2)
+                           for fx, fy, _ in self._flipped(floor, flip)):
+                    self._stamp("Ground_High_Plus", floor, ox, oy, flip, whole=False)
+                    break
+            else:
+                print(f"No room for forest floor near {cx}, {cy}")
+        patches = self._blobs("Ground_Flowers_Mushrooms", FLOWERS_SOURCE)
+        x0, y0, x1, y1 = patch["area"]
+        inside = [(x, y) for x in range(x0, x1) for y in range(y0, y1) if self.depth(patch, x, y) > 0.05]
+        for _ in range(patch["flower_patches"] if patches and inside else 0):
             x, y = self.rng.choice(inside)
             self._stamp("Ground_Flowers_Mushrooms", self.rng.choice(patches), x, y,
                         self.rng.random() < 0.5, whole=True)
@@ -503,15 +574,22 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7, help="another seed, another forest")
     parser.add_argument("--preview", action="store_true",
                         help="only render the result to build_tools/output/forest/, leave the map alone")
+    parser.add_argument("--remove", type=int, nargs="+", default=[], metavar="ID",
+                        help="take out the trees with these Tiled object ids first")
+    parser.add_argument("--no-plant", action="store_true", help="skip PATCHES, e.g. to only --remove")
     args = parser.parse_args()
 
     tmx = Map(TMX)
     game_map = TMXMap(TMX)
     doors_before = len(game_map.doors)
     forest = Forest(tmx, game_map, args.seed)
-    forest.plant()
+    forest.remove(args.remove)
+    patches = [] if args.no_plant else [{**PATCH_DEFAULTS, **p} for p in PATCHES]
+    for i, patch in enumerate(patches):
+        print(f"Patch {i + 1}: {forest.plant(patch)} trees")
     dropped, wrong = forest.stamp_previews()
-    forest.cover_ground()
+    for patch in patches:
+        forest.cover_ground(patch)
 
     target = PREVIEW_TMX if args.preview else TMX
     tmx.save(target, forest.objects())
@@ -527,8 +605,10 @@ def main() -> None:
         print(f"WARNING: {doors_before - len(after.doors)} door(s) lost their step -- see above")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    x0, y0, x1, y1 = FOREST["area"]
-    render(target, OUTPUT_DIR, (max(0, x0 - 6), max(0, y0 - 8), x1 + 12, y1 + 8))
+    areas = [p["area"] for p in patches] or [(0, 0, tmx.width, tmx.height)]
+    x0, y0 = min(a[0] for a in areas), min(a[1] for a in areas)
+    x1, y1 = max(a[2] for a in areas), max(a[3] for a in areas)
+    render(target, OUTPUT_DIR, (max(0, x0 - 6), max(0, y0 - 8), min(tmx.width, x1 + 12), min(tmx.height, y1 + 8)))
     print(f"Pictures in {OUTPUT_DIR}/ (forest_game.png, forest_tiled.png)")
     if args.preview:
         os.remove(PREVIEW_TMX)
