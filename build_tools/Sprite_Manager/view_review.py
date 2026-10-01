@@ -4,15 +4,16 @@ import pygame
 
 import gemini_client
 import pose_review
-from create_new_pose import (
-    CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT,
-    STATUS_COLORS, TEXT_DIM, Button, Card, Detail, make_thumb, measure,
-)
-from images import fitted
+from answers import Detail, measure
+from images import fitted, make_thumb
 from npc import DEFAULT_BASE
 from sheets import SHEET_ERRORS, reference_shapes, write_sheets, write_standing_sheet
+from theme import (
+    CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT,
+    STATUS_COLORS, TEXT_DIM,
+)
 from view import View
-from widgets import CardGrid, Checker, draw_panel
+from widgets import Button, Card, CardGrid, Checker, draw_panel
 
 
 CAPTION_ON_CHECKER = (40, 40, 40)
@@ -24,7 +25,7 @@ def draw_result(screen, fonts, detail, area, checker, target_name):
     the result is drawn, so clicks can open up white gaps in it.
 
     Args:
-        detail: The create_new_pose.Detail of the answer.
+        detail: The answers.Detail of the answer.
         area: Where to draw.
         checker: A widgets.Checker for the backdrop.
         target_name: The file the result would be saved as, for the caption.
@@ -72,7 +73,7 @@ class ReviewView(View):
         for entry in app.store.sorted_entries():
             path = app.npc.out_dir / entry.image
             try:
-                thumb = make_thumb(path, RESULT_THUMB_SIZE, trim=False)
+                thumb = make_thumb(path, RESULT_THUMB_SIZE, trimmed=False)
             except (pygame.error, OSError):
                 continue
             measure(path, entry, app.store)

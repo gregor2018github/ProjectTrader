@@ -2,9 +2,9 @@
 
 from collections import namedtuple
 
-from create_new_NPC import CATEGORIES, OTHER, read_profile
-from create_new_pose import OUTPUT_DIR, PLAYER_DIR, Npc
+from figures import CATEGORIES, OTHER, player_folder, read_profile
 from images import crop_alike, load_frame, mirrored
+from theme import OUTPUT_DIR, PLAYER_DIR
 from walk import (
     DIRECTIONS_OF, NPC_DIRECTION_KEYS, NPC_MOTIONS, PLAYER_MOTIONS, STANDING_DIRECTIONS, find_direction,
     game_mirror_source,
@@ -33,7 +33,7 @@ class WalkNpc:
     def __init__(self, npc):
         """
         Args:
-            npc: A create_new_pose.Npc (a folder with a front standing sprite).
+            npc: A figures.FigureFolder with a front standing sprite.
         """
         self.is_player = npc.folder == PLAYER_DIR
         self.motions = PLAYER_MOTIONS if self.is_player else NPC_MOTIONS
@@ -42,7 +42,7 @@ class WalkNpc:
         self.prefix = npc.prefix
         self.base_path = npc.base_path
         first = self.name.split('_', 1)[0]
-        # The groups of create_new_NPC.py: 'trader', 'poor', ..., or 'other'
+        # The groups of figures.CATEGORIES: 'trader', 'poor', ..., or 'other'
         if self.is_player:
             self.category = PLAYER_CATEGORY
         else:
@@ -60,7 +60,7 @@ class WalkNpc:
 
     @property
     def label(self):
-        """Card label, as in create_new_NPC.py: the folder for traders, the name for townsfolk."""
+        """Card label: the folder for traders, the name for townsfolk."""
         if self.is_player:
             return 'Player'
         return self.display_name if self.is_townsperson else self.name
@@ -171,4 +171,4 @@ class WalkNpc:
 
 def player():
     """The player, as a WalkNpc."""
-    return WalkNpc(Npc(PLAYER_DIR, 'front_static', 'player'))
+    return WalkNpc(player_folder())

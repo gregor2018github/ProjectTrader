@@ -1,8 +1,7 @@
 """New people: their folder, and the first sprite everything else is made from.
 
-A person is added with create_new_NPC.py's dialog and folder layout, so both
-tools make the same folders. Until they have a front standing sprite they are
-a NewFigure: the split image the model draws them on is the player's front
+A person is added with new_npc_dialog.py and figures.create_npc_folder().
+Until they have a front standing sprite they are a NewFigure: the split image the model draws them on is the player's front
 sprite beside an empty cell (as sprite_prompts/blanco_human.jpg), and the
 prompt comes from description.txt in their output folder, which says who
 they are and how they look.
@@ -15,12 +14,14 @@ from pathlib import Path
 
 import pygame
 
-import create_new_NPC
-from create_new_NPC import CATEGORIES, GENDERS, OTHER, TRADER_CATEGORY, NewNpcDialog
-from create_new_pose import OUTPUT_DIR, PLAYER_DIR
+from figures import (
+    CATEGORIES, GENDERS, OTHER, TRADER_CATEGORY, create_npc_folder, find_figure_folders, taken_names,
+)
 from images import scaled, trim
 from medieval_names import NAMES
+from new_npc_dialog import NewNpcDialog
 from sheets import FRAME_COLOR, FRAME_WIDTH, MARGIN_RATIO, MIN_MARGIN
+from theme import OUTPUT_DIR, PLAYER_DIR
 
 FIRST_FOLDER = 'first_sprite'
 DESCRIPTION_FILE = 'description.txt'
@@ -63,7 +64,7 @@ class NewFigure:
     def __init__(self, npc):
         """
         Args:
-            npc: A create_new_NPC.Npc.
+            npc: A figures.FigureFolder.
         """
         self.folder = npc.folder
         self.name = npc.name
@@ -112,7 +113,7 @@ def name_usage():
     Returns:
         ({gender: (used, in the pool)}, [typed names not from the pool]).
     """
-    townsfolk = [n for n in create_new_NPC.find_npcs() if n.is_townsperson]
+    townsfolk = [n for n in find_figure_folders() if n.is_townsperson]
     used = {n.display_name.lower() for n in townsfolk}
     usage = {gender: (sum(name.lower() in used for name in names), len(names))
              for gender, names in NAMES.items()}
@@ -123,7 +124,7 @@ def name_usage():
 
 def find_new_figures():
     """Every NPC folder without a front standing sprite, as a NewFigure."""
-    return [NewFigure(n) for n in create_new_NPC.find_npcs()
+    return [NewFigure(n) for n in find_figure_folders()
             if n.category != OTHER[0] and not NewFigure(n).sprite_path(FIRST_POSE).is_file()]
 
 
@@ -235,7 +236,7 @@ def open_in_editor(path):
 # ---------------------------------------------------------------------------
 
 class AddFigureDialog:
-    """create_new_NPC's NewNpcDialog, in the Sprite Manager's dialog protocol."""
+    """NewNpcDialog, in the Sprite Manager's dialog protocol."""
 
     def __init__(self, category, title, fonts, on_created):
         """
@@ -246,7 +247,7 @@ class AddFigureDialog:
             on_created: Called with the new folder once it is made.
         """
         is_trader = category == TRADER_CATEGORY
-        taken = create_new_NPC.taken_names(create_new_NPC.find_npcs(), is_trader)
+        taken = taken_names(find_figure_folders(), is_trader)
         heading = f'New trader: {title}' if is_trader else f'New NPC: {title}'
         self.dialog = NewNpcDialog(category, heading, taken, tuple(fonts))
         self.on_created = on_created
@@ -280,7 +281,7 @@ class AddFigureDialog:
             if error:
                 self.dialog.error = error
                 return None
-            folder = create_new_NPC.create_npc_folder(
+            folder = create_npc_folder(
                 self.dialog.category, self.dialog.name, self.dialog.gender)
             pygame.key.stop_text_input()
             self.on_created(folder)

@@ -2,12 +2,10 @@
 
 import pygame
 
-from create_new_pose import (
-    DIALOG_PAD, DONE_COLOR, TEXT, TEXT_DIM, Button, Card, draw_chips, window_size,
-)
 from images import fitted, is_blank, load_frame, trim
+from theme import DIALOG_PAD, DONE_COLOR, TEXT, TEXT_DIM, window_size
 from walk import STANDING_DIRECTIONS, find_direction, standing_pose, suggested_sources
-from widgets import CardGrid, draw_dialog_box
+from widgets import Button, Card, CardGrid, draw_chips, draw_dialog_box
 
 PICK_CARD_SIZE = (116, 178)
 PICK_THUMB_SIZE = (100, 130)

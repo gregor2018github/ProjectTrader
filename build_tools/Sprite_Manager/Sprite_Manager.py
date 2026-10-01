@@ -13,17 +13,20 @@ Run from anywhere:
 
 The window can be resized or maximised; F11 switches to full screen.
 
-1. Pick the NPC or the player, grouped as in create_new_NPC.py. Each card
+1. Pick the NPC or the player, in their groups (traders, poor, commons,
+   middling sort, nobility; see figures.py). Each card
    shows how many walk (and run) frames and standing sprites there are; the
    overview above adds them up over everyone and shows how much of the name
    pool in medieval_names.py the townsfolk have used (a name only once).
-   "+" at the end of a group adds a person, with create_new_NPC.py's dialog
-   and folder layout. Someone without a front standing sprite yet opens on
+   "+" at the end of a group adds a person: woman or man and a name (typed,
+   or rolled from medieval_names.py), or for a trader his trade. Someone without a front standing sprite yet opens on
    "First sprite": describe them in description.txt ("Edit description"; the
    prompt follows the file as it is saved), send the split image - the
    player's front sprite beside an empty cell - to Gemini like any sheet,
    and accept an answer. It is scaled like the player, saved as
    <name>_front_static.png, and the person goes on to his walk frames.
+   "Redo first sprite" (F) on the frames screen opens the same screen for
+   someone who has a front sprite already; accepting replaces it.
 2. Pick a direction on the left. Its sheets are rebuilt from the base files
    every time a direction or a frame is clicked, so edits to the chibi or
    ghost strips show up straight away. The box under the directions plays
@@ -42,7 +45,8 @@ The window can be resized or maximised; F11 switches to full screen.
      "Open image" (Ctrl+O);
    - or through the API: "Send to Gemini" for this frame, or "Send missing"
      in the footer for every frame of the direction that is not done yet.
-     "Settings" (S) chooses the model and size, as in create_new_pose.py.
+     "Settings" (S) chooses the model, aspect ratio, image size and how many
+     answers to ask for per sheet.
 4. Every answer opens for review: the image next to the frame it would
    become. "Accept" (Enter) saves the frame into the game, "Not good enough"
    (Del) keeps it on disk for later. "Review" (R) lists every answer.
@@ -97,20 +101,26 @@ The code, for whoever works on it next:
     view_review.py     screens 3 and 4, all answers and one answer
     view_first.py      screen 2 for a new person: his first sprite
     new_figure.py      adding a person; his split image, description and prompt
+    new_npc_dialog.py  the dialog asking for a new person's gender and name, or trade
     frame_picker.py    the dialog making a frame from another frame
-    widgets.py         panels, card grid, notices, the goal comparison
+    settings_dialog.py the dialog choosing the image model and size
+    theme.py           paths, colours, sizes and the window
+    widgets.py         buttons, cards, panels, card grid, notices, the goal comparison
     walk.py            motions, directions, frame names, mirror relations (no pygame)
+    figures.py         the sprite folders, their groups and npc.json; making a new one
     npc.py             an NPC's or the player's folder: sprites and output
+    medieval_names.py  the pool of townsfolk names
     chibi.py           the base chibi strips and ghosts
     sheets.py          the 2x2 sheets and prompts
+    gemini_client.py   the Gemini API: key, models, settings, one request
+    gemini_worker.py   requests sent in a background thread
     answers.py         answers from the web view and the API into review.json
+    pose_review.py     review.json, and accepting an answer into the game
+    extraction.py      cutting the sprite out of an answer and scaling it
     gif_export.py      animations as GIF files
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard
-
-Buttons, cards, the settings dialog, the Gemini worker and the answer
-review are shared with create_new_pose.py and pose_review.py next door.
 """
 
 import os
@@ -119,27 +129,28 @@ from pathlib import Path
 
 import pygame
 
-HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent))
-sys.path.insert(0, str(HERE))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gemini_client  # noqa: E402
 from answers import record_answer  # noqa: E402
 from chibi import strip_length  # noqa: E402
-from create_new_pose import (  # noqa: E402
-    BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
-    PANEL_GAP, ROOT, TEXT, TEXT_DIM, Button, GeminiWorker, SettingsDialog, find_npcs,
-    find_player_poses, fit_text, make_thumb, open_window, toggle_fullscreen, window_size,
-)
+from figures import FigureFolder, find_figure_folders, find_player_poses  # noqa: E402
 from gemini_client import Settings  # noqa: E402
-from new_figure import AddFigureDialog, find_new_figures  # noqa: E402
+from gemini_worker import GeminiWorker  # noqa: E402
+from images import make_thumb  # noqa: E402
+from new_figure import AddFigureDialog, NewFigure, find_new_figures  # noqa: E402
 from npc import WalkNpc, player  # noqa: E402
 from pose_review import ReviewStore, load_player_shapes  # noqa: E402
+from settings_dialog import SettingsDialog  # noqa: E402
+from theme import (  # noqa: E402
+    BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
+    PANEL_GAP, ROOT, TEXT, TEXT_DIM, open_window, toggle_fullscreen, window_size,
+)
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
 from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION  # noqa: E402
-from widgets import PANEL_TITLE, Fonts, Toast  # noqa: E402
+from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text  # noqa: E402
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 FPS = 30
@@ -192,7 +203,7 @@ class SpriteManager:
 
     def reload_npcs(self):
         """Read the sprite folders again, after a person was added or got his first sprite."""
-        self.npcs = [player()] + [WalkNpc(n) for n in find_npcs()]
+        self.npcs = [player()] + [WalkNpc(f) for f in find_figure_folders() if f.has_front()]
         self.new_figures = find_new_figures()
         for npc in self.npcs:
             if npc.name not in self.npc_thumbs:
@@ -226,8 +237,20 @@ class SpriteManager:
         self.frames = FramesView(self, npc.direction_like(self.last_direction))
         self.show(self.frames)
 
+    def redo_first_sprite(self):
+        """Make the front standing sprite of the figure being worked on anew; back returns to his frames."""
+        npc = self.npc
+        if npc.is_player:
+            return
+        figure = NewFigure(FigureFolder(npc.folder))
+        self.npc = figure
+        self.store = ReviewStore(figure.out_dir)
+        self.frames = self.worker = None
+        self.set_status('')
+        self.show(FirstSpriteView(self, return_to=npc))
+
     def open_add_dialog(self, category, title):
-        """Add a person to a group, as create_new_NPC.py does."""
+        """Add a person to a group."""
         self.dialog = AddFigureDialog(category, title, self.fonts, self.figure_created)
 
     def figure_created(self, folder):
@@ -238,7 +261,8 @@ class SpriteManager:
         self.set_status(f'Created {folder.relative_to(ROOT)}{note}')
 
     def first_sprite_saved(self, folder):
-        """A new person has his front standing sprite: on to his other sprites."""
+        """A person has a new front standing sprite: on to his other sprites."""
+        self.npc_thumbs.pop(folder.name, None)  # it shows the front sprite, which may have changed
         self.reload_npcs()
         self.open_npc(next(n for n in self.npcs if n.folder == folder))
 
@@ -277,7 +301,7 @@ class SpriteManager:
             self.set_status(f'Gemini: {gemini_client.SDK_ERROR}', error=True)
             return
         jobs = [(s.pose, s.path, s.prompt) for s in sheets for _ in range(self.settings.tries)]
-        self.worker = GeminiWorker(self.npc, jobs, '', self.settings, record_answer(self.npc, self.store))
+        self.worker = GeminiWorker(self.npc, jobs, self.settings, record_answer(self.npc, self.store))
         self.set_status(self.worker.status())
 
     def poll_worker(self):

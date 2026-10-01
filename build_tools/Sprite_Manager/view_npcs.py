@@ -1,23 +1,22 @@
-"""Screen 1: the player and every NPC, grouped as in create_new_NPC.py, with how far their sprites are."""
+"""Screen 1: the player and every NPC, in their groups, with how far their sprites are."""
 
 import pygame
 
 import pose_review
-from create_new_NPC import CATEGORIES, OTHER, TRADER_CATEGORY
-from create_new_pose import (
-    BAR_BG, CARD_BG, DONE_COLOR, NPC_THUMB_SIZE, PANEL_GAP, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, Card,
-    fit_text,
-)
+from figures import CATEGORIES, OTHER, TRADER_CATEGORY
 from new_figure import name_usage
 from npc import PLAYER_CATEGORY
 from pose_review import ReviewStore
+from theme import (
+    BAR_BG, CARD_BG, DONE_COLOR, NPC_THUMB_SIZE, PANEL_GAP, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG,
+)
 from view import View
 from walk import DIRECTIONS, NPC_DIRECTION_KEYS, STANDING_DIRECTIONS
-from widgets import BAR_STEP, SectionGrid, draw_panel, progress_color
+from widgets import BAR_STEP, Card, SectionGrid, draw_panel, fit_text, progress_color
 
-# create_new_pose's NPC card, taller for a line and a bar per motion and the standing sprites
+# An NPC's card, with a line and a bar per motion and the standing sprites
 CARD_W = 172
-CARD_BASE_H = 244        # with one line and one bar, as in create_new_pose.py
+CARD_BASE_H = 244        # with one line and one bar
 LINE_H = 18
 SECTIONS = ((PLAYER_CATEGORY, 'Main character'),) + tuple(
     (key, title) for key, title, _ in CATEGORIES + (OTHER,))
@@ -104,7 +103,7 @@ class NpcListView(View):
         totals[1] += needed
 
     def refresh(self):
-        """A section for the player, then one per group of create_new_NPC.py, each with a "+" card."""
+        """A section for the player, then one per group of figures.CATEGORIES, each with a "+" card."""
         app = self.app
         self.totals = {}
         self.names = name_usage()

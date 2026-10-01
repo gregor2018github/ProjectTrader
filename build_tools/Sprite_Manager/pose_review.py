@@ -1,26 +1,29 @@
-"""Bookkeeping for the images Gemini returns, and the way into the game.
+"""Bookkeeping for the images the model returns, and the way into the game.
 
-create_new_pose.py sends a sheet to the image model and writes the answer to
-build_tools/output/<npc>/. Every answer is listed in a review.json next to
-it, so an answer that is not good enough yet can be left alone and looked at
-again in a later run instead of being lost.
+Every answer, from the API or pasted from the web view, is written to the
+figure's output folder and listed in a review.json next to it, so an answer
+that is not good enough yet can be left alone and looked at again in a later
+run instead of being lost.
 
     pending   - answered, waiting to be judged
     accepted  - turned into the real sprite in assets/.../npcs/<npc>/
     rejected  - kept on disk, marked as not good enough
 
-Accepting runs the same conversion as create_new_NPC.py (find the cells, cut
-the sprite out of its white background, scale it like the player reference),
-so a confirmed answer lands in the game as a finished transparent PNG.
+Accepting runs extraction.py (find the cells, cut the sprite out of its white
+background, scale it like the reference), so a confirmed answer lands in the
+game as a finished transparent PNG.
 """
 
 from __future__ import annotations
 
 import json
-import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+
+import pygame
+
+from extraction import Result, shape_mask
 
 REVIEW_FILE = 'review.json'
 
@@ -165,29 +168,19 @@ class ReviewStore:
 
 
 # ---------------------------------------------------------------------------
-# From a returned image to a real sprite (shared with create_new_NPC.py)
+# From a returned image to a real sprite
 # ---------------------------------------------------------------------------
-
-def _import_tool():
-    """The import tool's module, imported late to avoid a circular import."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    import create_new_NPC  # noqa: PLC0415 - create_new_NPC imports create_new_pose
-    return create_new_NPC
-
 
 def load_player_shapes(player_poses: dict) -> dict:
     """{pose: mask} of the player sprites, used to recognise the reference pose.
 
-    Needs a pygame display, like every sprite load in these tools.
+    Needs a pygame display, like every sprite load in the tool.
     """
-    import pygame  # noqa: PLC0415 - only needed together with the tool's window
-
-    tool = _import_tool()
     shapes = {}
     for pose, path in player_poses.items():
         sprite = pygame.image.load(str(path)).convert_alpha()
         mask = pygame.mask.from_surface(sprite)
-        shapes[pose] = tool.shape_mask(mask, sprite.get_bounding_rect())
+        shapes[pose] = shape_mask(mask, sprite.get_bounding_rect())
     return shapes
 
 
@@ -204,14 +197,14 @@ def build_sprite(image_path: Path, pose: str, player_poses: dict, player_shapes:
             first sprite is drawn on.
 
     Returns:
-        A create_new_NPC.Result, holding the finished sprite in .output.
+        An extraction.Result, holding the finished sprite in .output.
 
     Raises:
         ValueError, pygame.error: If the cells or the sprite cannot be found.
     """
     # The layout is known from the sheet that was sent, so the extraction does
     # not have to guess - which it gets wrong when the model drew no lines.
-    result = _import_tool().Result(image_path, player_poses, player_shapes, layout=layout)
+    result = Result(image_path, player_poses, player_shapes, layout=layout)
     if pose in player_poses and result.pose != pose:
         result.set_pose(pose)
     return result
@@ -222,14 +215,12 @@ def save_sprite(result, npc, pose: str) -> Path:
 
     Args:
         result: The Result from build_sprite().
-        npc: The create_new_pose.Npc it belongs to.
+        npc: The figure it belongs to (anything with sprite_path()).
         pose: The pose the sprite shows.
 
     Returns:
         The path written.
     """
-    import pygame  # noqa: PLC0415 - only needed together with the tool's window
-
     path = npc.sprite_path(pose)
     path.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(result.output, str(path))

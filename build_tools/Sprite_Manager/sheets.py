@@ -17,12 +17,12 @@ from pathlib import Path
 import pygame
 
 import chibi
-from create_new_NPC import shape_mask
+from extraction import shape_mask
 from images import scaled, trim
 from npc import BASE_POSES, DEFAULT_BASE
 from walk import Direction, standing_pose
 
-# Sheet appearance (same look as create_new_pose.py)
+# Sheet appearance
 MARGIN_RATIO = 0.06
 MIN_MARGIN = 16
 FRAME_WIDTH = 4
@@ -227,7 +227,7 @@ def write_standing_sheet(npc, direction):
 
 
 def reference_shapes(npc, pose, base):
-    """({pose: path}, {pose: mask}) that make create_new_NPC's extraction scale
+    """({pose: path}, {pose: mask}) that make extraction.py scale
     the answer like the NPC's own standing sprite instead of the player."""
     path = npc.sprite_path(base)
     sprite = pygame.image.load(str(path)).convert_alpha()

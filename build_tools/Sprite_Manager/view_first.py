@@ -1,5 +1,8 @@
 """Screen 2 for a new person: making the front standing sprite everything else starts from.
 
+It also redoes the front sprite of someone who has one ("Redo first sprite"
+on the frames screen); accepting an answer then replaces it.
+
 Left the split image and the description it is sent with, in the middle the
 answers, right the chosen answer as it would be saved, beside the player.
 """
@@ -11,18 +14,17 @@ import pygame
 import gemini_client
 import pose_review
 import win_clipboard
-from answers import AnswerError, clipboard_answer, store_web_answer
-from create_new_NPC import ask_open_file
-from create_new_pose import (
-    CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT,
-    STATUS_COLORS, TEXT, TEXT_DIM, Button, Card, Detail, fit_text, make_thumb, measure,
-)
+from answers import AnswerError, Detail, ask_open_file, clipboard_answer, measure, store_web_answer
 from gimp import FileWatcher
-from images import fitted
+from images import fitted, make_thumb
 from new_figure import FIRST_POSE, open_in_editor, write_first_sheet
+from theme import (
+    CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT,
+    STATUS_COLORS, TEXT, TEXT_DIM,
+)
 from view import View
 from view_review import draw_result
-from widgets import CardGrid, Checker, draw_panel
+from widgets import Button, Card, CardGrid, Checker, draw_panel, fit_text
 
 SHEET_SHARE = 0.32       # of the body, for the split image and its buttons
 RESULT_SHARE = 0.34      # of the body, for the chosen answer
@@ -32,8 +34,14 @@ LINE_H = 19
 
 
 class FirstSpriteView(View):
-    def __init__(self, app):
+    def __init__(self, app, return_to=None):
+        """
+        Args:
+            return_to: The WalkNpc whose front sprite is redone, whose frames
+                Back returns to; None for a new person.
+        """
         super().__init__(app)
+        self.return_to = return_to
         self.figure = app.npc
         self.store = app.store
         self.sheet = None
@@ -85,7 +93,7 @@ class FirstSpriteView(View):
         for entry in self.store.sorted_entries():
             path = self.figure.out_dir / entry.image
             try:
-                thumb = make_thumb(path, RESULT_THUMB_SIZE, trim=False)
+                thumb = make_thumb(path, RESULT_THUMB_SIZE, trimmed=False)
             except (pygame.error, OSError):
                 continue
             measure(path, entry, self.store)
@@ -200,7 +208,10 @@ class FirstSpriteView(View):
             return
         self.store.set_status(self.entry, pose_review.ACCEPTED)
         self.app.first_sprite_saved(self.figure.folder)
-        self.app.set_status(f'Saved {path.relative_to(ROOT)} - now the other directions')
+        if self.return_to:
+            self.app.set_status(f'Replaced {path.relative_to(ROOT)}')
+        else:
+            self.app.set_status(f'Saved {path.relative_to(ROOT)} - now the other directions')
 
     def reject(self):
         """Mark the answer as not good enough, or put it back to pending."""
@@ -220,7 +231,8 @@ class FirstSpriteView(View):
     # --- view -------------------------------------------------------------
 
     def header(self):
-        return (f'2. First sprite for "{self.figure.name}"',
+        title = 'Redo the front sprite' if self.return_to else 'First sprite'
+        return (f'2. {title} for "{self.figure.name}"',
                 'Describe them, then Ctrl+C / Ctrl+Shift+C for the web view or Send to Gemini. '
                 'Ctrl+V or drop a file = answer, Enter = accept, Del = not good enough.')
 
@@ -231,6 +243,7 @@ class FirstSpriteView(View):
 
     def update_footer(self):
         self.accept_button.enabled = bool(self.detail and self.detail.result)
+        self.accept_button.label = 'Replace' if self.return_to else 'Accept'
         self.reject_button.enabled = bool(self.entry)
         self.reject_button.label = ('Back to pending' if self.entry and self.entry.status != pose_review.PENDING
                                     else 'Not good enough')
@@ -350,5 +363,8 @@ class FirstSpriteView(View):
         self.grid.scroll_by(steps)
 
     def back(self):
-        self.app.close_npc()
+        if self.return_to:
+            self.app.open_npc(self.return_to)
+        else:
+            self.app.close_npc()
         return True

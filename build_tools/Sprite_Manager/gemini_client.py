@@ -1,6 +1,6 @@
 """Send reference sheets to Gemini and get the finished sheet back.
 
-Used by create_new_pose.py, which builds the 2x2 sheets and the prompt and
+Used by the Sprite Manager, which builds the sheets and the prompts and
 then lets the image model fill in the empty cell.
 
 The API key is looked for in this order:
@@ -39,7 +39,7 @@ except ImportError as exc:  # the tool stays usable without the SDK installed
     genai = errors = types = None
     SDK_ERROR = f'{exc} - run: pip install google-genai'
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 ENV_FILE = ROOT / '.env'
 ENV_KEY = 'GEMINI_API_KEY'
 ENV_KEY_FILE = 'GEMINI_API_KEY_FILE'  # path to a file holding nothing but the key
@@ -51,7 +51,7 @@ ENV_EXTRA_MODELS = 'GEMINI_IMAGE_MODELS'  # comma separated, added to the list b
 # so the key cannot be committed by accident.
 KEY_FILE_NAME = 'GEMINI_API_KEY.txt'
 
-SETTINGS_FILE = Path(__file__).resolve().parent / 'output' / 'pose_settings.json'
+SETTINGS_FILE = ROOT / 'build_tools' / 'output' / 'pose_settings.json'
 
 # Image models offered in the tool: (model id, what it is good for). The
 # preview builds of these are left out on purpose; "Fetch models" in the

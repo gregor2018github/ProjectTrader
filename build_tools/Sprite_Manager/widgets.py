@@ -1,26 +1,23 @@
-"""Drawing pieces shared by the views: panels, card grids, notices.
-
-Buttons, cards and colours come from create_new_pose.py, so both tools
-look alike.
-"""
+"""Drawing pieces shared by the views: buttons, cards, panels, card grids, notices."""
 
 from collections import namedtuple
 
 import pygame
 
 import pose_review
-from create_new_pose import (
-    BAR_BG, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SELECTED, DIALOG_BG, DIALOG_LINE, DONE_COLOR,
-    ERROR_COLOR, SHADE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, checkerboard, fit_text, window_size,
-)
 from images import smooth_fit, trim
+from theme import (
+    BAR_BG, BUTTON_BG, BUTTON_DISABLED, BUTTON_HOVER, CARD_BG, CARD_GAP, CARD_HOVER, CARD_SELECTED,
+    CARD_SIZE, CHECKER_SIZE, CHIP_BG, CHIP_GAP, CHIP_HEIGHT, CHIP_HOVER, CHIP_ON, DIALOG_BG, DIALOG_LINE,
+    DONE_COLOR, ERROR_COLOR, SHADE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, window_size,
+)
 
 Fonts = namedtuple('Fonts', 'font small title')
 
 SCROLL_STEP = 60         # pixels per mouse wheel step
 PANEL_TITLE = 22         # room above a panel for its title
 BAR_STEP = 9             # from one progress bar of a card to the next
-SECTION_HEADER = 42      # a section's title line in a SectionGrid, as in create_new_NPC.py
+SECTION_HEADER = 42      # a section's title line in a SectionGrid
 
 # The notice in the middle of the window after something was done
 TOAST_HOLD_MS = 700      # fully visible for this long
@@ -33,6 +30,88 @@ TOAST_LINE = (110, 190, 120)
 COMPARE_TILES = ('Goal', 'Accepted', 'Both')
 COMPARE_PAD = 12
 COMPARE_OVERLAY_ALPHA = 150
+
+
+def fit_text(font, text, width):
+    """Shorten a label with an ellipsis until it fits into `width` pixels."""
+    if font.size(text)[0] <= width:
+        return text
+    while text and font.size(text + '...')[0] > width:
+        text = text[:-1]
+    return text + '...'
+
+
+def checkerboard(size):
+    board = pygame.Surface(size)
+    colors = ((200, 200, 200), (170, 170, 170))
+    for y in range(0, size[1], CHECKER_SIZE):
+        for x in range(0, size[0], CHECKER_SIZE):
+            board.fill(colors[(x // CHECKER_SIZE + y // CHECKER_SIZE) % 2],
+                       (x, y, CHECKER_SIZE, CHECKER_SIZE))
+    return board
+
+
+class Card:
+    def __init__(self, key, label, thumb, note='', note_color=None, extra=(),
+                 progress=None, size=CARD_SIZE):
+        self.key = key
+        self.label = label
+        self.thumb = thumb
+        self.note = note
+        self.note_color = note_color
+        self.extra = list(extra)   # further (text, colour) lines under the note
+        self.progress = progress   # 0..1, or several, drawn as bars along the card's foot
+        self.rect = pygame.Rect((0, 0), size)
+
+    def lines(self):
+        """The (text, colour) lines under the label, empty ones dropped."""
+        rows = [(self.note, self.note_color or TEXT_DIM)] + self.extra
+        return [(text, color or TEXT_DIM) for text, color in rows if text]
+
+
+class Button:
+    def __init__(self, label, x=0, y=0, w=170, h=44):
+        self.label = label
+        self.rect = pygame.Rect(x, y, w, h)
+        self.enabled = True
+
+    def draw(self, screen, font, mouse):
+        if not self.enabled:
+            color = BUTTON_DISABLED
+        elif self.rect.collidepoint(mouse):
+            color = BUTTON_HOVER
+        else:
+            color = BUTTON_BG
+        pygame.draw.rect(screen, color, self.rect, border_radius=6)
+        text = font.render(self.label, True, TEXT if self.enabled else TEXT_DIM)
+        screen.blit(text, text.get_rect(center=self.rect.center))
+
+    def hit(self, pos):
+        return self.enabled and self.rect.collidepoint(pos)
+
+
+def draw_chips(screen, font, values, labels, chosen, x, y, width, mouse):
+    """Draw one row of little choice buttons; returns ([(rect, value)], bottom)."""
+    chips = []
+    cx, cy = x, y
+    for value in values:
+        label = labels(value)
+        w = font.size(label)[0] + 22
+        if cx > x and cx + w > x + width:
+            cx, cy = x, cy + CHIP_HEIGHT + CHIP_GAP
+        rect = pygame.Rect(cx, cy, w, CHIP_HEIGHT)
+        if value == chosen:
+            color = CHIP_ON
+        elif rect.collidepoint(mouse):
+            color = CHIP_HOVER
+        else:
+            color = CHIP_BG
+        pygame.draw.rect(screen, color, rect, border_radius=6)
+        text = font.render(label, True, TEXT)
+        screen.blit(text, text.get_rect(center=rect.center))
+        chips.append((rect, value))
+        cx += w + CHIP_GAP
+    return chips, cy + CHIP_HEIGHT
 
 
 def progress_color(share):
@@ -63,7 +142,7 @@ def draw_dialog_box(screen, rect):
 
 
 def draw_card(screen, fonts, card, mouse, selected=False):
-    """A create_new_pose.Card: thumb, label, note lines and progress bar."""
+    """A Card: thumb, label, note lines and progress bars."""
     if selected:
         color = CARD_SELECTED
     elif card.rect.collidepoint(mouse):

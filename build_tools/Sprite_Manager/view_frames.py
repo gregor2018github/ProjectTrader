@@ -12,21 +12,20 @@ import pygame
 import gemini_client
 import pose_review
 import win_clipboard
-from answers import AnswerError, clipboard_answer, store_web_answer
+from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from chibi import ghost_path
-from create_new_NPC import ask_open_file
-from create_new_pose import (
-    BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS,
-    TEXT, TEXT_DIM, Button, Card, draw_chips, fit_text,
-)
 from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
 from sheets import SHEET_ERRORS, can_make_standing, write_sheets, write_standing_sheet
+from theme import (
+    BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS, TEXT,
+    TEXT_DIM,
+)
 from view import View
 from walk import find_direction, is_optional, partner_of, standing_pose
-from widgets import PANEL_TITLE, CardGrid, Checker, Comparison, draw_panel
+from widgets import PANEL_TITLE, Button, Card, CardGrid, Checker, Comparison, draw_chips, draw_panel, fit_text
 
 # Layout
 DIR_PANEL_W = 230
@@ -68,7 +67,8 @@ class FramesView(View):
 
         # Footer
         self.review_button = Button('Review', w=140)
-        self.mirror_all_button = Button('Mirror missing', w=330)
+        self.mirror_all_button = Button('Mirror missing', w=290)
+        self.redo_first_button = Button('Redo first sprite', w=180)
         self.missing_button = Button('Send missing', w=220)
         # Sheet panel, in rows of two
         self.copy_image_button = Button('Copy image', h=BUTTON_H)
@@ -87,6 +87,7 @@ class FramesView(View):
         self.actions = ((self.review_button, app.open_review),
                         (self.missing_button, self.send_missing),
                         (self.mirror_all_button, self.mirror_missing),
+                        (self.redo_first_button, app.redo_first_sprite),
                         (self.from_frame_button, self.open_picker),
                         (self.gimp_button, self.edit_in_gimp),
                         (self.copy_image_button, self.copy_image),
@@ -468,8 +469,9 @@ class FramesView(View):
     def footer(self):
         app = self.app
         mirror = (self.mirror_all_button,) if self.partner() else ()
+        redo = () if self.npc.is_player else (self.redo_first_button,)
         return ((app.back_button, app.folder_button, self.review_button) + mirror,
-                (app.settings_button, self.missing_button))
+                redo + (app.settings_button, self.missing_button))
 
     def update_footer(self):
         app = self.app
@@ -620,6 +622,8 @@ class FramesView(View):
         for button, action in self.actions:
             if button is self.mirror_all_button and not self.partner():
                 continue  # not shown in this direction
+            if button is self.redo_first_button and self.npc.is_player:
+                continue  # the player is the reference everyone is drawn against
             if button.hit(pos):
                 action()
                 return
@@ -664,6 +668,8 @@ class FramesView(View):
             self.open_picker()
         elif event.key == pygame.K_g:
             self.edit_in_gimp()
+        elif event.key == pygame.K_f and not self.npc.is_player:
+            self.app.redo_first_sprite()
 
     def scroll_by(self, steps):
         self.grid.scroll_by(steps)

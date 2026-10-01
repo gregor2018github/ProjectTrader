@@ -2,7 +2,7 @@
 
 import pygame
 
-from create_new_pose import THUMB_BG
+from theme import THUMB_BG
 
 
 def trim(surface):
@@ -39,6 +39,16 @@ def fitted(surface, size, background=THUMB_BG):
     tile.fill(background)
     tile.blit(image, image.get_rect(center=tile.get_rect().center))
     return tile
+
+
+def make_thumb(path, size, trimmed=True):
+    """A sprite or answer image from disk, fitted onto a light card-sized tile.
+
+    Raises:
+        pygame.error, OSError: If the file cannot be read.
+    """
+    image = pygame.image.load(str(path))
+    return fitted(trim(image.convert_alpha()) if trimmed else image.convert(), size)
 
 
 def mirrored(surface):
