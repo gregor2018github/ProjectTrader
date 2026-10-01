@@ -1,9 +1,10 @@
 # Project Trader TODOs
 
 ## High Priority
-- [ ] come up with new walking animations, apply them for a simple NPC
-- [ ] take simple NPC walking to make proper preview mechanic for the annimations
-- [ ] fix animation to walk down (repeats too fast currently)
+
+- [ ] finish sprites of another character
+- [ ] expand the forest area
+- [ ] fix player animation to run down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] add two more houses with different designs
@@ -25,6 +26,7 @@
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
+
 - [ ] info windows that have a "OK" button at the bottom should have several alternative words at the bottom that sound more medieval (e.g., "I understand", "I will consider it", "So be it"...)
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
@@ -43,10 +45,16 @@
       
 
 ## Bug Fixes
+
+- [ ] some walking sprites flicker due to slight color differences, especially in the faces, align all sprites of one animation through a new algorithm in the sprite processing pipeline
 - [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
 - [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 
 ## Finished Features
+
+- [x] add sounds when someone opens or closes a door
+- [x] come up with new walking animations, apply them for a simple NPC
+- [x] take simple NPC walking to make proper preview mechanic for the annimations
 - [x] contract candles
 - [x] contract salt
 - [x] contract herbs
