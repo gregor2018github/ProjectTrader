@@ -44,6 +44,9 @@ pygame.display.set_mode((1, 1))
 sys.path.insert(0, ".")
 from src.models.map import TMXMap  # noqa: E402
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from floor_baker import MIX_NAME, FloorBaker  # noqa: E402
+
 TMX = "assets/tiles/Map1.tmx"
 PREVIEW_TMX = "assets/tiles/_forest_preview.tmx"
 OUTPUT_DIR = "build_tools/output/forest"
@@ -137,6 +140,7 @@ class Map:
     """The TMX file as text plus its tile layers as flat gid lists."""
 
     def __init__(self, path: str) -> None:
+        self.path = path
         self.text = open(path, encoding="utf-8").read()
         self.root = ET.fromstring(self.text)
         self.width = int(self.root.get("width"))
@@ -502,12 +506,16 @@ class Forest:
         for x, y, gid in cells:
             data[y * tmx.width + x] = gid
 
-    def cover_ground(self, patch: dict) -> None:
-        """Forest floor and flowers under one patch."""
+    def lay_floor(self, spots, baker: FloorBaker) -> None:
+        """Copies of the forest floor, centred on the given spots.
+
+        Each copy goes down whole and over what is there; ``baker`` blends
+        the overlaps once every copy is laid.
+        """
         with open(FLOOR_STAMP, encoding="utf-8") as f:
             floor = [tuple(c) for c in json.load(f)["cells"]]
         w, h = max(c[0] for c in floor) + 1, max(c[1] for c in floor) + 1
-        for i, (cx, cy) in enumerate(patch["floor_spots"]):
+        for i, (cx, cy) in enumerate(spots):
             flip = i % 2 == 0
             # A copy cut off by the river or a road shows a stepped edge, so
             # nudge it until none of it runs into either
@@ -516,10 +524,13 @@ class Forest:
                 ox, oy = cx - w // 2 + dx, cy - h // 2 + dy
                 if not any(self.kept_out(ox + fx, oy + fy) or self.near_water(ox + fx, oy + fy, 2)
                            for fx, fy, _ in self._flipped(floor, flip)):
-                    self._stamp("Ground_High_Plus", floor, ox, oy, flip, whole=False)
+                    baker.add((ox + fx, oy + fy, gid) for fx, fy, gid in self._flipped(floor, flip)
+                              if 0 <= ox + fx < self.tmx.width and 0 <= oy + fy < self.tmx.height)
                     break
             else:
                 print(f"No room for forest floor near {cx}, {cy}")
+
+    def scatter_flowers(self, patch: dict) -> None:
         patches = self._blobs("Ground_Flowers_Mushrooms", FLOWERS_SOURCE)
         x0, y0, x1, y1 = patch["area"]
         inside = [(x, y) for x in range(x0, x1) for y in range(y0, y1) if self.depth(patch, x, y) > 0.05]
@@ -588,8 +599,16 @@ def main() -> None:
     for i, patch in enumerate(patches):
         print(f"Patch {i + 1}: {forest.plant(patch)} trees")
     dropped, wrong = forest.stamp_previews()
+    baker = FloorBaker(tmx, "Ground_High_Plus")
+    # A preview may add blended tiles, but must leave the files as they were
+    mix_files = {path: open(path, "rb").read() if os.path.exists(path) else None
+                 for path in (baker.mix_path, baker.mix_path[:-4] + ".tsx")}
     for patch in patches:
-        forest.cover_ground(patch)
+        forest.lay_floor(patch["floor_spots"], baker)
+        forest.scatter_flowers(patch)
+    mixed = baker.bake()
+    if mixed:
+        print(f"{mixed} blended floor tiles added to {MIX_NAME}.png")
 
     target = PREVIEW_TMX if args.preview else TMX
     tmx.save(target, forest.objects())
@@ -612,6 +631,13 @@ def main() -> None:
     print(f"Pictures in {OUTPUT_DIR}/ (forest_game.png, forest_tiled.png)")
     if args.preview:
         os.remove(PREVIEW_TMX)
+        for path, content in mix_files.items():
+            if content is None:
+                if os.path.exists(path):
+                    os.remove(path)
+            else:
+                with open(path, "wb") as f:
+                    f.write(content)
 
 
 if __name__ == "__main__":
