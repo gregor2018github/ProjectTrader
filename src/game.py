@@ -25,7 +25,7 @@ from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -141,6 +141,7 @@ class Game:
         self.church_bell_sound: Optional[pygame.mixer.Sound] = None
         self.church_bell_audible: bool = False  # True once the bell has been heard
         self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
+        self.door_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('door_')]
         
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
@@ -344,6 +345,31 @@ class Game:
         
         return music_paths
         
+    def _play_door_sounds(self) -> None:
+        """Play a door for every NPC that went in or out of a house this frame.
+
+        Quieter the further away from the player it is, and silent beyond
+        DOOR_SOUND_MAX_DISTANCE.
+        """
+        player = self.game_map.map_player
+        px = player.x + player.width / 2
+        py = player.y + player.height / 2
+        for npc in self.game_map.tmx_map.npcs:
+            if not npc.wants_door_sound:
+                continue
+            npc.wants_door_sound = False
+            if not self.door_sounds:
+                continue
+            nx = npc.x + npc.sprite_width / 2
+            ny = npc.y + npc.sprite_height / 2
+            dist = ((px - nx) ** 2 + (py - ny) ** 2) ** 0.5
+            if dist >= DOOR_SOUND_MAX_DISTANCE:
+                continue
+            channel = pygame.mixer.find_channel()
+            if channel:
+                channel.set_volume(DOOR_VOLUME * (1.0 - dist / DOOR_SOUND_MAX_DISTANCE))
+                channel.play(random.choice(self.door_sounds))
+
     def play_sound(self, sound_name: str) -> Optional[pygame.mixer.Channel]:
         """Play a sound effect by name.
         
@@ -542,6 +568,7 @@ class Game:
                                         if channel:
                                             channel.set_volume(volume)
                                             channel.play(sound)
+                        self._play_door_sounds()
                     else:
                         self.game_map.map_player.stop_footstep_sound()
                     

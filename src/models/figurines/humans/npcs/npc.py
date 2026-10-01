@@ -77,6 +77,10 @@ class NPC(Human):
         #: set, the NPC stands still and turns to face them.
         self.talking_to: Optional['Figurine'] = None
 
+        #: Set when the NPC goes through a front door, in or out; game.py
+        #: plays the door sound and clears it again.
+        self.wants_door_sound: bool = False
+
     # ------------------------------------------------------------------
     # Setup helpers
     # ------------------------------------------------------------------

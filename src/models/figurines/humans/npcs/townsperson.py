@@ -243,6 +243,7 @@ class Townsperson(NPC):
         self.stop()
         self.opacity = 0.0
         self.fade_in(DOORWAY_FADE_SECONDS)
+        self.wants_door_sound = True
         self._pause_left = 0.0
         return True
 
@@ -273,6 +274,7 @@ class Townsperson(NPC):
         self.stop()
         self.opacity = 0.0
         self.fade_in(DOORWAY_FADE_SECONDS)
+        self.wants_door_sound = True
         self._answer_left = KNOCK_ANSWER_SECONDS
         return True
 
@@ -346,6 +348,7 @@ class Townsperson(NPC):
         # Back at the doorway: fade out facing it, like any other way in.
         self.state = GOING_IN
         self.fade_out(DOORWAY_FADE_SECONDS)
+        self.wants_door_sound = True
         self._doorway_fade(dt)
 
     # ------------------------------------------------------------------
@@ -399,6 +402,7 @@ class Townsperson(NPC):
             # out on the spot rather than walking on into the wall.
             self.state = GOING_IN
             self.fade_out(DOORWAY_FADE_SECONDS)
+            self.wants_door_sound = True
             self._doorway_fade(dt)
             return
 

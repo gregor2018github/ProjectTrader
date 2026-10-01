@@ -307,6 +307,8 @@ class Trader(NPC):
                 self._rest(current_time)
             elif self.state in (WALKING_HOME, AT_HOME):
                 # Out of the door, fading back in if he had gone indoors
+                if self.state == AT_HOME:
+                    self.wants_door_sound = True
                 self.state = WALKING_TO_WORK
                 self.fade_in()
                 self.walk_to_distance(0.0)
@@ -324,6 +326,7 @@ class Trader(NPC):
         elif self.state == WALKING_HOME:
             self.state = AT_HOME
             self.fade_out()
+            self.wants_door_sound = True
         elif self.state == WALKING_TO_WORK:
             self.state = WORKING
             self.set_path(self.stall_path, self.stall_exit_distance)
