@@ -7,7 +7,7 @@ class Tree:
     
     def __init__(self, x: float, y: float, file_name: str, 
                  stem_position: float, stem_thick: float,
-                 tile_size: int):
+                 tile_size: int, scale: float = 1.0):
         """Initialize the tree.
         
         Args:
@@ -17,12 +17,17 @@ class Tree:
             stem_position: Position of the stem center relative to x (in tiles).
             stem_thick: Thickness of the stem collision box (in tiles).
             tile_size: Size of one tile in pixels.
+            scale: Size of the tree relative to its sprite, so the same
+                sprite can stand in a forest a little taller or shorter.
+                The tree grows from its bottom-left corner, and its stem
+                moves and thickens with it.
         """
         self.x = x
         self.y = y 
         self.file_name = file_name
-        self.stem_position = stem_position
-        self.stem_thick = stem_thick
+        self.scale = scale if scale > 0 else 1.0
+        self.stem_position = stem_position * self.scale
+        self.stem_thick = stem_thick * self.scale
         self.tile_size = tile_size
         
         # Calculate render sorting key (bottom of the object)
@@ -71,6 +76,11 @@ class Tree:
         if os.path.exists(path):
             try:
                 self.image = pygame.image.load(path).convert_alpha()
+                if self.scale != 1.0:
+                    self.image = pygame.transform.smoothscale(self.image, (
+                        max(1, round(self.image.get_width() * self.scale)),
+                        max(1, round(self.image.get_height() * self.scale)),
+                    ))
             except pygame.error as e:
                 print(f"Failed to load tree image: {path} - {e}")
         else:

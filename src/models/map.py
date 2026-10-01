@@ -563,6 +563,9 @@ class TMXMap:
                     file_name = obj.properties.get('File_name', '')
                     stem_position = float(obj.properties.get('Stem_Position', 0.0))
                     stem_thick = float(obj.properties.get('Stem_Thick', 0.0))
+                    # Optional; Tiled's preview tiles always show the sprite
+                    # at its own size
+                    scale = float(obj.properties.get('Scale', 1.0))
                     
                     if file_name:
                         tree = Tree(
@@ -571,7 +574,8 @@ class TMXMap:
                             file_name=file_name,
                             stem_position=stem_position,
                             stem_thick=stem_thick,
-                            tile_size=self.tile_size
+                            tile_size=self.tile_size,
+                            scale=scale,
                         )
                         self.trees.append(tree)
 
