@@ -52,7 +52,7 @@ class Market(House):
     """Represents a market institution in the game where goods can be traded.
 
     A booth is open for as long as one of its traders is minding it: it shuts
-    when the last of them steps off the stall onto his way home, and opens
+    when the last of them packs up and sets off home, and opens
     again when the first one is back. At night the booth is shown with its
     closed (tarped) sprite.
     """

@@ -8,8 +8,8 @@ At work a trader walks the patrol path around his stall to a new spot, stands
 there for the best part of an in-game hour, then shuffles somewhere else.
 Some time between 22:00 and midnight he packs up, walks home and disappears
 indoors, and some time between 04:45 and 06:45 he steps out and walks back;
-each night at a different time. His booth is open while he is minding it: it shuts as he steps off
-the stall onto his way home, and opens again once he is back.
+each night at a different time. His booth is open while he is minding it: it shuts as he packs
+up and sets off home, and opens again once he is back.
 
 Where he works and lives is drawn on the Tiled "Movements" layer, named after
 his ``TILED_PREFIX`` (``Butcher`` for the butcher):
@@ -256,8 +256,8 @@ class Trader(NPC):
     def is_at_stall(self, current_time: datetime.datetime) -> bool:
         """Whether he is minding his stall, which keeps his booth open.
 
-        He counts as there until he steps off the stall onto his way home, and
-        again once he is back on it. While the map is not shown he does not
+        He stops counting as there the moment he packs up to go home, before he
+        has walked off the stall, and counts again once he is back on it. While the map is not shown he does not
         move, so he is then taken to be wherever his hours would have put
         him, just as he is placed when the map is shown again.
 
@@ -266,7 +266,7 @@ class Trader(NPC):
         """
         if self.homeway is None or self.stall_path is None or self._is_unseen(current_time):
             return not self._off_duty(current_time)
-        return self.state in (WORKING, LEAVING_STALL)
+        return self.state == WORKING
 
     def _catch_up(self, current_time: datetime.datetime) -> None:
         """Put him straight where he belongs after time ran on unseen.
