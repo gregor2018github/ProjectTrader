@@ -16,8 +16,9 @@ The window can be resized or maximised; F11 switches to full screen.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
    shows how many walk (and run) frames and standing sprites there are; the
-   overview above adds them up over everyone and shows how much of the name
-   pool in medieval_names.py the townsfolk have used (a name only once).
+   overview above adds them up over everyone, says how many sprites are new or
+   redone today (by the dates of their files, see daily_progress.py) and shows how much of the name pool in
+   medieval_names.py the townsfolk have used (a name only once).
    "+" at the end of a group adds a person: woman or man and a name (typed,
    or rolled from medieval_names.py), or for a trader his trade. Someone without a front standing sprite yet opens on
    "First sprite": describe them in description.txt ("Edit description"; the
@@ -127,6 +128,7 @@ The code, for whoever works on it next:
     pose_review.py     review.json, and accepting an answer into the game
     extraction.py      cutting the sprite out of an answer and scaling it
     gif_export.py      animations as GIF files
+    daily_progress.py  the sprites new and redone today, by file dates
     even_colours.py    evening out the colours of a direction's frames against flicker
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers

@@ -3,6 +3,7 @@
 import pygame
 
 import pose_review
+from daily_progress import made_today
 from figures import CATEGORIES, OTHER, TRADER_CATEGORY
 from new_figure import name_usage
 from npc import PLAYER_CATEGORY
@@ -42,6 +43,7 @@ class NpcListView(View):
         self.grid = SectionGrid('figure')  # filled by refresh(), when the app shows the view
         self.totals = {}                   # {kind: [done, needed]} over everyone listed
         self.names = ({}, [])              # new_figure.name_usage()
+        self.today = None                  # daily_progress.Today
         self.placeholder = pygame.Surface(NPC_THUMB_SIZE)
         self.placeholder.fill(THUMB_BG)
         text = app.fonts.small.render('no sprite yet', True, (120, 120, 120))
@@ -107,6 +109,7 @@ class NpcListView(View):
         app = self.app
         self.totals = {}
         self.names = name_usage()
+        self.today = made_today()
         sections = []
         for key, title in SECTIONS:
             cards = [self.npc_card(n) for n in app.npcs if n.category == key]
@@ -141,7 +144,10 @@ class NpcListView(View):
         names = pygame.Rect(sprites.right + PANEL_GAP, rect.y, rect.right - sprites.right - PANEL_GAP, rect.h)
         fonts = self.app.fonts
         figures = sum(getattr(c, 'counted', True) for c in self.grid.cards)
-        draw_panel(screen, fonts, sprites, f'All sprites  -  {figures} figures')
+        title = f'All sprites  -  {figures} figures'
+        if self.today:
+            title += f'  -  today {self.today.new} new, {self.today.redone} redone'
+        draw_panel(screen, fonts, sprites, title)
         rows = []
         for kind, label in KINDS:
             done, needed = self.totals.get(kind, (0, 0))
