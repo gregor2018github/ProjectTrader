@@ -128,14 +128,14 @@ class EventHandler:
                         left_rect.width = MODULE_WIDTH * 2
 
                     if left_rect.collidepoint(mouse_pos):
-                        game_state.game.game_map.handle_zoom(event.y)
+                        game_state.game.game_map.handle_zoom(event.y, bool(pygame.key.get_mods() & pygame.KMOD_CTRL))
                         return self.running
 
                 # Check for map on right side
                 if game_state.right_side_mode == 'map':
                     right_rect = pygame.Rect(MODULE_WIDTH, 60, MODULE_WIDTH, SCREEN_HEIGHT - 120)
                     if right_rect.collidepoint(mouse_pos):
-                        game_state.game.game_map.handle_zoom(event.y)
+                        game_state.game.game_map.handle_zoom(event.y, bool(pygame.key.get_mods() & pygame.KMOD_CTRL))
                         return self.running
 
             # Check if detail panel is visible and mouse is over it

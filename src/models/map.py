@@ -1033,9 +1033,9 @@ class GameMap:
         
         # Initialize camera
         self.camera: Camera = Camera(view_width, view_height)
-        self.zoom_levels: List[float] = [0.75, 1.0, 1.25, 1.5, 1.75]
-        # The farthest-out level is hidden: only zooming out with Ctrl held reaches it
-        self.min_normal_zoom_index: int = 1
+        self.zoom_levels: List[float] = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75]
+        # The two farthest-out levels are hidden: only zooming out with Ctrl held reaches them
+        self.min_normal_zoom_index: int = 2
         
         # Determine initial zoom index from constant if possible
         try:
@@ -1074,7 +1074,7 @@ class GameMap:
         
         Args:
             direction: Positive for zoom in, negative for zoom out.
-            reveal_hidden: Allow zooming out to the hidden farthest-out level (Ctrl held).
+            reveal_hidden: Allow zooming out to the hidden farthest-out levels (Ctrl held).
         """
         if direction > 0:
             self.zoom_index = min(len(self.zoom_levels) - 1, self.zoom_index + 1)

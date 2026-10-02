@@ -97,7 +97,7 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
     elif event.key in [pygame.K_MINUS, pygame.K_KP_MINUS]:
         # When map is active, control zoom; otherwise control time
         if game_state.is_map_visible and hasattr(game_state.game, 'game_map'):
-            game_state.game.game_map.handle_zoom(-1)  # Zoom out
+            game_state.game.game_map.handle_zoom(-1, bool(event.mod & pygame.KMOD_CTRL))  # Zoom out
         else:
             # Slow down time (decrease level)
             game_state.time_level = max(1, game_state.time_level - 1)
