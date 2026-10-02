@@ -5,6 +5,7 @@ frames of the chosen direction, right the chosen frame's sheet with the
 buttons that get an answer for it.
 """
 
+import time
 from pathlib import Path
 
 import pygame
@@ -14,6 +15,7 @@ import pose_review
 import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from chibi import ghost_path
+from even_colours import NUMPY_ERROR, even_out
 from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
@@ -41,6 +43,8 @@ PREVIEW_MIN_H = 60
 PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 
+COLOUR_BACKUPS = 'colour_backups'   # under the output folder: frames as they were before evening out
+
 STANDING = 'standing'    # the key of the standing sprite's card, beside the frames' indices
 CHECKER_TEXT = (40, 40, 40)   # readable on the light checkerboard
 
@@ -64,6 +68,7 @@ class FramesView(View):
         self.standing_checker = Checker()
         self.gimp = find_gimp()
         self.watcher = FileWatcher()
+        self.colour_undo = None       # (direction, [(frame, backup, mtime)]) of the last evening out
 
         # Footer
         self.review_button = Button('Review', w=140)
@@ -80,6 +85,7 @@ class FramesView(View):
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
         # Under the animation in the directions panel
         self.gif_button = Button('Copy as GIF', h=BUTTON_H)
+        self.colours_button = Button('Even out colours', h=BUTTON_H)
         self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
                                   (self.paste_button, self.open_button),
                                   (self.send_button, self.from_frame_button),
@@ -88,6 +94,7 @@ class FramesView(View):
                         (self.missing_button, self.send_missing),
                         (self.mirror_all_button, self.mirror_missing),
                         (self.redo_first_button, app.redo_first_sprite),
+                        (self.colours_button, self.even_out_or_undo),
                         (self.from_frame_button, self.open_picker),
                         (self.gimp_button, self.edit_in_gimp),
                         (self.copy_image_button, self.copy_image),
@@ -378,6 +385,60 @@ class FramesView(View):
         self.app.set_status(f'{verb} {target.name}, {how} from {source_label}')
         self.app.toast.show(f'{sheet.name} {how} from {source_label}')
 
+    # --- colours -----------------------------------------------------------
+
+    def colour_reference(self):
+        """The sprite the direction's frames are evened out against: its standing sprite, else the front one."""
+        return self.npc.sprite_path(self.npc.base_for(self.direction))
+
+    def done_frame_paths(self):
+        return [p for p in (self.npc.sprite_path(s.pose) for s in self.sheets) if p.is_file()]
+
+    def can_undo_colours(self):
+        """True while the last evening out was of this direction and its frames are as it left them."""
+        if not self.colour_undo or self.colour_undo[0] != self.direction:
+            return False
+        return all(path.is_file() and path.stat().st_mtime == mtime and backup.is_file()
+                   for path, backup, mtime in self.colour_undo[1])
+
+    def even_out_or_undo(self):
+        if self.can_undo_colours():
+            self.undo_colours()
+        else:
+            self.even_out_colours()
+
+    def even_out_colours(self):
+        """Pull the colours of the direction's frames onto its standing sprite, so the walk does not flicker."""
+        frames, reference = self.done_frame_paths(), self.colour_reference()
+        if not frames or not reference.is_file():
+            return
+        stamp = time.strftime('%Y%m%d_%H%M%S')
+        backup_dir = self.npc.out_dir / COLOUR_BACKUPS / f'{self.direction.motion.key}_{self.direction.key}_{stamp}'
+        try:
+            changes = even_out(reference, frames, backup_dir)
+        except (RuntimeError, ValueError, pygame.error, OSError) as exc:
+            self.app.set_status(f'Cannot even out the colours: {exc}', error=True)
+            return
+        self.colour_undo = (self.direction, [(c.path, backup_dir / c.path.name, c.path.stat().st_mtime)
+                                             for c in changes])
+        self.refresh()
+        mean = sum(c.mean for c in changes) / len(changes)
+        worst = max(changes, key=lambda c: c.mean)
+        self.app.set_status(f'Evened out {len(changes)} frame(s) against {reference.name}: mean change '
+                            f'{mean:.1f}, most {worst.path.name} ({worst.mean:.1f}) - click again to undo')
+        self.app.toast.show(f'Colours of {len(changes)} frame(s) evened out')
+
+    def undo_colours(self):
+        """Put the frames back as they were before the last evening out."""
+        _, saved = self.colour_undo
+        for path, backup, _ in saved:
+            if not self.save_frame(backup, path, mirror=False):
+                return
+        self.colour_undo = None
+        self.refresh()
+        self.app.set_status(f'Colours of {len(saved)} frame(s) put back')
+        self.app.toast.show('Colours put back')
+
     # --- sharing ----------------------------------------------------------
 
     def gif_path(self):
@@ -464,7 +525,7 @@ class FramesView(View):
         switch = f'Tab = {motions.lower()}. ' if len(self.npc.motions) > 1 else ''
         return (f'2. {motions} frames for "{self.npc.name}"',
                 f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = '
-                'copy prompt, Ctrl+V or drop a file = answer from the web view, S = settings.')
+                'copy prompt, Ctrl+V or drop a file = answer from the web view, E = even out colours, S = settings.')
 
     def footer(self):
         app = self.app
@@ -543,11 +604,12 @@ class FramesView(View):
             self.dir_rows.append((row, direction))
 
         box = pygame.Rect(rect.x + 8, y + PANEL_TITLE, rect.w - 16,
-                          rect.bottom - 8 - y - PANEL_TITLE - BUTTON_H - BUTTON_GAP)
-        self.gif_button.enabled = False
+                          rect.bottom - 8 - y - PANEL_TITLE - 2 * (BUTTON_H + BUTTON_GAP))
+        self.gif_button.enabled = self.colours_button.enabled = False
         if box.h >= PREVIEW_MIN_H:
             self.draw_preview(screen, box)
             self.draw_gif_button(screen, box, mouse)
+            self.draw_colours_button(screen, box, mouse)
 
     def draw_preview(self, screen, box):
         """The frames the NPC already has, playing in a loop."""
@@ -566,6 +628,17 @@ class FramesView(View):
         self.gif_button.enabled = bool(self.preview) and win_clipboard.AVAILABLE and not PIL_ERROR
         self.gif_button.label = 'Copy as GIF (needs Pillow)' if PIL_ERROR else 'Copy as GIF'
         self.gif_button.draw(screen, self.app.fonts.font, mouse)
+
+    def draw_colours_button(self, screen, box, mouse):
+        """'Even out colours' under 'Copy as GIF', or its undo right after."""
+        self.colours_button.rect = self.gif_button.rect.move(0, BUTTON_H + BUTTON_GAP)
+        if self.can_undo_colours():
+            self.colours_button.label, self.colours_button.enabled = 'Undo even out', True
+        else:
+            self.colours_button.label = 'Even out (needs numpy)' if NUMPY_ERROR else 'Even out colours'
+            self.colours_button.enabled = (not NUMPY_ERROR and bool(self.done_frame_paths())
+                                           and self.colour_reference().is_file())
+        self.colours_button.draw(screen, self.app.fonts.font, mouse)
 
     def draw_sheet(self, screen, rect, mouse):
         app = self.app
@@ -668,6 +741,8 @@ class FramesView(View):
             self.open_picker()
         elif event.key == pygame.K_g:
             self.edit_in_gimp()
+        elif event.key == pygame.K_e:
+            self.even_out_or_undo()
         elif event.key == pygame.K_f and not self.npc.is_player:
             self.app.redo_first_sprite()
 

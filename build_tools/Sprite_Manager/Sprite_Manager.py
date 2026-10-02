@@ -86,6 +86,15 @@ Explorer. It needs Pillow (build_tools/requirements.txt).
 GIMP_PATH, the PATH or Program Files). Once it is saved back with File >
 Overwrite, the tool notices and shows the new version.
 
+"Even out colours" (E) under the animation fights flicker: every frame comes
+back from the model a little lighter, darker or warmer here and there, and
+played as a walk that flickers. It pulls the colours of all the direction's
+frames onto its standing sprite (else the front one), material by material,
+keeping each frame's shading (see even_colours.py), and saves over them. The
+frames as they were go to colour_backups/ in the output folder; right after,
+the button reads "Undo even out" and puts them back. It needs numpy
+(build_tools/requirements.txt).
+
 Ghosts: <Walk|Run>_<strip>_Sheet_Ghost.png is used where it exists. For the other
 strips a ghost is made on the fly (outline black, skin in greys, face left
 out); drawing one by hand gives the model a cleaner guide.
@@ -118,6 +127,7 @@ The code, for whoever works on it next:
     pose_review.py     review.json, and accepting an answer into the game
     extraction.py      cutting the sprite out of an answer and scaling it
     gif_export.py      animations as GIF files
+    even_colours.py    evening out the colours of a direction's frames against flicker
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard

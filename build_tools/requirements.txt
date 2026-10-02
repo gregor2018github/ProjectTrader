@@ -3,3 +3,5 @@
 google-genai>=1.0.0
 # Exporting animations as GIF in the Sprite Manager
 Pillow>=10.0.0
+# Evening out the colours of walk frames in the Sprite Manager
+numpy>=1.26
