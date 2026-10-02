@@ -15,6 +15,36 @@ if TYPE_CHECKING:
 # so bars don't sit flush on the border.
 _BAR_BASELINE_PAD = 14
 
+
+def _aa_polyline(surface: pygame.Surface, color, points, width: int) -> None:
+    """Draw a polyline of any width with anti-aliased edges.
+
+    ``pygame.draw.aalines`` only draws 1px lines. A wider one is laid down
+    as a filled band per segment, its two edges are traced anti-aliased,
+    and the joints are filled so the bends show no notches.
+    """
+    if len(points) < 2:
+        return
+    if width <= 1:
+        pygame.draw.aalines(surface, color, False, points)
+        return
+    # The smoothed edges add about a pixel, so the solid band is one narrower
+    half = (width - 1) / 2
+    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+        dx, dy = x1 - x0, y1 - y0
+        length = math.hypot(dx, dy)
+        if length == 0:
+            continue
+        nx, ny = -dy / length * half, dx / length * half
+        a, b = (x0 + nx, y0 + ny), (x1 + nx, y1 + ny)
+        c, d = (x1 - nx, y1 - ny), (x0 - nx, y0 - ny)
+        pygame.draw.polygon(surface, color, (a, b, c, d))
+        pygame.draw.aaline(surface, color, a, b)
+        pygame.draw.aaline(surface, color, d, c)
+    if half >= 1:
+        for x, y in points[1:-1]:
+            pygame.draw.circle(surface, color, (round(x), round(y)), round(half))
+
 def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', population_manager: Optional['PopulationManager'] = None, goods: Optional[List['Good']] = None) -> None:
     """Draws the depot chart view with wealth, money, stock, house, population and happiness statistics.
 
@@ -161,7 +191,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
             mouse_pos_early = pygame.mouse.get_pos()
             is_hovering = chart_rect.collidepoint(mouse_pos_early) and active_chart in ("Wealth", "Money", "Happiness", "Houses")
             line_width = 3 if is_hovering else 2
-            pygame.draw.lines(screen, color, False, points, line_width)
+            _aa_polyline(screen, color, points, line_width)
 
             # Draw the overlay line (loans on Money, storage on Houses)
             if has_second:
@@ -174,7 +204,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                         y = chart_rect.bottom - margin - (0.5 * inner_height)
                     second_points.append((x, y))
                 if len(second_points) > 1:
-                    pygame.draw.lines(screen, second_color, False, second_points, line_width)
+                    _aa_polyline(screen, second_color, second_points, line_width)
 
         # Draw horizontal orientation lines
         step = _nice_grid_step(y_range)
@@ -1116,7 +1146,7 @@ def _draw_profit_bars(
         for bar_idx, data_idx in enumerate(range(start_idx, total_len)):
             px = chart_rect.left + margin + bar_idx * (bar_w + bar_gap) + bar_w // 2
             points.append((px, _cum_y(cumulative[data_idx])))
-        pygame.draw.lines(screen, DARK_BLUE, False, points, 2)
+        _aa_polyline(screen, DARK_BLUE, points, 2)
 
         # Right-hand scale markers for the cumulative line, on small plates so
         # they stay readable where the line or the bars run underneath them.
