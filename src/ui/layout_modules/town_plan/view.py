@@ -21,7 +21,7 @@ import pygame
 from . import glyphs, ornaments
 from .engraving import engrave
 from .landmarks import MAJOR_KINDS, MINOR_KINDS, Landmarks, PlanBuilding, gather
-from .paper import get_paper
+from .paper import draw_paper
 from .style import (
     DETAIL_LABEL_LEVEL, FONT_PLAIN, FONT_SCRIPT, GOLD_INK, INK, INK_FADED,
     LEGEND_MIN_SIDE_ROOM, PAPER, WATER_LINE, ZOOM_LEVELS,
@@ -165,13 +165,14 @@ class TownPlan:
         self._inner = inner = ornaments.frame_inner(rect)
         self._clamp()
 
-        screen.blit(get_paper(rect.size), rect.topleft)
-
-        old_clip = screen.get_clip()
-        screen.set_clip(inner)
         plan = self._plan_at(self.level)
         land = plan.get_rect(topleft=(round(inner.centerx - self.center[0] * self.scale),
                                       round(inner.centery - self.center[1] * self.scale)))
+        # The paper's grain is pinned to the land, so it moves when dragged
+        draw_paper(screen, rect, land.topleft)
+
+        old_clip = screen.get_clip()
+        screen.set_clip(inner)
         screen.blit(plan, land)
         ornaments.neat_line(screen, land)
 
