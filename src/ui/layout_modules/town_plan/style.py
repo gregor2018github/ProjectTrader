@@ -14,7 +14,8 @@ from ....config.constants import FONTS_PATH
 PAPER = (236, 222, 186)            # Base colour of the parchment
 PAPER_DARK = (196, 168, 118)       # Speckles, fibres and the browned edges
 PAPER_STAIN = (170, 130, 80)       # Old water stains
-PAPER_EDGE_DEPTH = 46              # How far in from the edge the paper browns
+PAPER_EDGE_DEPTH = 56              # How far in from the edge the paper browns
+PAPER_GRAIN = 1.6                  # How strongly the grain shows: 1.0 faint, 2.0 heavy
 
 # --- Inks ----------------------------------------------------------------
 
