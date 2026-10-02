@@ -16,6 +16,7 @@ import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from chibi import ghost_path
 from even_colours import NUMPY_ERROR, even_out
+from export_dialog import GIF, ExportDialog
 from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
@@ -26,6 +27,7 @@ from theme import (
     TEXT_DIM,
 )
 from view import View
+from video_export import AV_ERROR, write_video
 from walk import find_direction, is_optional, partner_of, standing_pose
 from widgets import PANEL_TITLE, Button, Card, CardGrid, Checker, Comparison, draw_chips, draw_panel, fit_text
 
@@ -84,7 +86,7 @@ class FramesView(View):
         self.from_frame_button = Button('From other frame', h=BUTTON_H)
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
         # Under the animation in the directions panel
-        self.gif_button = Button('Copy as GIF', h=BUTTON_H)
+        self.export_button = Button('Export...', h=BUTTON_H)
         self.colours_button = Button('Even out colours', h=BUTTON_H)
         self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
                                   (self.paste_button, self.open_button),
@@ -102,7 +104,7 @@ class FramesView(View):
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send_current),
-                        (self.gif_button, self.copy_gif))
+                        (self.export_button, self.open_export))
         self.select_direction(direction)
 
     # --- state ------------------------------------------------------------
@@ -441,29 +443,37 @@ class FramesView(View):
 
     # --- sharing ----------------------------------------------------------
 
-    def gif_path(self):
-        """Where the direction's animation is saved as GIF: <prefix>_<direction>_<motion>.gif."""
-        return self.npc.out_dir / f'{self.npc.prefix}_{self.direction.key}_{self.direction.motion.key}.gif'
+    def export_path(self, suffix):
+        """Where the direction's animation is exported: <prefix>_<direction>_<motion><suffix>."""
+        return self.npc.out_dir / f'{self.npc.prefix}_{self.direction.key}_{self.direction.motion.key}{suffix}'
 
-    def copy_gif(self):
-        """Save the animation as the game plays it as a GIF and put the file on the clipboard."""
-        if not self.preview:
-            return
-        try:
-            data = gif_bytes(self.preview)
-        except (RuntimeError, ValueError, OSError) as exc:
-            self.app.set_status(f'Cannot make the GIF: {exc}', error=True)
-            return
-        path = self.gif_path().resolve()
+    def open_export(self):
+        """Ask whether to export the animation as GIF or as video."""
+        if self.preview:
+            self.app.dialog = ExportDialog(self.app.fonts, self.export, PIL_ERROR, AV_ERROR)
+
+    def export(self, choice):
+        """Save the animation as the game plays it as a GIF or an MP4 and put the file on the clipboard."""
+        kind = 'GIF' if choice == GIF else 'video'
+        path = self.export_path('.gif' if choice == GIF else '.mp4').resolve()
+        gif = None
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-            win_clipboard.copy_file(path, data)
+            if choice == GIF:
+                gif = gif_bytes(self.preview)
+                path.write_bytes(gif)
+            else:
+                write_video(self.preview, path)
+        except Exception as exc:  # noqa: BLE001 - Pillow and PyAV raise their own errors
+            self.app.set_status(f'Cannot make the {kind}: {exc}', error=True)
+            return
+        try:
+            win_clipboard.copy_file(path, gif)
         except (OSError, win_clipboard.ClipboardError) as exc:
-            self.app.set_status(f'Cannot copy the GIF: {exc}', error=True)
+            self.app.set_status(f'{path.name} saved, but cannot copy it: {exc}', error=True)
             return
         self.app.set_status(f'{path.name} saved and copied - paste it wherever it should go')
-        self.app.toast.show('GIF copied')
+        self.app.toast.show(f'{kind} copied')
 
     # --- editing by hand --------------------------------------------------
 
@@ -605,10 +615,10 @@ class FramesView(View):
 
         box = pygame.Rect(rect.x + 8, y + PANEL_TITLE, rect.w - 16,
                           rect.bottom - 8 - y - PANEL_TITLE - 2 * (BUTTON_H + BUTTON_GAP))
-        self.gif_button.enabled = self.colours_button.enabled = False
+        self.export_button.enabled = self.colours_button.enabled = False
         if box.h >= PREVIEW_MIN_H:
             self.draw_preview(screen, box)
-            self.draw_gif_button(screen, box, mouse)
+            self.draw_export_button(screen, box, mouse)
             self.draw_colours_button(screen, box, mouse)
 
     def draw_preview(self, screen, box):
@@ -622,16 +632,16 @@ class FramesView(View):
             image = smooth_fit(frame, (box.w - 20, box.h - 20), PREVIEW_MAX_ZOOM)
             screen.blit(image, image.get_rect(midbottom=(box.centerx, box.bottom - 10)))
 
-    def draw_gif_button(self, screen, box, mouse):
-        """'Copy as GIF' under the animation."""
-        self.gif_button.rect = pygame.Rect(box.x, box.bottom + BUTTON_GAP, box.w, BUTTON_H)
-        self.gif_button.enabled = bool(self.preview) and win_clipboard.AVAILABLE and not PIL_ERROR
-        self.gif_button.label = 'Copy as GIF (needs Pillow)' if PIL_ERROR else 'Copy as GIF'
-        self.gif_button.draw(screen, self.app.fonts.font, mouse)
+    def draw_export_button(self, screen, box, mouse):
+        """'Export...' under the animation."""
+        self.export_button.rect = pygame.Rect(box.x, box.bottom + BUTTON_GAP, box.w, BUTTON_H)
+        self.export_button.enabled = (bool(self.preview) and win_clipboard.AVAILABLE
+                                      and not (PIL_ERROR and AV_ERROR))
+        self.export_button.draw(screen, self.app.fonts.font, mouse)
 
     def draw_colours_button(self, screen, box, mouse):
-        """'Even out colours' under 'Copy as GIF', or its undo right after."""
-        self.colours_button.rect = self.gif_button.rect.move(0, BUTTON_H + BUTTON_GAP)
+        """'Even out colours' under 'Export...', or its undo right after."""
+        self.colours_button.rect = self.export_button.rect.move(0, BUTTON_H + BUTTON_GAP)
         if self.can_undo_colours():
             self.colours_button.label, self.colours_button.enabled = 'Undo even out', True
         else:

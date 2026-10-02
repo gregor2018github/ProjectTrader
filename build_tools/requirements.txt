@@ -3,5 +3,7 @@
 google-genai>=1.0.0
 # Exporting animations as GIF in the Sprite Manager
 Pillow>=10.0.0
+# Exporting animations as MP4 video in the Sprite Manager (for WhatsApp, which mangles GIFs)
+av>=12.0.0
 # Evening out the colours of walk frames in the Sprite Manager
 numpy>=1.26

@@ -80,10 +80,12 @@ foot. In a direction with a mirror partner (left and right, and both
 diagonal pairs) "Mirror missing from ..." in the footer mirrors every frame
 the direction lacks and its partner has.
 
-"Copy as GIF" under the animation saves the direction's frames as the game
-plays them as <prefix>_<direction>_<walk|run>.gif in the output folder and
-puts the file on the clipboard, to paste into a chat, a browser or the
-Explorer. It needs Pillow (build_tools/requirements.txt).
+"Export..." under the animation asks GIF or video and saves the direction's
+frames as the game plays them as <prefix>_<direction>_<walk|run>.gif or .mp4
+in the output folder, and puts the file on the clipboard, to paste into a
+chat, a browser or the Explorer. The GIF is see-through and loops; the video
+(H.264, on white, repeated to a few seconds) is for WhatsApp, which mangles
+GIFs. The GIF needs Pillow, the video PyAV (build_tools/requirements.txt).
 
 "Edit in GIMP" (G) opens a frame the NPC already has in GIMP (found through
 GIMP_PATH, the PATH or Program Files). Once it is saved back with File >
@@ -130,6 +132,8 @@ The code, for whoever works on it next:
     pose_review.py     review.json, and accepting an answer into the game
     extraction.py      cutting the sprite out of an answer and scaling it
     gif_export.py      animations as GIF files
+    video_export.py    animations as MP4 videos
+    export_dialog.py   the dialog choosing GIF or video
     daily_progress.py  the sprites new and redone today, by file dates
     even_colours.py    evening out the colours of a direction's frames against flicker
     gimp.py            GIMP and the watch on files edited outside
