@@ -5,6 +5,7 @@ from pathlib import Path
 import pygame
 
 import pose_review
+from win_window import snap_left
 
 ROOT = Path(__file__).resolve().parents[2]
 HUMANS_DIR = ROOT / 'assets' / 'map_sprites' / 'figurines' / 'humans'
@@ -13,7 +14,7 @@ NPC_DIR = HUMANS_DIR / 'npcs'
 OUTPUT_DIR = ROOT / 'build_tools' / 'output'
 
 # Window
-WINDOW_SIZE = (1280, 820)  # starting size; the window can be resized, F11 = full screen
+WINDOW_SIZE = (1280, 820)  # starting size where it cannot be snapped into the left half of the screen
 HEADER_HEIGHT = 90
 FOOTER_HEIGHT = 70
 
@@ -67,13 +68,17 @@ def window_size():
 
 
 def open_window(caption):
+    """The resizable tool window, in the left half of the screen (win_window.py)."""
     screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
     pygame.display.set_caption(caption)
-    return screen
+    snap_left()
+    return pygame.display.get_surface() or screen
 
 
 def toggle_fullscreen():
     """Switch between full screen and a normal resizable window."""
     if pygame.display.get_surface().get_flags() & pygame.FULLSCREEN:
-        return pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+        screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
+        snap_left()
+        return pygame.display.get_surface() or screen
     return pygame.display.set_mode((0, 0), pygame.FULLSCREEN)

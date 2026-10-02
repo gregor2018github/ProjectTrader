@@ -11,7 +11,9 @@ Run from anywhere:
 
     python build_tools/Sprite_Manager/Sprite_Manager.py
 
-The window can be resized or maximised; F11 switches to full screen.
+The window opens in the left half of the screen, leaving the right half for
+the browser with the Gemini web view. It can be resized or maximised; F11
+switches to full screen.
 
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
@@ -133,6 +135,7 @@ The code, for whoever works on it next:
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard
+    win_window.py      snapping the window into the left half of the screen
 """
 
 import os
