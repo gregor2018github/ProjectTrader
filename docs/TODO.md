@@ -2,8 +2,6 @@
 
 ## High Priority
 
-- [ ] finish sprites of another character
-- [ ] expand the forest area
 - [ ] fix player animation to run down (repeats too fast currently)
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
@@ -46,12 +44,14 @@
 
 ## Bug Fixes
 
-- [ ] some walking sprites flicker due to slight color differences, especially in the faces, align all sprites of one animation through a new algorithm in the sprite processing pipeline
-- [ ] bugfix: sometimes pressing space does not react anymore, often after waiting for a while where you dont click anything
-- [ ] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
+- NA
 
 ## Finished Features
 
+- [x] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
+- [x] some walking sprites flicker due to slight color differences, especially in the faces, align all sprites of one animation through a new algorithm in the sprite processing pipeline
+- [x] finish sprites of another character
+- [x] expand the forest area
 - [x] add sounds when someone opens or closes a door
 - [x] come up with new walking animations, apply them for a simple NPC
 - [x] take simple NPC walking to make proper preview mechanic for the annimations

@@ -389,16 +389,15 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
     # Use chart price history instead of bookkeeping price history
     price_history = good.price_history_hourly[-int(max_chart_size):]
     
-    # Use thicker line if good is hovered
-    line_thickness = 3 if good.hovered else 1
-    
-    # Draw price line
-    for i in range(len(price_history) - 1):
-        y1 = chart_border[1] + ((price_history[i] / max_price) * max_chart_height)
-        y2 = chart_border[1] + ((price_history[i + 1] / max_price) * max_chart_height)
-        pygame.draw.line(screen, good.color, 
-                       (chart_border[0] + i, y1),
-                       (chart_border[0] + i + 1, y2), line_thickness)
+    # Draw price line: anti-aliased so its hourly 1px scroll does not shimmer;
+    # a hovered good gets a thicker line, which aalines cannot draw
+    points = [(chart_border[0] + i, chart_border[1] + ((price / max_price) * max_chart_height))
+              for i, price in enumerate(price_history)]
+    if len(points) > 1:
+        if good.hovered:
+            pygame.draw.lines(screen, good.color, False, points, 3)
+        else:
+            pygame.draw.aalines(screen, good.color, False, points)
     
     # Draw current price and quantities with different fonts
     price_text = main_font.render(str(round(price_history[-1], 2)), True, good.color)
