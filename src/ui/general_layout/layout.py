@@ -713,7 +713,7 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
         "depot": "Depot",
         "politics": "Politics",
         "trade_routes": "Trade Routes",
-        "building": "Building",
+        "building": "Town Plan",
         "ledger": "Ledger",
     }
 

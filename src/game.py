@@ -9,6 +9,7 @@ from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quick
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
+from .ui.layout_modules.town_plan import TownPlan
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
@@ -100,6 +101,8 @@ class Game:
         map_view_width = SCREEN_WIDTH // 2 - 10
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
+        # The paper plan of the town shown in the "building" view
+        self.town_plan: TownPlan = TownPlan(self.game_map)
 
         self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:
@@ -527,6 +530,8 @@ class Game:
                 
                 # 1. Fill base background
                 self.screen.fill(BEIGE)
+                # The plan only takes input while it is drawn this frame
+                self.town_plan.begin_frame()
                 
                 # 2. Draw content modules based on view states
                 # Calculate view rectangles for left and right modules
@@ -639,7 +644,9 @@ class Game:
                                                           rect, self.depot, suppress_chart_hover)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
-                    elif mode in ['politics', 'trade_routes', 'building']:
+                    elif mode == 'building':
+                        self.town_plan.draw(self.screen, rect, self.state)
+                    elif mode in ['politics', 'trade_routes']:
                         # Placeholders for future modules
                         pass
 

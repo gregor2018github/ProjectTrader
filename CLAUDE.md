@@ -34,7 +34,7 @@ Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no tests or build ste
 
 Total window: **1760×1064** (SCREEN_WIDTH=1650 + SIDEBAR_WIDTH=110).
 
-The content area (1650px wide) is split into two equal **modules** (MODULE_WIDTH = 825px each). Each side can independently show `'map'`, `'market'`, or `'depot'`. When both sides show the same module, it takes the full width. The top bar (60px) and bottom bar (60px) are always visible. The 110px right sidebar holds the navigation pictograms.
+The content area (1650px wide) is split into two equal **modules** (MODULE_WIDTH = 825px each). Each side can independently show `'map'`, `'market'`, `'depot'`, or `'building'` (the town plan). When both sides show the same module, it takes the full width. The top bar (60px) and bottom bar (60px) are always visible. The 110px right sidebar holds the navigation pictograms.
 
 Rendering layers in the main loop (src/game.py `run()`):
 1. Background fill
@@ -73,6 +73,10 @@ Trees are points on the `Trees` object layer at the bottom-left corner of their 
 Each door is handed to the building whose collision rect its point sits in (`TMXMap._attach_door_to_house`), which is what connects a knock to the people behind it. Knocking on a house somebody is home in has a `KNOCK_ANSWER_CHANCE` of being answered: `StreetLife.answer_knock()` picks one of its residents, who opens the door, steps onto the doorstep, stands there `KNOCK_ANSWER_SECONDS` and goes back in. Talking to them holds that wait for as long as the bubble is open.
 
 Clicking a figurine opens its menu (`src/ui/helper_modules/figurine_click_menu.py`). Anyone whose `SOCIAL_CLASS` is `"Poor"` is also offered a coin: `ALMS_COIN` is booked as a donation under `ALMS_CATEGORY` ("Alms", a bookkeeping category of its own),, with the usual money-spent feedback (`on_money_spent`).
+
+### Town Plan
+
+The `'building'` view (sidebar tooltip "Town Plan") shows the whole map as an old paper plan of the town, in its own package `src/ui/layout_modules/town_plan/`. `TownPlan` (`view.py`) is owned by `Game`; it is told `begin_frame()` each frame and only takes input (wheel zooms towards the cursor through `ZOOM_LEVELS`, dragging pans) while it was drawn, routed from `EventHandler` ahead of the usual click handling. Nothing on it is drawn by hand: `terrain.py` averages the `Ground*` tile layers down and picks water, sand, road, cobbles and forest floor out by colour (`GROUND_*` in `style.py`) into `pygame.Mask`s, and `landmarks.py` turns the `House` objects into roofs, stalls, fences and named places, and finds where the bay's and the wood's names fit. `engraving.py` inks that once per zoom level, lazily, at the level's own resolution (so lines stay fine); what changes while playing — the player's mark, the map camera's frame, packed-up stalls, owned warehouses, names, the hover tooltip — is drawn on top each frame (`ornaments.py`), on parchment from `paper.py`. A new building, road or patch of water in Tiled shows up on the plan by itself; a new *kind* of building needs a case in `landmarks._kind`. Colours, fonts and names are in `style.py`.
 
 ### Trading System
 

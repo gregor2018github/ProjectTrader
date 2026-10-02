@@ -82,6 +82,17 @@ class EventHandler:
         if game_state.info_window and hasattr(game_state.info_window, 'handle_event'):
             game_state.info_window.handle_event(event)
             
+        # The town plan zooms and is dragged around while it is shown and
+        # nothing is open over it
+        town_plan = getattr(game_state.game, 'town_plan', None)
+        if (town_plan is not None
+                and not game_state.info_window
+                and not getattr(game_state, 'dialogue', None)
+                and not any(d.is_open for d in game_state.dropdowns.values())
+                and not (hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
+                and town_plan.handle_event(event)):
+            return self.running
+
         # Right-click: toggle volume slider on the music button
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             if hasattr(game_state.game, 'sound_control'):
