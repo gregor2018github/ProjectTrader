@@ -21,7 +21,8 @@ class House:
                  col_margin_right_pixel: int = 0,
                  col_margin_left_pixel: int = 0,
                  col_margin_up_pixel: int = 0,
-                 col_margin_down_pixel: int = 0):
+                 col_margin_down_pixel: int = 0,
+                 scale: float = 1.0):
         """Initialize the house.
         
         Args:
@@ -38,6 +39,9 @@ class House:
             col_margin_left_pixel: Extra pixels to add to the left of collision.
             col_margin_up_pixel: Extra pixels to add to the top of collision.
             col_margin_down_pixel: Extra pixels to add to the bottom of collision.
+            scale: Size relative to the sprite, so the same deco can be drawn
+                smaller or larger. Grows from the bottom-left corner, and the
+                collision box (margins included) grows with it.
         """
         self.x = x
         self.y = y 
@@ -53,6 +57,7 @@ class House:
         self.max_inhabitants = max(0, int(max_inhabitants))
         self.has_max_inhabitants_property = bool(has_max_inhabitants_property)
         self.inhabitants = self.max_inhabitants
+        self.scale = scale if scale > 0 else 1.0
         
         self.image: Optional[pygame.Surface] = None
         self.scaled_image_cache: Dict[float, pygame.Surface] = {}
@@ -62,8 +67,12 @@ class House:
         # Calculate collision rect
         # The point (x, y) is the bottom-left corner of the image AND the anchor for base collision.
         # Base dimensions in pixels
-        base_width = self.collision_to_right * self.tile_size
-        base_height = self.collision_up * self.tile_size
+        base_width = self.collision_to_right * self.tile_size * self.scale
+        base_height = self.collision_up * self.tile_size * self.scale
+        col_margin_left_pixel *= self.scale
+        col_margin_right_pixel *= self.scale
+        col_margin_up_pixel *= self.scale
+        col_margin_down_pixel *= self.scale
         
         # Apply pixel margins:
         # Left margin adds/removes from the left side (x-axis)
@@ -148,6 +157,11 @@ class House:
         if os.path.exists(path):
             try:
                 self.image = pygame.image.load(path).convert_alpha()
+                if self.scale != 1.0:
+                    self.image = pygame.transform.smoothscale(self.image, (
+                        max(1, round(self.image.get_width() * self.scale)),
+                        max(1, round(self.image.get_height() * self.scale)),
+                    ))
             except pygame.error as e:
                 print(f"Failed to load house image: {path} - {e}")
         else:

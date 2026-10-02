@@ -69,26 +69,29 @@ TREE_SPRITES = "assets/map_sprites/trees"
 #                  are mirrored).
 #   flower_patches How many patches from FLOWERS_SOURCE to scatter.
 #
-# The western forest was grown in two runs. These are the patches of the
-# second; the first was area (18, 145, 95, 187), shapes (51, 168, 25, 16.5)
-# and (79, 161, 9.5, 6), clearings (82, 174.5, 8.5, 6.5) and
-# (44, 171, 4.2, 3.2), 2 oaks, floor at (38, 168), (55, 162), (57, 177),
-# (70, 166), 14 flower patches.
+# The western forest was grown in three runs, all with seed 7. These are the
+# patches of the third. The first was area (18, 145, 95, 187), shapes
+# (51, 168, 25, 16.5) and (79, 161, 9.5, 6), clearings (82, 174.5, 8.5, 6.5)
+# and (44, 171, 4.2, 3.2), 2 oaks, floor at (38, 168), (55, 162), (57, 177),
+# (70, 166), 14 flower patches. The second ran with --remove 505 and filled
+# the oak's gap with area (55, 158, 68, 172), shape (61, 166, 6, 6); then out
+# to the west edge and the river with area (0, 136, 46, 235), shapes
+# (6, 166, 20, 31) and (28, 203, 19, 16), density 0.7, spacing 1.45, floor at
+# (6, 158), (10, 182), (34, 192), 8 flower patches. Back then KEEP_OUT was
+# (70, 185, 300, 300).
 # ---------------------------------------------------------------------------
 PATCHES = [
-    # Where the right-hand oak stood (run with --remove 505)
-    dict(area=(55, 158, 68, 172), shapes=[(61, 166, 6, 6)]),
-    # Out to the map's west edge and down to the river, more open than the
-    # middle
-    dict(area=(0, 136, 46, 235),
-         shapes=[(6, 166, 20, 31), (28, 203, 19, 16)],
-         density=0.7, spacing=1.45,
-         floor_spots=[(6, 158), (10, 182), (34, 192)],
-         flower_patches=8),
+    # South of the woodcutter's hut, down to row 205 and round to the field,
+    # with the road along rows 186-187 left open
+    dict(area=(44, 181, 104, 210),
+         shapes=[(64, 194, 19, 11), (86, 191, 17, 16)],
+         density=0.85, spacing=1.2,
+         floor_spots=[(50, 193), (88, 197)],
+         flower_patches=6),
 ]
 
 #: Rectangles x0, y0, x1, y1 nothing may go into, in any patch: roads, paths
-KEEP_OUT = [(70, 185, 300, 300)]
+KEEP_OUT = [(70, 185, 300, 189), (104, 189, 300, 300)]
 
 #: Forest floor to copy: the grove's own, cut out of Ground_High_Plus before
 #: the forest was grown, as [dx, dy, gid] tiles

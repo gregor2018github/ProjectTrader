@@ -550,7 +550,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=float(obj.properties.get('Scale', 1.0)),
                         )
                     house.display_name = obj.properties.get('Display_name', '')
                     self.houses.append(house)
@@ -1033,6 +1034,8 @@ class GameMap:
         # Initialize camera
         self.camera: Camera = Camera(view_width, view_height)
         self.zoom_levels: List[float] = [0.75, 1.0, 1.25, 1.5, 1.75]
+        # The farthest-out level is hidden: only zooming out with Ctrl held reaches it
+        self.min_normal_zoom_index: int = 1
         
         # Determine initial zoom index from constant if possible
         try:
@@ -1066,16 +1069,19 @@ class GameMap:
     def update_ripples(self, dt: float) -> None:
         self.ripples = [r for r in self.ripples if r.update(dt)]
     
-    def handle_zoom(self, direction: int) -> None:
+    def handle_zoom(self, direction: int, reveal_hidden: bool = False) -> None:
         """Handle zoom in/out.
         
         Args:
             direction: Positive for zoom in, negative for zoom out.
+            reveal_hidden: Allow zooming out to the hidden farthest-out level (Ctrl held).
         """
         if direction > 0:
             self.zoom_index = min(len(self.zoom_levels) - 1, self.zoom_index + 1)
         elif direction < 0:
-            self.zoom_index = max(0, self.zoom_index - 1)
+            min_index = 0 if reveal_hidden else self.min_normal_zoom_index
+            if self.zoom_index > min_index:
+                self.zoom_index -= 1
         
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         self.map_player.on_zoom_change()

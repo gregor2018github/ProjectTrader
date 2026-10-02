@@ -99,11 +99,13 @@ keeps its distance from every tree already in the map and only fills the gaps.
 To redo a forest, undo the map with git (`git checkout assets/tiles/Map1.tmx`)
 and run again.
 
-The comment above `PATCHES` records what earlier runs used. The current
-entries are the second run, which removed one oak (`--remove 505`), filled its
-gap, and extended the forest to the map's west edge and down to the river.
-After those runs, the floor was rebuilt once with blending: the grove's
-original floor plus whole copies at every `floor_spots` entry from both runs.
+The comment above `PATCHES` records what earlier runs used. The second
+run removed one oak (`--remove 505`), filled its gap, and extended the forest to
+the map's west edge and down to the river. After those runs, the floor was
+rebuilt once with blending: the grove's original floor plus whole copies at
+every `floor_spots` entry from both runs. The current entries are the third
+run, which grew the forest south of the woodcutter's hut towards the wheat
+field and left the road along rows 186-187 open.
 
 ## What it avoids
 
