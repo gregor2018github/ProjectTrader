@@ -3,6 +3,7 @@ import datetime
 from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT
+from ..paper import CHART_PAPER_EDGE, draw_paper
 
 if TYPE_CHECKING:
     from ...models.good import Good
@@ -36,7 +37,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     
     # Draw the chart content area (with border on right before the buffer)
     chart_area = pygame.Rect(view_rect.x, view_rect.y, chart_content_width, view_rect.height)
-    pygame.draw.rect(screen, SANDY_BROWN, chart_area)
+    draw_paper(screen, chart_area, chart_area.topleft, base=SANDY_BROWN, edge_depth=CHART_PAPER_EDGE)
     pygame.draw.rect(screen, DARK_BROWN, chart_area, 2)
 
     # determine max chart size based on chart content width

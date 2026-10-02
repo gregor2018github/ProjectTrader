@@ -5,7 +5,10 @@ import random
 import time
 import pygame
 from ..config.constants import FONTS_PATH
-from ..config.colors import BEIGE, DARK_BROWN
+from .paper import draw_paper
+from .layout_modules.town_plan.style import INK, INK_FADED
+
+_LIGHT_PAPER = (243, 233, 204)
 
 _PLAYER_DIR = os.path.join('assets', 'map_sprites', 'figurines', 'humans', 'player')
 _PLAYER_SPRITES = [
@@ -69,6 +72,52 @@ def _npc_walk_cycles() -> list[tuple[str, list[str]]]:
     return cycles
 
 
+def _draw_rules(surface: pygame.Surface) -> None:
+    """A fine double rule round the sheet, knotted at the corners."""
+    rect = surface.get_rect()
+    outer = rect.inflate(-76, -76)
+    inner = rect.inflate(-90, -90)
+    pygame.draw.rect(surface, INK, outer, 2)
+    pygame.draw.rect(surface, INK_FADED, inner, 1)
+
+    # A small lozenge halfway along each side, sitting on the rules
+    for cx, cy in ((outer.centerx, outer.top), (outer.centerx, outer.bottom),
+                   (outer.left, outer.centery), (outer.right, outer.centery)):
+        diamond = [(cx - 9, cy), (cx, cy - 9), (cx + 9, cy), (cx, cy + 9)]
+        pygame.draw.polygon(surface, _LIGHT_PAPER, diamond)
+        pygame.draw.polygon(surface, INK, diamond, 1)
+        pygame.draw.circle(surface, INK, (cx, cy), 2)
+
+    # A ringed knot at each corner, between the two rules
+    for corner in (outer.topleft, outer.topright, outer.bottomleft, outer.bottomright):
+        cx = corner[0] + (4 if corner[0] == outer.left else -4)
+        cy = corner[1] + (4 if corner[1] == outer.top else -4)
+        pygame.draw.circle(surface, _LIGHT_PAPER, (cx, cy), 13)
+        pygame.draw.circle(surface, INK, (cx, cy), 13, 2)
+        pygame.draw.circle(surface, INK_FADED, (cx, cy), 8, 1)
+        pygame.draw.circle(surface, INK, (cx, cy), 3)
+
+
+def _draw_flourish(surface: pygame.Surface, center: tuple[int, int], half_width: int) -> None:
+    """A rule with a lozenge in its middle, fading towards its ends."""
+    cx, cy = center
+    for side in (-1, 1):
+        pygame.draw.line(surface, INK_FADED, (cx + side * 12, cy), (cx + side * half_width, cy))
+        pygame.draw.line(surface, INK_FADED, (cx + side * 20, cy + 4), (cx + side * half_width * 0.7, cy + 4))
+        pygame.draw.circle(surface, INK, (cx + side * half_width, cy), 2)
+    pygame.draw.polygon(surface, INK, [(cx - 8, cy), (cx, cy - 5), (cx + 8, cy), (cx, cy + 5)])
+
+
+def _background(size: tuple[int, int], flourish_y: int) -> pygame.Surface:
+    """Paper, rules and flourish: everything that does not move."""
+    surface = pygame.Surface(size).convert()
+    rect = surface.get_rect()
+    draw_paper(surface, rect, rect.topleft)
+    _draw_rules(surface)
+    _draw_flourish(surface, (rect.centerx, flourish_y), 130)
+    return surface
+
+
 def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
     """Show an animated loading screen for *duration* seconds.
 
@@ -101,6 +150,7 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
 
     sw, sh = screen.get_size()
     cx, cy = sw // 2, sh // 2
+    background = _background((sw, sh), cy + 84)
 
     frame_idx = 0
     dot_count = 1
@@ -127,14 +177,16 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
             if event.type == pygame.QUIT:
                 return
 
-        screen.fill(BEIGE)
+        screen.blit(background, (0, 0))
 
         if sprites:
             sprite = sprites[frame_idx]
             screen.blit(sprite, sprite.get_rect(center=(cx, cy - 50)))
 
         dots = '.' * dot_count
-        text_surf = font.render(f"Loading{dots}", True, DARK_BROWN)
-        screen.blit(text_surf, text_surf.get_rect(center=(cx, cy + 50)))
+        # Placed by the bare word, so the dots do not shift it
+        word = font.render("Loading", True, INK)
+        text_surf = font.render(f"Loading{dots}", True, INK)
+        screen.blit(text_surf, word.get_rect(center=(cx, cy + 50)))
 
         pygame.display.flip()

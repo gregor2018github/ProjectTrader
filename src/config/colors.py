@@ -39,6 +39,11 @@ GOLD = (218, 165, 32)
 DARK_BLUE = (0, 0, 139)
 DARK_RED = (139, 0, 0)
 
+# Old paper (see src/ui/paper.py)
+PARCHMENT = (236, 222, 186)          # The paper itself
+PARCHMENT_DARK = (196, 168, 118)     # Its speckles, fibres and darker patches
+PARCHMENT_STAIN = (170, 130, 80)     # Water stains and browned edges
+
 # Muted status colors — earthy tones for in-game feedback (gauges, hit labels)
 # that read as "good/bad" without the harsh saturation of pure RGB primaries.
 # Pitched to match the BUY_BUTTON/SELL_BUTTON/GOLD family already used elsewhere.

@@ -3,6 +3,7 @@ import pygame
 import datetime
 from typing import TYPE_CHECKING, Optional, List
 from ...config.colors import *
+from ..paper import CHART_PAPER_EDGE, draw_paper
 
 if TYPE_CHECKING:
     from ...models.depot import Depot
@@ -46,7 +47,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
     buttons_area_y = rect.bottom - button_height - 15
 
     # Draw chart background
-    pygame.draw.rect(screen, SANDY_BROWN, chart_rect)
+    draw_paper(screen, chart_rect, chart_rect.topleft, base=SANDY_BROWN, edge_depth=CHART_PAPER_EDGE)
     pygame.draw.rect(screen, DARK_BROWN, chart_rect, 2)
 
     # 3. Get Data based on active selection

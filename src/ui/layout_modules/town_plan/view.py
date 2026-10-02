@@ -9,7 +9,6 @@ dragging. Its parts:
 - ``landmarks`` decides what each building is and where names go,
 - ``engraving`` inks the unchanging plan, once per zoom level,
 - ``ornaments`` draws frame, title, compass, scale, legend and labels,
-- ``paper``     makes the sheet it all lies on,
 - ``glyphs``    holds the little drawings shared by plan and legend,
 - ``style``     holds the colours and tuning.
 """
@@ -21,7 +20,7 @@ import pygame
 from . import glyphs, ornaments
 from .engraving import engrave
 from .landmarks import MAJOR_KINDS, MINOR_KINDS, Landmarks, PlanBuilding, gather
-from .paper import draw_paper
+from ...paper import draw_paper
 from .style import (
     DETAIL_LABEL_LEVEL, FONT_PLAIN, FONT_SCRIPT, GOLD_INK, INK, INK_FADED,
     PAPER, WATER_LINE, ZOOM_LEVELS,
