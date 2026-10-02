@@ -24,7 +24,7 @@ from .landmarks import MAJOR_KINDS, MINOR_KINDS, Landmarks, PlanBuilding, gather
 from .paper import draw_paper
 from .style import (
     DETAIL_LABEL_LEVEL, FONT_PLAIN, FONT_SCRIPT, GOLD_INK, INK, INK_FADED,
-    LEGEND_MIN_SIDE_ROOM, PAPER, WATER_LINE, ZOOM_LEVELS,
+    PAPER, WATER_LINE, ZOOM_LEVELS,
 )
 from .terrain import Ground
 
@@ -176,17 +176,20 @@ class TownPlan:
         screen.blit(plan, land)
         ornaments.neat_line(screen, land)
 
+        # Sheet furniture is laid out first: names keep clear of it, and
+        # what lies under it cannot be pointed at
+        taken = self._ornament_rects(inner)
+
         mouse = pygame.mouse.get_pos()
         hovered = None
-        if not self._dragging and inner.collidepoint(mouse) and not game_state.info_window:
+        if (not self._dragging and inner.collidepoint(mouse) and not game_state.info_window
+                and pygame.Rect(mouse, (1, 1)).collidelist(taken) < 0):
             hovered = self._building_at(mouse)
 
         self._draw_live_buildings(screen, game_state, hovered)
         if game_state.is_map_visible:
             self._draw_camera_view(screen)
 
-        # Sheet furniture first, so the names know where not to go
-        taken = self._ornament_rects(inner)
         self._draw_labels(screen, inner, taken)
         player = self.game_map.map_player
         ornaments.player_mark(screen, self.world_to_screen(player.x + player.width / 2, player.y + player.height),
@@ -238,25 +241,18 @@ class TownPlan:
         compass_box.center = (self._compass_center[0], self._compass_center[1] - 14)
         self._scale_bar = ornaments.scale_bar_rect((inner.left + 18, inner.bottom - 14), self.px_per_tile)
 
-        # The legend only where the land leaves room beside it
-        self._legend = None
-        land_width = self.world_size[0] * self.scale
-        if (inner.width - land_width) / 2 >= LEGEND_MIN_SIDE_ROOM:
-            w, h = ornaments.legend_size()
-            self._legend = pygame.Rect(0, 0, w, h)
-            self._legend.bottomright = (inner.right - 20, inner.bottom - 36)
+        # The legend always has its corner, whatever lies under it
+        self._legend = pygame.Rect((0, 0), ornaments.legend_size())
+        self._legend.bottomright = (inner.right - 16, inner.bottom - 16)
 
-        taken = [self._cartouche.inflate(8, 8), compass_box, self._scale_bar]
-        if self._legend is not None:
-            taken.append(self._legend.inflate(8, 8))
+        taken = [self._cartouche.inflate(8, 8), compass_box, self._scale_bar, self._legend.inflate(8, 8)]
         return taken
 
     def _draw_ornaments(self, screen: pygame.Surface, inner: pygame.Rect, taken: List[pygame.Rect]) -> None:
         ornaments.cartouche(screen, self._cartouche)
         ornaments.compass(screen, self._compass_center, 50)
         ornaments.scale_bar(screen, self._scale_bar.bottomleft, self.px_per_tile)
-        if self._legend is not None:
-            ornaments.legend(screen, self._legend)
+        ornaments.legend(screen, self._legend)
         ornaments.hint(screen, inner)
 
     def _draw_labels(self, screen: pygame.Surface, inner: pygame.Rect, taken: List[pygame.Rect]) -> None:

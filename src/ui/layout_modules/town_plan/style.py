@@ -89,5 +89,3 @@ FONT_PLAIN = os.path.join(FONTS_PATH, "RomanAntique.ttf")
 
 FRAME_MARGIN = 10                  # Paper left free outside the ruled frame
 FRAME_BAND = 9                     # Width of the chequered band of the frame
-#: Room the legend needs beside the plan before it is shown.
-LEGEND_MIN_SIDE_ROOM = 230
