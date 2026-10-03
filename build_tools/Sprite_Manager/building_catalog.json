@@ -489,6 +489,51 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -24
    }
+  },
+  "houses/Market_01_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "wheat stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_02_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "meat stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_03_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "wood stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_04_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "fish stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_05_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "wine and beer stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_06_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "wool and hide stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_07_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "pottery stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_08_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "iron stall, closed",
+   "atlas": ""
+  },
+  "houses/Market_09_closed.png": {
+   "kind": "market_stall",
+   "subcategory": "stone stall, closed",
+   "atlas": ""
   }
  },
  "motifs": {}

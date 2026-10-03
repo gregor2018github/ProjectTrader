@@ -361,13 +361,18 @@ def restamp(domain, path, catalog):
     neighbour the collection is left alone. The collection is backed up
     first, and a new size updates the catalog, the Tiled hints included.
 
+    A catalog entry whose "atlas" is '' is in no collection (a market
+    stall's closed sprite, which the game swaps in itself); nothing to do.
+
     Returns:
-        (line for the status bar, True if the collection was updated).
+        (line for the status bar, True if all is up to date).
 
     Raises:
         pygame.error, OSError: If a file cannot be read or written.
     """
     entry = catalog.file_entry(path)
+    if entry and entry.get('atlas') == '':
+        return f'{path.name} saved - it is in no collection, the game loads it as it is', True
     atlas = domain.atlases.get((entry or {}).get('atlas'))
     if not (entry and entry.get('rect') and atlas):
         return f'{path.name} saved - its place in the collection is not known, so update that by hand', False

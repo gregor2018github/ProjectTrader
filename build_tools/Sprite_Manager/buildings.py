@@ -4,8 +4,8 @@ All of them are single sprites in assets/map_sprites/houses/ - House_<n>,
 Market_<n>, Fence_<n>, Deco_<n> - loaded by the "Houses" object layer's
 File_name, and live in Houses.png for Tiled. Which kind each is (a
 dwelling, a workshop, a stall ...) is in building_catalog.json. A market
-stall's closed sprite, Market_<n>_closed.png, belongs to its open one and
-is not listed of its own.
+stall's closed sprite, Market_<n>_closed.png, which the game shows at night,
+is listed right after its open one.
 
 A new building's object needs its size and collision box in tiles, which
 tiled_properties() works out from the sprite: the tiles it covers, and a box
@@ -24,7 +24,6 @@ from sprite_library import MAP_SPRITES, TILE, Atlas, Domain, Kind
 
 HOUSES_ATLAS = Atlas('houses', MAP_SPRITES / 'houses' / 'Houses.png', 'Houses', 'Houses.xcf')
 HOUSES_DIR = MAP_SPRITES / 'houses'
-CLOSED_SUFFIX = '_closed'   # a market stall's night sprite
 
 KINDS = (
     Kind('dwelling', 'Dwellings', 'town house', 'roof', HOUSES_ATLAS, HOUSES_DIR, 'House',
@@ -88,9 +87,8 @@ SOLID_ALPHA = 128   # a pixel of the foot this opaque counts for the collision m
 
 
 def building_files():
-    """Every building and decoration sprite; a stall's closed sprite goes with its open one."""
-    return sorted(p for p in HOUSES_DIR.glob('*.png')
-                  if p.name != HOUSES_ATLAS.name and not p.stem.endswith(CLOSED_SUFFIX))
+    """Every building and decoration sprite; by name, so a stall's closed sprite follows its open one."""
+    return sorted(p for p in HOUSES_DIR.glob('*.png') if p.name != HOUSES_ATLAS.name)
 
 
 def tiled_properties(kind, sprite, path):
