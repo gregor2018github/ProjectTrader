@@ -463,6 +463,38 @@
     "Stem_Position": 4.8,
     "Stem_Thick": 2.2
    }
+  },
+  "trees/Tree_30.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "English oak",
+   "atlas": "trees",
+   "rect": [
+    2912,
+    35,
+    270,
+    317
+   ],
+   "tiled": {
+    "File_name": "Tree_30.png",
+    "Stem_Position": 3.95,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_31.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "cherry tree in blossom",
+   "atlas": "trees",
+   "rect": [
+    3232,
+    61,
+    324,
+    323
+   ],
+   "tiled": {
+    "File_name": "Tree_31.png",
+    "Stem_Position": 5.05,
+    "Stem_Thick": 1.7
+   }
   }
  },
  "motifs": {
