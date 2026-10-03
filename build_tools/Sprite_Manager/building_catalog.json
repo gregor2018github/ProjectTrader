@@ -534,6 +534,90 @@
    "kind": "market_stall",
    "subcategory": "stone stall, closed",
    "atlas": ""
+  },
+  "houses/House_23.png": {
+   "kind": "public",
+   "subcategory": "watchtower",
+   "atlas": "houses",
+   "rect": [
+    3648,
+    57,
+    235,
+    679
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_23.png",
+    "Tiles_to_right": 8,
+    "Tiles_up": 22,
+    "Collision_to_right": 8,
+    "Collision_up": 7,
+    "Col_margin_left_pixel": -17,
+    "Col_margin_right_pixel": -37
+   }
+  },
+  "houses/House_24.png": {
+   "kind": "public",
+   "subcategory": "guildhall",
+   "atlas": "houses",
+   "rect": [
+    3456,
+    789,
+    339,
+    331
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_24.png",
+    "Tiles_to_right": 11,
+    "Tiles_up": 11,
+    "Collision_to_right": 11,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -13,
+    "Col_margin_right_pixel": -26
+   }
+  },
+  "houses/House_25.png": {
+   "kind": "dwelling",
+   "subcategory": "thatched cottage",
+   "atlas": "houses",
+   "rect": [
+    2848,
+    873,
+    471,
+    471
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_25.png",
+    "Tiles_to_right": 15,
+    "Tiles_up": 15,
+    "Collision_to_right": 15,
+    "Collision_up": 4,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -9
+   }
+  },
+  "houses/House_26.png": {
+   "kind": "farm",
+   "subcategory": "barn",
+   "atlas": "houses",
+   "rect": [
+    832,
+    1084,
+    411,
+    324
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_26.png",
+    "Tiles_to_right": 13,
+    "Tiles_up": 11,
+    "Collision_to_right": 13,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -11,
+    "Col_margin_right_pixel": -15
+   }
   }
  },
  "motifs": {}
