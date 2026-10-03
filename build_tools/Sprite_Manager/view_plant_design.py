@@ -22,10 +22,12 @@ import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from colour_wheel import ColourWheel
 from plant_job import colour_name, hex_colour
-from plants import KINDS, KINDS_BY_KEY
-from theme import CARD_BG, PANEL_GAP, TEXT, TEXT_DIM
+from plants import KINDS, KINDS_BY_KEY, SUGGESTIONS
+from theme import CARD_BG, DIALOG_BG, DIALOG_LINE, PANEL_GAP, TEXT, TEXT_DIM
 from view import View
 from widgets import Button, TextField, draw_chips, draw_panel, fit_text
+
+PROPOSALS_PAD = 10       # inside the box of proposals under the subcategory field
 
 CONTROLS_SHARE = 0.3     # of the body, for kind, subcategory and colour
 CONTROLS_MIN_W = 330
@@ -45,6 +47,8 @@ class PlantDesignView(View):
         self.brush = 'S'
         self.brush_chips = []
         self.kind_chips = []
+        self.proposal_chips = []      # [(rect, text)] while the subcategory field is typed in
+        self.proposals_rect = None
         self.stroke = None             # (last point, erase) while the mouse paints
         self.display = None            # the sheet with the sketch, scaled into the panel
         self.display_rect = None
@@ -310,12 +314,46 @@ class PlantDesignView(View):
         text = fit_text(fonts.font, f'{colour_name(colour)}  {hex_colour(colour)}', w - SWATCH_H - 12)
         label = fonts.font.render(text, True, TEXT)
         screen.blit(label, label.get_rect(midleft=(swatch.x + SWATCH_H + 12, swatch.centery)))
+        self.draw_proposals(screen, self.field.rect, inner, mouse)
+
+    def proposals(self):
+        """The subcategories proposed for the kind, narrowed down to what is typed."""
+        typed = self.field.text.strip().lower()
+        return [s for s in SUGGESTIONS.get(self.job.kind, ()) if typed in s.lower() and s.lower() != typed]
+
+    def draw_proposals(self, screen, field, inner, mouse):
+        """Below the subcategory field while it is typed in: the proposals as chips, over the wheel."""
+        self.proposal_chips, self.proposals_rect = [], None
+        proposals = self.proposals() if self.field.focused else []
+        if not proposals:
+            return
+        small = self.app.fonts.small
+        x, w = inner.x + PROPOSALS_PAD, inner.w - 2 * PROPOSALS_PAD
+        top = field.bottom + 6
+        title = small.render(f'Proposals for {KINDS_BY_KEY[self.job.kind].title.lower()}', True, TEXT_DIM)
+        # Lay the chips out once off screen to know how tall the box must be
+        scratch = pygame.Surface((1, 1))
+        _, bottom = draw_chips(scratch, small, proposals, str, None, x, 0, w, (-1, -1))
+        box = pygame.Rect(inner.x, top, inner.w, bottom + title.get_height() + 3 * PROPOSALS_PAD)
+        pygame.draw.rect(screen, DIALOG_BG, box, border_radius=8)
+        pygame.draw.rect(screen, DIALOG_LINE, box, 2, border_radius=8)
+        screen.blit(title, (x, top + PROPOSALS_PAD))
+        chips_y = top + 2 * PROPOSALS_PAD + title.get_height()
+        self.proposal_chips, _ = draw_chips(screen, small, proposals, str, None, x, chips_y, w, mouse)
+        self.proposals_rect = box
 
     # --- input ------------------------------------------------------------
 
     def click(self, pos):
         if not self.discard_button.rect.collidepoint(pos):
             self.discard_armed = False
+        if self.proposals_rect and self.proposals_rect.collidepoint(pos):
+            for chip, value in self.proposal_chips:
+                if chip.collidepoint(pos):
+                    self.field.text = value
+                    self.field.focus(False)
+                    self.take_subcategory()
+            return
         self.field.focus(self.field.rect.collidepoint(pos))
         if not self.field.focused:
             self.take_subcategory()

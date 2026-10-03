@@ -94,6 +94,32 @@ KINDS = (
          DECO_PLANTS_DIR, 'Mushroom'),
 )
 KINDS_BY_KEY = {k.key: k for k in KINDS}
+
+#: Subcategories the design screen proposes per kind: what grows in and around
+#: a medieval town somewhere in England or western Europe - the woods, hedges,
+#: meadows, cottage and monastery gardens - picked for the look, not botany.
+SUGGESTIONS = {
+    'needle_tree': ('Scots pine', 'Norway spruce', 'silver fir', 'English yew', 'churchyard yew',
+                    'European larch', 'common juniper', 'stone pine', 'young fir sapling', 'dead pine snag'),
+    'broadleaf_tree': ('English oak', 'gnarled old oak', 'beech', 'ash', 'elm', 'lime tree', 'silver birch',
+                       'hornbeam', 'sweet chestnut', 'walnut', 'weeping willow', 'pollarded willow', 'alder',
+                       'rowan', 'field maple', 'apple tree', 'pear tree', 'cherry tree', 'holly tree'),
+    'bush': ('hawthorn', 'blackthorn', 'elder', 'hazel', 'holly bush', 'dog rose', 'rosebush', 'bramble',
+             'gorse', 'broom', 'box hedge', 'privet hedge', 'rosemary bush', 'gooseberry bush',
+             'redcurrant bush', 'juniper shrub'),
+    'flowers': ('poppies', 'cornflowers', 'daisies', 'dandelions', 'buttercups', 'foxgloves', 'bluebells',
+                'primroses', 'cowslips', 'forget-me-nots', 'violets', 'marigolds', 'madonna lilies', 'lavender',
+                'heather', 'thistles', 'yarrow', 'chamomile', "St John's wort", 'meadowsweet', 'irises'),
+    'berries': ('wild strawberries', 'bilberries', 'lingonberries', 'cranberries', 'raspberry canes',
+                'dewberries', 'cloudberries', 'redcurrants'),
+    'grass_herbs': ('tall meadow grass', 'reeds', 'rushes', 'cattails', 'bracken fern', 'nettles', 'ivy', 'clover',
+                    'thyme', 'sage', 'rosemary', 'mint', 'parsley', 'dill', 'fennel', 'rue', 'mugwort',
+                    'wormwood', 'sorrel', 'plantain'),
+    'moss': ('cushion moss', 'mossy stone', 'moss on a fallen log', 'lichen patch', 'peat moss',
+             'haircap moss'),
+    'mushrooms': ('fly agaric', 'porcini', 'chanterelles', 'field mushrooms', 'puffballs', 'fairy ring',
+                  'shaggy ink caps', 'morels', 'honey fungus on a stump', 'bracket fungus on a log'),
+}
 UNSORTED = 'unsorted'     # a motif or file the catalog does not know yet
 REFERENCE = 'reference'   # not a plant: the player drawn into the collection for scale
 SORTABLE = tuple(k.key for k in KINDS) + (REFERENCE,)
