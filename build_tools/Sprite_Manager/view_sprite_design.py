@@ -1,11 +1,11 @@
-"""Screen 2 of the plants: designing a new plant before it goes to the model.
+"""Screen 2 of the plants and buildings: designing a new sprite before it goes to the model.
 
 Left the split image as it will be sent: the example, and the red frame to
-sketch the new plant's shape in with the mouse - left button paints, and an
+sketch the new sprite's shape in with the mouse - left button paints, and an
 outline drawn round closes into a filled shape; right button rubs out.
 Under it the brush size, undo and the ways to the model, as for the humans:
 copy image and prompt for the web view, paste or open its answer, or send
-to the API. Right the kind of plant (the example's, to begin with), an
+to the API. Right the kind (the example's, to begin with), an
 optional subcategory that goes into the prompt, and the colour the sketch
 is filled with, from the wheel.
 
@@ -21,8 +21,7 @@ import gemini_client
 import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from colour_wheel import ColourWheel
-from plant_job import colour_name, hex_colour
-from plants import KINDS, KINDS_BY_KEY, SUGGESTIONS
+from sprite_job import colour_name, hex_colour
 from theme import CARD_BG, DIALOG_BG, DIALOG_LINE, PANEL_GAP, TEXT, TEXT_DIM
 from view import View
 from widgets import Button, TextField, draw_chips, draw_panel, fit_text
@@ -33,12 +32,13 @@ CONTROLS_SHARE = 0.3     # of the body, for kind, subcategory and colour
 CONTROLS_MIN_W = 330
 BUTTON_H = 40
 BUTTON_GAP = 10
-BRUSHES = (('XXS', 0.002), ('XS', 0.004), ('S', 0.007), ('M', 0.012), ('L', 0.025), ('XL', 0.05))   # radius, share of the cell
+# Brush radius, as a share of the cell
+BRUSHES = (('XXS', 0.002), ('XS', 0.004), ('S', 0.007), ('M', 0.012), ('L', 0.025), ('XL', 0.05))
 SWATCH_H = 44
 BRUSH_RING = (60, 60, 60)   # where the brush would paint, over the white cell
 
 
-class PlantDesignView(View):
+class DesignView(View):
     def __init__(self, app):
         super().__init__(app)
         self.job = app.npc
@@ -73,7 +73,7 @@ class PlantDesignView(View):
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send),
-                        (self.answers_button, self.app.open_plant_answers),
+                        (self.answers_button, self.app.open_answers),
                         (self.discard_button, self.discard))
 
     # --- state ------------------------------------------------------------
@@ -91,7 +91,7 @@ class PlantDesignView(View):
             self.app.set_status(f'Cannot save the job: {exc}', error=True)
 
     def unfinished(self):
-        return '' if self.job.has_sketch() else 'Sketch the new plant in the red frame first'
+        return '' if self.job.has_sketch() else f'Sketch the new {self.job.domain.noun} in the red frame first'
 
     def ready_sheet(self):
         """The split image written to disk as it is now; None (with the reason shown) if not ready."""
@@ -161,7 +161,7 @@ class PlantDesignView(View):
         if not sheet:
             return
         entry = store_web_answer(self.job, self.app.store, sheet, source, kind)
-        self.app.open_plant_answers(entry)
+        self.app.open_answers(entry)
 
     def send(self):
         sheet = self.ready_sheet()
@@ -172,16 +172,17 @@ class PlantDesignView(View):
         """Delete the job and its answers; asks once more first."""
         if not self.discard_armed:
             self.discard_armed = True
-            self.app.set_status('Click "Sure?" to delete this new plant and all its answers', error=True)
+            self.app.set_status(f'Click "Sure?" to delete this new {self.job.domain.noun} and all its answers',
+                                error=True)
             return
         self.job.discard()
-        self.app.close_plant_job()
+        self.app.close_job()
         self.app.set_status(f'Discarded {self.job.name}')
 
     # --- view -------------------------------------------------------------
 
     def header(self):
-        return (f'2. New plant from {self.job.example_label}',
+        return (f'2. New {self.job.domain.noun} from {self.job.example_label}',
                 'Sketch the shape in the red frame (left paints, a closed outline fills, right rubs out, '
                 'Ctrl+Z undo), pick type and colour, then send it. Ctrl+V or drop a file = answer.')
 
@@ -212,7 +213,7 @@ class PlantDesignView(View):
 
     def draw_sheet_panel(self, screen, rect, mouse):
         fonts = self.app.fonts
-        draw_panel(screen, fonts, rect, 'Split image - sketch the new plant in the red frame')
+        draw_panel(screen, fonts, rect, f'Split image - sketch the new {self.job.domain.noun} in the red frame')
         inner = rect.inflate(-20, -20)
 
         # From the bottom: the ways to the model, then the brush row
@@ -288,14 +289,15 @@ class PlantDesignView(View):
 
     def draw_controls(self, screen, rect, mouse):
         fonts = self.app.fonts
-        draw_panel(screen, fonts, rect, 'The new plant')
+        draw_panel(screen, fonts, rect, f'The new {self.job.domain.noun}')
         inner = rect.inflate(-28, -28)
         x, y, w = inner.x, inner.y, inner.w
 
         screen.blit(fonts.small.render('Type', True, TEXT_DIM), (x, y))
         y += 22
-        self.kind_chips, y = draw_chips(screen, fonts.small, [k.key for k in KINDS],
-                                        lambda key: KINDS_BY_KEY[key].title, self.job.kind, x, y, w, mouse)
+        domain = self.job.domain
+        self.kind_chips, y = draw_chips(screen, fonts.small, [k.key for k in domain.kinds],
+                                        lambda key: domain.kinds_by_key[key].title, self.job.kind, x, y, w, mouse)
         y += 16
         screen.blit(fonts.small.render('Subcategory, goes into the prompt', True, TEXT_DIM), (x, y))
         y += 22
@@ -319,7 +321,8 @@ class PlantDesignView(View):
     def proposals(self):
         """The subcategories proposed for the kind, narrowed down to what is typed."""
         typed = self.field.text.strip().lower()
-        return [s for s in SUGGESTIONS.get(self.job.kind, ()) if typed in s.lower() and s.lower() != typed]
+        return [s for s in self.job.domain.suggestions.get(self.job.kind, ())
+                if typed in s.lower() and s.lower() != typed]
 
     def draw_proposals(self, screen, field, inner, mouse):
         """Below the subcategory field while it is typed in: the proposals as chips, over the wheel."""
@@ -330,7 +333,8 @@ class PlantDesignView(View):
         small = self.app.fonts.small
         x, w = inner.x + PROPOSALS_PAD, inner.w - 2 * PROPOSALS_PAD
         top = field.bottom + 6
-        title = small.render(f'Proposals for {KINDS_BY_KEY[self.job.kind].title.lower()}', True, TEXT_DIM)
+        kind = self.job.domain.kinds_by_key[self.job.kind]
+        title = small.render(f'Proposals for {kind.title.lower()}', True, TEXT_DIM)
         # Lay the chips out once off screen to know how tall the box must be
         scratch = pygame.Surface((1, 1))
         _, bottom = draw_chips(scratch, small, proposals, str, None, x, 0, w, (-1, -1))
@@ -444,10 +448,10 @@ class PlantDesignView(View):
         elif event.key == pygame.K_o and ctrl:
             self.open_answer()
         elif event.key == pygame.K_TAB and self.app.store.entries:
-            self.app.open_plant_answers()
+            self.app.open_answers()
 
     def back(self):
         self.field.focus(False)
         self.take_subcategory()
-        self.app.close_plant_job()
+        self.app.close_job()
         return True

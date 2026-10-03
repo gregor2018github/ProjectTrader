@@ -1,4 +1,5 @@
-"""Sprite Manager: make and look after the walk and run animations of the NPCs and the player, and the plants.
+"""Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
+and the plant and building sprites of the map.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -106,30 +107,34 @@ out); drawing one by hand gives the model a cleaner guide.
 
 Sheets, prompts, answers and review.json live in build_tools/output/<npc>/walk/.
 
-Plants: "Plants" on the first screen (Tab) switches to every plant sprite,
-by kind: needle and broadleaf trees, bushes, flowers, berries, grass and
-herbs, moss, mushrooms. The trees are the single Tree_<n>.png files; the
+Plants and buildings: "Plants" and "Buildings" on the first screen (Tab
+goes round all three) switch to every plant, or every building and
+decoration, by kind: needle and broadleaf trees, bushes, flowers ...;
+dwellings, workshops, public buildings, farm buildings, market stalls, walls
+and fences, decorations. Which kind each sprite is, is written down in
+plant_catalog.json and building_catalog.json (plants.py, buildings.py); the
 small plants exist only inside non_collision_deco.png and are cut out of it
-on the fly. Which kind each is, is written down in plant_catalog.json
-(plants.py); right-click a sprite to change its kind or subcategory.
-Clicking a sprite starts a new plant with it as the example, in
-build_tools/output/plants/<job>/:
-1. Sketch the new plant's rough shape with the mouse in the red frame
+on the fly. Right-click a sprite to change its kind or subcategory.
+Clicking a sprite starts a new one with it as the example, in
+build_tools/output/<plants|buildings>/<job>/:
+1. Sketch the new sprite's rough shape with the mouse in the red frame
    beside the example (left button paints, a closed outline fills, right
    button rubs out, Ctrl+Z), pick its type (the example's to begin with),
-   an optional subcategory ("oak", "rosebush") and the colour the sketch
-   is filled with from the wheel. All of it goes into the prompt.
+   an optional subcategory ("oak", "bakery"; clicking the field proposes
+   some) and the colour the sketch is filled with from the wheel. All of it
+   goes into the prompt.
 2. Send the split image as for the humans: copy image and prompt to the
    web view and paste the answer, or Send to Gemini.
-3. Accept an answer: the plant is cut out, scaled as the example was, saved
-   as a single sprite (trees and bushes as Tree_<n>.png / Bush_<n>.png in
-   assets/map_sprites/trees, which the "Trees" object layer loads; small
-   plants in assets/map_sprites/non_collision_deco/plants/) and put into
-   the first free place of its sprite collection, Trees.png or
-   non_collision_deco.png, on the tile grid, for Tiled. The collection is
-   backed up to build_tools/output/plants/atlas_backups/ first; the .xcf it
-   was exported from does not get the new sprite. For a tree or bush the
-   status line gives the Stem_Position and Stem_Thick to put on its object.
+3. Accept an answer: the sprite is cut out, scaled as the example was, saved
+   as a single sprite (assets/map_sprites/trees/Tree_<n>.png,
+   houses/House_<n>.png, ... which the "Trees" and "Houses" object layers
+   load) and put into the first free place of its sprite collection,
+   Trees.png, non_collision_deco.png or Houses.png, on the tile grid, for
+   Tiled. The collection is backed up to
+   build_tools/output/<domain>/atlas_backups/ first; the .xcf it was
+   exported from does not get the new sprite. The status line gives the
+   Tiled properties for its object: a tree's stem, a building's class, size
+   and collision box (sprite_library.py has the whole story).
 
 The code, for whoever works on it next:
 
@@ -138,9 +143,9 @@ The code, for whoever works on it next:
     view_npcs.py       screen 1, the NPC list
     view_frames.py     screen 2, directions, frames and the chosen sheet
     view_review.py     screens 3 and 4, all answers and one answer
-    view_plants.py     the plants, by kind; setting a sprite's kind
-    view_plant_design.py  a new plant: sketch, type, subcategory and colour
-    view_plant_answers.py a new plant's answers, and accepting one
+    view_library.py    the plants or the buildings, by kind; setting a sprite's kind
+    view_sprite_design.py  a new plant or building: sketch, type, subcategory and colour
+    view_sprite_answers.py its answers, and accepting one
     view_first.py      screen 2 for a new person: his first sprite
     new_figure.py      adding a person; his split image, description and prompt
     new_npc_dialog.py  the dialog asking for a new person's gender and name, or trade
@@ -164,9 +169,11 @@ The code, for whoever works on it next:
     export_dialog.py   the dialog choosing GIF or video
     daily_progress.py  the sprites new and redone today, by file dates
     even_colours.py    evening out the colours of a direction's frames against flicker
-    plants.py          the kinds of plants, plant_catalog.json, finding the sprites, adding one
-    plant_job.py       a new plant: its folder, sketch, split image and prompt
-    plant_extraction.py  cutting a new plant out of an answer and scaling it
+    sprite_library.py  plants and buildings alike: kinds, catalogs, finding the sprites, adding one
+    plants.py          the plants: their kinds, proposals, prompt and stems
+    buildings.py       the buildings and decorations: their kinds, proposals, prompt and Tiled boxes
+    sprite_job.py      a new plant or building: its folder, sketch, split image and prompt
+    sprite_extraction.py  cutting a new sprite out of an answer and scaling it
     colour_wheel.py    the colour wheel
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
@@ -194,8 +201,8 @@ from gemini_worker import GeminiWorker  # noqa: E402
 from images import make_thumb  # noqa: E402
 from new_figure import AddFigureDialog, NewFigure, find_new_figures  # noqa: E402
 from npc import WalkNpc, player  # noqa: E402
-from plant_job import PlantJob, find_jobs  # noqa: E402
-from plants import Catalog, find_plants  # noqa: E402
+from buildings import BUILDINGS  # noqa: E402
+from plants import PLANTS  # noqa: E402
 from pose_review import ReviewStore, load_player_shapes  # noqa: E402
 from settings_dialog import SettingsDialog  # noqa: E402
 from theme import (  # noqa: E402
@@ -204,15 +211,19 @@ from theme import (  # noqa: E402
 )
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
+from sprite_job import SpriteJob, find_jobs  # noqa: E402
+from sprite_library import Catalog, find_sprites  # noqa: E402
+from view_library import LibraryView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
-from view_plant_answers import PlantAnswersView  # noqa: E402
-from view_plant_design import PlantDesignView  # noqa: E402
-from view_plants import PlantListView  # noqa: E402
+from view_sprite_answers import AnswersView  # noqa: E402
+from view_sprite_design import DesignView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
 from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION  # noqa: E402
 from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text  # noqa: E402
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
+DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
+SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'))   # Tab goes round them
 FPS = 30
 
 
@@ -243,8 +254,8 @@ class SpriteManager:
         self.store = None             # its answers
         self.frames = None            # its frames screen, kept while it is open
         self.last_direction = DEFAULT_DIRECTION
-        self._plants = None           # the plant sprites, cut and sorted once (plants.find_plants())
-        self._catalog = None
+        self._libraries = {}          # {domain key: sprites}, found once (sprite_library.find_sprites())
+        self._catalogs = {}           # {domain key: Catalog}
 
         # Footer buttons several screens show; the app handles them
         self.back_button = Button('Back', w=90)
@@ -353,72 +364,88 @@ class SpriteManager:
         """Escape or Back; False if there is nowhere to go back to."""
         return self.view.back()
 
-    # --- plants -----------------------------------------------------------
+    # --- plants and buildings ---------------------------------------------
 
-    def plant_catalog(self):
-        if self._catalog is None:
-            self._catalog = Catalog()
-        return self._catalog
+    def catalog(self, domain):
+        if domain.key not in self._catalogs:
+            self._catalogs[domain.key] = Catalog(domain.catalog_path)
+        return self._catalogs[domain.key]
 
-    def plant_library(self):
-        """Every plant sprite; cutting the motifs out of the collection takes a moment, so only once."""
-        if self._plants is None:
-            self._plants = find_plants(self.plant_catalog())
-        return self._plants
+    def library(self, domain):
+        """Every sprite of a domain; cutting motifs out of a collection takes a moment, so only once."""
+        if domain.key not in self._libraries:
+            self._libraries[domain.key] = find_sprites(domain, self.catalog(domain))
+        return self._libraries[domain.key]
 
-    def reload_plants(self):
+    def reload_library(self, domain):
         """The sprites or the catalog changed: list them anew."""
-        self._plants = None
-        self._catalog = None
-        if isinstance(self.view, PlantListView):
+        self._libraries.pop(domain.key, None)
+        self._catalogs.pop(domain.key, None)
+        if isinstance(self.view, LibraryView):
             self.view.refresh()
 
     @staticmethod
-    def plant_jobs():
-        return find_jobs()
+    def jobs(domain):
+        return find_jobs(domain)
 
-    def show_plants(self):
-        """Switch to the plants."""
+    def switch_buttons(self, current):
+        """Footer buttons to the other two of humans, plants and buildings; each knows its screen."""
+        buttons = []
+        for key, title in SCREENS:
+            if key != current:
+                button = Button(title, w=130)
+                button.screen = key
+                buttons.append(button)
+        return buttons
+
+    def switch_to(self, screen):
+        """Show the humans, the plants or the buildings."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
-        self.show(PlantListView(self))
+        if screen == 'humans':
+            self.show(NpcListView(self))
+        else:
+            self.show(LibraryView(self, DOMAINS[screen]))
 
-    def show_humans(self):
-        self.close_npc()
+    def switch_to_next(self):
+        keys = [key for key, _ in SCREENS]
+        current = self.view.domain.key if isinstance(self.view, LibraryView) else 'humans'
+        self.switch_to(keys[(keys.index(current) + 1) % len(keys)])
 
-    def start_plant_job(self, sprite):
-        """Make a new plant with `sprite` as the example."""
+    def start_job(self, domain, sprite):
+        """Make a new plant or building with `sprite` as the example."""
         try:
-            job = PlantJob.create(sprite)
+            job = SpriteJob.create(domain, sprite)
         except (pygame.error, OSError) as exc:
-            self.set_status(f'Cannot start a new plant: {exc}', error=True)
+            self.set_status(f'Cannot start a new {domain.noun}: {exc}', error=True)
             return
-        self.open_plant_job(job)
-        self.set_status(f'New plant from {job.example_label} - sketch its shape in the red frame')
+        self.open_job(job)
+        self.set_status(f'New {domain.noun} from {job.example_label} - sketch its shape in the red frame')
 
-    def open_plant_job(self, job):
-        """Work on a new plant: its design, or its answers once it has some."""
+    def open_job(self, job):
+        """Work on a new sprite: its design, or its answers once it has some."""
         self.npc = job
         self.store = ReviewStore(job.out_dir)
         self.worker = None
         self.set_status('')
         if self.store.entries:
-            self.show(PlantAnswersView(self))
+            self.show(AnswersView(self))
         else:
-            self.show(PlantDesignView(self))
+            self.show(DesignView(self))
 
-    def open_plant_design(self):
-        self.show(PlantDesignView(self))
+    def open_design(self):
+        self.show(DesignView(self))
 
-    def open_plant_answers(self, entry=None):
-        """The answers of the new plant; `entry` is shown first, e.g. one just pasted."""
+    def open_answers(self, entry=None):
+        """The answers of the new sprite; `entry` is shown first, e.g. one just pasted."""
         if self.store.entries:
             self.set_status('Answer in - Accept (Enter) if it is right' if entry else '')
-            self.show(PlantAnswersView(self, entry))
+            self.show(AnswersView(self, entry))
 
-    def close_plant_job(self):
+    def close_job(self):
+        domain = self.npc.domain
         self.npc = self.store = self.worker = None
-        self.show(PlantListView(self))
+        self.show(LibraryView(self, domain))
 
     # --- Gemini API -------------------------------------------------------
 

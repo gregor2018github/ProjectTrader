@@ -1,9 +1,9 @@
-"""Screen 3 of the plants: the model's answers for a new plant, and taking one into the game.
+"""Screen 3 of the plants and buildings: the model's answers for a new sprite, and taking one into the game.
 
 Left the split image as it was last sent and the ways to more answers, in
 the middle the answers, right the chosen one cut out and scaled beside the
 example, as it would be saved. Accepting saves it as a single sprite, puts
-it into its sprite collection for Tiled and catalogs it (plants.add_plant()).
+it into its sprite collection for Tiled and catalogs it (sprite_library.add_sprite()).
 More than one answer of a job can be accepted, as variants.
 """
 
@@ -16,9 +16,9 @@ import pose_review
 import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, measure, store_web_answer
 from images import fitted, make_thumb
-from plant_extraction import PlantDetail
-from plant_job import colour_name
-from plants import KINDS_BY_KEY, Catalog, add_plant, next_free_file
+from sprite_extraction import SpriteDetail
+from sprite_job import colour_name
+from sprite_library import Catalog, add_sprite, next_free_file
 from theme import (
     CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, STATUS_COLORS,
     TEXT, TEXT_DIM,
@@ -34,7 +34,7 @@ BUTTON_GAP = 10
 LINE_H = 19
 
 
-class PlantAnswersView(View):
+class AnswersView(View):
     def __init__(self, app, entry=None):
         super().__init__(app)
         self.job = app.npc
@@ -97,7 +97,7 @@ class PlantAnswersView(View):
         if entry is None:
             return
         try:
-            self.detail = PlantDetail(self.job, entry)
+            self.detail = SpriteDetail(self.job, entry)
         except Exception as exc:  # a deleted or unreadable file
             self.app.set_status(f'Cannot open {entry.image}: {exc}', error=True)
             return
@@ -137,23 +137,25 @@ class PlantAnswersView(View):
             self.app.send([self.sheet])
 
     def accept(self):
-        """Save the chosen answer as a new plant sprite, single and in its collection."""
+        """Save the chosen answer as a new sprite, single and in its collection."""
         if not (self.detail and self.detail.result):
             return
         saved = self.job.accepted.get(self.entry.image)
         if saved:
             self.app.set_status(f'This answer is in the game already, as {Path(saved).name}', error=True)
             return
-        kind = KINDS_BY_KEY[self.job.kind]
+        domain = self.job.domain
+        kind = domain.kinds_by_key[self.job.kind]
         try:
-            added = add_plant(self.detail.result.output, kind, self.job.subcategory, self.app.plant_catalog())
+            added = add_sprite(domain, self.detail.result.output, kind, self.job.subcategory,
+                               self.app.catalog(domain))
         except (pygame.error, OSError, ValueError) as exc:
             self.app.set_status(f'Could not save: {exc}', error=True)
             return
         self.job.accepted[self.entry.image] = Catalog.file_key(added.path)
         self.job.save()
         self.store.set_status(self.entry, pose_review.ACCEPTED)
-        self.app.reload_plants()
+        self.app.reload_library(domain)
         self.build_answer_cards()
         self.app.set_status(added.summary())
         self.app.toast.show(f'Added {added.path.name}')
@@ -205,7 +207,8 @@ class PlantAnswersView(View):
         self.grid.layout(answers_rect)
         self.grid.draw(screen, fonts, mouse, selected_key=self.entry)
 
-        draw_panel(screen, fonts, result_rect, 'The example and the new plant, same scale  (click white gaps)')
+        draw_panel(screen, fonts, result_rect,
+                   f'The example and the new {self.job.domain.noun}, same scale  (click white gaps)')
         self.draw_result(screen, result_rect.inflate(-20, -20))
 
     def draw_sheet_panel(self, screen, rect, mouse):
@@ -223,7 +226,7 @@ class PlantAnswersView(View):
             y += BUTTON_H + BUTTON_GAP
 
         job = self.job
-        lines = [f'Type: {KINDS_BY_KEY[job.kind].title}',
+        lines = [f'Type: {job.domain.kinds_by_key[job.kind].title}',
                  f'Subcategory: {job.subcategory or "-"}',
                  f'Colour: {colour_name(job.colour)}',
                  f'From: {job.example_label}']
@@ -247,7 +250,7 @@ class PlantAnswersView(View):
                 button.draw(screen, fonts.font, mouse)
 
     def draw_result(self, screen, area):
-        """The example and the new plant side by side on one ground line, at one scale."""
+        """The example and the new sprite side by side on one ground line, at one scale."""
         fonts = self.app.fonts
         self.checker.draw(screen, area)
         detail = self.detail
@@ -279,7 +282,7 @@ class PlantAnswersView(View):
         pygame.draw.rect(screen, TEXT_DIM, shown[1], 1)
         detail.preview = (shown[1], factor)
 
-        target = next_free_file(KINDS_BY_KEY[self.job.kind]).name
+        target = next_free_file(self.job.domain.kinds_by_key[self.job.kind]).name
         saved = self.job.accepted.get(self.entry.image)
         name = f'saved as {Path(saved).name}' if saved else f'-> {target}'
         caption = fonts.small.render(
@@ -317,5 +320,5 @@ class PlantAnswersView(View):
         self.grid.scroll_by(steps)
 
     def back(self):
-        self.app.open_plant_design()
+        self.app.open_design()
         return True

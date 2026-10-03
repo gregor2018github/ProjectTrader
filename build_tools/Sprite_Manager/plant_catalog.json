@@ -10,8 +10,11 @@
     192,
     336
    ],
-   "stem_position": 3.0,
-   "stem_thick": 1.2
+   "tiled": {
+    "File_name": "Tree_01.png",
+    "Stem_Position": 3.0,
+    "Stem_Thick": 1.2
+   }
   },
   "trees/Tree_02.png": {
    "kind": "needle_tree",
@@ -23,8 +26,11 @@
     128,
     225
    ],
-   "stem_position": 2.0,
-   "stem_thick": 1.0
+   "tiled": {
+    "File_name": "Tree_02.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 1.0
+   }
   },
   "trees/Tree_03.png": {
    "kind": "needle_tree",
@@ -36,8 +42,11 @@
     64,
     141
    ],
-   "stem_position": 1.0,
-   "stem_thick": 0.3
+   "tiled": {
+    "File_name": "Tree_03.png",
+    "Stem_Position": 1.0,
+    "Stem_Thick": 0.3
+   }
   },
   "trees/Tree_04.png": {
    "kind": "needle_tree",
@@ -49,8 +58,11 @@
     96,
     280
    ],
-   "stem_position": 1.55,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_04.png",
+    "Stem_Position": 1.55,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_05.png": {
    "kind": "needle_tree",
@@ -62,8 +74,11 @@
     128,
     224
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_05.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_06.png": {
    "kind": "needle_tree",
@@ -75,8 +90,11 @@
     96,
     257
    ],
-   "stem_position": 1.5,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_06.png",
+    "Stem_Position": 1.5,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_07.png": {
    "kind": "needle_tree",
@@ -88,8 +106,11 @@
     128,
     224
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.8
+   "tiled": {
+    "File_name": "Tree_07.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.8
+   }
   },
   "trees/Tree_08.png": {
    "kind": "needle_tree",
@@ -101,8 +122,11 @@
     96,
     292
    ],
-   "stem_position": 1.6,
-   "stem_thick": 0.4
+   "tiled": {
+    "File_name": "Tree_08.png",
+    "Stem_Position": 1.6,
+    "Stem_Thick": 0.4
+   }
   },
   "trees/Tree_09.png": {
    "kind": "needle_tree",
@@ -114,8 +138,11 @@
     128,
     202
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.4
+   "tiled": {
+    "File_name": "Tree_09.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.4
+   }
   },
   "trees/Tree_10.png": {
    "kind": "needle_tree",
@@ -127,8 +154,11 @@
     96,
     149
    ],
-   "stem_position": 1.5,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_10.png",
+    "Stem_Position": 1.5,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_11.png": {
    "kind": "needle_tree",
@@ -140,8 +170,11 @@
     128,
     252
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.7
+   "tiled": {
+    "File_name": "Tree_11.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.7
+   }
   },
   "trees/Tree_12.png": {
    "kind": "needle_tree",
@@ -153,8 +186,11 @@
     128,
     252
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.7
+   "tiled": {
+    "File_name": "Tree_12.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.7
+   }
   },
   "trees/Tree_13.png": {
    "kind": "needle_tree",
@@ -166,8 +202,11 @@
     96,
     149
    ],
-   "stem_position": 1.4,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_13.png",
+    "Stem_Position": 1.4,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_14.png": {
    "kind": "needle_tree",
@@ -179,8 +218,11 @@
     128,
     202
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.4
+   "tiled": {
+    "File_name": "Tree_14.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.4
+   }
   },
   "trees/Tree_15.png": {
    "kind": "needle_tree",
@@ -192,8 +234,11 @@
     96,
     292
    ],
-   "stem_position": 1.5,
-   "stem_thick": 0.4
+   "tiled": {
+    "File_name": "Tree_15.png",
+    "Stem_Position": 1.5,
+    "Stem_Thick": 0.4
+   }
   },
   "trees/Tree_16.png": {
    "kind": "needle_tree",
@@ -205,8 +250,11 @@
     128,
     224
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_16.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_17.png": {
    "kind": "needle_tree",
@@ -218,8 +266,11 @@
     96,
     257
    ],
-   "stem_position": 1.5,
-   "stem_thick": 0.6
+   "tiled": {
+    "File_name": "Tree_17.png",
+    "Stem_Position": 1.5,
+    "Stem_Thick": 0.6
+   }
   },
   "trees/Tree_18.png": {
    "kind": "needle_tree",
@@ -231,8 +282,11 @@
     128,
     224
    ],
-   "stem_position": 2.0,
-   "stem_thick": 0.7
+   "tiled": {
+    "File_name": "Tree_18.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 0.7
+   }
   },
   "trees/Tree_19.png": {
    "kind": "needle_tree",
@@ -244,8 +298,11 @@
     96,
     280
    ],
-   "stem_position": 1.5,
-   "stem_thick": 0.8
+   "tiled": {
+    "File_name": "Tree_19.png",
+    "Stem_Position": 1.5,
+    "Stem_Thick": 0.8
+   }
   },
   "trees/Tree_20.png": {
    "kind": "needle_tree",
@@ -257,8 +314,11 @@
     64,
     141
    ],
-   "stem_position": 1.0,
-   "stem_thick": 0.3
+   "tiled": {
+    "File_name": "Tree_20.png",
+    "Stem_Position": 1.0,
+    "Stem_Thick": 0.3
+   }
   },
   "trees/Tree_21.png": {
    "kind": "needle_tree",
@@ -270,8 +330,11 @@
     128,
     225
    ],
-   "stem_position": 2.0,
-   "stem_thick": 1.0
+   "tiled": {
+    "File_name": "Tree_21.png",
+    "Stem_Position": 2.0,
+    "Stem_Thick": 1.0
+   }
   },
   "trees/Tree_22.png": {
    "kind": "needle_tree",
@@ -283,8 +346,11 @@
     192,
     336
    ],
-   "stem_position": 3.0,
-   "stem_thick": 1.2
+   "tiled": {
+    "File_name": "Tree_22.png",
+    "Stem_Position": 3.0,
+    "Stem_Thick": 1.2
+   }
   },
   "trees/Tree_23.png": {
    "kind": "broadleaf_tree",
@@ -296,8 +362,11 @@
     250,
     302
    ],
-   "stem_position": 3.7,
-   "stem_thick": 2.2
+   "tiled": {
+    "File_name": "Tree_23.png",
+    "Stem_Position": 3.7,
+    "Stem_Thick": 2.2
+   }
   },
   "trees/Tree_24.png": {
    "kind": "needle_tree",
@@ -309,8 +378,11 @@
     142,
     272
    ],
-   "stem_position": 1.98,
-   "stem_thick": 1.0
+   "tiled": {
+    "File_name": "Tree_24.png",
+    "Stem_Position": 1.98,
+    "Stem_Thick": 1.0
+   }
   },
   "trees/Tree_25.png": {
    "kind": "needle_tree",
@@ -322,8 +394,11 @@
     170,
     236
    ],
-   "stem_position": 2.59,
-   "stem_thick": 2.5
+   "tiled": {
+    "File_name": "Tree_25.png",
+    "Stem_Position": 2.59,
+    "Stem_Thick": 2.5
+   }
   },
   "trees/Tree_26.png": {
    "kind": "needle_tree",
@@ -335,8 +410,11 @@
     65,
     120
    ],
-   "stem_position": 1.03,
-   "stem_thick": 1.0
+   "tiled": {
+    "File_name": "Tree_26.png",
+    "Stem_Position": 1.03,
+    "Stem_Thick": 1.0
+   }
   },
   "trees/Tree_27.png": {
    "kind": "broadleaf_tree",
@@ -348,8 +426,11 @@
     165,
     327
    ],
-   "stem_position": 2.72,
-   "stem_thick": 2.4
+   "tiled": {
+    "File_name": "Tree_27.png",
+    "Stem_Position": 2.72,
+    "Stem_Thick": 2.4
+   }
   },
   "trees/Tree_28.png": {
    "kind": "broadleaf_tree",
@@ -361,8 +442,11 @@
     272,
     287
    ],
-   "stem_position": 4.27,
-   "stem_thick": 1.9
+   "tiled": {
+    "File_name": "Tree_28.png",
+    "Stem_Position": 4.27,
+    "Stem_Thick": 1.9
+   }
   },
   "trees/Tree_29.png": {
    "kind": "broadleaf_tree",
@@ -374,8 +458,11 @@
     310,
     318
    ],
-   "stem_position": 4.8,
-   "stem_thick": 2.2
+   "tiled": {
+    "File_name": "Tree_29.png",
+    "Stem_Position": 4.8,
+    "Stem_Thick": 2.2
+   }
   }
  },
  "motifs": {

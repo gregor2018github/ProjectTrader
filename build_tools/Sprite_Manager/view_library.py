@@ -1,18 +1,18 @@
-"""Screen 1 of the plants: every plant sprite by kind, and the new plants being made.
+"""Screen 1 of the plants or the buildings: every sprite of the domain by kind, and the new ones being made.
 
-Clicking a sprite starts a new plant with it as the example (plant_job.py);
-right-clicking it sets its kind and subcategory in plant_catalog.json
-(KindDialog). The new plants not yet accepted into the game come first, to
-be picked up again.
+Clicking a sprite starts a new one with it as the example (sprite_job.py);
+right-clicking it sets its kind and subcategory in the domain's catalog
+(KindDialog). The new sprites not yet accepted into the game come first, to
+be picked up again, or scrapped with the cross on their card.
 """
 
 import pygame
 
 import pose_review
 from images import pixel_fit
-from plant_job import PlantJob
-from plants import KINDS, REFERENCE, SORTABLE, UNSORTED, kind_title
 from pose_review import ReviewStore
+from sprite_job import SpriteJob
+from sprite_library import REFERENCE, UNSORTED
 from theme import (
     CARD_BG, DIALOG_PAD, NPC_THUMB_SIZE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, window_size,
 )
@@ -20,15 +20,14 @@ from view import View
 from widgets import Button, Card, SectionGrid, TextField, draw_chips, draw_dialog_box
 
 CARD_W = 172
-CROSS_R = 13             # the cross that scraps an unfinished plant, on its card's top right
+CARD_H = 222
+CROSS_R = 13             # the cross that scraps an unfinished sprite, on its card's top right
 CROSS_INSET = 8
 CROSS_BG = (60, 56, 52)
 CROSS_HOVER = (190, 70, 60)
-CARD_H = 222
-UNFINISHED = 'Unfinished new plants'
 
 
-def plant_thumb(surface):
+def sprite_thumb(surface):
     """A sprite on a light tile, blown up by whole pixels where it is small."""
     tile = pygame.Surface(NPC_THUMB_SIZE)
     tile.fill(THUMB_BG)
@@ -37,12 +36,13 @@ def plant_thumb(surface):
     return tile
 
 
-class PlantListView(View):
-    def __init__(self, app):
+class LibraryView(View):
+    def __init__(self, app, domain):
         super().__init__(app)
+        self.domain = domain
         self.grid = SectionGrid('sprite')
-        self.humans_button = Button('Humans', w=120)
-        self.armed = None   # an unfinished plant with answers, whose cross was clicked once
+        self.switch_buttons = app.switch_buttons(domain.key)
+        self.armed = None   # an unfinished sprite with answers, whose cross was clicked once
         self.empty = pygame.Surface(NPC_THUMB_SIZE)
         self.empty.fill(CARD_BG)
         text = app.fonts.small.render('none yet', True, TEXT_DIM)
@@ -52,15 +52,15 @@ class PlantListView(View):
     def thumb(key, surface_fn):
         """The card picture of a sprite or job, made once and kept on it."""
         if getattr(key, 'thumb', None) is None:
-            key.thumb = plant_thumb(surface_fn())
+            key.thumb = sprite_thumb(surface_fn())
         return key.thumb
 
     def refresh(self):
-        app = self.app
-        plants = app.plant_library()
+        app, domain = self.app, self.domain
+        sprites = app.library(domain)
         sections = []
         cards = []
-        for job in app.plant_jobs():
+        for job in app.jobs(domain):
             if job.accepted:
                 continue
             waiting = len(ReviewStore(job.out_dir).pending())
@@ -68,32 +68,31 @@ class PlantListView(View):
                               note=f'{waiting} to review' if waiting else 'from ' + job.example_label,
                               note_color=STATUS_COLORS[pose_review.PENDING] if waiting else TEXT_DIM,
                               size=(CARD_W, CARD_H)))
-        sections.append((UNFINISHED, cards))
-        for key in [k.key for k in KINDS] + [UNSORTED, REFERENCE]:
-            cards = [Card(p, p.label, self.thumb(p, lambda p=p: p.surface), note=p.where, size=(CARD_W, CARD_H))
-                     for p in plants if p.kind == key]
+        sections.append((f'Unfinished new {domain.key}', cards))
+        for key in [k.key for k in domain.kinds] + [UNSORTED, REFERENCE]:
+            cards = [Card(s, s.label, self.thumb(s, lambda s=s: s.surface), note=s.where, size=(CARD_W, CARD_H))
+                     for s in sprites if s.kind == key]
             if not cards and key not in (UNSORTED, REFERENCE):
                 card = Card(('empty', key), 'No sprite yet', self.empty,
                             note='start from any sprite', size=(CARD_W, CARD_H))
                 card.counted = False
                 cards = [card]
-            sections.append((kind_title(key), cards))
+            sections.append((domain.kind_title(key), cards))
         self.grid.set_sections(sections)
 
     def header(self):
-        return ('Plants',
-                'Click a sprite to make a new plant from it, right-click it to set its kind, '
-                'the cross on an unfinished one scraps it. '
-                'Tab switches to the humans.')
+        return (self.domain.title,
+                f'Click a sprite to make a new {self.domain.noun} from it, right-click it to set its kind, '
+                'the cross on an unfinished one scraps it. Tab switches between humans, plants and buildings.')
 
     def footer(self):
-        return (self.humans_button,), (self.app.settings_button,)
+        return tuple(self.switch_buttons), (self.app.settings_button,)
 
     def draw(self, screen, mouse):
         self.grid.layout(self.app.card_area())
         self.grid.draw(screen, self.app.fonts, mouse)
         card = self.grid.card_at(mouse)
-        if card and isinstance(card.key, PlantJob):
+        if card and isinstance(card.key, SpriteJob):
             self.draw_cross(screen, card, mouse)
 
     @staticmethod
@@ -102,7 +101,7 @@ class PlantListView(View):
                            2 * CROSS_R, 2 * CROSS_R)
 
     def draw_cross(self, screen, card, mouse):
-        """The cross scrapping an unfinished plant; red under the mouse, or once clicked for one with answers."""
+        """The cross scrapping an unfinished sprite; red under the mouse, or once clicked for one with answers."""
         rect = self.cross_rect(card)
         hot = rect.collidepoint(mouse) or self.armed is card.key
         screen.set_clip(self.grid.area)
@@ -114,7 +113,7 @@ class PlantListView(View):
         screen.set_clip(None)
 
     def scrap(self, job):
-        """Delete an unfinished plant; one with answers only on the second click."""
+        """Delete an unfinished sprite; one with answers only on the second click."""
         answers = len(ReviewStore(job.out_dir).entries)
         if answers and self.armed is not job:
             self.armed = job
@@ -127,11 +126,12 @@ class PlantListView(View):
         self.refresh()
 
     def click(self, pos):
-        if self.humans_button.hit(pos):
-            self.app.show_humans()
-            return
+        for button in self.switch_buttons:
+            if button.hit(pos):
+                self.app.switch_to(button.screen)
+                return
         card = self.grid.card_at(pos)
-        if card and isinstance(card.key, PlantJob) and self.cross_rect(card).collidepoint(pos):
+        if card and isinstance(card.key, SpriteJob) and self.cross_rect(card).collidepoint(pos):
             self.scrap(card.key)
             return
         self.armed = None
@@ -139,36 +139,37 @@ class PlantListView(View):
             return
         key = card.key
         if isinstance(key, tuple):
-            self.app.set_status(f'No {kind_title(key[1]).lower()} yet: start from any sprite, '
+            self.app.set_status(f'No {self.domain.kind_title(key[1]).lower()} yet: start from any sprite, '
                                 f'then pick the type on the next screen')
-        elif hasattr(key, 'surface'):
-            self.app.start_plant_job(key)
+        elif isinstance(key, SpriteJob):
+            self.app.open_job(key)
         else:
-            self.app.open_plant_job(key)
+            self.app.start_job(self.domain, key)
 
     def right_click(self, pos):
         card = self.grid.card_at(pos)
         if card and hasattr(card.key, 'surface'):
-            self.app.dialog = KindDialog(card.key, self.app)
+            self.app.dialog = KindDialog(self.domain, card.key, self.app)
 
     def key(self, event):
         if event.key == pygame.K_TAB:
-            self.app.show_humans()
+            self.app.switch_to_next()
 
     def scroll_by(self, steps):
         self.grid.scroll_by(steps)
 
 
 class KindDialog:
-    """Set a listed sprite's kind and subcategory in plant_catalog.json."""
+    """Set a listed sprite's kind and subcategory in its domain's catalog."""
 
     WIDTH = 620
 
-    def __init__(self, sprite, app):
+    def __init__(self, domain, sprite, app):
+        self.domain = domain
         self.sprite = sprite
         self.app = app
-        self.kind = sprite.kind if sprite.kind in SORTABLE else None
-        self.field = TextField(sprite.subcategory, placeholder='subcategory, e.g. oak (optional)')
+        self.kind = sprite.kind if sprite.kind in domain.sortable else None
+        self.field = TextField(sprite.subcategory, placeholder='subcategory (optional)')
         self.field.focus(True)
         self.chips = []
         self.save_button = Button('Save', w=120)
@@ -185,11 +186,12 @@ class KindDialog:
         rect = self.rect()
         draw_dialog_box(screen, rect)
         x, y, w = rect.x + DIALOG_PAD, rect.y + DIALOG_PAD, rect.w - 2 * DIALOG_PAD
-        screen.blit(title.render('Kind of plant', True, TEXT), (x, y))
+        screen.blit(title.render(f'Kind of {self.domain.noun}', True, TEXT), (x, y))
         y += 48
         screen.blit(small.render(self.sprite.where, True, TEXT_DIM), (x, y))
         y += 26
-        self.chips, y = draw_chips(screen, small, SORTABLE, kind_title, self.kind, x, y, w, mouse)
+        self.chips, y = draw_chips(screen, small, self.domain.sortable, self.domain.kind_title, self.kind,
+                                   x, y, w, mouse)
         y += 14
         self.field.rect = pygame.Rect(x, y, w, 36)
         self.field.draw(screen, font, mouse)
@@ -235,12 +237,12 @@ class KindDialog:
             self.error = 'Pick a kind first'
             return None
         try:
-            self.app.plant_catalog().set_kind(self.sprite, self.kind, self.field.text.strip())
+            self.app.catalog(self.domain).set_kind(self.sprite, self.kind, self.field.text.strip())
         except OSError as exc:
             self.error = str(exc)
             return None
-        self.app.set_status(f'{self.sprite.where} is now {kind_title(self.kind)}')
-        self.app.reload_plants()
+        self.app.set_status(f'{self.sprite.where} is now {self.domain.kind_title(self.kind)}')
+        self.app.reload_library(self.domain)
         return self.close()
 
     def close(self):

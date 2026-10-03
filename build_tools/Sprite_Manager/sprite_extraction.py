@@ -1,11 +1,11 @@
-"""From the model's answer to a new plant sprite.
+"""From the model's answer to a new sprite, a plant or a building.
 
-The answer is the split image of plant_job.py with the right cell drawn in.
+The answer is the split image of sprite_job.py with the right cell drawn in.
 Both cells are found as for a new figure's first sprite (extraction.py,
-layout 1x2). The example is cut out of the left cell and the new plant out
-of the right one, after the red frame is cut off its edges - the plant may
+layout 1x2). The example is cut out of the left cell and the new sprite out
+of the right one, after the red frame is cut off its edges - the sprite may
 well be red itself, so red cannot count as background as it does for the
-humans. The new plant is then scaled by the factor that brings the example
+humans. The new sprite is then scaled by the factor that brings the example
 in the answer back to the example's real size, which keeps the size the
 sketch gave it next to the example.
 """
@@ -57,8 +57,8 @@ def strip_red_frame(cell):
     return inner, rect.topleft
 
 
-class PlantResult:
-    """A loaded answer and the plant sprite made from it."""
+class SpriteResult:
+    """A loaded answer and the sprite made from it."""
 
     def __init__(self, path, example):
         """
@@ -82,7 +82,7 @@ class PlantResult:
         self.build()
 
     def build(self):
-        """Scale the new plant by what brings the example back to its real size."""
+        """Scale the new sprite by what brings the example back to its real size."""
         w, h = self.example.get_size()
         # Along the example's longer side, where the measure is the most exact
         if h >= w:
@@ -99,7 +99,7 @@ class PlantResult:
                 int(point[1] / self.scale + self.target.bbox.y))
 
 
-class PlantDetail:
+class SpriteDetail:
     """One answer of a job and the sprite accepting it would make."""
 
     def __init__(self, job, entry):
@@ -115,7 +115,7 @@ class PlantDetail:
         self.result = None
         self.error = ''
         try:
-            self.result = PlantResult(self.path, job.example)
+            self.result = SpriteResult(self.path, job.example)
         except Exception as exc:  # cell detection and extraction fail in many ways
             self.error = f'Cannot use this image: {exc}'
         self.preview = None   # (rect, factor) of the sprite where it was last drawn

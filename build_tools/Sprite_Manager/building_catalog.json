@@ -1,0 +1,201 @@
+{
+ "files": {
+  "houses/House_5.png": {
+   "kind": "dwelling",
+   "subcategory": "timber-framed town house"
+  },
+  "houses/House_6.png": {
+   "kind": "dwelling",
+   "subcategory": "timber-framed town house"
+  },
+  "houses/House_10.png": {
+   "kind": "dwelling",
+   "subcategory": "row of town houses"
+  },
+  "houses/House_11.png": {
+   "kind": "dwelling",
+   "subcategory": "jettied town house"
+  },
+  "houses/House_19.png": {
+   "kind": "dwelling",
+   "subcategory": "stone and timber town house"
+  },
+  "houses/House_20.png": {
+   "kind": "dwelling",
+   "subcategory": "old stone town house"
+  },
+  "houses/House_1.png": {
+   "kind": "workshop",
+   "subcategory": "weaver's workshop"
+  },
+  "houses/House_2.png": {
+   "kind": "workshop",
+   "subcategory": "inn"
+  },
+  "houses/House_12.png": {
+   "kind": "workshop",
+   "subcategory": "merchant's house"
+  },
+  "houses/House_13.png": {
+   "kind": "workshop",
+   "subcategory": "bakery"
+  },
+  "houses/House_8.png": {
+   "kind": "public",
+   "subcategory": "town hall"
+  },
+  "houses/House_9.png": {
+   "kind": "public",
+   "subcategory": "church"
+  },
+  "houses/House_14.png": {
+   "kind": "public",
+   "subcategory": "bank"
+  },
+  "houses/House_16.png": {
+   "kind": "public",
+   "subcategory": "well"
+  },
+  "houses/House_3.png": {
+   "kind": "farm",
+   "subcategory": "open storage shed"
+  },
+  "houses/House_4.png": {
+   "kind": "farm",
+   "subcategory": "thatched storehouse"
+  },
+  "houses/House_15.png": {
+   "kind": "farm",
+   "subcategory": "windmill"
+  },
+  "houses/House_17.png": {
+   "kind": "farm",
+   "subcategory": "woodcutter's hut"
+  },
+  "houses/Market_01.png": {
+   "kind": "market_stall",
+   "subcategory": "wheat stall"
+  },
+  "houses/Market_02.png": {
+   "kind": "market_stall",
+   "subcategory": "meat stall"
+  },
+  "houses/Market_03.png": {
+   "kind": "market_stall",
+   "subcategory": "wood stall"
+  },
+  "houses/Market_04.png": {
+   "kind": "market_stall",
+   "subcategory": "fish stall"
+  },
+  "houses/Market_05.png": {
+   "kind": "market_stall",
+   "subcategory": "wine and beer stall"
+  },
+  "houses/Market_06.png": {
+   "kind": "market_stall",
+   "subcategory": "wool and hide stall"
+  },
+  "houses/Market_07.png": {
+   "kind": "market_stall",
+   "subcategory": "pottery stall"
+  },
+  "houses/Market_08.png": {
+   "kind": "market_stall",
+   "subcategory": "iron stall"
+  },
+  "houses/Market_09.png": {
+   "kind": "market_stall",
+   "subcategory": "stone stall"
+  },
+  "houses/Fence_1.png": {
+   "kind": "wall_fence",
+   "subcategory": "low stone wall"
+  },
+  "houses/Fence_2.png": {
+   "kind": "wall_fence",
+   "subcategory": "low stone wall"
+  },
+  "houses/Fence_3.png": {
+   "kind": "wall_fence",
+   "subcategory": "stone wall enclosure"
+  },
+  "houses/Fence_4.png": {
+   "kind": "wall_fence",
+   "subcategory": "stone wall corners"
+  },
+  "houses/Wall_2.png": {
+   "kind": "wall_fence",
+   "subcategory": "low stone wall"
+  },
+  "houses/Deco_01.png": {
+   "kind": "decoration",
+   "subcategory": "garden with roses and benches"
+  },
+  "houses/Deco_02.png": {
+   "kind": "decoration",
+   "subcategory": "benches and table"
+  },
+  "houses/Deco_03.png": {
+   "kind": "decoration",
+   "subcategory": "wheelbarrow with hay and tools"
+  },
+  "houses/Deco_04.png": {
+   "kind": "decoration",
+   "subcategory": "wheelbarrow"
+  },
+  "houses/Deco_05.png": {
+   "kind": "decoration",
+   "subcategory": "tree stump"
+  },
+  "houses/Deco_06.png": {
+   "kind": "decoration",
+   "subcategory": "tree stump"
+  },
+  "houses/Deco_07.png": {
+   "kind": "decoration",
+   "subcategory": "tree stump"
+  },
+  "houses/Deco_08.png": {
+   "kind": "decoration",
+   "subcategory": "tree stump"
+  },
+  "houses/Deco_09.png": {
+   "kind": "decoration",
+   "subcategory": "bundle of logs"
+  },
+  "houses/Deco_10.png": {
+   "kind": "decoration",
+   "subcategory": "planks"
+  },
+  "houses/Deco_11.png": {
+   "kind": "decoration",
+   "subcategory": "sack of flour"
+  },
+  "houses/Deco_12.png": {
+   "kind": "decoration",
+   "subcategory": "sack"
+  },
+  "houses/Deco_13.png": {
+   "kind": "decoration",
+   "subcategory": "sack"
+  },
+  "houses/Deco_14.png": {
+   "kind": "decoration",
+   "subcategory": "bundle of logs"
+  },
+  "houses/Deco_15.png": {
+   "kind": "decoration",
+   "subcategory": "bucket"
+  },
+  "houses/House_18.png": {
+   "kind": "decoration",
+   "subcategory": "chopping block with axe"
+  },
+  "houses/Mill_Blades.png": {
+   "kind": "reference",
+   "subcategory": "windmill sails, turned by the game"
+  }
+ },
+ "motifs": {}
+}
