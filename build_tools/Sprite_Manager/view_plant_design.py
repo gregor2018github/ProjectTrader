@@ -31,7 +31,7 @@ CONTROLS_SHARE = 0.3     # of the body, for kind, subcategory and colour
 CONTROLS_MIN_W = 330
 BUTTON_H = 40
 BUTTON_GAP = 10
-BRUSHES = (('S', 0.012), ('M', 0.025), ('L', 0.05), ('XL', 0.09))   # brush radius, share of the cell
+BRUSHES = (('XXS', 0.002), ('XS', 0.004), ('S', 0.007), ('M', 0.012), ('L', 0.025), ('XL', 0.05))   # radius, share of the cell
 SWATCH_H = 44
 BRUSH_RING = (60, 60, 60)   # where the brush would paint, over the white cell
 
@@ -42,7 +42,7 @@ class PlantDesignView(View):
         self.job = app.npc
         self.wheel = ColourWheel(self.job.colour)
         self.field = TextField(self.job.subcategory, placeholder='e.g. oak, rosebush (optional)')
-        self.brush = 'M'
+        self.brush = 'S'
         self.brush_chips = []
         self.kind_chips = []
         self.stroke = None             # (last point, erase) while the mouse paints
@@ -280,7 +280,7 @@ class PlantDesignView(View):
 
     def radius(self):
         share = dict(BRUSHES)[self.brush]
-        return max(2, int(self.job.cell * share))
+        return max(1, round(self.job.cell * share))
 
     def draw_controls(self, screen, rect, mouse):
         fonts = self.app.fonts
