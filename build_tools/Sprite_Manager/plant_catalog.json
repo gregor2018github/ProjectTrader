@@ -298,6 +298,32 @@
    ],
    "stem_position": 3.7,
    "stem_thick": 2.2
+  },
+  "trees/Tree_24.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    1600,
+    48,
+    142,
+    272
+   ],
+   "stem_position": 1.98,
+   "stem_thick": 1.0
+  },
+  "trees/Tree_25.png": {
+   "kind": "needle_tree",
+   "subcategory": "Norway spruce",
+   "atlas": "trees",
+   "rect": [
+    1792,
+    52,
+    170,
+    236
+   ],
+   "stem_position": 2.59,
+   "stem_thick": 2.5
   }
  },
  "motifs": {
