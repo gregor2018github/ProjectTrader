@@ -2,7 +2,9 @@
 
 Clicking a sprite starts a new one with it as the example (sprite_job.py);
 right-clicking it sets its kind and subcategory in the domain's catalog
-(KindDialog). The new sprites not yet accepted into the game come first, to
+(KindDialog); "GIMP" on its card, or G over it, opens its file in GIMP, and
+once saved back the app puts it into its collection again
+(sprite_library.restamp()). The new sprites not yet accepted into the game come first, to
 be picked up again, or scrapped with the cross on their card.
 """
 
@@ -26,6 +28,8 @@ CROSS_R = 13             # the cross that scraps an unfinished sprite, on its ca
 CROSS_INSET = 8
 CROSS_BG = (60, 56, 52)
 CROSS_HOVER = (190, 70, 60)
+GIMP_BUTTON = (58, 26)   # the button opening a sprite's file in GIMP, on its card's top left
+GIMP_HOVER = (150, 120, 70)
 
 
 def sprite_thumb(surface):
@@ -87,7 +91,7 @@ class LibraryView(View):
     def header(self):
         return (self.domain.title,
                 f'Click: a new {self.domain.noun} from it. Right-click: its kind. '
-                'Cross: scrap an unfinished one. Tab: humans, plants, buildings.')
+                'GIMP / G: edit it. Cross: scrap an unfinished one. Tab: humans, plants, buildings.')
 
     def footer(self):
         return tuple(self.switch_buttons), (self.app.settings_button,)
@@ -102,6 +106,8 @@ class LibraryView(View):
         card = self.grid.card_at(mouse)
         if card and isinstance(card.key, SpriteJob):
             self.draw_cross(screen, card, mouse)
+        elif card and getattr(card.key, 'path', None):
+            self.draw_gimp_button(screen, card, mouse)
 
     @staticmethod
     def cross_rect(card):
@@ -118,6 +124,19 @@ class LibraryView(View):
         for dx in (-arm, arm):
             pygame.draw.line(screen, TEXT, (rect.centerx - dx, rect.centery - arm),
                              (rect.centerx + dx, rect.centery + arm), 3)
+        screen.set_clip(None)
+
+    @staticmethod
+    def gimp_rect(card):
+        return pygame.Rect((card.rect.x + CROSS_INSET, card.rect.y + CROSS_INSET), GIMP_BUTTON)
+
+    def draw_gimp_button(self, screen, card, mouse):
+        """The button opening the sprite's file in GIMP."""
+        rect = self.gimp_rect(card)
+        screen.set_clip(self.grid.area)
+        pygame.draw.rect(screen, GIMP_HOVER if rect.collidepoint(mouse) else CROSS_BG, rect, border_radius=6)
+        label = self.app.fonts.small.render('GIMP', True, TEXT)
+        screen.blit(label, label.get_rect(center=rect.center))
         screen.set_clip(None)
 
     def scrap(self, job):
@@ -142,6 +161,9 @@ class LibraryView(View):
         if card and isinstance(card.key, SpriteJob) and self.cross_rect(card).collidepoint(pos):
             self.scrap(card.key)
             return
+        if card and getattr(card.key, 'path', None) and self.gimp_rect(card).collidepoint(pos):
+            self.app.edit_in_gimp(self.domain, card.key.path)
+            return
         self.armed = None
         if not card:
             return
@@ -162,6 +184,10 @@ class LibraryView(View):
     def key(self, event):
         if event.key == pygame.K_TAB:
             self.app.switch_to_next()
+        elif event.key == pygame.K_g:
+            card = self.grid.card_at(pygame.mouse.get_pos())
+            if card and getattr(card.key, 'path', None):
+                self.app.edit_in_gimp(self.domain, card.key.path)
 
     def scroll_by(self, steps):
         self.grid.scroll_by(steps)

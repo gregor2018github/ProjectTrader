@@ -354,6 +354,53 @@ class AddedSprite:
         return text
 
 
+def restamp(domain, path, catalog):
+    """Put a single sprite edited outside the tool back into its collection, where it was.
+
+    The sprite keeps its place's left edge and foot. If it grew into a
+    neighbour the collection is left alone. The collection is backed up
+    first, and a new size updates the catalog, the Tiled hints included.
+
+    Returns:
+        (line for the status bar, True if the collection was updated).
+
+    Raises:
+        pygame.error, OSError: If a file cannot be read or written.
+    """
+    entry = catalog.file_entry(path)
+    atlas = domain.atlases.get((entry or {}).get('atlas'))
+    if not (entry and entry.get('rect') and atlas):
+        return f'{path.name} saved - its place in the collection is not known, so update that by hand', False
+    old = _rect(entry['rect'])
+    sprite = pygame.image.load(str(path)).convert_alpha()
+    new = pygame.Rect(old.x, old.bottom - sprite.get_height(), *sprite.get_size())
+    atlas_image = pygame.image.load(str(atlas.path)).convert_alpha()
+    if not atlas_image.get_rect().contains(new):
+        return f'{path.name} saved - it no longer fits at its place in {atlas.name}, which was left as it was', False
+    others = pygame.mask.from_surface(atlas_image, 1)
+    others.erase(pygame.Mask(old.size, fill=True), old.topleft)
+    if others.overlap(pygame.Mask(new.size, fill=True), new.topleft):
+        return f'{path.name} saved - it grew into a neighbour in {atlas.name}, which was left as it was', False
+
+    backups = domain.output / 'atlas_backups'
+    backups.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(atlas.path, backups / f'{atlas.path.stem}_{datetime.now():%Y%m%d_%H%M%S}.png')
+    atlas_image.fill((0, 0, 0, 0), old)
+    atlas_image.blit(sprite, new.topleft)
+    pygame.image.save(atlas_image, str(atlas.path))
+
+    if new.size != old.size:
+        entry['rect'] = list(new)
+        kind = domain.kinds_by_key.get(entry.get('kind'))
+        if kind and entry.get('tiled'):
+            entry['tiled'] = domain.tiled_properties(kind, sprite, path)
+        catalog.save()
+        hints = ', '.join(f'{name} {value}' for name, value in entry.get('tiled', {}).items())
+        text = f'{path.name} saved and updated in {atlas.name}, now {new.w} x {new.h}'
+        return text + (f' - Tiled: {hints}' if hints else ''), True
+    return f'{path.name} saved and updated in {atlas.name}', True
+
+
 def add_sprite(domain, sprite, kind, subcategory, catalog=None):
     """Save a new sprite as a single sprite and into its collection, and catalog it.
 

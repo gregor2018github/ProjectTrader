@@ -199,6 +199,7 @@ from chibi import strip_length  # noqa: E402
 from figures import FigureFolder, find_figure_folders, find_player_poses  # noqa: E402
 from gemini_client import Settings  # noqa: E402
 from gemini_worker import GeminiWorker  # noqa: E402
+from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp  # noqa: E402
 from images import make_thumb  # noqa: E402
 from new_figure import AddFigureDialog, NewFigure, find_new_figures  # noqa: E402
 from npc import WalkNpc, player  # noqa: E402
@@ -213,7 +214,7 @@ from theme import (  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from sprite_job import SpriteJob, find_jobs  # noqa: E402
-from sprite_library import Catalog, find_sprites  # noqa: E402
+from sprite_library import Catalog, find_sprites, restamp  # noqa: E402
 from view_library import LibraryView  # noqa: E402
 from view_npcs import NpcListView  # noqa: E402
 from view_sprite_answers import AnswersView  # noqa: E402
@@ -258,6 +259,9 @@ class SpriteManager:
         self._libraries = {}          # {domain key: sprites}, found once (sprite_library.find_sprites())
         self._catalogs = {}           # {domain key: Catalog}
         self.atlas_fills = {}         # {collection key: share of its tiles used}, for the overviews
+        self._gimp = None             # the GIMP executable, looked for when first needed
+        self.gimp_edits = {}          # {plant or building file opened in GIMP: its domain}
+        self.gimp_watcher = FileWatcher()
 
         # Footer buttons several screens show; the app handles them
         self.back_button = Button('Back', w=90)
@@ -386,6 +390,34 @@ class SpriteManager:
         self.atlas_fills.clear()      # a new sprite went into a collection
         if isinstance(self.view, LibraryView):
             self.view.refresh()
+
+    def edit_in_gimp(self, domain, path):
+        """Open a plant or building sprite in GIMP; watch_gimp_edits() takes it back when saved."""
+        if self._gimp is None:
+            self._gimp = find_gimp() or False
+        if not self._gimp:
+            self.set_status(f'GIMP not found - set {ENV_GIMP} to its gimp.exe', error=True)
+            return
+        try:
+            open_in_gimp(self._gimp, path)
+        except OSError as exc:
+            self.set_status(f'Could not start GIMP: {exc}', error=True)
+            return
+        self.gimp_edits[path] = domain
+        self.set_status(f'{path.name} opened in GIMP - File > Overwrite {path.name} to save it back')
+        self.toast.show('Opening in GIMP')
+
+    def watch_gimp_edits(self):
+        """A sprite saved back from GIMP: into its collection again, and shown anew."""
+        for path in self.gimp_watcher.changed(list(self.gimp_edits)):
+            domain = self.gimp_edits[path]
+            try:
+                message, updated = restamp(domain, path, self.catalog(domain))
+            except (pygame.error, OSError) as exc:
+                self.set_status(f'{path.name} saved, but its collection could not be updated: {exc}', error=True)
+            else:
+                self.set_status(message, error=not updated)
+            self.reload_library(domain)
 
     @staticmethod
     def jobs(domain):
@@ -637,6 +669,7 @@ class SpriteManager:
                 elif event.type == pygame.MOUSEBUTTONUP and not self.dialog:
                     self.view.mouse_up(event.pos, event.button)
             self.poll_worker()
+            self.watch_gimp_edits()
             self.view.tick()
             self.draw()
             self.clock.tick(FPS)

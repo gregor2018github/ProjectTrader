@@ -18,7 +18,7 @@ from answers import AnswerError, ask_open_file, clipboard_answer, measure, store
 from images import fitted, make_thumb
 from sprite_extraction import SpriteDetail
 from sprite_job import colour_name
-from sprite_library import Catalog, add_sprite, next_free_file
+from sprite_library import MAP_SPRITES, Catalog, add_sprite, next_free_file
 from theme import (
     CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, STATUS_COLORS,
     TEXT, TEXT_DIM,
@@ -48,13 +48,16 @@ class AnswersView(View):
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send again', h=BUTTON_H)
         self.design_button = Button('Change the design', h=BUTTON_H)
-        self.button_rows = ((self.paste_button, self.open_button), (self.send_button,), (self.design_button,))
+        self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
+        self.button_rows = ((self.paste_button, self.open_button), (self.send_button,),
+                            (self.design_button, self.gimp_button))
         self.reject_button = Button('Not good enough', w=190)
         self.accept_button = Button('Accept', w=150)
         self.actions = ((self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send),
                         (self.design_button, self.back),
+                        (self.gimp_button, self.edit_in_gimp),
                         (self.reject_button, self.reject),
                         (self.accept_button, self.accept))
         self.wanted = entry   # the answer to show first
@@ -160,6 +163,17 @@ class AnswersView(View):
         self.app.set_status(added.summary())
         self.app.toast.show(f'Added {added.path.name}')
 
+    def saved_path(self):
+        """The sprite the chosen answer became, if it was accepted."""
+        saved = self.entry and self.job.accepted.get(self.entry.image)
+        return MAP_SPRITES / saved if saved else None
+
+    def edit_in_gimp(self):
+        """Open the sprite the chosen answer became in GIMP."""
+        path = self.saved_path()
+        if path and path.is_file():
+            self.app.edit_in_gimp(self.job.domain, path)
+
     def reject(self):
         if not self.entry:
             return
@@ -245,6 +259,7 @@ class AnswersView(View):
         self.open_button.enabled = bool(self.sheet)
         self.send_button.enabled = bool(self.sheet) and not self.app.busy() and not gemini_client.SDK_ERROR
         self.send_button.label = 'Sending ...' if self.app.busy() else 'Send to Gemini again'
+        self.gimp_button.enabled = bool(self.saved_path())
         for row in self.button_rows:
             for button in row:
                 button.draw(screen, fonts.font, mouse)
@@ -315,6 +330,8 @@ class AnswersView(View):
             self.reject()
         elif event.key == pygame.K_TAB:
             self.back()
+        elif event.key == pygame.K_g:
+            self.edit_in_gimp()
 
     def scroll_by(self, steps):
         self.grid.scroll_by(steps)
