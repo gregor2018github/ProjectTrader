@@ -324,6 +324,58 @@
    ],
    "stem_position": 2.59,
    "stem_thick": 2.5
+  },
+  "trees/Tree_26.png": {
+   "kind": "needle_tree",
+   "subcategory": "young fir sapling",
+   "atlas": "trees",
+   "rect": [
+    1344,
+    40,
+    65,
+    120
+   ],
+   "stem_position": 1.03,
+   "stem_thick": 1.0
+  },
+  "trees/Tree_27.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "silver birch",
+   "atlas": "trees",
+   "rect": [
+    2016,
+    57,
+    165,
+    327
+   ],
+   "stem_position": 2.72,
+   "stem_thick": 2.4
+  },
+  "trees/Tree_28.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "weeping willow",
+   "atlas": "trees",
+   "rect": [
+    2240,
+    33,
+    272,
+    287
+   ],
+   "stem_position": 4.27,
+   "stem_thick": 1.9
+  },
+  "trees/Tree_29.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "apple tree",
+   "atlas": "trees",
+   "rect": [
+    2560,
+    34,
+    310,
+    318
+   ],
+   "stem_position": 4.8,
+   "stem_thick": 2.2
   }
  },
  "motifs": {
