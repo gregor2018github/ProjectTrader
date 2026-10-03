@@ -178,7 +178,11 @@ import os
 import sys
 from pathlib import Path
 
-import pygame
+# The click that brings the window back from the browser also presses the
+# button under the mouse, instead of SDL swallowing it as a focus click.
+os.environ.setdefault('SDL_MOUSE_FOCUS_CLICKTHROUGH', '1')
+
+import pygame  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gemini_client  # noqa: E402
