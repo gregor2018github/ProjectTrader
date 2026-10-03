@@ -394,9 +394,11 @@ class SpriteJob:
                     f'colour of its {kind.main_part}. Shade it with darker and lighter tones of that colour')
         else:
             listed = ', '.join(f'{colour_name(c)} ({hex_colour(c)})' for c in colours)
-            rule = (f'The sketch is painted in flat colours: {listed}, the first covering the most. Each part '
-                    f'takes the colour sketched where it is, and the main one, {colour_name(main)}, is the '
-                    f'colour of its {kind.main_part}. Shade every colour with darker and lighter tones of itself')
+            # The colour covering the most is not necessarily the main part's: walls often outsize the roof
+            rule = (f'The sketch is painted in flat colours: {listed}. They show which part goes where: each '
+                    f'part, its {kind.main_part} too, takes the colour sketched where it is, and small dark '
+                    f'patches usually mark openings such as doors and windows. Shade every colour with darker and '
+                    f'lighter tones of itself')
         return self.domain.prompt_template.format(
             example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
             sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part)
