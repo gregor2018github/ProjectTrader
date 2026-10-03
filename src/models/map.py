@@ -35,6 +35,7 @@ from .figurines.humans.npcs import (
 from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.patrol_path import PatrolPath
 from .door import Door
+from .fog import FogOfWar
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -1063,6 +1064,21 @@ class GameMap:
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0
 
+        # What the player has seen so far; a new game has seen nothing yet
+        self.fog: FogOfWar = FogOfWar(self.tmx_map.width, self.tmx_map.height, self.tmx_map.tile_size)
+        self.reveal_around_player()
+
+    def reveal_around_player(self) -> None:
+        """Explore the fog of war around the player's centre."""
+        self.fog.reveal(self.map_player.x + self.map_player.width / 2.0,
+                        self.map_player.y + self.map_player.height / 2.0)
+
+    def restore_fog(self, saved: Optional[Dict[str, Any]]) -> None:
+        """Take over a save's explored land (None: nothing explored), plus the
+        player's surroundings. Call once the player stands where the save left him."""
+        self.fog.load(saved)
+        self.reveal_around_player()
+
     def add_ripple(self, x: float, y: float, delay: float = 0.0, radius_cap: float = 18.0) -> None:
         self.ripples.append(Ripple(x, y, delay, radius_cap))
 
@@ -1118,6 +1134,7 @@ class GameMap:
             current_time: Current in-game datetime for smoke scheduling.
         """
         self.map_player.update(dt, self.tmx_map)
+        self.reveal_around_player()
         collision_height = self.map_player.tile_size / 2 - 2
         player_rect = pygame.Rect(
             int(round(self.map_player.x)),

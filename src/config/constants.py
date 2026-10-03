@@ -136,6 +136,9 @@ DOOR_SOUND_MAX_DISTANCE = 700.0      # World pixels beyond which NPC doors are c
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map
+FOG_REVEAL_RADIUS_TILES = 7.0         # Fog of war: land within this many tiles of the player is fully revealed
+FOG_FADE_TILES = 3.0                  # Fog of war: beyond that radius, revealing fades out over this many tiles
+FOG_CELLS_PER_TILE = 4                # Fog of war: explored cells per tile each way (finer = rounder edge)
 
 # LIGHTING CONSTANTS (Hours are decimal, for example 18.5 = 18:30)
 

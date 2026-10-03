@@ -11,6 +11,10 @@ dragging. Its parts:
 - ``ornaments`` draws frame, title, compass, scale, legend and labels,
 - ``glyphs``    holds the little drawings shared by plan and legend,
 - ``style``     holds the colours and tuning.
+
+Only land the player has explored is charted: the rest is covered with blank
+paper, after the game map's fog of war (``models/fog.py``), and its names and
+buildings cannot be pointed at.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -23,7 +27,7 @@ from .landmarks import MAJOR_KINDS, MINOR_KINDS, Landmarks, PlanBuilding, gather
 from ...paper import draw_paper
 from .style import (
     DETAIL_LABEL_LEVEL, FONT_PLAIN, FONT_SCRIPT, GOLD_INK, INK, INK_FADED,
-    PAPER, WATER_LINE, ZOOM_LEVELS,
+    PAPER, UNCHARTED_TINT, WATER_LINE, ZOOM_LEVELS,
 )
 from .terrain import Ground
 
@@ -169,6 +173,9 @@ class TownPlan:
                                       round(inner.centery - self.center[1] * self.scale)))
         # The paper's grain is pinned to the land, so it moves when dragged
         draw_paper(screen, rect, land.topleft)
+        # Kept, a shade darker, to cover the land not explored yet with
+        blank_paper = screen.subsurface(inner).copy()
+        blank_paper.fill(UNCHARTED_TINT, special_flags=pygame.BLEND_RGB_MULT)
 
         old_clip = screen.get_clip()
         screen.set_clip(inner)
@@ -186,6 +193,7 @@ class TownPlan:
             hovered = self._building_at(mouse)
 
         self._draw_live_buildings(screen, game_state, hovered)
+        self._cover_unexplored(screen, inner, blank_paper)
         if game_state.is_map_visible:
             self._draw_camera_view(screen)
 
@@ -204,8 +212,24 @@ class TownPlan:
     def _building_at(self, pos: Tuple[int, int]) -> Optional[PlanBuilding]:
         wx, wy = self.screen_to_world(*pos)
         slack = 3 / self.scale  # A few screen pixels of grace around small roofs
-        hits = [b for b in self._marks.buildings if b.footprint.inflate(slack * 2, slack * 2).collidepoint(wx, wy)]
+        hits = [b for b in self._marks.buildings
+                if b.footprint.inflate(slack * 2, slack * 2).collidepoint(wx, wy) and self._explored(b.footprint.center)]
         return min(hits, key=lambda b: b.footprint.width * b.footprint.height) if hits else None
+
+    def _explored(self, world_pos: Tuple[float, float]) -> bool:
+        return self.game_map.fog.is_explored(*world_pos)
+
+    def _cover_unexplored(self, screen: pygame.Surface, inner: pygame.Rect, blank_paper: pygame.Surface) -> None:
+        """Lay blank paper over the land not explored yet, fading in at the edge."""
+        left, top = self.screen_to_world(inner.left, inner.top)
+        right, bottom = self.screen_to_world(inner.right, inner.bottom)
+        veil, origin = self.game_map.fog.veil((left, top, right, bottom), self.scale)
+        x, y = self.world_to_screen(*origin)
+        pos = (round(x), round(y))
+        # The white veil times the paper: the paper, as opaque as the land is unknown
+        cover = veil.copy()
+        cover.blit(blank_paper, (inner.x - pos[0], inner.y - pos[1]), special_flags=pygame.BLEND_RGB_MULT)
+        screen.blit(cover, pos)
 
     def _draw_live_buildings(self, screen: pygame.Surface, game_state, hovered: Optional[PlanBuilding]) -> None:
         """What changes while playing: closed stalls, property owned, hover."""
@@ -258,20 +282,22 @@ class TownPlan:
         """Names, the most important first, each only where it fits."""
         grow = self.level * 2
         for region in self._marks.regions:
+            if not self._explored(region.position):
+                continue
             if region.style == "water":
                 surface = ornaments.text(region.text, FONT_SCRIPT, 26 + grow, WATER_LINE, spaced=True)
             else:
                 surface = ornaments.text(region.text, FONT_SCRIPT, 24 + grow, INK_FADED)
             ornaments.place_label(screen, surface, [("center", self.world_to_screen(*region.position))], taken, inner)
 
-        if self._marks.market_area is not None:
+        if self._marks.market_area is not None and self._explored(self._marks.market_area.center):
             area = self._rect_to_screen(self._marks.market_area)
             surface = ornaments.text("Market Place", FONT_PLAIN, 18 + grow, INK)
             ornaments.place_label(screen, surface, [("midbottom", (area.centerx, area.top - 1)),
                                                     ("midtop", (area.centerx, area.bottom + 1))], taken, inner)
 
         kinds = MAJOR_KINDS + (MINOR_KINDS if self.level >= DETAIL_LABEL_LEVEL else ())
-        named = [b for b in self._marks.buildings if b.kind in kinds]
+        named = [b for b in self._marks.buildings if b.kind in kinds and self._explored(b.footprint.center)]
         named.sort(key=lambda b: MAJOR_KINDS.index(b.kind) if b.kind in MAJOR_KINDS else len(MAJOR_KINDS))
         for building in named:
             r = self._rect_to_screen(building.footprint)

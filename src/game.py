@@ -205,6 +205,7 @@ class Game:
                             population_manager=self.population_manager)
             self.game_map.map_player.x = self.player.position[0]
             self.game_map.map_player.y = self.player.position[1]
+            self.game_map.restore_fog(save_data.get("fog"))
             self.restore_owned_buildings()
 
     def restore_owned_buildings(self) -> None:
@@ -804,7 +805,8 @@ class Game:
         mp = self.game_map.map_player
         self.player.position = (int(mp.x), int(mp.y))
         save_game(slot, self.state, self.player, self.depot, self.goods,
-                  save_name=save_name, population_manager=self.population_manager)
+                  save_name=save_name, population_manager=self.population_manager,
+                  fog=self.game_map.fog)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

@@ -215,6 +215,7 @@ class EventHandler:
                                    population_manager=game_state.game.population_manager)
                     game_state.game.game_map.map_player.x = game_state.game.player.position[0]
                     game_state.game.game_map.map_player.y = game_state.game.player.position[1]
+                    game_state.game.game_map.restore_fog(data.get("fog"))
                     game_state.game.reset_autosave_timer()
                     game_state.info_window = None
                     game_state._pending_load_slot = None

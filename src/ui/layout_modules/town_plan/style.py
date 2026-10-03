@@ -63,6 +63,10 @@ SAMPLE_PX_PER_TILE = 8
 #: a glance; each level is engraved once, when first shown.
 ZOOM_LEVELS = (2.5, 3.6, 5.2, 7.5)
 
+#: Multiplied into the blank paper that covers land not explored yet, so
+#: uncharted land reads a shade darker than charted meadow (plain paper too).
+UNCHARTED_TINT = (222, 214, 200)
+
 #: From this level on, smaller places (the well, sheds) are labelled too.
 DETAIL_LABEL_LEVEL = 2
 
