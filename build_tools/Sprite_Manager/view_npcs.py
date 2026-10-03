@@ -43,6 +43,20 @@ NAME_POOLS = (('female', 'Women'), ('male', 'Men'))
 KINDS = (('walk', 'Walk frames'), ('run', 'Run frames'), ('standing', 'Standing sprites'))
 
 
+def figure_progress(app, figure):
+    """[(kind, done, needed)] of a figure's sprites: his motions, then his standing sprites.
+
+    Everything of a person without a front standing sprite is still to do.
+    """
+    if figure.is_new:
+        walk = sum(app.counts[d] for d in DIRECTIONS if d.key in NPC_DIRECTION_KEYS)
+        return [('walk', 0, walk), ('standing', 0, len(STANDING_DIRECTIONS))]
+    rows = [(motion.key, sum(figure.done(d, app.counts[d]) for d in figure.directions(motion)),
+             figure.total_frames(app.counts, motion)) for motion in figure.motions]
+    rows.append(('standing', figure.standing_done(), len(STANDING_DIRECTIONS)))
+    return rows
+
+
 class NpcListView(View):
     def __init__(self, app):
         super().__init__(app)
@@ -65,18 +79,11 @@ class NpcListView(View):
         app = self.app
         done_color = STATUS_COLORS[pose_review.ACCEPTED]
         lines, shares = [], []
-        for motion in npc.motions:
-            total = npc.total_frames(app.counts, motion)
-            done = sum(npc.done(d, app.counts[d]) for d in npc.directions(motion))
-            lines.append((f'{done}/{total} {motion.key} frames', done_color if done == total else TEXT_DIM))
+        for kind, done, total in figure_progress(app, npc):
+            what = 'standing sprites' if kind == 'standing' else f'{kind} frames'
+            lines.append((f'{done}/{total} {what}', done_color if done == total else TEXT_DIM))
             shares.append(done / max(1, total))
-            self.count(motion.key, done, total)
-        standing_total = len(STANDING_DIRECTIONS)
-        standing_done = npc.standing_done()
-        self.count('standing', standing_done, standing_total)
-        lines.append((f'{standing_done}/{standing_total} standing sprites',
-                      done_color if standing_done == standing_total else TEXT_DIM))
-        shares.append(standing_done / standing_total)
+            self.count(kind, done, total)
         waiting = len(ReviewStore(npc.out_dir).pending())
         if waiting:
             lines.append((f'{waiting} to review', STATUS_COLORS[pose_review.PENDING]))
@@ -90,9 +97,8 @@ class NpcListView(View):
 
     def new_figure_card(self, figure):
         """A person without a front standing sprite: that is the next thing to make."""
-        # Everything of an NPC is still to do.
-        self.count('walk', 0, sum(self.app.counts[d] for d in DIRECTIONS if d.key in NPC_DIRECTION_KEYS))
-        self.count('standing', 0, len(STANDING_DIRECTIONS))
+        for row in figure_progress(self.app, figure):
+            self.count(*row)
         waiting = len(ReviewStore(figure.out_dir).pending())
         extra = [(f'{waiting} to review', STATUS_COLORS[pose_review.PENDING])] if waiting else []
         return Card(figure, figure.label, self.placeholder, note='make the first sprite',
@@ -130,10 +136,14 @@ class NpcListView(View):
         return ('Sprite Manager',
                 'The player walks and runs in all 8 directions, the NPCs only walk: down, right, up '
                 'and left. "+" adds an NPC. The left-hand walks are optional. '
-                'Tab switches to the plants and buildings.')
+                'Tab switches to the plants and buildings, Escape goes to the start page.')
 
     def footer(self):
-        return tuple(self.switch_buttons), (self.app.settings_button,)
+        return (self.app.home_button,) + tuple(self.switch_buttons), (self.app.settings_button,)
+
+    def back(self):
+        self.app.go_home()
+        return True
 
     def draw(self, screen, mouse):
         area = self.app.card_area()

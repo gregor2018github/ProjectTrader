@@ -16,6 +16,11 @@ The window opens in the left half of the screen, leaving the right half for
 the browser with the Gemini web view. It can be resized or maximised; F11
 switches to full screen.
 
+0. The start page shows every sprite at a glance (view_home.py): how many
+   there are, the ones new and redone today, the answers waiting, and a big
+   card each for the humans, the plants and the buildings with how far they
+   are. Click one (or 1, 2, 3) to go there; "Start page" or Escape there
+   comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
    shows how many walk (and run) frames and standing sprites there are; the
@@ -107,8 +112,8 @@ out); drawing one by hand gives the model a cleaner guide.
 
 Sheets, prompts, answers and review.json live in build_tools/output/<npc>/walk/.
 
-Plants and buildings: "Plants" and "Buildings" on the first screen (Tab
-goes round all three) switch to every plant, or every building and
+Plants and buildings: "Plants" and "Buildings" on the start page or the
+humans' screen (Tab goes round all three) switch to every plant, or every building and
 decoration, by kind: needle and broadleaf trees, bushes, flowers ...;
 dwellings, workshops, public buildings, farm buildings, market stalls, walls
 and fences, decorations. Which kind each sprite is, is written down in
@@ -143,6 +148,7 @@ The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
     view.py            View, the base of every screen
+    view_home.py       the start page: every sprite at a glance, and the way into each area
     view_npcs.py       screen 1, the NPC list
     view_frames.py     screen 2, directions, frames and the chosen sheet
     view_review.py     screens 3 and 4, all answers and one answer
@@ -216,6 +222,7 @@ from theme import (  # noqa: E402
 )
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
+from view_home import HomeView  # noqa: E402
 from sprite_job import SpriteJob, find_jobs  # noqa: E402
 from sprite_library import Catalog, find_sprites, restamp  # noqa: E402
 from view_library import LibraryView  # noqa: E402
@@ -268,11 +275,12 @@ class SpriteManager:
 
         # Footer buttons several screens show; the app handles them
         self.back_button = Button('Back', w=90)
+        self.home_button = Button('Start page', w=130)
         self.folder_button = Button('Open folder', w=130)
         self.settings_button = Button('Settings', w=110)
 
         self.view = None
-        self.show(NpcListView(self))
+        self.show(HomeView(self))
 
     # --- shared state -----------------------------------------------------
 
@@ -423,6 +431,15 @@ class SpriteManager:
             self.reload_library(domain)
 
     @staticmethod
+    def screens():
+        """(key, title) of humans, plants and buildings."""
+        return SCREENS
+
+    @staticmethod
+    def domains():
+        return tuple(DOMAINS.values())
+
+    @staticmethod
     def jobs(domain):
         return find_jobs(domain)
 
@@ -436,11 +453,17 @@ class SpriteManager:
                 buttons.append(button)
         return buttons
 
+    def go_home(self):
+        """The start page, over every sprite."""
+        self.switch_to('home')
+
     def switch_to(self, screen):
-        """Show the humans, the plants or the buildings."""
+        """Show the start page, the humans, the plants or the buildings."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
-        if screen == 'humans':
+        if screen == 'home':
+            self.show(HomeView(self))
+        elif screen == 'humans':
             self.show(NpcListView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
@@ -605,6 +628,8 @@ class SpriteManager:
             self.open_settings()
         elif self.back_button in left and self.back_button.hit(pos):
             self.back()
+        elif self.home_button in left and self.home_button.hit(pos):
+            self.go_home()
         elif self.folder_button in left and self.folder_button.hit(pos):
             self.open_folder()
         else:

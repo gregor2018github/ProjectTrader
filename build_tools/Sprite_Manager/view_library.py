@@ -91,10 +91,15 @@ class LibraryView(View):
     def header(self):
         return (self.domain.title,
                 f'Click: a new {self.domain.noun} from it. Right-click: its kind. '
-                'GIMP / G: edit it. Cross: scrap an unfinished one. Tab: humans, plants, buildings.')
+                'GIMP / G: edit it. Cross: scrap an unfinished one. Tab: humans, plants, buildings. '
+                'Escape: start page.')
 
     def footer(self):
-        return tuple(self.switch_buttons), (self.app.settings_button,)
+        return (self.app.home_button,) + tuple(self.switch_buttons), (self.app.settings_button,)
+
+    def back(self):
+        self.app.go_home()
+        return True
 
     def draw(self, screen, mouse):
         area = self.app.card_area()

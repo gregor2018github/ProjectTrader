@@ -24,6 +24,7 @@ PAD = 14
 COUNT_W = 240
 WORK_W = 250
 NEWEST_SHARE = 0.32      # of what the two fixed panels leave
+NEWEST = 60              # the newest sprites kept, for the start page's gallery
 KIND_BAR_H = 14
 LEGEND_ROW = 19
 SWATCH = 10
@@ -98,7 +99,7 @@ def gather(domain, sprites, jobs, fills):
             dated.append((born, sprite))
             stats.today += born >= midnight
     dated.sort(key=lambda d: -d[0])
-    stats.newest = [sprite for _, sprite in dated[:8]]
+    stats.newest = [sprite for _, sprite in dated[:NEWEST]]
 
     open_jobs = [job for job in jobs if not job.accepted]
     stats.unfinished = len(open_jobs)

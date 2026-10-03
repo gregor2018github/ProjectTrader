@@ -1,6 +1,6 @@
 """How many sprites were made today, by the dates of their files.
 
-A sprite in humans/ whose file was created since midnight is new today; one
+A sprite (in humans/, unless other files are given) whose file was created since midnight is new today; one
 created before but saved since is redone (an answer accepted over it, its
 colours evened out, an edit in GIMP).
 """
@@ -18,11 +18,11 @@ def created(stat):
     return getattr(stat, 'st_birthtime', stat.st_mtime)
 
 
-def made_today():
-    """Today(new, redone) sprite counts."""
+def made_today(paths=None):
+    """Today(new, redone) sprite counts, of the humans' sprites or of `paths`."""
     midnight = datetime.datetime.combine(datetime.date.today(), datetime.time()).timestamp()
     new = redone = 0
-    for path in HUMANS_DIR.rglob('*.png'):
+    for path in HUMANS_DIR.rglob('*.png') if paths is None else paths:
         try:
             stat = path.stat()
         except OSError:  # gone since it was listed
