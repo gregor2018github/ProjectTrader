@@ -68,11 +68,11 @@ SUGGESTIONS = {
 }
 
 PROMPT_TEMPLATE = """\
-The attached picture is a split view for my medieval trading game "Merchant's Rise". The left cell shows an existing pixel-art map sprite: {example}. The right cell, inside the red frame, holds a rough flat {colour_name} shape that I scribbled with the mouse. It is not a drawing to keep, only a sketch of the outline, size and position of a new sprite.
+The attached picture is a split view for my medieval trading game "Merchant's Rise". The left cell shows an existing pixel-art map sprite: {example}. The right cell, inside the red frame, holds a rough flat {colours} shape that I scribbled with the mouse. It is not a drawing to keep, only a sketch of the outline, size and position of a new sprite.
 
 Draw a new {noun}{sub} in the right cell:
 - Its outline and size follow the sketch: where the sketch is wide it is wide, where it is tall it is tall, and it stands on the ground where the sketch's lowest point is. Turn the wobbly mouse lines into straight walls, roof edges and posts, as fits a {noun}.
-- The flat colour of the sketch, {colour_name} ({hex}), is the main colour of its {main_part}. Shade it with darker and lighter tones of that colour, and give everything the colour does not stand for (such as timber, plaster, stone, doors and windows) fitting medieval colours.
+- {colour_rule}, and give everything the colours do not stand for (such as timber, plaster, stone, doors and windows) fitting medieval colours.
 - No trace of the flat sketch or its edge may remain.
 
 The most important thing is that the new {noun} looks like it comes from the exact same game as the sprite on the left:

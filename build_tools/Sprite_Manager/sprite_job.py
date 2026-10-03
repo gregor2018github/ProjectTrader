@@ -4,19 +4,22 @@ A job starts from a plant or building sprite clicked in the overview, the
 example, and belongs to that sprite's sprite_library.Domain. Its folder
 build_tools/output/<domain>/<job>/ holds everything about it:
 
-    job.json      the kind, the optional subcategory ("oak"), the colour,
-                  the example's name, and which answers became which sprite
+    job.json      the kind, the optional subcategory ("oak"), the colour in
+                  hand, the colours painted with, the example's name, and
+                  which answers became which sprite
     example.png   the example, as it was when the job started
-    sketch.png    the rough shape drawn with the mouse, as a mask
+    sketch.png    the rough shape drawn with the mouse, in flat colours
     sheet.png     the split image sent to the model, and prompt.txt with it
     review.json   the answers, as for the humans (pose_review.py)
 
 The split image is two square white cells side by side: the example blown up
 by whole pixels on the left, and on the right, inside a red frame, the sketch
-filled flat with the chosen colour, at the same scale. The model is asked to
-draw a sprite of the kind in the red frame, shaped like the sketch and mainly
-in its colour, in the example's style; the domain's prompt template says
-how.
+painted in flat colours, at the same scale. The model is asked to draw a
+sprite of the kind in the red frame, shaped like the sketch and coloured as
+it is, in the example's style; the domain's prompt template says how.
+
+The colours last painted with are kept per domain in recent_colours.json in
+its output folder, for the quick picks under the colour wheel.
 """
 
 import colorsys
@@ -37,6 +40,7 @@ EXAMPLE_FILE = 'example.png'
 SKETCH_FILE = 'sketch.png'
 SHEET_FILE = 'sheet.png'
 PROMPT_FILE = 'prompt.txt'
+RECENT_FILE = 'recent_colours.json'
 POSE = 'plant'                  # what the answers are booked under in review.json
 
 CELL_TARGET = 640               # the example is blown up by whole pixels to about this size
@@ -44,6 +48,11 @@ EXAMPLE_SHARE = 0.6             # of the cell's side the example takes, leaving 
 GROUND_SHARE = 0.06             # of the cell's side below the foot line
 LEGACY_LAYOUT = (0.8, 0.1)      # (example share, ground share) of jobs made before the room was grown
 UNDO_STEPS = 30
+SKETCH_VERSION = 2              # 1: a one-colour mask, shown in the job's colour; 2: flat colours
+CLEAR = (0, 0, 0, 0)
+RECENT_COLOURS = 10
+MIN_COLOUR_SHARE = 0.01         # of the sketch a colour must cover to be named in the prompt
+PROMPT_COLOURS = 6
 
 
 
@@ -82,6 +91,30 @@ def hex_colour(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
 
 
+def load_recent_colours(domain):
+    """The colours last painted with in the domain's jobs, newest first."""
+    try:
+        data = json.loads((domain.output / RECENT_FILE).read_text(encoding='utf-8'))
+        return [tuple(c) for c in data if len(c) == 3][:RECENT_COLOURS]
+    except (OSError, ValueError, TypeError):
+        return []
+
+
+def remember_colour(domain, recent, colour):
+    """Move `colour` to the front of `recent` and keep the list on disk."""
+    colour = tuple(colour)
+    if colour in recent:
+        recent.remove(colour)
+    recent.insert(0, colour)
+    del recent[RECENT_COLOURS:]
+    try:
+        domain.output.mkdir(parents=True, exist_ok=True)
+        (domain.output / RECENT_FILE).write_text(json.dumps([list(c) for c in recent]) + '\n',
+                                                 encoding='utf-8')
+    except OSError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # The job
 # ---------------------------------------------------------------------------
@@ -117,7 +150,9 @@ class SpriteJob:
         if self.kind not in domain.kinds_by_key:
             self.kind = domain.kinds[0].key
         self.subcategory = data.get('subcategory', '')
-        self.colour = tuple(data.get('colour', domain.default_colour))
+        self.colour = tuple(data.get('colour', domain.default_colour))   # the one in hand
+        self.palette = [tuple(c) for c in data.get('palette', [self.colour])]   # every one painted with
+        sketch_version = data.get('sketch_version', 1)
         self.example_label = data.get('example', '')
         self.example_kind = data.get('example_kind', self.kind)
         self.created = data.get('created', '')
@@ -126,8 +161,10 @@ class SpriteJob:
         self.layout = tuple(data.get('layout', LEGACY_LAYOUT))
         self.example = pygame.image.load(str(self.folder / EXAMPLE_FILE)).convert_alpha()
         self.factor, self.cell, self.margin = self.geometry()
-        self.sketch = self._load_sketch()
+        self.sketch = self._load_sketch(sketch_version)
         self.undo_stack = []
+        self._painted = None           # has_sketch() and colours(), until the sketch changes
+        self._colours = None
 
     @classmethod
     def create(cls, domain, sprite):
@@ -144,7 +181,7 @@ class SpriteJob:
         data = {'kind': kind, 'subcategory': '', 'colour': list(domain.default_colour),
                 'example': sprite.label if sprite.path is None else sprite.path.name,
                 'example_kind': sprite.kind, 'created': datetime.now().isoformat(timespec='seconds'),
-                'accepted': {}, 'layout': [EXAMPLE_SHARE, GROUND_SHARE]}
+                'accepted': {}, 'layout': [EXAMPLE_SHARE, GROUND_SHARE], 'sketch_version': SKETCH_VERSION}
         (folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
         return cls(domain, folder)
 
@@ -169,68 +206,124 @@ class SpriteJob:
         """job.json and sketch.png."""
         data = {'kind': self.kind, 'subcategory': self.subcategory, 'colour': list(self.colour),
                 'example': self.example_label, 'example_kind': self.example_kind, 'created': self.created,
-                'accepted': self.accepted, 'layout': list(self.layout)}
+                'accepted': self.accepted, 'layout': list(self.layout), 'sketch_version': SKETCH_VERSION,
+                'palette': [list(c) for c in self.palette]}
         (self.folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
-        pygame.image.save(self.sketch.to_surface(setcolor=(0, 0, 0, 255), unsetcolor=(0, 0, 0, 0)),
-                          str(self.folder / SKETCH_FILE))
+        pygame.image.save(self.sketch, str(self.folder / SKETCH_FILE))
 
-    def _load_sketch(self):
+    def _load_sketch(self, version):
+        sketch = pygame.Surface((self.cell, self.cell), pygame.SRCALPHA)
+        sketch.fill(CLEAR)
         try:
             image = pygame.image.load(str(self.folder / SKETCH_FILE)).convert_alpha()
         except (pygame.error, OSError):
-            return pygame.Mask((self.cell, self.cell))
+            return sketch
         if image.get_size() != (self.cell, self.cell):
             image = pygame.transform.scale(image, (self.cell, self.cell))
-        return pygame.mask.from_surface(image, 128)
+        if version < 2:   # a mask in black, meant to be shown in the job's colour
+            return pygame.mask.from_surface(image, 128).to_surface(setcolor=self.colour + (255,),
+                                                                   unsetcolor=CLEAR)
+        sketch.blit(image, (0, 0))
+        return sketch
 
     def discard(self):
         """Delete the job's folder and all its answers."""
         shutil.rmtree(self.folder, ignore_errors=True)
 
     def has_sketch(self):
-        return self.sketch.count() > 0
+        if self._painted is None:
+            self._painted = pygame.mask.from_surface(self.sketch, 0).count() > 0
+        return self._painted
+
+    def colours(self):
+        """[(colour, share of the sketch)] of the colours painted with, most used first."""
+        if self._colours is None:
+            self._colours = self._count_colours()
+        return self._colours
+
+    def _count_colours(self):
+        counts = []
+        for colour in self.palette:
+            count = _colour_mask(self.sketch, colour).count()
+            if count:
+                counts.append((colour, count))
+        total = sum(count for _, count in counts) or 1
+        counts.sort(key=lambda item: item[1], reverse=True)
+        return [(colour, count / total) for colour, count in counts]
 
     # --- sketching ----------------------------------------------------------
 
     def begin_stroke(self):
-        """Remember the sketch before a stroke, for undo()."""
+        """Remember the sketch before a stroke or a fill, for undo()."""
         self.undo_stack.append(self.sketch.copy())
         del self.undo_stack[:-UNDO_STEPS]
 
-    def paint(self, a, b, radius, erase=False):
-        """A brush line from a to b (right-cell coordinates), kept inside the red frame."""
-        brush = _brush(radius)
-        stroke = pygame.Mask(self.sketch.get_size())
+    def _touched(self):
+        self._painted = self._colours = None
+
+    def _painting_with(self, colour):
+        self._touched()
+        if colour is not None and tuple(colour) not in self.palette:
+            self.palette.append(tuple(colour))
+
+    def paint(self, a, b, radius, colour=None):
+        """A brush line from a to b (right-cell coordinates) in `colour`, kept inside the red frame;
+        without a colour it rubs out."""
+        self._painting_with(colour)
+        paint = CLEAR if colour is None else tuple(colour) + (255,)
+        brush = _brush(radius, paint)
+        flags = pygame.BLEND_RGBA_MIN if colour is None else 0
+        self.sketch.set_clip(self.drawable())
         steps = max(1, int(max(abs(b[0] - a[0]), abs(b[1] - a[1])) / max(1, radius / 2)))
         for i in range(steps + 1):
             x = a[0] + (b[0] - a[0]) * i / steps
             y = a[1] + (b[1] - a[1]) * i / steps
-            stroke.draw(brush, (int(x) - radius, int(y) - radius))
-        inside = pygame.Mask(self.sketch.get_size())
-        inside.draw(pygame.Mask(self.drawable().size, fill=True), self.drawable().topleft)
-        stroke = stroke.overlap_mask(inside, (0, 0))
-        if erase:
-            self.sketch.erase(stroke, (0, 0))
-        else:
-            self.sketch.draw(stroke, (0, 0))
+            self.sketch.blit(brush, (int(x) - radius, int(y) - radius), special_flags=flags)
+        self.sketch.set_clip(None)
 
-    def fill_enclosed(self):
-        """Fill every area the sketch closes in: a drawn outline becomes a shape."""
-        empty = self.sketch.copy()
-        empty.invert()
-        outside = empty.connected_component((0, 0))   # the band inside the red frame is always empty
-        outside.invert()
-        self.sketch = outside
+    def fill(self, point, colour=None):
+        """Flood the patch of one colour (or of bare paper) around `point` with `colour`, inside the
+        red frame; without a colour it rubs the patch out. False if the point is outside the frame."""
+        drawable = self.drawable()
+        point = (int(point[0]), int(point[1]))
+        if not drawable.collidepoint(point):
+            return False
+        self._painting_with(colour)
+        here = self.sketch.get_at(point)
+        if here.a == 0:
+            same = pygame.mask.from_surface(self.sketch, 0)
+            same.invert()
+        else:
+            same = _colour_mask(self.sketch, here[:3])
+        inside = pygame.Mask(self.sketch.get_size())
+        inside.draw(pygame.Mask(drawable.size, fill=True), drawable.topleft)
+        patch = same.overlap_mask(inside, (0, 0)).connected_component(point)
+        if colour is None:
+            patch.invert()
+            self.sketch = patch.to_surface(setsurface=self.sketch, unsetcolor=CLEAR)
+        else:
+            self.sketch.blit(patch.to_surface(setcolor=tuple(colour) + (255,), unsetcolor=CLEAR), (0, 0))
+        return True
+
+    def colour_at(self, point):
+        """The colour painted at a right-cell point, or None for bare paper."""
+        point = (int(point[0]), int(point[1]))
+        if not self.sketch.get_rect().collidepoint(point):
+            return None
+        here = self.sketch.get_at(point)
+        return tuple(here[:3]) if here.a else None
 
     def undo(self):
         if self.undo_stack:
             self.sketch = self.undo_stack.pop()
+            self._touched()
             return True
         return False
 
     def clear(self):
         self.begin_stroke()
-        self.sketch.clear()
+        self.sketch.fill(CLEAR)
+        self._touched()
 
     # --- the split image ----------------------------------------------------
 
@@ -277,16 +370,35 @@ class SpriteJob:
         return sheet
 
     def sketch_surface(self):
-        return self.sketch.to_surface(setcolor=self.colour + (255,), unsetcolor=(0, 0, 0, 0))
+        return self.sketch
+
+    def prompt_colours(self):
+        """The sketch's colours worth naming, most used first."""
+        colours = [c for c, share in self.colours() if share >= MIN_COLOUR_SHARE][:PROMPT_COLOURS]
+        return colours or [self.colour]
+
+    def colour_words(self):
+        """The sketch's colours in words, e.g. 'dark green and brown'."""
+        names = list(dict.fromkeys(colour_name(c) for c in self.prompt_colours()))
+        return names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
 
     def prompt(self):
         kinds = self.domain.kinds_by_key
         kind = kinds[self.kind]
         example_kind = kinds.get(self.example_kind)
         example = f'a {example_kind.noun}' if example_kind else f'a {self.domain.noun}'
-        name = colour_name(self.colour)
+        colours = self.prompt_colours()
+        main = colours[0]
+        if len(colours) == 1:
+            rule = (f'The flat colour of the sketch, {colour_name(main)} ({hex_colour(main)}), is the main '
+                    f'colour of its {kind.main_part}. Shade it with darker and lighter tones of that colour')
+        else:
+            listed = ', '.join(f'{colour_name(c)} ({hex_colour(c)})' for c in colours)
+            rule = (f'The sketch is painted in flat colours: {listed}, the first covering the most. Each part '
+                    f'takes the colour sketched where it is, and the main one, {colour_name(main)}, is the '
+                    f'colour of its {kind.main_part}. Shade every colour with darker and lighter tones of itself')
         return self.domain.prompt_template.format(
-            example=example, colour_name=name, hex=hex_colour(self.colour), noun=kind.noun,
+            example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
             sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part)
 
     def write_sheet(self):
@@ -300,15 +412,23 @@ class SpriteJob:
         return JobSheet(surface, path, prompt)
 
 
-@lru_cache(maxsize=8)
-def _brush(radius):
-    """A round brush tip; not to be changed, it is shared."""
-    brush = pygame.Mask((2 * radius + 1, 2 * radius + 1))
-    for x in range(2 * radius + 1):
-        for y in range(2 * radius + 1):
+@lru_cache(maxsize=16)
+def _brush(radius, paint):
+    """A round brush tip in `paint`, see-through around it. To rub out (paint CLEAR, blitted with
+    BLEND_RGBA_MIN) it is white around the tip instead, so nothing outside it changes.
+    Not to be changed, it is shared."""
+    side = 2 * radius + 1
+    tip = pygame.Mask((side, side))
+    for x in range(side):
+        for y in range(side):
             if (x - radius) ** 2 + (y - radius) ** 2 <= radius * radius:
-                brush.set_at((x, y))
-    return brush
+                tip.set_at((x, y))
+    return tip.to_surface(setcolor=paint, unsetcolor=(255, 255, 255, 255) if paint == CLEAR else CLEAR)
+
+
+def _colour_mask(surface, colour):
+    """Where `surface` is painted in exactly `colour`."""
+    return pygame.mask.from_threshold(surface, tuple(colour) + (255,), (1, 1, 1, 1))
 
 
 def find_jobs(domain):

@@ -42,6 +42,10 @@ class ColourWheel:
     def colour(self):
         return tuple(round(c * 255) for c in colorsys.hsv_to_rgb(*self.hsv))
 
+    @colour.setter
+    def colour(self, rgb):
+        self.hsv = colorsys.rgb_to_hsv(*(c / 255 for c in rgb))
+
     def layout(self, rect):
         """Fit wheel and bar into `rect`."""
         radius = max(20, min((rect.w - BAR_W - BAR_GAP) // 2, rect.h // 2) - 2)

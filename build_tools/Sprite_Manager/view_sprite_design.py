@@ -1,13 +1,15 @@
 """Screen 2 of the plants and buildings: designing a new sprite before it goes to the model.
 
 Left the split image as it will be sent: the example, and the red frame to
-sketch the new sprite's shape in with the mouse - left button paints, and an
-outline drawn round closes into a filled shape; right button rubs out.
-Under it the brush size, undo and the ways to the model, as for the humans:
-copy image and prompt for the web view, paste or open its answer, or send
-to the API. Right the kind (the example's, to begin with), an
-optional subcategory that goes into the prompt, and the colour the sketch
-is filled with, from the wheel.
+sketch the new sprite's shape in with the mouse, in as many colours as it
+takes. With the brush the left button paints and the right rubs out; with
+the fill the left button floods a patch of one colour (or of bare paper)
+and the right rubs that patch out. Alt+click takes up a colour from the
+sketch. Under it the tool, brush size, undo and the ways to the model, as
+for the humans: copy image and prompt for the web view, paste or open its
+answer, or send to the API. Right the kind (the example's, to begin with),
+an optional subcategory that goes into the prompt, and the colour in hand,
+from the wheel or from the colours used last (keys 1 to 0).
 
 Everything is saved in the job's folder as it changes, so a job can be left
 and picked up again from the overview.
@@ -21,7 +23,7 @@ import gemini_client
 import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
 from colour_wheel import ColourWheel
-from sprite_job import colour_name, hex_colour
+from sprite_job import colour_name, hex_colour, load_recent_colours, remember_colour
 from theme import CARD_BG, DIALOG_BG, DIALOG_LINE, PANEL_GAP, TEXT, TEXT_DIM
 from view import View
 from widgets import Button, TextField, draw_chips, draw_panel, fit_text
@@ -34,8 +36,12 @@ BUTTON_H = 40
 BUTTON_GAP = 10
 # Brush radius, as a share of the cell
 BRUSHES = (('XXS', 0.002), ('XS', 0.004), ('S', 0.007), ('M', 0.012), ('L', 0.025), ('XL', 0.05))
+TOOLS = (('brush', 'Brush'), ('fill', 'Fill'))
 SWATCH_H = 44
+RECENT_SIZE = 30            # the quick picks of the colours used last
+RECENT_GAP = 6
 BRUSH_RING = (60, 60, 60)   # where the brush would paint, over the white cell
+CURSOR_SWATCH = 12          # the colour in hand, beside the mouse over the cell
 
 
 class DesignView(View):
@@ -44,12 +50,16 @@ class DesignView(View):
         self.job = app.npc
         self.wheel = ColourWheel(self.job.colour)
         self.field = TextField(self.job.subcategory, placeholder='e.g. oak, rosebush (optional)')
+        self.tool = 'brush'
         self.brush = 'S'
+        self.tool_chips = []
         self.brush_chips = []
+        self.recent = load_recent_colours(self.job.domain)
+        self.recent_chips = []        # [(rect, colour)]
         self.kind_chips = []
         self.proposal_chips = []      # [(rect, text)] while the subcategory field is typed in
         self.proposals_rect = None
-        self.stroke = None             # (last point, erase) while the mouse paints
+        self.stroke = None             # (last point, colour or None to rub out) while the mouse paints
         self.display = None            # the sheet with the sketch, scaled into the panel
         self.display_rect = None
         self.dirty = True
@@ -183,8 +193,9 @@ class DesignView(View):
 
     def header(self):
         return (f'2. New {self.job.domain.noun} from {self.job.example_label}',
-                'Sketch the shape in the red frame (left paints, a closed outline fills, right rubs out, '
-                'Ctrl+Z undo), pick type and colour, then send it. Ctrl+V or drop a file = answer.')
+                'Sketch the shape in the red frame (B brush, F fill, left paints, right rubs out, Alt+click '
+                'takes a colour, 1-0 recent colours, Ctrl+Z undo), pick the type, then send it. '
+                'Ctrl+V or drop a file = answer.')
 
     def footer(self):
         app = self.app
@@ -222,10 +233,16 @@ class DesignView(View):
         for index, button in enumerate(self.send_buttons):
             button.rect = pygame.Rect(inner.x + index * (width + BUTTON_GAP), y, width, BUTTON_H)
         tools_y = y - BUTTON_GAP - 32
-        label = fonts.small.render('Brush', True, TEXT_DIM)
-        screen.blit(label, (inner.x, tools_y + 7))
-        self.brush_chips, _ = draw_chips(screen, fonts.small, [b for b, _ in BRUSHES], str, self.brush,
-                                         inner.x + label.get_width() + 12, tools_y, inner.w // 2, mouse)
+        tool_names = dict(TOOLS)
+        self.tool_chips, _ = draw_chips(screen, fonts.small, list(tool_names), tool_names.get, self.tool,
+                                        inner.x, tools_y, inner.w // 2, mouse)
+        x = self.tool_chips[-1][0].right + 24
+        label = fonts.small.render('Size', True, TEXT_DIM)
+        screen.blit(label, (x, tools_y + 7))
+        x += label.get_width() + 12
+        self.brush_chips, _ = draw_chips(screen, fonts.small, [b for b, _ in BRUSHES], str,
+                                         self.brush if self.tool == 'brush' else None,
+                                         x, tools_y, inner.w // 2, mouse)
         self.clear_button.rect.topright = (inner.right, tools_y)
         self.undo_button.rect.topright = (self.clear_button.rect.x - BUTTON_GAP, tools_y)
 
@@ -258,11 +275,19 @@ class DesignView(View):
         self.display_rect = self.display.get_rect(center=area.center)
         screen.blit(self.display, self.display_rect)
 
-        # The brush, where it would paint
+        # The tool, where it would paint, and the colour in hand beside it
         right = self.right_cell_on_screen()
         if right.collidepoint(mouse):
-            factor = self.display_rect.w / job.build_sheet_size()[0]
-            pygame.draw.circle(screen, BRUSH_RING, mouse, max(2, int(self.radius() * factor)), 1)
+            if self.tool == 'brush':
+                factor = self.display_rect.w / job.build_sheet_size()[0]
+                pygame.draw.circle(screen, BRUSH_RING, mouse, max(2, int(self.radius() * factor)), 1)
+            else:
+                mx, my = mouse
+                pygame.draw.line(screen, BRUSH_RING, (mx - 7, my), (mx + 7, my))
+                pygame.draw.line(screen, BRUSH_RING, (mx, my - 7), (mx, my + 7))
+            swatch = pygame.Rect(mouse[0] + 10, mouse[1] + 10, CURSOR_SWATCH, CURSOR_SWATCH)
+            pygame.draw.rect(screen, self.wheel.colour, swatch)
+            pygame.draw.rect(screen, BRUSH_RING, swatch, 1)
 
     def _fit(self, area):
         w, h = self.job.build_sheet_size()
@@ -305,9 +330,13 @@ class DesignView(View):
         self.field.draw(screen, fonts.font, mouse)
         y += 36 + 16
 
-        screen.blit(fonts.small.render('Colour, fills the sketch', True, TEXT_DIM), (x, y))
+        screen.blit(fonts.small.render('Colour in hand', True, TEXT_DIM), (x, y))
         y += 22
-        swatch = pygame.Rect(x, inner.bottom - SWATCH_H, w, SWATCH_H)
+        recent_y = inner.bottom - RECENT_SIZE
+        self.draw_recent(screen, x, recent_y, w, mouse)
+        recent_label = recent_y - 22
+        screen.blit(fonts.small.render('Used last (keys 1 to 0)', True, TEXT_DIM), (x, recent_label))
+        swatch = pygame.Rect(x, recent_label - 12 - SWATCH_H, w, SWATCH_H)
         self.wheel.layout(pygame.Rect(x, y, w, swatch.y - 12 - y))
         self.wheel.draw(screen)
         colour = self.wheel.colour
@@ -317,6 +346,24 @@ class DesignView(View):
         label = fonts.font.render(text, True, TEXT)
         screen.blit(label, label.get_rect(midleft=(swatch.x + SWATCH_H + 12, swatch.centery)))
         self.draw_proposals(screen, self.field.rect, inner, mouse)
+
+    def draw_recent(self, screen, x, y, w, mouse):
+        """The colours used last as a row of swatches, as many as fit."""
+        self.recent_chips = []
+        fits = max(1, (w + RECENT_GAP) // (RECENT_SIZE + RECENT_GAP))
+        for index, colour in enumerate(self.recent[:fits]):
+            rect = pygame.Rect(x + index * (RECENT_SIZE + RECENT_GAP), y, RECENT_SIZE, RECENT_SIZE)
+            pygame.draw.rect(screen, colour, rect, border_radius=4)
+            if colour == self.wheel.colour:
+                line, width = TEXT, 2
+            elif rect.collidepoint(mouse):
+                line, width = TEXT_DIM, 2
+            else:
+                line, width = DIALOG_LINE, 1
+            pygame.draw.rect(screen, line, rect, width, border_radius=4)
+            self.recent_chips.append((rect, colour))
+        if not self.recent:
+            screen.blit(self.app.fonts.small.render('none yet', True, TEXT_DIM), (x, y + 6))
 
     def proposals(self):
         """The subcategories proposed for the kind, narrowed down to what is typed."""
@@ -365,9 +412,18 @@ class DesignView(View):
             if button.hit(pos):
                 action()
                 return
+        for chip, value in self.tool_chips:
+            if chip.collidepoint(pos):
+                self.tool = value
+                return
         for chip, value in self.brush_chips:
             if chip.collidepoint(pos):
                 self.brush = value
+                self.tool = 'brush'
+                return
+        for chip, colour in self.recent_chips:
+            if chip.collidepoint(pos):
+                self.pick_colour(colour)
                 return
         for chip, value in self.kind_chips:
             if chip.collidepoint(pos):
@@ -377,39 +433,68 @@ class DesignView(View):
         if self.wheel.press(pos):
             self.take_colour()
             return
-        self.start_stroke(pos, erase=False)
+        if pygame.key.get_mods() & pygame.KMOD_ALT:
+            self.take_up_colour(pos)
+            return
+        self.use_tool(pos, self.wheel.colour)
 
     def right_click(self, pos):
-        self.start_stroke(pos, erase=True)
+        self.use_tool(pos, None)
 
-    def start_stroke(self, pos, erase):
+    def use_tool(self, pos, colour):
+        """Paint or fill at a screen point in `colour`; None rubs out."""
         if not self.right_cell_on_screen().collidepoint(pos):
             return
-        self.job.begin_stroke()
         point = self.to_cell(pos)
-        self.stroke = (point, erase)
-        self.job.paint(point, point, self.radius(), erase)
+        self.job.begin_stroke()
+        if self.tool == 'fill':
+            if self.job.fill(point, colour):
+                self.used(colour)
+                self.changed()
+            else:
+                self.job.undo_stack.pop()
+            return
+        self.stroke = (point, colour)
+        self.job.paint(point, point, self.radius(), colour)
         self.dirty = True
+
+    def take_up_colour(self, pos):
+        """Alt+click: the colour under the mouse becomes the one in hand."""
+        if not self.right_cell_on_screen().collidepoint(pos):
+            return
+        colour = self.job.colour_at(self.to_cell(pos))
+        if colour is None:
+            self.app.set_status('No colour there to take up')
+            return
+        self.pick_colour(colour)
+
+    def pick_colour(self, colour):
+        self.wheel.colour = colour
+        self.take_colour()
+
+    def used(self, colour):
+        """A colour went onto the sketch: it heads the colours used last."""
+        if colour is not None:
+            remember_colour(self.job.domain, self.recent, colour)
 
     def mouse_motion(self, pos, buttons):
         if self.wheel.dragging:
             self.wheel.drag(pos)
             self.take_colour(save=False)
         elif self.stroke:
-            last, erase = self.stroke
+            last, colour = self.stroke
             point = self.to_cell(pos)
-            self.job.paint(last, point, self.radius(), erase)
-            self.stroke = (point, erase)
+            self.job.paint(last, point, self.radius(), colour)
+            self.stroke = (point, colour)
             self.dirty = True
 
     def mouse_up(self, pos, button):
         if self.wheel.release():
             self.take_colour()
         if self.stroke:
-            _, erase = self.stroke
+            _, colour = self.stroke
             self.stroke = None
-            if not erase:
-                self.job.fill_enclosed()
+            self.used(colour)
             self.changed()
 
     def take_colour(self, save=True):
@@ -436,7 +521,15 @@ class DesignView(View):
                 self.take_subcategory()
             return
         ctrl = event.mod & pygame.KMOD_CTRL
-        if event.key == pygame.K_z and ctrl:
+        number = '1234567890'.find(event.unicode) if event.unicode and not ctrl else -1
+        if number >= 0:
+            if number < len(self.recent_chips):
+                self.pick_colour(self.recent_chips[number][1])
+        elif event.key == pygame.K_b and not ctrl:
+            self.tool = 'brush'
+        elif event.key == pygame.K_f and not ctrl:
+            self.tool = 'fill'
+        elif event.key == pygame.K_z and ctrl:
             self.undo()
         elif event.key == pygame.K_c and ctrl:
             if event.mod & pygame.KMOD_SHIFT:

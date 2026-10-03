@@ -118,11 +118,12 @@ on the fly. Right-click a sprite to change its kind or subcategory.
 Clicking a sprite starts a new one with it as the example, in
 build_tools/output/<plants|buildings>/<job>/:
 1. Sketch the new sprite's rough shape with the mouse in the red frame
-   beside the example (left button paints, a closed outline fills, right
-   button rubs out, Ctrl+Z), pick its type (the example's to begin with),
-   an optional subcategory ("oak", "bakery"; clicking the field proposes
-   some) and the colour the sketch is filled with from the wheel. All of it
-   goes into the prompt.
+   beside the example, in as many flat colours as it takes (brush or fill
+   tool; left button paints, right button rubs out, Alt+click takes up a
+   colour, Ctrl+Z; the colours used last are quick picks under the wheel),
+   then pick its type (the example's to begin with) and an optional
+   subcategory ("oak", "bakery"; clicking the field proposes some). All of
+   it goes into the prompt.
 2. Send the split image as for the humans: copy image and prompt to the
    web view and paste the answer, or Send to Gemini.
 3. Accept an answer: the sprite is cut out, scaled as the example was, saved

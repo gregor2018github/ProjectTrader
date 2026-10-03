@@ -17,7 +17,6 @@ import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, measure, store_web_answer
 from images import fitted, make_thumb
 from sprite_extraction import SpriteDetail
-from sprite_job import colour_name
 from sprite_library import MAP_SPRITES, Catalog, add_sprite, next_free_file
 from theme import (
     CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, STATUS_COLORS,
@@ -242,7 +241,7 @@ class AnswersView(View):
         job = self.job
         lines = [f'Type: {job.domain.kinds_by_key[job.kind].title}',
                  f'Subcategory: {job.subcategory or "-"}',
-                 f'Colour: {colour_name(job.colour)}',
+                 f'Colours: {job.colour_words()}',
                  f'From: {job.example_label}']
         lines += [f'Saved: {Path(p).name}' for p in job.accepted.values()]
         text_bottom = self.paste_button.rect.y - BUTTON_GAP
