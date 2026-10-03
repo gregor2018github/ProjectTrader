@@ -13,7 +13,7 @@ from theme import (
 )
 from view import View
 from walk import DIRECTIONS, NPC_DIRECTION_KEYS, STANDING_DIRECTIONS
-from widgets import BAR_STEP, Card, SectionGrid, draw_panel, fit_text, progress_color
+from widgets import BAR_STEP, Button, Card, SectionGrid, draw_panel, fit_text, progress_color
 
 # An NPC's card, with a line and a bar per motion and the standing sprites
 CARD_W = 172
@@ -50,6 +50,7 @@ class NpcListView(View):
         self.totals = {}                   # {kind: [done, needed]} over everyone listed
         self.names = ({}, [])              # new_figure.name_usage()
         self.today = None                  # daily_progress.Today
+        self.plants_button = Button('Plants', w=120)
         self.placeholder = pygame.Surface(NPC_THUMB_SIZE)
         self.placeholder.fill(THUMB_BG)
         text = app.fonts.small.render('no sprite yet', True, (120, 120, 120))
@@ -128,10 +129,10 @@ class NpcListView(View):
     def header(self):
         return ('Sprite Manager',
                 'The player walks and runs in all 8 directions, the NPCs only walk: down, right, up '
-                'and left. "+" adds an NPC. The left-hand walks are optional.')
+                'and left. "+" adds an NPC. The left-hand walks are optional. Tab switches to the plants.')
 
     def footer(self):
-        return (), (self.app.settings_button,)
+        return (self.plants_button,), (self.app.settings_button,)
 
     def draw(self, screen, mouse):
         area = self.app.card_area()
@@ -271,6 +272,9 @@ class NpcListView(View):
         return y
 
     def click(self, pos):
+        if self.plants_button.hit(pos):
+            self.app.show_plants()
+            return
         card = self.grid.card_at(pos)
         if not card:
             return
@@ -278,6 +282,10 @@ class NpcListView(View):
             self.app.open_add_dialog(*card.key[1:])
         else:
             self.app.open_npc(card.key)
+
+    def key(self, event):
+        if event.key == pygame.K_TAB:
+            self.app.show_plants()
 
     def scroll_by(self, steps):
         self.grid.scroll_by(steps)

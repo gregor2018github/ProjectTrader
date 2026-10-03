@@ -90,6 +90,48 @@ class Button:
         return self.enabled and self.rect.collidepoint(pos)
 
 
+class TextField:
+    """A one-line text box: click to type into it, Enter or a click elsewhere to leave it."""
+
+    def __init__(self, text='', placeholder='', h=36):
+        self.text = text
+        self.placeholder = placeholder
+        self.rect = pygame.Rect(0, 0, 200, h)
+        self.focused = False
+
+    def focus(self, on):
+        if on and not self.focused:
+            pygame.key.start_text_input()
+        elif self.focused and not on:
+            pygame.key.stop_text_input()
+        self.focused = on
+
+    def key(self, event):
+        """A key while focused; returns 'done' when typing is over (Enter, Escape)."""
+        if event.key == pygame.K_BACKSPACE:
+            self.text = self.text[:-1]
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_ESCAPE, pygame.K_TAB):
+            self.focus(False)
+            return 'done'
+        return None
+
+    def type(self, text):
+        self.text += text
+
+    def draw(self, screen, font, mouse):
+        hover = self.rect.collidepoint(mouse)
+        pygame.draw.rect(screen, CHIP_HOVER if hover or self.focused else CHIP_BG, self.rect, border_radius=6)
+        if self.focused:
+            pygame.draw.rect(screen, DONE_COLOR, self.rect, 2, border_radius=6)
+        shown = self.text or ('' if self.focused else self.placeholder)
+        color = TEXT if self.text else TEXT_DIM
+        label = font.render(fit_text(font, shown, self.rect.w - 24), True, color)
+        screen.blit(label, label.get_rect(midleft=(self.rect.x + 10, self.rect.centery)))
+        if self.focused and pygame.time.get_ticks() // 500 % 2:
+            x = self.rect.x + 10 + (label.get_width() if self.text else 0) + 1
+            pygame.draw.line(screen, TEXT, (x, self.rect.y + 8), (x, self.rect.bottom - 8), 2)
+
+
 def draw_chips(screen, font, values, labels, chosen, x, y, width, mouse):
     """Draw one row of little choice buttons; returns ([(rect, value)], bottom)."""
     chips = []

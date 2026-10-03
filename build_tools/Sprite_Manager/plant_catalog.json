@@ -1,0 +1,1277 @@
+{
+ "files": {
+  "trees/Tree_01.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    0,
+    16,
+    192,
+    336
+   ],
+   "stem_position": 3.0,
+   "stem_thick": 1.2
+  },
+  "trees/Tree_02.png": {
+   "kind": "needle_tree",
+   "subcategory": "blue spruce",
+   "atlas": "trees",
+   "rect": [
+    480,
+    127,
+    128,
+    225
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 1.0
+  },
+  "trees/Tree_03.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    608,
+    211,
+    64,
+    141
+   ],
+   "stem_position": 1.0,
+   "stem_thick": 0.3
+  },
+  "trees/Tree_04.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    672,
+    72,
+    96,
+    280
+   ],
+   "stem_position": 1.55,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_05.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    768,
+    129,
+    128,
+    224
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_06.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    896,
+    95,
+    96,
+    257
+   ],
+   "stem_position": 1.5,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_07.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    992,
+    128,
+    128,
+    224
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.8
+  },
+  "trees/Tree_08.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    1120,
+    60,
+    96,
+    292
+   ],
+   "stem_position": 1.6,
+   "stem_thick": 0.4
+  },
+  "trees/Tree_09.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    1216,
+    150,
+    128,
+    202
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.4
+  },
+  "trees/Tree_10.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    1344,
+    203,
+    96,
+    149
+   ],
+   "stem_position": 1.5,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_11.png": {
+   "kind": "needle_tree",
+   "subcategory": "",
+   "atlas": "trees",
+   "rect": [
+    1440,
+    100,
+    128,
+    252
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.7
+  },
+  "trees/Tree_12.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_11 mirrored",
+   "atlas": "trees",
+   "rect": [
+    32,
+    475,
+    128,
+    252
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.7
+  },
+  "trees/Tree_13.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_10 mirrored",
+   "atlas": "trees",
+   "rect": [
+    160,
+    578,
+    96,
+    149
+   ],
+   "stem_position": 1.4,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_14.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_09 mirrored",
+   "atlas": "trees",
+   "rect": [
+    256,
+    525,
+    128,
+    202
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.4
+  },
+  "trees/Tree_15.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_08 mirrored",
+   "atlas": "trees",
+   "rect": [
+    384,
+    435,
+    96,
+    292
+   ],
+   "stem_position": 1.5,
+   "stem_thick": 0.4
+  },
+  "trees/Tree_16.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_07 mirrored",
+   "atlas": "trees",
+   "rect": [
+    480,
+    503,
+    128,
+    224
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_17.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_06 mirrored",
+   "atlas": "trees",
+   "rect": [
+    608,
+    470,
+    96,
+    257
+   ],
+   "stem_position": 1.5,
+   "stem_thick": 0.6
+  },
+  "trees/Tree_18.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_05 mirrored",
+   "atlas": "trees",
+   "rect": [
+    704,
+    504,
+    128,
+    224
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 0.7
+  },
+  "trees/Tree_19.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_04 mirrored",
+   "atlas": "trees",
+   "rect": [
+    832,
+    447,
+    96,
+    280
+   ],
+   "stem_position": 1.5,
+   "stem_thick": 0.8
+  },
+  "trees/Tree_20.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_03 mirrored",
+   "atlas": "trees",
+   "rect": [
+    928,
+    586,
+    64,
+    141
+   ],
+   "stem_position": 1.0,
+   "stem_thick": 0.3
+  },
+  "trees/Tree_21.png": {
+   "kind": "needle_tree",
+   "subcategory": "blue spruce, Tree_02 mirrored",
+   "atlas": "trees",
+   "rect": [
+    992,
+    502,
+    128,
+    225
+   ],
+   "stem_position": 2.0,
+   "stem_thick": 1.0
+  },
+  "trees/Tree_22.png": {
+   "kind": "needle_tree",
+   "subcategory": "Tree_01 mirrored",
+   "atlas": "trees",
+   "rect": [
+    1408,
+    391,
+    192,
+    336
+   ],
+   "stem_position": 3.0,
+   "stem_thick": 1.2
+  },
+  "trees/Tree_23.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "oak",
+   "atlas": "trees",
+   "rect": [
+    32,
+    786,
+    250,
+    302
+   ],
+   "stem_position": 3.7,
+   "stem_thick": 2.2
+  }
+ },
+ "motifs": {
+  "deco": [
+   {
+    "rect": [
+     1515,
+     680,
+     154,
+     85
+    ],
+    "kind": "berries",
+    "subcategory": "strawberries"
+   },
+   {
+    "rect": [
+     1299,
+     744,
+     54,
+     41
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1352,
+     749,
+     18,
+     29
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1624,
+     767,
+     46,
+     34
+    ],
+    "kind": "bush",
+    "subcategory": "shrub"
+   },
+   {
+    "rect": [
+     1579,
+     806,
+     93,
+     56
+    ],
+    "kind": "flowers",
+    "subcategory": "daisies"
+   },
+   {
+    "rect": [
+     1862,
+     833,
+     23,
+     31
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     1163,
+     865,
+     15,
+     30
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1193,
+     865,
+     15,
+     30
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1220,
+     855,
+     24,
+     40
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1255,
+     866,
+     16,
+     31
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1289,
+     865,
+     14,
+     31
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1318,
+     867,
+     18,
+     28
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1351,
+     861,
+     21,
+     35
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1386,
+     857,
+     15,
+     36
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1414,
+     857,
+     21,
+     33
+    ],
+    "kind": "flowers",
+    "subcategory": "lavender"
+   },
+   {
+    "rect": [
+     1443,
+     848,
+     29,
+     33
+    ],
+    "kind": "flowers",
+    "subcategory": "thistle"
+   },
+   {
+    "rect": [
+     1476,
+     855,
+     28,
+     35
+    ],
+    "kind": "flowers",
+    "subcategory": "thistle"
+   },
+   {
+    "rect": [
+     1504,
+     842,
+     22,
+     33
+    ],
+    "kind": "flowers",
+    "subcategory": "thistle"
+   },
+   {
+    "rect": [
+     1766,
+     868,
+     21,
+     24
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1801,
+     870,
+     19,
+     22
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     1832,
+     867,
+     20,
+     25
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1858,
+     869,
+     27,
+     25
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     1897,
+     870,
+     15,
+     21
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     2080,
+     867,
+     177,
+     88
+    ],
+    "kind": "flowers",
+    "subcategory": "heather"
+   },
+   {
+    "rect": [
+     1344,
+     899,
+     30,
+     25
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "herb"
+   },
+   {
+    "rect": [
+     1378,
+     896,
+     29,
+     31
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1409,
+     896,
+     28,
+     29
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1443,
+     898,
+     57,
+     29
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1505,
+     903,
+     27,
+     23
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1534,
+     908,
+     29,
+     20
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1571,
+     904,
+     29,
+     23
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1603,
+     904,
+     29,
+     25
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1637,
+     895,
+     54,
+     33
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1703,
+     898,
+     49,
+     30
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1794,
+     911,
+     94,
+     47
+    ],
+    "kind": "flowers",
+    "subcategory": "heather"
+   },
+   {
+    "rect": [
+     1924,
+     887,
+     113,
+     72
+    ],
+    "kind": "flowers",
+    "subcategory": "heather"
+   },
+   {
+    "rect": [
+     1344,
+     933,
+     30,
+     26
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "herb"
+   },
+   {
+    "rect": [
+     1380,
+     930,
+     27,
+     32
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1409,
+     928,
+     28,
+     32
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1442,
+     936,
+     31,
+     24
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1474,
+     936,
+     27,
+     20
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1505,
+     934,
+     27,
+     22
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "herb"
+   },
+   {
+    "rect": [
+     1535,
+     936,
+     28,
+     22
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "houseleek"
+   },
+   {
+    "rect": [
+     1570,
+     933,
+     31,
+     25
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "houseleek"
+   },
+   {
+    "rect": [
+     1603,
+     933,
+     32,
+     25
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "houseleek"
+   },
+   {
+    "rect": [
+     1662,
+     956,
+     40,
+     70
+    ],
+    "kind": "reference",
+    "subcategory": "player for scale"
+   },
+   {
+    "rect": [
+     1473,
+     993,
+     56,
+     33
+    ],
+    "kind": "berries",
+    "subcategory": "strawberries"
+   },
+   {
+    "rect": [
+     1539,
+     978,
+     56,
+     33
+    ],
+    "kind": "berries",
+    "subcategory": "strawberries"
+   },
+   {
+    "rect": [
+     1604,
+     993,
+     21,
+     25
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1605,
+     964,
+     27,
+     28
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelion clocks"
+   },
+   {
+    "rect": [
+     1730,
+     985,
+     46,
+     39
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1791,
+     968,
+     129,
+     54
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "meadow grass"
+   },
+   {
+    "rect": [
+     1927,
+     965,
+     162,
+     56
+    ],
+    "kind": "flowers",
+    "subcategory": "heather"
+   },
+   {
+    "rect": [
+     1168,
+     1078,
+     96,
+     60
+    ],
+    "kind": "flowers",
+    "subcategory": "daisies"
+   },
+   {
+    "rect": [
+     1268,
+     1077,
+     65,
+     60
+    ],
+    "kind": "flowers",
+    "subcategory": "poppies"
+   },
+   {
+    "rect": [
+     1403,
+     1078,
+     86,
+     55
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "fern"
+   },
+   {
+    "rect": [
+     1493,
+     1076,
+     162,
+     115
+    ],
+    "kind": "flowers",
+    "subcategory": "daisies"
+   },
+   {
+    "rect": [
+     1707,
+     1078,
+     91,
+     130
+    ],
+    "kind": "flowers",
+    "subcategory": "poppies"
+   },
+   {
+    "rect": [
+     1334,
+     1092,
+     66,
+     42
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1748,
+     1093,
+     104,
+     115
+    ],
+    "kind": "flowers",
+    "subcategory": "poppies"
+   },
+   {
+    "rect": [
+     1858,
+     1108,
+     130,
+     103
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1863,
+     1094,
+     27,
+     32
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelion clocks"
+   },
+   {
+    "rect": [
+     1943,
+     1082,
+     35,
+     34
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelion clocks"
+   },
+   {
+    "rect": [
+     1994,
+     1089,
+     18,
+     48
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelion clocks"
+   },
+   {
+    "rect": [
+     1168,
+     1146,
+     134,
+     95
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1313,
+     1139,
+     172,
+     87
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1932,
+     1139,
+     89,
+     55
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1497,
+     1178,
+     56,
+     52
+    ],
+    "kind": "flowers",
+    "subcategory": "daisies"
+   },
+   {
+    "rect": [
+     1918,
+     1184,
+     31,
+     29
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1953,
+     1194,
+     32,
+     25
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1254,
+     1227,
+     21,
+     24
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     1279,
+     1210,
+     55,
+     47
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1323,
+     1226,
+     159,
+     79
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1340,
+     1217,
+     18,
+     19
+    ],
+    "kind": "flowers",
+    "subcategory": "meadow flowers"
+   },
+   {
+    "rect": [
+     1169,
+     1248,
+     124,
+     57
+    ],
+    "kind": "flowers",
+    "subcategory": "wildflowers"
+   },
+   {
+    "rect": [
+     1294,
+     1265,
+     25,
+     27
+    ],
+    "kind": "flowers",
+    "subcategory": "dandelions"
+   },
+   {
+    "rect": [
+     1169,
+     1314,
+     30,
+     23
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1206,
+     1314,
+     30,
+     24
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1242,
+     1308,
+     29,
+     30
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1280,
+     1306,
+     56,
+     33
+    ],
+    "kind": "berries",
+    "subcategory": "strawberries"
+   },
+   {
+    "rect": [
+     1343,
+     1308,
+     56,
+     98
+    ],
+    "kind": "berries",
+    "subcategory": "strawberries"
+   },
+   {
+    "rect": [
+     1403,
+     1309,
+     44,
+     32
+    ],
+    "kind": "moss",
+    "subcategory": "moss"
+   },
+   {
+    "rect": [
+     1450,
+     1308,
+     30,
+     30
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1167,
+     1339,
+     37,
+     31
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1206,
+     1343,
+     31,
+     27
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1242,
+     1344,
+     26,
+     25
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1274,
+     1343,
+     44,
+     27
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1322,
+     1341,
+     29,
+     29
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1396,
+     1341,
+     27,
+     28
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1427,
+     1347,
+     19,
+     22
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "clover"
+   },
+   {
+    "rect": [
+     1167,
+     1373,
+     37,
+     31
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1206,
+     1381,
+     30,
+     23
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "grass"
+   },
+   {
+    "rect": [
+     1239,
+     1372,
+     50,
+     33
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "clover"
+   },
+   {
+    "rect": [
+     1292,
+     1373,
+     25,
+     31
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "clover"
+   },
+   {
+    "rect": [
+     1319,
+     1373,
+     37,
+     34
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "herb"
+   },
+   {
+    "rect": [
+     1399,
+     1380,
+     20,
+     24
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "clover"
+   },
+   {
+    "rect": [
+     1426,
+     1376,
+     19,
+     28
+    ],
+    "kind": "grass_herbs",
+    "subcategory": "clover"
+   }
+  ]
+ }
+}

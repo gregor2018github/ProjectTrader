@@ -35,6 +35,22 @@ class View:
     def key(self, event):
         """A key the app has no use for."""
 
+    def right_click(self, pos):
+        """A right click."""
+
+    def mouse_motion(self, pos, buttons):
+        """The mouse moved; buttons as pygame's event.buttons (left, middle, right)."""
+
+    def mouse_up(self, pos, button):
+        """A mouse button let go."""
+
+    def captures_keys(self):
+        """True while typing into the view, so every key goes to it and none to the app."""
+        return False
+
+    def text_input(self, text):
+        """Text typed while captures_keys()."""
+
     def scroll_by(self, steps):
         """Mouse wheel, steps > 0 is up."""
 

@@ -212,13 +212,20 @@ def dilate(mask):
 class Extraction:
     """One cell of the Gemini image, cut out of its white background."""
 
-    def __init__(self, cell_surface):
+    def __init__(self, cell_surface, drop_red=True):
+        """
+        Args:
+            drop_red: Take the red of the target frame for background too.
+                A plant may be red itself; its cell has the frame cut off
+                beforehand instead (plant_extraction.py).
+        """
         self.surface = cell_surface
         w, h = cell_surface.get_size()
         t = WHITE_TOLERANCE
         self.background = pygame.mask.from_threshold(cell_surface, (255, 255, 255, 255), (t, t, t, 255))
-        self.background.draw(pygame.mask.from_threshold(
-            cell_surface, FRAME_RED + (255,), (RED_TOLERANCE, RED_TOLERANCE, RED_TOLERANCE, 255)), (0, 0))
+        if drop_red:
+            self.background.draw(pygame.mask.from_threshold(
+                cell_surface, FRAME_RED + (255,), (RED_TOLERANCE, RED_TOLERANCE, RED_TOLERANCE, 255)), (0, 0))
 
         # Background = every background-coloured area connected to the cell edge.
         self.outside = pygame.Mask((w, h))
