@@ -10,6 +10,7 @@ import pygame
 
 import pose_review
 from images import pixel_fit
+from plant_job import PlantJob
 from plants import KINDS, REFERENCE, SORTABLE, UNSORTED, kind_title
 from pose_review import ReviewStore
 from theme import (
@@ -19,6 +20,10 @@ from view import View
 from widgets import Button, Card, SectionGrid, TextField, draw_chips, draw_dialog_box
 
 CARD_W = 172
+CROSS_R = 13             # the cross that scraps an unfinished plant, on its card's top right
+CROSS_INSET = 8
+CROSS_BG = (60, 56, 52)
+CROSS_HOVER = (190, 70, 60)
 CARD_H = 222
 UNFINISHED = 'Unfinished new plants'
 
@@ -37,6 +42,7 @@ class PlantListView(View):
         super().__init__(app)
         self.grid = SectionGrid('sprite')
         self.humans_button = Button('Humans', w=120)
+        self.armed = None   # an unfinished plant with answers, whose cross was clicked once
         self.empty = pygame.Surface(NPC_THUMB_SIZE)
         self.empty.fill(CARD_BG)
         text = app.fonts.small.render('none yet', True, TEXT_DIM)
@@ -76,7 +82,8 @@ class PlantListView(View):
 
     def header(self):
         return ('Plants',
-                'Click a sprite to make a new plant from it, right-click it to set its kind. '
+                'Click a sprite to make a new plant from it, right-click it to set its kind, '
+                'the cross on an unfinished one scraps it. '
                 'Tab switches to the humans.')
 
     def footer(self):
@@ -85,12 +92,49 @@ class PlantListView(View):
     def draw(self, screen, mouse):
         self.grid.layout(self.app.card_area())
         self.grid.draw(screen, self.app.fonts, mouse)
+        card = self.grid.card_at(mouse)
+        if card and isinstance(card.key, PlantJob):
+            self.draw_cross(screen, card, mouse)
+
+    @staticmethod
+    def cross_rect(card):
+        return pygame.Rect(card.rect.right - CROSS_INSET - 2 * CROSS_R, card.rect.y + CROSS_INSET,
+                           2 * CROSS_R, 2 * CROSS_R)
+
+    def draw_cross(self, screen, card, mouse):
+        """The cross scrapping an unfinished plant; red under the mouse, or once clicked for one with answers."""
+        rect = self.cross_rect(card)
+        hot = rect.collidepoint(mouse) or self.armed is card.key
+        screen.set_clip(self.grid.area)
+        pygame.draw.circle(screen, CROSS_HOVER if hot else CROSS_BG, rect.center, CROSS_R)
+        arm = CROSS_R // 2 - 1
+        for dx in (-arm, arm):
+            pygame.draw.line(screen, TEXT, (rect.centerx - dx, rect.centery - arm),
+                             (rect.centerx + dx, rect.centery + arm), 3)
+        screen.set_clip(None)
+
+    def scrap(self, job):
+        """Delete an unfinished plant; one with answers only on the second click."""
+        answers = len(ReviewStore(job.out_dir).entries)
+        if answers and self.armed is not job:
+            self.armed = job
+            self.app.set_status(f'{job.label} has {answers} answer{"s" if answers > 1 else ""} - '
+                                f'click the cross again to delete it with them', error=True)
+            return
+        self.armed = None
+        job.discard()
+        self.app.set_status(f'Scrapped the {job.label} from {job.example_label}')
+        self.refresh()
 
     def click(self, pos):
         if self.humans_button.hit(pos):
             self.app.show_humans()
             return
         card = self.grid.card_at(pos)
+        if card and isinstance(card.key, PlantJob) and self.cross_rect(card).collidepoint(pos):
+            self.scrap(card.key)
+            return
+        self.armed = None
         if not card:
             return
         key = card.key
