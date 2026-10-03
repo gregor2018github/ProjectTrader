@@ -6,23 +6,58 @@
   },
   "houses/House_6.png": {
    "kind": "dwelling",
-   "subcategory": "timber-framed town house"
+   "subcategory": "timber-framed town house",
+   "atlas": "houses",
+   "rect": [
+    640,
+    32,
+    256,
+    320
+   ]
   },
   "houses/House_10.png": {
    "kind": "dwelling",
-   "subcategory": "row of town houses"
+   "subcategory": "row of town houses",
+   "atlas": "houses",
+   "rect": [
+    1120,
+    7,
+    879,
+    345
+   ]
   },
   "houses/House_11.png": {
    "kind": "dwelling",
-   "subcategory": "jettied town house"
+   "subcategory": "jettied town house",
+   "atlas": "houses",
+   "rect": [
+    2048,
+    8,
+    359,
+    344
+   ]
   },
   "houses/House_19.png": {
    "kind": "dwelling",
-   "subcategory": "stone and timber town house"
+   "subcategory": "stone and timber town house",
+   "atlas": "houses",
+   "rect": [
+    2432,
+    56,
+    328,
+    296
+   ]
   },
   "houses/House_20.png": {
    "kind": "dwelling",
-   "subcategory": "old stone town house"
+   "subcategory": "old stone town house",
+   "atlas": "houses",
+   "rect": [
+    2816,
+    73,
+    346,
+    279
+   ]
   },
   "houses/House_1.png": {
    "kind": "workshop",
@@ -30,31 +65,80 @@
   },
   "houses/House_2.png": {
    "kind": "workshop",
-   "subcategory": "inn"
+   "subcategory": "inn",
+   "atlas": "houses",
+   "rect": [
+    0,
+    0,
+    224,
+    352
+   ]
   },
   "houses/House_12.png": {
    "kind": "workshop",
-   "subcategory": "merchant's house"
+   "subcategory": "merchant's house",
+   "atlas": "houses",
+   "rect": [
+    1568,
+    388,
+    250,
+    444
+   ]
   },
   "houses/House_13.png": {
    "kind": "workshop",
-   "subcategory": "bakery"
+   "subcategory": "bakery",
+   "atlas": "houses",
+   "rect": [
+    1856,
+    503,
+    400,
+    329
+   ]
   },
   "houses/House_8.png": {
    "kind": "public",
-   "subcategory": "town hall"
+   "subcategory": "town hall",
+   "atlas": "houses",
+   "rect": [
+    512,
+    413,
+    448,
+    419
+   ]
   },
   "houses/House_9.png": {
    "kind": "public",
-   "subcategory": "church"
+   "subcategory": "church",
+   "atlas": "houses",
+   "rect": [
+    960,
+    179,
+    576,
+    653
+   ]
   },
   "houses/House_14.png": {
    "kind": "public",
-   "subcategory": "bank"
+   "subcategory": "bank",
+   "atlas": "houses",
+   "rect": [
+    2304,
+    432,
+    370,
+    400
+   ]
   },
   "houses/House_16.png": {
    "kind": "public",
-   "subcategory": "well"
+   "subcategory": "well",
+   "atlas": "houses",
+   "rect": [
+    1823,
+    871,
+    100,
+    153
+   ]
   },
   "houses/House_3.png": {
    "kind": "farm",
@@ -66,51 +150,135 @@
   },
   "houses/House_15.png": {
    "kind": "farm",
-   "subcategory": "windmill"
+   "subcategory": "windmill",
+   "atlas": "houses",
+   "rect": [
+    2752,
+    437,
+    300,
+    395
+   ]
   },
   "houses/House_17.png": {
    "kind": "farm",
-   "subcategory": "woodcutter's hut"
+   "subcategory": "woodcutter's hut",
+   "atlas": "houses",
+   "rect": [
+    2368,
+    874,
+    438,
+    150
+   ]
   },
   "houses/Market_01.png": {
    "kind": "market_stall",
-   "subcategory": "wheat stall"
+   "subcategory": "wheat stall",
+   "atlas": "houses",
+   "rect": [
+    32,
+    918,
+    150,
+    106
+   ]
   },
   "houses/Market_02.png": {
    "kind": "market_stall",
-   "subcategory": "meat stall"
+   "subcategory": "meat stall",
+   "atlas": "houses",
+   "rect": [
+    192,
+    917,
+    154,
+    107
+   ]
   },
   "houses/Market_03.png": {
    "kind": "market_stall",
-   "subcategory": "wood stall"
+   "subcategory": "wood stall",
+   "atlas": "houses",
+   "rect": [
+    352,
+    916,
+    161,
+    108
+   ]
   },
   "houses/Market_04.png": {
    "kind": "market_stall",
-   "subcategory": "fish stall"
+   "subcategory": "fish stall",
+   "atlas": "houses",
+   "rect": [
+    544,
+    915,
+    155,
+    109
+   ]
   },
   "houses/Market_05.png": {
    "kind": "market_stall",
-   "subcategory": "wine and beer stall"
+   "subcategory": "wine and beer stall",
+   "atlas": "houses",
+   "rect": [
+    704,
+    899,
+    162,
+    125
+   ]
   },
   "houses/Market_06.png": {
    "kind": "market_stall",
-   "subcategory": "wool and hide stall"
+   "subcategory": "wool and hide stall",
+   "atlas": "houses",
+   "rect": [
+    896,
+    884,
+    155,
+    140
+   ]
   },
   "houses/Market_07.png": {
    "kind": "market_stall",
-   "subcategory": "pottery stall"
+   "subcategory": "pottery stall",
+   "atlas": "houses",
+   "rect": [
+    1088,
+    899,
+    113,
+    125
+   ]
   },
   "houses/Market_08.png": {
    "kind": "market_stall",
-   "subcategory": "iron stall"
+   "subcategory": "iron stall",
+   "atlas": "houses",
+   "rect": [
+    1247,
+    889,
+    120,
+    135
+   ]
   },
   "houses/Market_09.png": {
    "kind": "market_stall",
-   "subcategory": "stone stall"
+   "subcategory": "stone stall",
+   "atlas": "houses",
+   "rect": [
+    1408,
+    902,
+    208,
+    122
+   ]
   },
   "houses/Fence_1.png": {
    "kind": "wall_fence",
-   "subcategory": "low stone wall"
+   "subcategory": "low stone wall",
+   "atlas": "houses",
+   "rect": [
+    0,
+    672,
+    512,
+    64
+   ]
   },
   "houses/Fence_2.png": {
    "kind": "wall_fence",
@@ -134,15 +302,36 @@
   },
   "houses/Deco_02.png": {
    "kind": "decoration",
-   "subcategory": "benches and table"
+   "subcategory": "benches and table",
+   "atlas": "houses",
+   "rect": [
+    2176,
+    1009,
+    147,
+    79
+   ]
   },
   "houses/Deco_03.png": {
    "kind": "decoration",
-   "subcategory": "wheelbarrow with hay and tools"
+   "subcategory": "wheelbarrow with hay and tools",
+   "atlas": "houses",
+   "rect": [
+    1408,
+    1056,
+    70,
+    64
+   ]
   },
   "houses/Deco_04.png": {
    "kind": "decoration",
-   "subcategory": "wheelbarrow"
+   "subcategory": "wheelbarrow",
+   "atlas": "houses",
+   "rect": [
+    1312,
+    1066,
+    70,
+    54
+   ]
   },
   "houses/Deco_05.png": {
    "kind": "decoration",
@@ -154,7 +343,14 @@
   },
   "houses/Deco_07.png": {
    "kind": "decoration",
-   "subcategory": "tree stump"
+   "subcategory": "tree stump",
+   "atlas": "houses",
+   "rect": [
+    1504,
+    1087,
+    40,
+    33
+   ]
   },
   "houses/Deco_08.png": {
    "kind": "decoration",
@@ -162,39 +358,137 @@
   },
   "houses/Deco_09.png": {
    "kind": "decoration",
-   "subcategory": "bundle of logs"
+   "subcategory": "bundle of logs",
+   "atlas": "houses",
+   "rect": [
+    1344,
+    1141,
+    50,
+    43
+   ]
   },
   "houses/Deco_10.png": {
    "kind": "decoration",
-   "subcategory": "planks"
+   "subcategory": "planks",
+   "atlas": "houses",
+   "rect": [
+    1408,
+    1158,
+    60,
+    26
+   ]
   },
   "houses/Deco_11.png": {
    "kind": "decoration",
-   "subcategory": "sack of flour"
+   "subcategory": "sack of flour",
+   "atlas": "houses",
+   "rect": [
+    1504,
+    1137,
+    40,
+    47
+   ]
   },
   "houses/Deco_12.png": {
    "kind": "decoration",
-   "subcategory": "sack"
+   "subcategory": "sack",
+   "atlas": "houses",
+   "rect": [
+    1568,
+    1137,
+    40,
+    47
+   ]
   },
   "houses/Deco_13.png": {
    "kind": "decoration",
-   "subcategory": "sack"
+   "subcategory": "sack",
+   "atlas": "houses",
+   "rect": [
+    1632,
+    1136,
+    40,
+    48
+   ]
   },
   "houses/Deco_14.png": {
    "kind": "decoration",
-   "subcategory": "bundle of logs"
+   "subcategory": "bundle of logs",
+   "atlas": "houses",
+   "rect": [
+    1280,
+    1152,
+    37,
+    32
+   ]
   },
   "houses/Deco_15.png": {
    "kind": "decoration",
-   "subcategory": "bucket"
+   "subcategory": "bucket",
+   "atlas": "houses",
+   "rect": [
+    1696,
+    1136,
+    35,
+    48
+   ]
   },
   "houses/House_18.png": {
    "kind": "decoration",
-   "subcategory": "chopping block with axe"
+   "subcategory": "chopping block with axe",
+   "atlas": "houses",
+   "rect": [
+    1568,
+    1068,
+    50,
+    52
+   ]
   },
   "houses/Mill_Blades.png": {
    "kind": "reference",
    "subcategory": "windmill sails, turned by the game"
+  },
+  "houses/House_21.png": {
+   "kind": "dwelling",
+   "subcategory": "timber-framed town house",
+   "atlas": "houses",
+   "rect": [
+    3200,
+    37,
+    414,
+    347
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_21.png",
+    "Tiles_to_right": 13,
+    "Tiles_up": 11,
+    "Collision_to_right": 13,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -3,
+    "Col_margin_right_pixel": -10
+   }
+  },
+  "houses/House_22.png": {
+   "kind": "dwelling",
+   "subcategory": "timber-framed town house",
+   "atlas": "houses",
+   "rect": [
+    3104,
+    441,
+    360,
+    359
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_22.png",
+    "Tiles_to_right": 12,
+    "Tiles_up": 12,
+    "Collision_to_right": 12,
+    "Collision_up": 4,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -24
+   }
   }
  },
  "motifs": {}
