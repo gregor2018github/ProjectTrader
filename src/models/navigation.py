@@ -97,7 +97,8 @@ class NavGrid:
 
         Houses and trees are axis-aligned rectangles, so they are stamped
         straight into the grid. Water is a polygon and is sampled cell by cell,
-        but only inside its own bounding box.
+        but only inside its own bounding box. Bridge decks are opened up again
+        over it.
 
         Args:
             tmx_map: The loaded map.
@@ -115,6 +116,12 @@ class NavGrid:
         for cell_x, cell_y in tmx_map.water_tiles:
             if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
                 self.blocked[cell_y * self.width + cell_x] = 1
+
+        # A bridge deck is ground again over the water, its railings are not
+        for bridge in tmx_map.bridges:
+            self._open_deck(bridge.deck)
+            for rail in bridge.rails:
+                self._block_rect(rail)
 
         # Last, because it only ever looks at cells the collision left free
         self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))
@@ -205,6 +212,28 @@ class NavGrid:
                 last_x = min(self.width - 1, math.floor((right - half) / self.tile_size))
                 for cell_x in range(first_x, last_x + 1):
                     self.blocked[row + cell_x] = 1
+
+    def _open_deck(self, deck: pygame.Rect) -> None:
+        """Free every cell whose walker would stand wholly on a bridge deck.
+
+        That is the feet box :meth:`_has_clearance` measures, put down at the
+        cell's centre. Cells the deck only partly holds stay as they were, so
+        a walker is never routed half off the side of a bridge.
+
+        Args:
+            deck: The walkable band of a bridge, in world pixels.
+        """
+        half = self.tile_size / 2.0
+        foot_height = self.tile_size / 2.0 - 2.0
+        first_x, first_y = self._clamped_cell(deck.left, deck.top)
+        last_x, last_y = self._clamped_cell(deck.right - 1, deck.bottom - 1)
+        for cell_y in range(first_y, last_y + 1):
+            feet_y = cell_y * self.tile_size + half
+            if feet_y - foot_height < deck.top or feet_y > deck.bottom:
+                continue
+            row = cell_y * self.width
+            for cell_x in range(first_x, last_x + 1):
+                self.blocked[row + cell_x] = 0
 
     def _block_rect(self, rect: pygame.Rect) -> None:
         """Mark every cell the given world rectangle touches.

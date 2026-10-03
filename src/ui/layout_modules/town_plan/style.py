@@ -38,6 +38,7 @@ TREE_WASH = (112, 128, 72)
 ROOF_WASH = (172, 72, 54)          # Carmine, as on old town plans
 ROOF_WASH_ALPHA = 200
 STALL_WASH = (212, 172, 92)
+BRIDGE_WASH = (176, 132, 82)       # Planks, a shade lighter than the roads
 SHADOW = (90, 64, 40)
 SHADOW_ALPHA = 70
 

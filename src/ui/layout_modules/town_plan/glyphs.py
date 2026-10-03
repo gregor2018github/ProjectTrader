@@ -11,7 +11,7 @@ from typing import Sequence, Tuple
 import pygame
 
 from .style import (
-    FIELD_WASH, FIELD_WASH_ALPHA, INK, INK_FADED, ROOF_WASH, ROOF_WASH_ALPHA,
+    BRIDGE_WASH, FIELD_WASH, FIELD_WASH_ALPHA, INK, INK_FADED, ROOF_WASH, ROOF_WASH_ALPHA,
     SHADOW, SHADOW_ALPHA, STALL_WASH, TREE_WASH, WATER_LINE, WATER_WASH,
 )
 
@@ -138,6 +138,27 @@ def stall(surface: pygame.Surface, rect: pygame.Rect) -> None:
         stripe = pygame.Rect(sx, rect.top, step, rect.height)
         wash_rect(surface, ROOF_WASH, 110, stripe.clip(rect))
     pygame.draw.rect(surface, INK, rect, 1)
+
+
+def bridge(surface: pygame.Surface, rect: pygame.Rect) -> None:
+    """A wooden bridge seen from above: planks across the way over, a railing either side."""
+    wash_rect(surface, BRIDGE_WASH, 235, rect)
+    across = rect.width >= rect.height     # crossed sideways: the planks stand upright
+    length = rect.width if across else rect.height
+    step = max(2, round(min(rect.width, rect.height) / 3))
+    for d in range(step, length, step):
+        if across:
+            pygame.draw.line(surface, INK_FADED, (rect.left + d, rect.top), (rect.left + d, rect.bottom - 1))
+        else:
+            pygame.draw.line(surface, INK_FADED, (rect.left, rect.top + d), (rect.right - 1, rect.top + d))
+    if across:
+        pygame.draw.line(surface, INK, rect.topleft, (rect.right - 1, rect.top), 2 if rect.height >= 8 else 1)
+        pygame.draw.line(surface, INK, (rect.left, rect.bottom - 1), (rect.right - 1, rect.bottom - 1),
+                         2 if rect.height >= 8 else 1)
+    else:
+        pygame.draw.line(surface, INK, rect.topleft, (rect.left, rect.bottom - 1), 2 if rect.width >= 8 else 1)
+        pygame.draw.line(surface, INK, (rect.right - 1, rect.top), (rect.right - 1, rect.bottom - 1),
+                         2 if rect.width >= 8 else 1)
 
 
 def well(surface: pygame.Surface, center: Point, radius: float) -> None:

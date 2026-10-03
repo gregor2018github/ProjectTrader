@@ -13,6 +13,12 @@ along its foot as deep as the kind's footprint share of its height (a house
 stands on about a third of its picture, a stall on half), narrowed by pixel
 margins to where the foot is solid. They are a start, to be fine-tuned in
 Tiled like the others.
+
+A bridge, Bridge_<n>, is no "Houses" object but a rectangle on the
+"Bridges" layer, as big as its sprite, with the band people walk along
+in it; the game also takes an optional Bridge_<n>_front.png of the same
+size, holding only the near railing, to draw over whoever is on it (made
+with bridge_front.py).
 """
 
 import math
@@ -24,6 +30,21 @@ from sprite_library import MAP_SPRITES, TILE, Atlas, Domain, Kind
 
 HOUSES_ATLAS = Atlas('houses', MAP_SPRITES / 'houses' / 'Houses.png', 'Houses', 'Houses.xcf')
 HOUSES_DIR = MAP_SPRITES / 'houses'
+
+#: What a bridge needs that a building does not; the game lays it flat over the
+#: water and lets people walk along its walkway (src/models/bridge.py).
+BRIDGE_NOTES = (
+    'It runs from left to right, as if across a river flowing from the top of the picture to the bottom, '
+    'and is seen from the same high three-quarter angle as the sprite on the left: the '
+    'walkway is seen from above, the railing along its far side stands behind the walkway and the '
+    'railing along its near side in front of it, low and open enough that the walkway behind it stays '
+    'in view.',
+    'The walkway is flat and level from end to end, with no arch, no steps and no roof, and both ends '
+    'are open so people can walk on and off: each railing ends in a post at either end.',
+    'Do not draw any water, river bank, grass or road. The game draws the river under the bridge, so '
+    'below the walkway only its beams and the tops of the piles holding it up show.',
+)
+BRIDGE_DECK = (0.25, 0.67)   # share of a bridge sprite's height where its walkway begins and ends
 
 KINDS = (
     Kind('dwelling', 'Dwellings', 'town house', 'roof', HOUSES_ATLAS, HOUSES_DIR, 'House',
@@ -40,6 +61,8 @@ KINDS = (
          HOUSES_DIR, 'Fence', tiled_class='Fence_Frontal', footprint=0.5),
     Kind('decoration', 'Decorations', 'street or yard decoration', 'main material',
          HOUSES_ATLAS, HOUSES_DIR, 'Deco', tiled_class='Deco', footprint=0.5),
+    Kind('bridge', 'Bridges', 'bridge', 'walkway', HOUSES_ATLAS, HOUSES_DIR, 'Bridge',
+         tiled_class='Bridge', prompt_notes=BRIDGE_NOTES),
 )
 
 #: Subcategories the design screen proposes per kind: what stands in and around
@@ -65,6 +88,8 @@ SUGGESTIONS = {
                    'water trough', 'bench', 'signpost', 'lantern post', 'grindstone', 'sacks of grain',
                    'stocks', 'pillory', 'fishing nets', 'baskets', 'beehives', 'scarecrow', 'plough',
                    'market cross', 'well'),
+    'bridge': ('wooden plank bridge', 'trestle bridge', 'footbridge', 'bridge with rope railings',
+               'log bridge', 'stone bridge'),
 }
 
 PROMPT_TEMPLATE = """\
@@ -73,7 +98,7 @@ The attached picture is a split view for my medieval trading game "Merchant's Ri
 Draw a new {noun}{sub} in the right cell:
 - Its outline and size follow the sketch: where the sketch is wide it is wide, where it is tall it is tall, and it stands on the ground where the sketch's lowest point is. Turn the wobbly mouse lines into straight walls, roof edges and posts, as fits a {noun}.
 - {colour_rule}, and give everything the colours do not stand for (such as timber, plaster, stone, doors and windows) fitting medieval colours.
-- No trace of the flat sketch or its edge may remain.
+- No trace of the flat sketch or its edge may remain.{notes}
 
 The most important thing is that the new {noun} looks like it comes from the exact same game as the sprite on the left:
 - Copy its art style exactly: the same size of pixels (not finer), the same outline, the same way of shading with few shades per colour, the same amount of detail, the same viewing angle and the same light from the same side.
@@ -95,8 +120,11 @@ def tiled_properties(kind, sprite, path):
     """The "Houses" object of a new building: class, size and collision box in tiles, and margins in pixels.
 
     The box runs along the sprite's foot, footprint share of its height
-    deep; the margins pull its sides in to where the foot is solid.
+    deep; the margins pull its sides in to where the foot is solid. A bridge
+    gets its "Bridges" rectangle instead, see bridge_properties().
     """
+    if kind.key == 'bridge':
+        return bridge_properties(sprite, path)
     w, h = sprite.get_size()
     tiles_right, tiles_up = math.ceil(w / TILE), math.ceil(h / TILE)
     collision_up = max(1, round(tiles_up * kind.footprint))
@@ -111,6 +139,21 @@ def tiled_properties(kind, sprite, path):
         'Tiles_to_right': tiles_right, 'Tiles_up': tiles_up,
         'Collision_to_right': tiles_right, 'Collision_up': collision_up,
         'Col_margin_left_pixel': -left, 'Col_margin_right_pixel': right - tiles_right * TILE,
+    }
+
+
+def bridge_properties(sprite, path):
+    """The "Bridges" rectangle of a new bridge: the sprite's own size, and a first guess at its walkway.
+
+    Deck_top and Deck_bottom, in tiles from the top, bound the band feet
+    may stand in; whatever is above and below it is railing. The guess
+    leaves the far railing the top quarter and the near railing, with the
+    beams under it, the bottom third, to be fine-tuned in Tiled.
+    """
+    w, h = sprite.get_size()
+    return {
+        'layer': 'Bridges', 'class': 'Bridge', 'File_name': path.name, 'width': w, 'height': h,
+        'Deck_top': round(h * BRIDGE_DECK[0] / TILE, 2), 'Deck_bottom': round(h * BRIDGE_DECK[1] / TILE, 2),
     }
 
 

@@ -399,9 +399,11 @@ class SpriteJob:
                     f'part, its {kind.main_part} too, takes the colour sketched where it is, and small dark '
                     f'patches usually mark openings such as doors and windows. Shade every colour with darker and '
                     f'lighter tones of itself')
+        # One more rule line each, after the template's own (a template without {notes} goes without)
+        notes = ''.join(f'\n- {note}' for note in kind.prompt_notes)
         return self.domain.prompt_template.format(
             example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
-            sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part)
+            sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part, notes=notes)
 
     def write_sheet(self):
         """Write sheet.png and prompt.txt as they are now; returns the JobSheet."""

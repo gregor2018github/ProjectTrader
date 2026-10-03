@@ -20,6 +20,7 @@ from .institutions.bank import Bank
 from .institutions.well import Well
 from .institutions.warehouse import Warehouse
 from .tree import Tree
+from .bridge import Bridge, DEFAULT_RAIL_TILES, off_deck_parts
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
@@ -163,6 +164,8 @@ class TMXMap:
         self.sheep: List[Sheep] = []
         self.npcs: List[NPC] = []
         self.waters: List[Water] = []
+        #: Decks over the water, from the "Bridges" object layer.
+        self.bridges: List[Bridge] = []
         # Grid cells covered by water (used for the animated water tile
         # rendering in map_view.py). Rasterized once at load time so the
         # render loop only ever needs an O(1) set lookup per visible tile.
@@ -183,6 +186,7 @@ class TMXMap:
         self._load_movements()
         self._load_water()
         self._rasterize_water_tiles()
+        self._load_bridges()
 
         # Everything that blocks a walker is parsed by now, so the grid the
         # townsfolk find their way on can be rasterized and the doors placed
@@ -221,6 +225,31 @@ class TMXMap:
                         # sitting at the origin.
                         world_points = [(p.x, p.y) for p in obj.points]
                         self.waters.append(Water(obj.name or "Water", world_points))
+
+    def _load_bridges(self) -> None:
+        """Load the bridges from the 'Bridges' object layer (see bridge.py)."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Bridges":
+                for obj in layer:
+                    if not obj.width or not obj.height:
+                        print(f"Bridge '{obj.name}' is not a rectangle - left out")
+                        continue
+                    rect = pygame.Rect(round(obj.x), round(obj.y), round(obj.width), round(obj.height))
+                    height_tiles = rect.height / self.tile_size
+                    self.bridges.append(Bridge(
+                        obj.name or "Bridge",
+                        rect,
+                        float(obj.properties.get('Deck_top', DEFAULT_RAIL_TILES)),
+                        float(obj.properties.get('Deck_bottom', height_tiles - DEFAULT_RAIL_TILES)),
+                        obj.properties.get('File_name', ''),
+                    ))
+
+    def bridge_at(self, x: float, y: float) -> Optional[Bridge]:
+        """The bridge over a world point, if any."""
+        for bridge in self.bridges:
+            if bridge.covers(x, y):
+                return bridge
+        return None
 
     def _rasterize_water_tiles(self) -> None:
         """Compute which grid cells should render the animated water surface.
@@ -921,9 +950,15 @@ class TMXMap:
         for tree in self.trees:
             if tree.collision_rect.colliderect(rect):
                 return True
-        for water in self.waters:
-            if water.collides_with_rect(rect):
+        for bridge in self.bridges:
+            if bridge.blocks(rect):
                 return True
+        # Whatever stands on a bridge deck is not in the water below it
+        parts = off_deck_parts(rect, self.bridges) if self.bridges else [rect]
+        for water in self.waters:
+            for part in parts:
+                if water.collides_with_rect(part):
+                    return True
         return False
 
     def is_standable(self, feet_x: float, feet_y: float) -> bool:

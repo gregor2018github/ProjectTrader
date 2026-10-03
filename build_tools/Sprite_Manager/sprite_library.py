@@ -77,6 +77,7 @@ class Kind:
     stem: bool = False    # a plant on a stem the player bumps into (a "Trees" object)
     tiled_class: str = ''  # a building's class on the "Houses" object layer
     footprint: float = 0.0  # a building's share of its height that it stands on (its collision)
+    prompt_notes: tuple = ()  # further rules for the prompt, for a kind the general ones do not fit
 
 
 @dataclass(frozen=True)

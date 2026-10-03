@@ -56,6 +56,9 @@ def get_hovered_water(
     if world_pos is None:
         return None
     wx, wy = world_pos
+    # A click on a bridge is a click on its planks, not the water under them
+    if game_map.tmx_map.bridge_at(wx, wy) is not None:
+        return None
 
     player = game_map.map_player
     for water in game_map.tmx_map.waters:

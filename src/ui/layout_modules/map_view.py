@@ -57,7 +57,8 @@ def draw_map_view(
     
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_map.water_anim_time)
-    
+    _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
+
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
     game_map.tmx_map.update_markets(game_state.date)
@@ -363,6 +364,30 @@ def _render_map_layers(
         _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
 
 
+def _draw_bridges(
+    screen: pygame.Surface,
+    tmx_map: 'TMXMap',
+    camera: 'Camera',
+    offset_x: int,
+    offset_y: int,
+) -> None:
+    """Lay the bridges over the water, flat like the ground: everyone walks on top.
+
+    Their near railings are drawn again over the walkers, from the render
+    queue (see _build_render_queue).
+    """
+    for bridge in tmx_map.bridges:
+        sprite = bridge.get_scaled_sprite(camera.zoom)
+        if sprite is None:
+            continue
+        screen_x, screen_y = camera.apply(bridge.x, bridge.y)
+        draw_x = round(screen_x) + offset_x
+        draw_y = round(screen_y) - sprite.get_height() + offset_y
+        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            screen.blit(sprite, (draw_x, draw_y))
+
+
 def _draw_animated_water(
     screen: pygame.Surface,
     tmx_map: 'TMXMap',
@@ -574,6 +599,22 @@ def _build_render_queue(
                     'pos': (draw_x, draw_y),
                     'y_sort': emitter.y_sort,
                 })
+
+    # Add the near railings of the bridges, in front of whoever is on the deck
+    for bridge in tmx_map.bridges:
+        sprite = bridge.get_scaled_front(camera.zoom)
+        if sprite is None:
+            continue
+        screen_x, screen_y = camera.apply(bridge.x, bridge.y)
+        draw_x = screen_x + offset_x
+        draw_y = screen_y - sprite.get_height() + offset_y
+        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            render_queue.append({
+                'sprite': sprite,
+                'pos': (draw_x, draw_y),
+                'y_sort': bridge.y_sort,
+            })
 
     # Add water ripples to queue (flat on the water surface, so sort low like ground clutter)
     for ripple in game_map.ripples:

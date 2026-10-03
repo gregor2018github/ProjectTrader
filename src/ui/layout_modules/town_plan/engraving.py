@@ -41,6 +41,9 @@ def engrave(tmx_map, ground: Ground, marks: Landmarks, px_per_tile: float) -> py
                      spacing=max(3, round(px_per_tile * 1.1)))
     _water(plan, masks["water"], ground.masks((ground.tiles_wide, ground.tiles_high))["water"], px_per_tile)
     _grass(plan, masks, marks, scale, px_per_tile)
+    # Seen from above a bridge is as wide as the way over it
+    for bridge in tmx_map.bridges:
+        glyphs.bridge(plan, _to_plan(bridge.deck, scale))
 
     if marks.ship_position is not None:
         sx, sy = marks.ship_position

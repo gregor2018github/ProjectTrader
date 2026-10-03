@@ -7,7 +7,7 @@ Future extensions (boats, fishing spots, river flow, etc.) should be added here.
 
 import math
 import random
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 import pygame
 
 from ..config.constants import SPLASH_VOLUME, TILE_SIZE
@@ -174,6 +174,7 @@ class Water:
         self, px: float, py: float,
         min_dist: float = 24.0, max_dist: float = 64.0,
         edge_margin: float = TILE_SIZE, attempts: int = 32,
+        avoid: Sequence[pygame.Rect] = (),
     ) -> Tuple[float, float]:
         """A random point within this polygon, roughly min_dist-max_dist from (px, py).
 
@@ -182,7 +183,9 @@ class Water:
         narrow river) where nothing clears that margin, it settles for the closest
         sampled point that's still inside the water rather than reaching for a
         distant fallback. Callers should check ``_boundary_distance`` on the
-        result to cap the ripple's own radius so it still fits.
+        result to cap the ripple's own radius so it still fits. Points inside
+        ``avoid`` (the bridges, whose planks hide the water) are never picked
+        by the sampling.
         """
         best: Optional[Tuple[float, float]] = None
         best_margin = -1.0
@@ -192,6 +195,8 @@ class Water:
                 dist = random.uniform(min_dist, dist_cap)
                 x, y = px + math.cos(angle) * dist, py + math.sin(angle) * dist
                 if not self.contains_point(x, y):
+                    continue
+                if any(rect.collidepoint(x, y) for rect in avoid):
                     continue
                 bd = self._boundary_distance(x, y)
                 if bd >= edge_margin:
@@ -216,7 +221,9 @@ class Water:
             player = game_map.map_player
             px = player.x + player.width / 2
             py = player.y + player.height / 2
-            rx, ry = self.random_point_near(px, py)
+            # Ripples spread a little, so keep them a tile clear of the planks
+            bridges = [b.rect.inflate(TILE_SIZE, TILE_SIZE) for b in game_map.tmx_map.bridges]
+            rx, ry = self.random_point_near(px, py, avoid=bridges)
             # Cap the ripple's radius to the space actually available at this
             # spot, so it can't grow out over the bank in a tight/narrow area.
             radius_cap = max(6.0, min(18.0, self._boundary_distance(rx, ry)))
