@@ -144,6 +144,7 @@ The code, for whoever works on it next:
     view_frames.py     screen 2, directions, frames and the chosen sheet
     view_review.py     screens 3 and 4, all answers and one answer
     view_library.py    the plants or the buildings, by kind; setting a sprite's kind
+    library_summary.py the overview above them: counts, kinds, newest, work, how full the collections are
     view_sprite_design.py  a new plant or building: sketch, type, subcategory and colour
     view_sprite_answers.py its answers, and accepting one
     view_first.py      screen 2 for a new person: his first sprite
@@ -256,6 +257,7 @@ class SpriteManager:
         self.last_direction = DEFAULT_DIRECTION
         self._libraries = {}          # {domain key: sprites}, found once (sprite_library.find_sprites())
         self._catalogs = {}           # {domain key: Catalog}
+        self.atlas_fills = {}         # {collection key: share of its tiles used}, for the overviews
 
         # Footer buttons several screens show; the app handles them
         self.back_button = Button('Back', w=90)
@@ -381,6 +383,7 @@ class SpriteManager:
         """The sprites or the catalog changed: list them anew."""
         self._libraries.pop(domain.key, None)
         self._catalogs.pop(domain.key, None)
+        self.atlas_fills.clear()      # a new sprite went into a collection
         if isinstance(self.view, LibraryView):
             self.view.refresh()
 

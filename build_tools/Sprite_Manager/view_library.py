@@ -10,11 +10,12 @@ import pygame
 
 import pose_review
 from images import pixel_fit
+from library_summary import SUMMARY_H, Stats, draw_summary, gather
 from pose_review import ReviewStore
 from sprite_job import SpriteJob
 from sprite_library import REFERENCE, UNSORTED
 from theme import (
-    CARD_BG, DIALOG_PAD, NPC_THUMB_SIZE, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, window_size,
+    CARD_BG, DIALOG_PAD, NPC_THUMB_SIZE, PANEL_GAP, STATUS_COLORS, TEXT, TEXT_DIM, THUMB_BG, window_size,
 )
 from view import View
 from widgets import Button, Card, SectionGrid, TextField, draw_chips, draw_dialog_box
@@ -43,6 +44,7 @@ class LibraryView(View):
         self.grid = SectionGrid('sprite')
         self.switch_buttons = app.switch_buttons(domain.key)
         self.armed = None   # an unfinished sprite with answers, whose cross was clicked once
+        self.stats = Stats()
         self.empty = pygame.Surface(NPC_THUMB_SIZE)
         self.empty.fill(CARD_BG)
         text = app.fonts.small.render('none yet', True, TEXT_DIM)
@@ -58,9 +60,11 @@ class LibraryView(View):
     def refresh(self):
         app, domain = self.app, self.domain
         sprites = app.library(domain)
+        jobs = app.jobs(domain)
+        self.stats = gather(domain, sprites, jobs, app.atlas_fills)
         sections = []
         cards = []
-        for job in app.jobs(domain):
+        for job in jobs:
             if job.accepted:
                 continue
             waiting = len(ReviewStore(job.out_dir).pending())
@@ -82,14 +86,18 @@ class LibraryView(View):
 
     def header(self):
         return (self.domain.title,
-                f'Click a sprite to make a new {self.domain.noun} from it, right-click it to set its kind, '
-                'the cross on an unfinished one scraps it. Tab switches between humans, plants and buildings.')
+                f'Click: a new {self.domain.noun} from it. Right-click: its kind. '
+                'Cross: scrap an unfinished one. Tab: humans, plants, buildings.')
 
     def footer(self):
         return tuple(self.switch_buttons), (self.app.settings_button,)
 
     def draw(self, screen, mouse):
-        self.grid.layout(self.app.card_area())
+        area = self.app.card_area()
+        summary = pygame.Rect(area.x, area.y, area.w, SUMMARY_H)
+        draw_summary(screen, self.app.fonts, summary, self.stats, self.domain.noun)
+        top = summary.bottom + PANEL_GAP
+        self.grid.layout(pygame.Rect(area.x, top, area.w, area.bottom - top))
         self.grid.draw(screen, self.app.fonts, mouse)
         card = self.grid.card_at(mouse)
         if card and isinstance(card.key, SpriteJob):
