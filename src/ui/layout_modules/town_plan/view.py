@@ -31,6 +31,11 @@ from .style import (
 )
 from .terrain import Ground
 
+#: The paper a shade darker, as for land not explored yet. Paper made from a
+#: darker base darkens its grain and browning with it, so this is the plain
+#: sheet times UNCHARTED_TINT without multiplying the screen every frame.
+UNCHARTED_PAPER = tuple(p * t // 255 for p, t in zip(PAPER, UNCHARTED_TINT))
+
 
 class TownPlan:
     """The plan of the town, drawn as on old paper."""
@@ -57,6 +62,9 @@ class TownPlan:
         self._ground: Optional[Ground] = None
         self._marks: Optional[Landmarks] = None
         self._engraved: Dict[int, pygame.Surface] = {}
+        # The darker paper under the module, redone only when moved or resized
+        self._blank_paper: Optional[pygame.Surface] = None
+        self._blank_paper_key: Optional[Tuple] = None
 
     # --- Frame bookkeeping ------------------------------------------------
 
@@ -173,9 +181,7 @@ class TownPlan:
                                       round(inner.centery - self.center[1] * self.scale)))
         # The paper's grain is pinned to the land, so it moves when dragged
         draw_paper(screen, rect, land.topleft)
-        # Kept, a shade darker, to cover the land not explored yet with
-        blank_paper = screen.subsurface(inner).copy()
-        blank_paper.fill(UNCHARTED_TINT, special_flags=pygame.BLEND_RGB_MULT)
+        blank_paper = self._uncharted_paper(rect, inner, land.topleft)
 
         old_clip = screen.get_clip()
         screen.set_clip(inner)
@@ -218,6 +224,20 @@ class TownPlan:
 
     def _explored(self, world_pos: Tuple[float, float]) -> bool:
         return self.game_map.fog.is_explored(*world_pos)
+
+    def _uncharted_paper(self, rect: pygame.Rect, inner: pygame.Rect, anchor: Tuple[int, int]) -> pygame.Surface:
+        """The paper under ``inner`` a shade darker, to cover the land not explored yet with.
+
+        Laid like the sheet itself, grain pinned to ``anchor`` and browned at
+        ``rect``'s edges, and kept until the plan is dragged or moved.
+        """
+        key = (tuple(rect), tuple(inner), anchor)
+        if key != self._blank_paper_key:
+            sheet = pygame.Surface(rect.size).convert()
+            draw_paper(sheet, sheet.get_rect(), (anchor[0] - rect.x, anchor[1] - rect.y), base=UNCHARTED_PAPER)
+            self._blank_paper = sheet.subsurface(inner.move(-rect.x, -rect.y))
+            self._blank_paper_key = key
+        return self._blank_paper
 
     def _cover_unexplored(self, screen: pygame.Surface, inner: pygame.Rect, blank_paper: pygame.Surface) -> None:
         """Lay blank paper over the land not explored yet, fading in at the edge."""
