@@ -1,6 +1,6 @@
 ---
 name: place-building
-description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object or swapped in for an existing one, including buyable warehouses and homes with their door, window lights and chimney smoke. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", or wants an existing building's texture replaced.
+description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object, swapped in for an existing one, or moving one already placed, including buyable warehouses and homes with their door, window lights and chimney smoke. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", or wants an existing building's texture replaced.
 ---
 
 # Place a building on the map
@@ -28,9 +28,18 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    `place_building.py render X0 Y0 X1 Y1 <scratchpad>/before.png --figure X,Y`
    shows the area as the game draws it (open the PNG with Read). Leave walking
    room round it and don't let its roof cover another building's front.
+   Buildings are y-sorted on their base, so a tall house *south* of a street
+   draws its roof over anything standing on the street's north side: on the
+   main street west of x ≈ 3800 (Fine Weaver, Grey Griffin) a building's base
+   has to sit north of their roof tops (y ≈ 4265), which is why House_21 is
+   set back at y 4256 and the Guildhall at y 4304 (its base may dip a little
+   below their roof tops where only a chimney reaches over it). Positions off
+   the tile grid take `--no-snap` (`place` and `move`; no Tiled preview then). Put a figure on every door in the render to check.
 
 3. **Check the scale against a figure.** Figures are 32 px (one tile) wide and
-   ~52 px tall; a house door is about 1.2x a figure, barn/cart doors about 2x.
+   ~52 px tall. Judge by the door, measured in the drawn size: a house door
+   about 1x a figure, a public building's main door about 1.4x (the
+   Guildhall's arch is 70 px at `Scale` 0.7), barn/cart doors about 2x.
    Sprites are usually right at native size. If not, add `--prop Scale=<f>`
    ("one tile smaller" = `(width - 32) / width`; the Old Barn is 0.92). The
    collision box and margins scale with it, so keep the catalog's values.
@@ -38,6 +47,12 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    `Bank`, `Church`, `Town` and `Market` don't pass it on, so add it in
    `map.py` first if one of those needs it. Tiled previews are native size
    only, so the script stamps none for a scaled building.
+   A sprite redrawn at double resolution (the PNG is 2x the catalog `rect`'s
+   size, like House_24 the Guildhall) starts from `Scale=0.5`, then the door
+   decides (the Guildhall ended at 0.7). Every number you pass
+   is then in the PNG's own pixels: `Collision_to_right`/`Collision_up` in
+   tiles of the big PNG (twice the catalog's), margins, door, lights and smoke
+   in its pixels, and `Tiles_to_right`/`Tiles_up` = ceil(PNG size / 32).
 
 4. **Trim the collision to the visible walls.** Sprites often carry
    transparent margins, and the catalog's collision guess can span them
@@ -78,10 +93,20 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    X,Y is the bottom-left of the sprite, snapped to tiles. `--replace ID` keeps
    the object id, which matters for warehouses: saves record owned ones by
    `tmx_id` (`depot.properties["warehouses"]`, restored in `Game`), and clears
-   the replaced sprite's own preview cells. It also stamps the atlas cells into a `Houses N` tile layer (`--layer`, default
+   the replaced sprite's own preview cells; given new `--door/--light/--smoke`,
+   it also removes the old building's ones (that is how to rescale one). It also stamps the atlas cells into a `Houses N` tile layer (`--layer`, default
    `Houses 6`) so Tiled shows the building; the script refuses if a cell is
    taken, so try another layer (`near` shows which are busy there).
    Town houses: 15–35 inhabitants.
+
+   To **move** a building that is already placed, use
+   `place_building.py move ID X Y [--dry-run]`: it carries its door, its
+   lights (the ones the game gives it), its smoke and its preview along. Read
+   the "moved" list: a light zone reaches 5 tiles above the base, so at some
+   spots the game hands a neighbour's window to it, and `move` takes that too.
+   Compare per-house light counts before and after (load `TMXMap` on `git show
+   HEAD:assets/tiles/Map1.tmx` written to a temp file inside `assets/tiles/`,
+   so its tileset paths resolve).
 
 7. **Render again** with figures in front of the door and look at it.
 
@@ -123,6 +148,9 @@ object with a `Buy_type` property becomes a `Warehouse`
   direction one faces walking out) to come and go; warehouses have none.
 - Town Plan kind (`src/ui/layout_modules/town_plan/landmarks.py`, `_kind`):
   names starting with `House` are dwellings, other names are workshops.
+- A public building nobody lives in (the Guildhall) still gets a door, so
+  townsfolk can walk to it, and window lights; no `Max_inhabitants`, and
+  smoke only if it has a chimney.
 
 ## Pitfalls
 

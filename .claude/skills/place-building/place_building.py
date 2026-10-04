@@ -16,7 +16,8 @@ Run from the repo root. Subcommands:
         [--prop KEY=VALUE ...] [--no-preview] [--dry-run]
         [--door SX,SY,FACING ...] [--light SX,SY,W,H ...] [--smoke SX,SY,W ...]
       SPRITE is the catalog key's file, e.g. House_26.png. X,Y is the
-      object's point (bottom-left of the sprite), snapped to the tile grid.
+      object's point (bottom-left of the sprite), snapped to the tile grid
+      unless --no-snap (then no Tiled preview: it needs whole tiles).
       Object properties come from the catalog's "tiled" block, then --prop
       (ints/floats are typed automatically; an empty VALUE drops the key).
       --replace rewrites an existing Houses object in place and keeps its id
@@ -31,7 +32,15 @@ Run from the repo root. Subcommands:
       top-left, before Scale); they are moved and scaled with the building.
       Smoke is named Smoke_<NAME>[_<k>], and the game only reads smoke whose
       building is called House_<n>. On --replace, the old door/lights/smoke
-      are left alone; delete them by hand if the building moved.
+      are removed when new ones are given, else left alone; to move a
+      building use `move` instead.
+
+  move ID X Y [--dry-run]
+      Move a Houses object to a new X,Y (snapped to tiles) with what belongs
+      to it: Doors points inside its collision rect, the Light_rectangles the
+      game hands to it (nearest base below, as TMXMap._load_lights does),
+      Smoke_<name>[_k], and its Tiled preview cells. Check the "moved" list:
+      lights it takes at the old spot are the ones the game gave it there.
 
 Map1.tmx is LF (git shows CRLF warnings on Windows; ignore them). This
 keeps whatever line ending the file has and touches nothing else.
@@ -130,6 +139,7 @@ def _clear_old_preview(obj_xml, cat, layers):
     y = int(float(re.search(r' y="([^"]+)"', obj_xml).group(1))) // TILE
     gids = _atlas_gids(entry['rect'], cols, rows_up)
     cleared = 0
+    on_layers = []
     for name, grid in layers.items():
         if name.startswith('Houses'):
             for dy in range(rows_up):
@@ -137,11 +147,121 @@ def _clear_old_preview(obj_xml, cat, layers):
                     if grid[y - rows_up + dy][x + dx] == gids[dy][dx]:
                         grid[y - rows_up + dy][x + dx] = 0
                         cleared += 1
+                        if name not in on_layers:
+                            on_layers.append(name)
     if cleared:
         print(f'cleared {cleared} preview cells of the old {prop("File_name")}')
+    return on_layers
+
+
+def _obj_props(obj_xml):
+    return {k: v for k, v in re.findall(r'<property name="([^"]+)"[^>]*value="([^"]*)"', obj_xml)}
+
+
+def _collision_rect(x, y, props):
+    """The game's House.collision_rect, as (left, top, right, bottom)."""
+    s = float(props.get('Scale', 1))
+    g = lambda k: float(props.get(k, 0)) * s
+    w, h = g('Collision_to_right') * TILE, g('Collision_up') * TILE
+    left = x - g('Col_margin_left_pixel')
+    bottom = y + g('Col_margin_down_pixel')
+    return (left, bottom - (h + g('Col_margin_up_pixel') + g('Col_margin_down_pixel')),
+            left + w + g('Col_margin_left_pixel') + g('Col_margin_right_pixel'), bottom)
+
+
+def _shift_object(text, xml, dx, dy):
+    def rep(m):
+        return f' {m.group(1)}="{round(float(m.group(2)) + (dx if m.group(1) == "x" else dy), 2):g}"'
+    new = re.sub(r' (x|y)="([^"]+)"', rep, xml, count=2)
+    return text.replace(xml, new)
 
 
 # ------------------------------------------------------------------ commands
+
+def _attached(text, obj_id):
+    """XML of the Doors, Lights and Smoke objects that belong to a building.
+
+    Doors: points inside its collision rect. Lights: the ones the game gives
+    it (TMXMap._load_lights): of the buildings whose zone -- x within the
+    collision rect, y up to 5 tiles above it -- holds the light, the one with
+    the nearest base. Smoke: Smoke_<name>[_k].
+    """
+    xml = re.search(rf' <object id="{obj_id}" [^>]*>.*?</object>', text, re.S).group(0)
+    name = re.search(r'name="([^"]*)"', xml).group(1)
+    ox = float(re.search(r' x="([^"]+)"', xml).group(1))
+    oy = float(re.search(r' y="([^"]+)"', xml).group(1))
+    left, top, right, bottom = _collision_rect(ox, oy, _obj_props(xml))
+
+    houses_grp = re.search(r'<objectgroup [^>]*name="Houses"[^>]*>(.*?)</objectgroup>', text, re.S).group(1)
+    rects = {}
+    for h in re.finditer(r'<object id="(\d+)"[^>]* x="([^"]+)" y="([^"]+)"[^>]*>.*?</object>', houses_grp, re.S):
+        hp = _obj_props(h.group(0))
+        if 'Collision_to_right' in hp:
+            rects[int(h.group(1))] = _collision_rect(float(h.group(2)), float(h.group(3)), hp)
+
+    def light_owner(cx, cy):
+        zone = [(r[3], i) for i, r in rects.items() if r[0] <= cx <= r[2] and r[1] - 5 * TILE <= cy <= r[3]]
+        return min(zone)[1] if zone else None
+
+    found = []
+    for group in ('Doors', 'Lights', 'Smoke'):
+        grp = re.search(rf'<objectgroup [^>]*name="{group}"[^>]*>(.*?)</objectgroup>', text, re.S)
+        for o in re.finditer(r'<object id="\d+" name="([^"]*)" x="([^"]+)" y="([^"]+)"(?: width="([^"]+)" height="([^"]+)")?[^>]*?/?>(?:\s*<point/>\s*</object>)?', grp.group(1)):
+            oname, px, py = o.group(1), float(o.group(2)), float(o.group(3))
+            cx, cy = px + float(o.group(4) or 0) / 2, py + float(o.group(5) or 0) / 2
+            if group == 'Doors':
+                hit = left <= px <= right and top <= py <= bottom
+            elif group == 'Lights':
+                hit = oname == 'Light_rectangle' and light_owner(cx, cy) == obj_id
+            else:
+                hit = re.fullmatch(rf'Smoke_{re.escape(name)}(_\d+)?', oname) is not None
+            if hit:
+                found.append(o.group(0))
+    return found
+
+
+def cmd_move(a):
+    cat = json.load(open(CATALOG, encoding='utf-8'))['files']
+    text, layers = load_tmx()
+    m = re.search(rf' <object id="{a.id}" name="([^"]*)"[^>]*>.*?</object>', text, re.S)
+    if not m:
+        sys.exit(f'no object with id {a.id}')
+    xml, name = m.group(0), m.group(1)
+    props = _obj_props(xml)
+    ox = float(re.search(r' x="([^"]+)"', xml).group(1))
+    oy = float(re.search(r' y="([^"]+)"', xml).group(1))
+    x, y = round(a.x / TILE) * TILE, round(a.y / TILE) * TILE
+    if a.no_snap:
+        x, y = round(a.x, 2), round(a.y, 2)
+    dx, dy = x - ox, y - oy
+    if not dx and not dy:
+        sys.exit('already there')
+    moving = _attached(text, a.id)
+    for o in moving:
+        text = _shift_object(text, o, dx, dy)
+        print(f'moved {o.split(" x=")[0].strip()}')
+    text = _shift_object(text, xml, dx, dy)
+
+    preview_layers = _clear_old_preview(xml, cat, layers)
+    if preview_layers and (x % TILE or y % TILE):
+        sys.exit('it has Tiled preview tiles, which need a tile-aligned spot; drop --no-snap')
+    entry = cat.get(f'houses/{props.get("File_name")}')
+    for lname in preview_layers:
+        gids = _atlas_gids(entry['rect'], int(props['Tiles_to_right']), int(props['Tiles_up']))
+        t, l = y // TILE - len(gids), x // TILE
+        for r, row in enumerate(gids):
+            for c, gid in enumerate(row):
+                if layers[lname][t + r][l + c] not in (0, gid):
+                    sys.exit(f'{lname} cell ({l + c},{t + r}) is taken at the new spot; nothing written')
+                layers[lname][t + r][l + c] = gid
+        print(f'preview moved on "{lname}"')
+    print(f'object {a.id} "{name}" ({ox:g},{oy:g}) -> ({x},{y}), {len(moving)} attached objects with it')
+    if a.dry_run:
+        print('dry run, nothing written')
+    else:
+        save_tmx(text, layers)
+        print('written', TMX)
+
 
 def cmd_place(a):
     cat = json.load(open(CATALOG, encoding='utf-8'))['files']
@@ -159,6 +279,8 @@ def cmd_place(a):
         else:
             tiled[k] = v
     x, y = round(a.x / TILE) * TILE, round(a.y / TILE) * TILE
+    if a.no_snap:
+        x, y = round(a.x, 2), round(a.y, 2)
 
     text, layers = load_tmx()
     nl = '\r\n' if '\r\n' in text else '\n'
@@ -168,6 +290,13 @@ def cmd_place(a):
             sys.exit(f'no object with id {a.replace}')
         name = a.name or m.group(1)
         _clear_old_preview(m.group(0), cat, layers)
+        if a.door or a.light or a.smoke:
+            # New ones are given, so the old ones go
+            for o in _attached(text, a.replace):
+                if (nl + '  ' + o) not in text:
+                    sys.exit(f'cannot find {o[:60]} to remove')
+                text = text.replace(nl + '  ' + o, '', 1)
+                print(f'removed {o.split(" x=")[0].strip()}')
         text = text.replace(m.group(0), object_xml(a.replace, name, cls, x, y, tiled, nl))
         obj_id = a.replace
     else:
@@ -179,6 +308,9 @@ def cmd_place(a):
         cut = grp.start(1)
         text = text[:cut] + nl + ' ' + object_xml(obj_id, name, cls, x, y, tiled, nl) + text[cut:]
 
+    if (x % TILE or y % TILE) and not a.no_preview:
+        print('off the tile grid: no Tiled preview stamped')
+        a.no_preview = True
     if float(tiled.get('Scale', 1)) != 1 and not a.no_preview:
         print('Scale is set: Tiled previews are native size only, so none is stamped')
         a.no_preview = True
@@ -336,11 +468,16 @@ def main():
     p.add_argument('--layer', default='Houses 6')
     p.add_argument('--prop', action='append', default=[])
     p.add_argument('--no-preview', action='store_true'); p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--no-snap', action='store_true', help='keep X,Y as given, off the tile grid')
     p.add_argument('--door', action='append', default=[])
     p.add_argument('--light', action='append', default=[])
     p.add_argument('--smoke', action='append', default=[])
+    p = sub.add_parser('move')
+    p.add_argument('id', type=int); p.add_argument('x', type=float); p.add_argument('y', type=float)
+    p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--no-snap', action='store_true', help='keep X,Y as given, off the tile grid')
     a = ap.parse_args()
-    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place}[a.cmd](a)
+    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place, 'move': cmd_move}[a.cmd](a)
 
 
 if __name__ == '__main__':
