@@ -5,8 +5,9 @@ example, and belongs to that sprite's sprite_library.Domain. Its folder
 build_tools/output/<domain>/<job>/ holds everything about it:
 
     job.json      the kind, the optional subcategory ("oak"), the colour in
-                  hand, the colours painted with, the example's name, and
-                  which answers became which sprite
+                  hand, the colours painted with, the example's name, any
+                  rules of its own for the prompt, and which answers became
+                  which sprite
     example.png   the example, as it was when the job started
     sketch.png    the rough shape drawn with the mouse, in flat colours
     sheet.png     the split image sent to the model, and prompt.txt with it
@@ -157,6 +158,7 @@ class SpriteJob:
         self.example_kind = data.get('example_kind', self.kind)
         self.created = data.get('created', '')
         self.accepted = data.get('accepted', {})   # {answer image: saved sprite path}
+        self.prompt_notes = list(data.get('prompt_notes', []))   # rule lines of this job's own, set in job.json
         # The cell's layout is kept with the job, so its sketch stays where it was drawn
         self.layout = tuple(data.get('layout', LEGACY_LAYOUT))
         self.example = pygame.image.load(str(self.folder / EXAMPLE_FILE)).convert_alpha()
@@ -208,6 +210,8 @@ class SpriteJob:
                 'example': self.example_label, 'example_kind': self.example_kind, 'created': self.created,
                 'accepted': self.accepted, 'layout': list(self.layout), 'sketch_version': SKETCH_VERSION,
                 'palette': [list(c) for c in self.palette]}
+        if self.prompt_notes:
+            data['prompt_notes'] = self.prompt_notes
         (self.folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
         pygame.image.save(self.sketch, str(self.folder / SKETCH_FILE))
 
@@ -400,7 +404,7 @@ class SpriteJob:
                     f'patches usually mark openings such as doors and windows. Shade every colour with darker and '
                     f'lighter tones of itself')
         # One more rule line each, after the template's own (a template without {notes} goes without)
-        notes = ''.join(f'\n- {note}' for note in kind.prompt_notes)
+        notes = ''.join(f'\n- {note}' for note in (*kind.prompt_notes, *self.prompt_notes))
         return self.domain.prompt_template.format(
             example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
             sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part, notes=notes)

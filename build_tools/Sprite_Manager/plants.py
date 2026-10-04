@@ -66,7 +66,7 @@ The attached picture is a split view for my medieval trading game "Merchant's Ri
 Draw a new {noun}{sub} in the right cell:
 - Its outline and size follow the sketch: where the sketch is wide it is wide, where it is tall it is tall, and it stands on the ground where the sketch's lowest point is. Turn the wobbly mouse lines into a natural shape for a {noun}.
 - {colour_rule}, and give the parts the colours do not stand for (such as stems, trunk or soil) natural colours.
-- No trace of the flat sketch or its edge may remain.
+- No trace of the flat sketch or its edge may remain.{notes}
 
 The most important thing is that the new {noun} looks like it comes from the exact same game as the sprite on the left:
 - Copy its art style exactly: the same size of pixels (not finer), the same outline, the same way of shading with few shades per colour, the same amount of detail, the same viewing angle and the same light from the same side.
