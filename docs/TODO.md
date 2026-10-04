@@ -9,7 +9,6 @@
 
 ## Medium Priority
 
-- [ ] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed
 - [ ] have a big warehouse close to the market area, that one will be expensive and needs reputation to be unlocked
 - [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
 - [ ] add sprites of oak trees or linden trees as a second type of tree
@@ -48,6 +47,7 @@
 
 ## Finished Features
 
+- [x] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed (the Old Barn: 600 gold, +250 storage)
 - [x] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [x] some walking sprites flicker due to slight color differences, especially in the faces, align all sprites of one animation through a new algorithm in the sprite processing pipeline
 - [x] finish sprites of another character

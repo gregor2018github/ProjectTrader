@@ -10020,15 +10020,19 @@
    </properties>
    <point/>
   </object>
-  <object id="337" name="Warehouse_1" type="House_Frontal" x="5664" y="5728">
+  <object id="337" name="Barn" type="House_Frontal" x="5600" y="5728">
    <properties>
-    <property name="Buy_price" type="int" value="500"/>
-    <property name="Buy_storage" type="int" value="100"/>
+    <property name="Buy_price" type="int" value="600"/>
+    <property name="Buy_storage" type="int" value="250"/>
     <property name="Buy_type" value="Warehouse"/>
-    <property name="Collision_to_right" type="int" value="7"/>
+    <property name="Col_margin_left_pixel" type="int" value="-11"/>
+    <property name="Col_margin_right_pixel" type="int" value="-15"/>
+    <property name="Collision_to_right" type="int" value="13"/>
     <property name="Collision_up" type="int" value="3"/>
-    <property name="File_name" value="House_3.png"/>
-    <property name="Tiles_to_right" type="int" value="7"/>
+    <property name="Display_name" value="Old Barn"/>
+    <property name="File_name" value="House_26.png"/>
+    <property name="Scale" type="float" value="0.92"/>
+    <property name="Tiles_to_right" type="int" value="13"/>
     <property name="Tiles_up" type="int" value="11"/>
    </properties>
    <point/>

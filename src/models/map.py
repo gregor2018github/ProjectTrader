@@ -562,6 +562,7 @@ class TMXMap:
                             buy_storage=int(obj.properties.get('Buy_storage', 0)),
                             buy_type=str(obj.properties.get('Buy_type', 'Warehouse')),
                             tmx_id=int(obj.id),
+                            scale=float(obj.properties.get('Scale', 1.0)),
                         )
                     else:
                         house = House(

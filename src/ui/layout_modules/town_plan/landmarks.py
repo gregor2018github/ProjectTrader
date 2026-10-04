@@ -160,7 +160,8 @@ def _footprint(house: House, kind: str) -> pygame.Rect:
     rect = house.collision_rect.copy()
     if kind in ("market", "well"):
         return rect
-    sprite_height = house.image.get_height() * house.scale if house.image else rect.height
+    # The image is already loaded at the house's scale
+    sprite_height = house.image.get_height() if house.image else rect.height
     depth = max(rect.height, min(rect.width * 0.5, sprite_height * 0.45))
     return pygame.Rect(rect.left, rect.bottom - round(depth), rect.width, round(depth))
 
