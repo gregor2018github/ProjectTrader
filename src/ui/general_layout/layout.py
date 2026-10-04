@@ -708,12 +708,12 @@ def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict
     # Draw pictograms for side menu
     pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building", "ledger"]
     label_map = {
-        "map": "Map",
+        "map": "Explore",
         "market": "Market",
         "depot": "Depot",
         "politics": "Politics",
         "trade_routes": "Trade Routes",
-        "building": "Town Plan",
+        "building": "Town Map",
         "ledger": "Ledger",
     }
 

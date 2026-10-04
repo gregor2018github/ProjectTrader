@@ -295,8 +295,10 @@ class Game:
 
         # Load pictograms for the side menu
         pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
+        # View keys whose picture is named after the button's label instead
+        pictogram_files = {"map": "explore", "building": "town_map"}
         for name in pictogram_names:
-            img_path = os.path.join(PICTURES_PATH, f"pictogram_{name}_100.png")
+            img_path = os.path.join(PICTURES_PATH, f"pictogram_{pictogram_files.get(name, name)}_100.png")
             images[f'pictogram_{name}'] = pygame.image.load(img_path)
 
         # Load population pictogram for the bottom bar (scaled to fit the 44px panel)
