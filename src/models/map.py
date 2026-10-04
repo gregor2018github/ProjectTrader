@@ -655,16 +655,20 @@ class TMXMap:
                         light_center_x = obj.x + obj.width / 2
                         light_center_y = obj.y + obj.height / 2
                         
-                        for house in self.houses:
-                            # Use collision_rect to associate lights with houses
-                            # The collision_rect covers the base of the house
-                            # However, windows (lights) are usually above the base (collision_rect)
-                            # Let's check if the light's X is within house X range and Y is slightly above
-                            # Or just check if X is within and Y is within a reasonable vertical range
+                        # Windows sit above the collision rect (the base of
+                        # the house), so a light counts as in a house when its
+                        # X is within the rect and its Y within 5 tiles above
+                        # it. Where those zones overlap -- a building across
+                        # the street reaches up past it -- the window belongs
+                        # to the nearest base below it.
+                        candidates = [
+                            house for house in self.houses
                             if (house.collision_rect.left <= light_center_x <= house.collision_rect.right and
-                                house.collision_rect.top - house.tile_size * 5 <= light_center_y <= house.collision_rect.bottom):
-                                house.associated_lights.append(light)
-                                break
+                                house.collision_rect.top - house.tile_size * 5 <= light_center_y <= house.collision_rect.bottom)
+                        ]
+                        if candidates:
+                            owner = min(candidates, key=lambda h: h.collision_rect.bottom)
+                            owner.associated_lights.append(light)
                     
                     # Load polygon lights for buildings
                     elif obj.name in building_light_names and hasattr(obj, 'points'):

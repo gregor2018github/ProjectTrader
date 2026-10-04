@@ -9,10 +9,12 @@ Run from the repo root. Subcommands:
   render X0 Y0 X1 Y1 OUT.png [--figure X,Y ...]
       Draw that world rect the way the game sees it (Ground layers, then
       houses/trees/bridges y-sorted, red collision boxes with margins) with a
-      player-sized figure standing on each X,Y for scale.
+      player-sized figure standing on each X,Y for scale. Doors are drawn as
+      blue dots, window lights as yellow boxes, smoke outlets as cyan bars.
 
   place SPRITE X Y [--replace ID | --name NAME] [--layer "Houses 6"]
         [--prop KEY=VALUE ...] [--no-preview] [--dry-run]
+        [--door SX,SY,FACING ...] [--light SX,SY,W,H ...] [--smoke SX,SY,W ...]
       SPRITE is the catalog key's file, e.g. House_26.png. X,Y is the
       object's point (bottom-left of the sprite), snapped to the tile grid.
       Object properties come from the catalog's "tiled" block, then --prop
@@ -22,6 +24,14 @@ Run from the repo root. Subcommands:
       with the map's nextobjectid. The sprite's atlas cells are stamped into
       the given Houses tile layer so Tiled shows it; that fails if any of
       those cells is already used on that layer.
+
+      --door/--light/--smoke add the building's Doors point (FACING: the way
+      one faces walking out: down/up/left/right), Lights "Light_rectangle"s
+      and Smoke outlets, in SPRITE PIXELS (x right, y down from the PNG's
+      top-left, before Scale); they are moved and scaled with the building.
+      Smoke is named Smoke_<NAME>[_<k>], and the game only reads smoke whose
+      building is called House_<n>. On --replace, the old door/lights/smoke
+      are left alone; delete them by hand if the building moved.
 
 Map1.tmx is LF (git shows CRLF warnings on Windows; ignore them). This
 keeps whatever line ending the file has and touches nothing else.
@@ -99,6 +109,12 @@ def _atlas_gids(rect, cols, rows_up):
     arow = -(-(ay + ah) // TILE) - rows_up
     return [[HOUSES_FIRSTGID + (arow + dy) * ATLAS_COLUMNS + acol + dx for dx in range(cols)]
             for dy in range(rows_up)]
+
+
+def _png_size(path):
+    with open(path, 'rb') as f:
+        head = f.read(24)
+    return int.from_bytes(head[16:20], 'big'), int.from_bytes(head[20:24], 'big')
 
 
 def _clear_old_preview(obj_xml, cat, layers):
@@ -182,6 +198,40 @@ def cmd_place(a):
         print(f'preview: atlas tile ({first % ATLAS_COLUMNS},{first // ATLAS_COLUMNS}) -> map cells {left}..{left + cols - 1} x {top}..{top + rows_up - 1} on "{a.layer}"')
 
     print(f'object {obj_id} "{name}" {cls} at ({x},{y}): {tiled}')
+
+    if a.door or a.light or a.smoke:
+        scale = float(tiled.get('Scale', 1))
+        top = y - _png_size(f'assets/map_sprites/houses/{a.sprite}')[1] * scale
+
+        def world(sx, sy):
+            return round(x + float(sx) * scale, 2), round(top + float(sy) * scale, 2)
+        added = []
+        for spec in a.door:
+            sx, sy, facing = spec.split(',')
+            if facing not in ('down', 'up', 'left', 'right'):
+                sys.exit(f'door facing must be down/up/left/right, not {facing}')
+            wx, wy = world(sx, sy)
+            added.append(('Doors', f'<object id="{{id}}" name="{facing}" x="{wx}" y="{wy}">{nl}   <point/>{nl}  </object>'))
+        for spec in a.light:
+            sx, sy, w, h = spec.split(',')
+            wx, wy = world(sx, sy)
+            added.append(('Lights', f'<object id="{{id}}" name="Light_rectangle" x="{wx}" y="{wy}" '
+                                    f'width="{round(float(w) * scale, 2)}" height="{round(float(h) * scale, 2)}"/>'))
+        for k, spec in enumerate(a.smoke):
+            sx, sy, w = spec.split(',')
+            wx, wy = world(sx, sy)
+            smoke_name = f'Smoke_{name}' + (f'_{k + 1}' if k else '')
+            added.append(('Smoke', f'<object id="{{id}}" name="{smoke_name}" x="{wx}" y="{wy}" '
+                                   f'width="{round(float(w) * scale, 2)}" height="1"/>'))
+        if a.smoke and not re.fullmatch(r'House_\d+', name):
+            print(f'WARNING: the game only reads Smoke_House_<n>; "{name}" will not smoke')
+        for group, xml in added:
+            nxt = re.search(r'nextobjectid="(\d+)"', text)
+            new_id = int(nxt.group(1))
+            text = text.replace(nxt.group(0), f'nextobjectid="{new_id + 1}"', 1)
+            grp = re.search(rf'<objectgroup [^>]*name="{group}"[^>]*>.*?(\s*</objectgroup>)', text, re.S)
+            text = text[:grp.start(1)] + nl + '  ' + xml.format(id=new_id) + text[grp.start(1):]
+            print(f'{group}: {xml.format(id=new_id)}'.replace(nl, ' '))
     if a.dry_run:
         print('dry run, nothing written')
     else:
@@ -248,6 +298,14 @@ def cmd_render(a):
             mu, md = p.get('Col_margin_up_pixel', 0) * sc, p.get('Col_margin_down_pixel', 0) * sc
             w, h = p['Collision_to_right'] * TILE * sc, p['Collision_up'] * TILE * sc
             pygame.draw.rect(surf, (255, 0, 0), (o.x - ml - x0, o.y - h - mu - y0, w + ml + mr, h + mu + md), 1)
+    for layer in m.visible_layers:
+        if isinstance(layer, pytmx.TiledObjectGroup) and layer.name in ('Doors', 'Lights', 'Smoke'):
+            for o in layer:
+                if layer.name == 'Doors':
+                    pygame.draw.circle(surf, (40, 120, 255), (o.x - x0, o.y - y0), 4)
+                elif o.name == 'Light_rectangle' or layer.name == 'Smoke':
+                    colour = (255, 230, 0) if layer.name == 'Lights' else (0, 255, 255)
+                    pygame.draw.rect(surf, colour, (o.x - x0, o.y - y0, max(1, o.width), max(2, o.height)), 1)
     font = pygame.font.SysFont(None, 20)
     for g in range(-(-x0 // 320) * 320, x1, 320):
         surf.blit(font.render(f'{g // TILE}', True, (255, 255, 255)), (g - x0 + 2, 0))
@@ -278,6 +336,9 @@ def main():
     p.add_argument('--layer', default='Houses 6')
     p.add_argument('--prop', action='append', default=[])
     p.add_argument('--no-preview', action='store_true'); p.add_argument('--dry-run', action='store_true')
+    p.add_argument('--door', action='append', default=[])
+    p.add_argument('--light', action='append', default=[])
+    p.add_argument('--smoke', action='append', default=[])
     a = ap.parse_args()
     {'near': cmd_near, 'render': cmd_render, 'place': cmd_place}[a.cmd](a)
 

@@ -1,6 +1,6 @@
 ---
 name: place-building
-description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object or swapped in for an existing one, including buyable warehouses. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", or wants an existing building's texture replaced.
+description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object or swapped in for an existing one, including buyable warehouses and homes with their door, window lights and chimney smoke. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", or wants an existing building's texture replaced.
 ---
 
 # Place a building on the map
@@ -39,26 +39,67 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    `map.py` first if one of those needs it. Tiled previews are native size
    only, so the script stamps none for a scaled building.
 
-4. **Place it** (try `--dry-run` first):
+4. **Trim the collision to the visible walls.** Sprites often carry
+   transparent margins, and the catalog's collision guess can span them
+   (House_22's walls are x 69–292 of 360 px, its bottom 20 rows empty).
+   Measure with `pygame.image.load(p).get_bounding_rect()` and scan a row
+   near the bottom for opaque pixels. Then `Col_margin_left_pixel = -<left wall x>`
+   and `Col_margin_right_pixel = <right wall x> - Collision_to_right*32`.
+   Keep the rect's bottom at Y even when the sprite's bottom rows are empty, so
+   nobody can stand in that strip and be drawn behind the wall.
+
+5. **If people live there (a home, a shop, any `Max_inhabitants`): door,
+   lights, smoke.** Make a gridded zoom of the sprite (scale 3, a line every
+   10 px, labels every 50) and read off, in sprite pixels:
+   - **door** `--door SX,SY,down`: centre of the door, a few px above its
+     bottom (inside the wall, i.e. inside the collision rect). The game finds
+     the step and entry itself and warns if it can't.
+   - **lights** `--light SX,SY,W,H`: one per glass pane (not the frame), roughly
+     18x22 px for a normal window. They only count within the collision rect's
+     x range and up to 5 tiles above it.
+   - **smoke** `--smoke SX,SY,W`: the top of the chimney pots, as wide as the
+     pots. Smoke is only read for buildings named `House_<n>`, so give a home
+     the next free `House_<n>` name (`grep -o 'name="House_[0-9]*"' Map1.tmx`).
+   Render afterwards: doors show as blue dots, lights as yellow boxes, smoke as
+   cyan bars, so a misplaced one is obvious.
+
+6. **Place it** (try `--dry-run` first):
    ```
    python .claude/skills/place-building/place_building.py place House_26.png 5600 5728 \
        --replace 337 --name Barn --prop Buy_price=600 --prop Buy_storage=250 \
        --prop Buy_type=Warehouse "--prop=Display_name=Old Barn"
+
+   python .claude/skills/place-building/place_building.py place House_22.png 3808 4384 \
+       --name House_21 --layer "Houses 4" --prop Col_margin_left_pixel=-69 \
+       --prop Col_margin_right_pixel=-92 --prop Max_inhabitants=25 \
+       --door 113,333,down --light 102,136,18,22 --light 174,283,19,25 \
+       --smoke 229,39,21
    ```
    X,Y is the bottom-left of the sprite, snapped to tiles. `--replace ID` keeps
    the object id, which matters for warehouses: saves record owned ones by
    `tmx_id` (`depot.properties["warehouses"]`, restored in `Game`), and clears
    the replaced sprite's own preview cells. It also stamps the atlas cells into a `Houses N` tile layer (`--layer`, default
-   `Houses 6`) so Tiled shows the building; the script refuses if a cell is taken.
+   `Houses 6`) so Tiled shows the building; the script refuses if a cell is
+   taken, so try another layer (`near` shows which are busy there).
+   Town houses: 15–35 inhabitants.
 
-5. **Render again** with figures in front of the door and look at it.
+7. **Render again** with figures in front of the door and look at it.
 
-6. **Load it headless** to catch parse warnings:
+8. **Load it headless** and check the wiring (door attached with a step,
+   every light on this house, smoke present, no overlapping collision):
    ```
-   SDL_VIDEODRIVER=dummy python -c "import pygame; pygame.init(); pygame.display.set_mode((1760,1064)); from src.models.map import TMXMap; m=TMXMap('assets/tiles/Map1.tmx'); print([(h.name, h.display_name, h.collision_rect) for h in m.houses if h.name=='Barn'])"
+   SDL_VIDEODRIVER=dummy PYTHONPATH=. python -c "
+   import pygame; pygame.init(); pygame.display.set_mode((1760,1064))
+   from src.models.map import TMXMap
+   m=TMXMap('assets/tiles/Map1.tmx'); h=[h for h in m.houses if h.name=='House_21'][0]
+   print(h.collision_rect, h.inhabitants, len(h.associated_lights), [(d.direction, d.step) for d in h.doors])
+   print([x.name for x in m.houses if x is not h and x.collision_rect.colliderect(h.collision_rect)])"
    ```
+   A light goes to the candidate building with the nearest base below it
+   (`TMXMap._load_lights`), so fewer lights than you placed means one of them
+   is outside the 5-tiles-above zone.
 
-7. Tick its item in `docs/TODO.md` (move it to "Finished Features") and
+9. Tick its item in `docs/TODO.md` (move it to "Finished Features") and
    commit the map with the sprite, `Houses.png` and `building_catalog.json` if
    they are still uncommitted.
 
