@@ -3,8 +3,9 @@
 Left the split image as it was last sent and the ways to more answers, in
 the middle the answers, right the chosen one cut out and scaled beside the
 example, as it would be saved. Accepting saves it as a single sprite, puts
-it into its sprite collection for Tiled and catalogs it (sprite_library.add_sprite()).
-More than one answer of a job can be accepted, as variants.
+it into its sprite collection for Tiled and catalogs it (sprite_library.add_sprite()),
+then goes back to the plants or buildings, where the new sprite shows. An
+accepted job is not listed there any more.
 """
 
 from pathlib import Path
@@ -158,7 +159,7 @@ class AnswersView(View):
         self.job.save()
         self.store.set_status(self.entry, pose_review.ACCEPTED)
         self.app.reload_library(domain)
-        self.build_answer_cards()
+        self.app.close_job()          # back to the plants or buildings, where the new one shows
         self.app.set_status(added.summary())
         self.app.toast.show(f'Added {added.path.name}')
 

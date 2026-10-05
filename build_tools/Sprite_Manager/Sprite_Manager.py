@@ -152,7 +152,8 @@ build_tools/output/<plants|buildings>/<job>/:
    build_tools/output/<domain>/atlas_backups/ first; the .xcf it was
    exported from does not get the new sprite. The status line gives the
    Tiled properties for its object: a tree's stem, a building's class, size
-   and collision box (sprite_library.py has the whole story).
+   and collision box (sprite_library.py has the whole story), and the tool
+   goes back to the plants or buildings.
 
 The code, for whoever works on it next:
 
