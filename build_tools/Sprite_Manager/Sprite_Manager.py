@@ -53,10 +53,15 @@ switches to full screen.
    model has to keep it instead of drawing it anew; "Free" leaves it to the
    model. It is kept for every sheet, and only works where the standing
    sprite faces the frame's way: down, up, left, right. Then either
-   - for free, through the Gemini web view: "Copy image" (Ctrl+C) and
-     "Copy prompt" (Ctrl+Shift+C), paste both there, copy the answer and
-     "Paste answer" (Ctrl+V) - or drop the image file onto the window, or
-     "Open image" (Ctrl+O);
+   - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
+     has the Gemini tab in Firefox open a new chat, choose Pro with
+     extended thinking off, and send sheet and prompt (web_bridge.py and
+     the userscript gemini_bridge.user.js; to install it, open
+     http://127.0.0.1:47613/gemini_bridge.user.js in Firefox with
+     Violentmonkey or Tampermonkey while the tool runs). By hand: "Copy
+     image" (Ctrl+C) and "Copy prompt" (Ctrl+Shift+C), paste both there.
+     Then copy the answer and "Paste answer" (Ctrl+V) - or drop the image
+     file onto the window, or "Open image" (Ctrl+O);
    - or through the API: "Send to Gemini" for this frame, or "Send missing"
      in the footer for every frame of the direction that is not done yet.
      "Settings" (S) chooses the model, aspect ratio, image size and how many
@@ -193,9 +198,11 @@ The code, for whoever works on it next:
     gimp.py            GIMP and the watch on files edited outside
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard
+    web_bridge.py      sending a sheet to the Gemini tab in the browser, with gemini_bridge.user.js
     win_window.py      snapping the window into the left half of the screen
 """
 
+import io
 import os
 import sys
 from pathlib import Path
@@ -235,6 +242,7 @@ from view_npcs import NpcListView  # noqa: E402
 from view_sprite_answers import AnswersView  # noqa: E402
 from view_sprite_design import DesignView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
+from web_bridge import BRIDGE, BridgeError  # noqa: E402
 from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION  # noqa: E402
 from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text  # noqa: E402
 
@@ -283,6 +291,11 @@ class SpriteManager:
         self.home_button = Button('Start page', w=130)
         self.folder_button = Button('Open folder', w=130)
         self.settings_button = Button('Settings', w=110)
+
+        try:
+            BRIDGE.start()            # Gemini tabs and the userscript's install page find it from the start
+        except BridgeError as exc:
+            self.set_status(str(exc), error=True)
 
         self.view = None
         self.show(HomeView(self))
@@ -547,6 +560,25 @@ class SpriteManager:
         if len(self.store.entries) != before or (self.worker.finished and not was_finished):
             self.view.refresh()
 
+    # --- the Gemini web view ----------------------------------------------
+
+    def send_web(self, sheet, label):
+        """Hand a sheet to the Gemini tab in the browser (web_bridge.py), which sends it with Pro."""
+        png = io.BytesIO()
+        try:
+            pygame.image.save(sheet.surface, png, 'sheet.png')
+            message = BRIDGE.submit(png.getvalue(), sheet.prompt, label)
+        except (pygame.error, BridgeError) as exc:
+            self.set_status(str(exc), error=True)
+            return
+        self.set_status(message)
+        self.toast.show('Sent to the browser')
+
+    def poll_web_bridge(self):
+        news = BRIDGE.poll()
+        if news:
+            self.set_status(*news)
+
     # --- dialogs ----------------------------------------------------------
 
     def open_settings(self):
@@ -713,6 +745,7 @@ class SpriteManager:
                 elif event.type == pygame.MOUSEBUTTONUP and not self.dialog:
                     self.view.mouse_up(event.pos, event.button)
             self.poll_worker()
+            self.poll_web_bridge()
             self.watch_gimp_edits()
             self.view.tick()
             self.draw()

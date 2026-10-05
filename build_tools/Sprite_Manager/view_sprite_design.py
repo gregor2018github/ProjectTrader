@@ -78,7 +78,8 @@ class DesignView(View):
         self.paste_button = Button('Paste answer', h=BUTTON_H)
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
-        self.send_buttons = (self.copy_image_button, self.copy_prompt_button, self.paste_button,
+        self.web_button = Button('Send in browser', h=BUTTON_H)
+        self.send_buttons = (self.web_button, self.copy_image_button, self.copy_prompt_button, self.paste_button,
                              self.open_button, self.send_button)
         self.answers_button = Button('Answers', w=150)
         self.discard_button = Button('Discard', w=110)
@@ -87,6 +88,7 @@ class DesignView(View):
                         (self.clear_button, self.clear),
                         (self.copy_image_button, self.copy_image),
                         (self.copy_prompt_button, self.copy_prompt),
+                        (self.web_button, self.send_web),
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send),
@@ -157,6 +159,11 @@ class DesignView(View):
         self.app.set_status('Prompt copied')
         self.app.toast.show('Prompt copied')
 
+    def send_web(self):
+        sheet = self.ready_sheet()
+        if sheet:
+            self.app.send_web(sheet, f'new {self.job.domain.noun}')
+
     def paste_answer(self):
         try:
             self.import_answer(*clipboard_answer())
@@ -203,7 +210,7 @@ class DesignView(View):
         return (f'2. New {self.job.domain.noun} from {self.job.example_label}',
                 'Sketch the shape in the red frame (B brush, L line, F fill, left paints, right rubs out, '
                 'Shift+click straight on, Alt+click takes a colour, 1-0 recent colours, Ctrl+Z undo), '
-                'pick the type, then send it. Ctrl+V or drop a file = answer.')
+                'pick the type, then send it (Ctrl+W in the browser). Ctrl+V or drop a file = answer.')
 
     def footer(self):
         app = self.app
@@ -261,7 +268,7 @@ class DesignView(View):
         for button in (self.copy_image_button, self.copy_prompt_button):
             button.enabled = ready and win_clipboard.AVAILABLE
         self.paste_button.enabled = ready and win_clipboard.AVAILABLE
-        self.open_button.enabled = ready
+        self.open_button.enabled = self.web_button.enabled = ready
         self.send_button.enabled = ready and not self.app.busy() and not gemini_client.SDK_ERROR
         self.send_button.label = 'Sending ...' if self.app.busy() else 'Send to Gemini'
         self.undo_button.enabled = bool(self.job.undo_stack)
@@ -602,6 +609,8 @@ class DesignView(View):
                 self.copy_prompt()
             else:
                 self.copy_image()
+        elif event.key == pygame.K_w and ctrl:
+            self.send_web()
         elif event.key == pygame.K_v and ctrl:
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:

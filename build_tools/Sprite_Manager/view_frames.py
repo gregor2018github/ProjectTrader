@@ -88,13 +88,14 @@ class FramesView(View):
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
         self.from_frame_button = Button('From other frame', h=BUTTON_H)
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
+        self.web_button = Button('Send in browser', h=BUTTON_H)
         # Under the animation in the directions panel
         self.export_button = Button('Export...', h=BUTTON_H)
         self.colours_button = Button('Even out colours', h=BUTTON_H)
         self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
                                   (self.paste_button, self.open_button),
                                   (self.send_button, self.from_frame_button),
-                                  (self.gimp_button,))
+                                  (self.web_button, self.gimp_button))
         self.actions = ((self.review_button, app.open_review),
                         (self.missing_button, self.send_missing),
                         (self.mirror_all_button, self.mirror_missing),
@@ -104,6 +105,7 @@ class FramesView(View):
                         (self.gimp_button, self.edit_in_gimp),
                         (self.copy_image_button, self.copy_image),
                         (self.copy_prompt_button, self.copy_prompt),
+                        (self.web_button, self.send_web),
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send_current),
@@ -320,6 +322,11 @@ class FramesView(View):
             return
         self.app.set_status(f'Prompt of {sheet.pose} copied')
         self.app.toast.show('Prompt copied')
+
+    def send_web(self):
+        sheet = self.rebuild_current()
+        if sheet:
+            self.app.send_web(sheet, f'{self.npc.name} {sheet.pose}')
 
     def paste_answer(self):
         """Take the image on the clipboard as the answer for the chosen frame."""
@@ -554,8 +561,8 @@ class FramesView(View):
         motions = ' / '.join(m.label for m in self.npc.motions)
         switch = f'Tab = {motions.lower()}. ' if len(self.npc.motions) > 1 else ''
         return (f'2. {motions} frames for "{self.npc.name}"',
-                f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = '
-                'copy prompt, Ctrl+V or drop a file = answer from the web view, H = lock head, E = even out colours, '
+                f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+W = send in browser, Ctrl+C = copy sheet, '
+                'Ctrl+Shift+C = copy prompt, Ctrl+V or drop a file = answer from the web view, H = lock head, E = even out colours, '
                 'S = settings.')
 
     def footer(self):
@@ -697,7 +704,7 @@ class FramesView(View):
         ready = bool(sheet)
         for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button):
             button.enabled = ready and win_clipboard.AVAILABLE
-        self.open_button.enabled = ready
+        self.open_button.enabled = self.web_button.enabled = ready
         self.from_frame_button.enabled = ready
         self.send_button.enabled = ready and not app.busy() and not gemini_client.SDK_ERROR
         tries = app.settings.tries
@@ -775,6 +782,8 @@ class FramesView(View):
                 self.copy_prompt()
             else:
                 self.copy_image()
+        elif event.key == pygame.K_w and ctrl:
+            self.send_web()
         elif event.key == pygame.K_v and ctrl:
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:

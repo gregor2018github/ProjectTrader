@@ -58,15 +58,17 @@ class FirstSpriteView(View):
         self.paste_button = Button('Paste answer', h=BUTTON_H)
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send to Gemini', h=BUTTON_H)
+        self.web_button = Button('Send in browser', h=BUTTON_H)
         self.button_rows = ((self.edit_button,),
                             (self.copy_image_button, self.copy_prompt_button),
                             (self.paste_button, self.open_button),
-                            (self.send_button,))
+                            (self.web_button, self.send_button))
         self.reject_button = Button('Not good enough', w=190)
         self.accept_button = Button('Accept', w=150)
         self.actions = ((self.edit_button, self.edit_description),
                         (self.copy_image_button, self.copy_image),
                         (self.copy_prompt_button, self.copy_prompt),
+                        (self.web_button, self.send_web),
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send),
@@ -166,6 +168,11 @@ class FirstSpriteView(View):
         self.app.set_status('Prompt copied')
         self.app.toast.show('Prompt copied')
 
+    def send_web(self):
+        sheet = self.ready_sheet()
+        if sheet:
+            self.app.send_web(sheet, f'{self.figure.name} front')
+
     def paste_answer(self):
         try:
             self.import_answer(*clipboard_answer())
@@ -233,7 +240,7 @@ class FirstSpriteView(View):
     def header(self):
         title = 'Redo the front sprite' if self.return_to else 'First sprite'
         return (f'2. {title} for "{self.figure.name}"',
-                'Describe them, then Ctrl+C / Ctrl+Shift+C for the web view or Send to Gemini. '
+                'Describe them, then Ctrl+W (send in browser), Ctrl+C / Ctrl+Shift+C for the web view or Send to Gemini. '
                 'Ctrl+V or drop a file = answer, Enter = accept, Del = not good enough.')
 
     def footer(self):
@@ -308,6 +315,7 @@ class FirstSpriteView(View):
             button.enabled = ready and win_clipboard.AVAILABLE
         self.paste_button.enabled = bool(self.sheet) and win_clipboard.AVAILABLE
         self.open_button.enabled = bool(self.sheet)
+        self.web_button.enabled = ready
         self.send_button.enabled = ready and not self.app.busy() and not gemini_client.SDK_ERROR
         self.send_button.label = 'Sending ...' if self.app.busy() else 'Send to Gemini'
         for row in self.button_rows:
@@ -348,6 +356,8 @@ class FirstSpriteView(View):
                 self.copy_prompt()
             else:
                 self.copy_image()
+        elif event.key == pygame.K_w and ctrl:
+            self.send_web()
         elif event.key == pygame.K_v and ctrl:
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:
