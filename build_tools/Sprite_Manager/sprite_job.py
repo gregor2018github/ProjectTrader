@@ -13,11 +13,15 @@ build_tools/output/<domain>/<job>/ holds everything about it:
     sheet.png     the split image sent to the model, and prompt.txt with it
     review.json   the answers, as for the humans (pose_review.py)
 
-The split image is two square white cells side by side: the example blown up
-by whole pixels on the left, and on the right, inside a red frame, the sketch
-painted in flat colours, at the same scale. The model is asked to draw a
-sprite of the kind in the red frame, shaped like the sketch and coloured as
-it is, in the example's style; the domain's prompt template says how.
+The split image is two white cells: the example blown up by whole pixels in
+the first, and in the second, inside a red frame, the sketch painted in flat
+colours, at the same scale. The cells take the example's shape, within
+CELL_ASPECT, so a wide building is not lost in a square of white; wide cells
+are stacked, the example on top, and the others are side by side, the example
+on the left. Jobs made before that keep square cells side by side. The model
+is asked to draw a sprite of the kind in the red frame, shaped like the
+sketch and coloured as it is, in the example's style; the domain's prompt
+template says how.
 
 The colours last painted with are kept per domain in recent_colours.json in
 its output folder, for the quick picks under the colour wheel.
@@ -48,6 +52,9 @@ CELL_TARGET = 640               # the example is blown up by whole pixels to abo
 EXAMPLE_SHARE = 0.6             # of the cell's side the example takes, leaving room for a bigger sprite
 GROUND_SHARE = 0.06             # of the cell's side below the foot line
 LEGACY_LAYOUT = (0.8, 0.1)      # (example share, ground share) of jobs made before the room was grown
+CELL_ASPECT = (0.5, 2.0)        # (narrowest, widest) a cell's width to height, around the example's
+STACK_ASPECT = 1.2              # cells this much wider than high are stacked; about square, either way would do
+SQUARE, FITTED = 'square', 'fitted'   # a job's cell shape: always square (older jobs) or the example's
 UNDO_STEPS = 30
 SKETCH_VERSION = 2              # 1: a one-colour mask, shown in the job's colour; 2: flat colours
 CLEAR = (0, 0, 0, 0)
@@ -161,8 +168,9 @@ class SpriteJob:
         self.prompt_notes = list(data.get('prompt_notes', []))   # rule lines of this job's own, set in job.json
         # The cell's layout is kept with the job, so its sketch stays where it was drawn
         self.layout = tuple(data.get('layout', LEGACY_LAYOUT))
+        self.cell_shape = data.get('cell_shape', SQUARE)
         self.example = pygame.image.load(str(self.folder / EXAMPLE_FILE)).convert_alpha()
-        self.factor, self.cell, self.margin = self.geometry()
+        self.factor, self.cell_size, self.margin = self.geometry()
         self.sketch = self._load_sketch(sketch_version)
         self.undo_stack = []
         self._painted = None           # has_sketch() and colours(), until the sketch changes
@@ -183,7 +191,8 @@ class SpriteJob:
         data = {'kind': kind, 'subcategory': '', 'colour': list(domain.default_colour),
                 'example': sprite.label if sprite.path is None else sprite.path.name,
                 'example_kind': sprite.kind, 'created': datetime.now().isoformat(timespec='seconds'),
-                'accepted': {}, 'layout': [EXAMPLE_SHARE, GROUND_SHARE], 'sketch_version': SKETCH_VERSION}
+                'accepted': {}, 'layout': [EXAMPLE_SHARE, GROUND_SHARE], 'cell_shape': FITTED,
+                'sketch_version': SKETCH_VERSION}
         (folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
         return cls(domain, folder)
 
@@ -208,7 +217,8 @@ class SpriteJob:
         """job.json and sketch.png."""
         data = {'kind': self.kind, 'subcategory': self.subcategory, 'colour': list(self.colour),
                 'example': self.example_label, 'example_kind': self.example_kind, 'created': self.created,
-                'accepted': self.accepted, 'layout': list(self.layout), 'sketch_version': SKETCH_VERSION,
+                'accepted': self.accepted, 'layout': list(self.layout), 'cell_shape': self.cell_shape,
+                'sketch_version': SKETCH_VERSION,
                 'palette': [list(c) for c in self.palette]}
         if self.prompt_notes:
             data['prompt_notes'] = self.prompt_notes
@@ -216,14 +226,14 @@ class SpriteJob:
         pygame.image.save(self.sketch, str(self.folder / SKETCH_FILE))
 
     def _load_sketch(self, version):
-        sketch = pygame.Surface((self.cell, self.cell), pygame.SRCALPHA)
+        sketch = pygame.Surface(self.cell_size, pygame.SRCALPHA)
         sketch.fill(CLEAR)
         try:
             image = pygame.image.load(str(self.folder / SKETCH_FILE)).convert_alpha()
         except (pygame.error, OSError):
             return sketch
-        if image.get_size() != (self.cell, self.cell):
-            image = pygame.transform.scale(image, (self.cell, self.cell))
+        if image.get_size() != self.cell_size:
+            image = pygame.transform.scale(image, self.cell_size)
         if version < 2:   # a mask in black, meant to be shown in the job's colour
             return pygame.mask.from_surface(image, 128).to_surface(setcolor=self.colour + (255,),
                                                                    unsetcolor=CLEAR)
@@ -271,7 +281,7 @@ class SpriteJob:
             self.palette.append(tuple(colour))
 
     def paint(self, a, b, radius, colour=None):
-        """A brush line from a to b (right-cell coordinates) in `colour`, kept inside the red frame;
+        """A brush line from a to b (sketch-cell coordinates) in `colour`, kept inside the red frame;
         without a colour it rubs out."""
         self._painting_with(colour)
         paint = CLEAR if colour is None else tuple(colour) + (255,)
@@ -310,7 +320,7 @@ class SpriteJob:
         return True
 
     def colour_at(self, point):
-        """The colour painted at a right-cell point, or None for bare paper."""
+        """The colour painted at a sketch-cell point, or None for bare paper."""
         point = (int(point[0]), int(point[1]))
         if not self.sketch.get_rect().collidepoint(point):
             return None
@@ -332,45 +342,68 @@ class SpriteJob:
     # --- the split image ----------------------------------------------------
 
     def geometry(self):
-        """(factor, cell side, room below the foot): the example blown up by whole pixels in a square cell.
+        """(factor, cell size, room below the foot): the example blown up by whole pixels in a cell.
 
-        The example takes the layout's share of the cell, so the new sprite can
-        be sketched bigger than it.
+        The example takes the layout's share of the cell along both sides, so
+        the new sprite can be sketched bigger than it. A square job's cell is
+        as wide as high; a fitted one only widens the narrower side as far as
+        it takes to keep the cell within CELL_ASPECT.
         """
         share, ground = self.layout
         w, h = self.example.get_size()
         factor = max(1, CELL_TARGET // max(w, h))
-        side = int(max(w, h) * factor / share)
-        return factor, side, int(side * ground)
+        if self.cell_shape == SQUARE:
+            cw = ch = max(w, h) * factor / share
+        else:
+            cw, ch = w * factor / share, h * factor / share
+            low, high = CELL_ASPECT
+            cw, ch = max(cw, ch * low), max(ch, cw / high)
+        cw, ch = int(cw), int(ch)
+        return factor, (cw, ch), int(ch * ground)
+
+    @property
+    def stacked(self):
+        """True if the cells are above each other, the example on top: a wide cell's way."""
+        return self.cell_size[0] > self.cell_size[1] * STACK_ASPECT
+
+    @property
+    def layout_name(self):
+        """The sheet's layout for extraction.find_cells(): '2x1' stacked, '1x2' side by side."""
+        return '2x1' if self.stacked else '1x2'
 
     def cells(self):
-        """(left cell, right cell) on the sheet."""
-        return [pygame.Rect(FRAME_WIDTH + col * (self.cell + FRAME_WIDTH), FRAME_WIDTH, self.cell, self.cell)
-                for col in range(2)]
+        """(example cell, sketch cell) on the sheet."""
+        cw, ch = self.cell_size
+        dx, dy = (0, ch + FRAME_WIDTH) if self.stacked else (cw + FRAME_WIDTH, 0)
+        return [pygame.Rect(FRAME_WIDTH + i * dx, FRAME_WIDTH + i * dy, cw, ch) for i in range(2)]
 
     def drawable(self):
-        """Where the sketch may go, in right-cell coordinates: inside the red frame."""
+        """Where the sketch may go, in sketch-cell coordinates: inside the red frame."""
         inset = TARGET_FRAME_WIDTH + 4
-        return pygame.Rect(inset, inset, self.cell - 2 * inset, self.cell - 2 * inset)
+        cw, ch = self.cell_size
+        return pygame.Rect(inset, inset, cw - 2 * inset, ch - 2 * inset)
 
     def ground(self):
         """The example's foot line, in cell coordinates."""
-        return self.cell - self.margin
+        return self.cell_size[1] - self.margin
 
     def build_sheet_size(self):
-        return 2 * self.cell + 3 * FRAME_WIDTH, self.cell + 2 * FRAME_WIDTH
+        cw, ch = self.cell_size
+        if self.stacked:
+            return cw + 2 * FRAME_WIDTH, 2 * ch + 3 * FRAME_WIDTH
+        return 2 * cw + 3 * FRAME_WIDTH, ch + 2 * FRAME_WIDTH
 
     def build_sheet(self, with_sketch=True):
-        left, right = self.cells()
+        example_cell, sketch_cell = self.cells()
         sheet = pygame.Surface(self.build_sheet_size())
         sheet.fill(FRAME_COLOR)
-        sheet.fill((255, 255, 255), left)
-        sheet.fill((255, 255, 255), right)
+        sheet.fill((255, 255, 255), example_cell)
+        sheet.fill((255, 255, 255), sketch_cell)
         example = scaled(self.example, self.factor)
-        sheet.blit(example, example.get_rect(midbottom=(left.centerx, left.y + self.ground())))
+        sheet.blit(example, example.get_rect(midbottom=(example_cell.centerx, example_cell.y + self.ground())))
         if with_sketch:
-            sheet.blit(self.sketch_surface(), right)
-        pygame.draw.rect(sheet, TARGET_FRAME_COLOR, right, TARGET_FRAME_WIDTH)
+            sheet.blit(self.sketch_surface(), sketch_cell)
+        pygame.draw.rect(sheet, TARGET_FRAME_COLOR, sketch_cell, TARGET_FRAME_WIDTH)
         return sheet
 
     def sketch_surface(self):
@@ -405,8 +438,9 @@ class SpriteJob:
                     f'lighter tones of itself')
         # One more rule line each, after the template's own (a template without {notes} goes without)
         notes = ''.join(f'\n- {note}' for note in (*kind.prompt_notes, *self.prompt_notes))
+        first, second = ('top', 'bottom') if self.stacked else ('left', 'right')
         return self.domain.prompt_template.format(
-            example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
+            first=first, second=second, example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
             sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part, notes=notes)
 
     def write_sheet(self):

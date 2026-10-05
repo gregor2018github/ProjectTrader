@@ -1,9 +1,9 @@
 """From the model's answer to a new sprite, a plant or a building.
 
-The answer is the split image of sprite_job.py with the right cell drawn in.
+The answer is the split image of sprite_job.py with the sketch cell drawn in.
 Both cells are found as for a new figure's first sprite (extraction.py,
-layout 1x2). The example is cut out of the left cell and the new sprite out
-of the right one, after the red frame is cut off its edges - the sprite may
+layout 1x2, or 2x1 for a job whose cells are stacked). The example is cut out
+of the first cell and the new sprite out of the second, after the red frame is cut off its edges - the sprite may
 well be red itself, so red cannot count as background as it does for the
 humans. The new sprite is then scaled by the factor that brings the example
 in the answer back to the example's real size, which keeps the size the
@@ -60,24 +60,25 @@ def strip_red_frame(cell):
 class SpriteResult:
     """A loaded answer and the sprite made from it."""
 
-    def __init__(self, path, example):
+    def __init__(self, path, example, layout='1x2'):
         """
         Args:
             path: The answer image.
             example: The example sprite as it is in the game (trimmed).
+            layout: The job's sheet layout, '1x2' side by side or '2x1' stacked.
 
         Raises:
             ValueError, pygame.error: If the cells or the sprites cannot be found.
         """
         self.image = pygame.image.load(str(path)).convert()
-        ref_rect, target_rect, _ = find_cells(self.image, '1x2')
+        ref_rect, target_rect, _ = find_cells(self.image, layout)
         self.ref = Extraction(self.image.subsurface(ref_rect).copy())
         cell, _ = strip_red_frame(self.image.subsurface(target_rect).copy())
         self.target = Extraction(cell, drop_red=False)
         if self.ref.bbox is None:
-            raise ValueError('No example found in the left cell.')
+            raise ValueError('No example found in the first cell.')
         if self.target.bbox is None:
-            raise ValueError('The right cell is empty.')
+            raise ValueError('The sketch cell is empty.')
         self.example = example
         self.build()
 
@@ -94,7 +95,7 @@ class SpriteResult:
         self.output = pygame.transform.smoothscale(sprite, size)
 
     def output_to_cell(self, point):
-        """A point on the output back in the right cell's coordinates."""
+        """A point on the output back in the sketch cell's coordinates."""
         return (int(point[0] / self.scale + self.target.bbox.x),
                 int(point[1] / self.scale + self.target.bbox.y))
 
@@ -115,7 +116,7 @@ class SpriteDetail:
         self.result = None
         self.error = ''
         try:
-            self.result = SpriteResult(self.path, job.example)
+            self.result = SpriteResult(self.path, job.example, job.layout_name)
         except Exception as exc:  # cell detection and extraction fail in many ways
             self.error = f'Cannot use this image: {exc}'
         self.preview = None   # (rect, factor) of the sprite where it was last drawn

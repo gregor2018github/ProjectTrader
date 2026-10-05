@@ -131,18 +131,26 @@ def find_cells(image, layout=None):
 
     Args:
         image: The image the model returned.
-        layout: '1x2' or '2x2' when the caller knows which sheet was sent.
-            The cells are then separated even where the model drew no frame
-            line, which happens in small answers. None guesses the layout
-            from the frame lines alone.
+        layout: '1x2', '2x1' or '2x2' when the caller knows which sheet was
+            sent. The cells are then separated even where the model drew no
+            frame line, which happens in small answers. None guesses the
+            layout from the frame lines alone. '2x1' is a split image with
+            its cells above each other, the reference on top; it is never
+            guessed.
     """
     w, h = image.get_size()
+    dark = dark_lines(image)
+    if layout == '2x1':
+        left, _, _, right = split_axis(line_fill(dark, w, True), w)
+        top, row_a, row_b, bottom = split_axis(line_fill(dark, h, False), h, True)
+        ref = pygame.Rect(left, top, right - left, row_a - top)
+        target = pygame.Rect(left, row_b, right - left, bottom - row_b)
+        ink = ink_lines(image)
+        return trim_frame(ink, ref), trim_frame(ink, target), layout
     # A 2x2 sheet is always clearly taller than wide. An answer that is not
     # did not keep the layout, and guessing beats forcing a split onto it.
     if layout == '2x2' and w >= h:
         layout = None
-    dark = pygame.mask.from_threshold(
-        image, (0, 0, 0, 255), (DARK_TOLERANCE, DARK_TOLERANCE, DARK_TOLERANCE, 255)).to_surface()
     left, col_a, col_b, right = split_axis(line_fill(dark, w, True), w, layout is not None)
     top, row_a, row_b, bottom = split_axis(line_fill(dark, h, False), h, layout == '2x2')
 
@@ -157,12 +165,22 @@ def find_cells(image, layout=None):
         ref = pygame.Rect(left, row_b, col_a - left, bottom - row_b)
         target = pygame.Rect(col_b, row_b, right - col_b, bottom - row_b)
 
-    # Everything that is not near-white: frame lines plus their blurry edges.
+    ink = ink_lines(image)
+    return trim_frame(ink, ref), trim_frame(ink, target), layout
+
+
+def dark_lines(image):
+    """The image's near-black pixels, where the frame lines are."""
+    return pygame.mask.from_threshold(
+        image, (0, 0, 0, 255), (DARK_TOLERANCE, DARK_TOLERANCE, DARK_TOLERANCE, 255)).to_surface()
+
+
+def ink_lines(image):
+    """Everything that is not near-white: frame lines plus their blurry edges."""
     t = FRINGE_TOLERANCE
     ink = pygame.mask.from_threshold(image, (255, 255, 255, 255), (t, t, t, 255))
     ink.invert()
-    ink = ink.to_surface()
-    return trim_frame(ink, ref), trim_frame(ink, target), layout
+    return ink.to_surface()
 
 
 def trim_frame(ink, rect):

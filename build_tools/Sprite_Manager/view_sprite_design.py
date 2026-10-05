@@ -334,18 +334,18 @@ class DesignView(View):
     def to_cell(self, pos):
         """A screen point in right-cell coordinates."""
         right = self.right_cell_on_screen()
-        factor = right.w / self.job.cell
+        factor = right.w / self.job.cell_size[0]
         return (pos[0] - right.x) / factor, (pos[1] - right.y) / factor
 
     def to_screen(self, point):
         """A right-cell point on the screen."""
         right = self.right_cell_on_screen()
-        factor = right.w / self.job.cell
+        factor = right.w / self.job.cell_size[0]
         return round(right.x + point[0] * factor), round(right.y + point[1] * factor)
 
     def radius(self):
         share = dict(BRUSHES)[self.brush]
-        return max(1, round(self.job.cell * share))
+        return max(1, round(min(self.job.cell_size) * share))
 
     def draw_controls(self, screen, rect, mouse):
         fonts = self.app.fonts

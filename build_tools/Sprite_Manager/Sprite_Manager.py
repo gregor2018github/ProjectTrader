@@ -123,11 +123,11 @@ on the fly. Right-click a sprite to change its kind or subcategory.
 Clicking a sprite starts a new one with it as the example, in
 build_tools/output/<plants|buildings>/<job>/:
 1. Sketch the new sprite's rough shape with the mouse in the red frame
-   beside the example, in as many flat colours as it takes (brush, line or
-   fill tool; left button paints, right button rubs out, Shift+click with
-   the brush goes on in a straight line, Shift with the line tool keeps to
-   15 degree steps, Alt+click takes up a colour, Ctrl+Z; the colours used
-   last are quick picks under the wheel),
+   beside the example (under it, if the example is wide), in as many flat
+   colours as it takes (brush, line or fill tool; left button paints, right
+   button rubs out, Shift+click with the brush goes on in a straight line,
+   Shift with the line tool keeps to 15 degree steps, Alt+click takes up a
+   colour, Ctrl+Z; the colours used last are quick picks under the wheel),
    then pick its type (the example's to begin with) and an optional
    subcategory ("oak", "bakery"; clicking the field proposes some). All of
    it goes into the prompt.

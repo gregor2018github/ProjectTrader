@@ -35,7 +35,7 @@ HOUSES_DIR = MAP_SPRITES / 'houses'
 #: water and lets people walk along its walkway (src/models/bridge.py).
 BRIDGE_NOTES = (
     'It runs from left to right, as if across a river flowing from the top of the picture to the bottom, '
-    'and is seen from the same high three-quarter angle as the sprite on the left: the '
+    'and is seen from the same high three-quarter angle as the sprite in the {first} cell: the '
     'walkway is seen from above, the railing along its far side stands behind the walkway and the '
     'railing along its near side in front of it, low and open enough that the walkway behind it stays '
     'in view.',
@@ -93,19 +93,19 @@ SUGGESTIONS = {
 }
 
 PROMPT_TEMPLATE = """\
-The attached picture is a split view for my medieval trading game "Merchant's Rise". The left cell shows an existing pixel-art map sprite: {example}. The right cell, inside the red frame, holds a rough flat {colours} shape that I scribbled with the mouse. It is not a drawing to keep, only a sketch of the outline, size and position of a new sprite.
+The attached picture is a split view for my medieval trading game "Merchant's Rise". The {first} cell shows an existing pixel-art map sprite: {example}. The {second} cell, inside the red frame, holds a rough flat {colours} shape that I scribbled with the mouse. It is not a drawing to keep, only a sketch of the outline, size and position of a new sprite.
 
-Draw a new {noun}{sub} in the right cell:
+Draw a new {noun}{sub} in the {second} cell:
 - Its outline and size follow the sketch: where the sketch is wide it is wide, where it is tall it is tall, and it stands on the ground where the sketch's lowest point is. Turn the wobbly mouse lines into straight walls, roof edges and posts, as fits a {noun}.
 - {colour_rule}, and give everything the colours do not stand for (such as timber, plaster, stone, doors and windows) fitting medieval colours.
 - No trace of the flat sketch or its edge may remain.{notes}
 
-The most important thing is that the new {noun} looks like it comes from the exact same game as the sprite on the left:
+The most important thing is that the new {noun} looks like it comes from the exact same game as the sprite in the {first} cell:
 - Copy its art style exactly: the same size of pixels (not finer), the same outline, the same way of shading with few shades per colour, the same amount of detail, the same viewing angle and the same light from the same side.
-- Draw it at the scale the sketch shows next to the left sprite, not at the left sprite's size, so that doors, windows and other parts keep the size they have on the left.
-- Plain white background. No shadow, ground or paving beyond what the left sprite has at its foot.
+- Draw it at the scale the sketch shows next to the {first} sprite, not at the {first} sprite's size, so that doors, windows and other parts keep the size they have in the {first} cell.
+- Plain white background. No shadow, ground or paving beyond what the {first} sprite has at its foot.
 
-Draw nothing outside the red frame and leave the left cell exactly as it is. Output the full split image.
+Draw nothing outside the red frame and leave the {first} cell exactly as it is. Output the full split image.
 """
 
 SOLID_ALPHA = 128   # a pixel of the foot this opaque counts for the collision margins
