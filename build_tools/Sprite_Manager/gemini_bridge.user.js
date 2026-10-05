@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.1
+// @version      1.2
 // @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, Pro without extended thinking, image and prompt, send.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
@@ -96,9 +96,37 @@
         return (account ? account[0] : '') + '/app';
     }
 
-    function inputArea(editor) {
-        return editor.closest('input-area-v2, input-container, .input-area-container, .input-area, fieldset')
-            || editor.parentElement.parentElement.parentElement;
+    // The chat box as it is now: Gemini swaps it for a new one while a chat loads, so never keep one
+    function chatBox() {
+        return [...document.querySelectorAll(EDITOR)].find((el) => el.isConnected && visible(el)) || null;
+    }
+
+    // Wait until the same chat box has stayed put for a moment, i.e. the page is done building it
+    async function settledChatBox() {
+        const until = Date.now() + 20000;
+        let last = null;
+        let since = 0;
+        while (Date.now() < until) {
+            const box = chatBox();
+            if (box !== last) {
+                last = box;
+                since = Date.now();
+            } else if (box && Date.now() - since >= 1000) {
+                return box;
+            }
+            await sleep(200);
+        }
+        throw new Error('The chat box not found');
+    }
+
+    function inputArea() {
+        const editor = chatBox();
+        if (!editor) return document.body;
+        const tagged = editor.closest('input-area-v2, input-container, .input-area-container, .input-area, fieldset');
+        if (tagged) return tagged;
+        let area = editor;
+        for (let i = 0; i < 3 && area.parentElement; i++) area = area.parentElement;
+        return area;
     }
 
     // The button showing the model ("Pro") next to the microphone
@@ -162,29 +190,30 @@
 
     const attachments = (area) => area.querySelectorAll('img, uploader-file-preview, .file-preview, [class*="attachment" i]').length;
 
-    async function attachImage(editor, job) {
-        const area = inputArea(editor);
-        const before = attachments(area);
+    async function attachImage(job) {
+        const before = attachments(inputArea());
         const send = (make) => {
             const data = new DataTransfer();
             data.items.add(imageFile(job));
             make(data);
         };
         // Pasting is what a person does; dropping the file is the fallback
-        send((data) => editor.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true})));
+        send((data) => chatBox().dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true})));
         try {
-            await waitFor(() => attachments(area) > before, 4000, 'The pasted image');
+            await waitFor(() => attachments(inputArea()) > before, 4000, 'The pasted image');
             return;
         } catch (e) { /* try a drop */ }
         send((data) => {
+            const editor = chatBox();
             for (const type of ['dragenter', 'dragover', 'drop']) {
                 editor.dispatchEvent(new DragEvent(type, {dataTransfer: data, bubbles: true, cancelable: true}));
             }
         });
-        await waitFor(() => attachments(area) > before, 6000, 'The image in the chat box (paste and drop both failed)');
+        await waitFor(() => attachments(inputArea()) > before, 6000, 'The image in the chat box (paste and drop both failed)');
     }
 
-    async function typePrompt(editor, prompt) {
+    async function typePrompt(prompt) {
+        const editor = await waitFor(chatBox, 5000, 'The chat box');
         editor.focus();
         const selection = window.getSelection();
         selection.selectAllChildren(editor);
@@ -192,12 +221,13 @@
         document.execCommand('insertText', false, prompt);
         await sleep(300);
         const start = prompt.trim().slice(0, 30);
-        if ((editor.innerText || '').includes(start)) return;
+        const typed = () => (chatBox()?.innerText || '').includes(start);
+        if (typed()) return;
         // Fall back to pasting the text
         const data = new DataTransfer();
         data.setData('text/plain', prompt);
-        editor.dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true}));
-        await waitFor(() => (editor.innerText || '').includes(start), 3000, 'The prompt in the chat box');
+        chatBox().dispatchEvent(new ClipboardEvent('paste', {clipboardData: data, bubbles: true, cancelable: true}));
+        await waitFor(typed, 3000, 'The prompt in the chat box');
     }
 
     function sendButton(area) {
@@ -213,7 +243,7 @@
         sessionStorage.removeItem(STORE_KEY);
         let step = 'the chat box';
         try {
-            const editor = await waitFor(() => [...document.querySelectorAll(EDITOR)].find(visible), 20000, 'The chat box');
+            await settledChatBox();
             step = 'choosing the model';
             let modelProblem = '';
             try {
@@ -222,15 +252,15 @@
                 modelProblem = e.message;
             }
             step = 'the image';
-            await attachImage(editor, job);
+            await attachImage(job);
             step = 'the prompt';
-            await typePrompt(editor, job.prompt);
+            await typePrompt(job.prompt);
             if (modelProblem) {
                 report(job, `could not choose Pro (${modelProblem}) - image and prompt are in, choose the model and send by hand`, true);
                 return;
             }
             step = 'sending';
-            const button = await waitFor(() => sendButton(inputArea(editor)), 60000, 'An enabled send button');
+            const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
             await sleep(300);
             click(button);
             report(job, `${job.label} sent with Pro - Ctrl+V the answer into the Sprite Manager when it is drawn`);
