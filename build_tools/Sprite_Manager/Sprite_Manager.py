@@ -505,8 +505,19 @@ class SpriteManager:
 
     def close_job(self):
         domain = self.npc.domain
+        self.drop_untouched_job()
         self.npc = self.store = self.worker = None
         self.show(LibraryView(self, domain))
+
+    def drop_untouched_job(self):
+        """Delete the open plant or building job if nothing was sketched or asked for yet.
+
+        A job's folder is made as soon as an example is clicked; one only
+        looked at and closed should not stay behind as an unfinished sprite.
+        """
+        job = self.npc
+        if isinstance(job, SpriteJob) and not job.has_sketch() and not self.store.entries and not job.accepted:
+            job.discard()
 
     # --- Gemini API -------------------------------------------------------
 
@@ -704,5 +715,7 @@ class SpriteManager:
 
 
 if __name__ == '__main__':
-    SpriteManager().run()
+    manager = SpriteManager()
+    manager.run()
+    manager.drop_untouched_job()
     pygame.quit()
