@@ -2,7 +2,8 @@
 
 Left the directions and the walk as the game plays it, in the middle the
 frames of the chosen direction, right the chosen frame's sheet with the
-buttons that get an answer for it.
+buttons that get an answer for it. Above a frame's sheet, Free / Locked
+chooses whether the figure's own head is put into the red frame (H).
 """
 
 import time
@@ -21,7 +22,7 @@ from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
-from sheets import SHEET_ERRORS, can_make_standing, write_sheets, write_standing_sheet
+from sheets import SHEET_ERRORS, can_make_standing, lock_head_possible, write_sheets, write_standing_sheet
 from theme import (
     BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS, TEXT,
     TEXT_DIM,
@@ -44,6 +45,7 @@ PREVIEW_FRAME_MS = 140
 PREVIEW_MIN_H = 60
 PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
+HEAD_CHOICES = ((False, 'Free'), (True, 'Locked'))   # the head in the red frame: the model's, or the figure's own
 
 COLOUR_BACKUPS = 'colour_backups'   # under the output folder: frames as they were before evening out
 
@@ -66,6 +68,7 @@ class FramesView(View):
         self.comparison = None        # accepted frame vs. goal, when there is one
         self.dir_rows = []            # [(rect, direction)] as last drawn
         self.motion_chips = []        # [(rect, motion)] as last drawn, for the player
+        self.head_chips = []          # [(rect, locked)] as last drawn, above a frame's sheet
         self.preview_checker = Checker()
         self.standing_checker = Checker()
         self.gimp = find_gimp()
@@ -162,7 +165,7 @@ class FramesView(View):
         self.direction = direction
         self.app.last_direction = direction
         try:
-            self.sheets = write_sheets(self.npc, direction)
+            self.sheets = write_sheets(self.npc, direction, lock_head=self.app.settings.lock_head)
         except SHEET_ERRORS as exc:
             self.sheets = []
             self.app.set_status(f'Cannot build the {direction.title} sheets: {exc}', error=True)
@@ -199,12 +202,29 @@ class FramesView(View):
             if sheet.standing:
                 fresh = self.standing_sheet = write_standing_sheet(self.npc, sheet.direction)
             else:
-                fresh = self.sheets[self.current] = write_sheets(self.npc, sheet.direction, [sheet.frame])[0]
+                fresh = self.sheets[self.current] = write_sheets(self.npc, sheet.direction, [sheet.frame],
+                                                                 self.app.settings.lock_head)[0]
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
             return sheet
         self.build_frame_cards()
         return fresh
+
+    def can_lock_head(self):
+        """Whether the chosen card's sheet can have the figure's head locked into it."""
+        sheet = self.current_sheet()
+        return bool(sheet) and not sheet.standing and lock_head_possible(self.npc, self.direction)
+
+    def set_head_lock(self, locked):
+        """Free or lock the head in every walk and run sheet, and rebuild this direction's."""
+        app = self.app
+        if locked == app.settings.lock_head:
+            return
+        app.settings = app.settings.with_values(lock_head=locked)
+        app.settings.save()
+        self.select_direction(self.direction, self.current)
+        app.set_status('Head locked: the sheets carry the figure\'s own head' if locked else
+                       'Head free: the model draws the head over the ghost')
 
     def refresh(self):
         """Cards, comparison and preview, after answers or frames on disk changed."""
@@ -535,7 +555,8 @@ class FramesView(View):
         switch = f'Tab = {motions.lower()}. ' if len(self.npc.motions) > 1 else ''
         return (f'2. {motions} frames for "{self.npc.name}"',
                 f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+C = copy sheet, Ctrl+Shift+C = '
-                'copy prompt, Ctrl+V or drop a file = answer from the web view, E = even out colours, S = settings.')
+                'copy prompt, Ctrl+V or drop a file = answer from the web view, H = lock head, E = even out colours, '
+                'S = settings.')
 
     def footer(self):
         app = self.app
@@ -661,6 +682,8 @@ class FramesView(View):
             title = 'Sheet'
         draw_panel(screen, app.fonts, rect, title)
         area = self.place_sheet_buttons(rect)
+        if sheet and not sheet.standing:
+            area = self.draw_head_choice(screen, area, mouse)
         if not sheet and self.current == STANDING:
             self.draw_standing(screen, area)
         elif sheet and self.comparison:
@@ -686,6 +709,25 @@ class FramesView(View):
         for row in self.sheet_button_rows:
             for button in row:
                 button.draw(screen, app.fonts.font, mouse)
+
+    def draw_head_choice(self, screen, area, mouse):
+        """Head: Free / Locked at the top of the sheet area; returns the room left under it."""
+        small = self.app.fonts.small
+        label = small.render('Head:', True, TEXT_DIM)
+        screen.blit(label, (area.x, area.y + 4))
+        x = area.x + label.get_width() + 10
+        self.head_chips = []
+        if self.can_lock_head():
+            self.head_chips, bottom = draw_chips(screen, small, [locked for locked, _ in HEAD_CHOICES],
+                                                 dict(HEAD_CHOICES).get, self.app.settings.lock_head,
+                                                 x, area.y, area.right - x, mouse)
+        else:
+            note = small.render(fit_text(small, 'free - only for up, down, left, right with their standing '
+                                         'sprite', area.right - x), True, TEXT_DIM)
+            screen.blit(note, (x, area.y + 4))
+            bottom = area.y + note.get_height() + 8
+        top = bottom + BUTTON_GAP
+        return pygame.Rect(area.x, top, area.w, area.bottom - top)
 
     def draw_standing(self, screen, area):
         """The direction's standing sprite, large, on a checkerboard."""
@@ -713,6 +755,10 @@ class FramesView(View):
         for chip, motion in self.motion_chips:
             if chip.collidepoint(pos):
                 self.select_motion(motion)
+                return
+        for chip, locked in self.head_chips:
+            if chip.collidepoint(pos):
+                self.set_head_lock(locked)
                 return
         for row, direction in self.dir_rows:
             if row.collidepoint(pos):
@@ -753,6 +799,8 @@ class FramesView(View):
             self.edit_in_gimp()
         elif event.key == pygame.K_e:
             self.even_out_or_undo()
+        elif event.key == pygame.K_h and self.can_lock_head():
+            self.set_head_lock(not self.app.settings.lock_head)
         elif event.key == pygame.K_f and not self.npc.is_player:
             self.app.redo_first_sprite()
 

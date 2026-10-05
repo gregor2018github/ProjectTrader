@@ -182,7 +182,7 @@ class DetailView(View):
             if frame == 0:
                 self.app.send([write_standing_sheet(self.app.npc, direction)])
             else:
-                self.app.send(write_sheets(self.app.npc, direction, [frame]))
+                self.app.send(write_sheets(self.app.npc, direction, [frame], self.app.settings.lock_head))
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
 

@@ -47,7 +47,12 @@ switches to full screen.
    frame" also offers the standing sprites, e.g. the right one mirrored for
    the left. The front one is the reference for all of them; it is only shown.
 3. Pick a frame. If it is already done, the frame in the game is shown under
-   its sheet next to the ghost it was aimed at, and laid over it. Then either
+   its sheet next to the ghost it was aimed at, and laid over it. "Head:
+   Locked" above the sheet (H) puts the figure's own head, cut off its
+   standing sprite, into the red frame where the ghost's head is, so the
+   model has to keep it instead of drawing it anew; "Free" leaves it to the
+   model. It is kept for every sheet, and only works where the standing
+   sprite faces the frame's way: down, up, left, right. Then either
    - for free, through the Gemini web view: "Copy image" (Ctrl+C) and
      "Copy prompt" (Ctrl+Shift+C), paste both there, copy the answer and
      "Paste answer" (Ctrl+V) - or drop the image file onto the window, or

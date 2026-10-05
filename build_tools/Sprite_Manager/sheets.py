@@ -9,6 +9,14 @@
     |                           | ghost, for the image      |
     |                           | model to draw the NPC on  |
     +---------------------------+---------------------------+
+
+With the head locked, the NPC's own head is cut off the bottom left sprite
+at the neck and put solid into the red frame where the ghost's head is,
+bobbing and shifting with it, and the ghost's head is left out. That leaves
+the model less to make up: heads came back warped, recoloured or turned the
+other way. It is only offered where the bottom left sprite faces the way
+the frame does (lock_head_possible); a standing sheet has no head facing
+its way to copy yet.
 """
 
 from dataclasses import dataclass
@@ -32,13 +40,18 @@ TARGET_FRAME_WIDTH = 3
 GHOST_ALPHA = 110        # 0 = invisible, 255 = solid
 DONE_FRAME_COLOR = (80, 180, 90)   # the target cell once its sprite is accepted (cards only)
 
+# Finding the neck: the narrowest row in this band of the mannequin's height, from the top
+NECK_BAND = (0.3, 0.65)
+NECK_SEARCH = 0.08       # of the NPC's height around where the mannequin's neck would be
+HEAD_ALPHA = 128         # pixels this opaque count for the NPC's outline
+
 PROMPT_TEMPLATE = """\
 The attached picture holds a 2x2 grid of pixel-art sprites for my medieval trading game "Merchant's Rise".
 
 Top left: a plain, featureless chibi mannequin standing still, {base_view}.
 Top right: the same mannequin in frame {frame} of {count} of a {cycle} cycle, {motion}.
 Bottom left: {name}, standing still, {base_view}, in the same pose as the mannequin top left.
-Bottom right (red frame): a faint, see-through grey ghost of the mannequin in the same {verb} pose as top right. It is only a guide. Draw {name} over it, {motion}, so that the head, body, arms, legs and feet sit exactly where the ghost's are: same step, same position of the legs and arms, same lean of the body. No trace of the ghost may remain in the finished drawing.
+Bottom right (red frame): a faint, see-through grey ghost of the mannequin in the same {verb} pose as top right. It is only a guide. Draw {name} over it, {motion}, so that the head, body, arms, legs and feet sit exactly where the ghost's are: same step, same position of the legs and arms, same lean of the body. No trace of the ghost may remain in the finished drawing.{head}
 
 The mannequin and the ghost show only the pose. Do not copy their proportions, bald head, skin or grey colour. Keep {name}'s own look from the bottom left sprite: proportions, head size, face, hair, headwear, clothing, colours and outline, and the same crisp pixel-art style with hard pixel edges and no anti-aliasing or blur.
 Parts that the bottom left sprite does not show should follow on naturally from what it does show.
@@ -56,6 +69,11 @@ The mannequin and the ghost show only the pose. Do not copy their proportions, b
 Parts that the bottom left sprite does not show should follow on naturally from what it does show.
 Keep {name} at the same size as in the bottom left, with the feet on the same ground line, on the plain white background. Do not draw anything outside the red frame and do not change the other three cells.
 """
+HEAD_LOCKED = (
+    "\n{name}'s head is already drawn in the red frame: it is the head of the bottom left sprite, put where "
+    "the pose wants it. Keep it exactly as it is - the same pixels, colours, size and place, facing the same "
+    "way - and draw the rest of {name} under it, joined to it at the neck.")
+
 # How the standing prompt describes each direction a standing sprite can be made for
 STANDING_VIEWS = {
     'back': 'seen from behind, facing away from the viewer',
@@ -111,11 +129,15 @@ class FrameSheet:
         return surface
 
 
-def build_sheet(idle, pose, ghost, npc):
+def build_sheet(idle, pose, ghost, npc, lock_head=False):
     """Lay out the three sprites plus the red-framed target cell holding the ghost.
 
     Every sprite stands on the ground line of its cell, so the cycle's frame
     keeps the bob of the cycle and the ghost stands where the NPC will.
+
+    Args:
+        lock_head: Put the NPC's head into the target cell where the ghost's
+            head is, instead of the ghost's (see the module docstring).
 
     Returns:
         (sheet, ghost, target cell, ground line) - the ghost solid, at the scale
@@ -125,6 +147,7 @@ def build_sheet(idle, pose, ghost, npc):
     # frame of a cycle comes out the same size.
     factor = max(1, round(npc.get_height() / idle.get_height()))
     sprites = [scaled(idle, factor), scaled(pose, factor), npc]
+    ghost_source = ghost
     solid_ghost = scaled(ghost, factor)
     ghost = solid_ghost.copy()
     ghost.set_alpha(GHOST_ALPHA)
@@ -144,26 +167,102 @@ def build_sheet(idle, pose, ghost, npc):
             sheet.fill((255, 255, 255), rect)
             cells.append(rect)
 
+    head = None
+    if lock_head:
+        head, ghost_neck, shift = locked_head(idle, ghost_source, npc, factor)
+        ghost.fill((0, 0, 0, 0), (0, 0, ghost.get_width(), ghost_neck))   # the ghost's head makes way
     for sprite, cell in zip(sprites + [ghost], cells):
         sheet.blit(sprite, sprite.get_rect(midbottom=(cell.centerx, cell.bottom - margin)))
+    if head:
+        # Where the head is on the bottom left sprite, moved into the target cell and on by the pose's shift
+        image, rect = head
+        npc_rect = npc.get_rect(midbottom=(cells[2].centerx, cells[2].bottom - margin))
+        sheet.blit(image, rect.move(npc_rect.x + cells[3].x - cells[2].x + shift[0], npc_rect.y + shift[1]))
     pygame.draw.rect(sheet, TARGET_FRAME_COLOR, cells[3], TARGET_FRAME_WIDTH)
     return sheet, solid_ghost, cells[3], cells[3].bottom - margin
 
 
-def prompt_for(npc, direction, frame, count):
+def neck_row(mask, start, end):
+    """The narrowest row of a mask in [start, end): where the head meets the body.
+
+    Of rows equally narrow the lowest is taken, so a chin or collar a pixel
+    narrower does not cut the head short.
+    """
+    w = mask.get_size()[0]
+    rows = range(max(1, start), max(start + 1, end))
+    widths = {y: sum(mask.get_at((x, y)) for x in range(w)) for y in rows}
+    return min(rows, key=lambda y: (widths[y], -y))
+
+
+def mannequin_neck(frame):
+    """The neck row of a trimmed chibi frame (the mannequin or its ghost)."""
+    h = frame.get_height()
+    return neck_row(pygame.mask.from_surface(frame), int(h * NECK_BAND[0]), int(h * NECK_BAND[1]))
+
+
+def head_centre(frame, neck):
+    """How far the middle of a chibi frame's head is from the frame's middle: its lean."""
+    mask = pygame.mask.from_surface(frame)
+    w = frame.get_width()
+    middles = []
+    for y in range(neck):
+        xs = [x for x in range(w) if mask.get_at((x, y))]
+        if xs:
+            middles.append((xs[0] + xs[-1]) / 2)
+    return sum(middles) / len(middles) - (w - 1) / 2 if middles else 0
+
+
+def locked_head(idle, ghost, npc, factor):
+    """The NPC's head and where it goes over the ghost.
+
+    The neck is looked for on the NPC around where the mannequin's would be,
+    counted from the feet, so a hat does not throw it off.
+
+    Args:
+        idle: The standing mannequin the NPC was drawn on, trimmed.
+        ghost: The goal pose, trimmed, at chibi scale.
+        npc: The NPC's standing sprite, trimmed.
+        factor: The chibi's scale on the sheet.
+
+    Returns:
+        ((head image, its rect on the NPC sprite), the ghost's neck row at
+        sheet scale, (dx, dy) the head moves from the standing pose to the goal pose).
+    """
+    idle_neck, ghost_neck = mannequin_neck(idle), mannequin_neck(ghost)
+    h = npc.get_height()
+    expected = h - round((idle.get_height() - idle_neck) * h / idle.get_height())
+    reach = max(2, int(h * NECK_SEARCH))
+    neck = neck_row(pygame.mask.from_surface(npc, HEAD_ALPHA), expected - reach, expected + reach + 1)
+    rect = pygame.Rect(0, 0, npc.get_width(), neck)
+    # Both stand on the ground line, centred, so the head's top tells the bob and its middle the lean
+    dx = round((head_centre(ghost, ghost_neck) - head_centre(idle, idle_neck)) * factor)
+    dy = (idle.get_height() - ghost.get_height()) * factor
+    return (npc.subsurface(rect).copy(), rect), ghost_neck * factor, (dx, dy)
+
+
+def lock_head_possible(npc, direction):
+    """Whether a frame of the direction can have its head locked: its reference faces its way."""
+    pose = standing_pose(direction)
+    return bool(pose) and npc.base_for(direction) == pose
+
+
+def prompt_for(npc, direction, frame, count, lock_head=False):
     base_view = BASE_POSES[npc.base_for(direction)].view
+    head = HEAD_LOCKED.format(name=npc.display_name) if lock_head else ''
     return PROMPT_TEMPLATE.format(base_view=base_view, frame=frame, count=count,
                                   cycle=direction.motion.key, verb=direction.motion.verb,
-                                  motion=direction.description, name=npc.display_name)
+                                  motion=direction.description, name=npc.display_name, head=head)
 
 
-def write_sheets(npc, direction, frames=None):
+def write_sheets(npc, direction, frames=None, lock_head=False):
     """Build a direction's sheets from the base files and write them.
 
     Args:
         npc: The WalkNpc.
         direction: The Direction.
         frames: Frame numbers (from 1) to build; None builds them all.
+        lock_head: Lock the NPC's head into the target cell, where the
+            direction allows it (lock_head_possible).
 
     Returns:
         [FrameSheet], in frame order.
@@ -178,15 +277,16 @@ def write_sheets(npc, direction, frames=None):
     cycle = chibi.cycle_frames(direction)
     ghosts, auto_ghost = chibi.ghost_frames(direction)
     count = len(cycle)
+    lock_head = lock_head and lock_head_possible(npc, direction)
 
     npc.out_dir.mkdir(parents=True, exist_ok=True)
     sheets = []
     for frame in frames or range(1, count + 1):
         surface, ghost, target, ground = build_sheet(idle, cycle[frame - 1], ghosts[min(frame, len(ghosts)) - 1],
-                                     reference)
+                                                     reference, lock_head)
         stem = f'{npc.prefix}_{direction.pose(frame)}'
         path = npc.out_dir / f'{stem}_sheet.png'
-        prompt = prompt_for(npc, direction, frame, count)
+        prompt = prompt_for(npc, direction, frame, count, lock_head)
         pygame.image.save(surface, str(path))
         (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
         sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost,

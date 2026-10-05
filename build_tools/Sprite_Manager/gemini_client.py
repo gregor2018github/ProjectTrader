@@ -144,6 +144,7 @@ class Settings:
     aspect_ratio: str = ''   # '' = keep the sheet's proportions
     image_size: str = ''     # '' = the model's own default (1K)
     tries: int = 1           # answers requested per sheet
+    lock_head: bool = False  # walk and run sheets carry the figure's own head (sheets.py)
 
     def size_label(self) -> str:
         """How the chosen image size is written in the interface."""
