@@ -45,8 +45,12 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    collision box and margins scale with it, so keep the catalog's values.
    Plain `House` and `Warehouse` objects honour `Scale`; `Mill`, `Well`,
    `Bank`, `Church`, `Town` and `Market` don't pass it on, so add it in
-   `map.py` first if one of those needs it. Tiled previews are native size
-   only, so the script stamps none for a scaled building.
+   `map.py` first if one of those needs it. Tile-stamped Tiled previews are
+   native size on whole tiles, so a scaled or off-grid building instead gets
+   an image layer `Preview <name>` (just before `Houses 1`, so most houses
+   overlap it) showing a scaled copy from `assets/tiles/previews/`; `place`
+   makes it and `move` keeps it in place. Not a tile object: that needs a
+   tileset after `forest_floor_mix`, whose gids the forest builder grows into.
    A sprite redrawn at double resolution (the PNG is 2x the catalog `rect`'s
    size, like House_24 the Guildhall) starts from `Scale=0.5`, then the door
    decides (the Guildhall ended at 0.7). Every number you pass
@@ -77,6 +81,21 @@ with `near`, `render` and `place`. Its docstring has the arguments.
      the next free `House_<n>` name (`grep -o 'name="House_[0-9]*"' Map1.tmx`).
    Render afterwards: doors show as blue dots, lights as yellow boxes, smoke as
    cyan bars, so a misplaced one is obvious.
+
+   **Arched, pointed or round windows** (a public building, a church) get
+   polygon lights instead of `--light` boxes, like the Townhall, Church and
+   Guildhall: one polygon per pane on the `Lights` layer, named after the
+   building. Every polygon there is a building light, grouped by that name and
+   switched on and off together each night (`TMXMap._load_lights`,
+   `BuildingLight` in `src/models/light.py`); they are not tied to a house, so
+   knocking does not toggle them. Read each pane's corners off a zoomed grid
+   of the sprite (colour tracing fails on leaded glass and dark arcades), as
+   rectangles, lancets (straight sides, two slopes to a point) and round tops,
+   in sprite pixels; convert with x = X + sx*Scale, y = Y - PNG height*Scale +
+   sy*Scale; write each as `<object name="<Building>" x y><polygon points=
+   "relative to x,y"/></object>` with a fresh id from `nextobjectid`. Check by
+   drawing them filled over a 3x zoom of the sprite (mullions must stay dark),
+   then on a darkened render through `BuildingLight.get_render_data(1.0)`.
 
 6. **Place it** (try `--dry-run` first):
    ```

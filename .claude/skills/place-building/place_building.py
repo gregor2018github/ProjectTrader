@@ -17,7 +17,9 @@ Run from the repo root. Subcommands:
         [--door SX,SY,FACING ...] [--light SX,SY,W,H ...] [--smoke SX,SY,W ...]
       SPRITE is the catalog key's file, e.g. House_26.png. X,Y is the
       object's point (bottom-left of the sprite), snapped to the tile grid
-      unless --no-snap (then no Tiled preview: it needs whole tiles).
+      unless --no-snap. A building that is scaled or off the tile grid can't
+      be stamped as tiles, so it gets an image layer "Preview <NAME>" with a
+      scaled copy in assets/tiles/previews/ instead (move keeps it in place).
       Object properties come from the catalog's "tiled" block, then --prop
       (ints/floats are typed automatically; an empty VALUE drops the key).
       --replace rewrites an existing Houses object in place and keeps its id
@@ -120,6 +122,54 @@ def _atlas_gids(rect, cols, rows_up):
             for dy in range(rows_up)]
 
 
+PREVIEW_DIR = 'assets/tiles/previews'   # scaled copies for image-layer previews
+PREVIEW_BEFORE = 'Houses 1'             # image layers go just before it, behind most houses
+
+
+def _image_preview(text, name, sprite, x, y, scale, write_png=True):
+    """Show a building Tiled can't stamp as tiles (scaled or off the grid).
+
+    An image layer "Preview <name>" holds a copy of the sprite scaled as the
+    game draws it (House._load_image), offset to where it stands. The game
+    draws no image layers, and unlike a tile object it needs no tileset, so
+    no gids that could collide with the forest builder's growing tileset.
+    """
+    w, h = _png_size(f'assets/map_sprites/houses/{sprite}')
+    sw, sh = max(1, round(w * scale)), max(1, round(h * scale))
+    stem = os.path.splitext(sprite)[0]
+    png = f'{stem}.png' if scale == 1 else f'{stem}_x{scale:g}.png'
+    if write_png:
+        os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+        import pygame
+        pygame.init()
+        pygame.display.set_mode((1, 1))
+        image = pygame.image.load(f'assets/map_sprites/houses/{sprite}').convert_alpha()
+        if scale != 1:
+            image = pygame.transform.smoothscale(image, (sw, sh))
+        os.makedirs(PREVIEW_DIR, exist_ok=True)
+        pygame.image.save(image, f'{PREVIEW_DIR}/{png}')
+    nl = '\r\n' if '\r\n' in text else '\n'
+    ox, oy = f'{round(x, 2):g}', f'{round(y - sh, 2):g}'
+    layer_name = f'Preview {name}'
+    m = re.search(rf' <imagelayer [^>]*name="{re.escape(layer_name)}"[^>]*>.*?</imagelayer>', text, re.S)
+    if m:
+        lid = re.search(r'id="(\d+)"', m.group(0)).group(1)
+    else:
+        nxt = re.search(r'nextlayerid="(\d+)"', text)
+        lid = nxt.group(1)
+        text = text.replace(nxt.group(0), f'nextlayerid="{int(lid) + 1}"', 1)
+    xml = (f' <imagelayer id="{lid}" name="{layer_name}" offsetx="{ox}" offsety="{oy}">{nl}'
+           f'  <image source="previews/{png}" width="{sw}" height="{sh}"/>{nl}'
+           f' </imagelayer>')
+    if m:
+        text = text.replace(m.group(0), xml)
+    else:
+        before = re.search(rf' <layer id="\d+" name="{re.escape(PREVIEW_BEFORE)}"', text).start()
+        text = text[:before] + xml + nl + text[before:]
+    print(f'image-layer preview "{layer_name}" at ({ox},{oy}), {sw}x{sh}')
+    return text
+
+
 def _png_size(path):
     with open(path, 'rb') as f:
         head = f.read(24)
@@ -184,7 +234,7 @@ def _attached(text, obj_id):
     Doors: points inside its collision rect. Lights: the ones the game gives
     it (TMXMap._load_lights): of the buildings whose zone -- x within the
     collision rect, y up to 5 tiles above it -- holds the light, the one with
-    the nearest base. Smoke: Smoke_<name>[_k].
+    the nearest base, and polygons named after it. Smoke: Smoke_<name>[_k].
     """
     xml = re.search(rf' <object id="{obj_id}" [^>]*>.*?</object>', text, re.S).group(0)
     name = re.search(r'name="([^"]*)"', xml).group(1)
@@ -212,7 +262,9 @@ def _attached(text, obj_id):
             if group == 'Doors':
                 hit = left <= px <= right and top <= py <= bottom
             elif group == 'Lights':
-                hit = oname == 'Light_rectangle' and light_owner(cx, cy) == obj_id
+                # Rectangles by the game's rule; polygons (shaped windows) by
+                # the building's name, which is their group's
+                hit = (oname == 'Light_rectangle' and light_owner(cx, cy) == obj_id) or oname == name
             else:
                 hit = re.fullmatch(rf'Smoke_{re.escape(name)}(_\d+)?', oname) is not None
             if hit:
@@ -255,6 +307,9 @@ def cmd_move(a):
                     sys.exit(f'{lname} cell ({l + c},{t + r}) is taken at the new spot; nothing written')
                 layers[lname][t + r][l + c] = gid
         print(f'preview moved on "{lname}"')
+    if f'name="Preview {name}"' in text:
+        text = _image_preview(text, name, props['File_name'], x, y, float(props.get('Scale', 1)),
+                              write_png=not a.dry_run)
     print(f'object {a.id} "{name}" ({ox:g},{oy:g}) -> ({x},{y}), {len(moving)} attached objects with it')
     if a.dry_run:
         print('dry run, nothing written')
@@ -308,11 +363,10 @@ def cmd_place(a):
         cut = grp.start(1)
         text = text[:cut] + nl + ' ' + object_xml(obj_id, name, cls, x, y, tiled, nl) + text[cut:]
 
-    if (x % TILE or y % TILE) and not a.no_preview:
-        print('off the tile grid: no Tiled preview stamped')
-        a.no_preview = True
-    if float(tiled.get('Scale', 1)) != 1 and not a.no_preview:
-        print('Scale is set: Tiled previews are native size only, so none is stamped')
+    scale = float(tiled.get('Scale', 1))
+    if (x % TILE or y % TILE or scale != 1) and not a.no_preview:
+        # Tile stamps are native size on whole tiles; this one gets an image layer
+        text = _image_preview(text, name, a.sprite, x, y, scale, write_png=not a.dry_run)
         a.no_preview = True
     if not a.no_preview:
         cols, rows_up = int(tiled['Tiles_to_right']), int(tiled['Tiles_up'])

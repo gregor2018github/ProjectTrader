@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="40" nextobjectid="746">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="41" nextobjectid="760">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3056,6 +3056,9 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 </data>
  </layer>
+ <imagelayer id="40" name="Preview Guildhall" offsetx="3648" offsety="3841">
+  <image source="previews/House_24_x0.7.png" width="475" height="463"/>
+ </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -10583,13 +10586,47 @@
   <object id="723" name="Light_rectangle" x="3502" y="4180" width="19.0" height="25.0"/>
   <object id="724" name="Light_rectangle" x="3535" y="4180" width="20.0" height="25.0"/>
   <object id="725" name="Light_rectangle" x="3569" y="4180" width="19.0" height="25.0"/>
-  <object id="738" name="Light_rectangle" x="3718" y="4127.6" width="52.5" height="35.7"/>
-  <object id="739" name="Light_rectangle" x="3852.4" y="4120.6" width="65.1" height="46.9"/>
-  <object id="740" name="Light_rectangle" x="4001.5" y="4127.6" width="52.5" height="35.7"/>
-  <object id="741" name="Light_rectangle" x="3877.6" y="4057.6" width="15.4" height="25.9"/>
-  <object id="742" name="Light_rectangle" x="3725" y="4236.1" width="16.1" height="29.4"/>
-  <object id="743" name="Light_rectangle" x="3802" y="4236.1" width="15.4" height="29.4"/>
-  <object id="744" name="Light_rectangle" x="3954.6" y="4236.1" width="15.4" height="29.4"/>
-  <object id="745" name="Light_rectangle" x="4028.1" y="4236.1" width="16.8" height="29.4"/>
+  <object id="746" name="Guildhall" x="3717.3" y="4162.6">
+   <polygon points="0,0 12.6,0 12.6,-32.9 0,-32.9"/>
+  </object>
+  <object id="747" name="Guildhall" x="3736.2" y="4162.6">
+   <polygon points="0,0 12.6,0 12.6,-32.9 0,-32.9"/>
+  </object>
+  <object id="748" name="Guildhall" x="3754.4" y="4162.6">
+   <polygon points="0,0 13.3,0 13.3,-32.9 0,-32.9"/>
+  </object>
+  <object id="749" name="Guildhall" x="4003.6" y="4162.6">
+   <polygon points="0,0 13.3,0 13.3,-32.9 0,-32.9"/>
+  </object>
+  <object id="750" name="Guildhall" x="4021.8" y="4162.6">
+   <polygon points="0,0 13.3,0 13.3,-32.9 0,-32.9"/>
+  </object>
+  <object id="751" name="Guildhall" x="4040" y="4162.6">
+   <polygon points="0,0 14,0 14,-32.9 0,-32.9"/>
+  </object>
+  <object id="752" name="Guildhall" x="3853.8" y="4166.1">
+   <polygon points="0,0 17.5,0 17.5,-35 15.4,-40.78 8.75,-45.5 2.1,-40.78 0,-35"/>
+  </object>
+  <object id="753" name="Guildhall" x="3876.2" y="4166.1">
+   <polygon points="0,0 17.5,0 17.5,-35 15.4,-40.78 8.75,-45.5 2.1,-40.78 0,-35"/>
+  </object>
+  <object id="754" name="Guildhall" x="3900" y="4166.1">
+   <polygon points="0,0 16.8,0 16.8,-35 14.7,-40.78 8.4,-45.5 2.1,-40.78 0,-35"/>
+  </object>
+  <object id="755" name="Guildhall" x="3878.3" y="4082.1">
+   <polygon points="0,0 14,0 14,-18.9 11.9,-22.88 9.45,-24.5 4.55,-24.5 2.1,-22.88 0,-18.9"/>
+  </object>
+  <object id="756" name="Guildhall" x="3726.4" y="4266.2">
+   <polygon points="0,0 15.4,0 15.4,-25.2 13.3,-28.66 7.7,-31.5 2.1,-28.66 0,-25.2"/>
+  </object>
+  <object id="757" name="Guildhall" x="3800.6" y="4266.2">
+   <polygon points="0,0 16.8,0 16.8,-25.2 14.7,-28.66 8.4,-31.5 2.1,-28.66 0,-25.2"/>
+  </object>
+  <object id="758" name="Guildhall" x="3953.2" y="4266.2">
+   <polygon points="0,0 16.8,0 16.8,-25.2 14.7,-28.66 8.4,-31.5 2.1,-28.66 0,-25.2"/>
+  </object>
+  <object id="759" name="Guildhall" x="4028.1" y="4266.2">
+   <polygon points="0,0 16.8,0 16.8,-25.2 14.7,-28.66 8.4,-31.5 2.1,-28.66 0,-25.2"/>
+  </object>
  </objectgroup>
 </map>

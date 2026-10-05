@@ -630,11 +630,10 @@ class TMXMap:
         
         Loads two types of lights:
         1. 'Light_rectangle' - Individual rectangular window lights
-        2. 'Townhall', 'Church' - Polygon lights for big buildings (grouped by name)
+        2. Polygons - window lights shaped by hand for big buildings with
+           arched or pointed windows ('Townhall', 'Church', 'Guildhall'), one
+           group per name, switched on and off together
         """
-        # Building names that should be treated as grouped polygon lights
-        building_light_names = {'Townhall', 'Church'}
-        
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Lights":
                 for obj in layer:
@@ -671,7 +670,7 @@ class TMXMap:
                             owner.associated_lights.append(light)
                     
                     # Load polygon lights for buildings
-                    elif obj.name in building_light_names and hasattr(obj, 'points'):
+                    elif obj.name and hasattr(obj, 'points'):
                         # pytmx provides absolute coordinates in Point named tuples
                         # Convert to relative coordinates (relative to obj.x, obj.y)
                         polygon_points = [(p.x - obj.x, p.y - obj.y) for p in obj.points]
