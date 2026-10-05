@@ -96,6 +96,7 @@ class Domain:
     tiled_properties: Callable  # (Kind, sprite surface, saved path) -> {Tiled property: value}
     reference_title: str        # the section of REFERENCE sprites
     default_colour: tuple = (70, 125, 50)
+    example_share: float = 0.6  # of a new sprite's cell the example takes; the rest is room to sketch bigger
 
     @property
     def kinds_by_key(self):

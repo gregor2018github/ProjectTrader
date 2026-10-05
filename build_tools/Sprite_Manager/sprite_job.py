@@ -49,7 +49,6 @@ RECENT_FILE = 'recent_colours.json'
 POSE = 'plant'                  # what the answers are booked under in review.json
 
 CELL_TARGET = 640               # the example is blown up by whole pixels to about this size
-EXAMPLE_SHARE = 0.6             # of the cell's side the example takes, leaving room for a bigger sprite
 GROUND_SHARE = 0.06             # of the cell's side below the foot line
 LEGACY_LAYOUT = (0.8, 0.1)      # (example share, ground share) of jobs made before the room was grown
 CELL_ASPECT = (0.5, 2.0)        # (narrowest, widest) a cell's width to height, around the example's
@@ -191,7 +190,7 @@ class SpriteJob:
         data = {'kind': kind, 'subcategory': '', 'colour': list(domain.default_colour),
                 'example': sprite.label if sprite.path is None else sprite.path.name,
                 'example_kind': sprite.kind, 'created': datetime.now().isoformat(timespec='seconds'),
-                'accepted': {}, 'layout': [EXAMPLE_SHARE, GROUND_SHARE], 'cell_shape': FITTED,
+                'accepted': {}, 'layout': [domain.example_share, GROUND_SHARE], 'cell_shape': FITTED,
                 'sketch_version': SKETCH_VERSION}
         (folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
         return cls(domain, folder)

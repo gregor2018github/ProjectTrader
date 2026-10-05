@@ -135,5 +135,5 @@ PLANTS = Domain(
     catalog_path=Path(__file__).resolve().parent / 'plant_catalog.json',
     sprite_files=plant_files, motif_atlases=(DECO_ATLAS,), suggestions=SUGGESTIONS,
     prompt_template=PROMPT_TEMPLATE, tiled_properties=tiled_properties, reference_title='Not a plant',
-    default_colour=(70, 125, 50),
+    default_colour=(70, 125, 50), example_share=0.7,
 )

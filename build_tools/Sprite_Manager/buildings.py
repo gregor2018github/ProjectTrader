@@ -162,5 +162,5 @@ BUILDINGS = Domain(
     catalog_path=Path(__file__).resolve().parent / 'building_catalog.json',
     sprite_files=building_files, motif_atlases=(), suggestions=SUGGESTIONS,
     prompt_template=PROMPT_TEMPLATE, tiled_properties=tiled_properties, reference_title='Parts and others',
-    default_colour=(150, 60, 45),
+    default_colour=(150, 60, 45), example_share=0.8,
 )
