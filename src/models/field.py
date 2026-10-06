@@ -29,6 +29,10 @@ _GUST_MAX_INTERVAL = 30.0  # seconds between gusts (max)
 # Rotation quantisation: nearest 0.5° step keeps the cache small
 _ANGLE_STEP = 0.5
 
+# Fields with nothing sown: the ground tiles show the ploughed earth, there are
+# no crop sprites to scatter
+BARE_FIELDS = {"Ploughed"}
+
 
 class Field:
     """Represents a rectangular field object on the map.
@@ -43,7 +47,8 @@ class Field:
     only paid once.
     """
 
-    def __init__(self, x: float, y: float, width: float, height: float, name: str) -> None:
+    def __init__(self, x: float, y: float, width: float, height: float, name: str,
+                 outline: Optional[List[Tuple[float, float]]] = None) -> None:
         """Initialize the field.
 
         Args:
@@ -53,12 +58,17 @@ class Field:
             height: Field height in world pixels.
             name: Field name from Tiled (e.g. 'Wheat'). Used to discover sprites
                   named ``{name_lower}_1.png``, ``{name_lower}_2.png``, …
+                  A name in ``BARE_FIELDS`` has none.
+            outline: World points of a field drawn as a polygon in Tiled (x, y,
+                     width and height are then its bounds), or None for a rectangle.
         """
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.name = name
+        self.outline: List[Tuple[float, float]] = outline or [
+            (x, y), (x + width, y), (x + width, y + height), (x, y + height)]
 
         # Loaded source images (one per sprite variant)
         self.images: List[pygame.Surface] = []
@@ -100,6 +110,8 @@ class Field:
         Looks for ``assets/map_sprites/fields/{name_lower}_1.png``,
         ``_2.png``, … until the next index is missing.
         """
+        if self.name in BARE_FIELDS:
+            return
         base = self.name.lower()
         i = 1
         while True:
@@ -135,6 +147,8 @@ class Field:
             for row in range(row_start, row_end + 1):
                 world_cx = col * TILE_SIZE + TILE_SIZE / 2.0
                 world_by = float((row + 1) * TILE_SIZE)
+                if not _inside(self.outline, world_cx, world_by - TILE_SIZE / 2.0):
+                    continue
                 sprite_idx = random.randint(0, n - 1)
                 self.sprite_placements.append((world_cx, world_by, sprite_idx))
 
@@ -274,3 +288,12 @@ class Field:
         result = (rotated, -(RW // 2), -(RH // 2))
         self._rotated_cache[cache_key] = result
         return result
+
+
+def _inside(points: List[Tuple[float, float]], px: float, py: float) -> bool:
+    """Whether a point lies inside a polygon (even-odd rule)."""
+    inside = False
+    for (ax, ay), (bx, by) in zip(points, points[1:] + points[:1]):
+        if (ay > py) != (by > py) and px < ax + (py - ay) * (bx - ax) / (by - ay):
+            inside = not inside
+    return inside

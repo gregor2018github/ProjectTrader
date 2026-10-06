@@ -101,9 +101,12 @@ def gather(tmx_map, water_mask: pygame.Mask) -> Landmarks:
     if wood is not None:
         marks.regions.append(RegionLabel(WOOD_NAME, wood, "land"))
 
-    if tmx_map.fields:
-        union = pygame.Rect(tmx_map.fields[0].x, tmx_map.fields[0].y, tmx_map.fields[0].width, tmx_map.fields[0].height)
-        for f in tmx_map.fields[1:]:
+    # The name goes under the fields with a crop on them; bare ploughland is
+    # just more of the same farm
+    sown = [f for f in tmx_map.fields if f.images] or tmx_map.fields
+    if sown:
+        union = pygame.Rect(sown[0].x, sown[0].y, sown[0].width, sown[0].height)
+        for f in sown[1:]:
             union.union_ip(pygame.Rect(f.x, f.y, f.width, f.height))
         marks.regions.append(RegionLabel(FIELDS_NAME, (union.centerx, union.bottom + tile * 2), "land"))
     return marks

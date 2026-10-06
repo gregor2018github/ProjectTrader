@@ -38,7 +38,8 @@ def engrave(tmx_map, ground: Ground, marks: Landmarks, px_per_tile: float) -> py
     _paved(plan, masks["plaza"], PLAZA_WASH, PLAZA_WASH_ALPHA, hatch=max(3, round(px_per_tile * 0.9)))
     for f in tmx_map.fields:
         glyphs.field(plan, _to_plan(pygame.Rect(f.x, f.y, f.width, f.height), scale),
-                     spacing=max(3, round(px_per_tile * 1.1)))
+                     spacing=max(3, round(px_per_tile * 1.1)),
+                     outline=[(x * scale, y * scale) for x, y in f.outline], upright=not f.images)
     _water(plan, masks["water"], ground.masks((ground.tiles_wide, ground.tiles_high))["water"], px_per_tile)
     _grass(plan, masks, marks, scale, px_per_tile)
     # Seen from above a bridge is as wide as the way over it

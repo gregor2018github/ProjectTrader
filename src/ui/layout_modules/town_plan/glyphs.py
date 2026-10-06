@@ -6,7 +6,7 @@ watercolour over whatever lies below); strokes are drawn opaque (they are ink).
 """
 
 import math
-from typing import Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 import pygame
 
@@ -117,17 +117,33 @@ def broadleaf(surface: pygame.Surface, x: float, y: float, height: float) -> Non
     pygame.draw.circle(surface, INK, (round(cx), round(cy)), radius, 1)
 
 
-def field(surface: pygame.Surface, rect: pygame.Rect, spacing: int = 4) -> None:
-    """A ploughed field: a wash, its furrows and its hedge line."""
-    wash_rect(surface, FIELD_WASH, FIELD_WASH_ALPHA, rect)
-    old_clip = surface.get_clip()
-    surface.set_clip(rect.clip(old_clip) if old_clip else rect)
-    for offset in range(-rect.height, rect.width, max(2, spacing)):
-        start = (rect.left + offset, rect.bottom)
-        end = (rect.left + offset + rect.height * 0.5, rect.top)
-        pygame.draw.line(surface, INK_FADED, start, end)
-    surface.set_clip(old_clip)
-    pygame.draw.rect(surface, INK_FADED, rect, 1)
+def field(surface: pygame.Surface, rect: pygame.Rect, spacing: int = 4,
+          outline: Optional[Sequence[Point]] = None, upright: bool = False) -> None:
+    """A ploughed field: a wash, its furrows and its hedge line.
+
+    ``outline`` shapes a field that is no rectangle (``rect`` is then its
+    bounds); ``upright`` draws the furrows straight up and down, as on bare
+    ploughland, instead of slanting like a crop.
+    """
+    if rect.width <= 0 or rect.height <= 0:
+        return
+    if outline is None:
+        outline = [rect.topleft, (rect.right - 1, rect.top), (rect.right - 1, rect.bottom - 1),
+                   (rect.left, rect.bottom - 1)]
+    wash_polygon(surface, FIELD_WASH, FIELD_WASH_ALPHA, outline)
+    furrows = pygame.Surface(rect.size, pygame.SRCALPHA)
+    step = max(2, spacing)
+    if upright:
+        for x in range(step // 2, rect.width, step):
+            pygame.draw.line(furrows, INK_FADED, (x, 0), (x, rect.height))
+    else:
+        for offset in range(-rect.height, rect.width, step):
+            pygame.draw.line(furrows, INK_FADED, (offset, rect.height), (offset + rect.height * 0.5, 0))
+    shape = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.polygon(shape, (255, 255, 255, 255), [(x - rect.left, y - rect.top) for x, y in outline])
+    furrows.blit(shape, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    surface.blit(furrows, rect.topleft)
+    pygame.draw.lines(surface, INK_FADED, True, outline)
 
 
 def stall(surface: pygame.Surface, rect: pygame.Rect) -> None:

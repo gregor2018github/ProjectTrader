@@ -616,13 +616,16 @@ class TMXMap:
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Fields":
                 for obj in layer:
-                    field = Field(
-                        x=obj.x,
-                        y=obj.y,
-                        width=obj.width,
-                        height=obj.height,
-                        name=obj.name
-                    )
+                    points = getattr(obj, "points", None)
+                    if points:
+                        # A polygon field: its bounds stand in for the rectangle
+                        outline = [(p[0], p[1]) for p in points]
+                        xs, ys = [p[0] for p in outline], [p[1] for p in outline]
+                        x, y, width, height = min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)
+                    else:
+                        outline = None
+                        x, y, width, height = obj.x, obj.y, obj.width, obj.height
+                    field = Field(x=x, y=y, width=width, height=height, name=obj.name, outline=outline)
                     self.fields.append(field)
 
     def _load_lights(self) -> None:

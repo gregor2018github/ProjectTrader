@@ -30,6 +30,7 @@
 - [ ] upscale church sprite (it is a bit mushy right now)
 - [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Market events
+- [ ] wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free for it all round the L, a gate towards the farmhouse); needs fence sprites first
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
 - [ ] add candles, salts and herbs as tradable goods
@@ -46,6 +47,8 @@
 - NA
 
 ## Finished Features
+
+- [x] a ploughed field (furrows up and down) south of the farm road, with the farmhouse (thatched cottage, House_25 at Scale 0.5) in its lower right corner
 
 - [x] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed (the Old Barn: 600 gold, +250 storage)
 - [x] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
