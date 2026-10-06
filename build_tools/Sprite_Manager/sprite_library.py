@@ -229,24 +229,35 @@ def _grown(mask, reach):
 
 
 def find_motifs(image):
-    """The motifs of a collection: [(box, mask over the whole image)].
+    """The motifs of a collection: [(box, mask over that box)].
 
     Pixels close together make one motif; a motif lying wholly inside the box
     of a bigger one (a stray berry in a patch) is part of that one.
+
+    The collections are big (4000 x 4000), so the image is scanned only once
+    for the motifs' boxes, and each motif is then picked out of its own box.
     """
     solid = pygame.mask.from_surface(image, MOTIF_ALPHA)
+    grown = _grown(solid, MOTIF_REACH)
     motifs = []
-    for part in _grown(solid, MOTIF_REACH).connected_components(1):
-        if solid.overlap_area(part, (0, 0)) < MOTIF_MIN_PIXELS:
+    for rect in grown.get_bounding_rects():
+        rect = rect.clip(image.get_rect())
+        box = pygame.Mask(rect.size)
+        box.draw(grown, (-rect.x, -rect.y))
+        # Neighbours may reach into the box; the motif is the part spanning all of it
+        parts = [m for m in box.connected_components(1) if m.get_bounding_rects()[0].size == rect.size]
+        if not parts:
             continue
-        rects = part.get_bounding_rects()
-        motifs.append([rects[0].unionall(rects[1:]).clip(image.get_rect()), part])
+        part = max(parts, key=lambda m: m.count())
+        if solid.overlap_area(part, rect.topleft) < MOTIF_MIN_PIXELS:
+            continue
+        motifs.append([rect, part])
     motifs.sort(key=lambda m: -m[0].w * m[0].h)
     kept = []
     for rect, mask in motifs:
         home = next((k for k in kept if k[0].contains(rect)), None)
         if home:
-            home[1].draw(mask, (0, 0))
+            home[1].draw(mask, (rect.x - home[0].x, rect.y - home[0].y))
         else:
             kept.append([rect, mask])
     kept.sort(key=lambda m: (m[0].y // 40, m[0].x))
@@ -256,9 +267,7 @@ def find_motifs(image):
 def cut_motif(image, rect, mask):
     """The motif in `rect` alone, without neighbours reaching into its box."""
     part = image.subsurface(rect).copy()
-    alpha = pygame.Mask(rect.size)
-    alpha.draw(mask, (-rect.x, -rect.y))
-    part.blit(alpha.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0)), (0, 0),
+    part.blit(mask.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 0)), (0, 0),
               special_flags=pygame.BLEND_RGBA_MULT)
     return part
 
