@@ -101,6 +101,7 @@ class Game:
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
         # The paper plan of the town shown in the "building" view
         self.town_plan: TownPlan = TownPlan(self.game_map)
+        self.town_plan.prepare()   # now, behind the loading screen, not when first opened
 
         self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:

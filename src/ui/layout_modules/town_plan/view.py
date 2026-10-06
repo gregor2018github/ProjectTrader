@@ -25,7 +25,7 @@ import pygame
 from . import glyphs, ornaments
 from .engraving import engrave
 from .landmarks import MAJOR_KINDS, MINOR_KINDS, Landmarks, PlanBuilding, gather
-from ...paper import draw_paper
+from ...paper import draw_paper, prepare_paper
 from .style import (
     DETAIL_LABEL_LEVEL, FONT_PLAIN, FONT_SCRIPT, GOLD_INK, INK, INK_FADED,
     PAPER, UNCHARTED_TINT, WATER_LINE, ZOOM_LEVELS,
@@ -67,7 +67,7 @@ class TownPlan:
         self._fog_switch: Optional[pygame.Rect] = None
         self._fog_switch_rows: List[pygame.Rect] = []
 
-        # Built on first sight, so a game that never opens the plan pays nothing
+        # Built by prepare() while the game loads, or else on first sight
         self._ground: Optional[Ground] = None
         self._marks: Optional[Landmarks] = None
         self._engraved: Dict[int, pygame.Surface] = {}
@@ -169,6 +169,18 @@ class TownPlan:
         self._clamp()
 
     # --- Drawing ----------------------------------------------------------------
+
+    def prepare(self) -> None:
+        """Build everything the plan needs up front: ground, landmarks, every zoom level, its paper.
+
+        Done while the game loads, so opening the plan or zooming it for the
+        first time does not stall the game (all of it together is about half
+        a second, and some 40 MB for the engraved levels).
+        """
+        self._ensure_built()
+        for level in range(len(ZOOM_LEVELS)):
+            self._plan_at(level)
+        prepare_paper(PAPER, UNCHARTED_PAPER)
 
     def _ensure_built(self) -> None:
         if self._ground is not None:

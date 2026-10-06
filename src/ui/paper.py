@@ -57,6 +57,12 @@ def draw_paper(screen: pygame.Surface, rect: pygame.Rect, anchor: Tuple[int, int
     screen.set_clip(old_clip)
 
 
+def prepare_paper(*bases: Color) -> None:
+    """Make the grain of each base colour now, rather than when it is first drawn."""
+    for base in bases:
+        _grain_tile(base)
+
+
 def _tinted(color: Color, base: Color) -> Color:
     """``color`` moved onto ``base`` in the proportion it has to parchment."""
     return tuple(max(0, min(255, round(c * b / p))) for c, b, p in zip(color, base, PARCHMENT))
