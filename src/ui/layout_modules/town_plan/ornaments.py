@@ -105,6 +105,39 @@ def cartouche(screen: pygame.Surface, rect: pygame.Rect) -> None:
     screen.blit(sub, sub.get_rect(midtop=(rect.centerx, y + 6)))
 
 
+#: The debug switch's choices: its label and whether the whole land is shown
+FOG_SWITCH_OPTIONS = (("Explored land only", False), ("Everything", True))
+_FOG_SWITCH_TITLE = "Debug: Fog of War"
+_FOG_SWITCH_ROW = 24
+
+
+def fog_switch_layout(topleft: Tuple[int, int]) -> Tuple[pygame.Rect, List[pygame.Rect]]:
+    """The debug fog switch's panel and the clickable rect of each choice."""
+    title = text(_FOG_SWITCH_TITLE, FONT_PLAIN, 15, INK_FADED, halo=False)
+    labels = [text(label, FONT_PLAIN, 17, INK, halo=False) for label, _ in FOG_SWITCH_OPTIONS]
+    w = max(title.get_width(), max(s.get_width() for s in labels) + 24) + 44
+    h = title.get_height() + _FOG_SWITCH_ROW * len(labels) + 30
+    panel = pygame.Rect(topleft, (w, h))
+    top = panel.top + 14 + title.get_height() + 4
+    rows = [pygame.Rect(panel.left + 18, top + i * _FOG_SWITCH_ROW, w - 36, _FOG_SWITCH_ROW)
+            for i in range(len(labels))]
+    return panel, rows
+
+
+def fog_switch(screen: pygame.Surface, panel: pygame.Rect, rows: List[pygame.Rect], reveal_all: bool) -> None:
+    """Radio buttons for showing only explored land or all of it."""
+    _panel(screen, panel)
+    title = text(_FOG_SWITCH_TITLE, FONT_PLAIN, 15, INK_FADED, halo=False)
+    screen.blit(title, title.get_rect(midtop=(panel.centerx, panel.top + 12)))
+    for (label, value), row in zip(FOG_SWITCH_OPTIONS, rows):
+        dot = (row.left + 8, row.centery)
+        pygame.draw.circle(screen, INK, dot, 7, 1)
+        if value == reveal_all:
+            pygame.draw.circle(screen, RED_INK, dot, 4)
+        s = text(label, FONT_PLAIN, 17, INK, halo=False)
+        screen.blit(s, s.get_rect(midleft=(row.left + 22, row.centery)))
+
+
 def _panel(screen: pygame.Surface, rect: pygame.Rect) -> None:
     """A tablet of lighter paper with a double rule and curled corners."""
     shadow = pygame.Surface(rect.size, pygame.SRCALPHA)

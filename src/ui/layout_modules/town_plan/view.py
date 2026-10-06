@@ -14,7 +14,8 @@ dragging. Its parts:
 
 Only land the player has explored is charted: the rest is covered with blank
 paper, after the game map's fog of war (``models/fog.py``), and its names and
-buildings cannot be pointed at.
+buildings cannot be pointed at. With the debug overlay on, a switch on the
+sheet shows all of it instead, until switched back.
 """
 
 from typing import Dict, List, Optional, Tuple
@@ -30,6 +31,7 @@ from .style import (
     PAPER, UNCHARTED_TINT, WATER_LINE, ZOOM_LEVELS,
 )
 from .terrain import Ground
+from ....config import settings_store
 
 #: The paper a shade darker, as for land not explored yet. Paper made from a
 #: darker base darkens its grain and browning with it, so this is the plain
@@ -57,6 +59,13 @@ class TownPlan:
         self.view_rect: Optional[pygame.Rect] = None
         self._inner: Optional[pygame.Rect] = None
         self._dragging: bool = False
+
+        #: Chosen on the debug switch: show all land, explored or not
+        self.reveal_all: bool = False
+        # The switch, laid out each frame while the debug overlay is on
+        self._debug: bool = False
+        self._fog_switch: Optional[pygame.Rect] = None
+        self._fog_switch_rows: List[pygame.Rect] = []
 
         # Built on first sight, so a game that never opens the plan pays nothing
         self._ground: Optional[Ground] = None
@@ -124,6 +133,11 @@ class TownPlan:
                 self._zoom(1 if event.y > 0 else -1, pos)
                 return True
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self._fog_switch is not None and self._fog_switch.collidepoint(event.pos):
+                for (_, value), row in zip(ornaments.FOG_SWITCH_OPTIONS, self._fog_switch_rows):
+                    if row.collidepoint(event.pos):
+                        self.reveal_all = value
+                return True
             if self._inner.collidepoint(event.pos):
                 self._dragging = True
                 return True
@@ -172,6 +186,7 @@ class TownPlan:
     def draw(self, screen: pygame.Surface, rect: pygame.Rect, game_state) -> None:
         """Draw the plan into ``rect``."""
         self._ensure_built()
+        self._debug = bool(settings_store.get("show_map_debug"))
         self.view_rect = rect
         self._inner = inner = ornaments.frame_inner(rect)
         self._clamp()
@@ -199,7 +214,8 @@ class TownPlan:
             hovered = self._building_at(mouse)
 
         self._draw_live_buildings(screen, game_state, hovered)
-        self._cover_unexplored(screen, inner, blank_paper)
+        if not self._showing_all:
+            self._cover_unexplored(screen, inner, blank_paper)
         if game_state.is_map_visible:
             self._draw_camera_view(screen)
 
@@ -222,8 +238,13 @@ class TownPlan:
                 if b.footprint.inflate(slack * 2, slack * 2).collidepoint(wx, wy) and self._explored(b.footprint.center)]
         return min(hits, key=lambda b: b.footprint.width * b.footprint.height) if hits else None
 
+    @property
+    def _showing_all(self) -> bool:
+        """Whether the debug switch lifts the fog; never without the debug overlay."""
+        return self._debug and self.reveal_all
+
     def _explored(self, world_pos: Tuple[float, float]) -> bool:
-        return self.game_map.fog.is_explored(*world_pos)
+        return self._showing_all or self.game_map.fog.is_explored(*world_pos)
 
     def _uncharted_paper(self, rect: pygame.Rect, inner: pygame.Rect, anchor: Tuple[int, int]) -> pygame.Surface:
         """The paper under ``inner`` a shade darker, to cover the land not explored yet with.
@@ -289,6 +310,12 @@ class TownPlan:
         self._legend.bottomright = (inner.right - 16, inner.bottom - 16)
 
         taken = [self._cartouche.inflate(8, 8), compass_box, self._scale_bar, self._legend.inflate(8, 8)]
+        if self._debug:
+            self._fog_switch, self._fog_switch_rows = ornaments.fog_switch_layout(
+                (self._cartouche.left, self._cartouche.bottom + 14))
+            taken.append(self._fog_switch.inflate(8, 8))
+        else:
+            self._fog_switch, self._fog_switch_rows = None, []
         return taken
 
     def _draw_ornaments(self, screen: pygame.Surface, inner: pygame.Rect, taken: List[pygame.Rect]) -> None:
@@ -296,6 +323,8 @@ class TownPlan:
         ornaments.compass(screen, self._compass_center, 50)
         ornaments.scale_bar(screen, self._scale_bar.bottomleft, self.px_per_tile)
         ornaments.legend(screen, self._legend)
+        if self._fog_switch is not None:
+            ornaments.fog_switch(screen, self._fog_switch, self._fog_switch_rows, self.reveal_all)
         ornaments.hint(screen, inner)
 
     def _draw_labels(self, screen: pygame.Surface, inner: pygame.Rect, taken: List[pygame.Rect]) -> None:
