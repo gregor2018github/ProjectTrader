@@ -78,6 +78,7 @@ class Kind:
     tiled_class: str = ''  # a building's class on the "Houses" object layer
     footprint: float = 0.0  # a building's share of its height that it stands on (its collision)
     prompt_notes: tuple = ()  # further rules for the prompt, for a kind the general ones do not fit
+    prompt_variations: tuple = ()  # groups of alternative rules; each prompt takes one of every group at random
 
 
 @dataclass(frozen=True)

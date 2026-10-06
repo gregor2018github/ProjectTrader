@@ -722,6 +722,38 @@
     "Col_margin_left_pixel": -58,
     "Col_margin_right_pixel": -67
    }
+  },
+  "floor_plates/Floor_01.png": {
+   "kind": "floor_plate",
+   "subcategory": "cobbled market square",
+   "atlas": "ground",
+   "rect": [
+    1561,
+    156,
+    631,
+    338
+   ],
+   "tiled": {
+    "layer": "Ground_High",
+    "tileset": "ground_tiles",
+    "tiles": "20 x 11"
+   }
+  },
+  "floor_plates/Floor_02.png": {
+   "kind": "floor_plate",
+   "subcategory": "",
+   "atlas": "ground",
+   "rect": [
+    2240,
+    304,
+    631,
+    336
+   ],
+   "tiled": {
+    "layer": "Ground_High",
+    "tileset": "ground_tiles",
+    "tiles": "20 x 11"
+   }
   }
  },
  "motifs": {}

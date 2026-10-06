@@ -19,6 +19,13 @@ A bridge, Bridge_<n>, is no "Houses" object but a rectangle on the
 in it; the game also takes an optional Bridge_<n>_front.png of the same
 size, holding only the near railing, to draw over whoever is on it (made
 with bridge_front.py).
+
+A floor plate, Floor_<n> in assets/map_sprites/floor_plates/, is no object
+at all but paving painted onto the "Ground_High" tile layer, such as the
+market square's: its collection is the ground_tiles tileset
+(assets/tiles/ground_tiles.png), and the single sprite is only kept for
+this tool, as the example a new plate is made from. The game never loads
+it; the Town Plan picks the paving out by its colour like any other.
 """
 
 import math
@@ -27,9 +34,13 @@ from pathlib import Path
 import pygame
 
 from sprite_library import MAP_SPRITES, TILE, Atlas, Domain, Kind
+from theme import ROOT
 
 HOUSES_ATLAS = Atlas('houses', MAP_SPRITES / 'houses' / 'Houses.png', 'Houses', 'Houses.xcf')
 HOUSES_DIR = MAP_SPRITES / 'houses'
+GROUND_ATLAS = Atlas('ground', ROOT / 'assets' / 'tiles' / 'ground_tiles.png', 'ground_tiles', 'ground_tiles.xcf')
+FLOOR_DIR = MAP_SPRITES / 'floor_plates'
+FLOOR_LAYER = 'Ground_High'   # the tile layer floor plates are painted on
 
 #: What a bridge needs that a building does not; the game lays it flat over the
 #: water and lets people walk along its walkway (src/models/bridge.py).
@@ -43,6 +54,34 @@ BRIDGE_NOTES = (
     'are open so people can walk on and off: each railing ends in a post at either end.',
     'Do not draw any water, river bank, grass or road. The game draws the river under the bridge, so '
     'below the walkway only its beams and the tops of the piles holding it up show.',
+)
+#: A floor plate lies flat on the ground; the template is written for things standing on it.
+FLOOR_NOTES = (
+    'It is paving lying flat on the ground, seen from the same high angle as the sprite in the {first} cell: '
+    'only its top surface shows. Nothing stands up from it - no walls, roof, posts, stalls or people.',
+    'It fills the sketched shape completely, with straight edges along its outline and corners where the '
+    'sketch has them, and is bordered by a row of edging stones like the sprite in the {first} cell.',
+    'Its stones are the same size, colours and style as in the {first} cell, but it is a new floor, not a '
+    'copy: lay every stone anew, so that no stone, slab, worn patch or tuft of moss sits where one does in '
+    'the {first} cell, even where both floors are the same size.',
+)
+#: For each group, one line is picked at random every time a sheet is sent, so
+#: no two floors come out alike (the sketch alone hardly differs between them).
+FLOOR_VARIATIONS = (
+    ('Lay the stones mostly in long straight rows running from left to right.',
+     'Lay the stones in sweeping arcs, like a fan of cobbles.',
+     'Pave it with big flagstones of mixed sizes and shapes, filled in between with small cobbles.',
+     'Pave it in a grid of large square flagstones, each framed by a row of small cobbles.',
+     'Lay the stones in rows running from top to bottom, with a band of bigger stones along the middle.'),
+    ('Wear a trodden path of bare earth across it from one side to the other.',
+     'Run a shallow gutter of darker stones down its middle to carry the rain off.',
+     'Let a few stones be cracked, sunken or missing, showing earth beneath.',
+     'Darken one corner with damp, mossy stones, as if it seldom dries.',
+     'Keep it well kept and even, with only a few small worn spots near the edges.'),
+    ('Put most of the big slabs towards its left half.',
+     'Put most of the big slabs towards its right half.',
+     'Scatter a few big slabs evenly over it.',
+     'Put a ring of big slabs around its centre.'),
 )
 BRIDGE_DECK = (0.25, 0.67)   # share of a bridge sprite's height where its walkway begins and ends
 
@@ -63,6 +102,8 @@ KINDS = (
          HOUSES_ATLAS, HOUSES_DIR, 'Deco', tiled_class='Deco', footprint=0.5),
     Kind('bridge', 'Bridges', 'bridge', 'walkway', HOUSES_ATLAS, HOUSES_DIR, 'Bridge',
          tiled_class='Bridge', prompt_notes=BRIDGE_NOTES),
+    Kind('floor_plate', 'Floor plates', 'paved floor plate', 'paving stones', GROUND_ATLAS, FLOOR_DIR, 'Floor',
+         prompt_notes=FLOOR_NOTES, prompt_variations=FLOOR_VARIATIONS),
 )
 
 #: Subcategories the design screen proposes per kind: what stands in and around
@@ -90,6 +131,8 @@ SUGGESTIONS = {
                    'market cross', 'well'),
     'bridge': ('wooden plank bridge', 'trestle bridge', 'footbridge', 'bridge with rope railings',
                'log bridge', 'stone bridge'),
+    'floor_plate': ('cobbled market square', 'flagstone square', 'paved courtyard', 'brick paving',
+                    'cobbled yard', 'stone quay', 'paved churchyard', 'threshing floor'),
 }
 
 PROMPT_TEMPLATE = """\
@@ -112,8 +155,9 @@ SOLID_ALPHA = 128   # a pixel of the foot this opaque counts for the collision m
 
 
 def building_files():
-    """Every building and decoration sprite; by name, so a stall's closed sprite follows its open one."""
-    return sorted(p for p in HOUSES_DIR.glob('*.png') if p.name != HOUSES_ATLAS.name)
+    """Every building, decoration and floor plate sprite; by name, so a stall's closed sprite follows its open one."""
+    return (sorted(p for p in HOUSES_DIR.glob('*.png') if p.name != HOUSES_ATLAS.name)
+            + sorted(FLOOR_DIR.glob('*.png')))
 
 
 def tiled_properties(kind, sprite, path):
@@ -121,10 +165,15 @@ def tiled_properties(kind, sprite, path):
 
     The box runs along the sprite's foot, footprint share of its height
     deep; the margins pull its sides in to where the foot is solid. A bridge
-    gets its "Bridges" rectangle instead, see bridge_properties().
+    gets its "Bridges" rectangle instead, see bridge_properties(), and a
+    floor plate the tiles it covers on the ground layer.
     """
     if kind.key == 'bridge':
         return bridge_properties(sprite, path)
+    if kind.key == 'floor_plate':
+        w, h = sprite.get_size()
+        return {'layer': FLOOR_LAYER, 'tileset': GROUND_ATLAS.tileset,
+                'tiles': f'{math.ceil(w / TILE)} x {math.ceil(h / TILE)}'}
     w, h = sprite.get_size()
     tiles_right, tiles_up = math.ceil(w / TILE), math.ceil(h / TILE)
     collision_up = max(1, round(tiles_up * kind.footprint))

@@ -29,6 +29,7 @@ its output folder, for the quick picks under the colour wheel.
 
 import colorsys
 import json
+import random
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -435,9 +436,13 @@ class SpriteJob:
                     f'part, its {kind.main_part} too, takes the colour sketched where it is, and small dark '
                     f'patches usually mark openings such as doors and windows. Shade every colour with darker and '
                     f'lighter tones of itself')
-        # One more rule line each, after the template's own (a template without {notes} goes without)
-        notes = ''.join(f'\n- {note}' for note in (*kind.prompt_notes, *self.prompt_notes))
         first, second = ('top', 'bottom') if self.stacked else ('left', 'right')
+        # One more rule line each, after the template's own (a template without {notes} goes without); they
+        # may name the cells too, but are no format strings, so only those two are filled in
+        # A kind's variations are drawn anew each time, so a sheet sent again does not get the same answer
+        varied = [random.choice(group) for group in kind.prompt_variations]
+        notes = ''.join(f'\n- {note}'.replace('{first}', first).replace('{second}', second)
+                        for note in (*kind.prompt_notes, *varied, *self.prompt_notes))
         return self.domain.prompt_template.format(
             first=first, second=second, example=example, colours=self.colour_words(), colour_rule=rule, noun=kind.noun,
             sub=f' ({self.subcategory})' if self.subcategory else '', main_part=kind.main_part, notes=notes)
