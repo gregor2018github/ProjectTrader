@@ -160,6 +160,7 @@ The code, for whoever works on it next:
     Sprite_Manager.py  this file: the window, the main loop, shared state
     view.py            View, the base of every screen
     view_home.py       the start page: every sprite at a glance, and the way into each area
+    splash.py          the splash shown while the sprites are read at start-up, fading into the start page
     view_npcs.py       screen 1, the NPC list
     view_frames.py     screen 2, directions, frames and the chosen sheet
     view_review.py     screens 3 and 4, all answers and one answer
@@ -229,6 +230,7 @@ from buildings import BUILDINGS  # noqa: E402
 from plants import PLANTS  # noqa: E402
 from pose_review import ReviewStore, load_player_shapes  # noqa: E402
 from settings_dialog import SettingsDialog  # noqa: E402
+from splash import Splash  # noqa: E402
 from theme import (  # noqa: E402
     BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
     PANEL_GAP, ROOT, TEXT, TEXT_DIM, open_window, toggle_fullscreen, window_size,
@@ -263,6 +265,7 @@ class SpriteManager:
                            pygame.font.SysFont('segoeui', 15),
                            pygame.font.SysFont('segoeui', 30, bold=True))
         self.clock = pygame.time.Clock()
+        splash = Splash()             # shown while the sprites are read, see load()
         self.toast = Toast()
         self.status = ''
         self.status_error = False
@@ -270,11 +273,10 @@ class SpriteManager:
         self.settings = Settings.load()
         self.worker = None            # the Gemini requests running, or last run
 
-        self.counts = {d: strip_length(d) for d in ALL_DIRECTIONS}   # {Direction: frames}
+        self.counts = {}              # {Direction: frames}
         self.npcs = []                # the player and every NPC with a front standing sprite
         self.new_figures = []         # NPC folders without one yet
         self.npc_thumbs = {}
-        self.reload_npcs()
         self._player_references = None
         self.npc = None               # the NPC being worked on
         self.store = None             # its answers
@@ -299,7 +301,17 @@ class SpriteManager:
             self.set_status(str(exc), error=True)
 
         self.view = None
-        self.show(HomeView(self))
+        self.view = splash.run_while(self.load)
+        self.place_footer()
+        splash.fade_out(lambda: self.draw(flip=False))
+
+    def load(self):
+        """Read the sprites and make the start page; runs on a worker thread behind the splash."""
+        self.counts = {d: strip_length(d) for d in ALL_DIRECTIONS}
+        self.reload_npcs()
+        home = HomeView(self)
+        home.refresh()
+        return home
 
     # --- shared state -----------------------------------------------------
 
@@ -654,7 +666,7 @@ class SpriteManager:
             for button in group:
                 button.draw(self.screen, self.fonts.font, mouse)
 
-    def draw(self):
+    def draw(self, flip=True):
         mouse = pygame.mouse.get_pos()
         self.screen.fill(BG)
         self.view.draw(self.screen, mouse)
@@ -663,7 +675,8 @@ class SpriteManager:
         if self.dialog:
             self.dialog.draw(self.screen, mouse)
         self.toast.draw(self.screen, self.fonts)
-        pygame.display.flip()
+        if flip:
+            pygame.display.flip()
 
     # --- input ------------------------------------------------------------
 
