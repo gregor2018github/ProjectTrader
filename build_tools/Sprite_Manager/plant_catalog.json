@@ -495,6 +495,390 @@
     "Stem_Position": 5.05,
     "Stem_Thick": 1.7
    }
+  },
+  "trees/Tree_32.png": {
+   "kind": "needle_tree",
+   "subcategory": "old forked pine with two tops",
+   "atlas": "trees",
+   "rect": [
+    3616,
+    36,
+    285,
+    444
+   ],
+   "tiled": {
+    "File_name": "Tree_32.png",
+    "Stem_Position": 4.41,
+    "Stem_Thick": 2.1
+   }
+  },
+  "trees/Tree_33.png": {
+   "kind": "needle_tree",
+   "subcategory": "windswept pine",
+   "atlas": "trees",
+   "rect": [
+    2176,
+    408,
+    468,
+    488
+   ],
+   "tiled": {
+    "File_name": "Tree_33.png",
+    "Stem_Position": 5.98,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_34.png": {
+   "kind": "needle_tree",
+   "subcategory": "tall narrow spruce with a missing branch tier",
+   "atlas": "trees",
+   "rect": [
+    1760,
+    338,
+    181,
+    494
+   ],
+   "tiled": {
+    "File_name": "Tree_34.png",
+    "Stem_Position": 2.78,
+    "Stem_Thick": 2.2
+   }
+  },
+  "trees/Tree_35.png": {
+   "kind": "needle_tree",
+   "subcategory": "broad crooked fir",
+   "atlas": "trees",
+   "rect": [
+    2688,
+    398,
+    445,
+    498
+   ],
+   "tiled": {
+    "File_name": "Tree_35.png",
+    "Stem_Position": 7.03,
+    "Stem_Thick": 2.3
+   }
+  },
+  "trees/Tree_36.png": {
+   "kind": "needle_tree",
+   "subcategory": "spruce with a bent-over tip",
+   "atlas": "trees",
+   "rect": [
+    3168,
+    423,
+    358,
+    441
+   ],
+   "tiled": {
+    "File_name": "Tree_36.png",
+    "Stem_Position": 5.17,
+    "Stem_Thick": 2.2
+   }
+  },
+  "trees/Tree_37.png": {
+   "kind": "needle_tree",
+   "subcategory": "wind-worn spruce with uneven tiers",
+   "atlas": "trees",
+   "rect": [
+    3520,
+    527,
+    227,
+    369
+   ],
+   "tiled": {
+    "File_name": "Tree_37.png",
+    "Stem_Position": 3.81,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_38.png": {
+   "kind": "needle_tree",
+   "subcategory": "lopsided spruce, fuller on one side",
+   "atlas": "trees",
+   "rect": [
+    320,
+    782,
+    295,
+    498
+   ],
+   "tiled": {
+    "File_name": "Tree_38.png",
+    "Stem_Position": 5.27,
+    "Stem_Thick": 1.7
+   }
+  },
+  "trees/Tree_39.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "lime tree (linden)",
+   "atlas": "trees",
+   "rect": [
+    672,
+    774,
+    417,
+    474
+   ],
+   "tiled": {
+    "File_name": "Tree_39.png",
+    "Stem_Position": 6.77,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_40.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "old weathered lime tree (linden)",
+   "atlas": "trees",
+   "rect": [
+    1152,
+    786,
+    486,
+    494
+   ],
+   "tiled": {
+    "File_name": "Tree_40.png",
+    "Stem_Position": 7.8,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_41.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "lime tree (linden), ragged crown",
+   "atlas": "trees",
+   "rect": [
+    1696,
+    886,
+    317,
+    426
+   ],
+   "tiled": {
+    "File_name": "Tree_41.png",
+    "Stem_Position": 5.59,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_42.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "young birch",
+   "atlas": "trees",
+   "rect": [
+    1984,
+    429,
+    148,
+    435
+   ],
+   "tiled": {
+    "File_name": "Tree_42.png",
+    "Stem_Position": 2.42,
+    "Stem_Thick": 1.5
+   }
+  },
+  "trees/Tree_43.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "twin-stemmed birch",
+   "atlas": "trees",
+   "rect": [
+    2464,
+    904,
+    295,
+    504
+   ],
+   "tiled": {
+    "File_name": "Tree_43.png",
+    "Stem_Position": 4.86,
+    "Stem_Thick": 2.4
+   }
+  },
+  "trees/Tree_44.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "silver birch",
+   "atlas": "trees",
+   "rect": [
+    3776,
+    866,
+    169,
+    414
+   ],
+   "tiled": {
+    "File_name": "Tree_44.png",
+    "Stem_Position": 2.39,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_45.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "silver birch, leaning slightly",
+   "atlas": "trees",
+   "rect": [
+    2048,
+    923,
+    160,
+    389
+   ],
+   "tiled": {
+    "File_name": "Tree_45.png",
+    "Stem_Position": 2.73,
+    "Stem_Thick": 0.9
+   }
+  },
+  "trees/Tree_46.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "slender silver birch",
+   "atlas": "trees",
+   "rect": [
+    3040,
+    907,
+    158,
+    405
+   ],
+   "tiled": {
+    "File_name": "Tree_46.png",
+    "Stem_Position": 2.56,
+    "Stem_Thick": 1.3
+   }
+  },
+  "trees/Tree_47.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "young silver birch",
+   "atlas": "trees",
+   "rect": [
+    3232,
+    924,
+    148,
+    324
+   ],
+   "tiled": {
+    "File_name": "Tree_47.png",
+    "Stem_Position": 2.38,
+    "Stem_Thick": 2.3
+   }
+  },
+  "trees/Tree_48.png": {
+   "kind": "needle_tree",
+   "subcategory": "slender spruce",
+   "atlas": "trees",
+   "rect": [
+    3424,
+    951,
+    218,
+    425
+   ],
+   "tiled": {
+    "File_name": "Tree_48.png",
+    "Stem_Position": 3.64,
+    "Stem_Thick": 1.3
+   }
+  },
+  "trees/Tree_49.png": {
+   "kind": "needle_tree",
+   "subcategory": "young spruce",
+   "atlas": "trees",
+   "rect": [
+    2240,
+    943,
+    186,
+    337
+   ],
+   "tiled": {
+    "File_name": "Tree_49.png",
+    "Stem_Position": 3.08,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_50.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "small oak",
+   "atlas": "trees",
+   "rect": [
+    3776,
+    513,
+    188,
+    223
+   ],
+   "tiled": {
+    "File_name": "Tree_50.png",
+    "Stem_Position": 2.92,
+    "Stem_Thick": 1.8
+   }
+  },
+  "trees/Tree_51.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "small oak with a low crown",
+   "atlas": "trees",
+   "rect": [
+    2816,
+    954,
+    174,
+    198
+   ],
+   "tiled": {
+    "File_name": "Tree_51.png",
+    "Stem_Position": 2.42,
+    "Stem_Thick": 0.7
+   }
+  },
+  "trees/Tree_52.png": {
+   "kind": "needle_tree",
+   "subcategory": "silver fir",
+   "atlas": "trees",
+   "rect": [
+    32,
+    1129,
+    244,
+    471
+   ],
+   "tiled": {
+    "File_name": "Tree_52.png",
+    "Stem_Position": 3.91,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_53.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "silver birch with a rounder crown",
+   "atlas": "trees",
+   "rect": [
+    2816,
+    1216,
+    212,
+    352
+   ],
+   "tiled": {
+    "File_name": "Tree_53.png",
+    "Stem_Position": 3.39,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_54.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "leaning silver birch",
+   "atlas": "trees",
+   "rect": [
+    992,
+    1245,
+    174,
+    355
+   ],
+   "tiled": {
+    "File_name": "Tree_54.png",
+    "Stem_Position": 1.38,
+    "Stem_Thick": 2.5
+   }
+  },
+  "trees/Tree_55.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "slender silver birch",
+   "atlas": "trees",
+   "rect": [
+    640,
+    1306,
+    208,
+    486
+   ],
+   "tiled": {
+    "File_name": "Tree_55.png",
+    "Stem_Position": 3.23,
+    "Stem_Thick": 2.5
+   }
   }
  },
  "motifs": {
