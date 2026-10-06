@@ -1,8 +1,17 @@
-"""Animated loading screen shown before the game initializes."""
+"""Animated loading screen shown while the game is built.
+
+The game is built on a worker thread (``run_loading_screen(work=...)``) so the
+walker keeps walking the whole time; the main thread only draws and pumps
+events, and does no font work while the worker runs, since the worker opens
+fonts of its own.
+"""
 
 import os
 import random
+import threading
 import time
+from typing import Any, Callable, Optional
+
 import pygame
 from ..config.constants import FONTS_PATH
 from .paper import draw_paper
@@ -118,12 +127,23 @@ def _background(size: tuple[int, int], flourish_y: int) -> pygame.Surface:
     return surface
 
 
-def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
-    """Show an animated loading screen for *duration* seconds.
+def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]] = None,
+                       duration: float = 3.0) -> tuple[Any, pygame.Surface]:
+    """Show the animated loading screen while *work* runs on a worker thread.
 
     Args:
         screen: The current pygame display surface.
+        work: What to load; it must not touch the window (caption, icon,
+            cursor), only build things. None just shows the screen.
         duration: Minimum number of seconds to display the animation.
+
+    Returns:
+        tuple: What *work* returned, and the last frame shown, to fade the
+        game in from.
+
+    Raises:
+        SystemExit: The window was closed meanwhile.
+        Exception: Whatever *work* raised.
     """
     clock = pygame.time.Clock()
 
@@ -152,6 +172,21 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
     cx, cy = sw // 2, sh // 2
     background = _background((sw, sh), cy + 84)
 
+    # Rendered up front: the worker opens fonts while this runs
+    word_rect = font.render("Loading", True, INK).get_rect(center=(cx, cy + 50))
+    texts = [font.render("Loading" + "." * n, True, INK) for n in range(1, 4)]
+
+    outcome: dict[str, Any] = {}
+
+    def worker() -> None:
+        try:
+            outcome['result'] = work() if work else None
+        except BaseException as exc:   # handed over to the main thread
+            outcome['error'] = exc
+
+    thread = threading.Thread(target=worker, name='game-loading', daemon=True)
+    thread.start()
+
     frame_idx = 0
     dot_count = 1
     frame_timer = 0
@@ -159,7 +194,7 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
     tick_count = 0
     start = time.monotonic()
 
-    while time.monotonic() - start < duration:
+    while thread.is_alive() or time.monotonic() - start < duration:
         dt = clock.tick(30)
         frame_timer += dt
         dot_timer += dt
@@ -175,7 +210,7 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                return
+                raise SystemExit
 
         screen.blit(background, (0, 0))
 
@@ -183,10 +218,11 @@ def run_loading_screen(screen: pygame.Surface, duration: float = 3.0) -> None:
             sprite = sprites[frame_idx]
             screen.blit(sprite, sprite.get_rect(center=(cx, cy - 50)))
 
-        dots = '.' * dot_count
         # Placed by the bare word, so the dots do not shift it
-        word = font.render("Loading", True, INK)
-        text_surf = font.render(f"Loading{dots}", True, INK)
-        screen.blit(text_surf, word.get_rect(center=(cx, cy + 50)))
+        screen.blit(texts[dot_count - 1], word_rect)
 
         pygame.display.flip()
+
+    if 'error' in outcome:
+        raise outcome['error']
+    return outcome.get('result'), screen.copy()

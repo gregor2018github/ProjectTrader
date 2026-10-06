@@ -2,6 +2,7 @@ import pygame
 import os
 import random
 import datetime
+import time
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
@@ -32,6 +33,9 @@ from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
 )
 
+GAME_FADE_IN_SECONDS = 0.9   # the loading screen fading away over the first frames
+
+
 class Game:
     """The central class that manages the main game loop, initialization, and resource loading.
 
@@ -50,13 +54,7 @@ class Game:
             screen: Optional pre-created display surface. When provided the display
                     mode is not changed.
         """
-        pygame.init()
-
-        # Initialize mixer for sound playback
-        pygame.mixer.init()
-        # Reserve channel 0 exclusively for footstep sounds so that
-        # Sound.play() calls (e.g. knock, church bell) can never steal it.
-        pygame.mixer.set_reserved(1)
+        self.init_pygame()
 
         # Use the provided surface or create the display for the first time.
         self.screen: pygame.Surface = screen if screen is not None else pygame.display.set_mode(
@@ -70,11 +68,11 @@ class Game:
         self.event_handler: EventHandler = EventHandler()
         self.clock: pygame.time.Clock = pygame.time.Clock()
         
-        # Set up window properties
-        pygame.display.set_caption("Merchant's Rise")
-        icon = pygame.image.load(os.path.join(PICTURES_PATH, 'Icon.png'))
-        pygame.display.set_icon(icon)
-        
+        # Window caption and icon are set by run(), on the main thread
+        self.icon: pygame.Surface = pygame.image.load(os.path.join(PICTURES_PATH, 'Icon.png'))
+        self._fade_cover: Optional[pygame.Surface] = None   # see fade_in_from()
+        self._fade_start: Optional[float] = None
+
         # Initialize font
         self.font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 24)
         self.small_font: pygame.font.Font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 19)
@@ -191,7 +189,6 @@ class Game:
                 # Original size (554x751) is too big, scale down to roughly 30 width keeping aspect ratio
                 # 30 / 554 = 0.054. 751 * 0.054 = 40.5
                 self.cursor_img = pygame.transform.smoothscale(raw_cursor, (30, 41))
-                pygame.mouse.set_visible(False)
             else:
                 self.cursor_img = None
                 print(f"Cursor file not found at {cursor_path}")
@@ -207,6 +204,42 @@ class Game:
             self.game_map.map_player.y = self.player.position[1]
             self.game_map.restore_fog(save_data.get("fog"))
             self.restore_owned_buildings()
+
+    @staticmethod
+    def init_pygame() -> None:
+        """Start pygame and the mixer; does nothing the second time.
+
+        main.py calls it on the main thread before the game is built on the
+        loading screen's worker thread, so that build finds it done.
+        """
+        pygame.init()
+        pygame.mixer.init()
+        # Reserve channel 0 exclusively for footstep sounds so that
+        # Sound.play() calls (e.g. knock, church bell) can never steal it.
+        pygame.mixer.set_reserved(1)
+
+    def fade_in_from(self, cover: pygame.Surface) -> None:
+        """Have the first frames of run() fade in from *cover*, e.g. the loading screen."""
+        self._fade_cover = cover.convert()
+        self._fade_start = None
+
+    def _draw_fade_cover(self) -> None:
+        """Lay the cover of fade_in_from() over the frame, fainter every frame.
+
+        Timed from the first frame drawn, so a slow first frame does not eat the fade.
+        """
+        if self._fade_cover is None:
+            return
+        now = time.monotonic()
+        if self._fade_start is None:
+            self._fade_start = now
+        progress = (now - self._fade_start) / GAME_FADE_IN_SECONDS
+        if progress >= 1:
+            self._fade_cover = None
+            return
+        eased = progress * progress * (3 - 2 * progress)
+        self._fade_cover.set_alpha(round(255 * (1 - eased)))
+        self.screen.blit(self._fade_cover, (0, 0))
 
     def restore_owned_buildings(self) -> None:
         """After loading a save, mark Warehouse objects on the map as owned
@@ -399,6 +432,11 @@ class Game:
         """Execute the main game loop, handling updates, rendering, and events."""
         running = True
         buttons = {}
+        # Window things are done here, on the main thread: the game may have been built on another
+        pygame.display.set_caption("Merchant's Rise")
+        pygame.display.set_icon(self.icon)
+        if self.cursor_img:
+            pygame.mouse.set_visible(False)
         try:
             while running:
 
@@ -773,6 +811,8 @@ class Game:
                 self._tick_autosave(delta_time)
                 self.save_indicator.update(delta_time)
                 self.save_indicator.draw(self.screen)
+
+                self._draw_fade_cover()
 
                 # Draw custom cursor on top of everything
                 if self.state.contract_acquisition:

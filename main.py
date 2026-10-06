@@ -155,9 +155,13 @@ def main() -> None:
 
         # Re-apply resolution in case settings were changed during the menu session
         screen = _setup_display()
-        run_loading_screen(screen)
+        # The game is built behind the loading screen, which keeps moving meanwhile
+        Game.init_pygame()
+        game, last_frame = run_loading_screen(
+            screen, work=lambda: Game(save_data=save_data, screen=screen), duration=1.5)
+        game.fade_in_from(last_frame)
 
-        result = Game(save_data=save_data, screen=screen).run()
+        result = game.run()
 
         if result != "main_menu":
             break
