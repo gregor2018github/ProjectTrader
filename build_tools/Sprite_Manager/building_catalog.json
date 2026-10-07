@@ -754,6 +754,48 @@
     "tileset": "ground_tiles",
     "tiles": "20 x 11"
    }
+  },
+  "houses/House_31.png": {
+   "kind": "dwelling",
+   "subcategory": "timber-framed town house",
+   "atlas": "houses",
+   "rect": [
+    2048,
+    1131,
+    210,
+    309
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_31.png",
+    "Tiles_to_right": 7,
+    "Tiles_up": 10,
+    "Collision_to_right": 7,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -4,
+    "Col_margin_right_pixel": -22
+   }
+  },
+  "houses/House_32.png": {
+   "kind": "dwelling",
+   "subcategory": "row of town houses",
+   "atlas": "houses",
+   "rect": [
+    2976,
+    1867,
+    852,
+    853
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_32.png",
+    "Tiles_to_right": 27,
+    "Tiles_up": 27,
+    "Collision_to_right": 27,
+    "Collision_up": 8,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -12
+   }
   }
  },
  "motifs": {}
