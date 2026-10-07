@@ -6,7 +6,7 @@ import time
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
-from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
+from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover, TOP_BAR_GOODS
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
@@ -322,10 +322,10 @@ class Game:
         # Load the button for toggling the sound
         images['button_sound_80'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_sound_80.png"))
         
-        # Load all good icons
-        for good in self.goods:
-            img_path = os.path.join(PICTURES_PATH, f"{good.name.lower()}_30.png")
-            images['goods_30'][good.name] = pygame.image.load(img_path)
+        # Load all good icons, including those only listed in the top bar so far
+        for good_name in dict.fromkeys([good.name for good in self.goods] + TOP_BAR_GOODS):
+            img_path = os.path.join(PICTURES_PATH, f"{good_name.lower()}_30.png")
+            images['goods_30'][good_name] = pygame.image.load(img_path)
 
         # Load pictograms for the side menu
         pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]

@@ -338,6 +338,13 @@ def handle_mouse_click(pos: Tuple[int, int],
                 return
             return
         
+    # Top bar goods scroll arrows: one column per click
+    for key, step in (('top_bar_left', -1), ('top_bar_right', 1)):
+        if key in buttons and buttons[key].collidepoint(pos):
+            from ..ui.general_layout.layout import scroll_top_bar
+            scroll_top_bar(game_state, step)
+            return
+
     # Handle town population statistics panel click (Bottom bar)
     if 'town_population' in buttons and buttons['town_population'].collidepoint(pos):
         from ..ui.general_layout.layout import _get_town_for_stats

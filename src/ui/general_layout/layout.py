@@ -11,6 +11,15 @@ from ...config.colors import *
 from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
+# Goods in the top bar, one column of (upper, lower) per slot; only
+# TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.
+TOP_BAR_GOOD_COLUMNS = [
+    ("Wood", "Stone"), ("Wool", "Iron"), ("Wheat", "Fish"), ("Hide", "Wine"),
+    ("Beer", "Linen"), ("Meat", "Pottery"), ("Candle", "Herbs"), ("Salt", None),
+]
+TOP_BAR_VISIBLE_COLUMNS = 6
+TOP_BAR_GOODS = [name for column in TOP_BAR_GOOD_COLUMNS for name in column if name]
+
 
 def _get_town_for_stats(game_state: "GameState") -> Optional[Any]:
     """Get the town instance used for statistics display."""
@@ -208,8 +217,9 @@ def draw_layout(
     Each section is drawn by a dedicated helper function. Only right bar is drawn separately.
     """
 
-    _draw_top_bar(screen, main_depot, goods, main_font, date, images, game_state)
+    top_bar_buttons = _draw_top_bar(screen, main_depot, goods, main_font, date, images, game_state)
     buttons = _draw_bottom_bar(screen, goods, main_font, input_fields, mouse_clicked_on, game_state)
+    buttons.update(top_bar_buttons)
     return buttons
 
 def _draw_top_bar(
@@ -220,8 +230,13 @@ def _draw_top_bar(
     date: datetime.datetime,
     images: Dict[str, Any],
     game_state: "GameState"
-) -> None:
-    """Draws the top bar with money, date, goods inventory, warehouses, and stock."""
+) -> Dict[str, pygame.Rect]:
+    """Draws the top bar with money, date, goods inventory, warehouses, and stock.
+
+    Only TOP_BAR_VISIBLE_COLUMNS columns of goods fit; the rest are reached with the
+    arrows either side of them, which scroll one column at a time. Returns the
+    rects of the arrows that can be clicked.
+    """
 
     money_50 = images['money_50']
     goods_images_30 = images['goods_30']
@@ -246,7 +261,7 @@ def _draw_top_bar(
     pygame.draw.line(screen, DARK_GRAY, (306, 5), (306, 55), 2)
 
     # Goods inventory display
-    start_x = 360
+    start_x = 368
     spacing = 160
     mouse_pos = pygame.mouse.get_pos()
 
@@ -256,25 +271,23 @@ def _draw_top_bar(
     # Collect (good_name, slot_rect) for hover detection; draw after so tooltip is on top
     good_slots: List[tuple] = []
 
-    # Upper row goods
-    upper_goods = ["Wood", "Wool", "Wheat", "Hide", "Beer", "Meat"]
-    for i, good_name in enumerate(upper_goods):
-        text = main_font.render(f"{good_name}: {round(main_depot.good_stock[good_name], 2)}", True, BLACK)
+    offset = clamp_top_bar_offset(game_state)
+    visible_columns = TOP_BAR_GOOD_COLUMNS[offset:offset + TOP_BAR_VISIBLE_COLUMNS]
+    for i, column in enumerate(visible_columns):
         text_x = start_x + (i * spacing)
-        screen.blit(text, (text_x, 10))
-        screen.blit(goods_images_30[good_name], (text_x - 35, 0))
-        slot_rect = pygame.Rect(text_x - 35, 0, 35 + text.get_width(), 30)
-        good_slots.append((good_name, slot_rect))
+        for row, good_name in enumerate(column):
+            if good_name is None:
+                continue
+            row_y = row * 29
+            text = main_font.render(f"{good_name}: {round(main_depot.good_stock.get(good_name, 0), 2)}", True, BLACK)
+            screen.blit(text, (text_x, row_y + 10 - row * 4))
+            icon = goods_images_30.get(good_name)
+            if icon:
+                screen.blit(icon, (text_x - 35, row_y))
+            slot_rect = pygame.Rect(text_x - 35, row_y, 35 + text.get_width(), 30 + row)
+            good_slots.append((good_name, slot_rect))
 
-    # Lower row goods
-    lower_goods = ["Stone", "Iron", "Fish", "Wine", "Linen", "Pottery"]
-    for i, good_name in enumerate(lower_goods):
-        text = main_font.render(f"{good_name}: {round(main_depot.good_stock[good_name], 2)}", True, BLACK)
-        text_x = start_x + (i * spacing)
-        screen.blit(text, (text_x, 35))
-        screen.blit(goods_images_30[good_name], (text_x - 35, 29))
-        slot_rect = pygame.Rect(text_x - 35, 29, 35 + text.get_width(), 31)
-        good_slots.append((good_name, slot_rect))
+    buttons = _draw_top_bar_arrows(screen, game_state, offset, mouse_pos)
 
     # Separator bar
     pygame.draw.line(screen, DARK_GRAY, (1310, 5), (1310, 55), 2)
@@ -300,6 +313,56 @@ def _draw_top_bar(
             if slot_rect.collidepoint(mouse_pos):
                 _draw_top_bar_good_tooltip(screen, main_font, small_font, main_depot, good_lookup, good_name, date, mouse_pos)
                 break
+
+    return buttons
+
+
+def clamp_top_bar_offset(game_state: "GameState") -> int:
+    """Keep the top bar's scroll offset within the columns there are, and return it."""
+    max_offset = max(0, len(TOP_BAR_GOOD_COLUMNS) - TOP_BAR_VISIBLE_COLUMNS)
+    offset = min(max(getattr(game_state, 'top_bar_goods_offset', 0), 0), max_offset)
+    game_state.top_bar_goods_offset = offset
+    return offset
+
+
+def scroll_top_bar(game_state: "GameState", step: int) -> None:
+    """Move the top bar's goods one or more columns to the left (-) or right (+)."""
+    game_state.top_bar_goods_offset = getattr(game_state, 'top_bar_goods_offset', 0) + step
+    clamp_top_bar_offset(game_state)
+
+
+def _draw_top_bar_arrows(
+    screen: pygame.Surface,
+    game_state: "GameState",
+    offset: int,
+    mouse_pos: tuple,
+) -> Dict[str, pygame.Rect]:
+    """Draw the goods' scroll arrows; returns the rects of those that lead somewhere."""
+    if len(TOP_BAR_GOOD_COLUMNS) <= TOP_BAR_VISIBLE_COLUMNS:
+        return {}
+
+    max_offset = len(TOP_BAR_GOOD_COLUMNS) - TOP_BAR_VISIBLE_COLUMNS
+    menu_is_open = (
+        (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
+        or bool(getattr(game_state, 'info_window', None))
+    )
+    arrows = [
+        ('top_bar_left', pygame.Rect(312, 8, 18, 44), -1, offset > 0),
+        ('top_bar_right', pygame.Rect(1288, 8, 18, 44), 1, offset < max_offset),
+    ]
+    buttons = {}
+    for key, rect, direction, enabled in arrows:
+        hovered = enabled and not menu_is_open and rect.collidepoint(mouse_pos)
+        if hovered:
+            pygame.draw.rect(screen, PALE_BROWN, rect, border_radius=4)
+        color = (WHITE if hovered else DARK_BROWN) if enabled else GRAY
+        tip_x = rect.centerx + direction * 5
+        back_x = rect.centerx - direction * 5
+        points = [(back_x, rect.centery - 12), (tip_x, rect.centery), (back_x, rect.centery + 12)]
+        pygame.draw.lines(screen, color, False, points, 3)
+        if enabled:
+            buttons[key] = rect
+    return buttons
 
 def _draw_top_bar_total_tooltip(
     screen: pygame.Surface,

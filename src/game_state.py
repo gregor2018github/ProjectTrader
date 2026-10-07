@@ -104,6 +104,8 @@ class GameState:
             'quantity_three': ""
         }
         
+        self.top_bar_goods_offset: int = 0  # First goods column shown in the top bar
+
         self.image_boxes: List[Any] = []
         self.message: Optional[str] = None
         self.message_timer: int = 0
