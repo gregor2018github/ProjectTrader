@@ -859,6 +859,48 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -12
    }
+  },
+  "houses/House_33.png": {
+   "kind": "dwelling",
+   "subcategory": "narrow merchant's house",
+   "atlas": "houses",
+   "rect": [
+    928,
+    1962,
+    894,
+    342
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_33.png",
+    "Tiles_to_right": 28,
+    "Tiles_up": 11,
+    "Collision_to_right": 28,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -6,
+    "Col_margin_right_pixel": -9
+   }
+  },
+  "houses/House_34.png": {
+   "kind": "workshop",
+   "subcategory": "inn",
+   "atlas": "houses",
+   "rect": [
+    896,
+    2339,
+    933,
+    381
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_34.png",
+    "Tiles_to_right": 30,
+    "Tiles_up": 12,
+    "Collision_to_right": 30,
+    "Collision_up": 4,
+    "Col_margin_left_pixel": -10,
+    "Col_margin_right_pixel": -39
+   }
   }
  },
  "motifs": {}
