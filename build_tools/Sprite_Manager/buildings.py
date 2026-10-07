@@ -15,8 +15,8 @@ margins to where the foot is solid. They are a start, to be fine-tuned in
 Tiled like the others.
 
 A bridge, Bridge_<n>, is no "Houses" object but a rectangle on the
-"Bridges" layer, as big as its sprite, with the band people walk along
-in it; the game also takes an optional Bridge_<n>_front.png of the same
+"Bridges" layer, as high as one module of it and as long as the river,
+with the band people walk along in it; the game also takes an optional Bridge_<n>_front.png of the same
 size, holding only the near railing, to draw over whoever is on it (made
 with bridge_front.py).
 
@@ -84,6 +84,7 @@ FLOOR_VARIATIONS = (
      'Put a ring of big slabs around its centre.'),
 )
 BRIDGE_DECK = (0.25, 0.67)   # share of a bridge sprite's height where its walkway begins and ends
+BRIDGE_SCALE = 1 / 3         # a bridge module's size in the game to its drawn size: a railing to a walker's hip
 
 KINDS = (
     Kind('dwelling', 'Dwellings', 'town house', 'roof', HOUSES_ATLAS, HOUSES_DIR, 'House',
@@ -192,14 +193,20 @@ def tiled_properties(kind, sprite, path):
 
 
 def bridge_properties(sprite, path):
-    """The "Bridges" rectangle of a new bridge: the sprite's own size, and a first guess at its walkway.
+    """The "Bridges" rectangle of a new bridge: one module of it, and a first guess at its walkway.
 
-    Deck_top and Deck_bottom, in tiles from the top, bound the band feet
-    may stand in; whatever is above and below it is railing. The guess
-    leaves the far railing the top quarter and the near railing, with the
-    beams under it, the bottom third, to be fine-tuned in Tiled.
+    The game cuts the sprite's empty margin off and scales the rest to the
+    rectangle's height, laying modules side by side until they are as long as
+    the rectangle (src/models/bridge.py), so the width is only stretched to
+    the river in Tiled. Deck_top and Deck_bottom, in tiles from the top,
+    bound the band feet may stand in; whatever is above and below it is
+    railing. The guess leaves the far railing the top quarter and the near
+    railing, with the beams under it, the bottom third, to be fine-tuned in
+    Tiled.
     """
-    w, h = sprite.get_size()
+    crop = sprite.get_bounding_rect()
+    w, h = (max(1, round(n * BRIDGE_SCALE)) for n in (crop.width or sprite.get_width(),
+                                                      crop.height or sprite.get_height()))
     return {
         'layer': 'Bridges', 'class': 'Bridge', 'File_name': path.name, 'width': w, 'height': h,
         'Deck_top': round(h * BRIDGE_DECK[0] / TILE, 2), 'Deck_bottom': round(h * BRIDGE_DECK[1] / TILE, 2),

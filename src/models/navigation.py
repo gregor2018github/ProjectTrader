@@ -117,11 +117,13 @@ class NavGrid:
             if 0 <= cell_x < self.width and 0 <= cell_y < self.height:
                 self.blocked[cell_y * self.width + cell_x] = 1
 
-        # A bridge deck is ground again over the water, its railings are not
+        # A bridge deck is ground again over the water, its railings are not.
+        # The railings go first: a cell they only clip is still free wherever
+        # the feet put down in it stand wholly on the deck.
         for bridge in tmx_map.bridges:
-            self._open_deck(bridge.deck)
             for rail in bridge.rails:
                 self._block_rect(rail)
+            self._open_deck(bridge.deck)
 
         # Last, because it only ever looks at cells the collision left free
         self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))

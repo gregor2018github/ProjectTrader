@@ -9266,10 +9266,10 @@
   </object>
  </objectgroup>
  <objectgroup id="39" name="Bridges">
-  <object id="716" name="River_Bridge" type="Bridge" x="7296" y="3584" width="384" height="128">
+  <object id="716" name="River_Bridge" type="Bridge" x="7328" y="3600" width="320" height="82">
    <properties>
-    <property name="Deck_bottom" type="float" value="3"/>
-    <property name="Deck_top" type="float" value="1"/>
+    <property name="Deck_bottom" type="float" value="2.1"/>
+    <property name="Deck_top" type="float" value="0.8"/>
     <property name="File_name" value="Bridge_01.png"/>
    </properties>
   </object>
