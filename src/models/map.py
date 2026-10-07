@@ -240,12 +240,16 @@ class TMXMap:
                         print(f"Bridge '{obj.name}' is not a rectangle - left out")
                         continue
                     rect = pygame.Rect(round(obj.x), round(obj.y), round(obj.width), round(obj.height))
-                    height_tiles = rect.height / self.tile_size
+                    # A tall one is crossed north to south, its deck measured from the left
+                    if rect.height > rect.width:
+                        start_key, end_key, across_tiles = 'Deck_left', 'Deck_right', rect.width / self.tile_size
+                    else:
+                        start_key, end_key, across_tiles = 'Deck_top', 'Deck_bottom', rect.height / self.tile_size
                     self.bridges.append(Bridge(
                         obj.name or "Bridge",
                         rect,
-                        float(obj.properties.get('Deck_top', DEFAULT_RAIL_TILES)),
-                        float(obj.properties.get('Deck_bottom', height_tiles - DEFAULT_RAIL_TILES)),
+                        float(obj.properties.get(start_key, DEFAULT_RAIL_TILES)),
+                        float(obj.properties.get(end_key, across_tiles - DEFAULT_RAIL_TILES)),
                         obj.properties.get('File_name', ''),
                     ))
 

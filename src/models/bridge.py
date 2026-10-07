@@ -18,11 +18,17 @@ Only the railing on the near side may be drawn over them, from an optional
 ``<name>_front.png`` of the same canvas size that holds nothing but that
 railing, in the same place, sorted on the rectangle's bottom edge. Without a
 sprite, a plain plank bridge the size of the rectangle stands in for it.
+
+A rectangle taller than it is wide is a bridge crossed north to south. Its
+deck runs down it, given in tiles from its left edge by ``Deck_left`` and
+``Deck_right``, with the railings left and right of it. Its sprite is drawn
+upright, each module a span running down the picture, scaled to the width of
+the rectangle and stacked downwards.
 """
 
 import math
 import os
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import pygame
 
@@ -109,19 +115,22 @@ def _end_post_width(module: pygame.Surface) -> int:
 class Bridge:
     """A bridge from the map's "Bridges" object layer."""
 
-    def __init__(self, name: str, rect: pygame.Rect, deck_top: float, deck_bottom: float,
+    def __init__(self, name: str, rect: pygame.Rect, deck_start: float, deck_end: float,
                  file_name: str = '') -> None:
         """
         Args:
             name: Object name from Tiled.
             rect: The whole bridge, railings included, in world pixels.
-            deck_top: Where the walkable deck begins, in tiles below ``rect``'s top.
-            deck_bottom: Where it ends, in tiles below ``rect``'s top.
+            deck_start: Where the walkable deck begins, in tiles below ``rect``'s
+                top (in from its left edge, if the bridge runs north to south).
+            deck_end: Where it ends, measured the same way.
             file_name: The sprite in assets/map_sprites/houses/; '' or a file
                 not there yet for the stand-in.
         """
         self.name = name
         self.rect = pygame.Rect(rect)
+        #: Crossed north to south: the deck runs down the rectangle.
+        self.vertical = self.rect.height > self.rect.width
         self.file_name = file_name
         self.image: Optional[pygame.Surface] = None
         self.front_image: Optional[pygame.Surface] = None
@@ -130,19 +139,29 @@ class Bridge:
         self._scaled_front: Dict[float, pygame.Surface] = {}
         # A sprite may lengthen the rectangle to a whole number of modules
         self._load_images()
-        top = self.rect.top + round(deck_top * TILE_SIZE)
-        bottom = self.rect.top + round(deck_bottom * TILE_SIZE)
-        top = max(self.rect.top, min(top, self.rect.bottom))
-        bottom = max(top, min(bottom, self.rect.bottom))
-        #: The band feet may stand in, the full length of the bridge.
-        self.deck = pygame.Rect(self.rect.left, top, self.rect.width, bottom - top)
-        #: The railings either side of the deck; nothing walks through them.
-        self.rails: List[pygame.Rect] = [
-            r for r in (
-                pygame.Rect(self.rect.left, self.rect.top, self.rect.width, top - self.rect.top),
-                pygame.Rect(self.rect.left, bottom, self.rect.width, self.rect.bottom - bottom),
-            ) if r.height > 0
-        ]
+        r = self.rect
+        if self.vertical:
+            left = max(r.left, min(r.left + round(deck_start * TILE_SIZE), r.right))
+            right = max(left, min(r.left + round(deck_end * TILE_SIZE), r.right))
+            #: The band feet may stand in, the full length of the bridge.
+            self.deck = pygame.Rect(left, r.top, right - left, r.height)
+            #: The railings either side of the deck; nothing walks through them.
+            self.rails: List[pygame.Rect] = [
+                rail for rail in (
+                    pygame.Rect(r.left, r.top, left - r.left, r.height),
+                    pygame.Rect(right, r.top, r.right - right, r.height),
+                ) if rail.width > 0
+            ]
+        else:
+            top = max(r.top, min(r.top + round(deck_start * TILE_SIZE), r.bottom))
+            bottom = max(top, min(r.top + round(deck_end * TILE_SIZE), r.bottom))
+            self.deck = pygame.Rect(r.left, top, r.width, bottom - top)
+            self.rails = [
+                rail for rail in (
+                    pygame.Rect(r.left, r.top, r.width, top - r.top),
+                    pygame.Rect(r.left, bottom, r.width, r.bottom - bottom),
+                ) if rail.height > 0
+            ]
         if self.is_placeholder:
             self.image, self.front_image = self._make_placeholder()
 
@@ -219,13 +238,49 @@ class Bridge:
     def _lay_modules(self, module: pygame.Surface, front_module: Optional[pygame.Surface]) -> None:
         """Build the bridge from as many modules as it takes to span the rectangle.
 
-        Sets the images and widens ``rect`` to the row of modules, centred on it.
+        Sets the images and lengthens ``rect`` to the row of modules, centred
+        on it. The upright modules of a bridge crossed north to south are
+        turned on their side, laid in a row like any other bridge's, and the
+        row turned back.
 
         Args:
             module: One span of the bridge, transparent margins and all.
             front_module: Its near railing alone, on a canvas of the same size,
                 or None.
         """
+        if not self.vertical:
+            self.image, self.front_image, length = self._row(module, front_module, self.rect.size)
+            centre = self.rect.centerx
+            self.rect.width = length
+            self.rect.centerx = centre
+            return
+        module = pygame.transform.rotate(module, 90)
+        if front_module is not None:
+            front_module = pygame.transform.rotate(front_module, 90)
+        image, front, length = self._row(module, front_module, (self.rect.height, self.rect.width))
+        self.image = pygame.transform.rotate(image, -90)
+        self.front_image = pygame.transform.rotate(front, -90) if front is not None else None
+        centre = self.rect.centery
+        self.rect.height = length
+        self.rect.centery = centre
+
+    @staticmethod
+    def _row(module: pygame.Surface, front_module: Optional[pygame.Surface],
+             size: Tuple[int, int]) -> Tuple[pygame.Surface, Optional[pygame.Surface], int]:
+        """Modules side by side, scaled to the height ``size`` gives, at least its width long.
+
+        Args:
+            module: One span of the bridge, transparent margins and all, lying
+                the way the row runs.
+            front_module: Its near railing alone, on a canvas of the same size,
+                or None.
+            size: Length and thickness the bridge is drawn at in Tiled, in
+                world pixels.
+
+        Returns:
+            The row, its front railings (or None) and how long it came out.
+        """
+        length, thickness = size
         crop = module.get_bounding_rect()
         if not crop.width or not crop.height:
             raise pygame.error("the sprite is empty")
@@ -235,11 +290,11 @@ class Bridge:
             front_crop = pygame.Surface(crop.size, pygame.SRCALPHA)
             front_crop.blit(front_module, (-crop.x, -crop.y))
             front_module = front_crop
-        scale = self.rect.height / crop.height
+        scale = thickness / crop.height
         step = crop.width - _end_post_width(module)
-        count = 1 + max(0, math.ceil((self.rect.width / scale - crop.width) / step))
+        count = 1 + max(0, math.ceil((length / scale - crop.width) / step))
         native_width = crop.width + (count - 1) * step
-        size = (max(1, round(native_width * scale)), self.rect.height)
+        size = (max(1, round(native_width * scale)), thickness)
 
         def row(piece: pygame.Surface) -> pygame.Surface:
             strip = pygame.Surface((native_width, crop.height), pygame.SRCALPHA)
@@ -247,22 +302,18 @@ class Bridge:
                 strip.blit(piece, (i * step, 0))
             return pygame.transform.smoothscale(strip, size)
 
-        self.image = row(module)
-        self.front_image = row(front_module) if front_module is not None else None
-        centre = self.rect.centerx
-        self.rect.width = size[0]
-        self.rect.centerx = centre
+        return row(module), (row(front_module) if front_module is not None else None), size[0]
 
     def _make_placeholder(self):
         """A plain plank bridge filling the rectangle, and its near railing.
 
-        Planks lie across the way over, so a bridge longer than it is wide is
-        crossed sideways and its planks stand upright on screen.
+        Planks lie across the way over, so they stand upright on screen.
         """
+        if self.vertical:
+            return self._make_upright_placeholder(), None
         w, h = self.rect.size
         deck_top = self.deck.top - self.rect.top
         deck_bottom = self.deck.bottom - self.rect.top
-        across = w >= h
         base = pygame.Surface((w, h), pygame.SRCALPHA)
         front = pygame.Surface((w, h), pygame.SRCALPHA)
 
@@ -273,12 +324,9 @@ class Bridge:
         # The planks, from just under the far railing to the near edge
         plank_top = max(0, deck_top - 8)
         plank = 8
-        for i, start in enumerate(range(0, w if across else h, plank)):
+        for i, start in enumerate(range(0, w, plank)):
             colour = _PLANK_LIGHT if (i * 7) % 3 else _PLANK_DARK
-            if across:
-                rect = pygame.Rect(start, plank_top, plank - 1, deck_bottom - plank_top)
-            else:
-                rect = pygame.Rect(0, plank_top + start, w, plank - 1)
+            rect = pygame.Rect(start, plank_top, plank - 1, deck_bottom - plank_top)
             pygame.draw.rect(base, colour, rect.clip((0, plank_top, w, deck_bottom - plank_top)))
         pygame.draw.line(base, _PLANK_GAP, (0, plank_top), (w, plank_top))
         pygame.draw.line(base, _OUTLINE, (0, deck_bottom - 1), (w, deck_bottom - 1))
@@ -302,3 +350,34 @@ class Bridge:
         pygame.draw.rect(front, _OUTLINE, (0, near_bar, w, 4), 1)
         base.blit(front, (0, 0))
         return base, front
+
+    def _make_upright_placeholder(self) -> pygame.Surface:
+        """The plank stand-in for a bridge crossed north to south.
+
+        Planks lie across the deck, under a railing down either side. Seen from
+        above, neither railing reaches over the deck, so it has no front image.
+        """
+        w, h = self.rect.size
+        deck_left = self.deck.left - self.rect.left
+        deck_right = self.deck.right - self.rect.left
+        base = pygame.Surface((w, h), pygame.SRCALPHA)
+
+        # Beams along the sides, showing just past the planks
+        pygame.draw.rect(base, _BEAM, (max(0, deck_left - 5), 0, deck_right - deck_left + 10, h))
+
+        # The planks, reaching a little under the railings
+        plank = 8
+        left, right = max(0, deck_left - 3), min(w, deck_right + 3)
+        for i, start in enumerate(range(0, h, plank)):
+            colour = _PLANK_LIGHT if (i * 7) % 3 else _PLANK_DARK
+            pygame.draw.rect(base, colour, pygame.Rect(left, start, right - left, plank - 1).clip((0, 0, w, h)))
+            pygame.draw.line(base, _PLANK_GAP, (left, start + plank - 1), (right - 1, start + plank - 1))
+
+        # A railing over each side: a bar along it, a post every tile
+        for x in (max(0, deck_left - 7), min(w - 7, deck_right + 1)):
+            pygame.draw.rect(base, _RAIL, (x + 1, 0, 5, h))
+            pygame.draw.rect(base, _OUTLINE, (x + 1, 0, 5, h), 1)
+            for py in range(4, h, TILE_SIZE):
+                pygame.draw.rect(base, _POST, (x, py, 7, 7))
+                pygame.draw.rect(base, _OUTLINE, (x, py, 7, 7), 1)
+        return base

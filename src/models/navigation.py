@@ -123,7 +123,7 @@ class NavGrid:
         for bridge in tmx_map.bridges:
             for rail in bridge.rails:
                 self._block_rect(rail)
-            self._open_deck(bridge.deck)
+            self._open_deck(bridge.deck, bridge.vertical)
 
         # Last, because it only ever looks at cells the collision left free
         self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))
@@ -215,15 +215,18 @@ class NavGrid:
                 for cell_x in range(first_x, last_x + 1):
                     self.blocked[row + cell_x] = 1
 
-    def _open_deck(self, deck: pygame.Rect) -> None:
+    def _open_deck(self, deck: pygame.Rect, vertical: bool = False) -> None:
         """Free every cell whose walker would stand wholly on a bridge deck.
 
         That is the feet box :meth:`_has_clearance` measures, put down at the
         cell's centre. Cells the deck only partly holds stay as they were, so
-        a walker is never routed half off the side of a bridge.
+        a walker is never routed half off the side of a bridge. Only the
+        deck's sides are measured, not its ends, which lie on the banks.
 
         Args:
             deck: The walkable band of a bridge, in world pixels.
+            vertical: The bridge is crossed north to south, so its sides are
+                its left and right edges.
         """
         half = self.tile_size / 2.0
         foot_height = self.tile_size / 2.0 - 2.0
@@ -231,10 +234,13 @@ class NavGrid:
         last_x, last_y = self._clamped_cell(deck.right - 1, deck.bottom - 1)
         for cell_y in range(first_y, last_y + 1):
             feet_y = cell_y * self.tile_size + half
-            if feet_y - foot_height < deck.top or feet_y > deck.bottom:
+            if not vertical and (feet_y - foot_height < deck.top or feet_y > deck.bottom):
                 continue
             row = cell_y * self.width
             for cell_x in range(first_x, last_x + 1):
+                feet_left = cell_x * self.tile_size    # the feet box is a tile wide, centred
+                if vertical and (feet_left < deck.left or feet_left + self.tile_size > deck.right):
+                    continue
                 self.blocked[row + cell_x] = 0
 
     def _block_rect(self, rect: pygame.Rect) -> None:
