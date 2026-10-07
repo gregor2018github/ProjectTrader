@@ -84,6 +84,23 @@ class Good:
         """Update the price history for charts (hourly)."""
         self.price_history_hourly.append(self.price)
     
+    def simulate_history(self, hours: int, days: int) -> None:
+        """Make up a price history of the given lengths from the starting price.
+
+        For a good added after a save was made: its history must be as long as
+        the saved goods', so the charts line its "now" up with theirs.
+        """
+        self.price = self.base_price
+        self.price_history_hourly = [self.price]
+        for _ in range(max(hours, 1) - 1):
+            self.update_price()
+            self.update_price_history_chart()
+        # One daily entry per 24 hours, the last of them today
+        last = len(self.price_history_hourly) - 1
+        self.price_history_daily = [
+            self.price_history_hourly[max(0, last - 24 * k)] for k in reversed(range(max(days, 1)))
+        ]
+
     def get_price(self) -> float:
         """Get the current market price.
         

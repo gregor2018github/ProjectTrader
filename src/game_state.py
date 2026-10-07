@@ -91,6 +91,7 @@ class GameState:
             "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
             "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
             "Meat": "2", "Pottery": "2", "Linen": "2",
+            "Candle": "2", "Herbs": "2", "Salt": "2",
         }
 
         # Input fields for quick trading at the bottom of the screen
@@ -105,6 +106,7 @@ class GameState:
         }
         
         self.top_bar_goods_offset: int = 0  # First goods column shown in the top bar
+        self.chart_goods_offset: int = 0    # First good shown in the market chart's selection bar
 
         self.image_boxes: List[Any] = []
         self.message: Optional[str] = None
@@ -125,7 +127,8 @@ class GameState:
         # List of available goods for dropdown
         self.available_goods: List[str] = [
             "Wood", "Stone", "Iron", "Wool", "Hide", "Fish",
-            "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery"
+            "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery",
+            "Candle", "Herbs", "Salt"
         ]
         self.contract_acquisition: Optional[Any] = None
         self.minigame: Optional[Any] = None  # Active minigame overlay (e.g. woodhacking)

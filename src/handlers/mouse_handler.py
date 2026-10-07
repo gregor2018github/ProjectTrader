@@ -454,9 +454,12 @@ def handle_mouse_click(pos: Tuple[int, int],
             return
 
     # Handle toggle boxes in chart
-    for i, box in enumerate(game_state.image_boxes):
+    for box, target in game_state.image_boxes:
         if box.collidepoint(pos):
-            _toggle_chart_good(goods[i], goods, game_state)
+            if isinstance(target, int):
+                game_state.chart_goods_offset = target  # a scroll arrow
+            else:
+                _toggle_chart_good(target, goods, game_state)
             return
             
     # Check for clicks on Depot Chart buttons

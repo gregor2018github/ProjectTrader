@@ -433,6 +433,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
         "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
         "Meat": "2", "Pottery": "2", "Linen": "2",
+        "Candle": "2", "Herbs": "2", "Salt": "2",
     }
     saved_qtys = gs.get("good_quantities", {})
     default_qtys.update(saved_qtys)
@@ -520,6 +521,16 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     # trade history that's actually there.
     if depot.stats.ledger_entries < len(depot.trades):
         depot.stats.ledger_entries = len(depot.trades)
+
+    # Goods added to the game after this save was made get a made-up price
+    # history as long as the saved goods', and empty depot entries.
+    saved_goods = {gd["name"] for gd in data["goods"]}
+    hours = max((len(gd["price_history_hourly"]) for gd in data["goods"]), default=1)
+    days = max((len(gd["price_history_daily"]) for gd in data["goods"]), default=1)
+    for g in goods:
+        if g.name not in saved_goods:
+            g.simulate_history(hours, days)
+    depot.add_missing_goods([g.name for g in goods])
 
     good_by_name = {g.name: g for g in goods}
     for gd in data["goods"]:

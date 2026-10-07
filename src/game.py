@@ -276,7 +276,10 @@ class Game:
             ("Beer", 5, 500, PALE_BROWN, 8, False),
             ("Meat", 5, 800, ROSE, 9, False),
             ("Pottery", 3, 3500, DARK_ORANGE, 10, False),
-            ("Linen", 3, 2000, WHITE, 11, False)
+            ("Linen", 3, 2000, WHITE, 11, False),
+            ("Candle", 4, 1500, GOLD, 12, False),
+            ("Herbs", 3, 1200, MUTED_GREEN, 13, False),
+            ("Salt", 6, 1500, LIGHT_GRAY, 14, False)
         ]
         for name, price, quantity, color, index, show in goods_data:
             goods.append(Good(name=name, price=price, market_quantity=quantity,
@@ -683,7 +686,8 @@ class Game:
                     elif mode == 'market':
                         self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border,
                                                           self.goods, self.images['goods_30'], self.state.date,
-                                                          rect, self.depot, suppress_chart_hover)
+                                                          rect, self.depot, suppress_chart_hover,
+                                                          self.state.chart_goods_offset)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
                     elif mode == 'building':

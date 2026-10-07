@@ -31,6 +31,7 @@ class Depot:
             "Wool": 0, "Hide": 0, "Fish": 0,
             "Wheat": 0, "Wine": 0, "Beer": 0,
             "Meat": 0, "Linen": 0, "Pottery": 0,
+            "Candle": 0, "Herbs": 0, "Salt": 0,
         }
         self.properties: Dict[str, List[Any]] = {       # current properties
             "warehouses": [],
@@ -105,14 +106,7 @@ class Depot:
         
         # Initialize trade cycle tracking for each good
         for good_name in self.good_stock:
-            self.trade_cycles["by_good"][good_name] = {
-                "total": 0,
-                "successful": 0,
-                "total_profit": 0,
-                "avg_profit": 0,
-                "best_profit": 0,
-                "worst_profit": 0,
-            }
+            self.trade_cycles["by_good"][good_name] = self._empty_trade_cycle_stats()
         
         # Add list to record individual trade cycles with their timestamp
         self.trade_cycle_records: List[Dict[str, Any]] = []
@@ -505,6 +499,29 @@ class Depot:
         if total_qty == 0:
             return None
         return total_cost / total_qty
+
+    @staticmethod
+    def _empty_trade_cycle_stats() -> Dict[str, Any]:
+        """Trade cycle statistics of a good that has not been traded yet."""
+        return {
+            "total": 0,
+            "successful": 0,
+            "total_profit": 0,
+            "avg_profit": 0,
+            "best_profit": 0,
+            "worst_profit": 0,
+        }
+
+    def add_missing_goods(self, good_names: List[str]) -> None:
+        """Give goods the depot has no entries for (from a save made before they
+        existed) an empty stock, a stock history of zeros as long as the others',
+        and empty purchase and trade cycle records."""
+        history_len = max((len(h) for h in self.stock_history.values()), default=1)
+        for good_name in good_names:
+            self.good_stock.setdefault(good_name, 0)
+            self.stock_history.setdefault(good_name, [0] * history_len)
+            self.purchase_history.setdefault(good_name, [])
+            self.trade_cycles["by_good"].setdefault(good_name, self._empty_trade_cycle_stats())
 
     def update_stock_history(self) -> None:
         """Update the stock history for all goods for bookkeeping."""

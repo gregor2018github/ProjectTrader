@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from ...models.good import Good
     from ...models.depot import Depot
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False) -> List[pygame.Rect]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False, scroll_offset: int = 0) -> List[Tuple[pygame.Rect, Any]]:
     """Draw the primary price history chart and selection UI.
     
     Args:
@@ -21,8 +21,11 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
         current_date: Current game simulation date and time.
         view_rect: The rectangle defining the module viewport area on screen.
         
+        scroll_offset: First good shown in the selection bar, when not all fit.
+
     Returns:
-        List[pygame.Rect]: Hitboxes for the good selection buttons.
+        List[Tuple[pygame.Rect, Any]]: Hitboxes of the selection bar, each with the
+        Good it toggles or, for a scroll arrow, the scroll offset it leads to.
     """
     # Adjust chart border based on view_rect position
     # The original chart_border[0] is the left margin within the first module.
@@ -56,7 +59,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Calculate max price using chart history instead of bookkeeping history
     visible_goods = [good for good in goods if good.show_in_charts]
     if not visible_goods:
-        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right)
+        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, scroll_offset=scroll_offset)
 
     max_price = max(max(good.price_history_hourly[-int(max_chart_size):]) for good in visible_goods)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
@@ -66,7 +69,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset)
 
     # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
     closest_good, hover_idx = None, None
@@ -436,32 +439,50 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False) -> List[pygame.Rect]:
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0) -> List[Tuple[pygame.Rect, Any]]:
     """Draw interactive toggles for individual goods.
-    
+
+    When not all goods fit into the bar, arrows either side scroll through
+    them one good at a time.
+
     Args:
         screen: Target surface.
         goods: List of all goods.
         select_bar: Background area dimensions.
         goods_images_30: mapping of icons.
         main_font: Font for tooltips.
-        
+        scroll_offset: First good shown when not all of them fit.
+
     Returns:
-        List[pygame.Rect]: Hitboxes for each good toggle.
+        List[Tuple[pygame.Rect, Any]]: Hitboxes, each with the Good it toggles
+        or, for a scroll arrow, the scroll offset it leads to.
     """
     image_box_size = 50
     image_box_spacing = 10
-    total_width = (image_box_size + image_box_spacing) * len(goods)
-    start_x = (select_bar.width - total_width) // 2
+    slot_width = image_box_size + image_box_spacing
+    arrow_width = 24
     mouse_pos = pygame.mouse.get_pos()
-    image_boxes: List[pygame.Rect] = []
+
+    visible_count = len(goods)
+    if slot_width * len(goods) > select_bar.width - image_box_spacing:
+        visible_count = max(1, (select_bar.width - 2 * (arrow_width + image_box_spacing)) // slot_width)
+    max_offset = len(goods) - visible_count
+    scroll_offset = min(max(scroll_offset, 0), max_offset)
+    shown_goods = goods[scroll_offset:scroll_offset + visible_count]
+
+    total_width = slot_width * len(shown_goods)
+    start_x = (select_bar.width - total_width) // 2
+    image_boxes: List[Tuple[pygame.Rect, Any]] = []
     tooltips: List[Tuple[str, Tuple[int, int]]] = []  # Collect tooltip info for later rendering
 
-    for i, good in enumerate(goods):
-        box_x = select_bar.left + start_x + (i * (image_box_size + image_box_spacing))
+    if max_offset > 0:
+        image_boxes += _draw_selection_arrows(screen, select_bar, arrow_width, scroll_offset, max_offset, mouse_pos, suppress_hover)
+
+    for i, good in enumerate(shown_goods):
+        box_x = select_bar.left + start_x + (i * slot_width)
         box_y = select_bar.top + 10
         image_box = pygame.Rect(box_x, box_y, image_box_size, image_box_size)
-        image_boxes.append(image_box)
+        image_boxes.append((image_box, good))
 
         # Check if the mouse is hovering over this good's box
         is_hovered = (not suppress_hover) and image_box.collidepoint(mouse_pos)
@@ -518,3 +539,27 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
             screen.blit(name_surface, tooltip_rect)
     
     return image_boxes
+
+
+def _draw_selection_arrows(screen: pygame.Surface, select_bar: pygame.Rect, arrow_width: int, scroll_offset: int, max_offset: int, mouse_pos: Tuple[int, int], suppress_hover: bool) -> List[Tuple[pygame.Rect, int]]:
+    """Draw the selection bar's scroll arrows; returns those that lead somewhere,
+    each with the scroll offset it leads to."""
+    arrow_height = 50
+    top = select_bar.top + 10
+    arrows = [
+        (pygame.Rect(select_bar.left + 8, top, arrow_width, arrow_height), -1, scroll_offset > 0),
+        (pygame.Rect(select_bar.right - 8 - arrow_width, top, arrow_width, arrow_height), 1, scroll_offset < max_offset),
+    ]
+    hitboxes: List[Tuple[pygame.Rect, int]] = []
+    for rect, direction, enabled in arrows:
+        hovered = enabled and not suppress_hover and rect.collidepoint(mouse_pos)
+        if hovered:
+            pygame.draw.rect(screen, LIGHT_BROWN, rect, border_radius=4)
+        color = (WHITE if hovered else DARK_BROWN) if enabled else GRAY
+        tip_x = rect.centerx + direction * 6
+        back_x = rect.centerx - direction * 6
+        points = [(back_x, rect.centery - 14), (tip_x, rect.centery), (back_x, rect.centery + 14)]
+        pygame.draw.lines(screen, color, False, points, 3)
+        if enabled:
+            hitboxes.append((rect, scroll_offset + direction))
+    return hitboxes
