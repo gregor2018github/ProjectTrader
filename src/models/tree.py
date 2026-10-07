@@ -7,7 +7,7 @@ class Tree:
     
     def __init__(self, x: float, y: float, file_name: str, 
                  stem_position: float, stem_thick: float,
-                 tile_size: int, scale: float = 1.0):
+                 tile_size: int, scale: float = 1.0, broadleaf: bool = False):
         """Initialize the tree.
         
         Args:
@@ -21,10 +21,13 @@ class Tree:
                 sprite can stand in a forest a little taller or shorter.
                 The tree grows from its bottom-left corner, and its stem
                 moves and thickens with it.
+            broadleaf: A leaf tree rather than a conifer (its Tiled object
+                type is "Broadleaf_Tree"); the Town Plan draws it so.
         """
         self.x = x
         self.y = y 
         self.file_name = file_name
+        self.broadleaf = broadleaf
         self.scale = scale if scale > 0 else 1.0
         self.stem_position = stem_position * self.scale
         self.stem_thick = stem_thick * self.scale

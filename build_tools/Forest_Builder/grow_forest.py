@@ -46,6 +46,7 @@ from src.models.map import TMXMap  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from floor_baker import MIX_NAME, FloorBaker  # noqa: E402
+from floor_painter import STYLE, FloorPainter  # noqa: E402
 
 TMX = "assets/tiles/Map1.tmx"
 PREVIEW_TMX = "assets/tiles/_forest_preview.tmx"
@@ -69,8 +70,8 @@ TREE_SPRITES = "assets/map_sprites/trees"
 #                  are mirrored).
 #   flower_patches How many patches from FLOWERS_SOURCE to scatter.
 #
-# The western forest was grown in three runs, all with seed 7. These are the
-# patches of the third. The first was area (18, 145, 95, 187), shapes
+# The western forest was grown in three runs, all with seed 7.
+# The first was area (18, 145, 95, 187), shapes
 # (51, 168, 25, 16.5) and (79, 161, 9.5, 6), clearings (82, 174.5, 8.5, 6.5)
 # and (44, 171, 4.2, 3.2), 2 oaks, floor at (38, 168), (55, 162), (57, 177),
 # (70, 166), 14 flower patches. The second ran with --remove 505 and filled
@@ -78,20 +79,53 @@ TREE_SPRITES = "assets/map_sprites/trees"
 # to the west edge and the river with area (0, 136, 46, 235), shapes
 # (6, 166, 20, 31) and (28, 203, 19, 16), density 0.7, spacing 1.45, floor at
 # (6, 158), (10, 182), (34, 192), 8 flower patches. Back then KEEP_OUT was
-# (70, 185, 300, 300).
+# (70, 185, 300, 300). The third grew it south of the woodcutter's hut with
+# area (44, 181, 104, 210), shapes (64, 194, 19, 11) and (86, 191, 17, 16),
+# density 0.85, spacing 1.2, floor at (50, 193), (88, 197), 6 flower patches,
+# and KEEP_OUT (70, 185, 300, 189), (104, 189, 300, 300).
+#
+# The current entry is the birch wood in the river's bend south-east of town,
+# with lindens and the odd oak: broadleaves, painted floor (floor_painter.py),
+# grass and flowers.
+#
+# Broadleaf patches name their own mix of trees:
+#   trees          {sprite: weight}; default the pines, PINES.
+#   young          Small trees favoured at the edge; default YOUNG.
+#   deep, deep_from  Sprites only planted at least deep_from in (big trees).
+#   anchors        dict(sprites, count, depth, gap): big trees planted first,
+#                  deep in and gap tiles apart. "oaks" is short for anchors of
+#                  Tree_23.
+#   grow           Trees stand taller the deeper in, by about this share.
+#   painted_floor  A dict (may be empty) of floor_painter.STYLE overrides: the
+#                  patch gets a painted floor of its own instead of
+#                  floor_spots copies.
+#   deco           (kind, subcategories or None, how many, "light" or "any")
+#                  of the plant motifs in plant_catalog.json, painted into
+#                  that floor. "light" ones keep to the edge and the gaps.
 # ---------------------------------------------------------------------------
+BIRCHES = {27: 3, 44: 3, 45: 3, 46: 3, 53: 3, 54: 2, 55: 3, 42: 2, 47: 2, 43: 1.5}
+LINDENS = {39: 1.2, 41: 1.2, 40: 0.6}
+OAKS = {30: 0.8, 23: 0.5, 50: 0.7, 51: 0.6}
+
 PATCHES = [
-    # South of the woodcutter's hut, down to row 205 and round to the field,
-    # with the road along rows 186-187 left open
-    dict(area=(44, 181, 104, 210),
-         shapes=[(64, 194, 19, 11), (86, 191, 17, 16)],
-         density=0.85, spacing=1.2,
-         floor_spots=[(50, 193), (88, 197)],
-         flower_patches=6),
+    # The birch wood in the river's bend, on both banks
+    dict(area=(146, 226, 256, 279),
+         shapes=[(168, 257, 23, 11), (180, 266, 16, 8), (201, 253, 24, 21), (236, 249, 18, 24)],
+         density=0.92, spacing=0.95,
+         trees={**BIRCHES, **LINDENS, **OAKS},
+         young=[42, 47, 50, 51],
+         deep=[39, 40, 41, 30, 43, 23], deep_from=0.3,
+         anchors=dict(sprites=[40, 39, 41, 30], count=5, depth=0.45, gap=11),
+         grow=0.2,
+         painted_floor={},
+         deco=[("grass_herbs", ["grass", "meadow grass", "herb", "clover", "fern"], 90, "any"),
+               ("moss", None, 12, "any"),
+               ("flowers", ["wildflowers", "daisies", "meadow flowers", "dandelions"], 26, "light"),
+               ("berries", ["strawberries"], 5, "light")]),
 ]
 
 #: Rectangles x0, y0, x1, y1 nothing may go into, in any patch: roads, paths
-KEEP_OUT = [(70, 185, 300, 189), (104, 189, 300, 300)]
+KEEP_OUT = [(70, 185, 300, 189)]
 
 #: Forest floor to copy: the grove's own, cut out of Ground_High_Plus before
 #: the forest was grown, as [dx, dy, gid] tiles
@@ -99,7 +133,9 @@ FLOOR_STAMP = "build_tools/Forest_Builder/forest_floor_stamp.json"
 #: A region of Ground_Flowers_Mushrooms whose patches get scattered
 FLOWERS_SOURCE = (60, 140, 120, 195)
 
-PATCH_DEFAULTS = dict(clearings=[], density=1.0, spacing=1.0, oaks=0, floor_spots=[], flower_patches=0)
+PATCH_DEFAULTS = dict(clearings=[], density=1.0, spacing=1.0, oaks=0, floor_spots=[], flower_patches=0,
+                      trees=None, young=None, deep=[], deep_from=0.3, anchors=None, grow=0.0,
+                      painted_floor=None, deco=[])
 
 #: Size range a tree is drawn at, around its sprite's own size
 SCALE_RANGE = (0.82, 1.18)
@@ -118,7 +154,8 @@ MAX_EXTRA_LAYERS = 2
 # ---------------------------------------------------------------------------
 # The sprites. Tree_<n>.png -> (left, top of the sprite in Trees.png in
 # pixels, stem centre from the left in tiles, stem width in tiles).
-# 12-22 are 1-11 mirrored; 23 is the broadleaf.
+# Stem widths of the broadleaves are narrower than the Sprite Manager's guess,
+# which takes in the roots.
 # ---------------------------------------------------------------------------
 SPRITES: Dict[int, Tuple[int, int, float, float]] = {
     1: (0, 16, 3.0, 1.2), 2: (480, 127, 2.0, 1.0), 3: (608, 211, 1.0, 0.3),
@@ -130,8 +167,21 @@ SPRITES: Dict[int, Tuple[int, int, float, float]] = {
     18: (704, 504, 2.0, 0.7), 19: (832, 447, 1.5, 0.8), 20: (928, 586, 1.0, 0.3),
     21: (992, 502, 2.0, 1.0), 22: (1408, 391, 3.0, 1.2),
     23: (32, 786, 3.7, 2.2),
+    # Birches
+    27: (2016, 57, 2.72, 0.8), 42: (1984, 429, 2.42, 0.6), 43: (2464, 904, 4.86, 1.6),
+    44: (3776, 866, 2.39, 0.8), 45: (2048, 923, 2.73, 0.7), 46: (3040, 907, 2.56, 0.7),
+    47: (3232, 924, 2.38, 0.6), 53: (2816, 1216, 3.39, 0.9), 54: (992, 1245, 1.38, 0.8),
+    55: (640, 1306, 3.23, 0.9),
+    # Lindens
+    39: (672, 774, 6.77, 2.0), 40: (1152, 786, 7.8, 2.4), 41: (1696, 886, 5.59, 1.8),
+    # Oaks (23 above)
+    30: (2912, 35, 3.95, 1.6), 50: (3776, 513, 2.92, 1.0), 51: (2816, 954, 2.42, 0.7),
 }
 BROADLEAF = 23
+#: Sprites written as "Broadleaf_Tree" rather than "Pine_Tree"
+BROADLEAVES = {23, 27, 30, 39, 40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 53, 54, 55}
+#: The pinewood's trees, the default mix of a patch: 12-22 are 1-11 mirrored
+PINES = list(range(1, 23))
 #: Small and young trees, favoured at the forest's edge
 YOUNG = [3, 20, 10, 13, 9, 14]
 
@@ -374,18 +424,27 @@ class Forest:
         self.rng.shuffle(spots)
         rng = self.rng
 
-        # A few broadleaves first, well apart, so the pines grow around them
-        oaks = 0
+        # A few big trees first, deep in and well apart, so the rest grow
+        # around them
+        anchors = dict(sprites=[BROADLEAF], count=patch["oaks"], depth=0.3, gap=12)
+        anchors.update(patch["anchors"] or {})
+        planted = 0
         for x, y in spots:
-            if oaks >= patch["oaks"]:
+            if planted >= anchors["count"]:
                 break
-            tree = dict(x=x, y=y, sprite=BROADLEAF, scale=round(rng.uniform(0.85, 1.0), 2))
-            if self.depth(patch, x, y) >= 0.3 and self.ground_ok(x, y, BROADLEAF, tree["scale"]) and self.room_for(tree, 12):
+            sprite = rng.choice(anchors["sprites"])
+            tree = dict(x=x, y=y, sprite=sprite, scale=round(rng.uniform(0.85, 1.0), 2))
+            if (self.depth(patch, x, y) >= anchors["depth"] and self.ground_ok(x, y, sprite, tree["scale"])
+                    and self.room_for(tree, anchors["gap"])):
                 self.new.append(tree)
-                oaks += 1
+                planted += 1
 
-        pines = [n for n in SPRITES if n != BROADLEAF]
-        weights = [0.8 if n in YOUNG[:4] else 1.0 for n in pines]
+        if patch["trees"]:
+            kinds, weights = list(patch["trees"]), list(patch["trees"].values())
+        else:
+            kinds = PINES
+            weights = [0.8 if n in YOUNG[:4] else 1.0 for n in kinds]
+        young = patch["young"] or YOUNG
         for x, y in spots:
             f = self.depth(patch, x, y)
             if rng.random() > patch["density"]:
@@ -395,10 +454,14 @@ class Forest:
                     continue
             elif f < 0.25 and rng.random() > 0.35 + 2.6 * f:  # thinner at the edge
                 continue
-            sprite = rng.choices(pines, weights)[0]
+            sprite = rng.choices(kinds, weights)[0]
             if f < 0.15 and rng.random() < 0.5:
-                sprite = rng.choice(YOUNG)
-            scale = round(min(SCALE_RANGE[1], max(SCALE_RANGE[0], rng.gauss(1.0, SCALE_SPREAD))), 2)
+                sprite = rng.choice(young)
+            if sprite in patch["deep"] and f < patch["deep_from"]:
+                continue
+            # With "grow", trees stand taller the deeper in they are
+            mean = 1.0 + patch["grow"] * (min(f, 0.8) - 0.4)
+            scale = round(min(SCALE_RANGE[1], max(SCALE_RANGE[0], rng.gauss(mean, SCALE_SPREAD))), 2)
             tree = dict(x=x, y=y, sprite=sprite, scale=scale)
             if self.ground_ok(x, y, sprite, scale) and self.room_for(tree, spacing=patch["spacing"]):
                 self.new.append(tree)
@@ -547,10 +610,11 @@ class Forest:
         for tree in sorted(self.new, key=lambda t: (t["y"], t["x"])):
             n = tree["sprite"]
             _, _, stem_pos, stem_thick = SPRITES[n]
+            kind = "Broadleaf_Tree" if n in BROADLEAVES else "Pine_Tree"
             scale = (f'    <property name="Scale" type="float" value="{tree["scale"]}"/>\n'
                      if tree["scale"] != 1.0 else "")
             out.append(
-                f'  <object id="{{ID}}" name="Tree_{n:02d}" type="Pine_Tree" '
+                f'  <object id="{{ID}}" name="Tree_{n:02d}" type="{kind}" '
                 f'x="{tree["x"] * self.ts}" y="{tree["y"] * self.ts}">\n'
                 f'   <properties>\n'
                 f'    <property name="File_name" value="Tree_{n:02d}.png"/>\n'
@@ -604,14 +668,27 @@ def main() -> None:
     dropped, wrong = forest.stamp_previews()
     baker = FloorBaker(tmx, "Ground_High_Plus")
     # A preview may add blended tiles, but must leave the files as they were
-    mix_files = {path: open(path, "rb").read() if os.path.exists(path) else None
-                 for path in (baker.mix_path, baker.mix_path[:-4] + ".tsx")}
+    painters = {}
+    for patch in patches:
+        if patch["painted_floor"] is not None:
+            name = {**STYLE, **patch["painted_floor"]}["tileset"]
+            painters.setdefault(name, FloorPainter(tmx, "Ground_High_Plus", "Ground_Flowers_Mushrooms", name, baker))
+    paths = [baker.mix_path, baker.mix_path[:-4] + ".tsx"] + [p for f in painters.values() for p in f.files()]
+    mix_files = {path: open(path, "rb").read() if os.path.exists(path) else None for path in paths}
     for patch in patches:
         forest.lay_floor(patch["floor_spots"], baker)
         forest.scatter_flowers(patch)
     mixed = baker.bake()
     if mixed:
         print(f"{mixed} blended floor tiles added to {MIX_NAME}.png")
+    for i, patch in enumerate(patches):
+        if patch["painted_floor"] is not None:
+            painter = painters[{**STYLE, **patch["painted_floor"]}["tileset"]]
+            print(f"Patch {i + 1}: floor painted on {painter.paint(forest, patch, args.seed + i)} tiles")
+    for name, painter in painters.items():
+        painter.save()
+        if painter.added:
+            print(f"{painter.added} painted floor tiles added to {name}.png")
 
     target = PREVIEW_TMX if args.preview else TMX
     tmx.save(target, forest.objects())

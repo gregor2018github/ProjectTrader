@@ -182,7 +182,7 @@ def _trees(plan: pygame.Surface, trees, scale: float) -> None:
         foot_x, foot_y = rect.centerx * scale, rect.bottom * scale
         sprite_h = tree.image.get_height() if tree.image is not None else 200
         height = sprite_h * scale * 0.55
-        if tree.file_name == "Tree_23.png":
+        if tree.broadleaf:
             glyphs.broadleaf(plan, foot_x, foot_y, height)
         else:
             glyphs.conifer(plan, foot_x, foot_y, height)

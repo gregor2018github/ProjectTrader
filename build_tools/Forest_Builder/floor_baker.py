@@ -109,7 +109,7 @@ class FloorBaker:
 
     def _image(self, gid: int) -> pygame.Surface:
         local = gid & GID_MASK
-        if self.mix and local >= self.mix_first_gid:
+        if self.mix_first_gid <= local < self.mix_first_gid + len(self.mix_tiles):
             image = self.mix_tiles[local - self.mix_first_gid].copy()
         else:
             tileset = max((t for t in self.tilesets if t.first_gid <= local), key=lambda t: t.first_gid)
@@ -138,6 +138,10 @@ class FloorBaker:
                 made[key] = self.mix_first_gid + len(self.mix_tiles) - 1
             data[y * width + x] = made[key]
         self.stacks.clear()
+        # Tilesets after this one (a painted floor's) start a little further on
+        ceiling = min((t.first_gid for t in self.tilesets if t.first_gid > self.mix_first_gid), default=None)
+        if ceiling is not None and self.mix_first_gid + len(self.mix_tiles) > ceiling:
+            raise SystemExit(f"{MIX_NAME} has grown into the gids of the next tileset; give that one a higher firstgid")
         if len(self.mix_tiles) > before:
             self._save_tileset()
         return len(self.mix_tiles) - before

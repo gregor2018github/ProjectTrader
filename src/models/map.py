@@ -613,6 +613,7 @@ class TMXMap:
                             stem_thick=stem_thick,
                             tile_size=self.tile_size,
                             scale=scale,
+                            broadleaf=getattr(obj, 'type', None) == "Broadleaf_Tree",
                         )
                         self.trees.append(tree)
 
