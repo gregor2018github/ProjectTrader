@@ -84,7 +84,6 @@ class Game:
         # Initialize goods
         self.goods: List[Good] = self._initialize_goods()
         self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
-        self.state.sync_quicktrade_fields()
         self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
 
         # Initialize depot
@@ -206,6 +205,7 @@ class Game:
             self.game_map.restore_fog(save_data.get("fog"))
             self.restore_owned_buildings()
             self._update_player_market_area()
+            self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
 
     @staticmethod
     def init_pygame() -> None:
@@ -265,9 +265,11 @@ class Game:
         if area == self.player.market_area and self.state.market_area_goods:
             return
         self.player.market_area = area
+        self.state.market_area = area
         self.state.market_area_goods = (
             self.game_map.tmx_map.goods_at_market_area(area) if area else set()
         )
+        self.state.sync_quicktrade_fields()
 
     def _initialize_goods(self) -> List[Good]:
         """Create and initialize the default list of goods for the market.

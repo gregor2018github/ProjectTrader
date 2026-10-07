@@ -4,6 +4,7 @@ from collections import namedtuple
 from typing import Dict, List, Optional, Any, Set, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
 from .config.constants import (
+    DEFAULT_QUICKTRADE_SLOTS,
     START_DATE, 
     START_TIME,
     TIME_STEP_LEVEL_1, 
@@ -107,7 +108,12 @@ class GameState:
         
         self.top_bar_goods_offset: int = 0  # First goods column shown in the top bar
         self.chart_goods_offset: int = 0    # First good shown in the market chart's selection bar
+        self.market_area: Optional[str] = None  # The market square the player is in, if any
         self.market_area_goods: Set[str] = set()  # Goods with a booth on the player's market square
+        # The goods in the three quick-trade slots, per market square
+        self.quicktrade_slots: Dict[str, List[str]] = {
+            area: list(slots) for area, slots in DEFAULT_QUICKTRADE_SLOTS.items()
+        }
 
         self.image_boxes: List[Any] = []
         self.message: Optional[str] = None
@@ -248,16 +254,35 @@ class GameState:
         elif self.time_level == 5:
             self.date += datetime.timedelta(minutes=TIME_STEP_LEVEL_5)
   
-    def sync_quicktrade_fields(self) -> None:
-        """Rebuild input_fields from chart_selection_order and good_quantities.
+    def goods_sold_here(self) -> List[str]:
+        """The goods the player's market square trades, in the usual goods order;
+        every good when the player is at no market square."""
+        if not self.market_area:
+            return list(self.available_goods)
+        return [g for g in self.available_goods if self.is_good_sold_here(g)]
 
-        Slots without a corresponding chart good are cleared so the layout
-        knows not to render them.
+    def current_quicktrade_slots(self) -> List[str]:
+        """The quick-trade slots of the player's market square; a square without
+        slots yet gets the first three goods it trades."""
+        if not self.market_area:
+            return []
+        if self.market_area not in self.quicktrade_slots:
+            self.quicktrade_slots[self.market_area] = self.goods_sold_here()[:3]
+        return self.quicktrade_slots[self.market_area]
+
+    def sync_quicktrade_fields(self) -> None:
+        """Rebuild input_fields from the market square's quick-trade slots and good_quantities.
+
+        Slots without a good are cleared so the layout knows not to render them.
+        Away from every market square the fields are left as they are.
         """
+        if not self.market_area:
+            return
+        slots = self.current_quicktrade_slots()
         sections = ['one', 'two', 'three']
         for i, section in enumerate(sections):
-            if i < len(self.chart_selection_order):
-                name = self.chart_selection_order[i]
+            if i < len(slots):
+                name = slots[i]
                 self.input_fields[f'good_{section}'] = name
                 self.input_fields[f'quantity_{section}'] = self.good_quantities.get(name, "2")
             else:

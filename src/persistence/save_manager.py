@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import SAVES_PATH, SAVE_SECRET_KEY
+from ..config.constants import DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY
 
 SAVE_VERSION = 1
 
@@ -114,6 +114,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "input_fields": dict(game_state.input_fields),
             "depot_time_frame": game_state.depot_time_frame,
             "chart_selection_order": list(getattr(game_state, "chart_selection_order", [])),
+            "quicktrade_slots": {k: list(v) for k, v in getattr(game_state, "quicktrade_slots", {}).items()},
             "good_quantities": dict(getattr(game_state, "good_quantities", {})),
             "event_log": [
                 {**e, "timestamp": _dt_to_str(e["timestamp"])}
@@ -428,6 +429,11 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.input_fields = gs["input_fields"]
     game_state.depot_time_frame = gs["depot_time_frame"]
     game_state.chart_selection_order = gs.get("chart_selection_order", [])
+    # Saves from before each market square had its own slots start with the defaults
+    game_state.quicktrade_slots = {
+        area: list(slots) for area, slots in DEFAULT_QUICKTRADE_SLOTS.items()
+    }
+    game_state.quicktrade_slots.update({k: list(v) for k, v in gs.get("quicktrade_slots", {}).items()})
     game_state.event_log = _dt_list(gs.get("event_log", []), "timestamp")
     default_qtys = {
         "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",

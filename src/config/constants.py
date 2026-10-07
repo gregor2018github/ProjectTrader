@@ -97,6 +97,14 @@ UNDERPOP_BONUS_HIGH = 1             # Happiness equilibrium bonus when fill grad
 
 # monthly base contract fees for each good, used in contract overview and license acquisition
 BASE_CONTRACT_FEE = 50
+# The goods in the bottom bar's three quick-trade slots at each market square
+# (an "Areas" rectangle named Market_Area...) when a game starts. A square not
+# listed starts with the first three goods its booths sell.
+DEFAULT_QUICKTRADE_SLOTS = {
+    "Market_Area": ["Wood", "Stone", "Iron"],
+    "Market_Area_Northwest": ["Herbs", "Salt", "Candle"],
+}
+
 MONTHLY_CONTRACT_FEES = {
     "Wood": 50,
     "Stone": 50,

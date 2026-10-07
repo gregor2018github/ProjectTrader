@@ -89,46 +89,25 @@ def _toggle_chart_good(good: 'Good', goods: List['Good'], game_state: 'GameState
         if good.name not in order:
             order.append(good.name)
 
-    game_state.sync_quicktrade_fields()
-
 
 def _apply_dropdown_good_change(section: str, selected: str, goods: List['Good'], game_state: 'GameState') -> None:
-    """Handle a good selection via the quicktrade dropdown.
-
-    Replaces the good at the given slot position in chart_selection_order with
-    the newly selected one, updating show_in_charts accordingly.  Selecting a
-    good that is already visible elsewhere in the chart is a no-op.
+    """Put the good picked in a quick-trade dropdown into that slot of the
+    player's market square. A good already in another slot is a no-op.
     """
     section_to_index = {'one': 0, 'two': 1, 'three': 2}
     slot_index = section_to_index.get(section)
     if slot_index is None:
         return
 
-    order = game_state.chart_selection_order
-
-    # No-op if the good is already visible somewhere in the chart
-    if selected in order:
+    slots = game_state.current_quicktrade_slots()
+    if selected in slots:
         return
-
-    good_by_name = {g.name: g for g in goods}
-
-    if slot_index < len(order):
-        # Close the good currently occupying this slot
-        old_name = order[slot_index]
-        old_good = good_by_name.get(old_name)
-        if old_good:
-            old_good.show_in_charts = False
-        order[slot_index] = selected
+    if slot_index < len(slots):
+        slots[slot_index] = selected
+    elif len(slots) < 3:
+        slots.append(selected)
     else:
-        # Slot was empty — append (only if we're within the 3-good limit)
-        if len(order) < 3:
-            order.append(selected)
-        else:
-            return
-
-    new_good = good_by_name.get(selected)
-    if new_good:
-        new_good.show_in_charts = True
+        return
 
     game_state.sync_quicktrade_fields()
 
@@ -428,8 +407,8 @@ def handle_mouse_click(pos: Tuple[int, int],
                 dropdown_name = f'dropdown_{section}'
                 dropdown = game_state.dropdowns[dropdown_name]
                 this_good = game_state.input_fields.get(f'good_{section}', '')
-                other_selected = set(game_state.chart_selection_order) - ({this_good} if this_good else set())
-                filtered = [g for g in game_state.available_goods if g not in other_selected]
+                other_selected = set(game_state.current_quicktrade_slots()) - ({this_good} if this_good else set())
+                filtered = [g for g in game_state.goods_sold_here() if g not in other_selected]
                 dropdown.options = filtered
                 dropdown.dropdown_height = len(filtered) * dropdown.item_height
                 dropdown.dropdown_rect.y = dropdown.rect.y - dropdown.dropdown_height
