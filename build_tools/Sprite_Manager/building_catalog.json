@@ -796,6 +796,69 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -12
    }
+  },
+  "houses/Market_10.png": {
+   "kind": "market_stall",
+   "subcategory": "herb stall",
+   "atlas": "houses",
+   "rect": [
+    3456,
+    425,
+    160,
+    119
+   ],
+   "tiled": {
+    "class": "Market_Frontal",
+    "File_name": "Market_10.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 4,
+    "Collision_to_right": 5,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -4
+   }
+  },
+  "houses/Market_11.png": {
+   "kind": "market_stall",
+   "subcategory": "candle stall",
+   "atlas": "houses",
+   "rect": [
+    3456,
+    600,
+    150,
+    104
+   ],
+   "tiled": {
+    "class": "Market_Frontal",
+    "File_name": "Market_11.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 4,
+    "Collision_to_right": 5,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -18
+   }
+  },
+  "houses/Market_12.png": {
+   "kind": "market_stall",
+   "subcategory": "salt stall",
+   "atlas": "houses",
+   "rect": [
+    32,
+    1076,
+    157,
+    108
+   ],
+   "tiled": {
+    "class": "Market_Frontal",
+    "File_name": "Market_12.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 4,
+    "Collision_to_right": 5,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -3
+   }
   }
  },
  "motifs": {}

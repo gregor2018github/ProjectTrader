@@ -29,9 +29,9 @@ from .figurines.humans.player import MapPlayer
 from .figurines.humans.npcs.npc import NPC
 from .figurines.humans.npcs.trader import StallRota, Trader
 from .figurines.humans.npcs import (
-    TraderAlewife, TraderBlacksmith, TraderButcher, TraderFarmer, TraderFisherman,
-    TraderPotter, TraderShepherdess, TraderStonemason, TraderTanner, TraderVintner,
-    TraderWeaver, TraderWoodcutter,
+    TraderAlewife, TraderBlacksmith, TraderButcher, TraderChandler, TraderFarmer,
+    TraderFisherman, TraderHerbalist, TraderPotter, TraderSalter, TraderShepherdess,
+    TraderStonemason, TraderTanner, TraderVintner, TraderWeaver, TraderWoodcutter,
 )
 from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.patrol_path import PatrolPath
@@ -772,9 +772,12 @@ class TMXMap:
         TraderAlewife,
         TraderBlacksmith,
         TraderButcher,
+        TraderChandler,
         TraderFarmer,
         TraderFisherman,
+        TraderHerbalist,
         TraderPotter,
+        TraderSalter,
         TraderShepherdess,
         TraderStonemason,
         TraderTanner,

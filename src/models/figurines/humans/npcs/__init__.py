@@ -5,9 +5,12 @@ from .trader import StallRota, Trader
 from .trader_alewife import TraderAlewife
 from .trader_blacksmith import TraderBlacksmith
 from .trader_butcher import TraderButcher
+from .trader_chandler import TraderChandler
 from .trader_farmer import TraderFarmer
 from .trader_fisherman import TraderFisherman
+from .trader_herbalist import TraderHerbalist
 from .trader_potter import TraderPotter
+from .trader_salter import TraderSalter
 from .trader_shepherdess import TraderShepherdess
 from .trader_stonemason import TraderStonemason
 from .trader_tanner import TraderTanner
@@ -17,7 +20,7 @@ from .trader_woodcutter import TraderWoodcutter
 
 __all__ = [
     "NPC", "NPC_SPRITE_ROOT", "StallRota", "Trader", "TraderAlewife", "TraderBlacksmith",
-    "TraderButcher", "TraderFarmer", "TraderFisherman", "TraderPotter",
-    "TraderShepherdess", "TraderStonemason", "TraderTanner", "TraderVintner",
+    "TraderButcher", "TraderChandler", "TraderFarmer", "TraderFisherman", "TraderHerbalist",
+    "TraderPotter", "TraderSalter", "TraderShepherdess", "TraderStonemason", "TraderTanner", "TraderVintner",
     "TraderWeaver", "TraderWoodcutter",
 ]
