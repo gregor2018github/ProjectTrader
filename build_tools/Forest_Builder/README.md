@@ -90,6 +90,9 @@ their bottom edge itself.
      Copies are about 39×23 tiles; overlapping copies darken the ground a
      little, the way a deeper forest would.
    - `flower_patches`: how many patches from `FLOWERS_SOURCE` to scatter.
+   - `singles`: lone trees, `(stem x, stem y, {sprite: weight})`. Each is
+     moved up to `SINGLE_NUDGE` tiles if its spot is taken. A patch with only
+     `singles` needs no `area` or `shapes`, and gets no floor.
 
    Global settings, below the patches:
    - `KEEP_OUT`: rectangles nothing may go into, for example roads.

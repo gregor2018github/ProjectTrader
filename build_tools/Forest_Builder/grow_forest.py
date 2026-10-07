@@ -84,9 +84,19 @@ TREE_SPRITES = "assets/map_sprites/trees"
 # density 0.85, spacing 1.2, floor at (50, 193), (88, 197), 6 flower patches,
 # and KEEP_OUT (70, 185, 300, 189), (104, 189, 300, 300).
 #
-# The current entry is the birch wood in the river's bend south-east of town,
-# with lindens and the odd oak: broadleaves, painted floor (floor_painter.py),
-# grass and flowers.
+# The birch wood in the river's bend south-east of town (seed 7) was area
+# (146, 226, 256, 279), shapes (168, 257, 23, 11), (180, 266, 16, 8),
+# (201, 253, 24, 21), (236, 249, 18, 24), density 0.92, spacing 0.95, trees
+# BIRCHES + LINDENS + OAKS, young [42, 47, 50, 51], deep [39, 40, 41, 30, 43,
+# 23] from 0.3, anchors dict(sprites=[40, 39, 41, 30], count=5, depth=0.45,
+# gap=11), grow 0.2, painted_floor {}, deco grass_herbs (grass, meadow grass,
+# herb, clover, fern) 90 any, moss 12 any, flowers (wildflowers, daisies,
+# meadow flowers, dandelions) 26 light, strawberries 5 light.
+#
+# The current entry is single trees: lone oaks and lindens in the open fields
+# north and east of town, stray pines off the pinewood's north edge, birches
+# and young oaks straying from the birch wood, and a few along the south-west
+# river.
 #
 # Broadleaf patches name their own mix of trees:
 #   trees          {sprite: weight}; default the pines, PINES.
@@ -102,26 +112,34 @@ TREE_SPRITES = "assets/map_sprites/trees"
 #   deco           (kind, subcategories or None, how many, "light" or "any")
 #                  of the plant motifs in plant_catalog.json, painted into
 #                  that floor. "light" ones keep to the edge and the gaps.
+#   singles        Lone trees: (stem x, stem y, {sprite: weight}), each moved
+#                  up to SINGLE_NUDGE tiles if its spot is taken. A patch of
+#                  only singles needs no area or shapes.
 # ---------------------------------------------------------------------------
 BIRCHES = {27: 3, 44: 3, 45: 3, 46: 3, 53: 3, 54: 2, 55: 3, 42: 2, 47: 2, 43: 1.5}
 LINDENS = {39: 1.2, 41: 1.2, 40: 0.6}
 OAKS = {30: 0.8, 23: 0.5, 50: 0.7, 51: 0.6}
 
+#: Lone trees in the open: big broadleaves that had the field to themselves
+FIELD_TREES = {23: 1, 30: 1.2, 39: 0.8, 41: 0.8, 50: 0.8}
+#: Strays off a wood's edge: mostly young ones
+PINE_STRAYS = {1: 1, 4: 1, 6: 1, 12: 1, 15: 1, 3: 1, 20: 1, 10: 1.2, 13: 1.2, 9: 1, 14: 1}
+BIRCH_STRAYS = {**BIRCHES, 50: 2, 51: 2, 30: 0.6}
+RIVER_TREES = {27: 2, 44: 2, 45: 2, 53: 1.5, 30: 1, 23: 0.6, 50: 1.2}
+
 PATCHES = [
-    # The birch wood in the river's bend, on both banks
-    dict(area=(146, 226, 256, 279),
-         shapes=[(168, 257, 23, 11), (180, 266, 16, 8), (201, 253, 24, 21), (236, 249, 18, 24)],
-         density=0.92, spacing=0.95,
-         trees={**BIRCHES, **LINDENS, **OAKS},
-         young=[42, 47, 50, 51],
-         deep=[39, 40, 41, 30, 43, 23], deep_from=0.3,
-         anchors=dict(sprites=[40, 39, 41, 30], count=5, depth=0.45, gap=11),
-         grow=0.2,
-         painted_floor={},
-         deco=[("grass_herbs", ["grass", "meadow grass", "herb", "clover", "fern"], 90, "any"),
-               ("moss", None, 12, "any"),
-               ("flowers", ["wildflowers", "daisies", "meadow flowers", "dandelions"], 26, "light"),
-               ("berries", ["strawberries"], 5, "light")]),
+    dict(singles=[(x, y, FIELD_TREES) for x, y in [
+             (242, 58), (288, 65), (238, 69), (256, 88), (284, 93), (204, 101), (209, 136), (257, 151)]]
+         + [(188, 178, {50: 1, 51: 1})]
+         + [(x, y, PINE_STRAYS) for x, y in [
+             (7, 106), (38, 116), (10, 127), (25, 124), (62, 132), (40, 139), (55, 142), (68, 147), (31, 150)]]
+         + [(x, y, BIRCH_STRAYS) for x, y in [
+             (212, 214), (178, 224), (236, 220), (253, 218), (265, 220), (155, 237), (131, 244), (144, 250),
+             (261, 234), (271, 258), (153, 263), (146, 270), (161, 268), (254, 264), (171, 274), (214, 273),
+             (194, 276), (224, 277), (237, 279), (209, 279), (179, 282), (253, 280), (152, 284), (260, 290),
+             (201, 291)]]
+         + [(x, y, RIVER_TREES) for x, y in [
+             (53, 230), (88, 229), (4, 241), (105, 260), (17, 273), (74, 273), (120, 282)]]),
 ]
 
 #: Rectangles x0, y0, x1, y1 nothing may go into, in any patch: roads, paths
@@ -133,12 +151,14 @@ FLOOR_STAMP = "build_tools/Forest_Builder/forest_floor_stamp.json"
 #: A region of Ground_Flowers_Mushrooms whose patches get scattered
 FLOWERS_SOURCE = (60, 140, 120, 195)
 
-PATCH_DEFAULTS = dict(clearings=[], density=1.0, spacing=1.0, oaks=0, floor_spots=[], flower_patches=0,
+PATCH_DEFAULTS = dict(area=None, shapes=[], singles=[], clearings=[], density=1.0, spacing=1.0, oaks=0, floor_spots=[], flower_patches=0,
                       trees=None, young=None, deep=[], deep_from=0.3, anchors=None, grow=0.0,
                       painted_floor=None, deco=[])
 
 #: Size range a tree is drawn at, around its sprite's own size
 SCALE_RANGE = (0.82, 1.18)
+#: How far a lone tree may be moved off its spot to find room, in tiles
+SINGLE_NUDGE = 4
 SCALE_SPREAD = 0.08
 
 #: Stems stand at least this far apart, in tiles, or this share of the two
@@ -419,6 +439,9 @@ class Forest:
     def plant(self, patch: dict) -> int:
         """Plant one patch; returns how many trees it got."""
         before = len(self.new)
+        self.plant_singles(patch["singles"])
+        if not patch["shapes"]:
+            return len(self.new) - before
         x0, y0, x1, y1 = patch["area"]
         spots = [(x, y) for x in range(x0, x1) for y in range(y0, y1)]
         self.rng.shuffle(spots)
@@ -468,6 +491,24 @@ class Forest:
         for tree in self.new:
             tree["cells"] = self.cells(tree)
         return len(self.new) - before
+
+    def plant_singles(self, singles) -> None:
+        """Lone trees, each as near its spot as there is room for it."""
+        rng = self.rng
+        nudges = sorted(((dx, dy) for dx in range(-SINGLE_NUDGE, SINGLE_NUDGE + 1)
+                         for dy in range(-SINGLE_NUDGE, SINGLE_NUDGE + 1)), key=lambda d: math.hypot(*d))
+        for stem_x, stem_y, kinds in singles:
+            sprite = rng.choices(list(kinds), list(kinds.values()))[0]
+            scale = round(min(SCALE_RANGE[1], max(SCALE_RANGE[0], rng.gauss(1.0, SCALE_SPREAD))), 2)
+            for dx, dy in nudges:
+                x, y = round(stem_x - SPRITES[sprite][2] * scale) + dx, stem_y + dy
+                tree = dict(x=x, y=y, sprite=sprite, scale=scale)
+                if self.ground_ok(x, y, sprite, scale) and self.room_for(tree):
+                    tree["cells"] = self.cells(tree)
+                    self.new.append(tree)
+                    break
+            else:
+                print(f"No room for a lone tree near {stem_x}, {stem_y}")
 
     # --- Tiled preview ------------------------------------------------------
     def stamp_previews(self) -> Tuple[int, int]:
@@ -597,6 +638,8 @@ class Forest:
                 print(f"No room for forest floor near {cx}, {cy}")
 
     def scatter_flowers(self, patch: dict) -> None:
+        if not patch["flower_patches"]:
+            return
         patches = self._blobs("Ground_Flowers_Mushrooms", FLOWERS_SOURCE)
         x0, y0, x1, y1 = patch["area"]
         inside = [(x, y) for x in range(x0, x1) for y in range(y0, y1) if self.depth(patch, x, y) > 0.05]
@@ -704,7 +747,9 @@ def main() -> None:
         print(f"WARNING: {doors_before - len(after.doors)} door(s) lost their step -- see above")
 
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    areas = [p["area"] for p in patches] or [(0, 0, tmx.width, tmx.height)]
+    areas = [p["area"] for p in patches if p["area"]] + [(x - 8, y - 6, x + 8, y + 2) for p in patches
+                                                         for x, y, _ in p["singles"]]
+    areas = areas or [(0, 0, tmx.width, tmx.height)]
     x0, y0 = min(a[0] for a in areas), min(a[1] for a in areas)
     x1, y1 = max(a[2] for a in areas), max(a[3] for a in areas)
     render(target, OUTPUT_DIR, (max(0, x0 - 6), max(0, y0 - 8), min(tmx.width, x1 + 12), min(tmx.height, y1 + 8)))
