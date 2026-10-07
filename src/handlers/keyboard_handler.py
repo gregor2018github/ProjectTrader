@@ -15,6 +15,7 @@ _VIEW_MODE_KEYS = {
     pygame.K_4: VIEW_MODES[3],
     pygame.K_5: VIEW_MODES[4],
     pygame.K_6: VIEW_MODES[5],
+    pygame.K_m: "building",  # the Town Map
 }
 
 def _mirror_quantity_to_memory(field: str, game_state: 'GameState') -> None:
