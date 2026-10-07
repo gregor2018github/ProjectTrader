@@ -441,6 +441,9 @@ def handle_mouse_click(pos: Tuple[int, int],
                 if game_state.time_level > 1:
                     section = field_name.split('_')[1]
                     good_name = game_state.input_fields.get(f'good_{section}', '')
+                    if good_name and not game_state.is_good_sold_here(good_name):
+                        game_state.show_warning(game_state.not_sold_here_message(good_name))
+                        return
                     if good_name and not game_state.is_good_tradable(good_name):
                         game_state.show_warning(game_state.good_closed_message(good_name))
                         return

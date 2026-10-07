@@ -114,7 +114,7 @@ class Game:
         )
         
         # Initial check for area
-        self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
+        self._update_player_market_area()
 
         # Queue for license-expiry warnings that need to be shown as info dialogs
         self._pending_license_warnings: List[str] = []
@@ -205,6 +205,7 @@ class Game:
             self.game_map.map_player.y = self.player.position[1]
             self.game_map.restore_fog(save_data.get("fog"))
             self.restore_owned_buildings()
+            self._update_player_market_area()
 
     @staticmethod
     def init_pygame() -> None:
@@ -256,6 +257,17 @@ class Game:
         for house in self.game_map.tmx_map.houses:
             if isinstance(house, Warehouse) and house.tmx_id in owned_ids:
                 house.is_owned = True
+
+    def _update_player_market_area(self) -> None:
+        """Note which market square, if any, the player stands in, and the goods sold there."""
+        area = self.game_map.market_area_at_player()
+        self.player.in_market_area = area is not None
+        if area == self.player.market_area and self.state.market_area_goods:
+            return
+        self.player.market_area = area
+        self.state.market_area_goods = (
+            self.game_map.tmx_map.goods_at_market_area(area) if area else set()
+        )
 
     def _initialize_goods(self) -> List[Good]:
         """Create and initialize the default list of goods for the market.
@@ -623,7 +635,7 @@ class Game:
                         self.game_map.map_player.stop_footstep_sound()
                     
                     # Update player area status
-                    self.player.in_market_area = self.game_map.check_player_in_area("Market_Area")
+                    self._update_player_market_area()
                 else:
                     self.game_map.map_player.stop_footstep_sound()
                 

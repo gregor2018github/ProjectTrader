@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 from ..config.constants import START_X_POSITION, START_Y_POSITION
 
 class Player:
@@ -21,6 +21,7 @@ class Player:
         self.daily_cost_of_living: float = cost_of_living
         self.position: Tuple[int, int] = (START_X_POSITION, START_Y_POSITION)  # Starting position from constants
         self.in_market_area: bool = False
+        self.market_area: Optional[str] = None  # Name of the market area the player is in
 
     def add_score(self, score: int) -> None:
         """Add points to the player's total score.

@@ -48,6 +48,11 @@ from .water import Water, Ripple, water_tile_variant
 # near it. See TMXMap._match_water_tile_gids.
 WATER_TILE_COLOR_TOLERANCE = 12
 
+# Rectangles on the "Areas" layer named with this prefix are market squares:
+# the player can trade from the bottom bar while in one, but only the goods of
+# the booths standing in it.
+MARKET_AREA_PREFIX = "Market_Area"
+
 
 
 class Camera:
@@ -920,6 +925,15 @@ class TMXMap:
         for group in self.building_light_groups.values():
             group.update(current_time)
 
+    def goods_at_market_area(self, area_name: str) -> Set[str]:
+        """The goods traded at the market booths standing in a market area."""
+        area = self.areas.get(area_name)
+        if area is None:
+            return set()
+        return {good for house in self.houses
+                if isinstance(house, Market) and area.colliderect(house.collision_rect)
+                for good in house.get_trade_options()}
+
     def markets_selling(self, good_name: str) -> List[Market]:
         """The market booths at which the given good is traded.
 
@@ -1224,19 +1238,23 @@ class GameMap:
         """
         if area_name not in self.tmx_map.areas:
             return False
-            
-        area_rect = self.tmx_map.areas[area_name]
-        
-        # Calculate player collision box (feet area)
-        # Similar logic to MapPlayer.can_move_to
+        return self.tmx_map.areas[area_name].colliderect(self._player_feet_rect())
+
+    def market_area_at_player(self) -> Optional[str]:
+        """Name of the market area (an area named "Market_Area...") the player is in, if any."""
+        feet = self._player_feet_rect()
+        for name, rect in self.tmx_map.areas.items():
+            if name.startswith(MARKET_AREA_PREFIX) and rect.colliderect(feet):
+                return name
+        return None
+
+    def _player_feet_rect(self) -> pygame.Rect:
+        """The player's collision box (feet area), as MapPlayer.can_move_to uses it."""
         collision_height = self.map_player.tile_size / 2 - 2
         collision_y = self.map_player.y + self.map_player.height - collision_height
-        
-        player_rect = pygame.Rect(
-            int(round(self.map_player.x)), 
-            int(round(collision_y)), 
-            int(self.map_player.width), 
+        return pygame.Rect(
+            int(round(self.map_player.x)),
+            int(round(collision_y)),
+            int(self.map_player.width),
             int(collision_height)
         )
-        
-        return area_rect.colliderect(player_rect)

@@ -206,6 +206,9 @@ class Depot:
         Returns:
             bool: True if purchase was successful, False otherwise.
         """
+        if not game_state.is_good_sold_here(good.name):
+            game_state.show_warning(game_state.not_sold_here_message(good.name))
+            return False
         if not game_state.is_good_tradable(good.name):
             game_state.show_warning(game_state.good_closed_message(good.name))
             return False
@@ -267,6 +270,9 @@ class Depot:
         Returns:
             bool: True if sale was successful, False otherwise.
         """
+        if not game_state.is_good_sold_here(good.name):
+            game_state.show_warning(game_state.not_sold_here_message(good.name))
+            return False
         if not game_state.is_good_tradable(good.name):
             game_state.show_warning(game_state.good_closed_message(good.name))
             return False

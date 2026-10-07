@@ -186,7 +186,7 @@ def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], 
         good_name = input_fields.get(f'good_{section}')
         if not good_name:
             continue
-        closed = not game_state.is_good_tradable(good_name)
+        closed = not game_state.is_good_sold_here(good_name) or not game_state.is_good_tradable(good_name)
         buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
         sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
         no_license = not depot.has_license(good_name, game_state.date)
@@ -645,7 +645,8 @@ def _draw_bottom_bar(
 
         # Draw buy button
         paused = game_state.time_level == 1
-        closed = bool(good_name) and not game_state.is_good_tradable(good_name)
+        not_sold_here = bool(good_name) and not game_state.is_good_sold_here(good_name)
+        closed = bool(good_name) and (not_sold_here or not game_state.is_good_tradable(good_name))
         depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
         no_license = depot is not None and not depot.has_license(good_name, game_state.date)
         buy_greyed = paused or closed or no_license
@@ -719,6 +720,8 @@ def _draw_bottom_bar(
             if is_greyed and is_hovering(btn_rect):
                 if paused:
                     pending_tooltip = "Game paused"
+                elif not_sold_here:
+                    pending_tooltip = "Not sold at this market"
                 elif closed:
                     pending_tooltip = "Market closed"
                 elif btn_no_stock:

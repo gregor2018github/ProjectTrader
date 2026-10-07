@@ -10606,6 +10606,7 @@
  </objectgroup>
  <objectgroup id="20" name="Areas" offsetx="-9" offsety="-6">
   <object id="233" name="Market_Area" x="4638.67" y="4451" width="636.667" height="338"/>
+  <object id="924" name="Market_Area_Northwest" x="2560" y="2624" width="640" height="352"/>
  </objectgroup>
  <objectgroup id="14" name="Lights">
   <object id="142" name="Light_rectangle" x="5451.34" y="4937.09" width="19" height="22.625"/>

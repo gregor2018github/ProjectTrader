@@ -1,7 +1,7 @@
 import datetime
 import pygame
 from collections import namedtuple
-from typing import Dict, List, Optional, Any, Tuple, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, Set, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
 from .config.constants import (
     START_DATE, 
@@ -107,6 +107,7 @@ class GameState:
         
         self.top_bar_goods_offset: int = 0  # First goods column shown in the top bar
         self.chart_goods_offset: int = 0    # First good shown in the market chart's selection bar
+        self.market_area_goods: Set[str] = set()  # Goods with a booth on the player's market square
 
         self.image_boxes: List[Any] = []
         self.message: Optional[str] = None
@@ -201,6 +202,24 @@ class GameState:
         """
         markets = self._markets_selling(good_name)
         return not markets or any(not market.is_closed_at(self.date) for market in markets)
+
+    def is_good_sold_here(self, good_name: str) -> bool:
+        """Whether the market square the player stands in has a booth for this good.
+
+        Away from every market square nothing is ruled out, and so is a good
+        without a booth anywhere, which is traded at every market.
+        """
+        player = getattr(self.game, 'player', None)
+        if player is None or not getattr(player, 'market_area', None):
+            return True
+        game_map = getattr(self.game, 'game_map', None)
+        if game_map is not None and not game_map.tmx_map.markets_selling(good_name):
+            return True
+        return good_name in self.market_area_goods
+
+    def not_sold_here_message(self, good_name: str) -> str:
+        """Message shown when the player tries to trade a good this market square has no booth for."""
+        return f"{good_name} is not traded at this market."
 
     def good_closed_message(self, good_name: str) -> str:
         """Message shown when the player tries to trade a good whose booths are all shut."""
