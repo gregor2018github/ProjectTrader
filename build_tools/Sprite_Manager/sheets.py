@@ -45,17 +45,17 @@ NECK_BAND = (0.3, 0.65)
 NECK_SEARCH = 0.08       # of the NPC's height around where the mannequin's neck would be
 HEAD_ALPHA = 128         # pixels this opaque count for the NPC's outline
 
+# Says nothing of walking or running on purpose: told it was a walk, the model drew
+# its own stock stride and ignored the ghost. It is asked only to copy a pose.
 PROMPT_TEMPLATE = """\
-The attached picture holds a 2x2 grid of pixel-art sprites for my medieval trading game "Merchant's Rise".
+The attached picture is a 2x2 grid of pixel-art sprites.
 
-Top left: a plain, featureless chibi mannequin standing still, {base_view}.
-Top right: the same mannequin in frame {frame} of {count} of a {cycle} cycle, {motion}.
-Bottom left: {name}, standing still, {base_view}, in the same pose as the mannequin top left.
-Bottom right (red frame): a faint, see-through grey ghost of the mannequin in the same {verb} pose as top right. It is only a guide. Draw {name} over it, {motion}, so that the head, body, arms, legs and feet sit exactly where the ghost's are: same step, same position of the legs and arms, same lean of the body. No trace of the ghost may remain in the finished drawing.{head}
+Top left: a grey mannequin, {base_view}. Bottom left: {name} in that same pose.
+Top right: the mannequin in another pose, {facing}. The red frame bottom right holds a faint grey copy of it.
 
-The mannequin and the ghost show only the pose. Do not copy their proportions, bald head, skin or grey colour. Keep {name}'s own look from the bottom left sprite: proportions, head size, face, hair, headwear, clothing, colours and outline, and the same crisp pixel-art style with hard pixel edges and no anti-aliasing or blur.
-Parts that the bottom left sprite does not show should follow on naturally from what it does show.
-Keep {name} at the same size as in the bottom left, with the feet on the same ground line, on the plain white background. Do not draw anything outside the red frame and do not change the other three cells.
+Draw {name} in the red frame in exactly the grey figure's pose. Trace it: each foot, knee, hand, elbow and the head go where the grey figure has them, at the same height and lean. Do not make up a pose of your own - if its feet are close together or its arms hang down, {name}'s do too.{head}
+
+Keep {name}'s look from the bottom left: proportions, face, hair, headwear, clothes, colours, outline, crisp pixel art with hard edges. Same size, feet on the same ground line, white background, nothing of the grey figure left. Change nothing outside the red frame.
 """
 
 STANDING_PROMPT_TEMPLATE = """The attached picture holds a 2x2 grid of pixel-art sprites for my medieval trading game "Merchant's Rise".
@@ -70,16 +70,23 @@ Parts that the bottom left sprite does not show should follow on naturally from 
 Keep {name} at the same size as in the bottom left, with the feet on the same ground line, on the plain white background. Do not draw anything outside the red frame and do not change the other three cells.
 """
 HEAD_LOCKED = (
-    "\n{name}'s head is already drawn in the red frame: it is the head of the bottom left sprite, put where "
-    "the pose wants it. Keep it exactly as it is - the same pixels, colours, size and place, facing the same "
-    "way - and draw the rest of {name} under it, joined to it at the neck.")
+    " {name}'s head is already in the red frame: keep it exactly as it is and draw the body under it, "
+    "joined at the neck.")
+
+# How the frame prompt describes the way a pose faces, without saying it moves
+FACING = {
+    'front': 'facing the viewer',
+    'front_right': 'seen three-quarters from the front, facing down and to the right',
+    'right': 'seen from the side, facing to the right',
+    'back_right': 'seen three-quarters from behind, facing up and to the right',
+    'back': 'seen from behind, facing away from the viewer',
+    'back_left': 'seen three-quarters from behind, facing up and to the left',
+    'left': 'seen from the side, facing to the left',
+    'front_left': 'seen three-quarters from the front, facing down and to the left',
+}
 
 # How the standing prompt describes each direction a standing sprite can be made for
-STANDING_VIEWS = {
-    'back': 'seen from behind, facing away from the viewer',
-    'left': 'seen from the side, facing to the left',
-    'right': 'seen from the side, facing to the right',
-}
+STANDING_VIEWS = {key: FACING[key] for key in ('back', 'left', 'right')}
 
 # What can go wrong building a sheet from the files on disk
 SHEET_ERRORS = (pygame.error, OSError, IndexError)
@@ -246,12 +253,11 @@ def lock_head_possible(npc, direction):
     return bool(pose) and npc.base_for(direction) == pose
 
 
-def prompt_for(npc, direction, frame, count, lock_head=False):
+def prompt_for(npc, direction, lock_head=False):
     base_view = BASE_POSES[npc.base_for(direction)].view
     head = HEAD_LOCKED.format(name=npc.display_name) if lock_head else ''
-    return PROMPT_TEMPLATE.format(base_view=base_view, frame=frame, count=count,
-                                  cycle=direction.motion.key, verb=direction.motion.verb,
-                                  motion=direction.description, name=npc.display_name, head=head)
+    return PROMPT_TEMPLATE.format(base_view=base_view, facing=FACING[direction.key],
+                                  name=npc.display_name, head=head)
 
 
 def write_sheets(npc, direction, frames=None, lock_head=False):
@@ -286,7 +292,7 @@ def write_sheets(npc, direction, frames=None, lock_head=False):
                                                      reference, lock_head)
         stem = f'{npc.prefix}_{direction.pose(frame)}'
         path = npc.out_dir / f'{stem}_sheet.png'
-        prompt = prompt_for(npc, direction, frame, count, lock_head)
+        prompt = prompt_for(npc, direction, lock_head)
         pygame.image.save(surface, str(path))
         (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
         sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost,
