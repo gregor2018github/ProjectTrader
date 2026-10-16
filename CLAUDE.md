@@ -46,7 +46,7 @@ Rendering layers in the main loop (src/game.py `run()`):
 
 Any modal dialog (quit confirm, house menus, donation menu, contract overview, population stats) is assigned to `game_state.info_window`. The `EventHandler` routes clicks to `game_state.info_window.handle_click()` and keyboard events to `handle_event()` before routing to the rest of the game. Setting `game_state.info_window = None` closes the modal.
 
-Both settings screens (the main menu's and the in-game `SettingsWindow` in `src/settings.py`) have a "Controls" button opening `ControlsOverview` (`src/ui/controls_overview.py`), a list of every key and mouse control written out by hand: when a control is added or changed, update its `LEFT_COLUMN` / `RIGHT_COLUMN` too.
+Both settings screens (the main menu's, and the in-game `SettingsWindow` in `src/settings.py`, which opens on a chooser between "Chart Colors" and "Controls") have a "Controls" button opening `ControlsOverview` (`src/ui/controls_overview.py`), a list of every key and mouse control written out by hand: when a control is added or changed, update its `LEFT_COLUMN` / `RIGHT_COLUMN` too.
 
 `game_state.contract_acquisition` is a special full-screen overlay that **consumes all input** while active.
 

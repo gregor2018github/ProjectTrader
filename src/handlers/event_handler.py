@@ -179,7 +179,7 @@ class EventHandler:
         elif choice == "Yes":
             game_state.return_to_main_menu = True
             self.running = False
-        elif choice in ("Back", "No", "Save and Close", "OK", "Cancel"):
+        elif choice in ("Back", "No", "Save and Close", "Discard", "OK", "Cancel"):
             if hasattr(game_state.info_window, 'restore_time_level'):
                 game_state.time_level = game_state.info_window.restore_time_level
             game_state.info_window = None

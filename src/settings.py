@@ -49,7 +49,7 @@ class SettingsWindow:
         button_width: int = 140
         button_height: int = 35
         gap: int = 30
-        labels: List[str] = ["Save and Close", "Discard", "Default Colors", "Controls"]
+        labels: List[str] = ["Save and Close", "Discard", "Default Colors"]
         total_width: int = len(labels) * button_width + (len(labels) - 1) * gap
         start_x: int = self.window_rect.centerx - total_width//2
         y: int = self.window_rect.bottom - 60
@@ -84,24 +84,58 @@ class SettingsWindow:
         # New properties for color wheel overlay
         self.active_color_wheel: Optional[ColorWheel] = None  # Instance of ColorWheel if open
         self.color_wheel_target: Optional['Good'] = None    # The good whose color is being changed
-        # Overview of all controls, shown over the window while open
+        # Overview of all controls, shown over the chooser while open
         self.controls: Optional[ControlsOverview] = None
 
-    def draw(self) -> None:
-        """Draw the settings window and all its components."""
-        # Draw semi-transparent overlay
+        # The chooser shown first: one button per page, and Close
+        self.mode: str = "choose"
+        self.choose_rect: pygame.Rect = pygame.Rect(0, 0, 420, 300)
+        self.choose_rect.center = self.window_rect.center
+        self.choose_buttons: List[Tuple[pygame.Rect, str]] = []
+        for i, label in enumerate(["Chart Colors", "Controls", "Close"]):
+            btn_rect = pygame.Rect(0, 0, 240, 42)
+            btn_rect.midtop = (self.choose_rect.centerx, self.choose_rect.top + 95 + i * 58)
+            self.choose_buttons.append((btn_rect, label))
+
+    def _draw_frame(self, rect: pygame.Rect) -> None:
+        """Dim the screen and draw the window's background (the game frame if available)."""
         overlay = pygame.Surface((self.screen.get_width(), self.screen.get_height()))
         overlay.set_alpha(128)
         overlay.fill((0, 0, 0))
         self.screen.blit(overlay, (0,0))
-        
-        # Draw background (using game frame image if available)
+
         if self.game and hasattr(self.game, 'pic_info_window'):
-            draw_9slice(self.screen, self.game.pic_info_window, self.window_rect)
+            draw_9slice(self.screen, self.game.pic_info_window, rect)
         else:
-            pygame.draw.rect(self.screen, LIGHT_GRAY, self.window_rect)
-            pygame.draw.rect(self.screen, DARK_GRAY, self.window_rect, 2)
-            
+            pygame.draw.rect(self.screen, LIGHT_GRAY, rect)
+            pygame.draw.rect(self.screen, DARK_GRAY, rect, 2)
+
+    def _draw_buttons(self, buttons: List[Tuple[pygame.Rect, str]]) -> None:
+        """Draw buttons with a hover effect."""
+        mouse_pos = pygame.mouse.get_pos()
+        for btn_rect, label in buttons:
+            is_hovered = btn_rect.collidepoint(mouse_pos)
+            btn_color = LIGHT_GRAY if is_hovered else WHITE
+            text_color = WHITE if is_hovered else BLACK
+            pygame.draw.rect(self.screen, btn_color, btn_rect)
+            pygame.draw.rect(self.screen, DARK_GRAY, btn_rect, 2)
+            label_surface = self.font.render(label, True, text_color)
+            label_rect = label_surface.get_rect(center=btn_rect.center)
+            self.screen.blit(label_surface, label_rect)
+
+    def draw(self) -> None:
+        """Draw the settings window and all its components."""
+        if self.mode == "choose":
+            self._draw_frame(self.choose_rect)
+            title = self.font.render("Settings", True, BLACK)
+            self.screen.blit(title, title.get_rect(center=(self.choose_rect.centerx, self.choose_rect.top + 55)))
+            self._draw_buttons(self.choose_buttons)
+            if self.controls:
+                self.controls.draw(self.screen, pygame.mouse.get_pos())
+            return
+
+        self._draw_frame(self.window_rect)
+
         # Draw lorem ipsum text (centered in upper part)
         text_surface = self.font.render(self.text, True, BLACK)
         text_rect = text_surface.get_rect(center=(self.window_rect.centerx, self.window_rect.top + 60))
@@ -117,27 +151,35 @@ class SettingsWindow:
             name_rect = name_surface.get_rect(midleft=(rect.right + 10, rect.centery))
             self.screen.blit(name_surface, name_rect)
         
-        # Draw buttons with hover effect
-        mouse_pos = pygame.mouse.get_pos()
-        for btn_rect, label in self.buttons:
-            is_hovered = btn_rect.collidepoint(mouse_pos)
-            btn_color = LIGHT_GRAY if is_hovered else WHITE
-            text_color = WHITE if is_hovered else BLACK
-            pygame.draw.rect(self.screen, btn_color, btn_rect)
-            pygame.draw.rect(self.screen, DARK_GRAY, btn_rect, 2)
-            label_surface = self.font.render(label, True, text_color)
-            label_rect = label_surface.get_rect(center=btn_rect.center)
-            self.screen.blit(label_surface, label_rect)
+        self._draw_buttons(self.buttons)
         # If a color wheel is active, draw it as an overlay.
         if self.active_color_wheel:
             self.active_color_wheel.draw(self.screen)
-        if self.controls:
-            self.controls.draw(self.screen, mouse_pos)
+
+    def _discard_colors(self) -> None:
+        """Revert temporary changes: restore from saved color_current."""
+        for good, _ in self.color_entries:
+            good.color_temp = good.color_current
+            good.color = good.color_temp
 
     def handle_key(self, event: pygame.event.Event) -> Optional[str]:
-        """Keep keys from reaching the game while open; Escape closes the controls overview."""
-        if self.controls and self.controls.handle_key(event):
-            self.controls = None
+        """Keep keys from reaching the game while open.
+
+        Escape steps back: out of the controls overview or the colors page
+        (discarding its changes) to the chooser, and from the chooser out of
+        the settings.
+        """
+        if event.type != pygame.KEYDOWN:
+            return None
+        if self.controls:
+            if self.controls.handle_key(event):
+                self.controls = None
+        elif event.key == pygame.K_ESCAPE:
+            if self.mode == "choose":
+                return "Back"
+            if not self.active_color_wheel:
+                self._discard_colors()
+                self.mode = "choose"
         return None
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
@@ -149,9 +191,19 @@ class SettingsWindow:
         Returns:
             Optional[str]: Action label if a function button was clicked, or None.
         """
-        if self.controls:
-            if self.controls.handle_click(pos):
-                self.controls = None
+        if self.mode == "choose":
+            if self.controls:
+                if self.controls.handle_click(pos):
+                    self.controls = None
+                return None
+            for btn_rect, label in self.choose_buttons:
+                if btn_rect.collidepoint(pos):
+                    if label == "Chart Colors":
+                        self.mode = "colors"
+                    elif label == "Controls":
+                        self.controls = ControlsOverview(self.screen.get_size())
+                    else:
+                        return "Back"
             return None
 
         # If a color wheel is active, delegate the click to it.
@@ -185,14 +237,8 @@ class SettingsWindow:
         # Check button clicks
         for btn_rect, label in self.buttons:
             if btn_rect.collidepoint(pos):
-                if label == "Controls":
-                    self.controls = ControlsOverview(self.screen.get_size())
-                    return None
-                elif label == "Discard":
-                    # Revert temporary changes: restore from saved color_current.
-                    for good, _ in self.color_entries:
-                        good.color_temp = good.color_current
-                        good.color = good.color_temp
+                if label == "Discard":
+                    self._discard_colors()
                     return label
                 elif label == "Default Colors":
                     # Revert all settings to original defaults from color_orig.
