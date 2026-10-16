@@ -12,6 +12,7 @@ from ..config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTU
 from ..persistence.save_manager import delete_save, get_save_slots, load_game as _sm_load_game
 from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
+from .controls_overview import ControlsOverview
 from .slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
     delete_cross_rect, draw_delete_cross, rows_height,
@@ -94,7 +95,7 @@ class MainMenu:
         self._build_main_buttons()
 
         # Load-game slot selection state
-        self._view: str = "main"  # "main", "load_slots", or "settings"
+        self._view: str = "main"  # "main", "load_slots", "settings" or "controls"
         self._slots: List[Dict[str, Any]] = []
         self._slot_list: Optional[SlotList] = None
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
@@ -117,6 +118,8 @@ class MainMenu:
         self._settings_interval_inc_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_save_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._settings_controls_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
+        self._controls: Optional[ControlsOverview] = None
 
     # ------------------------------------------------------------------
     # Public API
@@ -135,6 +138,10 @@ class MainMenu:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     return ("exit", None)
+
+                if (event.type == pygame.KEYDOWN and self._view == "controls"
+                        and self._controls.handle_key(event)):
+                    self._view = "settings"
 
                 if (event.type == pygame.MOUSEWHEEL and self._view == "load_slots"
                         and not self._delete_confirm):
@@ -182,10 +189,19 @@ class MainMenu:
                     elif self._view == "settings":
                         self._handle_settings_click(mouse_pos)
 
+                    elif self._view == "controls":
+                        if self._controls.handle_click(mouse_pos):
+                            self._view = "settings"
+
             if self._view == "main":
                 self._draw(mouse_pos)
             elif self._view == "load_slots":
                 self._draw_load_slots(mouse_pos)
+            elif self._view == "controls":
+                self.screen.fill(BEIGE)
+                self._controls.draw(self.screen, mouse_pos, dim=False)
+                if self.cursor_img and pygame.mouse.get_focused():
+                    self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
             else:
                 self._draw_settings(mouse_pos)
             pygame.display.flip()
@@ -553,7 +569,7 @@ class MainMenu:
 
     def _build_settings_rects(self) -> None:
         panel_w = 480
-        panel_h = 416
+        panel_h = 476
         cx = _TOTAL_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
         self._settings_panel_rect = pygame.Rect(
@@ -606,6 +622,10 @@ class MainMenu:
         )
         self._settings_back_rect = pygame.Rect(
             cx - total_btn_w // 2 + s_btn_w + gap, btn_y, s_btn_w, s_btn_h
+        )
+        # Controls overview button above them, as wide as both together
+        self._settings_controls_rect = pygame.Rect(
+            cx - total_btn_w // 2, btn_y - s_btn_h - 16, total_btn_w, s_btn_h
         )
 
     def _res_option_rects(self) -> List[pygame.Rect]:
@@ -679,6 +699,10 @@ class MainMenu:
             self._step_autosave_minutes(-1)
         elif self._settings_interval_inc_rect.collidepoint(pos):
             self._step_autosave_minutes(1)
+        elif self._settings_controls_rect.collidepoint(pos):
+            if self._controls is None:
+                self._controls = ControlsOverview(self.screen.get_size())
+            self._view = "controls"
         elif self._settings_save_rect.collidepoint(pos):
             settings_store.save_all(self._settings_pending)
             self._settings_res_open = False
@@ -813,6 +837,7 @@ class MainMenu:
 
         # ── Save / Discard buttons ────────────────────────────────────
         for rect, label in (
+            (self._settings_controls_rect, "Controls"),
             (self._settings_save_rect, "Save"),
             (self._settings_back_rect, "Discard"),
         ):

@@ -3,6 +3,7 @@ from typing import List, Tuple, Optional, Any, TYPE_CHECKING
 from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK
 from .ui.helper_modules.color_wheel import ColorWheel
 from .ui.ui_utils import draw_9slice
+from .ui.controls_overview import ControlsOverview
 
 if TYPE_CHECKING:
     from .game import Game
@@ -48,11 +49,12 @@ class SettingsWindow:
         button_width: int = 140
         button_height: int = 35
         gap: int = 30
-        total_width: int = 3 * button_width + 2 * gap
+        labels: List[str] = ["Save and Close", "Discard", "Default Colors", "Controls"]
+        total_width: int = len(labels) * button_width + (len(labels) - 1) * gap
         start_x: int = self.window_rect.centerx - total_width//2
         y: int = self.window_rect.bottom - 60
         # Changed "Reset All" to "Reset to Standard"
-        for i, label in enumerate(["Save and Close", "Discard", "Default Colors"]):
+        for i, label in enumerate(labels):
             btn_rect = pygame.Rect(start_x + i*(button_width+gap), y, button_width, button_height)
             self.buttons.append((btn_rect, label))
             
@@ -82,6 +84,8 @@ class SettingsWindow:
         # New properties for color wheel overlay
         self.active_color_wheel: Optional[ColorWheel] = None  # Instance of ColorWheel if open
         self.color_wheel_target: Optional['Good'] = None    # The good whose color is being changed
+        # Overview of all controls, shown over the window while open
+        self.controls: Optional[ControlsOverview] = None
 
     def draw(self) -> None:
         """Draw the settings window and all its components."""
@@ -127,6 +131,14 @@ class SettingsWindow:
         # If a color wheel is active, draw it as an overlay.
         if self.active_color_wheel:
             self.active_color_wheel.draw(self.screen)
+        if self.controls:
+            self.controls.draw(self.screen, mouse_pos)
+
+    def handle_key(self, event: pygame.event.Event) -> Optional[str]:
+        """Keep keys from reaching the game while open; Escape closes the controls overview."""
+        if self.controls and self.controls.handle_key(event):
+            self.controls = None
+        return None
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:
         """Process click interactions within the settings window.
@@ -137,6 +149,11 @@ class SettingsWindow:
         Returns:
             Optional[str]: Action label if a function button was clicked, or None.
         """
+        if self.controls:
+            if self.controls.handle_click(pos):
+                self.controls = None
+            return None
+
         # If a color wheel is active, delegate the click to it.
         if self.active_color_wheel:
             result = self.active_color_wheel.handle_click(pos)
@@ -168,7 +185,10 @@ class SettingsWindow:
         # Check button clicks
         for btn_rect, label in self.buttons:
             if btn_rect.collidepoint(pos):
-                if label == "Discard":
+                if label == "Controls":
+                    self.controls = ControlsOverview(self.screen.get_size())
+                    return None
+                elif label == "Discard":
                     # Revert temporary changes: restore from saved color_current.
                     for good, _ in self.color_entries:
                         good.color_temp = good.color_current
