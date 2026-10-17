@@ -195,6 +195,11 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
                 "market_quantity": g.market_quantity,
                 "price_history_daily": list(g.price_history_daily),
                 "price_history_hourly": list(g.price_history_hourly),
+                "upper_bound": g.upper_bound,
+                "lower_bound": g.lower_bound,
+                "well_shock_remaining_days": g.well_shock_remaining_days,
+                "well_shock_saved_upper": g._well_shock_saved_upper,
+                "well_shock_saved_lower": g._well_shock_saved_lower,
                 "show_in_charts": g.show_in_charts,
                 "color_current": list(g.color_current),
             }
@@ -547,6 +552,12 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         g.market_quantity = gd["market_quantity"]
         g.price_history_daily = gd["price_history_daily"]
         g.price_history_hourly = gd["price_history_hourly"]
+        # Saves from before the corridor was saved keep the freshly rolled one
+        g.upper_bound = gd.get("upper_bound", g.upper_bound)
+        g.lower_bound = gd.get("lower_bound", g.lower_bound)
+        g.well_shock_remaining_days = gd.get("well_shock_remaining_days", 0)
+        g._well_shock_saved_upper = gd.get("well_shock_saved_upper", 0.0)
+        g._well_shock_saved_lower = gd.get("well_shock_saved_lower", 0.0)
         g.show_in_charts = gd["show_in_charts"]
         g.color_current = tuple(gd["color_current"])
         g.color_temp = g.color_current

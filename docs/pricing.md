@@ -88,9 +88,9 @@ Both lists grow without limit for the whole session and are saved in full.
 
 ## 7. Saving and loading
 
-`src/persistence/save_manager.py` saves per good: `price`, `market_quantity`, both histories, chart visibility and colour.
+`src/persistence/save_manager.py` saves per good: `price`, `market_quantity`, both histories, the corridor (`upper_bound`, `lower_bound`), the well-shock state (days left and the bounds to restore afterwards), chart visibility and colour.
 
-**Not saved:** `upper_bound`, `lower_bound`, `base_price` and the well-shock state. On load the goods are created fresh, so the **corridor is re-rolled** around the hand-set starting price (not the saved price), and any active well shock is lost. A loaded price that falls outside the new corridor simply drifts back in. Keep this in mind if you make the bounds matter more.
+`base_price` is not saved. It only matters for `simulate_history()`, and that function only runs for goods the save doesn't have. Saves made before the corridor was saved load with a freshly rolled corridor and no active well shock.
 
 A good that was added to the game after a save was made has no saved data. It gets a made-up history of matching length from `Good.simulate_history()`.
 
