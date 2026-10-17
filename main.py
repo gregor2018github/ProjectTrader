@@ -1,3 +1,8 @@
+import os
+# Smooth GPU scaling in fullscreen (pygame's SCALED would pick "nearest"),
+# matching the smoothscale used for the smaller windowed resolutions
+os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
+
 import pygame
 from src.game import Game
 from src.ui.main_menu import MainMenu
@@ -33,7 +38,9 @@ _MOUSE_EVENT_TYPES = (pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP, pygame.MOUSE
 def _present() -> None:
     if _render_surf is None or _display_surf is None:
         return
-    if _offset_x == 0 and _offset_y == 0 and _scale_uniform == 1.0:
+    if _render_surf is _display_surf:
+        pass  # drawn in place; in fullscreen the GPU does the scaling
+    elif _offset_x == 0 and _offset_y == 0 and _scale_uniform == 1.0:
         _display_surf.blit(_render_surf, (0, 0))
     else:
         fit_w = int(_NATIVE_W * _scale_uniform)
@@ -109,8 +116,19 @@ def _setup_display() -> pygame.Surface:
 
     res = settings_store.get("resolution")
 
+    # pygame cannot switch a window back to SCALED once it has been plain
+    # ("failed to create renderer"), so start the display afresh on the change
+    current = _orig_display_get_surface()
+    if current is not None and bool(current.get_flags() & pygame.SCALED) != (res == "Fullscreen"):
+        pygame.display.quit()
+        pygame.display.init()
+
     if res == "Fullscreen":
-        _display_surf = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        # SCALED lets SDL stretch the logical surface to the screen on the GPU,
+        # letterboxed, and maps the mouse back to logical coordinates itself.
+        # Scaling with smoothscale on the CPU instead cost ~6 ms a frame at WQHD.
+        _display_surf = pygame.display.set_mode(
+            (_NATIVE_W, _NATIVE_H), pygame.FULLSCREEN | pygame.SCALED)
     else:
         try:
             win_w, win_h = (int(x) for x in res.split("x"))
@@ -128,7 +146,10 @@ def _setup_display() -> pygame.Surface:
     _scale_x = _NATIVE_W / fit_w
     _scale_y = _NATIVE_H / fit_h
 
-    if _render_surf is None or _render_surf.get_size() != (_NATIVE_W, _NATIVE_H):
+    if (pw, ph) == (_NATIVE_W, _NATIVE_H):
+        # Native window, or fullscreen with SCALED: draw straight onto it
+        _render_surf = _display_surf
+    elif _render_surf is None or _render_surf is _display_surf:
         _render_surf = pygame.Surface((_NATIVE_W, _NATIVE_H)).convert()
 
     pygame.display.set_caption("Merchant's Rise")
