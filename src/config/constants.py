@@ -59,6 +59,15 @@ ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked u
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
 MARKET_PRESIMULATION_DAYS = 60      # Days of price history to simulate before the game starts
+
+# MARKET VOLUME: a good's price is its random walk times a factor from how much of it the
+# market holds, measured against its normal volume (its starting stock). See docs/pricing.md.
+MARKET_VOLUME_SCARCE_RATIO = 0.9    # Below this share of the normal volume the good is scarce and dearer
+MARKET_VOLUME_GLUT_RATIO = 1.1      # Above this share of the normal volume the good is glutted and cheaper
+MARKET_VOLUME_ELASTICITY = 0.7      # How strongly the price answers a volume past those thresholds
+MARKET_VOLUME_FACTOR_MIN = 0.4      # The cheapest a glut can make a good, as a factor on its price
+MARKET_VOLUME_FACTOR_MAX = 3.0      # The dearest scarcity can make a good, as a factor on its price
+MARKET_VOLUME_DAILY_RECOVERY = 0.1  # Share of the gap to the normal volume the market closes per day (stand-in for supply and demand)
 START_DATE = "01.01.1500"           # When the simulation time starts, format: dd.mm.yyyy
 START_TIME = "08:00"                # When the simulation time starts, format: HH:MM
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player

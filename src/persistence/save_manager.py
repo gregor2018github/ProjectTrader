@@ -192,7 +192,9 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             {
                 "name": g.name,
                 "price": g.price,
+                "walk_price": g.walk_price,
                 "market_quantity": g.market_quantity,
+                "normal_quantity": g.normal_quantity,
                 "price_history_daily": list(g.price_history_daily),
                 "price_history_hourly": list(g.price_history_hourly),
                 "upper_bound": g.upper_bound,
@@ -548,8 +550,13 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         g = good_by_name.get(gd["name"])
         if g is None:
             continue
-        g.price = gd["price"]
         g.market_quantity = gd["market_quantity"]
+        g.normal_quantity = gd.get("normal_quantity", g.normal_quantity)
+        if "walk_price" in gd:
+            g.walk_price = gd["walk_price"]
+        else:
+            # Saves from before the volume factor: keep the price the player last saw
+            g.price = gd["price"]
         g.price_history_daily = gd["price_history_daily"]
         g.price_history_hourly = gd["price_history_hourly"]
         # Saves from before the corridor was saved keep the freshly rolled one

@@ -206,6 +206,8 @@ class Depot:
         Returns:
             bool: True if purchase was successful, False otherwise.
         """
+        if quantity_to_buy <= 0:
+            return False
         if not game_state.is_good_sold_here(good.name):
             game_state.show_warning(game_state.not_sold_here_message(good.name))
             return False
@@ -216,8 +218,14 @@ class Depot:
             game_state.show_warning(f"No trading license for {good.name}.")
             return False
 
-        total_cost = good.get_price() * quantity_to_buy
-        
+        if good.get_quantity() < quantity_to_buy:
+            game_state.show_warning("Market cannot fulfill the order.")
+            return False
+
+        # Each unit costs a little more than the last as the market empties
+        total_cost = good.quote(quantity_to_buy, buying=True)
+        unit_price = total_cost / quantity_to_buy
+
         if self.money < total_cost + self.transaction_cost:
             game_state.show_warning("Not enough money.")
             return False
@@ -225,10 +233,6 @@ class Depot:
         current_total_stock = sum(self.good_stock.values())
         if current_total_stock + quantity_to_buy > self.storage_capacity:
             game_state.show_warning("Not enough storage capacity.")
-            return False
-
-        if good.get_quantity() < quantity_to_buy:
-            game_state.show_warning("Market cannot fulfill the order.")
             return False
 
         self.money -= (total_cost + self.transaction_cost)
@@ -239,7 +243,7 @@ class Depot:
         # Store purchase in FIFO queue with timestamp, price, and quantity
         self.purchase_history[good.name].append({
             "timestamp": game_state.date,
-            "price": good.get_price(),
+            "price": unit_price,
             "quantity": quantity_to_buy,
             "total_cost": total_cost
         })
@@ -247,11 +251,11 @@ class Depot:
         self.stats.goods_bought += 1
         self.stats.money_spent_goods += total_cost
         good.buy(quantity_to_buy)
-        self.record_trade(good, quantity_to_buy, good.get_price(), True, game_state)
+        self.record_trade(good, quantity_to_buy, unit_price, True, game_state)
         on_money_spent(game_state, total_cost)
         game_state.log_event(
             "TRADE",
-            f"Bought {quantity_to_buy}× {good.name} at {good.get_price():.0f}g"
+            f"Bought {quantity_to_buy}× {good.name} at {unit_price:.0f}g"
             f" (total {total_cost:.0f}g)"
         )
         return True
@@ -270,6 +274,8 @@ class Depot:
         Returns:
             bool: True if sale was successful, False otherwise.
         """
+        if quantity_to_sell <= 0:
+            return False
         if not game_state.is_good_sold_here(good.name):
             game_state.show_warning(game_state.not_sold_here_message(good.name))
             return False
@@ -286,8 +292,9 @@ class Depot:
             game_state.show_warning(f"Not enough {good.name} in stock.")
             return False
 
-        current_sale_price = good.get_price()
-        total_revenue = current_sale_price * quantity_to_sell
+        # Each unit fetches a little less than the last as the market fills
+        total_revenue = good.quote(quantity_to_sell, buying=False)
+        current_sale_price = total_revenue / quantity_to_sell
         
         net = total_revenue - self.transaction_cost
         if net < 0 and self.money + net < 0:

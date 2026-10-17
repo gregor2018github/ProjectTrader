@@ -257,11 +257,11 @@ class TradeMenu:
             hovering_buy  = alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos)
             hovering_sell = alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos)
             if hovering_buy:
-                total = unit_price * self.quantity + fee
+                total = self.good.quote(self.quantity, buying=True) + fee
                 total_surf = self.font.render(f"Total Cost: {total:.1f}", True, DARK_BROWN)
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
             elif hovering_sell:
-                total = unit_price * self.quantity - fee
+                total = self.good.quote(self.quantity, buying=False) - fee
                 total_surf = self.font.render(f"Total Income: {total:.1f}", True, DARK_BROWN)
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
 

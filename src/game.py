@@ -473,6 +473,7 @@ class Game:
                     # update prices once per hour
                     if hour_changed:
                         for good in self.goods:
+                            good.recover_volume()
                             good.update_price()
                             # Update chart price history hourly
                             good.update_price_history_chart()
