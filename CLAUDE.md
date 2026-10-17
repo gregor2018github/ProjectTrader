@@ -90,7 +90,7 @@ That parchment is `src/ui/paper.py`'s `draw_paper()`, shared with the loading sc
 
 ### Trading System
 
-`Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility.
+`Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility. How prices are calculated, and where each part of that lives, is in `docs/pricing.md`: update it when the price model changes.
 
 ### Key Directories
 
