@@ -12,7 +12,8 @@
 
 With the head locked, the NPC's own head is cut off the bottom left sprite
 at the neck and put solid into the red frame where the ghost's head is,
-bobbing and shifting with it, and the ghost's head is left out. That leaves
+bobbing and shifting with it, and the ghost's head is left out; where the
+head ends above the ghost's neck, the ghost's body is stretched up to it. That leaves
 the model less to make up: heads came back warped, recoloured or turned the
 other way. It is only offered where the bottom left sprite faces the way
 the frame does (lock_head_possible); a standing sheet has no head facing
@@ -190,7 +191,6 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False, layout=GRID_LAYOUT):
     ghost = solid_ghost.copy()
     if pair:
         ghost.fill(RED_GHOST_TINT, special_flags=pygame.BLEND_RGB_MULT)
-    ghost.set_alpha(RED_GHOST_ALPHA if pair else GHOST_ALPHA)
 
     max_w = max(s.get_width() for s in sprites + [ghost])
     max_h = max(s.get_height() for s in sprites + [ghost])
@@ -211,17 +211,39 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False, layout=GRID_LAYOUT):
 
     head = None
     if lock_head:
-        head, ghost_neck, shift = locked_head(idle, ghost_source, npc, factor)
-        ghost.fill((0, 0, 0, 0), (0, 0, ghost.get_width(), ghost_neck))   # the ghost's head makes way
+        (image, rect), ghost_neck, shift = locked_head(idle, ghost_source, npc, factor)
+        # Where the head is on the bottom left sprite, moved into the target cell and on by the pose's shift
+        npc_rect = npc.get_rect(midbottom=(ref_cell.centerx, ref_cell.bottom - margin))
+        head = image, rect.move(npc_rect.x + target_cell.x - ref_cell.x + shift[0], npc_rect.y + shift[1])
+        ghost_top = target_cell.bottom - margin - ghost.get_height()
+        ghost = headless_ghost(ghost, ghost_neck, ghost_top + ghost_neck - head[1].bottom)
+    ghost.set_alpha(RED_GHOST_ALPHA if pair else GHOST_ALPHA)
     for sprite, cell in zip(sprites + [ghost], cells):
         sheet.blit(sprite, sprite.get_rect(midbottom=(cell.centerx, cell.bottom - margin)))
     if head:
-        # Where the head is on the bottom left sprite, moved into the target cell and on by the pose's shift
-        image, rect = head
-        npc_rect = npc.get_rect(midbottom=(ref_cell.centerx, ref_cell.bottom - margin))
-        sheet.blit(image, rect.move(npc_rect.x + target_cell.x - ref_cell.x + shift[0], npc_rect.y + shift[1]))
+        sheet.blit(*head)
     pygame.draw.rect(sheet, TARGET_FRAME_COLOR, target_cell, TARGET_FRAME_WIDTH)
     return sheet, solid_ghost, target_cell, target_cell.bottom - margin
+
+
+def headless_ghost(ghost, neck, gap):
+    """The ghost without its head, its body stretched up by `gap` to meet the locked head.
+
+    The NPC's head often ends higher than the mannequin's, which left the
+    body floating under it. The feet stay where they are; a head that
+    already reaches down to the neck or past it leaves the body as it is.
+
+    Args:
+        ghost: The ghost at sheet scale, solid.
+        neck: Its neck row.
+        gap: Rows between the bottom of the locked head and the neck.
+    """
+    w, h = ghost.get_size()
+    body = ghost.subsurface((0, neck, w, h - neck))
+    gap = max(0, min(gap, neck))
+    result = pygame.Surface((w, h), pygame.SRCALPHA)
+    result.blit(pygame.transform.scale(body, (w, h - neck + gap)), (0, neck - gap))
+    return result
 
 
 def neck_row(mask, start, end):
