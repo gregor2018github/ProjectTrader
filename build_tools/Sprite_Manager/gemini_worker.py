@@ -21,8 +21,8 @@ class GeminiWorker:
 
         Args:
             npc: The figure the sheets belong to.
-            jobs: [(pose, sheet_path, prompt)], one entry per request; the same
-                pose may appear several times (Settings.tries).
+            jobs: [(pose, sheet_path, prompt, layout)], one entry per request; the
+                same pose may appear several times (Settings.tries).
             settings: Model and output size to ask for.
             on_result: Called on the main thread with one pose_review.Entry
                 per answer that was written.
@@ -46,7 +46,7 @@ class GeminiWorker:
         except Exception as exc:  # missing SDK, missing key, bad setup
             self._queue.put(('fatal', str(exc)))
             return
-        for pose, sheet_path, prompt in jobs:
+        for pose, sheet_path, prompt, layout in jobs:
             try:
                 image = client.complete_sheet(prompt, sheet_path.read_bytes(), self.settings)
                 out_path = next_free_path(
@@ -65,6 +65,7 @@ class GeminiWorker:
                     prompt_tokens=image.prompt_tokens,
                     output_tokens=image.output_tokens,
                     total_tokens=image.total_tokens,
+                    layout=layout,
                 )))
             except (GeminiError, OSError) as exc:
                 self._queue.put(('error', f'{pose}: {exc}'))

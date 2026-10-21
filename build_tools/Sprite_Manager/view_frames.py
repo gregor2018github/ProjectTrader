@@ -3,7 +3,9 @@
 Left the directions and the walk as the game plays it, in the middle the
 frames of the chosen direction, right the chosen frame's sheet with the
 buttons that get an answer for it. Above a frame's sheet, Free / Locked
-chooses whether the figure's own head is put into the red frame (H).
+chooses whether the figure's own head is put into the red frame (H), and
+under it the sheet's layout: the 2x2 grid, or only the figure beside a red
+ghost (L).
 """
 
 import time
@@ -22,7 +24,10 @@ from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
-from sheets import SHEET_ERRORS, can_make_standing, lock_head_possible, write_sheets, write_standing_sheet
+from sheets import (
+    GRID_LAYOUT, PAIR_LAYOUT, SHEET_ERRORS, can_make_standing, lock_head_possible, write_sheets,
+    write_standing_sheet,
+)
 from theme import (
     BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS, TEXT,
     TEXT_DIM,
@@ -46,6 +51,7 @@ PREVIEW_MIN_H = 60
 PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 HEAD_CHOICES = ((False, 'Free'), (True, 'Locked'))   # the head in the red frame: the model's, or the figure's own
+LAYOUT_CHOICES = ((GRID_LAYOUT, '2x2 grid'), (PAIR_LAYOUT, 'Two cells, red ghost'))
 
 COLOUR_BACKUPS = 'colour_backups'   # under the output folder: frames as they were before evening out
 
@@ -69,6 +75,7 @@ class FramesView(View):
         self.dir_rows = []            # [(rect, direction)] as last drawn
         self.motion_chips = []        # [(rect, motion)] as last drawn, for the player
         self.head_chips = []          # [(rect, locked)] as last drawn, above a frame's sheet
+        self.layout_chips = []        # [(rect, layout)] as last drawn, under the head chips
         self.preview_checker = Checker()
         self.standing_checker = Checker()
         self.gimp = find_gimp()
@@ -167,7 +174,8 @@ class FramesView(View):
         self.direction = direction
         self.app.last_direction = direction
         try:
-            self.sheets = write_sheets(self.npc, direction, lock_head=self.app.settings.lock_head)
+            self.sheets = write_sheets(self.npc, direction, lock_head=self.app.settings.lock_head,
+                                       layout=self.app.settings.sheet_layout)
         except SHEET_ERRORS as exc:
             self.sheets = []
             self.app.set_status(f'Cannot build the {direction.title} sheets: {exc}', error=True)
@@ -205,7 +213,8 @@ class FramesView(View):
                 fresh = self.standing_sheet = write_standing_sheet(self.npc, sheet.direction)
             else:
                 fresh = self.sheets[self.current] = write_sheets(self.npc, sheet.direction, [sheet.frame],
-                                                                 self.app.settings.lock_head)[0]
+                                                                 self.app.settings.lock_head,
+                                                                 self.app.settings.sheet_layout)[0]
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
             return sheet
@@ -227,6 +236,17 @@ class FramesView(View):
         self.select_direction(self.direction, self.current)
         app.set_status('Head locked: the sheets carry the figure\'s own head' if locked else
                        'Head free: the model draws the head over the ghost')
+
+    def set_sheet_layout(self, layout):
+        """Lay out every walk and run sheet as the 2x2 grid or the pair, and rebuild this direction's."""
+        app = self.app
+        if layout == app.settings.sheet_layout:
+            return
+        app.settings = app.settings.with_values(sheet_layout=layout)
+        app.settings.save()
+        self.select_direction(self.direction, self.current)
+        app.set_status('Sheet: only the figure beside a red ghost of the pose' if layout == PAIR_LAYOUT else
+                       'Sheet: the 2x2 grid with the mannequin above')
 
     def refresh(self):
         """Cards, comparison and preview, after answers or frames on disk changed."""
@@ -689,8 +709,10 @@ class FramesView(View):
             title = 'Sheet'
         draw_panel(screen, app.fonts, rect, title)
         area = self.place_sheet_buttons(rect)
+        self.head_chips, self.layout_chips = [], []   # only a frame's sheet shows them
         if sheet and not sheet.standing:
             area = self.draw_head_choice(screen, area, mouse)
+            area = self.draw_layout_choice(screen, area, mouse)
         if not sheet and self.current == STANDING:
             self.draw_standing(screen, area)
         elif sheet and self.comparison:
@@ -736,6 +758,20 @@ class FramesView(View):
         top = bottom + BUTTON_GAP
         return pygame.Rect(area.x, top, area.w, area.bottom - top)
 
+    def draw_layout_choice(self, screen, area, mouse):
+        """Sheet: 2x2 grid / Two cells, red ghost, under the head choice; returns the room left under it."""
+        small = self.app.fonts.small
+        label = small.render('Sheet:', True, TEXT_DIM)
+        screen.blit(label, (area.x, area.y + 4))
+        x = area.x + label.get_width() + 10
+        layout = self.app.settings.sheet_layout
+        self.layout_chips, bottom = draw_chips(screen, small, [key for key, _ in LAYOUT_CHOICES],
+                                               dict(LAYOUT_CHOICES).get,
+                                               layout if layout == PAIR_LAYOUT else GRID_LAYOUT,
+                                               x, area.y, area.right - x, mouse)
+        top = bottom + BUTTON_GAP
+        return pygame.Rect(area.x, top, area.w, area.bottom - top)
+
     def draw_standing(self, screen, area):
         """The direction's standing sprite, large, on a checkerboard."""
         self.standing_checker.draw(screen, area)
@@ -766,6 +802,10 @@ class FramesView(View):
         for chip, locked in self.head_chips:
             if chip.collidepoint(pos):
                 self.set_head_lock(locked)
+                return
+        for chip, layout in self.layout_chips:
+            if chip.collidepoint(pos):
+                self.set_sheet_layout(layout)
                 return
         for row, direction in self.dir_rows:
             if row.collidepoint(pos):
@@ -810,6 +850,8 @@ class FramesView(View):
             self.even_out_or_undo()
         elif event.key == pygame.K_h and self.can_lock_head():
             self.set_head_lock(not self.app.settings.lock_head)
+        elif event.key == pygame.K_l and self.layout_chips:
+            self.set_sheet_layout(GRID_LAYOUT if self.app.settings.sheet_layout == PAIR_LAYOUT else PAIR_LAYOUT)
         elif event.key == pygame.K_f and not self.npc.is_player:
             self.app.redo_first_sprite()
 

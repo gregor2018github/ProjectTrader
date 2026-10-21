@@ -145,6 +145,7 @@ class Settings:
     image_size: str = ''     # '' = the model's own default (1K)
     tries: int = 1           # answers requested per sheet
     lock_head: bool = False  # walk and run sheets carry the figure's own head (sheets.py)
+    sheet_layout: str = '2x2'  # walk and run sheets: '2x2' grid, or '1x2' the figure beside a red ghost
 
     def size_label(self) -> str:
         """How the chosen image size is written in the interface."""

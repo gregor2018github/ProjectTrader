@@ -128,7 +128,7 @@ class DetailView(View):
         # A standing sprite is made from the front one, a frame from its direction's base.
         self.base = DEFAULT_BASE if frame == 0 else app.npc.base_for(direction)
         poses, shapes = reference_shapes(app.npc, entry.pose, self.base)
-        self.detail = Detail(app.npc, entry, poses, shapes)
+        self.detail = Detail(app.npc, entry, poses, shapes, entry.layout)
         self.return_to = return_to
         self.checker = Checker()
         self.reject_button = Button('Not good enough', w=190)
@@ -182,7 +182,8 @@ class DetailView(View):
             if frame == 0:
                 self.app.send([write_standing_sheet(self.app.npc, direction)])
             else:
-                self.app.send(write_sheets(self.app.npc, direction, [frame], self.app.settings.lock_head))
+                self.app.send(write_sheets(self.app.npc, direction, [frame], self.app.settings.lock_head,
+                                            self.app.settings.sheet_layout))
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
 

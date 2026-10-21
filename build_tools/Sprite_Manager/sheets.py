@@ -17,6 +17,17 @@ the model less to make up: heads came back warped, recoloured or turned the
 other way. It is only offered where the bottom left sprite faces the way
 the frame does (lock_head_possible); a standing sheet has no head facing
 its way to copy yet.
+
+A frame's sheet can also be laid out as just the bottom row (PAIR_LAYOUT):
+
+    +---------------------------+---------------------------+
+    | <npc>_front_static.png    | red frame: the frame as a |
+    | (or _back_static.png)     | faint red ghost           |
+    +---------------------------+---------------------------+
+
+Shown the mannequin twice, the model often copied the NPC's standing pose
+instead of the ghost's; with no mannequin and a red ghost there is only the
+one pose to follow. A standing sprite's sheet is always 2x2.
 """
 
 from dataclasses import dataclass
@@ -38,6 +49,13 @@ FRAME_COLOR = (0, 0, 0)
 TARGET_FRAME_COLOR = (220, 0, 0)
 TARGET_FRAME_WIDTH = 3
 GHOST_ALPHA = 110        # 0 = invisible, 255 = solid
+RED_GHOST_TINT = (255, 70, 70)   # multiplied into the ghost on a two-cell sheet
+RED_GHOST_ALPHA = 150
+
+# Sheet layouts of a frame, as extraction.find_cells() names them
+GRID_LAYOUT = '2x2'      # mannequin standing and posed above, NPC and grey ghost below
+PAIR_LAYOUT = '1x2'      # only the NPC and the ghost, in red
+SHEET_LAYOUTS = (GRID_LAYOUT, PAIR_LAYOUT)
 DONE_FRAME_COLOR = (80, 180, 90)   # the target cell once its sprite is accepted (cards only)
 
 # Finding the neck: the narrowest row in this band of the mannequin's height, from the top
@@ -69,6 +87,16 @@ The mannequin and the ghost show only the pose. Do not copy their proportions, b
 Parts that the bottom left sprite does not show should follow on naturally from what it does show.
 Keep {name} at the same size as in the bottom left, with the feet on the same ground line, on the plain white background. Do not draw anything outside the red frame and do not change the other three cells.
 """
+PAIR_PROMPT_TEMPLATE = """The attached picture holds two pixel-art sprites side by side.
+
+Left: {name}, {base_view}.
+Right, in the red frame: a faint red figure, {facing}. It only shows a pose.
+
+Draw {name} in the red frame in exactly the red figure's pose. Trace it: each foot, knee, hand, elbow and the head go where the red figure has them, at the same height and lean. Do not copy the pose from the left - if the red figure's legs are apart or its arms swing, {name}'s are and do too.{head}
+
+Keep {name}'s look from the left: proportions, face, hair, headwear, clothes, colours, outline, crisp pixel art with hard edges. Same size, feet on the same ground line, white background, nothing of the red figure left. Change nothing outside the red frame.
+"""
+
 HEAD_LOCKED = (
     " {name}'s head is already in the red frame: keep it exactly as it is and draw the body under it, "
     "joined at the neck.")
@@ -106,6 +134,7 @@ class FrameSheet:
     ghost: pygame.Surface   # the goal pose, at the scale of the saved frames
     target: pygame.Rect     # the red-framed cell on the surface
     ground: int             # the y the sprites in the target cell stand on
+    layout: str = GRID_LAYOUT
 
     @property
     def standing(self):
@@ -136,7 +165,7 @@ class FrameSheet:
         return surface
 
 
-def build_sheet(idle, pose, ghost, npc, lock_head=False):
+def build_sheet(idle, pose, ghost, npc, lock_head=False, layout=GRID_LAYOUT):
     """Lay out the three sprites plus the red-framed target cell holding the ghost.
 
     Every sprite stands on the ground line of its cell, so the cycle's frame
@@ -145,6 +174,7 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False):
     Args:
         lock_head: Put the NPC's head into the target cell where the ghost's
             head is, instead of the ghost's (see the module docstring).
+        layout: GRID_LAYOUT, or PAIR_LAYOUT for only the NPC beside a red ghost.
 
     Returns:
         (sheet, ghost, target cell, ground line) - the ghost solid, at the scale
@@ -153,26 +183,31 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False):
     # One scale for all chibi sprites, taken from the standing one, so every
     # frame of a cycle comes out the same size.
     factor = max(1, round(npc.get_height() / idle.get_height()))
-    sprites = [scaled(idle, factor), scaled(pose, factor), npc]
+    pair = layout == PAIR_LAYOUT
+    sprites = [npc] if pair else [scaled(idle, factor), scaled(pose, factor), npc]
     ghost_source = ghost
     solid_ghost = scaled(ghost, factor)
     ghost = solid_ghost.copy()
-    ghost.set_alpha(GHOST_ALPHA)
+    if pair:
+        ghost.fill(RED_GHOST_TINT, special_flags=pygame.BLEND_RGB_MULT)
+    ghost.set_alpha(RED_GHOST_ALPHA if pair else GHOST_ALPHA)
 
     max_w = max(s.get_width() for s in sprites + [ghost])
     max_h = max(s.get_height() for s in sprites + [ghost])
     margin = max(MIN_MARGIN, int(max(max_w, max_h) * MARGIN_RATIO))
     cell_w, cell_h = max_w + 2 * margin, max_h + 2 * margin
 
-    sheet = pygame.Surface((2 * cell_w + 3 * FRAME_WIDTH, 2 * cell_h + 3 * FRAME_WIDTH))
+    rows = 1 if pair else 2
+    sheet = pygame.Surface((2 * cell_w + 3 * FRAME_WIDTH, rows * cell_h + (rows + 1) * FRAME_WIDTH))
     sheet.fill(FRAME_COLOR)
     cells = []
-    for row in range(2):
+    for row in range(rows):
         for col in range(2):
             rect = pygame.Rect(FRAME_WIDTH + col * (cell_w + FRAME_WIDTH),
                                FRAME_WIDTH + row * (cell_h + FRAME_WIDTH), cell_w, cell_h)
             sheet.fill((255, 255, 255), rect)
             cells.append(rect)
+    ref_cell, target_cell = cells[-2:]
 
     head = None
     if lock_head:
@@ -183,10 +218,10 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False):
     if head:
         # Where the head is on the bottom left sprite, moved into the target cell and on by the pose's shift
         image, rect = head
-        npc_rect = npc.get_rect(midbottom=(cells[2].centerx, cells[2].bottom - margin))
-        sheet.blit(image, rect.move(npc_rect.x + cells[3].x - cells[2].x + shift[0], npc_rect.y + shift[1]))
-    pygame.draw.rect(sheet, TARGET_FRAME_COLOR, cells[3], TARGET_FRAME_WIDTH)
-    return sheet, solid_ghost, cells[3], cells[3].bottom - margin
+        npc_rect = npc.get_rect(midbottom=(ref_cell.centerx, ref_cell.bottom - margin))
+        sheet.blit(image, rect.move(npc_rect.x + target_cell.x - ref_cell.x + shift[0], npc_rect.y + shift[1]))
+    pygame.draw.rect(sheet, TARGET_FRAME_COLOR, target_cell, TARGET_FRAME_WIDTH)
+    return sheet, solid_ghost, target_cell, target_cell.bottom - margin
 
 
 def neck_row(mask, start, end):
@@ -253,14 +288,15 @@ def lock_head_possible(npc, direction):
     return bool(pose) and npc.base_for(direction) == pose
 
 
-def prompt_for(npc, direction, lock_head=False):
+def prompt_for(npc, direction, lock_head=False, layout=GRID_LAYOUT):
     base_view = BASE_POSES[npc.base_for(direction)].view
     head = HEAD_LOCKED.format(name=npc.display_name) if lock_head else ''
-    return PROMPT_TEMPLATE.format(base_view=base_view, facing=FACING[direction.key],
+    template = PAIR_PROMPT_TEMPLATE if layout == PAIR_LAYOUT else PROMPT_TEMPLATE
+    return template.format(base_view=base_view, facing=FACING[direction.key],
                                   name=npc.display_name, head=head)
 
 
-def write_sheets(npc, direction, frames=None, lock_head=False):
+def write_sheets(npc, direction, frames=None, lock_head=False, layout=GRID_LAYOUT):
     """Build a direction's sheets from the base files and write them.
 
     Args:
@@ -269,6 +305,7 @@ def write_sheets(npc, direction, frames=None, lock_head=False):
         frames: Frame numbers (from 1) to build; None builds them all.
         lock_head: Lock the NPC's head into the target cell, where the
             direction allows it (lock_head_possible).
+        layout: GRID_LAYOUT or PAIR_LAYOUT; anything else is taken as the grid.
 
     Returns:
         [FrameSheet], in frame order.
@@ -284,19 +321,21 @@ def write_sheets(npc, direction, frames=None, lock_head=False):
     ghosts, auto_ghost = chibi.ghost_frames(direction)
     count = len(cycle)
     lock_head = lock_head and lock_head_possible(npc, direction)
+    if layout not in SHEET_LAYOUTS:
+        layout = GRID_LAYOUT
 
     npc.out_dir.mkdir(parents=True, exist_ok=True)
     sheets = []
     for frame in frames or range(1, count + 1):
         surface, ghost, target, ground = build_sheet(idle, cycle[frame - 1], ghosts[min(frame, len(ghosts)) - 1],
-                                                     reference, lock_head)
+                                                     reference, lock_head, layout)
         stem = f'{npc.prefix}_{direction.pose(frame)}'
         path = npc.out_dir / f'{stem}_sheet.png'
-        prompt = prompt_for(npc, direction, lock_head)
+        prompt = prompt_for(npc, direction, lock_head, layout)
         pygame.image.save(surface, str(path))
         (npc.out_dir / f'{stem}_prompt.txt').write_text(prompt, encoding='utf-8')
         sheets.append(FrameSheet(direction, frame, count, surface, path, prompt, auto_ghost, ghost,
-                                 target, ground))
+                                 target, ground, layout))
     return sheets
 
 

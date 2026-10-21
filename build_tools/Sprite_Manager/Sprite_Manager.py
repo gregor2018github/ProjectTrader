@@ -52,7 +52,10 @@ switches to full screen.
    standing sprite, into the red frame where the ghost's head is, so the
    model has to keep it instead of drawing it anew; "Free" leaves it to the
    model. It is kept for every sheet, and only works where the standing
-   sprite faces the frame's way: down, up, left, right. Then either
+   sprite faces the frame's way: down, up, left, right. "Sheet:" under it
+   (L) chooses the layout: the 2x2 grid (the default), or "Two cells, red
+   ghost", only the figure beside the pose as a red ghost, with its own
+   prompt, for when the model keeps copying the standing pose. Then either
    - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
      has the Gemini tab in Firefox open a new chat, choose Pro with
      extended thinking off, and send sheet and prompt (web_bridge.py and
@@ -559,7 +562,7 @@ class SpriteManager:
         if gemini_client.SDK_ERROR:
             self.set_status(f'Gemini: {gemini_client.SDK_ERROR}', error=True)
             return
-        jobs = [(s.pose, s.path, s.prompt) for s in sheets for _ in range(self.settings.tries)]
+        jobs = [(s.pose, s.path, s.prompt, s.layout) for s in sheets for _ in range(self.settings.tries)]
         self.worker = GeminiWorker(self.npc, jobs, self.settings, record_answer(self.npc, self.store))
         self.set_status(self.worker.status())
 

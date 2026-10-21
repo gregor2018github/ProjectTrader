@@ -51,6 +51,7 @@ class Entry:
     prompt_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
+    layout: str = '2x2'   # of the sheet sent, for extraction.find_cells(): '2x2' or '1x2'
 
     def asked_for(self) -> str:
         """The model and the output settings the request carried."""

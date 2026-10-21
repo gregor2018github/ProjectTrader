@@ -156,7 +156,7 @@ def store_web_answer(npc, store, sheet, source, kind=''):
     path = next_free_path(npc.out_dir, f'{npc.prefix}_{sheet.pose}_{WEB_MODEL}', suffix)
     path.write_bytes(data)
     entry = Entry(pose=sheet.pose, image=path.name, sheet=sheet.path.name, model=WEB_MODEL,
-                  created=datetime.now().isoformat(timespec='seconds'))
+                  created=datetime.now().isoformat(timespec='seconds'), layout=sheet.layout)
     measure(path, entry)
     store.add(entry)
     return entry
