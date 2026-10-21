@@ -901,6 +901,132 @@
     "Col_margin_left_pixel": -10,
     "Col_margin_right_pixel": -39
    }
+  },
+  "houses/House_35.png": {
+   "kind": "dwelling",
+   "subcategory": "square stone and timber house",
+   "atlas": "houses",
+   "rect": [
+    320,
+    1160,
+    266,
+    280
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_35.png",
+    "Tiles_to_right": 9,
+    "Tiles_up": 9,
+    "Collision_to_right": 9,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -22
+   }
+  },
+  "houses/House_36.png": {
+   "kind": "dwelling",
+   "subcategory": "square jettied house",
+   "atlas": "houses",
+   "rect": [
+    3360,
+    1173,
+    184,
+    203
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_36.png",
+    "Tiles_to_right": 6,
+    "Tiles_up": 7,
+    "Collision_to_right": 6,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": -7,
+    "Col_margin_right_pixel": -16
+   }
+  },
+  "houses/House_37.png": {
+   "kind": "dwelling",
+   "subcategory": "hall house",
+   "atlas": "houses",
+   "rect": [
+    3584,
+    1172,
+    304,
+    236
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_37.png",
+    "Tiles_to_right": 10,
+    "Tiles_up": 8,
+    "Collision_to_right": 10,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": -8,
+    "Col_margin_right_pixel": -24
+   }
+  },
+  "houses/House_38.png": {
+   "kind": "dwelling",
+   "subcategory": "",
+   "atlas": "houses",
+   "rect": [
+    1280,
+    1220,
+    205,
+    220
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_38.png",
+    "Tiles_to_right": 7,
+    "Tiles_up": 7,
+    "Collision_to_right": 7,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": -12,
+    "Col_margin_right_pixel": -26
+   }
+  },
+  "houses/House_39.png": {
+   "kind": "dwelling",
+   "subcategory": "row of town houses",
+   "atlas": "houses",
+   "rect": [
+    1856,
+    2680,
+    866,
+    808
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_39.png",
+    "Tiles_to_right": 28,
+    "Tiles_up": 26,
+    "Collision_to_right": 28,
+    "Collision_up": 8,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -30
+   }
+  },
+  "houses/House_40.png": {
+   "kind": "dwelling",
+   "subcategory": "",
+   "atlas": "houses",
+   "rect": [
+    32,
+    2757,
+    836,
+    475
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_40.png",
+    "Tiles_to_right": 27,
+    "Tiles_up": 15,
+    "Collision_to_right": 27,
+    "Collision_up": 4,
+    "Col_margin_left_pixel": -47,
+    "Col_margin_right_pixel": -52
+   }
   }
  },
  "motifs": {}
