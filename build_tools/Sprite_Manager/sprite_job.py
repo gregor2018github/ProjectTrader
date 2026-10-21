@@ -136,6 +136,7 @@ class JobSheet:
     prompt: str
     pose: str = POSE
     name: str = 'New sprite'
+    layout: str = '1x2'   # or '2x1', the job's layout_name
 
 
 class SpriteJob:
@@ -455,7 +456,7 @@ class SpriteJob:
         prompt = self.prompt()
         pygame.image.save(surface, str(path))
         (self.folder / PROMPT_FILE).write_text(prompt, encoding='utf-8')
-        return JobSheet(surface, path, prompt)
+        return JobSheet(surface, path, prompt, layout=self.layout_name)
 
 
 @lru_cache(maxsize=16)

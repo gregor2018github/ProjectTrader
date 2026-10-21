@@ -185,6 +185,7 @@ class FirstSheet:
     prompt: str
     pose: str = FIRST_POSE
     name: str = 'First sprite'
+    layout: str = '1x2'
 
 
 def build_split_sheet(player):
