@@ -14,6 +14,10 @@ stands on about a third of its picture, a stall on half), narrowed by pixel
 margins to where the foot is solid. They are a start, to be fine-tuned in
 Tiled like the others.
 
+Whether a sprite is in the game already (in_game()) is read off the map:
+an object on Map1.tmx naming it in its File_name. A stall's closed sprite
+and a bridge's front railing go with their open sprite and bridge.
+
 A bridge, Bridge_<n>, is no "Houses" object but a rectangle on the
 "Bridges" layer, as high as one module of it and as long as the river,
 with the band people walk along in it; the game also takes an optional Bridge_<n>_front.png of the same
@@ -29,6 +33,7 @@ it; the Town Plan picks the paving out by its colour like any other.
 """
 
 import math
+import xml.etree.ElementTree as ElementTree
 from pathlib import Path
 
 import pygame
@@ -41,6 +46,8 @@ HOUSES_DIR = MAP_SPRITES / 'houses'
 GROUND_ATLAS = Atlas('ground', ROOT / 'assets' / 'tiles' / 'ground_tiles.png', 'ground_tiles', 'ground_tiles.xcf')
 FLOOR_DIR = MAP_SPRITES / 'floor_plates'
 FLOOR_LAYER = 'Ground_High'   # the tile layer floor plates are painted on
+MAP_FILE = ROOT / 'assets' / 'tiles' / 'Map1.tmx'
+COMPANION_SUFFIXES = ('_closed', '_front')   # sprites shown along with the one they are named after
 
 #: What a bridge needs that a building does not; the game lays it flat over the
 #: water and lets people walk along its walkway (src/models/bridge.py).
@@ -161,6 +168,37 @@ def building_files():
             + sorted(FLOOR_DIR.glob('*.png')))
 
 
+_placed = {'mtime': None, 'stems': frozenset()}
+
+
+def placed_stems():
+    """The names, without extension, of the sprites the map's objects use; read again when the map changes."""
+    try:
+        mtime = MAP_FILE.stat().st_mtime
+    except OSError:
+        return frozenset()
+    if mtime != _placed['mtime']:
+        try:
+            root = ElementTree.parse(MAP_FILE).getroot()
+        except (OSError, ElementTree.ParseError):
+            return frozenset()
+        _placed['stems'] = frozenset(
+            Path(prop.get('value', '')).stem for prop in root.iter('property')
+            if prop.get('name', '').lower() == 'file_name' and prop.get('value'))
+        _placed['mtime'] = mtime
+    return _placed['stems']
+
+
+def in_game(path):
+    """Whether a building sprite is used by an object on the map. Floor plates are never loaded."""
+    if path.parent != HOUSES_DIR:
+        return False
+    stem = path.stem
+    for suffix in COMPANION_SUFFIXES:
+        stem = stem.removesuffix(suffix)
+    return stem in placed_stems()
+
+
 def tiled_properties(kind, sprite, path):
     """The "Houses" object of a new building: class, size and collision box in tiles, and margins in pixels.
 
@@ -218,5 +256,5 @@ BUILDINGS = Domain(
     catalog_path=Path(__file__).resolve().parent / 'building_catalog.json',
     sprite_files=building_files, motif_atlases=(), suggestions=SUGGESTIONS,
     prompt_template=PROMPT_TEMPLATE, tiled_properties=tiled_properties, reference_title='Parts and others',
-    default_colour=(150, 60, 45), example_share=0.8,
+    default_colour=(150, 60, 45), example_share=0.8, in_game=in_game,
 )

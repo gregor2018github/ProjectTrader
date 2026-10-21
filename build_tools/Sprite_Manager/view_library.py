@@ -2,7 +2,8 @@
 
 Clicking a sprite starts a new one with it as the example (sprite_job.py);
 right-clicking it sets its kind and subcategory in the domain's catalog
-(KindDialog); "GIMP" on its card, or G over it, opens its file in GIMP, and
+(KindDialog); where the domain knows (buildings), a sprite the map already
+uses has an "in game" label on its card's top right; "GIMP" on its card, or G over it, opens its file in GIMP, and
 once saved back the app puts it into its collection again
 (sprite_library.restamp()). The new sprites not yet accepted into the game come first, to
 be picked up again, or scrapped with the cross on their card.
@@ -30,6 +31,8 @@ CROSS_BG = (60, 56, 52)
 CROSS_HOVER = (190, 70, 60)
 GIMP_BUTTON = (58, 26)   # the button opening a sprite's file in GIMP, on its card's top left
 GIMP_HOVER = (150, 120, 70)
+IN_GAME_BG = STATUS_COLORS[pose_review.ACCEPTED]   # the label on a sprite the game already shows
+IN_GAME_TEXT = (30, 34, 30)
 
 
 def sprite_thumb(surface):
@@ -48,6 +51,7 @@ class LibraryView(View):
         self.grid = SectionGrid('sprite')
         self.switch_buttons = app.switch_buttons(domain.key)
         self.armed = None   # an unfinished sprite with answers, whose cross was clicked once
+        self.in_game = set()   # the sprites the map already uses (Domain.in_game)
         self.stats = Stats()
         self.empty = pygame.Surface(NPC_THUMB_SIZE)
         self.empty.fill(CARD_BG)
@@ -66,6 +70,7 @@ class LibraryView(View):
         sprites = app.library(domain)
         jobs = app.jobs(domain)
         self.stats = gather(domain, sprites, jobs, app.atlas_fills)
+        self.in_game = {s for s in sprites if s.path and domain.in_game and domain.in_game(s.path)}
         sections = []
         cards = []
         for job in jobs:
@@ -108,11 +113,24 @@ class LibraryView(View):
         top = summary.bottom + PANEL_GAP
         self.grid.layout(pygame.Rect(area.x, top, area.w, area.bottom - top))
         self.grid.draw(screen, self.app.fonts, mouse)
+        self.draw_in_game_labels(screen)
         card = self.grid.card_at(mouse)
         if card and isinstance(card.key, SpriteJob):
             self.draw_cross(screen, card, mouse)
         elif card and getattr(card.key, 'path', None):
             self.draw_gimp_button(screen, card, mouse)
+
+    def draw_in_game_labels(self, screen):
+        """A small "in game" label on the top right of each sprite the map already uses."""
+        text = self.app.fonts.small.render('in game', True, IN_GAME_TEXT)
+        screen.set_clip(self.grid.area)
+        for card in self.grid.cards:
+            if card.key in self.in_game and card.rect.colliderect(self.grid.area):
+                rect = text.get_rect().inflate(12, 4)
+                rect.topright = (card.rect.right - CROSS_INSET, card.rect.y + CROSS_INSET)
+                pygame.draw.rect(screen, IN_GAME_BG, rect, border_radius=6)
+                screen.blit(text, text.get_rect(center=rect.center))
+        screen.set_clip(None)
 
     @staticmethod
     def cross_rect(card):
