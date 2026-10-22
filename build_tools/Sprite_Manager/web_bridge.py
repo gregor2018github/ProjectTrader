@@ -31,6 +31,7 @@ import base64
 import itertools
 import json
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -89,6 +90,15 @@ def downloads_folder():
     except (ImportError, AttributeError, OSError):
         pass
     return Path.home() / 'Downloads'
+
+
+def script_version():
+    """The @version of the userscript served, or None."""
+    try:
+        found = re.search(r'@version\s+(\S+)', SCRIPT_FILE.read_text(encoding='utf-8'))
+    except OSError:
+        return None
+    return found.group(1) if found else None
 
 
 def image_files(folder):
@@ -185,7 +195,11 @@ class _Handler(BaseHTTPRequestHandler):
         length = min(int(self.headers.get('Content-Length') or 0), MAX_BODY)
         body = self.rfile.read(length) if length else b''
         if self.path == '/take':
-            job = self.bridge.take()
+            try:
+                version = json.loads(body or b'{}').get('version')
+            except (ValueError, AttributeError):
+                version = None
+            job = self.bridge.take(version)
             self._reply(200, json.dumps(job).encode()) if job else self._reply(204)
         elif self.path == '/status':
             try:
@@ -309,11 +323,17 @@ class WebBridge:
 
     # --- the browser's side -----------------------------------------------
 
-    def take(self):
+    def take(self, version=None):
+        """The sheet waiting, for a tab running the userscript of that version (None: older than 1.7)."""
         with self._lock:
             self._last_poll = time.monotonic()
             self._ever_polled = True
             job, self._job = self._job, None
+            current = script_version()
+            if job and version != current:
+                # Violentmonkey looks for updates only now and then
+                self._reports.append((f'The Gemini tab runs userscript {version or "1.6 or older"}, this tool has '
+                                      f'{current}: open {INSTALL_URL} in Firefox and install it', True))
             return job
 
     def report(self, report):
@@ -321,7 +341,7 @@ class WebBridge:
         with self._lock:
             if text:
                 self._reports.append((f'Gemini tab: {text}', bool(report.get('error'))))
-            if report.get('error'):
+            if report.get('error') and not report.get('waiting'):
                 self._awaiting.pop(report.get('id'), None)
             if report.get('download'):
                 # Sent before the click, so the folder is looked at before the file is there

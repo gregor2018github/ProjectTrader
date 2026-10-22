@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.6
+// @version      1.10
 // @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level, image and prompt, send, then download the answer's image.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
@@ -25,14 +25,15 @@
     const STORE_KEY = 'spriteManagerJob';      // the sheet taken, kept over the reload into a new chat
     const THINKING = /^thinking level/i;       // the model menu entry opening the levels
     const LEVEL = /^high$/i;                   // the level to choose
+    const MODEL_BUTTON = /\b(auto|pro|flash|fast|thinking)\b/i;   // the button opening the model menu ("Gemini Auto")
     const EDITOR = 'rich-textarea [contenteditable="true"], div[contenteditable="true"][role="textbox"], .ql-editor[contenteditable="true"]';
     const SEND = 'button.send-button, button[aria-label*="Send" i], [data-test-id="send-button"]';
     const MENU_ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], .mat-mdc-menu-item';
     const BUSY = '[role="progressbar"], mat-progress-spinner, mat-spinner, .loading, [class*="uploading" i]';
-    const STOP = 'button[aria-label*="stop" i], button.stop';   // shown while Gemini is still answering
     const NOT_ANSWER = 'user-query, rich-textarea, uploader-file-preview, input-area-v2';   // our own image is in these
     const ANSWER_WAIT_MS = 10 * 60 * 1000;     // how long an answer may take to be drawn
-    const NO_IMAGE_MS = 20000;                 // answered, nothing stopping any more, and no image this long: give up
+    const CHECK_MS = 2000;                     // how often to look whether the image is drawn
+    const NO_BUTTON_MS = 60000;                // the image there this long without its download button: give up
 
     let working = false;
 
@@ -137,8 +138,16 @@
     function modelButton() {
         const tagged = document.querySelector('[data-test-id="bard-mode-menu-button"] button, [data-test-id="bard-mode-menu-button"]');
         if (visible(tagged)) return tagged;
-        return [...document.querySelectorAll('button[aria-haspopup], button.input-area-switch, bard-mode-switcher button')]
-            .find((b) => visible(b) && /gemini|auto|pro|flash|thinking|fast/i.test(b.innerText || b.getAttribute('aria-label') || ''));
+        // Else any button by its text, the chat box's own first
+        const find = (root) => [...root.querySelectorAll('button, [role="button"]')]
+            .find((b) => visible(b) && MODEL_BUTTON.test(buttonNames(b)) && !/upgrade/i.test(buttonNames(b)));
+        return find(inputArea()) || find(document);
+    }
+
+    // The buttons by the chat box, for fixing the selectors when the model button is not found
+    function describeInputArea() {
+        const names = [...inputArea().querySelectorAll('button, [role="button"]')].filter(visible).map(buttonNames).filter(Boolean);
+        return `buttons by the chat box: ${names.length ? names.map((n) => `"${n.slice(0, 30)}"`).join(', ') : 'none'}`;
     }
 
     function openMenuItems() {
@@ -146,7 +155,9 @@
     }
 
     async function openModelMenu() {
-        const button = await waitFor(modelButton, 10000, 'The model button');
+        const button = await waitFor(modelButton, 10000, 'The model button').catch((e) => {
+            throw new Error(`${e.message} (${describeInputArea()})`);
+        });
         click(button);
         await waitFor(() => openMenuItems().length > 0, 4000, 'The model menu');
         return openMenuItems();
@@ -253,26 +264,25 @@
         ...[...b.querySelectorAll('mat-icon, [fonticon], [data-mat-icon-name]')].map((i) =>
             [i.getAttribute('fonticon'), i.getAttribute('data-mat-icon-name'), i.textContent].join(' '))]
         .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-    const MORE = /\bmore(\b|_)/i;              // the "More" button (three dots) under an answer
-    const DOWNLOAD_ITEM = /download image/i;   // its menu entry downloading the image in full size
-    const SEARCH_LEVELS = 15;                  // how far up from the image the "More" button is looked for
+    const DOWNLOAD_BUTTON = /download full size/i;   // the button over the drawn image
+    const SEARCH_LEVELS = 6;                   // how far up from the image its buttons are looked for
 
     // The drawn images in the answer: big, loaded, and not our own upload
     const answerImages = () => [...document.querySelectorAll('img')]
         .filter((img) => img.complete && img.naturalWidth >= 256 && !img.closest(NOT_ANSWER));
 
-    // The "More" button of the answer an image is in: the nearest one going up from the image
-    function moreButton(img) {
+    // The "Download full size image" button laid over an image (in the page even when not hovered)
+    function downloadButton(img) {
         let area = img;
         for (let i = 0; i < SEARCH_LEVELS && area.parentElement; i++) {
             area = area.parentElement;
-            const found = [...area.querySelectorAll('button, [role="button"]')].filter((b) => MORE.test(buttonNames(b)));
-            if (found.length) return found[found.length - 1];
+            const found = [...area.querySelectorAll('button, [role="button"]')].find((b) => DOWNLOAD_BUTTON.test(buttonNames(b)));
+            if (found) return found;
         }
         return null;
     }
 
-    // What there is under an image whose "More" button was not found, for fixing the selectors
+    // What there is around an image whose download button was not found, for fixing the selectors
     function describeAround(img) {
         let area = img;
         for (let i = 0; i < SEARCH_LEVELS && area.parentElement; i++) area = area.parentElement;
@@ -280,54 +290,30 @@
         return `buttons near the image: ${names.length ? names.map((n) => `"${n.slice(0, 40)}"`).join(', ') : 'none'}`;
     }
 
-    // Open the answer's "More" menu and find "Download image" in it
-    async function downloadEntry(more) {
-        click(more);
-        try {
-            return await waitFor(() => openMenuItems().find((i) => DOWNLOAD_ITEM.test(i.innerText || '')),
-                3000, 'The "Download image" entry of the "More" menu');
-        } catch (e) {
-            const seen = openMenuItems().map(firstLine);
-            await closeMenu();
-            throw new Error(`${e.message} (menu: ${seen.length ? seen.join(', ') : 'did not open'})`);
-        }
-    }
-
-    // Gemini takes anything from seconds to minutes, so look once a second until the image is there
+    // Gemini takes anything from seconds to minutes: look every CHECK_MS until the newest image has
+    // its download button, and click that. Nothing on the way (text first, the image coming in
+    // later) counts as an answer without one; only the time running out does
     async function downloadAnswer(job) {
         const until = Date.now() + ANSWER_WAIT_MS;
-        let stopSeen = false;
-        let quietSince = 0;
         let imageSince = 0;
         while (Date.now() < until) {
             const images = answerImages();
-            // The buttons under the answer come once it is finished; the newest answer is the last
-            const more = images.length ? moreButton(images[images.length - 1]) : null;
-            if (more) {
-                const entry = await downloadEntry(more);
+            const image = images[images.length - 1];
+            const button = image ? downloadButton(image) : null;
+            if (button) {
                 // Told first, so the Sprite Manager knows what is in Downloads before the file is
                 await report(job, `${job.label} drawn - downloading it`, false, {download: true});
-                click(entry);
+                click(button);
                 return;
             }
-            if (images.length) {
-                imageSince = imageSince || Date.now();
-                if (Date.now() - imageSince > NO_IMAGE_MS) {
-                    console.log('[Sprite Manager] the image without a "More" button:', images);
-                    throw new Error(`the image is there but its "More" button was not found - download it by hand (${describeAround(images[images.length - 1])})`);
-                }
-            } else {
-                // An answer without an image: only trusted once the stop button has been seen to come and go
-                const stopping = [...document.querySelectorAll(STOP)].some(visible);
-                stopSeen = stopSeen || stopping;
-                quietSince = stopping || !stopSeen ? 0 : (quietSince || Date.now());
-                if (quietSince && Date.now() - quietSince > NO_IMAGE_MS) {
-                    throw new Error('Gemini answered without an image - have a look at the tab');
-                }
+            imageSince = image ? imageSince || Date.now() : 0;
+            if (imageSince && Date.now() - imageSince > NO_BUTTON_MS) {
+                console.log('[Sprite Manager] the image without a download button:', image);
+                throw new Error(`the image is there but its download button was not found - download it by hand (${describeAround(image)})`);
             }
-            await sleep(1000);
+            await sleep(CHECK_MS);
         }
-        throw new Error('no image after 10 minutes');
+        throw new Error(`no image after ${ANSWER_WAIT_MS / 60000} minutes - download it by hand`);
     }
 
     // --- one sheet -----------------------------------------------------------
@@ -350,13 +336,15 @@
             step = 'the prompt';
             await typePrompt(job.prompt);
             if (modelProblem) {
-                report(job, `could not set the thinking level to High (${modelProblem}) - image and prompt are in, set it and send by hand`, true);
-                return;
+                // The answer is still downloaded once it is sent by hand
+                report(job, `could not set the thinking level to High (${modelProblem}) - image and prompt are in, set it and send by hand`,
+                    true, {waiting: true});
+            } else {
+                step = 'sending';
+                const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
+                click(button);
+                report(job, `${job.label} sent, thinking High - waiting for the image`);
             }
-            step = 'sending';
-            const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
-            click(button);
-            report(job, `${job.label} sent, thinking High - waiting for the image`);
             step = 'waiting for the answer';
             await downloadAnswer(job);
         } catch (e) {
@@ -384,7 +372,7 @@
             run(JSON.parse(kept));
             return;
         }
-        const job = await post('/take');
+        const job = await post('/take', {version: GM_info.script.version});   // the tool says if it is outdated
         if (!job) return;
         if (job.fetch) {
             // Only the image of the answer in this tab, no new chat
