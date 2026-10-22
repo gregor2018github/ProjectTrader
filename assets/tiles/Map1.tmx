@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="44" nextobjectid="978">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="46" nextobjectid="1016">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3068,6 +3068,12 @@
  </imagelayer>
  <imagelayer id="43" name="Preview House_24" offsetx="2944" offsety="2144">
   <image source="previews/House_32_x0.45.png" width="383" height="384"/>
+ </imagelayer>
+ <imagelayer id="44" name="Preview House_26" offsetx="1600" offsety="2284">
+  <image source="previews/House_40_x0.85.png" width="711" height="404"/>
+ </imagelayer>
+ <imagelayer id="45" name="Preview House_27" offsetx="3360" offsety="2324">
+  <image source="previews/House_38_x1.8.png" width="369" height="396"/>
  </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
@@ -11039,6 +11045,15 @@
   <object id="900" name="down" x="2409" y="2931">
    <point/>
   </object>
+  <object id="979" name="down" x="1771.7" y="2668.45">
+   <point/>
+  </object>
+  <object id="980" name="down" x="2209.45" y="2668.45">
+   <point/>
+  </object>
+  <object id="1000" name="down" x="3597.6" y="2709.2">
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="3584" y="4608">
@@ -12021,6 +12036,34 @@
    </properties>
    <point/>
   </object>
+  <object id="978" name="House_26" type="House_Frontal" x="1600" y="2688">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-67"/>
+    <property name="Col_margin_right_pixel" type="int" value="-59"/>
+    <property name="Collision_to_right" type="int" value="27"/>
+    <property name="Collision_up" type="int" value="4"/>
+    <property name="File_name" value="House_40.png"/>
+    <property name="Max_inhabitants" type="int" value="35"/>
+    <property name="Scale" type="float" value="0.85"/>
+    <property name="Tiles_to_right" type="int" value="27"/>
+    <property name="Tiles_up" type="int" value="15"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="999" name="House_27" type="House_Frontal" x="3360" y="2720">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-25"/>
+    <property name="Col_margin_right_pixel" type="int" value="-29"/>
+    <property name="Collision_to_right" type="int" value="7"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="File_name" value="House_38.png"/>
+    <property name="Max_inhabitants" type="int" value="20"/>
+    <property name="Scale" type="float" value="1.8"/>
+    <property name="Tiles_to_right" type="int" value="7"/>
+    <property name="Tiles_up" type="int" value="7"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="28" name="Special">
   <object id="318" name="Mill_Blades" x="4280.45" y="5246.36">
@@ -12059,6 +12102,8 @@
   <object id="876" name="Smoke_House_23" x="2751.0" y="2106.5" width="24.0" height="1"/>
   <object id="898" name="Smoke_House_24" x="3169.0" y="2148.65" width="20.25" height="1"/>
   <object id="908" name="Smoke_House_25" x="2450" y="2637" width="26.0" height="1"/>
+  <object id="1014" name="Smoke_House_27" x="3464.4" y="2327.6" width="25.2" height="1"/>
+  <object id="1015" name="Smoke_House_27_2" x="3667.8" y="2331.2" width="28.8" height="1"/>
  </objectgroup>
  <objectgroup id="20" name="Areas" offsetx="-9" offsety="-6">
   <object id="233" name="Market_Area" x="4638.67" y="4451" width="636.667" height="338"/>
@@ -12300,5 +12345,36 @@
   <object id="905" name="Light_rectangle" x="2351" y="2759" width="20.0" height="24.0"/>
   <object id="906" name="Light_rectangle" x="2449" y="2759" width="20.0" height="24.0"/>
   <object id="907" name="Light_rectangle" x="2398" y="2697" width="22.0" height="18.0"/>
+  <object id="981" name="Light_rectangle" x="1749.6" y="2520.55" width="10.2" height="34.0"/>
+  <object id="982" name="Light_rectangle" x="1769.15" y="2520.55" width="15.3" height="34.0"/>
+  <object id="983" name="Light_rectangle" x="1790.4" y="2520.55" width="11.05" height="34.0"/>
+  <object id="984" name="Light_rectangle" x="1942.55" y="2500.15" width="18.7" height="18.7"/>
+  <object id="985" name="Light_rectangle" x="1874.55" y="2557.95" width="28.05" height="22.1"/>
+  <object id="986" name="Light_rectangle" x="1931.5" y="2557.95" width="27.2" height="22.1"/>
+  <object id="987" name="Light_rectangle" x="1989.3" y="2557.95" width="25.5" height="22.1"/>
+  <object id="988" name="Light_rectangle" x="2051.35" y="2557.95" width="29.75" height="22.1"/>
+  <object id="989" name="Light_rectangle" x="2136.35" y="2557.95" width="20.4" height="22.1"/>
+  <object id="990" name="Light_rectangle" x="2240.9" y="2557.95" width="24.65" height="22.1"/>
+  <object id="991" name="Light_rectangle" x="2093.85" y="2498.45" width="22.1" height="21.25"/>
+  <object id="992" name="Light_rectangle" x="2231.55" y="2500.15" width="18.7" height="17.85"/>
+  <object id="993" name="Light_rectangle" x="1874.55" y="2620.0" width="25.5" height="34.0"/>
+  <object id="994" name="Light_rectangle" x="1930.65" y="2620.0" width="27.2" height="34.0"/>
+  <object id="995" name="Light_rectangle" x="1989.3" y="2620.0" width="25.5" height="34.0"/>
+  <object id="996" name="Light_rectangle" x="2244.3" y="2620.0" width="24.65" height="34.0"/>
+  <object id="997" name="Light_rectangle" x="1713.05" y="2620.85" width="13.6" height="18.7"/>
+  <object id="998" name="Light_rectangle" x="1819.3" y="2620.85" width="16.15" height="18.7"/>
+  <object id="1001" name="Light_rectangle" x="3655.2" y="2667.8" width="21.6" height="27.0"/>
+  <object id="1002" name="Light_rectangle" x="3498.6" y="2572.4" width="21.6" height="32.4"/>
+  <object id="1003" name="Light_rectangle" x="3554.4" y="2572.4" width="21.6" height="32.4"/>
+  <object id="1004" name="Light_rectangle" x="3613.8" y="2572.4" width="19.8" height="32.4"/>
+  <object id="1005" name="Light_rectangle" x="3673.2" y="2572.4" width="19.8" height="32.4"/>
+  <object id="1006" name="Light_rectangle" x="3498.6" y="2487.8" width="21.6" height="32.4"/>
+  <object id="1007" name="Light_rectangle" x="3554.4" y="2487.8" width="21.6" height="32.4"/>
+  <object id="1008" name="Light_rectangle" x="3613.8" y="2487.8" width="19.8" height="32.4"/>
+  <object id="1009" name="Light_rectangle" x="3673.2" y="2487.8" width="19.8" height="32.4"/>
+  <object id="1010" name="Light_rectangle" x="3406.8" y="2487.8" width="19.8" height="32.4"/>
+  <object id="1011" name="Light_rectangle" x="3451.8" y="2487.8" width="16.2" height="32.4"/>
+  <object id="1012" name="Light_rectangle" x="3406.8" y="2570.6" width="19.8" height="36.0"/>
+  <object id="1013" name="Light_rectangle" x="3451.8" y="2570.6" width="16.2" height="36.0"/>
  </objectgroup>
 </map>

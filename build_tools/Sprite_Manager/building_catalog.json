@@ -1027,6 +1027,27 @@
     "Col_margin_left_pixel": -47,
     "Col_margin_right_pixel": -52
    }
+  },
+  "houses/House_41.png": {
+   "kind": "dwelling",
+   "subcategory": "row of narrow town houses",
+   "atlas": "houses",
+   "rect": [
+    896,
+    2774,
+    853,
+    842
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_41.png",
+    "Tiles_to_right": 27,
+    "Tiles_up": 27,
+    "Collision_to_right": 27,
+    "Collision_up": 8,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -15
+   }
   }
  },
  "motifs": {}
