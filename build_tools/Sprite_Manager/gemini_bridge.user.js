@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.3
-// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level, image and prompt, send.
+// @version      1.6
+// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level, image and prompt, send, then download the answer's image.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -29,6 +29,10 @@
     const SEND = 'button.send-button, button[aria-label*="Send" i], [data-test-id="send-button"]';
     const MENU_ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], .mat-mdc-menu-item';
     const BUSY = '[role="progressbar"], mat-progress-spinner, mat-spinner, .loading, [class*="uploading" i]';
+    const STOP = 'button[aria-label*="stop" i], button.stop';   // shown while Gemini is still answering
+    const NOT_ANSWER = 'user-query, rich-textarea, uploader-file-preview, input-area-v2';   // our own image is in these
+    const ANSWER_WAIT_MS = 10 * 60 * 1000;     // how long an answer may take to be drawn
+    const NO_IMAGE_MS = 20000;                 // answered, nothing stopping any more, and no image this long: give up
 
     let working = false;
 
@@ -46,10 +50,10 @@
         });
     }
 
-    function report(job, message, error = false) {
+    function report(job, message, error = false, extra = {}) {
         console.log('[Sprite Manager]', message);
         toast(message, error);
-        post('/status', {id: job.id, message, error});
+        return post('/status', {id: job.id, message, error, ...extra});
     }
 
     function toast(message, error) {
@@ -241,6 +245,91 @@
         return area.querySelector(BUSY) ? null : button;
     }
 
+    // --- the answer ------------------------------------------------------
+
+    // A button's names: label, tooltip, test id, text and its icon's name ("download")
+    const buttonNames = (b) => [b.getAttribute('aria-label'), b.getAttribute('mattooltip'), b.title,
+        b.getAttribute('data-test-id'), b.innerText,
+        ...[...b.querySelectorAll('mat-icon, [fonticon], [data-mat-icon-name]')].map((i) =>
+            [i.getAttribute('fonticon'), i.getAttribute('data-mat-icon-name'), i.textContent].join(' '))]
+        .filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    const MORE = /\bmore(\b|_)/i;              // the "More" button (three dots) under an answer
+    const DOWNLOAD_ITEM = /download image/i;   // its menu entry downloading the image in full size
+    const SEARCH_LEVELS = 15;                  // how far up from the image the "More" button is looked for
+
+    // The drawn images in the answer: big, loaded, and not our own upload
+    const answerImages = () => [...document.querySelectorAll('img')]
+        .filter((img) => img.complete && img.naturalWidth >= 256 && !img.closest(NOT_ANSWER));
+
+    // The "More" button of the answer an image is in: the nearest one going up from the image
+    function moreButton(img) {
+        let area = img;
+        for (let i = 0; i < SEARCH_LEVELS && area.parentElement; i++) {
+            area = area.parentElement;
+            const found = [...area.querySelectorAll('button, [role="button"]')].filter((b) => MORE.test(buttonNames(b)));
+            if (found.length) return found[found.length - 1];
+        }
+        return null;
+    }
+
+    // What there is under an image whose "More" button was not found, for fixing the selectors
+    function describeAround(img) {
+        let area = img;
+        for (let i = 0; i < SEARCH_LEVELS && area.parentElement; i++) area = area.parentElement;
+        const names = [...area.querySelectorAll('button, [role="button"]')].map(buttonNames).filter(Boolean);
+        return `buttons near the image: ${names.length ? names.map((n) => `"${n.slice(0, 40)}"`).join(', ') : 'none'}`;
+    }
+
+    // Open the answer's "More" menu and find "Download image" in it
+    async function downloadEntry(more) {
+        click(more);
+        try {
+            return await waitFor(() => openMenuItems().find((i) => DOWNLOAD_ITEM.test(i.innerText || '')),
+                3000, 'The "Download image" entry of the "More" menu');
+        } catch (e) {
+            const seen = openMenuItems().map(firstLine);
+            await closeMenu();
+            throw new Error(`${e.message} (menu: ${seen.length ? seen.join(', ') : 'did not open'})`);
+        }
+    }
+
+    // Gemini takes anything from seconds to minutes, so look once a second until the image is there
+    async function downloadAnswer(job) {
+        const until = Date.now() + ANSWER_WAIT_MS;
+        let stopSeen = false;
+        let quietSince = 0;
+        let imageSince = 0;
+        while (Date.now() < until) {
+            const images = answerImages();
+            // The buttons under the answer come once it is finished; the newest answer is the last
+            const more = images.length ? moreButton(images[images.length - 1]) : null;
+            if (more) {
+                const entry = await downloadEntry(more);
+                // Told first, so the Sprite Manager knows what is in Downloads before the file is
+                await report(job, `${job.label} drawn - downloading it`, false, {download: true});
+                click(entry);
+                return;
+            }
+            if (images.length) {
+                imageSince = imageSince || Date.now();
+                if (Date.now() - imageSince > NO_IMAGE_MS) {
+                    console.log('[Sprite Manager] the image without a "More" button:', images);
+                    throw new Error(`the image is there but its "More" button was not found - download it by hand (${describeAround(images[images.length - 1])})`);
+                }
+            } else {
+                // An answer without an image: only trusted once the stop button has been seen to come and go
+                const stopping = [...document.querySelectorAll(STOP)].some(visible);
+                stopSeen = stopSeen || stopping;
+                quietSince = stopping || !stopSeen ? 0 : (quietSince || Date.now());
+                if (quietSince && Date.now() - quietSince > NO_IMAGE_MS) {
+                    throw new Error('Gemini answered without an image - have a look at the tab');
+                }
+            }
+            await sleep(1000);
+        }
+        throw new Error('no image after 10 minutes');
+    }
+
     // --- one sheet -----------------------------------------------------------
 
     async function run(job) {
@@ -267,9 +356,22 @@
             step = 'sending';
             const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
             click(button);
-            report(job, `${job.label} sent, thinking High - Ctrl+V the answer into the Sprite Manager when it is drawn`);
+            report(job, `${job.label} sent, thinking High - waiting for the image`);
+            step = 'waiting for the answer';
+            await downloadAnswer(job);
         } catch (e) {
             report(job, `stopped at ${step}: ${e.message}`, true);
+        } finally {
+            working = false;
+        }
+    }
+
+    async function fetchAnswer(job) {
+        working = true;
+        try {
+            await downloadAnswer(job);
+        } catch (e) {
+            report(job, `could not download the image: ${e.message}`, true);
         } finally {
             working = false;
         }
@@ -284,6 +386,11 @@
         }
         const job = await post('/take');
         if (!job) return;
+        if (job.fetch) {
+            // Only the image of the answer in this tab, no new chat
+            fetchAnswer(job);
+            return;
+        }
         // Always a new chat: keep the sheet over the reload and go on there
         sessionStorage.setItem(STORE_KEY, JSON.stringify(job));
         working = true;

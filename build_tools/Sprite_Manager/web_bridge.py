@@ -8,6 +8,12 @@ opens a new chat, sets the thinking level to High, pastes the image and the
 prompt and presses send, telling the server how far it got; the tool shows
 that in its status line.
 
+Then the tab waits for Gemini's answer, however long it takes, by looking
+for an image with a "Download full size" button once a second. It says so
+just before it clicks that button, and from then on downloaded() watches the
+Downloads folder: the first new image there whose size has stopped changing
+is the answer, handed to the deliver callback given with the sheet.
+
 The userscript is served by the same server: with the tool running, open
 INSTALL_URL in that profile and the userscript manager offers to install it,
 and later updates it from there.
@@ -30,6 +36,7 @@ import sqlite3
 import subprocess
 import threading
 import time
+import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -42,6 +49,10 @@ GEMINI_URL = 'https://gemini.google.com/app'
 LISTENING_S = 4          # a tab that asked within this long is there to take the sheet
 TAKE_TIMEOUT_S = 25      # waited this long for a tab to take it: say so
 MAX_BODY = 64 * 1024     # status reports are small
+DOWNLOAD_WAIT_S = 180    # after the tab clicked download, how long the file may take to land
+SCAN_S = 0.5             # how often the Downloads folder is looked at meanwhile
+IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
+DOWNLOADS_ID = '374DE290-123F-4565-9164-39C4925E467B'   # Windows' known folder "Downloads"
 ENV_FIREFOX = 'FIREFOX_PATH'
 FIREFOX_PROFILE = 'ProjectTrader'   # the profile Violentmonkey and the userscript are installed in
 FIREFOX_KEY = r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe'
@@ -63,6 +74,30 @@ def find_firefox():
         str(Path(os.environ.get(var, '')) / 'Mozilla Firefox' / 'firefox.exe')
         for var in ('ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA')]
     return next((c for c in candidates if c and Path(c).is_file()), None)
+
+
+def downloads_folder():
+    """Where Firefox puts downloads unless told otherwise: the user's Downloads folder."""
+    try:
+        import ctypes  # noqa: PLC0415 - Windows only, the folder may have been moved
+        folder_id = ctypes.create_string_buffer(uuid.UUID(DOWNLOADS_ID).bytes_le, 16)
+        path = ctypes.c_wchar_p()
+        if ctypes.windll.shell32.SHGetKnownFolderPath(folder_id, 0, None, ctypes.byref(path)) == 0:
+            found = path.value
+            ctypes.windll.ole32.CoTaskMemFree(path)
+            return Path(found)
+    except (ImportError, AttributeError, OSError):
+        pass
+    return Path.home() / 'Downloads'
+
+
+def image_files(folder):
+    """{name: size} of the images in a folder."""
+    try:
+        return {f.name: f.stat().st_size for f in folder.iterdir()
+                if f.suffix.lower() in IMAGE_SUFFIXES and f.is_file()}
+    except OSError:
+        return {}
 
 
 def find_profile(name=FIREFOX_PROFILE):
@@ -177,6 +212,9 @@ class WebBridge:
         self._ever_polled = False   # whether the userscript has been heard from at all
         self._reports = []          # (text, error) not shown yet
         self.sent_label = ''        # what the last sheet was, for the messages
+        self._awaiting = {}         # job id: (label, deliver) of sheets whose image is not in yet
+        self._downloads = []        # the images the tabs are downloading, oldest first, see downloaded()
+        self._scanned = 0.0
 
     def start(self):
         """Start the server if it is not running yet. Raises BridgeError if the port is taken."""
@@ -192,15 +230,18 @@ class WebBridge:
 
     # --- the tool's side --------------------------------------------------
 
-    def submit(self, png, prompt, label):
+    def submit(self, png, prompt, label, deliver=None):
         """Hand a sheet (PNG bytes) and its prompt to the next Gemini tab that asks.
 
-        Returns the message to show. A sheet still waiting is replaced.
+        deliver(path) is called with Gemini's answer once the tab has downloaded
+        it, see downloaded(). Returns the message to show. A sheet still waiting
+        is replaced.
         """
         self.start()
         with self._lock:
             self._job = {'id': next(self._ids), 'label': label, 'prompt': prompt,
                          'image': base64.b64encode(png).decode('ascii'), 'name': f'{label}.png'}
+            self._awaiting[self._job['id']] = (label, deliver)
             self._job_since = time.monotonic()
             listening = time.monotonic() - self._last_poll < LISTENING_S
             self.sent_label = label
@@ -214,6 +255,18 @@ class WebBridge:
                     f'Install the userscript: open {INSTALL_URL} there')
         return f'{label} waiting - opening Gemini in Firefox ({FIREFOX_PROFILE})'
 
+    def fetch(self, label, deliver=None):
+        """Have the next Gemini tab that asks download the image of the answer it shows, sending nothing.
+
+        For an answer whose download did not come through; deliver as for submit().
+        """
+        self.start()
+        with self._lock:
+            self._job = {'id': next(self._ids), 'label': label, 'fetch': True}
+            self._job_since = time.monotonic()
+            self._awaiting[self._job['id']] = (label, deliver)
+            self.sent_label = label
+
     def poll(self):
         """(text, error) to show, or None: the browser's reports, or a sheet nobody took."""
         with self._lock:
@@ -224,6 +277,35 @@ class WebBridge:
                 return (f'The userscript never answered - install Violentmonkey in Firefox ({FIREFOX_PROFILE}), '
                         f'then open {INSTALL_URL} there and reload Gemini', True)
             return self._reports.pop(0) if self._reports else None
+
+    def downloaded(self):
+        """(label, path, deliver) of an answer the browser has finished downloading, or None.
+
+        A tab downloading an image is given the first new image file in the
+        Downloads folder, once its size has stayed the same between two looks
+        (Firefox writes it as a .part file and renames it when done).
+        """
+        now = time.monotonic()
+        with self._lock:
+            if not self._downloads or now - self._scanned < SCAN_S:
+                return None
+            self._scanned = now
+            watch = self._downloads[0]
+            if now - watch['since'] > DOWNLOAD_WAIT_S:
+                self._downloads.pop(0)
+                self._reports.append((f'No image of {watch["label"]} turned up in {watch["folder"]} - '
+                                      f'download it by hand and use Open image', True))
+                return None
+        files = image_files(watch['folder'])
+        for name, size in files.items():
+            if name in watch['known'] or not size:
+                continue
+            if watch['sizes'].get(name) == size:
+                with self._lock:
+                    self._downloads.remove(watch)
+                return watch['label'], watch['folder'] / name, watch['deliver']
+            watch['sizes'][name] = size
+        return None
 
     # --- the browser's side -----------------------------------------------
 
@@ -236,9 +318,18 @@ class WebBridge:
 
     def report(self, report):
         text = str(report.get('message', ''))[:300]
-        if text:
-            with self._lock:
+        with self._lock:
+            if text:
                 self._reports.append((f'Gemini tab: {text}', bool(report.get('error'))))
+            if report.get('error'):
+                self._awaiting.pop(report.get('id'), None)
+            if report.get('download'):
+                # Sent before the click, so the folder is looked at before the file is there
+                label, deliver = self._awaiting.pop(report.get('id'), ('the answer', None))
+                folder = downloads_folder()
+                self._downloads.append({'label': label, 'deliver': deliver, 'folder': folder,
+                                        'known': set(image_files(folder)), 'sizes': {},
+                                        'since': time.monotonic()})
 
 
 BRIDGE = WebBridge()

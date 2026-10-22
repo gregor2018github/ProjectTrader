@@ -171,7 +171,16 @@ class FirstSpriteView(View):
     def send_web(self):
         sheet = self.ready_sheet()
         if sheet:
-            self.app.send_web(sheet, f'{self.figure.name} front')
+            figure, store = self.figure, self.store
+            self.app.send_web(sheet, f'{figure.name} front',
+                              lambda path: self.take_downloaded(figure, store, sheet, path))
+
+    def take_downloaded(self, figure, store, sheet, path):
+        """Book the browser's answer for a sheet sent earlier; show it if this is still on screen."""
+        entry = store_web_answer(figure, store, sheet, path)
+        if self.app.view is self and self.figure is figure:
+            self.build_answer_cards()
+            self.choose(entry)
 
     def paste_answer(self):
         try:

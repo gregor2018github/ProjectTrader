@@ -346,7 +346,16 @@ class FramesView(View):
     def send_web(self):
         sheet = self.rebuild_current()
         if sheet:
-            self.app.send_web(sheet, f'{self.npc.name} {sheet.pose}')
+            npc, store = self.npc, self.store
+            self.app.send_web(sheet, f'{npc.name} {sheet.pose}',
+                              lambda path: self.take_downloaded(npc, store, sheet, path))
+
+    def take_downloaded(self, npc, store, sheet, path):
+        """Book the browser's answer for a sheet sent earlier; open it if this is still on screen."""
+        entry = store_web_answer(npc, store, sheet, path)
+        if self.app.view is self:
+            self.build_frame_cards()
+            self.app.open_detail(entry, self)
 
     def paste_answer(self):
         """Take the image on the clipboard as the answer for the chosen frame."""

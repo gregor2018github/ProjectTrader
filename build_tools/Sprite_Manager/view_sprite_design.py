@@ -162,7 +162,15 @@ class DesignView(View):
     def send_web(self):
         sheet = self.ready_sheet()
         if sheet:
-            self.app.send_web(sheet, f'new {self.job.domain.noun}')
+            job, store = self.job, self.app.store
+            self.app.send_web(sheet, f'new {job.domain.noun}',
+                              lambda path: self.take_downloaded(job, store, sheet, path))
+
+    def take_downloaded(self, job, store, sheet, path):
+        """Book the browser's answer for a sheet sent earlier; show it if this job is still on screen."""
+        entry = store_web_answer(job, store, sheet, path)
+        if self.app.view is self and self.job is job:
+            self.app.open_answers(entry)
 
     def paste_answer(self):
         try:

@@ -59,6 +59,8 @@ switches to full screen.
    - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
      has the Gemini tab in Firefox (profile "ProjectTrader") open a new
      chat, set the thinking level to High, and send sheet and prompt
+     and, once Gemini has drawn it, download the image, which the tool
+     takes in by itself as if opened, with a sound to say it is in
      (web_bridge.py and the userscript gemini_bridge.user.js; to install
      it, open http://127.0.0.1:47613/gemini_bridge.user.js in that profile with
      Violentmonkey or Tampermonkey while the tool runs). By hand: "Copy
@@ -220,7 +222,7 @@ import pygame  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gemini_client  # noqa: E402
-from answers import record_answer  # noqa: E402
+from answers import AnswerError, record_answer  # noqa: E402
 from chibi import strip_length  # noqa: E402
 from figures import FigureFolder, find_figure_folders, find_player_poses  # noqa: E402
 from gemini_client import Settings  # noqa: E402
@@ -256,6 +258,7 @@ WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'))   # Tab goes round them
 FPS = 30
+ANSWER_SOUND = ROOT / 'assets' / 'sound' / 'falling_coins_sell.mp3'   # an answer from the browser is in
 
 
 class SpriteManager:
@@ -273,6 +276,7 @@ class SpriteManager:
         self.status = ''
         self.status_error = False
         self.dialog = None            # a modal on top of the view, if one is open
+        self.answer_sound = None      # loaded when first played, see play_answer_sound()
         self.settings = Settings.load()
         self.worker = None            # the Gemini requests running, or last run
 
@@ -578,12 +582,16 @@ class SpriteManager:
 
     # --- the Gemini web view ----------------------------------------------
 
-    def send_web(self, sheet, label):
-        """Hand a sheet to the Gemini tab in the browser (web_bridge.py), which sends it with Pro."""
+    def send_web(self, sheet, label, deliver=None):
+        """Hand a sheet to the Gemini tab in the browser (web_bridge.py), which sends it.
+
+        deliver(path) takes in the image the tab downloads once Gemini has drawn
+        it; it may raise AnswerError.
+        """
         png = io.BytesIO()
         try:
             pygame.image.save(sheet.surface, png, 'sheet.png')
-            message = BRIDGE.submit(png.getvalue(), sheet.prompt, label)
+            message = BRIDGE.submit(png.getvalue(), sheet.prompt, label, deliver)
         except (pygame.error, BridgeError) as exc:
             self.set_status(str(exc), error=True)
             return
@@ -594,6 +602,32 @@ class SpriteManager:
         news = BRIDGE.poll()
         if news:
             self.set_status(*news)
+        answer = BRIDGE.downloaded()
+        if not answer:
+            return
+        label, path, deliver = answer
+        try:
+            if not deliver:
+                raise AnswerError('nothing here is waiting for it any more')
+            deliver(path)
+        except AnswerError as exc:
+            self.set_status(f'{label} downloaded to {path}, but not taken in: {exc}', error=True)
+        else:
+            self.set_status(f'{label}: the answer is in - have a look')
+            self.toast.show('Answer in')
+        self.play_answer_sound()
+
+    def play_answer_sound(self):
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            if self.answer_sound is None:
+                self.answer_sound = pygame.mixer.Sound(ANSWER_SOUND)
+            self.answer_sound.play()
+        except (pygame.error, FileNotFoundError):
+            if sys.platform == 'win32':
+                import winsound  # noqa: PLC0415
+                winsound.MessageBeep()
 
     # --- dialogs ----------------------------------------------------------
 
