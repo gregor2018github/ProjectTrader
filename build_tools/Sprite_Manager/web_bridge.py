@@ -2,19 +2,23 @@
 
 A small HTTP server on this machine only (127.0.0.1:PORT) holds the sheet
 waiting to go out. The userscript gemini_bridge.user.js, installed in
-Violentmonkey or Tampermonkey in Firefox, asks it for work from every open
-Gemini tab once a second. The tab that takes a sheet opens a new chat,
-chooses the Pro model with extended thinking off, pastes the image and the
+Violentmonkey or Tampermonkey in Firefox's FIREFOX_PROFILE profile, asks it
+for work from every open Gemini tab once a second. The tab that takes a sheet
+opens a new chat, sets the thinking level to High, pastes the image and the
 prompt and presses send, telling the server how far it got; the tool shows
 that in its status line.
 
 The userscript is served by the same server: with the tool running, open
-INSTALL_URL in Firefox and the userscript manager offers to install it, and
-later updates it from there.
+INSTALL_URL in that profile and the userscript manager offers to install it,
+and later updates it from there.
 
 If no Gemini tab has asked for work lately, submit() opens one in Firefox
 (found through FIREFOX_PATH, the registry or Program Files; the default
-browser if it is not found), where the userscript lives. Nothing here is pygame; the server runs in a daemon thread.
+browser if it is not found), always in FIREFOX_PROFILE, where the userscript
+lives - not in whichever profile Firefox would start by default. The profile
+is looked up by its name in the new profile manager's database (Profile
+Groups) or in profiles.ini. Nothing here is pygame; the server runs in a
+daemon thread.
 """
 
 import base64
@@ -22,6 +26,7 @@ import itertools
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import threading
 import time
@@ -38,6 +43,7 @@ LISTENING_S = 4          # a tab that asked within this long is there to take th
 TAKE_TIMEOUT_S = 25      # waited this long for a tab to take it: say so
 MAX_BODY = 64 * 1024     # status reports are small
 ENV_FIREFOX = 'FIREFOX_PATH'
+FIREFOX_PROFILE = 'ProjectTrader'   # the profile Violentmonkey and the userscript are installed in
 FIREFOX_KEY = r'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\firefox.exe'
 
 
@@ -59,16 +65,58 @@ def find_firefox():
     return next((c for c in candidates if c and Path(c).is_file()), None)
 
 
-def open_in_firefox(url):
-    """Open a page in a new tab of Firefox (of the default browser if there is no Firefox)."""
-    firefox = find_firefox()
-    if firefox:
+def find_profile(name=FIREFOX_PROFILE):
+    """The folder of the Firefox profile called name, or None."""
+    root = Path(os.environ.get('APPDATA', '')) / 'Mozilla' / 'Firefox'
+    # Profiles made with the new profile manager are only in its profile groups' database
+    for db in sorted((root / 'Profile Groups').glob('*.sqlite')):
         try:
-            subprocess.Popen([firefox, '--new-tab', url])
-            return
-        except OSError:
-            pass
-    webbrowser.open(url)
+            with sqlite3.connect(f'{db.as_uri()}?mode=ro', uri=True) as con:
+                rows = con.execute('SELECT path, name FROM Profiles').fetchall()
+        except sqlite3.Error:
+            continue
+        for path, found in rows:
+            if found == name and (root / path).is_dir():
+                return root / path
+    profile = None
+    try:
+        for line in (root / 'profiles.ini').read_text(encoding='utf-8').splitlines():
+            key, _, value = line.partition('=')
+            if line.startswith('['):
+                profile = {}
+            elif profile is not None:
+                profile[key.strip()] = value.strip()
+                if profile.get('Name') == name and 'Path' in profile:
+                    path = Path(profile['Path'])
+                    path = root / path if profile.get('IsRelative', '1') == '1' else path
+                    if path.is_dir():
+                        return path
+    except OSError:
+        pass
+    return None
+
+
+def open_in_firefox(url):
+    """Open a page in a new tab of Firefox in FIREFOX_PROFILE.
+
+    Returns an error to show, or None: the default browser is used if there is
+    no Firefox, and Firefox's own default profile if FIREFOX_PROFILE is not found.
+    """
+    firefox = find_firefox()
+    if not firefox:
+        webbrowser.open(url)
+        return 'Firefox not found, opened in the default browser'
+    profile = find_profile()
+    try:
+        if profile:
+            # A Firefox already running this profile gets the tab, as with clicking a link
+            subprocess.Popen([firefox, '--profile', str(profile), '--new-tab', url])
+            return None
+        subprocess.Popen([firefox, '--new-tab', url])
+    except OSError:
+        webbrowser.open(url)
+        return 'Firefox did not start, opened in the default browser'
+    return f'no Firefox profile "{FIREFOX_PROFILE}" found, opened in Firefox with its default profile'
 
 
 class BridgeError(RuntimeError):
@@ -158,11 +206,13 @@ class WebBridge:
             self.sent_label = label
         if listening:
             return f'{label} handed to the Gemini tab'
-        open_in_firefox(GEMINI_URL)
+        problem = open_in_firefox(GEMINI_URL)
+        if problem:
+            return f'{label} waiting - {problem}, which may not have the userscript'
         if not self._ever_polled:
-            return (f'{label} waiting - opening Gemini in Firefox. Nothing happens? '
+            return (f'{label} waiting - opening Gemini in Firefox ({FIREFOX_PROFILE}). Nothing happens? '
                     f'Install the userscript: open {INSTALL_URL} there')
-        return f'{label} waiting - opening Gemini in Firefox'
+        return f'{label} waiting - opening Gemini in Firefox ({FIREFOX_PROFILE})'
 
     def poll(self):
         """(text, error) to show, or None: the browser's reports, or a sheet nobody took."""
@@ -170,8 +220,8 @@ class WebBridge:
             if self._job and time.monotonic() - self._job_since > TAKE_TIMEOUT_S:
                 self._job = None
                 if self._ever_polled:
-                    return f'No Gemini tab took {self.sent_label} - is Gemini open in Firefox?', True
-                return (f'The userscript never answered - install Violentmonkey in Firefox, '
+                    return f'No Gemini tab took {self.sent_label} - is Gemini open in Firefox ({FIREFOX_PROFILE})?', True
+                return (f'The userscript never answered - install Violentmonkey in Firefox ({FIREFOX_PROFILE}), '
                         f'then open {INSTALL_URL} there and reload Gemini', True)
             return self._reports.pop(0) if self._reports else None
 

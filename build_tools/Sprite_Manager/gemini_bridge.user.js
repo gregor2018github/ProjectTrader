@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.2
-// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, Pro without extended thinking, image and prompt, send.
+// @version      1.3
+// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level, image and prompt, send.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -23,8 +23,8 @@
     const SERVER = 'http://127.0.0.1:47613';
     const POLL_MS = 1000;
     const STORE_KEY = 'spriteManagerJob';      // the sheet taken, kept over the reload into a new chat
-    const MODEL = /\bpro\b/i;                  // the model menu entry to choose ("3.1 Pro")
-    const THINKING = /extended thinking/i;     // the menu entry to switch off
+    const THINKING = /^thinking level/i;       // the model menu entry opening the levels
+    const LEVEL = /^high$/i;                   // the level to choose
     const EDITOR = 'rich-textarea [contenteditable="true"], div[contenteditable="true"][role="textbox"], .ql-editor[contenteditable="true"]';
     const SEND = 'button.send-button, button[aria-label*="Send" i], [data-test-id="send-button"]';
     const MENU_ITEMS = '[role="menuitem"], [role="menuitemradio"], [role="menuitemcheckbox"], .mat-mdc-menu-item';
@@ -76,7 +76,7 @@
         while (Date.now() < until) {
             const found = find();
             if (found) return found;
-            await sleep(200);
+            await sleep(100);
         }
         throw new Error(`${what} not found`);
     }
@@ -111,10 +111,10 @@
             if (box !== last) {
                 last = box;
                 since = Date.now();
-            } else if (box && Date.now() - since >= 1000) {
+            } else if (box && Date.now() - since >= 400) {
                 return box;
             }
-            await sleep(200);
+            await sleep(100);
         }
         throw new Error('The chat box not found');
     }
@@ -129,12 +129,12 @@
         return area;
     }
 
-    // The button showing the model ("Pro") next to the microphone
+    // The button showing the model ("Gemini Auto") next to the microphone
     function modelButton() {
         const tagged = document.querySelector('[data-test-id="bard-mode-menu-button"] button, [data-test-id="bard-mode-menu-button"]');
         if (visible(tagged)) return tagged;
         return [...document.querySelectorAll('button[aria-haspopup], button.input-area-switch, bard-mode-switcher button')]
-            .find((b) => visible(b) && /pro|flash|thinking|fast/i.test(b.innerText || b.getAttribute('aria-label') || ''));
+            .find((b) => visible(b) && /gemini|auto|pro|flash|thinking|fast/i.test(b.innerText || b.getAttribute('aria-label') || ''));
     }
 
     function openMenuItems() {
@@ -151,7 +151,7 @@
     async function closeMenu() {
         document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
         document.querySelector('.cdk-overlay-backdrop')?.click();
-        await sleep(300);
+        await sleep(100);
     }
 
     function isOn(item) {
@@ -163,22 +163,27 @@
             || !!item.querySelector('mat-icon[fonticon="check"], .check-icon, [data-mat-icon-name="check"]');
     }
 
-    async function chooseModel(job) {
-        let items = await openModelMenu();
-        const pro = items.find((i) => MODEL.test(firstLine(i)) && !THINKING.test(firstLine(i)));
-        if (!pro) {
+    async function chooseThinkingLevel(job) {
+        const items = await openModelMenu();
+        const thinking = items.find((i) => THINKING.test(firstLine(i)));
+        if (!thinking) {
             await closeMenu();
-            throw new Error('no Pro entry in the model menu');
+            throw new Error('no "Thinking level" entry in the model menu');
         }
-        click(pro);   // choosing it again does no harm
-        await sleep(600);
-        // Extended thinking is a switch of its own in the same menu
-        items = openMenuItems().length ? openMenuItems() : await openModelMenu();
-        const thinking = items.find((i) => THINKING.test(i.innerText || ''));
-        if (thinking && isOn(thinking)) {
-            click(thinking);
-            await sleep(600);
-            report(job, 'extended thinking switched off');
+        // The levels are a submenu of their own, opened by hovering or clicking the entry
+        thinking.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
+        click(thinking);
+        let high;
+        try {
+            high = await waitFor(() => openMenuItems().find((i) => LEVEL.test(firstLine(i))), 3000, 'The "High" thinking level');
+        } catch (e) {
+            await closeMenu();
+            throw e;
+        }
+        if (!isOn(high)) {
+            click(high);
+            await sleep(150);
+            report(job, 'thinking level set to High');
         }
         await closeMenu();
     }
@@ -219,7 +224,7 @@
         selection.selectAllChildren(editor);
         selection.collapseToEnd();
         document.execCommand('insertText', false, prompt);
-        await sleep(300);
+        await sleep(100);
         const start = prompt.trim().slice(0, 30);
         const typed = () => (chatBox()?.innerText || '').includes(start);
         if (typed()) return;
@@ -244,10 +249,10 @@
         let step = 'the chat box';
         try {
             await settledChatBox();
-            step = 'choosing the model';
+            step = 'the thinking level';
             let modelProblem = '';
             try {
-                await chooseModel(job);
+                await chooseThinkingLevel(job);
             } catch (e) {
                 modelProblem = e.message;
             }
@@ -256,14 +261,13 @@
             step = 'the prompt';
             await typePrompt(job.prompt);
             if (modelProblem) {
-                report(job, `could not choose Pro (${modelProblem}) - image and prompt are in, choose the model and send by hand`, true);
+                report(job, `could not set the thinking level to High (${modelProblem}) - image and prompt are in, set it and send by hand`, true);
                 return;
             }
             step = 'sending';
             const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
-            await sleep(300);
             click(button);
-            report(job, `${job.label} sent with Pro - Ctrl+V the answer into the Sprite Manager when it is drawn`);
+            report(job, `${job.label} sent, thinking High - Ctrl+V the answer into the Sprite Manager when it is drawn`);
         } catch (e) {
             report(job, `stopped at ${step}: ${e.message}`, true);
         } finally {

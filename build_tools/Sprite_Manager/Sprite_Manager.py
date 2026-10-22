@@ -57,10 +57,10 @@ switches to full screen.
    ghost", only the figure beside the pose as a red ghost, with its own
    prompt, for when the model keeps copying the standing pose. Then either
    - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
-     has the Gemini tab in Firefox open a new chat, choose Pro with
-     extended thinking off, and send sheet and prompt (web_bridge.py and
-     the userscript gemini_bridge.user.js; to install it, open
-     http://127.0.0.1:47613/gemini_bridge.user.js in Firefox with
+     has the Gemini tab in Firefox (profile "ProjectTrader") open a new
+     chat, set the thinking level to High, and send sheet and prompt
+     (web_bridge.py and the userscript gemini_bridge.user.js; to install
+     it, open http://127.0.0.1:47613/gemini_bridge.user.js in that profile with
      Violentmonkey or Tampermonkey while the tool runs). By hand: "Copy
      image" (Ctrl+C) and "Copy prompt" (Ctrl+Shift+C), paste both there.
      Then copy the answer and "Paste answer" (Ctrl+V) - or drop the image
