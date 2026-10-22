@@ -53,7 +53,13 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    tileset after `forest_floor_mix`, whose gids the forest builder grows into.
    A sprite redrawn at double resolution (the PNG is 2x the catalog `rect`'s
    size, like House_24 the Guildhall) starts from `Scale=0.5`, then the door
-   decides (the Guildhall ended at 0.7). Every number you pass
+   decides (the Guildhall ended at 0.7). A sprite with `Scale` below 1 keeps
+   its full-resolution PNG and is scaled straight to the screen from it
+   (`House.source_image`), so a building that would be magnified looks
+   sharper upscaled: House_38 and House_40 were upscaled 3x with Upscayl
+   (`"C:/Program Files/Upscayl/resources/bin/upscayl-bin.exe" -i IN -o OUT -s 3
+   -m ".../resources/models" -n ultrasharp-4x -f png`, keeps alpha) and their
+   `Scale` divided by 3. Every number you pass
    is then in the PNG's own pixels: `Collision_to_right`/`Collision_up` in
    tiles of the big PNG (twice the catalog's), margins, door, lights and smoke
    in its pixels, and `Tiles_to_right`/`Tiles_up` = ceil(PNG size / 32).

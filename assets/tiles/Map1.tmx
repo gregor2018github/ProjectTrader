@@ -12038,29 +12038,29 @@
   </object>
   <object id="978" name="House_26" type="House_Frontal" x="1600" y="2688">
    <properties>
-    <property name="Col_margin_left_pixel" type="int" value="-67"/>
-    <property name="Col_margin_right_pixel" type="int" value="-59"/>
-    <property name="Collision_to_right" type="int" value="27"/>
-    <property name="Collision_up" type="int" value="4"/>
+    <property name="Col_margin_left_pixel" type="int" value="-201"/>
+    <property name="Col_margin_right_pixel" type="int" value="-177"/>
+    <property name="Collision_to_right" type="int" value="81"/>
+    <property name="Collision_up" type="int" value="12"/>
     <property name="File_name" value="House_40.png"/>
     <property name="Max_inhabitants" type="int" value="35"/>
-    <property name="Scale" type="float" value="0.85"/>
-    <property name="Tiles_to_right" type="int" value="27"/>
-    <property name="Tiles_up" type="int" value="15"/>
+    <property name="Scale" type="float" value="0.2833333"/>
+    <property name="Tiles_to_right" type="int" value="79"/>
+    <property name="Tiles_up" type="int" value="45"/>
    </properties>
    <point/>
   </object>
   <object id="999" name="House_27" type="House_Frontal" x="3360" y="2720">
    <properties>
-    <property name="Col_margin_left_pixel" type="int" value="-25"/>
-    <property name="Col_margin_right_pixel" type="int" value="-29"/>
-    <property name="Collision_to_right" type="int" value="7"/>
-    <property name="Collision_up" type="int" value="2"/>
+    <property name="Col_margin_left_pixel" type="int" value="-75"/>
+    <property name="Col_margin_right_pixel" type="int" value="-87"/>
+    <property name="Collision_to_right" type="int" value="21"/>
+    <property name="Collision_up" type="int" value="6"/>
     <property name="File_name" value="House_38.png"/>
     <property name="Max_inhabitants" type="int" value="20"/>
-    <property name="Scale" type="float" value="1.8"/>
-    <property name="Tiles_to_right" type="int" value="7"/>
-    <property name="Tiles_up" type="int" value="7"/>
+    <property name="Scale" type="float" value="0.6"/>
+    <property name="Tiles_to_right" type="int" value="20"/>
+    <property name="Tiles_up" type="int" value="21"/>
    </properties>
    <point/>
   </object>

@@ -60,6 +60,8 @@ class House:
         self.scale = scale if scale > 0 else 1.0
         
         self.image: Optional[pygame.Surface] = None
+        #: The sprite file at full resolution, when it is bigger than drawn
+        self.source_image: Optional[pygame.Surface] = None
         self.scaled_image_cache: Dict[float, pygame.Surface] = {}
         
         self._load_image()
@@ -158,6 +160,11 @@ class House:
             try:
                 self.image = pygame.image.load(path).convert_alpha()
                 if self.scale != 1.0:
+                    # A sprite drawn at a higher resolution than its world
+                    # size is kept as well, so zooming in scales it straight
+                    # to the screen and its detail shows
+                    if self.scale < 1.0:
+                        self.source_image = self.image
                     self.image = pygame.transform.smoothscale(self.image, (
                         max(1, round(self.image.get_width() * self.scale)),
                         max(1, round(self.image.get_height() * self.scale)),
@@ -179,8 +186,11 @@ class House:
             
             target_width = max(1, int(round(original_width * zoom)))
             target_height = max(1, int(round(original_height * zoom)))
-            
-            if target_width >= original_width or target_height >= original_height:
+
+            if self.source_image is not None:
+                self.scaled_image_cache[zoom_key] = pygame.transform.smoothscale(
+                    self.source_image, (target_width, target_height))
+            elif target_width >= original_width or target_height >= original_height:
                 self.scaled_image_cache[zoom_key] = pygame.transform.scale(self.image, (target_width, target_height))
             else:
                 self.scaled_image_cache[zoom_key] = pygame.transform.smoothscale(self.image, (target_width, target_height))
