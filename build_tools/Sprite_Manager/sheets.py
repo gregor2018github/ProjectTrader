@@ -216,7 +216,8 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False, layout=GRID_LAYOUT):
         npc_rect = npc.get_rect(midbottom=(ref_cell.centerx, ref_cell.bottom - margin))
         head = image, rect.move(npc_rect.x + target_cell.x - ref_cell.x + shift[0], npc_rect.y + shift[1])
         ghost_top = target_cell.bottom - margin - ghost.get_height()
-        ghost = headless_ghost(ghost, ghost_neck, ghost_top + ghost_neck - head[1].bottom)
+        ghost = headless_ghost(ghost, ghost_neck, ghost_top + ghost_neck - head[1].bottom,
+                               target_cell.w - 2 * margin)
     ghost.set_alpha(RED_GHOST_ALPHA if pair else GHOST_ALPHA)
     for sprite, cell in zip(sprites + [ghost], cells):
         sheet.blit(sprite, sprite.get_rect(midbottom=(cell.centerx, cell.bottom - margin)))
@@ -226,23 +227,28 @@ def build_sheet(idle, pose, ghost, npc, lock_head=False, layout=GRID_LAYOUT):
     return sheet, solid_ghost, target_cell, target_cell.bottom - margin
 
 
-def headless_ghost(ghost, neck, gap):
+def headless_ghost(ghost, neck, gap, max_width):
     """The ghost without its head, its body stretched up by `gap` to meet the locked head.
 
     The NPC's head often ends higher than the mannequin's, which left the
-    body floating under it. The feet stay where they are; a head that
-    already reaches down to the neck or past it leaves the body as it is.
+    body floating under it. The body grows as wide as it grows tall, as far
+    as `max_width` allows, so it keeps the mannequin's build instead of
+    turning lanky. The feet stay where they are; a head that already reaches
+    down to the neck or past it leaves the body as it is.
 
     Args:
         ghost: The ghost at sheet scale, solid.
         neck: Its neck row.
         gap: Rows between the bottom of the locked head and the neck.
+        max_width: The widest the ghost may become: what its cell has room for.
     """
     w, h = ghost.get_size()
     body = ghost.subsurface((0, neck, w, h - neck))
     gap = max(0, min(gap, neck))
-    result = pygame.Surface((w, h), pygame.SRCALPHA)
-    result.blit(pygame.transform.scale(body, (w, h - neck + gap)), (0, neck - gap))
+    body_h = h - neck + gap
+    body_w = max(w, min(round(w * body_h / (h - neck)), max_width))
+    result = pygame.Surface((body_w, h), pygame.SRCALPHA)
+    result.blit(pygame.transform.scale(body, (body_w, body_h)), (0, neck - gap))
     return result
 
 
