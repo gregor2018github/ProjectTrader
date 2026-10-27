@@ -12,7 +12,9 @@ Then the tab waits for Gemini's answer, however long it takes, by looking
 for an image with a "Download full size" button once a second. It says so
 just before it clicks that button, and from then on downloaded() watches the
 Downloads folder: the first new image there whose size has stopped changing
-is the answer, handed to the deliver callback given with the sheet.
+is the answer, handed to the deliver callback given with the sheet. A sheet
+whose tab has said nothing about it for SILENT_S, longer than the userscript
+ever waits, was lost with its tab and is given up.
 
 The userscript is served by the same server: with the tool running, open
 INSTALL_URL in that profile and the userscript manager offers to install it,
@@ -51,6 +53,7 @@ LISTENING_S = 4          # a tab that asked within this long is there to take th
 TAKE_TIMEOUT_S = 25      # waited this long for a tab to take it: say so
 MAX_BODY = 64 * 1024     # status reports are small
 DOWNLOAD_WAIT_S = 180    # after the tab clicked download, how long the file may take to land
+SILENT_S = 11 * 60       # a taken sheet not heard of this long is lost (the userscript waits 10 minutes for an answer)
 SCAN_S = 0.5             # how often the Downloads folder is looked at meanwhile
 IMAGE_SUFFIXES = {'.png', '.jpg', '.jpeg', '.webp'}
 DOWNLOADS_ID = '374DE290-123F-4565-9164-39C4925E467B'   # Windows' known folder "Downloads"
@@ -228,6 +231,7 @@ class WebBridge:
         self.sent_label = ''        # what the last sheet was, for the messages
         self.last_id = None         # the id of the last sheet submitted, see in_flight()
         self._awaiting = {}         # job id: (label, deliver) of sheets whose image is not in yet
+        self._heard = {}            # job id: when a tab last said something about it, once taken
         self._downloads = []        # the images the tabs are downloading, oldest first, see downloaded()
         self._scanned = 0.0
 
@@ -295,6 +299,14 @@ class WebBridge:
                     return f'No Gemini tab took {self.sent_label} - is Gemini open in Firefox ({FIREFOX_PROFILE})?', True
                 return (f'The userscript never answered - install Violentmonkey in Firefox ({FIREFOX_PROFILE}), '
                         f'then open {INSTALL_URL} there and reload Gemini', True)
+            for job_id, heard in list(self._heard.items()):
+                if job_id not in self._awaiting:
+                    del self._heard[job_id]
+                elif time.monotonic() - heard > SILENT_S:
+                    # The tab was closed or reloaded on the way: nothing will ever deliver it
+                    del self._heard[job_id]
+                    label, _ = self._awaiting.pop(job_id)
+                    return f'The Gemini tab went quiet about {label} - was it closed or reloaded?', True
             return self._reports.pop(0) if self._reports else None
 
     def downloaded(self):
@@ -343,6 +355,8 @@ class WebBridge:
             self._last_poll = time.monotonic()
             self._ever_polled = True
             job, self._job = self._job, None
+            if job:
+                self._heard[job['id']] = self._last_poll
             current = script_version()
             if job and version != current:
                 # Violentmonkey looks for updates only now and then
@@ -355,6 +369,8 @@ class WebBridge:
         with self._lock:
             if text:
                 self._reports.append((f'Gemini tab: {text}', bool(report.get('error'))))
+            if report.get('id') in self._heard:
+                self._heard[report.get('id')] = time.monotonic()
             if report.get('error') and not report.get('waiting'):
                 self._awaiting.pop(report.get('id'), None)
             if report.get('download'):
