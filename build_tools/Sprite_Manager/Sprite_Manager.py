@@ -262,7 +262,7 @@ from view_sprite_design import DesignView  # noqa: E402
 from view_review import DetailView, ReviewView  # noqa: E402
 from web_bridge import BRIDGE, BridgeError  # noqa: E402
 from walk import ALL_DIRECTIONS, DEFAULT_DIRECTION  # noqa: E402
-from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text  # noqa: E402
+from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # noqa: E402
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
@@ -757,10 +757,18 @@ class SpriteManager:
         width = window_size()[0]
         small = self.fonts.small
         title, hint = self.view.header()
-        self.screen.blit(self.fonts.title.render(title, True, TEXT), (20, 12))
+        title_text = self.fonts.title.render(title, True, TEXT)
+        self.screen.blit(title_text, (20, 12))
         if self.status:
-            text = small.render(self.status, True, ERROR_COLOR if self.status_error else DONE_COLOR)
-            self.screen.blit(text, text.get_rect(topright=(width - 20, 20)))
+            # Right of the title and above the settings summary: two lines at most.
+            room = width - 20 - (20 + title_text.get_width() + 40)
+            lines = wrap_text(small, self.status, room, 2)
+            color = ERROR_COLOR if self.status_error else DONE_COLOR
+            y = 20 if len(lines) == 1 else 4
+            for line in lines:
+                text = small.render(line, True, color)
+                self.screen.blit(text, text.get_rect(topright=(width - 20, y)))
+                y += small.get_linesize()
         summary = small.render(self.settings.summary(), True, TEXT_DIM)
         summary_rect = summary.get_rect(topright=(width - 20, 44))
         self.screen.blit(summary, summary_rect)

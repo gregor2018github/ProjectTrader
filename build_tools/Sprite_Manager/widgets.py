@@ -41,6 +41,23 @@ def fit_text(font, text, width):
     return text + '...'
 
 
+def wrap_text(font, text, width, max_lines):
+    """Break `text` into at most `max_lines` lines of `width` pixels; the last
+    line takes the rest, shortened with an ellipsis if it still does not fit."""
+    lines, line = [], ''
+    words = text.split(' ')
+    for i, word in enumerate(words):
+        candidate = f'{line} {word}' if line else word
+        if line and font.size(candidate)[0] > width:
+            lines.append(line)
+            if len(lines) == max_lines - 1:
+                return lines + [fit_text(font, ' '.join(words[i:]), width)]
+            line = word
+        else:
+            line = candidate
+    return lines + [fit_text(font, line, width)]
+
+
 def checkerboard(size):
     board = pygame.Surface(size)
     colors = ((200, 200, 200), (170, 170, 170))
