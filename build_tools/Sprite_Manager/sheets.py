@@ -393,6 +393,37 @@ def write_standing_sheet(npc, direction):
     return FrameSheet(direction, 0, 0, surface, path, prompt, auto_ghost, ghost, target_cell, ground)
 
 
+def planned_mannequins(npc, direction, frame):
+    """The top row of a frame's 2x2 sheet as it was sent: the mannequin standing and posed.
+
+    The model redraws that row too, and not always faithfully; this is what
+    it was asked to follow. Built from the base files, nothing is written.
+
+    Args:
+        frame: Counted from 1; 0 for the direction's standing sprite.
+
+    Raises:
+        One of SHEET_ERRORS if a base file is missing or unreadable.
+    """
+    if frame == 0:
+        idle = chibi.idle_frame(BASE_POSES[DEFAULT_BASE].idle)
+        pose = chibi.idle_frame(f'Idle_{direction.strip}', direction.mirror)
+        ghost = chibi.idle_ghost(direction)[0]
+        base_pose = DEFAULT_BASE
+    else:
+        base_pose = npc.base_for(direction)
+        base = BASE_POSES[base_pose]
+        idle = chibi.idle_frame(base.idle, base.mirror)
+        pose = chibi.cycle_frames(direction)[frame - 1]
+        ghosts = chibi.ghost_frames(direction)[0]
+        ghost = ghosts[min(frame, len(ghosts)) - 1]
+    reference = trim(pygame.image.load(str(npc.sprite_path(base_pose))).convert_alpha())
+    sheet = build_sheet(idle, pose, ghost, reference)[0]
+    w, h = sheet.get_size()
+    # Down to the middle of the line between the rows
+    return sheet.subsurface((0, 0, w, (h + FRAME_WIDTH) // 2)).copy()
+
+
 def reference_shapes(npc, pose, base):
     """({pose: path}, {pose: mask}) that make extraction.py scale
     the answer like the NPC's own standing sprite instead of the player."""

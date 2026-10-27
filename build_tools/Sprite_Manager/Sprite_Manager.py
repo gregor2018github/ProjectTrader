@@ -79,6 +79,9 @@ switches to full screen.
 4. Every answer opens for review: the image next to the frame it would
    become. "Accept" (Enter) saves the frame into the game, "Not good enough"
    (Del) keeps it on disk for later. "Review" (R) lists every answer.
+   On a 2x2 answer the mannequins on top are the ones that were sent, not
+   the model's copies of them, so a figure that strays from the pose shows;
+   P switches to what the model drew there.
 
 The player: in the game he only runs, so for him the run is what the game
 plays, player_<direction>_move<n>.png, built from the chibi's run strips.

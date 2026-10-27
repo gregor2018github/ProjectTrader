@@ -5,9 +5,13 @@ import pygame
 import gemini_client
 import pose_review
 from answers import Detail, measure
+from extraction import find_cells
 from images import fitted, make_thumb
 from npc import DEFAULT_BASE
-from sheets import SHEET_ERRORS, reference_shapes, write_sheets, write_standing_sheet
+from sheets import (
+    GRID_LAYOUT, SHEET_ERRORS, can_make_standing, planned_mannequins, reference_shapes, write_sheets,
+    write_standing_sheet,
+)
 from theme import (
     CARD_BG, DONE_COLOR, ERROR_COLOR, PANEL_GAP, RESULT_CARD_SIZE, RESULT_THUMB_SIZE, ROOT,
     STATUS_COLORS, TEXT_DIM,
@@ -129,6 +133,8 @@ class DetailView(View):
         self.base = DEFAULT_BASE if frame == 0 else app.npc.base_for(direction)
         poses, shapes = reference_shapes(app.npc, entry.pose, self.base)
         self.detail = Detail(app.npc, entry, poses, shapes, entry.layout)
+        self.planned = self.with_planned_mannequins(direction, frame)
+        self.show_planned = self.planned is not None
         self.return_to = return_to
         self.checker = Checker()
         self.reject_button = Button('Not good enough', w=190)
@@ -138,6 +144,28 @@ class DetailView(View):
     @property
     def entry(self):
         return self.detail.entry
+
+    def with_planned_mannequins(self, direction, frame):
+        """The answer with the mannequins it was sent in place of the ones the model drew on top, or None.
+
+        The model redraws them too and often gets them wrong, which hides how
+        far its figure strays from the pose asked for. Only a 2x2 answer has them.
+        """
+        image = self.detail.image
+        if (self.entry.layout or GRID_LAYOUT) != GRID_LAYOUT or (frame == 0 and not can_make_standing(direction)):
+            return None
+        bottom_row, _, layout = find_cells(image, GRID_LAYOUT)
+        if layout != GRID_LAYOUT:
+            return None
+        try:
+            row = planned_mannequins(self.app.npc, direction, frame)
+        except SHEET_ERRORS:
+            return None
+        # The bottom row's cell starts just under the line between the rows
+        top = bottom_row.top - max(1, round(bottom_row.top * 0.01))
+        result = image.copy()
+        result.blit(pygame.transform.scale(row, (image.get_width(), top)), (0, 0))
+        return result
 
     def opening_status(self):
         """(text, is_error) to greet the answer with."""
@@ -193,7 +221,8 @@ class DetailView(View):
         entry = self.entry
         got = f'got {entry.delivered()}' if entry.delivered() else 'size unknown'
         return (f'{entry.pose}  -  {entry.image}',
-                f'from {entry.asked_for()}  -  {got}  -  Enter = accept, Del = not good enough')
+                f'from {entry.asked_for()}  -  {got}  -  Enter = accept, Del = not good enough'
+                + ('  -  P = mannequins as planned / as drawn' if self.planned else ''))
 
     def footer(self):
         app = self.app
@@ -215,10 +244,14 @@ class DetailView(View):
 
         returned = f'{detail.image.get_width()} x {detail.image.get_height()} px'
         tokens = self.entry.token_detail()
+        mannequins = ''
+        if self.planned:
+            mannequins = '  -  top: as planned (P)' if self.show_planned else '  -  top: as drawn (P)'
         draw_panel(screen, fonts, image_rect,
-                   f'The answer  -  {returned}' + (f'  -  {tokens}' if tokens else ''))
+                   f'The answer  -  {returned}' + (f'  -  {tokens}' if tokens else '') + mannequins)
         area = image_rect.inflate(-20, -20)
-        screen.blit(fitted(detail.image, area.size, CARD_BG), area)
+        image = self.planned if self.planned and self.show_planned else detail.image
+        screen.blit(fitted(image, area.size, CARD_BG), area)
 
         draw_panel(screen, fonts, preview_rect,
                    f'{npc.prefix}_{self.base} and the new frame, same scale  (click white gaps)')
@@ -240,6 +273,8 @@ class DetailView(View):
             self.accept()
         elif event.key == pygame.K_DELETE:
             self.reject()
+        elif event.key == pygame.K_p and self.planned:
+            self.show_planned = not self.show_planned
 
     def back(self):
         self.close()
