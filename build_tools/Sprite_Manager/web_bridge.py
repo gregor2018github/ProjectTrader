@@ -226,6 +226,7 @@ class WebBridge:
         self._ever_polled = False   # whether the userscript has been heard from at all
         self._reports = []          # (text, error) not shown yet
         self.sent_label = ''        # what the last sheet was, for the messages
+        self.last_id = None         # the id of the last sheet submitted, see in_flight()
         self._awaiting = {}         # job id: (label, deliver) of sheets whose image is not in yet
         self._downloads = []        # the images the tabs are downloading, oldest first, see downloaded()
         self._scanned = 0.0
@@ -253,9 +254,12 @@ class WebBridge:
         """
         self.start()
         with self._lock:
+            if self._job:
+                self._awaiting.pop(self._job['id'], None)   # replaced before any tab took it
             self._job = {'id': next(self._ids), 'label': label, 'prompt': prompt,
                          'image': base64.b64encode(png).decode('ascii'), 'name': f'{label}.png'}
             self._awaiting[self._job['id']] = (label, deliver)
+            self.last_id = self._job['id']
             self._job_since = time.monotonic()
             listening = time.monotonic() - self._last_poll < LISTENING_S
             self.sent_label = label
@@ -285,6 +289,7 @@ class WebBridge:
         """(text, error) to show, or None: the browser's reports, or a sheet nobody took."""
         with self._lock:
             if self._job and time.monotonic() - self._job_since > TAKE_TIMEOUT_S:
+                self._awaiting.pop(self._job['id'], None)   # nothing will ever deliver it
                 self._job = None
                 if self._ever_polled:
                     return f'No Gemini tab took {self.sent_label} - is Gemini open in Firefox ({FIREFOX_PROFILE})?', True
@@ -321,6 +326,15 @@ class WebBridge:
             watch['sizes'][name] = size
         return None
 
+    def in_flight(self, job_id):
+        """Whether a sheet is still on its way: waiting for a tab, being drawn or downloading.
+
+        False once its answer was handed to deliver, or it failed on the way.
+        """
+        with self._lock:
+            return ((self._job or {}).get('id') == job_id or job_id in self._awaiting
+                    or any(w['id'] == job_id for w in self._downloads))
+
     # --- the browser's side -----------------------------------------------
 
     def take(self, version=None):
@@ -347,7 +361,7 @@ class WebBridge:
                 # Sent before the click, so the folder is looked at before the file is there
                 label, deliver = self._awaiting.pop(report.get('id'), ('the answer', None))
                 folder = downloads_folder()
-                self._downloads.append({'label': label, 'deliver': deliver, 'folder': folder,
+                self._downloads.append({'id': report.get('id'), 'label': label, 'deliver': deliver, 'folder': folder,
                                         'known': set(image_files(folder)), 'sizes': {},
                                         'since': time.monotonic()})
 
