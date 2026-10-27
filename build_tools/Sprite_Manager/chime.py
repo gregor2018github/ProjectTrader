@@ -1,7 +1,7 @@
-"""Cheerful rising chimes, made from sine waves rather than read from a file.
+"""Chimes made from sine waves rather than read from a file.
 
-The big one says a whole run of sheets sent to the browser is done; the small
-one, each answer of that run coming in on the way.
+SMALL says an answer from the browser is in, FULL that a whole run of sheets
+sent there is done, FAILED that a sheet did not come through.
 """
 
 import array
@@ -12,6 +12,7 @@ import pygame
 
 FULL = ((523.25, 659.25, 783.99, 1046.50), 0.28)   # C5 E5 G5 C6, a major arpeggio upwards
 SMALL = ((783.99, 1046.50), 0.16)                  # G5 C6, its last two notes, softer
+FAILED = ((392.00, 311.13, 261.63), 0.25)          # G4 Eb4 C4, falling in minor
 NOTE_S = 0.11            # each note starts this long after the last
 RING_S = 0.45            # and rings this long, fading out
 ATTACK_S = 0.008         # a short fade in, so no note clicks
@@ -36,7 +37,7 @@ def chime_samples(rate, notes, volume):
 
 
 def play_chime(chime=FULL):
-    """Play FULL or SMALL; plain system beeps if the mixer is not to be had."""
+    """Play FULL, SMALL or FAILED; plain system beeps if the mixer is not to be had."""
     notes, volume = chime
     try:
         if not pygame.mixer.get_init():

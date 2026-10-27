@@ -60,8 +60,8 @@ switches to full screen.
      has the Gemini tab in Firefox (profile "ProjectTrader") open a new
      chat, set the thinking level to High, and send sheet and prompt
      and, once Gemini has drawn it, download the image, which the tool
-     takes in by itself as if opened, with a sound to say it is in
-     (web_bridge.py and the userscript gemini_bridge.user.js; to install
+     takes in by itself as if opened, with a short chime to say it is in,
+     or a falling one if it did not come through (web_bridge.py and the userscript gemini_bridge.user.js; to install
      it, open http://127.0.0.1:47613/gemini_bridge.user.js in that profile with
      Violentmonkey or Tampermonkey while the tool runs). By hand: "Copy
      image" (Ctrl+C) and "Copy prompt" (Ctrl+Shift+C), paste both there.
@@ -69,9 +69,9 @@ switches to full screen.
      file onto the window, or "Open image" (Ctrl+O);
      "Send missing in browser" (Ctrl+Shift+W) sends every frame of the
      direction not done yet that way, one after another, each once the
-     last one's answer is in, with a small chime for each answer and a full one when all are
-     through; clicking it
-     again stops the rest (chime.py makes the chime);
+     last one's answer is in, with the short chime for each answer and a
+     full one when all are through; a sheet that fails stops the rest.
+     Clicking it again stops them too (chime.py makes the chimes);
    - or through the API: "Send to Gemini" for this frame, or "Send missing"
      in the footer for every frame of the direction that is not done yet.
      "Settings" (S) chooses the model, aspect ratio, image size and how many
@@ -211,7 +211,7 @@ The code, for whoever works on it next:
     images.py          small surface helpers
     win_clipboard.py   the Windows clipboard
     web_bridge.py      sending a sheet to the Gemini tab in the browser, with gemini_bridge.user.js
-    chime.py           the rising chimes of the browser queue, made from sine waves
+    chime.py           the chimes of answers from the browser, made from sine waves
     win_window.py      snapping the window into the left half of the screen
 """
 
@@ -230,7 +230,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import gemini_client  # noqa: E402
 from answers import AnswerError, record_answer  # noqa: E402
 from chibi import strip_length  # noqa: E402
-from chime import SMALL, play_chime  # noqa: E402
+from chime import FAILED, SMALL, play_chime  # noqa: E402
 from figures import FigureFolder, find_figure_folders, find_player_poses  # noqa: E402
 from gemini_client import Settings  # noqa: E402
 from gemini_worker import GeminiWorker  # noqa: E402
@@ -265,7 +265,6 @@ WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'))   # Tab goes round them
 FPS = 30
-ANSWER_SOUND = ROOT / 'assets' / 'sound' / 'falling_coins_sell.mp3'   # an answer from the browser is in
 
 
 class SpriteManager:
@@ -283,11 +282,12 @@ class SpriteManager:
         self.status = ''
         self.status_error = False
         self.dialog = None            # a modal on top of the view, if one is open
-        self.answer_sound = None      # loaded when first played, see play_answer_sound()
         self.settings = Settings.load()
         self.worker = None            # the Gemini requests running, or last run
         self.web_queue = []           # [(sheet, label, deliver)] still to go to the browser, one after another
-        self.web_sending = None       # the id of the queue's sheet in the browser now, see advance_web_queue()
+        self.web_sending = None       # the id of the queue's sheet in the browser now, see send_next_queued()
+        self.web_open = set()         # ids of the sheets sent to the browser and not through yet
+        self.web_taken = set()        # ids of those whose answer was taken in
         self.web_run = [0, 0]         # [answers in, sheets sent] of the queue's run, for the message at its end
 
         self.counts = {}              # {Direction: frames}
@@ -596,7 +596,8 @@ class SpriteManager:
         """Hand a sheet to the Gemini tab in the browser (web_bridge.py), which sends it.
 
         deliver(path) takes in the image the tab downloads once Gemini has drawn
-        it; it may raise AnswerError.
+        it; it may raise AnswerError. Returns the sheet's job id, or None if it
+        could not be handed over.
         """
         png = io.BytesIO()
         try:
@@ -604,9 +605,12 @@ class SpriteManager:
             message = BRIDGE.submit(png.getvalue(), sheet.prompt, label, deliver)
         except (pygame.error, BridgeError) as exc:
             self.set_status(str(exc), error=True)
-            return
+            play_chime(FAILED)
+            return None
         self.set_status(message)
         self.toast.show('Sent to the browser')
+        self.web_open.add(BRIDGE.last_id)
+        return BRIDGE.last_id
 
     def send_web_queue(self, items):
         """Send sheets to the browser one after another, each once the last one's answer is in or failed.
@@ -617,7 +621,7 @@ class SpriteManager:
             return
         self.web_run = [0, 0]
         self.web_queue = list(items)
-        self.advance_web_queue()
+        self.send_next_queued()
 
     def web_queue_busy(self):
         return bool(self.web_queue) or self.web_sending is not None
@@ -633,76 +637,67 @@ class SpriteManager:
         self.set_status(f'Browser queue stopped - {dropped} sheet(s) not sent')
         self.toast.show('Queue stopped')
 
-    def advance_web_queue(self):
-        """Once the queue's sheet in the browser is through, send the next, or chime when all are.
-
-        Returns True if it chimed.
-        """
-        if self.web_sending is not None:
-            if BRIDGE.in_flight(self.web_sending):
-                return False
-            self.web_sending = None
-            if not self.web_queue:
-                got, sent = self.web_run
-                self.set_status(f'Browser queue done: {got} of {sent} answer(s) in', error=got < sent)
-                self.toast.show('All sent and back')
-                play_chime()
-                return True
-        if not self.web_queue:
-            return False
+    def send_next_queued(self):
+        """Send the queue's next sheet; if it cannot go out, the rest stay unsent."""
         sheet, label, deliver = self.web_queue.pop(0)
-
-        def counted(path):
-            deliver(path)             # an AnswerError leaves it uncounted
-            self.web_run[0] += 1
-
-        before = BRIDGE.last_id
-        self.send_web(sheet, f'{label} ({self.web_run[1] + 1} of {self.web_run[1] + 1 + len(self.web_queue)})',
-                      counted)
-        if BRIDGE.last_id == before:  # it did not go out: no point in the rest
+        number = self.web_run[1] + 1
+        self.web_sending = self.send_web(sheet, f'{label} ({number} of {number + len(self.web_queue)})', deliver)
+        if self.web_sending is None:
             self.web_queue = []
-            return False
-        self.web_sending = BRIDGE.last_id
-        self.web_run[1] += 1
-        return False
+        else:
+            self.web_run[1] = number
 
     def poll_web_bridge(self):
         news = BRIDGE.poll()
         if news:
             self.set_status(*news)
         answer = BRIDGE.downloaded()
-        if not answer:
-            self.advance_web_queue()
+        if answer:
+            job_id, label, path, deliver = answer
+            try:
+                if not deliver:
+                    raise AnswerError('nothing here is waiting for it any more')
+                deliver(path)
+            except AnswerError as exc:
+                self.set_status(f'{label} downloaded to {path}, but not taken in: {exc}', error=True)
+            else:
+                self.web_taken.add(job_id)
+                self.set_status(f'{label}: the answer is in - have a look')
+                self.toast.show('Answer in')
+        self.check_web_sheets()
+
+    def check_web_sheets(self):
+        """Chime for the sheets that came through, or failed, since the last look, and move the queue on.
+
+        A failed sheet of the queue stops it: what broke it would most likely
+        break the rest as well.
+        """
+        through = {i for i in self.web_open if not BRIDGE.in_flight(i)}
+        if not through:
             return
-        label, path, deliver = answer
-        queued = self.web_sending is not None
-        try:
-            if not deliver:
-                raise AnswerError('nothing here is waiting for it any more')
-            deliver(path)
-        except AnswerError as exc:
-            self.set_status(f'{label} downloaded to {path}, but not taken in: {exc}', error=True)
-        else:
-            self.set_status(f'{label}: the answer is in - have a look')
-            self.toast.show('Answer in')
-        if self.advance_web_queue():   # the last of a queue: the big chime only
+        failed = through - self.web_taken
+        self.web_open -= through
+        self.web_taken -= through
+        queued = self.web_sending in through
+        if queued:
+            self.web_sending = None
+        if failed:
+            if queued and self.web_queue:
+                self.set_status(f'{self.status} - queue stopped, {len(self.web_queue)} sheet(s) not sent', error=True)
+                self.web_queue = []
+            play_chime(FAILED)
             return
         if queued:
-            play_chime(SMALL)
-        else:
-            self.play_answer_sound()
-
-    def play_answer_sound(self):
-        try:
-            if not pygame.mixer.get_init():
-                pygame.mixer.init()
-            if self.answer_sound is None:
-                self.answer_sound = pygame.mixer.Sound(ANSWER_SOUND)
-            self.answer_sound.play()
-        except (pygame.error, FileNotFoundError):
-            if sys.platform == 'win32':
-                import winsound  # noqa: PLC0415
-                winsound.MessageBeep()
+            self.web_run[0] += 1
+            if self.web_queue:
+                self.send_next_queued()
+            else:
+                got, sent = self.web_run
+                self.set_status(f'Browser queue done: {got} of {sent} answer(s) in')
+                self.toast.show('All sent and back')
+                play_chime()
+                return
+        play_chime(SMALL)
 
     # --- dialogs ----------------------------------------------------------
 

@@ -298,7 +298,7 @@ class WebBridge:
             return self._reports.pop(0) if self._reports else None
 
     def downloaded(self):
-        """(label, path, deliver) of an answer the browser has finished downloading, or None.
+        """(job id, label, path, deliver) of an answer the browser has finished downloading, or None.
 
         A tab downloading an image is given the first new image file in the
         Downloads folder, once its size has stayed the same between two looks
@@ -322,7 +322,7 @@ class WebBridge:
             if watch['sizes'].get(name) == size:
                 with self._lock:
                     self._downloads.remove(watch)
-                return watch['label'], watch['folder'] / name, watch['deliver']
+                return watch['id'], watch['label'], watch['folder'] / name, watch['deliver']
             watch['sizes'][name] = size
         return None
 
