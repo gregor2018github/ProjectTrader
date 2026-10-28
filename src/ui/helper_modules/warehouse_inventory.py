@@ -3,6 +3,10 @@
 Opened from the house menu of a warehouse the player owns: a grid of slots,
 one per good stored there, with how full the building is and what its
 contents are worth at today's prices.
+
+Everything but the hover effects is drawn once into a cached panel, which is
+only redrawn when what it shows changes, so the open window costs about as
+much per frame as two blits.
 """
 
 import os
@@ -13,7 +17,7 @@ from ...config.colors import (
     BEIGE, DARK_BROWN, DARK_GRAY, LIGHT_GRAY, WHEAT, WHITE,
     MUTED_GREEN, MUTED_ORANGE, MUTED_RED, SANDY_BROWN,
 )
-from ...config.constants import FONTS_PATH, PICTURES_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
+from ...config.constants import FONTS_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
 
 if TYPE_CHECKING:
@@ -30,43 +34,11 @@ SIDE_PAD = 36
 BAR_HEIGHT = 18
 EMPTY_SLOT = (230, 225, 210)  # the faded placeholder of the license overview
 NEARLY_FULL = 0.75           # fill share from which the capacity bar turns orange
+DIM_ALPHA = 120              # how dark the game behind the window gets
 
-
-# The 30px good icons blur when scaled up, so the slots use the large
-# paintings, their plain background cut away (it is told by the corners'
-# colours, and only what is joined to a corner goes) and loose JPEG specks
-# dropped. Cut once per good and kept for the session.
-LARGE_ICON_FILES = {"Candle": "candles_full.jpg", "Hide": "hides_full.jpeg"}
-BACKGROUND_TOLERANCE = (40, 40, 40, 255)
-MIN_PIECE_SHARE = 0.0005     # parts of the painting smaller than this share of it are specks
+# Good pictures at slot size, scaled once per session from the game's
+# cut-out goods_icon images (or the 30px icons where a good has none)
 _icons: Dict[str, Optional[pygame.Surface]] = {}
-
-
-def _load_large_icon(good_name: str) -> Optional[pygame.Surface]:
-    """The good's large painting cut out of its background, scaled to ICON_SIZE."""
-    path = os.path.join(PICTURES_PATH, LARGE_ICON_FILES.get(good_name, f"{good_name.lower()}_full.jpeg"))
-    try:
-        img = pygame.image.load(path).convert_alpha()
-    except (pygame.error, FileNotFoundError):
-        return None
-    w, h = img.get_size()
-
-    background = pygame.mask.Mask((w, h))
-    for corner in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
-        similar = pygame.mask.from_threshold(img, img.get_at(corner), BACKGROUND_TOLERANCE)
-        background.draw(similar.connected_component(corner), (0, 0))
-    background.invert()
-    figure = pygame.mask.Mask((w, h))
-    for piece in background.connected_components(minimum=int(w * h * MIN_PIECE_SHARE)):
-        figure.draw(piece, (0, 0))
-    if figure.count() == 0:
-        return None
-
-    rects = figure.get_bounding_rects()
-    cut = figure.to_surface(setsurface=img, unsetcolor=(0, 0, 0, 0)).subsurface(rects[0].unionall(rects[1:]))
-    scale = ICON_SIZE / max(cut.get_size())
-    return pygame.transform.smoothscale(
-        cut, (max(1, round(cut.get_width() * scale)), max(1, round(cut.get_height() * scale))))
 
 
 def open_warehouse_inventory(game_state: 'GameState', warehouse: 'Warehouse') -> None:
@@ -94,7 +66,9 @@ class WarehouseInventory:
             self.body_font = pygame.font.SysFont("arial", 15)
             self.small_font = pygame.font.SysFont("arial", 13)
 
-        slot_count = len(game_state.game.depot.good_stock)
+        game = game_state.game
+        self.goods_by_name = {good.name: good for good in game.goods}
+        slot_count = len(game.depot.good_stock)
         self.rows = max(MIN_ROWS, -(-slot_count // COLS))
         grid_w = COLS * SLOT_SIZE + (COLS - 1) * SLOT_GAP
         grid_h = self.rows * SLOT_SIZE + (self.rows - 1) * SLOT_GAP
@@ -130,27 +104,40 @@ class WarehouseInventory:
                 SLOT_SIZE, SLOT_SIZE,
             ))
 
+        # Made once: the dimming over the game, and the hover shade of a slot
+        self._dim = pygame.Surface((total_w, SCREEN_HEIGHT)).convert()
+        self._dim.fill((0, 0, 0))
+        self._slot_shade = pygame.Surface((SLOT_SIZE, SLOT_SIZE), pygame.SRCALPHA)
+        self._slot_shade.fill((0, 0, 0, 30))
+
+        self._panel: Optional[pygame.Surface] = None
+        self._panel_key: Optional[tuple] = None
+        self._stock: List[Tuple[str, int]] = []
+        self._tooltip: Optional[Tuple[int, str]] = None  # (slot index, text) of the last hover
 
     # ------------------------------------------------------------------
     # Data
     # ------------------------------------------------------------------
 
-    def _stock(self) -> List[Tuple[str, int]]:
+    def _read_stock(self) -> List[Tuple[str, int]]:
         """The goods stored here, most plentiful first."""
         stock = self.game_state.game.depot.warehouse_stock(self.house.tmx_id)
         return sorted(((g, q) for g, q in stock.items() if q > 0), key=lambda item: (-item[1], item[0]))
 
     def _price(self, good_name: str) -> float:
-        for good in self.game_state.game.goods:
-            if good.name == good_name:
-                return good.get_price()
-        return 0.0
+        good = self.goods_by_name.get(good_name)
+        return good.get_price() if good else 0.0
 
     def _icon(self, good_name: str) -> Optional[pygame.Surface]:
         if good_name not in _icons:
-            _icons[good_name] = _load_large_icon(good_name)
-            if _icons[good_name] is None:
-                small = self.game_state.game.images['goods_30'].get(good_name)
+            images = self.game_state.game.images
+            large = images.get('goods_icon', {}).get(good_name)
+            if large is not None:
+                scale = ICON_SIZE / max(large.get_size())
+                size = (max(1, round(large.get_width() * scale)), max(1, round(large.get_height() * scale)))
+                _icons[good_name] = pygame.transform.smoothscale(large, size).convert_alpha()
+            else:
+                small = images['goods_30'].get(good_name)
                 _icons[good_name] = (
                     pygame.transform.smoothscale(small, (ICON_SIZE, ICON_SIZE)) if small else None
                 )
@@ -184,6 +171,45 @@ class WarehouseInventory:
         if alpha_scale <= 0:
             return
 
+        # Redraw the panel only when something on it changed
+        stock = self._read_stock()
+        value = round(sum(self._price(g) * q for g, q in stock))
+        starting_capacity = self.game_state.game.depot.starting_storage_capacity()
+        key = (tuple(stock), value, self.house.buy_storage, starting_capacity)
+        if key != self._panel_key:
+            self._stock = stock
+            self._panel = self._render_panel(stock, value, starting_capacity)
+            self._panel_key = key
+            self._tooltip = None
+
+        self._dim.set_alpha(int(DIM_ALPHA * alpha_scale))
+        self.screen.blit(self._dim, (0, 0))
+        self._panel.set_alpha(None if alpha_scale >= 1.0 else int(255 * alpha_scale))
+        self.screen.blit(self._panel, self.panel_rect.topleft)
+        if alpha_scale < 1.0:
+            return  # fading out: no hover effects
+
+        mouse_pos = pygame.mouse.get_pos()
+        if self.close_rect.collidepoint(mouse_pos):
+            self._draw_close_button(self.screen, self.close_rect, hovered=True)
+            return
+
+        for i, (good_name, qty) in enumerate(self._stock):
+            rect = self.slot_rects[i]
+            if rect.collidepoint(mouse_pos):
+                self.screen.blit(self._slot_shade, rect.topleft)
+                if self._tooltip is None or self._tooltip[0] != i:
+                    capacity = self.house.buy_storage
+                    share = qty / capacity * 100 if capacity else 0
+                    text = (f"{qty} {good_name}  ·  worth {self._price(good_name) * qty:,.0f}g"
+                            f"  ·  {share:.0f}% of the space")
+                    self._tooltip = (i, text)
+                draw_mouse_tooltip(self.screen, self.body_font, self._tooltip[1], mouse_pos)
+                break
+
+    def _render_panel(self, stock: List[Tuple[str, int]], value: float,
+                      starting_capacity: int) -> pygame.Surface:
+        """Everything on the window that does not follow the mouse."""
         w, h = self.panel_rect.size
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
         game = self.game_state.game
@@ -193,10 +219,6 @@ class WarehouseInventory:
             surf.fill((*SANDY_BROWN, 255))
             pygame.draw.rect(surf, DARK_BROWN, pygame.Rect(0, 0, w, h), 4)
 
-        mouse_pos = pygame.mouse.get_pos()
-        active = alpha_scale >= 1.0
-        depot = game.depot
-        stock = self._stock()
         stored = sum(q for _, q in stock)
         capacity = self.house.buy_storage
 
@@ -208,19 +230,14 @@ class WarehouseInventory:
         surf.blit(subtitle, subtitle.get_rect(centerx=w // 2, top=self.subtitle_y))
         pygame.draw.line(surf, DARK_BROWN, (30, self.rule_y), (w - 30, self.rule_y), 2)
 
-        self._draw_close_button(surf, mouse_pos, active)
+        self._draw_close_button(surf, self.close_rect.move(-self.panel_rect.x, -self.panel_rect.y), hovered=False)
         self._draw_capacity(surf, stored, capacity)
 
         # Slots
-        hovered: Optional[Tuple[str, int]] = None
         for i, rect in enumerate(self.slot_rects):
             local = rect.move(-self.panel_rect.x, -self.panel_rect.y)
             if i < len(stock):
-                good_name, qty = stock[i]
-                is_hovered = active and rect.collidepoint(mouse_pos)
-                self._draw_slot(surf, local, good_name, qty, is_hovered)
-                if is_hovered:
-                    hovered = stock[i]
+                self._draw_slot(surf, local, *stock[i])
             else:
                 pygame.draw.rect(surf, EMPTY_SLOT, local)
                 pygame.draw.rect(surf, LIGHT_GRAY, local, 1)
@@ -232,41 +249,23 @@ class WarehouseInventory:
 
         # Footer: what it is all worth, and how the storage fills
         pygame.draw.line(surf, DARK_BROWN, (30, self.footer_rule_y), (w - 30, self.footer_rule_y), 1)
-        value = sum(self._price(g) * q for g, q in stock)
         value_surf = self.body_font.render(f"Value at market prices:  {value:,.0f}g", True, DARK_BROWN)
         surf.blit(value_surf, (SIDE_PAD, self.footer_y))
         free_surf = self.body_font.render(f"Free space:  {max(0, capacity - stored)}", True, DARK_BROWN)
         surf.blit(free_surf, free_surf.get_rect(right=w - SIDE_PAD, top=self.footer_y))
-        hint = (f"Purchases fill your starting storage ({depot.starting_storage_capacity()}) first, "
+        hint = (f"Purchases fill your starting storage ({starting_capacity}) first, "
                 "then your warehouses in the order bought.")
         hint_surf = self.small_font.render(hint, True, DARK_GRAY)
         surf.blit(hint_surf, hint_surf.get_rect(centerx=w // 2, top=self.hint_y))
 
-        # Dim the game behind the panel
-        overlay = pygame.Surface((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, int(120 * alpha_scale)))
-        self.screen.blit(overlay, (0, 0))
+        return surf.convert_alpha()
 
-        if alpha_scale < 1.0:
-            surf.set_alpha(int(255 * alpha_scale))
-        self.screen.blit(surf, self.panel_rect.topleft)
-
-        if hovered is not None:
-            good_name, qty = hovered
-            share = qty / capacity * 100 if capacity else 0
-            draw_mouse_tooltip(
-                self.screen, self.body_font,
-                f"{qty} {good_name}  ·  worth {self._price(good_name) * qty:,.0f}g  ·  {share:.0f}% of the space",
-                mouse_pos,
-            )
-
-    def _draw_close_button(self, surf: pygame.Surface, mouse_pos: Tuple[int, int], active: bool) -> None:
-        local = self.close_rect.move(-self.panel_rect.x, -self.panel_rect.y)
-        hovered = active and self.close_rect.collidepoint(mouse_pos)
-        pygame.draw.rect(surf, (180, 60, 60) if hovered else DARK_BROWN, local)
+    @staticmethod
+    def _draw_close_button(surf: pygame.Surface, rect: pygame.Rect, hovered: bool) -> None:
+        pygame.draw.rect(surf, (180, 60, 60) if hovered else DARK_BROWN, rect)
         m = 5
-        pygame.draw.line(surf, WHITE, (local.left + m, local.top + m), (local.right - m, local.bottom - m), 2)
-        pygame.draw.line(surf, WHITE, (local.left + m, local.bottom - m), (local.right - m, local.top + m), 2)
+        pygame.draw.line(surf, WHITE, (rect.left + m, rect.top + m), (rect.right - m, rect.bottom - m), 2)
+        pygame.draw.line(surf, WHITE, (rect.left + m, rect.bottom - m), (rect.right - m, rect.top + m), 2)
 
     def _draw_capacity(self, surf: pygame.Surface, stored: int, capacity: int) -> None:
         """The 'Stored' line and a bar showing how full the building is."""
@@ -284,8 +283,7 @@ class WarehouseInventory:
             pygame.draw.rect(surf, color, pygame.Rect(bar.x, bar.y, max(2, round(bar.width * share)), bar.height))
         pygame.draw.rect(surf, DARK_BROWN, bar, 2)
 
-    def _draw_slot(self, surf: pygame.Surface, rect: pygame.Rect, good_name: str,
-                   qty: int, hovered: bool) -> None:
+    def _draw_slot(self, surf: pygame.Surface, rect: pygame.Rect, good_name: str, qty: int) -> None:
         pygame.draw.rect(surf, BEIGE, rect)
         pygame.draw.rect(surf, DARK_BROWN, rect, 2)
 
@@ -301,8 +299,3 @@ class WarehouseInventory:
         badge.topright = (rect.right - 4, rect.top + 4)
         pygame.draw.rect(surf, DARK_BROWN, badge, border_radius=4)
         surf.blit(count, count.get_rect(center=badge.center))
-
-        if hovered:
-            shade = pygame.Surface(rect.size, pygame.SRCALPHA)
-            shade.fill((0, 0, 0, 30))
-            surf.blit(shade, rect.topleft)

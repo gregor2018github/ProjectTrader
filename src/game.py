@@ -324,7 +324,7 @@ class Game:
         Returns:
             Dict[str, Any]: A dictionary containing loaded surfaces and nested image dictionaries.
         """
-        images = {'goods_30': {}}
+        images = {'goods_30': {}, 'goods_icon': {}}
         # Load bigger images for general stats
         images['money_50'] = pygame.image.load(os.path.join(PICTURES_PATH, "money_50.png"))
         images['stock_1024'] = pygame.image.load(os.path.join(PICTURES_PATH, "total_stock_full.png"))
@@ -347,6 +347,12 @@ class Game:
         for good_name in dict.fromkeys([good.name for good in self.goods] + TOP_BAR_GOODS):
             img_path = os.path.join(PICTURES_PATH, f"{good_name.lower()}_30.png")
             images['goods_30'][good_name] = pygame.image.load(img_path)
+
+        # Larger cut-out good pictures for bigger UI, made by build_tools/Good_Icons
+        for good in self.goods:
+            img_path = os.path.join(PICTURES_PATH, f"{good.name.lower()}_icon.png")
+            if os.path.isfile(img_path):
+                images['goods_icon'][good.name] = pygame.image.load(img_path)
 
         # Load pictograms for the side menu
         pictogram_names = ["map", "market", "depot", "politics", "trade_routes", "building"]
