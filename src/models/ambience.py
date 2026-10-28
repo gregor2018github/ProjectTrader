@@ -84,11 +84,19 @@ class TreeCover:
 
 
 class AmbientLoop:
-    """One looping sound on a channel of its own, kept going at the volume it is given."""
+    """One looping sound on a channel of its own, kept going at the volume it is given.
+
+    The volume is the sound's own, not the channel's: play() resets a
+    channel to full volume, and a mixer fade-in (fade_ms) fades towards that
+    full volume whatever is set meanwhile, so either would blare for a moment
+    at the start. The sound's volume is set before it plays and stays put; the
+    fade-in is done here, over LOOP_FADE_IN_MS, towards the volume asked for.
+    """
 
     def __init__(self, sound: Optional[pygame.mixer.Sound], channel_id: int) -> None:
         self.sound = sound
         self.channel = pygame.mixer.Channel(channel_id)
+        self.started = 0          # pygame ticks when it last began playing
 
     def update(self, volume: float, audible: bool) -> None:
         """Play on at *volume*; paused while not *audible*. Starts again if something stopped every sound."""
@@ -97,10 +105,15 @@ class AmbientLoop:
         if not audible:
             self.channel.pause()
             return
+        now = pygame.time.get_ticks()
         if self.channel.get_sound() is not self.sound:
-            self.channel.play(self.sound, loops=-1, fade_ms=LOOP_FADE_IN_MS)
+            self.sound.set_volume(0.0)
+            self.channel.play(self.sound, loops=-1)
+            self.channel.set_volume(1.0)
+            self.started = now
+        fade_in = min(1.0, (now - self.started) / LOOP_FADE_IN_MS)
+        self.sound.set_volume(volume * fade_in)
         self.channel.unpause()
-        self.channel.set_volume(volume)
 
     def stop(self) -> None:
         self.channel.stop()
