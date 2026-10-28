@@ -159,6 +159,12 @@ FOREST_FULL_COVER = 3.0               # That many trees' worth around the player
 # How much the birds sing by hour of the day (0 to 1), blended linearly between the
 # steps: from first light at 5:00 to full song by 6:30, fading out from 19:00 into nightfall at 20:30
 BIRDS_BY_HOUR = ((5.0, 0.0), (6.5, 1.0), (19.0, 1.0), (20.5, 0.0))
+CRICKETS_VOLUME = 0.5                 # Volume of the crickets out in nature at night (1.0 is 100%)
+TOWN_RADIUS_TILES = 12.0              # Buildings this near the player make it town, the nearer the more
+TOWN_FULL_COVER = 2.0                 # That many buildings' worth around the player silences the crickets
+# How much the crickets chirp by hour of the day (0 to 1): taking over from the birds at
+# dusk, from 19:30 to full by 21:00, and falling silent at dawn, from 4:30 to 6:00
+CRICKETS_BY_HOUR = ((4.5, 1.0), (6.0, 0.0), (19.5, 0.0), (21.0, 1.0))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map

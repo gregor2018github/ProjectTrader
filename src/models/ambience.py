@@ -11,8 +11,13 @@ player stands (and when):
   Builder sings without more ado. Every tree's stem within
   FOREST_RADIUS_TILES counts, the nearer the more, and FOREST_FULL_COVER of
   them make a wood (FOREST_BIRDS_VOLUME); a lone tree in a field is hardly
-  heard. That is worked out once per tile (TreeCover), not every frame.
-  Birds sing from dawn to dusk (BIRDS_BY_HOUR).
+  heard. That is worked out once per tile (Cover), not every frame.
+  Birds sing from dawn to dusk (BIRDS_BY_HOUR);
+- crickets in nature by night: nature is wherever the town is not, the
+  buildings (not fences or decorations) within TOWN_RADIUS_TILES counting,
+  the nearer the more, also worked out once per tile; TOWN_FULL_COVER of
+  them silence the crickets. They sing from dusk to dawn (CRICKETS_BY_HOUR),
+  up to CRICKETS_VOLUME out in the fields and woods.
 """
 
 import datetime
@@ -21,11 +26,14 @@ from typing import Iterable, Optional, Sequence, Tuple
 import pygame
 
 from ..config.constants import (
-    BIRDS_BY_HOUR, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER, FOREST_RADIUS_TILES, MILL_VOLUME_BY_DISTANCE,
+    BIRDS_BY_HOUR, CRICKETS_BY_HOUR, CRICKETS_VOLUME, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER,
+    FOREST_RADIUS_TILES, MILL_VOLUME_BY_DISTANCE, TOWN_FULL_COVER, TOWN_RADIUS_TILES,
 )
 
 LOOP_FADE_IN_MS = 1500
 AMBIENCE_FIRST_CHANNEL = 1      # channel 0 is the player's footsteps'
+#: Objects on the houses' layer that do not make a place a town: fences, decorations, bare collision boxes, stumps
+NOT_TOWN_BUILDINGS = ('Fence', 'Deco', 'Collision Box', 'Stomp')
 
 
 def by_steps(steps: Sequence[Tuple[float, float]], x: float) -> float:
@@ -45,30 +53,30 @@ def distance_to_rect(x: float, y: float, rect: pygame.Rect) -> float:
     return (dx * dx + dy * dy) ** 0.5
 
 
-class TreeCover:
-    """How wooded every spot of the map is, worked out once from the trees.
+class Cover:
+    """How much of something (trees, buildings) is around every spot of the map, worked out once.
 
-    Each tile's centre gets the sum over the stems within FOREST_RADIUS_TILES,
+    Each tile's centre gets the sum over the points within *radius_tiles*,
     each counting 1 - distance / radius (so 1 on the spot, nothing at the
-    edge). A tree only touches the tiles within its radius, so building it
+    edge). A point only touches the tiles within its radius, so building it
     takes a fraction of a second; asking is a lookup of the four tiles around
-    the point, blended, so the birds swell smoothly rather than tile by tile.
+    the point, blended, so a loop swells smoothly rather than tile by tile.
     """
 
-    def __init__(self, trees: Iterable, tile_size: int, tiles_wide: int, tiles_high: int) -> None:
+    def __init__(self, points: Iterable[Tuple[float, float]], radius_tiles: float,
+                 tile_size: int, tiles_wide: int, tiles_high: int) -> None:
         self.tile_size = tile_size
         self.wide = tiles_wide
         self.high = tiles_high
         self.cells = [0.0] * (tiles_wide * tiles_high)
-        reach = int(FOREST_RADIUS_TILES) + 1
-        for tree in trees:
-            sx = (tree.x + tree.stem_position * tile_size) / tile_size   # stem, in tiles
-            sy = tree.y / tile_size
+        reach = int(radius_tiles) + 1
+        for x, y in points:
+            sx, sy = x / tile_size, y / tile_size   # in tiles
             for ty in range(max(0, int(sy) - reach), min(tiles_high, int(sy) + reach + 1)):
                 for tx in range(max(0, int(sx) - reach), min(tiles_wide, int(sx) + reach + 1)):
                     dist = ((tx + 0.5 - sx) ** 2 + (ty + 0.5 - sy) ** 2) ** 0.5
-                    if dist < FOREST_RADIUS_TILES:
-                        self.cells[ty * tiles_wide + tx] += 1.0 - dist / FOREST_RADIUS_TILES
+                    if dist < radius_tiles:
+                        self.cells[ty * tiles_wide + tx] += 1.0 - dist / radius_tiles
 
     def at(self, x: float, y: float) -> float:
         """The cover at a world point, blended from the tile centres around it."""
@@ -122,37 +130,51 @@ class AmbientLoop:
 class Ambience:
     """The map's ambient loops; channels from *first_channel* on, which Game.init_pygame() reserves.
 
-    Made while the game loads, which is when the trees' cover is worked out.
+    Made while the game loads, which is when the trees' and the buildings'
+    cover is worked out.
     """
 
-    CHANNELS = 2
+    CHANNELS = 3
 
     def __init__(self, sounds: dict, first_channel: int, tmx_map) -> None:
         self.mill = AmbientLoop(sounds.get('amb_mill_interior_loop'), first_channel)
         self.forest_birds = AmbientLoop(sounds.get('amb_birds_day_loop'), first_channel + 1)
-        data = tmx_map.tmx_data
-        self.cover = TreeCover(tmx_map.trees, tmx_map.tile_size, data.width, data.height)
+        self.crickets = AmbientLoop(sounds.get('amb_crickets_night_loop'), first_channel + 2)
+        ts = tmx_map.tile_size
+        size = (ts, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
+        stems = [(tree.x + tree.stem_position * ts, tree.y) for tree in tmx_map.trees]
+        self.trees = Cover(stems, FOREST_RADIUS_TILES, *size)
+        buildings = [house.collision_rect.center for house in tmx_map.houses
+                     if not (house.name or '').startswith(NOT_TOWN_BUILDINGS)]
+        self.town = Cover(buildings, TOWN_RADIUS_TILES, *size)
 
     def update(self, tmx_map, player, date: datetime.datetime, audible: bool) -> None:
         """Set every loop's volume for where the player stands and the time of day."""
         px = player.x + player.width / 2
         py = player.y + player.height / 2
-        tile_size = tmx_map.tile_size
 
         mill = 0.0
         if tmx_map.mills:
-            tiles = min(distance_to_rect(px, py, m.collision_rect) for m in tmx_map.mills) / tile_size
+            tiles = min(distance_to_rect(px, py, m.collision_rect) for m in tmx_map.mills) / tmx_map.tile_size
             mill = by_steps(MILL_VOLUME_BY_DISTANCE, tiles)
         self.mill.update(mill, audible)
 
         hour = date.hour + date.minute / 60.0
-        daylight = by_steps(BIRDS_BY_HOUR, hour)
         birds = 0.0
+        daylight = by_steps(BIRDS_BY_HOUR, hour)
         if daylight > 0:
-            wooded = min(1.0, self.cover.at(px, py) / FOREST_FULL_COVER)
+            wooded = min(1.0, self.trees.at(px, py) / FOREST_FULL_COVER)
             birds = FOREST_BIRDS_VOLUME * wooded * daylight
         self.forest_birds.update(birds, audible)
+
+        crickets = 0.0
+        night = by_steps(CRICKETS_BY_HOUR, hour)
+        if night > 0:
+            nature = 1.0 - min(1.0, self.town.at(px, py) / TOWN_FULL_COVER)
+            crickets = CRICKETS_VOLUME * nature * night
+        self.crickets.update(crickets, audible)
 
     def stop(self) -> None:
         self.mill.stop()
         self.forest_birds.stop()
+        self.crickets.stop()
