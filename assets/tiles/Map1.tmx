@@ -11163,7 +11163,8 @@
   <object id="63" name="House_10" type="House_Frontal" x="4160" y="5920">
    <properties>
     <property name="Buy_price" type="int" value="100"/>
-    <property name="Buy_storage" type="int" value="100"/>
+    <property name="Buy_slot_size" type="int" value="20"/>
+    <property name="Buy_slots" type="int" value="5"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="-4"/>
     <property name="Col_margin_left_pixel" type="int" value="-16"/>
@@ -11586,7 +11587,8 @@
   <object id="337" name="Barn" type="House_Frontal" x="5600" y="5728">
    <properties>
     <property name="Buy_price" type="int" value="600"/>
-    <property name="Buy_storage" type="int" value="250"/>
+    <property name="Buy_slot_size" type="int" value="25"/>
+    <property name="Buy_slots" type="int" value="10"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Col_margin_left_pixel" type="int" value="-11"/>
     <property name="Col_margin_right_pixel" type="int" value="-15"/>

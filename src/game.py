@@ -249,18 +249,21 @@ class Game:
 
     def restore_owned_buildings(self) -> None:
         """After loading a save, mark Warehouse objects on the map as owned
-        based on tmx_ids stored in depot.properties["warehouses"]."""
+        based on tmx_ids stored in depot.properties["warehouses"], and settle
+        the goods into their storage slots."""
         from .models.institutions.warehouse import Warehouse
         owned_ids = {
             entry["tmx_id"]
             for entry in self.depot.properties.get("warehouses", [])
             if isinstance(entry, dict) and "tmx_id" in entry
         }
-        if not owned_ids:
-            return
+        layouts = {}
         for house in self.game_map.tmx_map.houses:
-            if isinstance(house, Warehouse) and house.tmx_id in owned_ids:
-                house.is_owned = True
+            if isinstance(house, Warehouse):
+                layouts[house.tmx_id] = (house.buy_slots, house.buy_slot_size)
+                if house.tmx_id in owned_ids:
+                    house.is_owned = True
+        self.depot.settle_storage(layouts)
 
     def _update_player_market_area(self) -> None:
         """Note which market square, if any, the player stands in, and the goods sold there."""

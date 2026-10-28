@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY
+from ..config.constants import DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS
 
 SAVE_VERSION = 1
 
@@ -135,6 +135,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "storage_capacity": depot.storage_capacity,
             "warehouse_count": depot.warehouse_count,
             "good_stock": dict(depot.good_stock),
+            "starting_slots": [dict(slot) for slot in depot.starting_slots],
             "properties": {k: list(v) for k, v in depot.properties.items()},
             "expenditures": depot.expenditures,
             "income": depot.income,
@@ -473,6 +474,8 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     depot.storage_capacity = d["storage_capacity"]
     depot.warehouse_count = d["warehouse_count"]
     depot.good_stock = d["good_stock"]
+    # Saves from before storage slots have none; Game.restore_owned_buildings settles them
+    depot.starting_slots = d.get("starting_slots") or depot.empty_slots(STARTING_STORAGE_SLOTS)
     depot.properties = {k: list(v) for k, v in d["properties"].items()}
     depot.expenditures = d["expenditures"]
     depot.income = d["income"]
@@ -544,7 +547,6 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         if g.name not in saved_goods:
             g.simulate_history(hours, days)
     depot.add_missing_goods([g.name for g in goods])
-    depot.settle_storage()
 
     good_by_name = {g.name: g for g in goods}
     for gd in data["goods"]:

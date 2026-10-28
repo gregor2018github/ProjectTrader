@@ -10,7 +10,7 @@ import pygame
 import pytmx
 from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
-from ..config.constants import TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
+from ..config.constants import SLOT_SIZE, TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .institutions.church import Church
 from .institutions.town import Town
@@ -568,7 +568,9 @@ class TMXMap:
                             name=obj.name,
                             house_class=obj_class,
                             buy_price=int(obj.properties.get('Buy_price', 0)),
-                            buy_storage=int(obj.properties.get('Buy_storage', 0)),
+                            buy_slots=int(obj.properties.get(
+                                'Buy_slots', int(obj.properties.get('Buy_storage', 0)) // SLOT_SIZE)),
+                            buy_slot_size=int(obj.properties.get('Buy_slot_size', SLOT_SIZE)),
                             buy_type=str(obj.properties.get('Buy_type', 'Warehouse')),
                             tmx_id=int(obj.id),
                             scale=float(obj.properties.get('Scale', 1.0)),

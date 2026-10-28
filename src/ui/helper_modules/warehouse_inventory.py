@@ -1,8 +1,9 @@
 """Inventory overview of an owned warehouse.
 
-Opened from the house menu of a warehouse the player owns: a grid of slots,
-one per good stored there, with how full the building is and what its
-contents are worth at today's prices.
+Opened from the house menu of a warehouse the player owns: the building's
+storage slots, each holding up to its size of one good, with a fill bar
+beside every slot (green once it is full), how many slots are in use, and
+how much room part-filled slots waste.
 
 Everything but the hover effects is drawn once into a cached panel, which is
 only redrawn when what it shows changes, so the open window costs about as
@@ -11,11 +12,11 @@ much per frame as two blits.
 
 import os
 import pygame
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ...config.colors import (
-    BEIGE, DARK_BROWN, DARK_GRAY, LIGHT_GRAY, WHEAT, WHITE,
-    MUTED_GREEN, MUTED_ORANGE, MUTED_RED, SANDY_BROWN,
+    BEIGE, DARK_BROWN, DARK_GRAY, DARK_RED, LIGHT_GRAY, WHEAT, WHITE,
+    MUTED_GREEN, MUTED_ORANGE, SANDY_BROWN,
 )
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
@@ -26,14 +27,16 @@ if TYPE_CHECKING:
 
 
 COLS = 5
-MIN_ROWS = 3                 # a fresh warehouse still shows its empty shelves
-SLOT_SIZE = 104
-SLOT_GAP = 12
+BOX_W = 104                  # a slot's box, with the good's picture, name and amount
+BOX_H = 116
+BAR_W = 12                   # the slot's fill bar, right of its box
+BAR_GAP = 6
+CELL_W = BOX_W + BAR_GAP + BAR_W
+COL_GAP = 16
+ROW_GAP = 16
 ICON_SIZE = 56
 SIDE_PAD = 36
-BAR_HEIGHT = 18
 EMPTY_SLOT = (230, 225, 210)  # the faded placeholder of the license overview
-NEARLY_FULL = 0.75           # fill share from which the capacity bar turns orange
 DIM_ALPHA = 120              # how dark the game behind the window gets
 
 # Good pictures at slot size, scaled once per session from the game's
@@ -47,7 +50,7 @@ def open_warehouse_inventory(game_state: 'GameState', warehouse: 'Warehouse') ->
 
 
 class WarehouseInventory:
-    """A centred overlay listing the goods stored in one warehouse."""
+    """A centred overlay showing the storage slots of one warehouse."""
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState',
                  warehouse: 'Warehouse') -> None:
@@ -68,17 +71,19 @@ class WarehouseInventory:
 
         game = game_state.game
         self.goods_by_name = {good.name: good for good in game.goods}
-        slot_count = len(game.depot.good_stock)
-        self.rows = max(MIN_ROWS, -(-slot_count // COLS))
-        grid_w = COLS * SLOT_SIZE + (COLS - 1) * SLOT_GAP
-        grid_h = self.rows * SLOT_SIZE + (self.rows - 1) * SLOT_GAP
+        entry = game.depot.warehouse_entry(warehouse.tmx_id) or {}
+        self.slot_size: int = entry.get("slot_size", warehouse.buy_slot_size)
+        slot_count = len(entry.get("slots", [])) or warehouse.buy_slots
+
+        rows = max(1, -(-slot_count // COLS))
+        grid_w = COLS * CELL_W + (COLS - 1) * COL_GAP
+        grid_h = rows * BOX_H + (rows - 1) * ROW_GAP
 
         # Vertical layout, in panel coordinates
         self.subtitle_y = 62
         self.rule_y = 96
-        self.capacity_y = 110
-        self.bar_y = 140
-        self.grid_y = 178
+        self.summary_y = 110
+        self.grid_y = 150
         self.footer_rule_y = self.grid_y + grid_h + 18
         self.footer_y = self.footer_rule_y + 12
         self.hint_y = self.footer_y + 32
@@ -94,35 +99,33 @@ class WarehouseInventory:
             self.panel_rect.right - cb_size - 8, self.panel_rect.top + 8, cb_size, cb_size
         )
 
-        # Slot rects in screen space, filled row by row
-        self.slot_rects: List[pygame.Rect] = []
-        for i in range(self.rows * COLS):
+        # Slot boxes and their fill bars in screen space, row by row; a short
+        # last row (or a warehouse of fewer than COLS slots) is centred
+        self.slot_rects: List[Tuple[pygame.Rect, pygame.Rect]] = []
+        for i in range(slot_count):
             row, col = divmod(i, COLS)
-            self.slot_rects.append(pygame.Rect(
-                self.panel_rect.x + SIDE_PAD + col * (SLOT_SIZE + SLOT_GAP),
-                self.panel_rect.y + self.grid_y + row * (SLOT_SIZE + SLOT_GAP),
-                SLOT_SIZE, SLOT_SIZE,
-            ))
+            in_row = min(COLS, slot_count - row * COLS)
+            row_w = in_row * CELL_W + (in_row - 1) * COL_GAP
+            x = self.panel_rect.x + (panel_w - row_w) // 2 + col * (CELL_W + COL_GAP)
+            y = self.panel_rect.y + self.grid_y + row * (BOX_H + ROW_GAP)
+            box = pygame.Rect(x, y, BOX_W, BOX_H)
+            bar = pygame.Rect(box.right + BAR_GAP, y, BAR_W, BOX_H)
+            self.slot_rects.append((box, bar))
 
         # Made once: the dimming over the game, and the hover shade of a slot
         self._dim = pygame.Surface((total_w, SCREEN_HEIGHT)).convert()
         self._dim.fill((0, 0, 0))
-        self._slot_shade = pygame.Surface((SLOT_SIZE, SLOT_SIZE), pygame.SRCALPHA)
+        self._slot_shade = pygame.Surface((BOX_W, BOX_H), pygame.SRCALPHA)
         self._slot_shade.fill((0, 0, 0, 30))
 
         self._panel: Optional[pygame.Surface] = None
         self._panel_key: Optional[tuple] = None
-        self._stock: List[Tuple[str, int]] = []
+        self._slots: List[Dict[str, Any]] = []
         self._tooltip: Optional[Tuple[int, str]] = None  # (slot index, text) of the last hover
 
     # ------------------------------------------------------------------
     # Data
     # ------------------------------------------------------------------
-
-    def _read_stock(self) -> List[Tuple[str, int]]:
-        """The goods stored here, most plentiful first."""
-        stock = self.game_state.game.depot.warehouse_stock(self.house.tmx_id)
-        return sorted(((g, q) for g, q in stock.items() if q > 0), key=lambda item: (-item[1], item[0]))
 
     def _price(self, good_name: str) -> float:
         good = self.goods_by_name.get(good_name)
@@ -172,13 +175,12 @@ class WarehouseInventory:
             return
 
         # Redraw the panel only when something on it changed
-        stock = self._read_stock()
-        value = round(sum(self._price(g) * q for g, q in stock))
-        starting_capacity = self.game_state.game.depot.starting_storage_capacity()
-        key = (tuple(stock), value, self.house.buy_storage, starting_capacity)
+        slots = self.game_state.game.depot.warehouse_slots(self.house.tmx_id)
+        value = round(sum(self._price(s["good"]) * s["qty"] for s in slots if s["good"]))
+        key = (tuple((s["good"], s["qty"]) for s in slots), value)
         if key != self._panel_key:
-            self._stock = stock
-            self._panel = self._render_panel(stock, value, starting_capacity)
+            self._slots = slots
+            self._panel = self._render_panel(slots, value)
             self._panel_key = key
             self._tooltip = None
 
@@ -194,21 +196,23 @@ class WarehouseInventory:
             self._draw_close_button(self.screen, self.close_rect, hovered=True)
             return
 
-        for i, (good_name, qty) in enumerate(self._stock):
-            rect = self.slot_rects[i]
-            if rect.collidepoint(mouse_pos):
-                self.screen.blit(self._slot_shade, rect.topleft)
+        for i, (box, bar) in enumerate(self.slot_rects[:len(self._slots)]):
+            if box.collidepoint(mouse_pos) or bar.collidepoint(mouse_pos):
+                self.screen.blit(self._slot_shade, box.topleft)
                 if self._tooltip is None or self._tooltip[0] != i:
-                    capacity = self.house.buy_storage
-                    share = qty / capacity * 100 if capacity else 0
-                    text = (f"{qty} {good_name}  ·  worth {self._price(good_name) * qty:,.0f}g"
-                            f"  ·  {share:.0f}% of the space")
-                    self._tooltip = (i, text)
+                    self._tooltip = (i, self._slot_tooltip(self._slots[i]))
                 draw_mouse_tooltip(self.screen, self.body_font, self._tooltip[1], mouse_pos)
                 break
 
-    def _render_panel(self, stock: List[Tuple[str, int]], value: float,
-                      starting_capacity: int) -> pygame.Surface:
+    def _slot_tooltip(self, slot: Dict[str, Any]) -> str:
+        good_name, qty = slot["good"], slot["qty"]
+        if good_name is None:
+            return f"Empty slot  ·  holds up to {self.slot_size} of one good"
+        room = self.slot_size - qty
+        fill = "full" if room <= 0 else f"room for {room} more"
+        return f"{qty} of {self.slot_size} {good_name}  ·  worth {self._price(good_name) * qty:,.0f}g  ·  {fill}"
+
+    def _render_panel(self, slots: List[Dict[str, Any]], value: float) -> pygame.Surface:
         """Everything on the window that does not follow the mouse."""
         w, h = self.panel_rect.size
         surf = pygame.Surface((w, h), pygame.SRCALPHA)
@@ -219,8 +223,9 @@ class WarehouseInventory:
             surf.fill((*SANDY_BROWN, 255))
             pygame.draw.rect(surf, DARK_BROWN, pygame.Rect(0, 0, w, h), 4)
 
-        stored = sum(q for _, q in stock)
-        capacity = self.house.buy_storage
+        used = [s for s in slots if s["good"] is not None]
+        stored = sum(s["qty"] for s in used)
+        lost = sum(max(0, self.slot_size - s["qty"]) for s in used)
 
         # Title and subtitle
         name = self.house.display_name or (self.house.name or "Warehouse").split('_')[0]
@@ -229,32 +234,29 @@ class WarehouseInventory:
         subtitle = self.heading_font.render("Warehouse Inventory", True, DARK_GRAY)
         surf.blit(subtitle, subtitle.get_rect(centerx=w // 2, top=self.subtitle_y))
         pygame.draw.line(surf, DARK_BROWN, (30, self.rule_y), (w - 30, self.rule_y), 2)
-
         self._draw_close_button(surf, self.close_rect.move(-self.panel_rect.x, -self.panel_rect.y), hovered=False)
-        self._draw_capacity(surf, stored, capacity)
+
+        # How full the building is: in slots, and in units
+        slots_surf = self.body_font.render(f"Slots in use:  {len(used)} / {len(slots)}", True, DARK_BROWN)
+        surf.blit(slots_surf, (SIDE_PAD, self.summary_y))
+        stored_surf = self.body_font.render(
+            f"Stored:  {stored} / {len(slots) * self.slot_size} units", True, DARK_BROWN)
+        surf.blit(stored_surf, stored_surf.get_rect(right=w - SIDE_PAD, top=self.summary_y))
 
         # Slots
-        for i, rect in enumerate(self.slot_rects):
-            local = rect.move(-self.panel_rect.x, -self.panel_rect.y)
-            if i < len(stock):
-                self._draw_slot(surf, local, *stock[i])
-            else:
-                pygame.draw.rect(surf, EMPTY_SLOT, local)
-                pygame.draw.rect(surf, LIGHT_GRAY, local, 1)
+        for (box, bar), slot in zip(self.slot_rects, slots):
+            self._draw_slot(surf, box.move(-self.panel_rect.x, -self.panel_rect.y),
+                            bar.move(-self.panel_rect.x, -self.panel_rect.y), slot)
 
-        if not stock:
-            grid_rect = self.slot_rects[0].union(self.slot_rects[-1]).move(-self.panel_rect.x, -self.panel_rect.y)
-            empty = self.heading_font.render("These shelves stand empty", True, DARK_GRAY)
-            surf.blit(empty, empty.get_rect(center=grid_rect.center))
-
-        # Footer: what it is all worth, and how the storage fills
+        # Footer: what it is all worth, the room part-filled slots waste, and why
         pygame.draw.line(surf, DARK_BROWN, (30, self.footer_rule_y), (w - 30, self.footer_rule_y), 1)
         value_surf = self.body_font.render(f"Value at market prices:  {value:,.0f}g", True, DARK_BROWN)
         surf.blit(value_surf, (SIDE_PAD, self.footer_y))
-        free_surf = self.body_font.render(f"Free space:  {max(0, capacity - stored)}", True, DARK_BROWN)
-        surf.blit(free_surf, free_surf.get_rect(right=w - SIDE_PAD, top=self.footer_y))
-        hint = (f"Purchases fill your starting storage ({starting_capacity}) first, "
-                "then your warehouses in the order bought.")
+        lost_surf = self.body_font.render(
+            f"Room lost in part-filled slots:  {lost}", True, DARK_RED if lost else DARK_BROWN)
+        surf.blit(lost_surf, lost_surf.get_rect(right=w - SIDE_PAD, top=self.footer_y))
+        hint = (f"Each slot holds up to {self.slot_size} of one good; "
+                "the room left in a slot holds nothing else.")
         hint_surf = self.small_font.render(hint, True, DARK_GRAY)
         surf.blit(hint_surf, hint_surf.get_rect(centerx=w // 2, top=self.hint_y))
 
@@ -267,35 +269,32 @@ class WarehouseInventory:
         pygame.draw.line(surf, WHITE, (rect.left + m, rect.top + m), (rect.right - m, rect.bottom - m), 2)
         pygame.draw.line(surf, WHITE, (rect.left + m, rect.bottom - m), (rect.right - m, rect.top + m), 2)
 
-    def _draw_capacity(self, surf: pygame.Surface, stored: int, capacity: int) -> None:
-        """The 'Stored' line and a bar showing how full the building is."""
-        w = self.panel_rect.width
-        label = self.body_font.render("Stored", True, DARK_BROWN)
-        surf.blit(label, (SIDE_PAD, self.capacity_y))
-        amount = self.body_font.render(f"{stored} / {capacity} units", True, DARK_BROWN)
-        surf.blit(amount, amount.get_rect(right=w - SIDE_PAD, top=self.capacity_y))
+    def _draw_slot(self, surf: pygame.Surface, box: pygame.Rect, bar: pygame.Rect,
+                   slot: Dict[str, Any]) -> None:
+        good_name, qty = slot["good"], slot["qty"]
 
-        bar = pygame.Rect(SIDE_PAD, self.bar_y, w - 2 * SIDE_PAD, BAR_HEIGHT)
+        # Fill bar, filling from the bottom: green once the slot is full
         pygame.draw.rect(surf, WHEAT, bar)
-        share = min(1.0, stored / capacity) if capacity else 0.0
-        if share > 0:
-            color = MUTED_RED if share >= 1.0 else MUTED_ORANGE if share >= NEARLY_FULL else MUTED_GREEN
-            pygame.draw.rect(surf, color, pygame.Rect(bar.x, bar.y, max(2, round(bar.width * share)), bar.height))
-        pygame.draw.rect(surf, DARK_BROWN, bar, 2)
+        if good_name is not None and qty > 0:
+            share = min(1.0, qty / self.slot_size) if self.slot_size else 1.0
+            fill_h = max(2, round(bar.height * share))
+            color = MUTED_GREEN if share >= 1.0 else MUTED_ORANGE
+            pygame.draw.rect(surf, color, pygame.Rect(bar.x, bar.bottom - fill_h, bar.width, fill_h))
+        pygame.draw.rect(surf, DARK_BROWN if good_name else LIGHT_GRAY, bar, 2 if good_name else 1)
 
-    def _draw_slot(self, surf: pygame.Surface, rect: pygame.Rect, good_name: str, qty: int) -> None:
-        pygame.draw.rect(surf, BEIGE, rect)
-        pygame.draw.rect(surf, DARK_BROWN, rect, 2)
+        if good_name is None:
+            pygame.draw.rect(surf, EMPTY_SLOT, box)
+            pygame.draw.rect(surf, LIGHT_GRAY, box, 1)
+            empty = self.small_font.render("Empty", True, LIGHT_GRAY)
+            surf.blit(empty, empty.get_rect(center=box.center))
+            return
 
+        pygame.draw.rect(surf, BEIGE, box)
+        pygame.draw.rect(surf, DARK_BROWN, box, 2)
         icon = self._icon(good_name)
         if icon:
-            surf.blit(icon, icon.get_rect(center=(rect.centerx, rect.top + 8 + ICON_SIZE // 2)))
+            surf.blit(icon, icon.get_rect(center=(box.centerx, box.top + 8 + ICON_SIZE // 2)))
         name = self.small_font.render(good_name, True, DARK_BROWN)
-        surf.blit(name, name.get_rect(centerx=rect.centerx, bottom=rect.bottom - 6))
-
-        # Quantity badge in the top-right corner, like a stack count
-        count = self.small_font.render(str(qty), True, WHITE)
-        badge = count.get_rect().inflate(10, 2)
-        badge.topright = (rect.right - 4, rect.top + 4)
-        pygame.draw.rect(surf, DARK_BROWN, badge, border_radius=4)
-        surf.blit(count, count.get_rect(center=badge.center))
+        surf.blit(name, name.get_rect(centerx=box.centerx, bottom=box.bottom - 24))
+        amount = self.small_font.render(f"{qty} / {self.slot_size}", True, DARK_GRAY)
+        surf.blit(amount, amount.get_rect(centerx=box.centerx, bottom=box.bottom - 6))

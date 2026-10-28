@@ -73,7 +73,9 @@ START_TIME = "08:00"                # When the simulation time starts, format: H
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
 STARTING_MONEY = 100                # Starting money for the player
 INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
-INITIAL_STORAGE_CAPACITY = 100      # how many items the player can store at the start
+SLOT_SIZE = 20                      # units of one good a storage slot holds, unless a warehouse's Buy_slot_size says otherwise
+STARTING_STORAGE_SLOTS = 5          # slots of the starting storage, which is no building
+INITIAL_STORAGE_CAPACITY = STARTING_STORAGE_SLOTS * SLOT_SIZE  # how many items the player can store at the start
 
 # TRADING LICENSE CONSTANTS
 # Each entry: (good_name, duration_in_months)
