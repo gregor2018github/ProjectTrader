@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from ...config.colors import (
     BEIGE, DARK_BROWN, DARK_GRAY, DARK_RED, LIGHT_GRAY, WHEAT, WHITE,
-    MUTED_GREEN, MUTED_ORANGE, SANDY_BROWN,
+    MUTED_GREEN, MUTED_ORANGE, MUTED_RED, SANDY_BROWN,
 )
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
@@ -34,6 +34,8 @@ BAR_GAP = 6
 CELL_W = BOX_W + BAR_GAP + BAR_W
 COL_GAP = 16
 ROW_GAP = 16
+TOTAL_BAR_H = 18             # the whole building's fill bar, over the slots
+NEARLY_FULL = 0.75           # fill share from which the building's bar turns orange
 ICON_SIZE = 56
 SIDE_PAD = 36
 EMPTY_SLOT = (230, 225, 210)  # the faded placeholder of the license overview
@@ -83,7 +85,8 @@ class WarehouseInventory:
         self.subtitle_y = 62
         self.rule_y = 96
         self.summary_y = 110
-        self.grid_y = 150
+        self.total_bar_y = 140
+        self.grid_y = 178
         self.footer_rule_y = self.grid_y + grid_h + 18
         self.footer_y = self.footer_rule_y + 12
         self.hint_y = self.footer_y + 32
@@ -111,6 +114,15 @@ class WarehouseInventory:
             box = pygame.Rect(x, y, BOX_W, BOX_H)
             bar = pygame.Rect(box.right + BAR_GAP, y, BAR_W, BOX_H)
             self.slot_rects.append((box, bar))
+
+        # The whole building's fill bar spans the first row of slots, bars included
+        first_row = self.slot_rects[:COLS]
+        if first_row:
+            left, right = first_row[0][0].left, first_row[-1][1].right
+        else:
+            left, right = self.panel_rect.x + SIDE_PAD, self.panel_rect.right - SIDE_PAD
+        self.total_bar_rect = pygame.Rect(
+            left - self.panel_rect.x, self.total_bar_y, right - left, TOTAL_BAR_H)
 
         # Made once: the dimming over the game, and the hover shade of a slot
         self._dim = pygame.Surface((total_w, SCREEN_HEIGHT)).convert()
@@ -242,6 +254,15 @@ class WarehouseInventory:
         stored_surf = self.body_font.render(
             f"Stored:  {stored} / {len(slots) * self.slot_size} units", True, DARK_BROWN)
         surf.blit(stored_surf, stored_surf.get_rect(right=w - SIDE_PAD, top=self.summary_y))
+
+        bar = self.total_bar_rect
+        pygame.draw.rect(surf, WHEAT, bar)
+        capacity = len(slots) * self.slot_size
+        share = min(1.0, stored / capacity) if capacity else 0.0
+        if share > 0:
+            color = MUTED_RED if share >= 1.0 else MUTED_ORANGE if share >= NEARLY_FULL else MUTED_GREEN
+            pygame.draw.rect(surf, color, pygame.Rect(bar.x, bar.y, max(2, round(bar.width * share)), bar.height))
+        pygame.draw.rect(surf, DARK_BROWN, bar, 2)
 
         # Slots
         for (box, bar), slot in zip(self.slot_rects, slots):
