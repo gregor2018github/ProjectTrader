@@ -165,6 +165,10 @@ TOWN_FULL_COVER = 2.0                 # That many buildings' worth around the pl
 # How much the crickets chirp by hour of the day (0 to 1): taking over from the birds at
 # dusk, from 19:30 to full by 21:00, and falling silent at dawn, from 4:30 to 6:00
 CRICKETS_BY_HOUR = ((4.5, 1.0), (6.0, 0.0), (19.5, 0.0), (21.0, 1.0))
+# Volume of the rivers' and the sea's loops (1.0 is 100%) by distance from the nearest water of each,
+# in tiles from the water tile's centre (so about 1 standing on the bank), blended linearly; silent beyond the last
+RIVER_VOLUME_BY_DISTANCE = ((1, 0.35), (3, 0.25), (6, 0.12), (10, 0.04), (14, 0.0))
+SEA_VOLUME_BY_DISTANCE = ((1, 0.5), (4, 0.4), (8, 0.22), (14, 0.08), (20, 0.0))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map
