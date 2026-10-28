@@ -1,0 +1,408 @@
+{
+  "notes": {
+    "amb_birds_day_loop": "Idea: day ambience, crossfaded with the crickets at dawn and dusk (TODO). Loop: play(loops=-1, fade_ms=1500), fadeout(1500)",
+    "amb_crickets_night_loop": "Idea: night ambience, crossfaded with the birds at dawn and dusk (TODO)",
+    "amb_fire_hearth_loop": "Idea: near lit houses at night, or interiors later",
+    "amb_market_dense_loop": "Idea: near the market at peak hours, or for market events",
+    "amb_mill_interior_loop": "Idea: the mill from inside (gears)",
+    "amb_river_loop": "Idea: near water tiles, fading with distance like the sheep and doors",
+    "amb_sea_waves_loop": "Idea: near the sea, fading with distance. Starts and ends in a quiet trough: the first second is calm",
+    "amb_watermill_loop": "Idea: the mill from outside (wheel and water)",
+    "book_close": "Idea: closing the ledger window",
+    "book_open": "Idea: opening the ledger window",
+    "chicken_alarm": "Idea: when the player walks into the flock",
+    "chicken_cluck": "Idea: random farm clucks, the same pattern as the sheep",
+    "coin_flip": "Idea: small coin moments, so not everything sounds like a market sale",
+    "coin_handful": "Idea: loans and large payments",
+    "coin_pouch": "Idea: donations",
+    "coin_single": "Idea: alms (a single coin), so not everything sounds like a market sale",
+    "horse_cart_pass": "Idea: traders arriving or leaving town (24 s)",
+    "horse_cart_short": "Idea: traders arriving or leaving town (4.5 s)",
+    "page_turn": "Idea: paging through statistics",
+    "parchment_open": "Idea: opening info windows, contracts, menus",
+    "parchment_rustle": "Idea: info windows, contracts, menus",
+    "scroll_unroll": "Idea: opening info windows, contracts, menus",
+    "ui_click_wood": "Idea: button clicks",
+    "ui_confirm_wood": "Idea: OK / confirm",
+    "ui_denied_thud": "Idea: refused, e.g. \"not enough money\". The source is slightly clipped (not audible at game volume)",
+    "ui_tick": "Idea: hover or toggle"
+  },
+  "credits": {
+    "amb_birds_day_loop": [
+      {
+        "author": "hargissssound",
+        "title": "Spring Birds 2019 (processed loop)",
+        "url": "https://freesound.org/people/hargissssound/sounds/471891/",
+        "license": "CC0 1.0",
+        "freesound_id": "471891"
+      }
+    ],
+    "amb_crickets_night_loop": [
+      {
+        "author": "sengjinn",
+        "title": "AMBIENCE NIGHT FIELD CRICKET 01.wav",
+        "url": "https://freesound.org/people/sengjinn/sounds/175020/",
+        "license": "CC0 1.0",
+        "freesound_id": "175020"
+      }
+    ],
+    "amb_fire_hearth_loop": [
+      {
+        "author": "mcmikai",
+        "title": "Fire in the stove",
+        "url": "https://freesound.org/people/mcmikai/sounds/532191/",
+        "license": "CC0 1.0",
+        "freesound_id": "532191"
+      }
+    ],
+    "amb_market_crowd_loop": [
+      {
+        "author": "jentlemen",
+        "title": "Medium Crowd Murmering",
+        "url": "https://freesound.org/people/jentlemen/sounds/432331/",
+        "license": "CC0 1.0",
+        "freesound_id": "432331"
+      }
+    ],
+    "amb_market_dense_loop": [
+      {
+        "author": "bolkmar",
+        "title": "Crowded street at medieval market",
+        "url": "https://freesound.org/people/bolkmar/sounds/424790/",
+        "license": "CC0 1.0",
+        "freesound_id": "424790"
+      }
+    ],
+    "amb_mill_interior_loop": [
+      {
+        "author": "pcwvdmark",
+        "title": "Inside a traditional Dutch windmill, 2",
+        "url": "https://freesound.org/people/pcwvdmark/sounds/345846/",
+        "license": "CC0 1.0",
+        "freesound_id": "345846"
+      }
+    ],
+    "amb_river_loop": [
+      {
+        "author": "VKProduktion",
+        "title": "Creek 06 (loop)",
+        "url": "https://freesound.org/people/VKProduktion/sounds/231536/",
+        "license": "CC0 1.0",
+        "freesound_id": "231536"
+      }
+    ],
+    "amb_sea_waves_loop": [
+      {
+        "author": "Noted451",
+        "title": "Ocean Waves.wav",
+        "url": "https://freesound.org/people/Noted451/sounds/531015/",
+        "license": "CC0 1.0",
+        "freesound_id": "531015"
+      }
+    ],
+    "amb_watermill_loop": [
+      {
+        "author": "Berwitz",
+        "title": "Watermill.wav",
+        "url": "https://freesound.org/people/Berwitz/sounds/263583/",
+        "license": "CC0 1.0",
+        "freesound_id": "263583"
+      },
+      {
+        "author": "pcwvdmark",
+        "title": "Inside a traditional Dutch windmill, 2",
+        "url": "https://freesound.org/people/pcwvdmark/sounds/345846/",
+        "license": "CC0 1.0",
+        "freesound_id": "345846"
+      }
+    ],
+    "book_close_1": [
+      {
+        "author": "ondondvo",
+        "title": "Closing book",
+        "url": "https://freesound.org/people/ondondvo/sounds/195795/",
+        "license": "CC0 1.0",
+        "freesound_id": "195795"
+      }
+    ],
+    "book_close_2": [
+      {
+        "author": "tcrocker68",
+        "title": "Book_Closing.wav",
+        "url": "https://freesound.org/people/tcrocker68/sounds/235588/",
+        "license": "CC0 1.0",
+        "freesound_id": "235588"
+      }
+    ],
+    "book_close_3": [
+      {
+        "author": "SoundsForHim",
+        "title": "Close book.MP3",
+        "url": "https://freesound.org/people/SoundsForHim/sounds/399669/",
+        "license": "CC0 1.0",
+        "freesound_id": "399669"
+      }
+    ],
+    "book_open": [
+      {
+        "author": "envirOmaniac2",
+        "title": "Book_open.mp3",
+        "url": "https://freesound.org/people/envirOmaniac2/sounds/393844/",
+        "license": "CC0 1.0",
+        "freesound_id": "393844"
+      }
+    ],
+    "chicken_alarm": [
+      {
+        "author": "Rudmer_Rotteveel",
+        "title": "Chicken Single Alarm Call",
+        "url": "https://freesound.org/people/Rudmer_Rotteveel/sounds/316920/",
+        "license": "CC0 1.0",
+        "freesound_id": "316920"
+      }
+    ],
+    "chicken_cluck_1": [
+      {
+        "author": "Breviceps",
+        "title": "Chicken clucking",
+        "url": "https://freesound.org/people/Breviceps/sounds/456803/",
+        "license": "CC0 1.0",
+        "freesound_id": "456803"
+      }
+    ],
+    "chicken_cluck_2": [
+      {
+        "author": "Breviceps",
+        "title": "Chicken clucking",
+        "url": "https://freesound.org/people/Breviceps/sounds/456803/",
+        "license": "CC0 1.0",
+        "freesound_id": "456803"
+      }
+    ],
+    "chicken_cluck_3": [
+      {
+        "author": "Breviceps",
+        "title": "Chicken clucking",
+        "url": "https://freesound.org/people/Breviceps/sounds/456803/",
+        "license": "CC0 1.0",
+        "freesound_id": "456803"
+      }
+    ],
+    "coin_flip": [
+      {
+        "author": "Raventhornn",
+        "title": "coin flip.wav",
+        "url": "https://freesound.org/people/Raventhornn/sounds/181189/",
+        "license": "CC0 1.0",
+        "freesound_id": "181189"
+      }
+    ],
+    "coin_handful_1": [
+      {
+        "author": "altfuture",
+        "title": "Coins",
+        "url": "https://freesound.org/people/altfuture/sounds/174629/",
+        "license": "CC0 1.0",
+        "freesound_id": "174629"
+      }
+    ],
+    "coin_handful_2": [
+      {
+        "author": "altfuture",
+        "title": "Coins",
+        "url": "https://freesound.org/people/altfuture/sounds/174629/",
+        "license": "CC0 1.0",
+        "freesound_id": "174629"
+      }
+    ],
+    "coin_handful_3": [
+      {
+        "author": "altfuture",
+        "title": "Coins",
+        "url": "https://freesound.org/people/altfuture/sounds/174629/",
+        "license": "CC0 1.0",
+        "freesound_id": "174629"
+      }
+    ],
+    "coin_handful_4": [
+      {
+        "author": "altfuture",
+        "title": "Coins",
+        "url": "https://freesound.org/people/altfuture/sounds/174629/",
+        "license": "CC0 1.0",
+        "freesound_id": "174629"
+      }
+    ],
+    "coin_pouch_1": [
+      {
+        "author": "Canakinsound",
+        "title": "Coin pouch handle and movement foley",
+        "url": "https://freesound.org/people/Canakinsound/sounds/722039/",
+        "license": "CC0 1.0",
+        "freesound_id": "722039"
+      }
+    ],
+    "coin_pouch_2": [
+      {
+        "author": "Canakinsound",
+        "title": "Coin pouch handle and movement foley",
+        "url": "https://freesound.org/people/Canakinsound/sounds/722039/",
+        "license": "CC0 1.0",
+        "freesound_id": "722039"
+      }
+    ],
+    "coin_pouch_3": [
+      {
+        "author": "Canakinsound",
+        "title": "Coin pouch handle and movement foley",
+        "url": "https://freesound.org/people/Canakinsound/sounds/722039/",
+        "license": "CC0 1.0",
+        "freesound_id": "722039"
+      }
+    ],
+    "coin_pouch_4": [
+      {
+        "author": "Canakinsound",
+        "title": "Coin pouch handle and movement foley",
+        "url": "https://freesound.org/people/Canakinsound/sounds/722039/",
+        "license": "CC0 1.0",
+        "freesound_id": "722039"
+      }
+    ],
+    "coin_single_1": [
+      {
+        "author": "PetervH",
+        "title": "coin drop on concrete",
+        "url": "https://freesound.org/people/PetervH/sounds/324760/",
+        "license": "CC0 1.0",
+        "freesound_id": "324760"
+      }
+    ],
+    "coin_single_2": [
+      {
+        "author": "NickMorris",
+        "title": "CoinDrop8.wav",
+        "url": "https://freesound.org/people/NickMorris/sounds/184744/",
+        "license": "CC0 1.0",
+        "freesound_id": "184744"
+      }
+    ],
+    "horse_cart_pass": [
+      {
+        "author": "bruno.auzet",
+        "title": "horse with old cart.wav",
+        "url": "https://freesound.org/people/bruno.auzet/sounds/538438/",
+        "license": "CC0 1.0",
+        "freesound_id": "538438"
+      }
+    ],
+    "horse_cart_short": [
+      {
+        "author": "maadmacs",
+        "title": "Horse and Carriage.mp3",
+        "url": "https://freesound.org/people/maadmacs/sounds/388391/",
+        "license": "CC0 1.0",
+        "freesound_id": "388391"
+      }
+    ],
+    "page_turn_1": [
+      {
+        "author": "partheeban",
+        "title": "turnPage.mp3",
+        "url": "https://freesound.org/people/partheeban/sounds/457767/",
+        "license": "CC0 1.0",
+        "freesound_id": "457767"
+      }
+    ],
+    "page_turn_2": [
+      {
+        "author": "LilMati",
+        "title": "Page Turn 01",
+        "url": "https://freesound.org/people/LilMati/sounds/397548/",
+        "license": "CC0 1.0",
+        "freesound_id": "397548"
+      }
+    ],
+    "page_turn_3": [
+      {
+        "author": "davidbain",
+        "title": "Page Turn",
+        "url": "https://freesound.org/people/davidbain/sounds/136778/",
+        "license": "CC0 1.0",
+        "freesound_id": "136778"
+      }
+    ],
+    "parchment_open": [
+      {
+        "author": "Breviceps",
+        "title": "Unfold a map",
+        "url": "https://freesound.org/people/Breviceps/sounds/447931/",
+        "license": "CC0 1.0",
+        "freesound_id": "447931"
+      }
+    ],
+    "parchment_rustle_1": [
+      {
+        "author": "Dredile",
+        "title": "Old Heavy Parchment.wav",
+        "url": "https://freesound.org/people/Dredile/sounds/112579/",
+        "license": "CC0 1.0",
+        "freesound_id": "112579"
+      }
+    ],
+    "parchment_rustle_2": [
+      {
+        "author": "Dredile",
+        "title": "Old Heavy Parchment.wav",
+        "url": "https://freesound.org/people/Dredile/sounds/112579/",
+        "license": "CC0 1.0",
+        "freesound_id": "112579"
+      }
+    ],
+    "scroll_unroll": [
+      {
+        "author": "spookymodem",
+        "title": "Unrolling Scroll.wav",
+        "url": "https://freesound.org/people/spookymodem/sounds/202107/",
+        "license": "CC0 1.0",
+        "freesound_id": "202107"
+      }
+    ],
+    "ui_click_wood": [
+      {
+        "author": "GameAudio",
+        "title": "Basic Click Wooden",
+        "url": "https://freesound.org/people/GameAudio/sounds/220200/",
+        "license": "CC0 1.0",
+        "freesound_id": "220200"
+      }
+    ],
+    "ui_confirm_wood": [
+      {
+        "author": "qubodup",
+        "title": "User Interface Elegant Wooden Confirmation Sound",
+        "url": "https://freesound.org/people/qubodup/sounds/822568/",
+        "license": "CC0 1.0",
+        "freesound_id": "822568"
+      }
+    ],
+    "ui_denied_thud": [
+      {
+        "author": "Breviceps",
+        "title": "Wooden Thud (Mono)",
+        "url": "https://freesound.org/people/Breviceps/sounds/449955/",
+        "license": "CC0 1.0",
+        "freesound_id": "449955"
+      }
+    ],
+    "ui_tick": [
+      {
+        "author": "allaskas",
+        "title": "wooden click.wav",
+        "url": "https://freesound.org/people/allaskas/sounds/677298/",
+        "license": "CC0 1.0",
+        "freesound_id": "677298"
+      }
+    ]
+  }
+}
