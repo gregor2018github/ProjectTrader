@@ -13,7 +13,7 @@ from ...config.colors import (
     BEIGE, DARK_BROWN, DARK_GRAY, LIGHT_GRAY, WHEAT, WHITE,
     MUTED_GREEN, MUTED_ORANGE, MUTED_RED, SANDY_BROWN,
 )
-from ...config.constants import FONTS_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
+from ...config.constants import FONTS_PATH, PICTURES_PATH, SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
 
 if TYPE_CHECKING:
@@ -30,6 +30,43 @@ SIDE_PAD = 36
 BAR_HEIGHT = 18
 EMPTY_SLOT = (230, 225, 210)  # the faded placeholder of the license overview
 NEARLY_FULL = 0.75           # fill share from which the capacity bar turns orange
+
+
+# The 30px good icons blur when scaled up, so the slots use the large
+# paintings, their plain background cut away (it is told by the corners'
+# colours, and only what is joined to a corner goes) and loose JPEG specks
+# dropped. Cut once per good and kept for the session.
+LARGE_ICON_FILES = {"Candle": "candles_full.jpg", "Hide": "hides_full.jpeg"}
+BACKGROUND_TOLERANCE = (40, 40, 40, 255)
+MIN_PIECE_SHARE = 0.0005     # parts of the painting smaller than this share of it are specks
+_icons: Dict[str, Optional[pygame.Surface]] = {}
+
+
+def _load_large_icon(good_name: str) -> Optional[pygame.Surface]:
+    """The good's large painting cut out of its background, scaled to ICON_SIZE."""
+    path = os.path.join(PICTURES_PATH, LARGE_ICON_FILES.get(good_name, f"{good_name.lower()}_full.jpeg"))
+    try:
+        img = pygame.image.load(path).convert_alpha()
+    except (pygame.error, FileNotFoundError):
+        return None
+    w, h = img.get_size()
+
+    background = pygame.mask.Mask((w, h))
+    for corner in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
+        similar = pygame.mask.from_threshold(img, img.get_at(corner), BACKGROUND_TOLERANCE)
+        background.draw(similar.connected_component(corner), (0, 0))
+    background.invert()
+    figure = pygame.mask.Mask((w, h))
+    for piece in background.connected_components(minimum=int(w * h * MIN_PIECE_SHARE)):
+        figure.draw(piece, (0, 0))
+    if figure.count() == 0:
+        return None
+
+    rects = figure.get_bounding_rects()
+    cut = figure.to_surface(setsurface=img, unsetcolor=(0, 0, 0, 0)).subsurface(rects[0].unionall(rects[1:]))
+    scale = ICON_SIZE / max(cut.get_size())
+    return pygame.transform.smoothscale(
+        cut, (max(1, round(cut.get_width() * scale)), max(1, round(cut.get_height() * scale))))
 
 
 def open_warehouse_inventory(game_state: 'GameState', warehouse: 'Warehouse') -> None:
@@ -93,7 +130,6 @@ class WarehouseInventory:
                 SLOT_SIZE, SLOT_SIZE,
             ))
 
-        self._icons: Dict[str, Optional[pygame.Surface]] = {}
 
     # ------------------------------------------------------------------
     # Data
@@ -111,12 +147,14 @@ class WarehouseInventory:
         return 0.0
 
     def _icon(self, good_name: str) -> Optional[pygame.Surface]:
-        if good_name not in self._icons:
-            small = self.game_state.game.images['goods_30'].get(good_name)
-            self._icons[good_name] = (
-                pygame.transform.smoothscale(small, (ICON_SIZE, ICON_SIZE)) if small else None
-            )
-        return self._icons[good_name]
+        if good_name not in _icons:
+            _icons[good_name] = _load_large_icon(good_name)
+            if _icons[good_name] is None:
+                small = self.game_state.game.images['goods_30'].get(good_name)
+                _icons[good_name] = (
+                    pygame.transform.smoothscale(small, (ICON_SIZE, ICON_SIZE)) if small else None
+                )
+        return _icons[good_name]
 
     # ------------------------------------------------------------------
     # Input
@@ -253,7 +291,7 @@ class WarehouseInventory:
 
         icon = self._icon(good_name)
         if icon:
-            surf.blit(icon, icon.get_rect(centerx=rect.centerx, top=rect.top + 8))
+            surf.blit(icon, icon.get_rect(center=(rect.centerx, rect.top + 8 + ICON_SIZE // 2)))
         name = self.small_font.render(good_name, True, DARK_BROWN)
         surf.blit(name, name.get_rect(centerx=rect.centerx, bottom=rect.bottom - 6))
 
