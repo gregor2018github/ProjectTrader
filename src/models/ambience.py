@@ -22,7 +22,14 @@ player stands (and when):
   (RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE). The map's water is one
   body, so which is which is read off its shape (split_water): open water
   is the sea, with the bay; narrow water the rivers and streams. The
-  distances are worked out once per tile too (Distance).
+  distances are worked out once per tile too (Distance);
+- the market's crowd, by the distance to the nearest open booth
+  (MARKET_VOLUME_BY_DISTANCE): a booth is open while one of its traders
+  minds it, so the crowd is there by day, thins as the booths pack up, and
+  is gone once the last one is shut.
+
+Every loop glides towards the volume it is given (LOOP_GLIDE_PER_S) rather
+than jumping, as when the nearest booth shuts, and it starts from silence.
 """
 
 import datetime
@@ -33,11 +40,12 @@ import pygame
 
 from ..config.constants import (
     BIRDS_BY_HOUR, CRICKETS_BY_HOUR, CRICKETS_VOLUME, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER,
-    FOREST_RADIUS_TILES, MILL_VOLUME_BY_DISTANCE, RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE,
-    TOWN_FULL_COVER, TOWN_RADIUS_TILES,
+    FOREST_RADIUS_TILES, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RIVER_VOLUME_BY_DISTANCE,
+    SEA_VOLUME_BY_DISTANCE, TOWN_FULL_COVER, TOWN_RADIUS_TILES,
 )
+from .institutions.market import Market
 
-LOOP_FADE_IN_MS = 1500
+LOOP_GLIDE_PER_S = 0.5         # how fast a loop's volume may change, per second (1.0 is all of it)
 AMBIENCE_FIRST_CHANNEL = 1      # channel 0 is the player's footsteps'
 #: Objects on the houses' layer that do not make a place a town: fences, decorations, bare collision boxes, stumps
 NOT_TOWN_BUILDINGS = ('Fence', 'Deco', 'Collision Box', 'Stomp')
@@ -199,35 +207,39 @@ def open_sea(sea: Set[Tuple[int, int]], tiles_wide: int, tiles_high: int) -> Set
 
 
 class AmbientLoop:
-    """One looping sound on a channel of its own, kept going at the volume it is given.
+    """One looping sound on a channel of its own, gliding towards the volume it is given.
 
     The volume is the sound's own, not the channel's: play() resets a
     channel to full volume, and a mixer fade-in (fade_ms) fades towards that
     full volume whatever is set meanwhile, so either would blare for a moment
-    at the start. The sound's volume is set before it plays and stays put; the
-    fade-in is done here, over LOOP_FADE_IN_MS, towards the volume asked for.
+    at the start. The sound's volume is set before it plays; from there it
+    glides, by LOOP_GLIDE_PER_S, from silence to the volume asked for.
     """
 
     def __init__(self, sound: Optional[pygame.mixer.Sound], channel_id: int) -> None:
         self.sound = sound
         self.channel = pygame.mixer.Channel(channel_id)
-        self.started = 0          # pygame ticks when it last began playing
+        self.level = 0.0          # the volume it plays at now
+        self.last_tick = 0        # pygame ticks of the last update
 
     def update(self, volume: float, audible: bool) -> None:
-        """Play on at *volume*; paused while not *audible*. Starts again if something stopped every sound."""
+        """Play on, gliding to *volume*; paused while not *audible*. Starts again if something stopped every sound."""
         if not self.sound:
             return
+        now = pygame.time.get_ticks()
+        elapsed = (now - self.last_tick) / 1000
+        self.last_tick = now
         if not audible:
             self.channel.pause()
             return
-        now = pygame.time.get_ticks()
         if self.channel.get_sound() is not self.sound:
+            self.level = 0.0
             self.sound.set_volume(0.0)
             self.channel.play(self.sound, loops=-1)
             self.channel.set_volume(1.0)
-            self.started = now
-        fade_in = min(1.0, (now - self.started) / LOOP_FADE_IN_MS)
-        self.sound.set_volume(volume * fade_in)
+        step = LOOP_GLIDE_PER_S * min(elapsed, 0.25)   # a long gap (loading, paused) is no excuse to jump
+        self.level = min(volume, self.level + step) if volume > self.level else max(volume, self.level - step)
+        self.sound.set_volume(self.level)
         self.channel.unpause()
 
     def stop(self) -> None:
@@ -241,7 +253,7 @@ class Ambience:
     cover and the distances to the water are worked out.
     """
 
-    CHANNELS = 5
+    CHANNELS = 6
 
     def __init__(self, sounds: dict, first_channel: int, tmx_map) -> None:
         self.mill = AmbientLoop(sounds.get('amb_mill_interior_loop'), first_channel)
@@ -249,6 +261,8 @@ class Ambience:
         self.crickets = AmbientLoop(sounds.get('amb_crickets_night_loop'), first_channel + 2)
         self.river = AmbientLoop(sounds.get('amb_river_loop'), first_channel + 3)
         self.sea = AmbientLoop(sounds.get('amb_sea_waves_loop'), first_channel + 4)
+        self.market = AmbientLoop(sounds.get('amb_market_dense_loop'), first_channel + 5)
+        self.booths = [house for house in tmx_map.houses if isinstance(house, Market)]
         ts = tmx_map.tile_size
         size = (ts, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
         stems = [(tree.x + tree.stem_position * ts, tree.y) for tree in tmx_map.trees]
@@ -290,6 +304,13 @@ class Ambience:
         self.river.update(by_steps(RIVER_VOLUME_BY_DISTANCE, self.to_river.at(px, py)), audible)
         self.sea.update(by_steps(SEA_VOLUME_BY_DISTANCE, self.to_sea.at(px, py)), audible)
 
+        # Only booths in earshot are asked whether they are open
+        earshot = MARKET_VOLUME_BY_DISTANCE[-1][0] * tmx_map.tile_size
+        booths = ((distance_to_rect(px, py, booth.collision_rect), booth) for booth in self.booths)
+        open_near = [d for d, booth in booths if d < earshot and not booth.is_closed_at(date)]
+        market = by_steps(MARKET_VOLUME_BY_DISTANCE, min(open_near) / tmx_map.tile_size) if open_near else 0.0
+        self.market.update(market, audible)
+
     def stop(self) -> None:
-        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea):
+        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, self.market):
             loop.stop()

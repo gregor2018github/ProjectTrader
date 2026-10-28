@@ -169,6 +169,9 @@ CRICKETS_BY_HOUR = ((4.5, 1.0), (6.0, 0.0), (19.5, 0.0), (21.0, 1.0))
 # in tiles from the water tile's centre (so about 1 standing on the bank), blended linearly; silent beyond the last
 RIVER_VOLUME_BY_DISTANCE = ((1, 0.35), (3, 0.25), (6, 0.12), (10, 0.04), (14, 0.0))
 SEA_VOLUME_BY_DISTANCE = ((1, 0.5), (4, 0.4), (8, 0.22), (14, 0.08), (20, 0.0))
+# Volume of the market crowd (1.0 is 100%) by distance from the nearest open booth's walls, in tiles,
+# blended linearly; silent beyond the last, and once every booth near is shut
+MARKET_VOLUME_BY_DISTANCE = ((0, 0.4), (3, 0.32), (8, 0.15), (14, 0.05), (20, 0.0))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map
