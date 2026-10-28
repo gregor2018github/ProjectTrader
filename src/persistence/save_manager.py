@@ -544,6 +544,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         if g.name not in saved_goods:
             g.simulate_history(hours, days)
     depot.add_missing_goods([g.name for g in goods])
+    depot.settle_storage()
 
     good_by_name = {g.name: g for g in goods}
     for gd in data["goods"]:

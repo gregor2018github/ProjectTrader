@@ -92,7 +92,7 @@ That parchment is `src/ui/paper.py`'s `draw_paper()`, shared with the loading sc
 
 ### Trading System
 
-`Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility. How prices are calculated, and where each part of that lives, is in `docs/pricing.md`: update it when the price model changes.
+`Depot` (src/models/depot.py) manages money, `good_stock` (Dict[str, int]), and FIFO `purchase_history` for profit tracking. Trading licenses are required per good — they expire after a duration and are tracked per good name. `good_stock` is the total; each owned warehouse keeps its own share in its `properties["warehouses"]` entry (`"stock"`, at most its `buy_storage`), the rest lying in the starting storage, which is no building. `buy` fills the starting storage first, then the warehouses in the order bought; `sell` empties the newest warehouse first; `settle_storage()` reconciles them after loading. An owned warehouse's house menu has "Manage Inventory", which opens `WarehouseInventory` (`src/ui/helper_modules/warehouse_inventory.py`). The `Good` model (src/models/good.py) tracks current price, market quantity, hourly/daily price history, and chart visibility. How prices are calculated, and where each part of that lives, is in `docs/pricing.md`: update it when the price model changes.
 
 ### Key Directories
 

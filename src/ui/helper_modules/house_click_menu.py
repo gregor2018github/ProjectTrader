@@ -314,6 +314,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if isinstance(house, Warehouse) and not house.is_owned:
         options.insert(0, "Buy Building")
 
+    if isinstance(house, Warehouse) and house.is_owned:
+        options.insert(0, "Manage Inventory")
+
     if not options:
         return
 
@@ -339,6 +342,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Buy Building" and isinstance(house, Warehouse) and not house.is_owned:
             from .buy_building_dialog import open_buy_building_dialog
             open_buy_building_dialog(game_state, house)
+            return
+
+        if option_text == "Manage Inventory" and isinstance(house, Warehouse) and house.is_owned:
+            from .warehouse_inventory import open_warehouse_inventory
+            open_warehouse_inventory(game_state, house)
             return
 
         if option_text == "Throw Coin" and isinstance(house, Well):

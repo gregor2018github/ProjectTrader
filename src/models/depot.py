@@ -236,6 +236,7 @@ class Depot:
             return False
 
         self.money -= (total_cost + self.transaction_cost)
+        self._store_goods(good.name, quantity_to_buy)
         self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
         self.expenditures += (total_cost + self.transaction_cost)
         self.transaction_expenditures += self.transaction_cost
@@ -302,6 +303,7 @@ class Depot:
             return False
 
         self.money += net
+        self._take_goods(good.name, quantity_to_sell)
         self.good_stock[good.name] -= quantity_to_sell
         self.income += total_revenue
         self.expenditures += self.transaction_cost
@@ -698,6 +700,7 @@ class Depot:
             "name": warehouse.name,
             "buy_price": warehouse.buy_price,
             "buy_storage": warehouse.buy_storage,
+            "stock": {},
         })
         self.stats.properties_bought += 1
         on_money_spent(game_state, warehouse.buy_price)
@@ -706,6 +709,104 @@ class Depot:
             f"Purchased {warehouse.display_name or warehouse.name} for {warehouse.buy_price:,}g (+{warehouse.buy_storage} storage)"
         )
         return True
+
+    # WAREHOUSE STOCK
+    # good_stock is the total of everything the player holds. Of that, each
+    # owned warehouse keeps its own share in its properties entry ("stock",
+    # at most its buy_storage units); the rest lies in the starting storage,
+    # which belongs to no building. Purchases fill the starting storage
+    # first, then the warehouses in the order bought; sales empty the newest
+    # warehouse first and the starting storage last.
+
+    def _owned_warehouses(self) -> List[Dict[str, Any]]:
+        """The owned warehouses' entries, in the order they were bought."""
+        entries = [e for e in self.properties.get("warehouses", []) if isinstance(e, dict)]
+        for entry in entries:
+            entry.setdefault("stock", {})
+        return entries
+
+    def warehouse_entry(self, tmx_id: int) -> Optional[Dict[str, Any]]:
+        """The properties entry of the owned warehouse with this Tiled id, if any."""
+        for entry in self._owned_warehouses():
+            if entry.get("tmx_id") == tmx_id:
+                return entry
+        return None
+
+    def warehouse_stock(self, tmx_id: int) -> Dict[str, int]:
+        """The goods stored in the owned warehouse with this Tiled id."""
+        entry = self.warehouse_entry(tmx_id)
+        return dict(entry["stock"]) if entry else {}
+
+    def starting_storage_capacity(self) -> int:
+        """How many units the starting storage holds: all capacity no warehouse brings."""
+        return self.storage_capacity - sum(e.get("buy_storage", 0) for e in self._owned_warehouses())
+
+    def _starting_storage_total(self) -> int:
+        in_warehouses = sum(sum(e["stock"].values()) for e in self._owned_warehouses())
+        return sum(self.good_stock.values()) - in_warehouses
+
+    def _store_goods(self, good_name: str, quantity: int) -> None:
+        """Put bought goods away; call before adding them to good_stock."""
+        free = max(0, self.starting_storage_capacity() - self._starting_storage_total())
+        quantity -= min(quantity, free)
+        for entry in self._owned_warehouses():
+            if quantity <= 0:
+                break
+            stock = entry["stock"]
+            put = min(quantity, max(0, entry.get("buy_storage", 0) - sum(stock.values())))
+            if put > 0:
+                stock[good_name] = stock.get(good_name, 0) + put
+                quantity -= put
+        # Anything left (only if capacity was not checked) stays in the starting storage
+
+    def _take_goods(self, good_name: str, quantity: int) -> None:
+        """Fetch sold goods, newest warehouse first; the rest comes from the starting storage."""
+        for entry in reversed(self._owned_warehouses()):
+            if quantity <= 0:
+                break
+            stock = entry["stock"]
+            take = min(quantity, stock.get(good_name, 0))
+            if take > 0:
+                stock[good_name] -= take
+                if stock[good_name] == 0:
+                    del stock[good_name]
+                quantity -= take
+
+    def settle_storage(self) -> None:
+        """Make the warehouses' stock agree with good_stock after loading a save.
+
+        A warehouse never holds more of a good than the player has, and
+        saves made before goods were kept per warehouse have all of them in
+        the starting storage: what overflows it is moved into the warehouses
+        as purchases would have filled them.
+        """
+        entries = self._owned_warehouses()
+        for good_name in {g for e in entries for g in e["stock"]}:
+            excess = sum(e["stock"].get(good_name, 0) for e in entries) - self.good_stock.get(good_name, 0)
+            if excess > 0:
+                self._take_goods(good_name, excess)
+
+        overflow = self._starting_storage_total() - self.starting_storage_capacity()
+        if overflow <= 0:
+            return
+        in_starting = dict(self.good_stock)
+        for entry in entries:
+            for good_name, qty in entry["stock"].items():
+                in_starting[good_name] -= qty
+        for good_name in sorted(in_starting, key=in_starting.get, reverse=True):
+            if overflow <= 0:
+                break
+            moving = min(overflow, in_starting[good_name])
+            if moving <= 0:
+                continue
+            # _store_goods would put them back in the full starting storage first
+            for entry in entries:
+                stock = entry["stock"]
+                put = min(moving, max(0, entry.get("buy_storage", 0) - sum(stock.values())))
+                if put > 0:
+                    stock[good_name] = stock.get(good_name, 0) + put
+                    moving -= put
+                    overflow -= put
 
     def take_loan(self, original_amount: float, daily_principal: float,
                   daily_interest: float, settlement_principal: float,
