@@ -27,7 +27,7 @@ from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MILL_VOLUME, MILL_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -143,7 +143,9 @@ class Game:
         self.church_bell_audible: bool = False  # True once the bell has been heard
         self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
         self.door_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('door_')]
-        
+        self.mill_sound: Optional[pygame.mixer.Sound] = self.sounds.get('amb_mill_interior_loop')
+        self.mill_channel: pygame.mixer.Channel = pygame.mixer.Channel(1)  # reserved, see init_pygame()
+
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
         
@@ -216,9 +218,10 @@ class Game:
         """
         pygame.init()
         pygame.mixer.init()
-        # Reserve channel 0 exclusively for footstep sounds so that
-        # Sound.play() calls (e.g. knock, church bell) can never steal it.
-        pygame.mixer.set_reserved(1)
+        # Reserve channel 0 exclusively for footstep sounds and channel 1 for
+        # the mill's loop, so that Sound.play() calls (e.g. knock, church
+        # bell) can never steal them.
+        pygame.mixer.set_reserved(2)
 
     def fade_in_from(self, cover: pygame.Surface) -> None:
         """Have the first frames of run() fade in from *cover*, e.g. the loading screen."""
@@ -426,6 +429,35 @@ class Game:
             if channel:
                 channel.set_volume(DOOR_VOLUME * (1.0 - dist / DOOR_SOUND_MAX_DISTANCE))
                 channel.play(random.choice(self.door_sounds))
+
+    def _update_mill_sound(self, audible: bool) -> None:
+        """Keep the mill's gear loop going, louder the nearer the player is to the mill.
+
+        Measured from the mill's walls rather than its middle, so it sounds the
+        same all the way round; it falls off with the square of the distance and
+        is silent beyond MILL_SOUND_MAX_DISTANCE. Paused while *audible* is
+        False (map hidden or game paused), and started again if something
+        stopped every sound (a dialogue does).
+        """
+        mills = self.game_map.tmx_map.mills
+        if not self.mill_sound or not mills:
+            return
+        if not audible:
+            self.mill_channel.pause()
+            return
+        player = self.game_map.map_player
+        px = player.x + player.width / 2
+        py = player.y + player.height / 2
+        dist = min(
+            ((max(m.collision_rect.left - px, 0, px - m.collision_rect.right)) ** 2
+             + (max(m.collision_rect.top - py, 0, py - m.collision_rect.bottom)) ** 2) ** 0.5
+            for m in mills
+        )
+        nearness = max(0.0, 1.0 - dist / MILL_SOUND_MAX_DISTANCE)
+        if self.mill_channel.get_sound() is not self.mill_sound:
+            self.mill_channel.play(self.mill_sound, loops=-1, fade_ms=1500)
+        self.mill_channel.unpause()
+        self.mill_channel.set_volume(MILL_VOLUME * nearness ** 2)
 
     def play_sound(self, sound_name: str) -> Optional[pygame.mixer.Channel]:
         """Play a sound effect by name.
@@ -641,7 +673,8 @@ class Game:
                     self._update_player_market_area()
                 else:
                     self.game_map.map_player.stop_footstep_sound()
-                
+                self._update_mill_sound(is_map_visible and self.state.time_level > 1)
+
                 # Update church bell volume if it's playing
                 if self.church_bell_channel and self.church_bell_channel.get_sound() is self.church_bell_sound:
                     if self.state.time_level == 1:
@@ -844,6 +877,7 @@ class Game:
                 pygame.display.update()
         except KeyboardInterrupt:
             pass
+        self.mill_channel.stop()
 
         if getattr(self.state, 'return_to_main_menu', False):
             return "main_menu"

@@ -150,6 +150,8 @@ WELL_WISH_SHOCK_FACTOR = 0.4          # Price shock magnitude from a well wish (
 WELL_WISH_DURATION_DAYS = 5           # Number of days the well price shock lasts
 SHEEP_SOUND_MAX_DISTANCE = 900.0     # World pixels beyond which sheep are completely silent
 DOOR_SOUND_MAX_DISTANCE = 700.0      # World pixels beyond which NPC doors are completely silent
+MILL_VOLUME = 0.25                    # Volume of the mill's gear loop right beside the mill (1.0 is 100%)
+MILL_SOUND_MAX_DISTANCE = 640.0       # World pixels from the mill's walls beyond which it is silent
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map
