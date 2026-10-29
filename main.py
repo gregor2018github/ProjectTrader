@@ -1,4 +1,17 @@
 import os
+import sys
+import traceback
+
+# Many asset paths are relative ('assets/...'), so start from the game's own
+# folder: next to main.py, or in the release build (MerchantsRise.exe, see
+# build_tools/Release) the _internal folder PyInstaller unpacked it all into
+FROZEN = getattr(sys, "frozen", False)
+os.chdir(sys._MEIPASS if FROZEN else os.path.dirname(os.path.abspath(__file__)))
+
+# Set by build_tools/Release to the seconds to play: skips the main menu,
+# starts a new game, quits after that long and exits 1 on any error
+SMOKE_TEST_SECONDS = os.environ.get("MERCHANTS_RISE_SMOKE_TEST")
+
 # Smooth GPU scaling in fullscreen (pygame's SCALED would pick "nearest"),
 # matching the smoothscale used for the smaller windowed resolutions
 os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
@@ -164,8 +177,11 @@ def main() -> None:
     while True:
         _setup_display()
 
-        menu = MainMenu()
-        choice, save_data = menu.run()
+        if SMOKE_TEST_SECONDS:
+            choice, save_data = "new_game", None
+        else:
+            menu = MainMenu()
+            choice, save_data = menu.run()
 
         if choice == "exit":
             break
@@ -182,13 +198,27 @@ def main() -> None:
             screen, work=lambda: Game(save_data=save_data, screen=screen), duration=1.5)
         game.fade_in_from(last_frame)
 
+        if SMOKE_TEST_SECONDS:
+            pygame.time.set_timer(pygame.QUIT, int(float(SMOKE_TEST_SECONDS) * 1000), loops=1)
+
         result = game.run()
 
-        if result != "main_menu":
+        if result != "main_menu" or SMOKE_TEST_SECONDS:
             break
 
     pygame.quit()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception:
+        if not FROZEN:
+            raise
+        # The exe has no console: leave the error next to it for whoever runs it
+        crash_log = os.path.join(os.path.dirname(sys.executable), "crash.log")
+        with open(crash_log, "w", encoding="utf-8") as f:
+            traceback.print_exc(file=f)
+        if SMOKE_TEST_SECONDS:
+            sys.exit(1)
+        raise

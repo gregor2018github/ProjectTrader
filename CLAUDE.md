@@ -14,6 +14,14 @@ python main.py
 
 Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no build steps.
 
+## Release (Windows exe)
+
+```bash
+py build_tools/Release/build_release.py 0.1.0   # writes release/MerchantsRise-0.1.0-windows.zip
+```
+
+A PyInstaller one-folder build (`MerchantsRise.exe` + `_internal/`, own Python, no console) that needs nothing installed, built in its own venv (`build_tools/Release/.venv`) from the git-tracked assets minus what the game never loads (`.xcf`, sketches, raw sounds). Before zipping it runs the exe with `MERCHANTS_RISE_SMOKE_TEST` (handled in `main.py`: straight into a new game, quits after that many seconds, exits 1 on an error). In the exe, `main.py` changes to `_internal/` (where assets, saves and `settings.json` live) and writes a `crash.log` next to the exe on an unhandled error. Pushing a tag `v0.1.0` runs `.github/workflows/release.yml`, which builds the same zip and publishes it as a GitHub release. When the game starts loading a new kind of file or folder, check that the exclusions in `build_release.py` don't drop it; the smoke test only catches what a new game loads in its first seconds.
+
 ## Tests
 
 ```bash

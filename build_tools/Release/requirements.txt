@@ -1,0 +1,4 @@
+# The build venv (build_tools/Release/.venv): the game's packages plus what builds the exe
+-r ../../requirements.txt
+pyinstaller==6.22.3
+pillow==13.0.0  # only for PyInstaller to turn Icon.png into an .ico; not bundled

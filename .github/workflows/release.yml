@@ -1,0 +1,35 @@
+# Push a tag like v0.1.0 to publish MerchantsRise-0.1.0-windows.zip
+# (MerchantsRise.exe, needs nothing installed) as a GitHub release.
+# build_tools/Release/build_release.py does the work; see its docstring.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Build and publish the Windows zip
+    # PyInstaller builds only for the OS it runs on.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          # MerchantsRise.exe bundles this interpreter (the home PC's version).
+          python-version: "3.13"
+      - name: Build (and smoke-test MerchantsRise.exe)
+        run: python build_tools/Release/build_release.py "${GITHUB_REF_NAME#v}"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release/MerchantsRise-*-windows.zip \
+            --title "Merchant's Rise ${GITHUB_REF_NAME#v}" \
+            --notes "Download MerchantsRise-${GITHUB_REF_NAME#v}-windows.zip, extract it and double-click MerchantsRise.exe. Nothing needs to be installed. If Windows says it protected your PC, click More info, then Run anyway. To update, extract over your old folder: your saves are kept."
