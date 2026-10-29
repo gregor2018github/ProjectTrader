@@ -85,6 +85,11 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
     # Handle function keys
     elif event.key in [pygame.K_F1, pygame.K_F2, pygame.K_F3, pygame.K_F4, pygame.K_F5, pygame.K_F6]:
         _handle_function_key(event.key, game_state, goods, depot)
+    # The player's inventory (it closes itself on I again)
+    elif event.key == pygame.K_i:
+        if not game_state.info_window:
+            from ..ui.helper_modules.player_inventory import open_player_inventory
+            open_player_inventory(game_state)
     # View-mode hotkeys — same effect as clicking a pictogram's main (full-view) button
     elif event.key in _VIEW_MODE_KEYS:
         set_view_fullscreen(game_state, _VIEW_MODE_KEYS[event.key])

@@ -76,6 +76,8 @@ INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
 SLOT_SIZE = 20                      # units of one good a storage slot holds, unless a warehouse's Buy_slot_size says otherwise
 STARTING_STORAGE_SLOTS = 5          # slots of the starting storage, which is no building
 INITIAL_STORAGE_CAPACITY = STARTING_STORAGE_SLOTS * SLOT_SIZE  # how many items the player can store at the start
+PACK_SLOTS = 10                     # slots of the pack the player carries goods in
+PACK_SLOT_SIZE = 1                  # units of one good a pack slot holds: what the player carries by hand
 
 # TRADING LICENSE CONSTANTS
 # Each entry: (good_name, duration_in_months)

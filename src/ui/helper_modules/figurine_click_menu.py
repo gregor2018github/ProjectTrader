@@ -183,6 +183,8 @@ def show_figurine_menu(
     from ...models.figurines.humans.npcs.npc import NPC
 
     options: List[str] = []
+    if figurine is game_state.game.game_map.map_player:
+        options.append("Inventory")
     if isinstance(figurine, NPC):
         options.append("Chat")
         # Only the town's poor are offered a coin; the rest would take it ill
@@ -198,6 +200,10 @@ def show_figurine_menu(
         return False
 
     def menu_callback(option_text: str) -> None:
+        if option_text == "Inventory":
+            from .player_inventory import open_player_inventory
+            open_player_inventory(game_state)
+            return
         if option_text == "Inspect":
             from .info_window import InfoWindow
             lines = figurine.inspect_lines(observer=game_state.game.game_map.map_player)

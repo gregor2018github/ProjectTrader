@@ -1,6 +1,8 @@
 import datetime
 from typing import Dict, List, Optional, Any, Tuple
-from ..config.constants import ALMS_CATEGORY, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS
+from ..config.constants import (
+    ALMS_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS,
+)
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
 
@@ -27,6 +29,7 @@ class Depot:
         self.storage_capacity: int = storage_capacity   # maximum storage capacity
         self.warehouse_count: int = 1                   # number of warehouses owned (by default 1)
         self.starting_slots: List[Dict[str, Any]] = self.empty_slots(STARTING_STORAGE_SLOTS)  # see STORAGE SLOTS
+        self.pack_slots: List[Dict[str, Any]] = self.empty_slots(PACK_SLOTS)  # what the player carries
         self.good_stock: Dict[str, int] = {             # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
@@ -233,7 +236,8 @@ class Depot:
 
         room = self.room_for(good.name)
         if quantity_to_buy > room:
-            if sum(self.good_stock.values()) + quantity_to_buy <= self.storage_capacity:
+            in_storage = sum(self.good_stock.values()) - self.pack_total()
+            if in_storage + quantity_to_buy <= self.storage_capacity:
                 game_state.show_warning(
                     f"No room for {quantity_to_buy} {good.name}: each slot holds one good only, "
                     f"and only {room} more {good.name} fit.")
@@ -727,6 +731,11 @@ class Depot:
     # the good first, then take empty ones, the starting storage's before the
     # warehouses' in the order bought; sales empty the newest warehouse first,
     # its least filled slots of the good first.
+    #
+    # The player's pack (pack_slots, PACK_SLOTS of PACK_SLOT_SIZE) is slots
+    # too, its goods part of good_stock like any others. Purchases never go
+    # into it: goods are only carried from a warehouse and back
+    # (carry_from_warehouse, store_in_warehouse), and sales take from it last.
 
     @staticmethod
     def empty_slots(count: int) -> List[Dict[str, Any]]:
@@ -754,8 +763,16 @@ class Depot:
         storages += [(e["slots"], e["slot_size"]) for e in self._owned_warehouses() if "slots" in e]
         return storages
 
+    def total_capacity(self) -> int:
+        """Every unit the player can hold: the storages' and the pack's."""
+        return self.storage_capacity + len(self.pack_slots) * PACK_SLOT_SIZE
+
+    def pack_total(self) -> int:
+        """How many units the player carries."""
+        return sum(slot["qty"] for slot in self.pack_slots if slot["good"] is not None)
+
     def room_for(self, good_name: str) -> int:
-        """How many more units of a good fit: the rest of its slots and all empty ones."""
+        """How many more units of a good a purchase can store: the rest of its slots and all empty ones."""
         return sum(
             max(0, size - slot["qty"])
             for slots, size in self._storages()
@@ -764,8 +781,12 @@ class Depot:
         )
 
     def _store_goods(self, good_name: str, quantity: int) -> int:
-        """Put goods in slots; returns how many did not fit."""
-        storages = self._storages()
+        """Put bought goods in the storages' slots; returns how many did not fit."""
+        return self._fill(self._storages(), good_name, quantity)
+
+    @staticmethod
+    def _fill(storages: List[Tuple[List[Dict[str, Any]], int]], good_name: str, quantity: int) -> int:
+        """Top up these slots holding the good, then take empty ones; returns how many did not fit."""
         for slots, size in storages:
             for slot in slots:
                 if quantity > 0 and slot["good"] == good_name:
@@ -781,8 +802,8 @@ class Depot:
         return quantity
 
     def _take_goods(self, good_name: str, quantity: int) -> None:
-        """Take goods out of their slots, newest warehouse and least filled slot first."""
-        for slots, _ in reversed(self._storages()):
+        """Take goods out of their slots, newest warehouse and least filled slot first, the pack last."""
+        for slots, _ in list(reversed(self._storages())) + [(self.pack_slots, PACK_SLOT_SIZE)]:
             for slot in sorted((s for s in slots if s["good"] == good_name), key=lambda s: s["qty"]):
                 if quantity <= 0:
                     break
@@ -795,6 +816,35 @@ class Depot:
         extra = self.starting_slots[STARTING_STORAGE_SLOTS:]
         self.starting_slots[STARTING_STORAGE_SLOTS:] = [s for s in extra if s["good"] is not None]
 
+    def _move(self, source: List[Dict[str, Any]], index: int,
+              target: List[Dict[str, Any]], target_size: int, quantity: int) -> int:
+        """Move up to quantity of one slot's good into other slots; returns how many moved."""
+        if not 0 <= index < len(source):
+            return 0
+        slot = source[index]
+        if slot["good"] is None or quantity <= 0:
+            return 0
+        quantity = min(quantity, slot["qty"])
+        moved = quantity - self._fill([(target, target_size)], slot["good"], quantity)
+        slot["qty"] -= moved
+        if slot["qty"] <= 0:
+            slot["good"], slot["qty"] = None, 0
+        return moved
+
+    def carry_from_warehouse(self, tmx_id: int, slot_index: int, quantity: int) -> int:
+        """Put up to quantity of a warehouse slot's good into the pack; returns how many moved."""
+        entry = self.warehouse_entry(tmx_id)
+        if entry is None:
+            return 0
+        return self._move(entry["slots"], slot_index, self.pack_slots, PACK_SLOT_SIZE, quantity)
+
+    def store_in_warehouse(self, tmx_id: int, pack_index: int, quantity: int) -> int:
+        """Put up to quantity of a pack slot's good into a warehouse; returns how many moved."""
+        entry = self.warehouse_entry(tmx_id)
+        if entry is None:
+            return 0
+        return self._move(self.pack_slots, pack_index, entry["slots"], entry["slot_size"], quantity)
+
     def settle_storage(self, warehouse_layouts: Dict[int, Tuple[int, int]]) -> None:
         """Make the slots agree with good_stock after loading a save.
 
@@ -805,7 +855,8 @@ class Depot:
         Should the slots not hold exactly good_stock (a save from before slots,
         or one edited by hand), everything is packed into them again, the
         largest stocks first; what does not fit gets extra slots in the
-        starting storage, which go once they are emptied.
+        starting storage, which go once they are emptied. The pack keeps what
+        it carries, unless that is more than the player has.
         """
         for entry in self._owned_warehouses():
             if "slots" not in entry:
@@ -815,20 +866,35 @@ class Depot:
             entry.pop("stock", None)
         if len(self.starting_slots) < STARTING_STORAGE_SLOTS:
             self.starting_slots += self.empty_slots(STARTING_STORAGE_SLOTS - len(self.starting_slots))
+        if len(self.pack_slots) < PACK_SLOTS:
+            self.pack_slots += self.empty_slots(PACK_SLOTS - len(self.pack_slots))
+        for slot in self.pack_slots:
+            # A pack slot from when they held more: the rest goes back into storage below
+            slot["qty"] = min(slot["qty"], PACK_SLOT_SIZE)
 
         held: Dict[str, int] = {}
-        for slots, _ in self._storages():
+        for slots, _ in self._storages() + [(self.pack_slots, PACK_SLOT_SIZE)]:
             for slot in slots:
                 if slot["good"] is not None:
                     held[slot["good"]] = held.get(slot["good"], 0) + slot["qty"]
         if held == {g: q for g, q in self.good_stock.items() if q > 0}:
             return
 
+        carried: Dict[str, int] = {}
+        for slot in sorted(self.pack_slots, key=lambda s: -s["qty"]):
+            if slot["good"] is not None:
+                slot["qty"] = max(0, min(slot["qty"], self.good_stock.get(slot["good"], 0) - carried.get(slot["good"], 0)))
+                if slot["qty"] == 0:
+                    slot["good"] = None
+                else:
+                    carried[slot["good"]] = carried.get(slot["good"], 0) + slot["qty"]
+
         for slots, _ in self._storages():
             for slot in slots:
                 slot["good"], slot["qty"] = None, 0
         del self.starting_slots[STARTING_STORAGE_SLOTS:]
-        for good_name, quantity in sorted(self.good_stock.items(), key=lambda item: -item[1]):
+        stored = {g: q - carried.get(g, 0) for g, q in self.good_stock.items()}
+        for good_name, quantity in sorted(stored.items(), key=lambda item: -item[1]):
             left = self._store_goods(good_name, quantity) if quantity > 0 else 0
             while left > 0:
                 put = min(left, SLOT_SIZE)

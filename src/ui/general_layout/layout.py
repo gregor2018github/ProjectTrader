@@ -300,7 +300,7 @@ def _draw_top_bar(
     # Total Stock counter
     screen.blit(stock_30, (1330, 30))
     total_stock = sum(main_depot.good_stock.values())
-    stock_text = main_font.render(f"Total Stock: {total_stock} / {main_depot.storage_capacity}", True, BLACK)
+    stock_text = main_font.render(f"Total Stock: {total_stock} / {main_depot.total_capacity()}", True, BLACK)
     screen.blit(stock_text, (1365, 35))
     total_stock_rect = pygame.Rect(1330, 29, 30 + stock_text.get_width(), 31)
 

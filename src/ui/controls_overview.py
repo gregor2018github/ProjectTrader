@@ -58,10 +58,15 @@ RIGHT_COLUMN: List[Section] = [
         ([["Release"]], "Swing the axe"),
         ([["Esc"]], "Leave"),
     ]),
+    ("Inventory", [
+        ([["I"]], "What you carry, open / close"),
+        ([["Left click"]], "Warehouse: carry goods and back"),
+        ([["Right click"]], "Move one unit of it"),
+    ]),
 ]
 
 _PANEL_W = 1100
-_PANEL_H = 760
+_PANEL_H = 840
 _ROW_H = 28
 _SECTION_GAP = 14
 _KEY_COLUMN_W = 190
