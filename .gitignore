@@ -52,6 +52,7 @@ nosetests.xml
 coverage.xml
 *.cover
 .hypothesis/
+.pytest_cache/
 
 # Save games: only the first three slots are part of the repo; any further
 # slots (arbitrarily many, created in-game) stay local.

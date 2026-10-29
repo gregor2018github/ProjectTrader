@@ -12,7 +12,16 @@ pip install -r requirements.txt
 python main.py
 ```
 
-Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no tests or build steps.
+Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no build steps.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt   # adds pytest
+python -m pytest
+```
+
+Tests live in `tests/`, mirroring `src/`, and run headless. So far only the `Depot` is covered (`tests/models/test_depot_*.py`). `docs/testing.md` has the plan: how each layer of the code is tested, the rules (pin the constants a test relies on, no randomness, `FakeGameState` from `tests/fakes.py` instead of the real one) and which areas come next. When you change depot behaviour, run the tests and update them.
 
 ## Architecture Overview
 
