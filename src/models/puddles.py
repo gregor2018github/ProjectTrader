@@ -56,13 +56,13 @@ PLACE_ATTEMPTS_PER_TICK = 600   # spots tried per update while placing
 TRIES_PER_PUDDLE = 6       # spots tried for each puddle wanted, most near something they must keep clear of
 CHUNK_TILES = 8            # puddles are filed in squares of this many tiles, to find those in view
 
-WATER_MULTIPLY = (132, 146, 166)     # the ground is multiplied by this, so it shows through: darker and cooler
-SKY_COLOUR = (172, 188, 210, 70)     # the overcast sky mirrored in it, laid over
-RIM_COLOUR = (214, 228, 242, 170)    # the thin pale edge of the water, catching the light...
+WATER_MULTIPLY = (160, 172, 190)     # the ground is multiplied by this, so it shows through: darker and cooler
+SKY_COLOUR = (172, 188, 210, 48)     # the overcast sky mirrored in it, laid evenly over the whole water
+RIM_COLOUR = (214, 228, 242, 140)    # the thin pale edge of the water, catching the light...
 RIM_FAR_SHARE = 0.35                 # ...on its near side; on the far side only this much of it
 GLINT_COLOUR = (232, 240, 248, 150)  # a thin glint of light on its far side
 REFLECTION_TINT = (222, 234, 248)    # what stands over a puddle, mirrored in it: cooled by this...
-REFLECTION_ALPHA = 150               # ...and this see-through (255 is a perfect mirror)
+REFLECTION_ALPHA = 115               # ...and this see-through (255 is a perfect mirror)
 
 
 class Puddle:
@@ -175,8 +175,8 @@ def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface
     multiply = pygame.Surface((w, h))
     multiply.fill((255, 255, 255))
     lobes(WATER_MULTIPLY, target=multiply)
-    # The sky: the shape smaller and a little further up; under the reflections
-    sky = lobes(SKY_COLOUR, shrink=0.65, lift=0.12 * puddle.height * px)
+    # The sky, under the reflections: evenly over all the water, so its edge is no darker than its middle
+    sky = lobes(SKY_COLOUR)
     # The rim: one pixel of the art round the water (the shape grown less the shape),
     # catching the light on the near side and fading out towards the far one
     rim = lobes(RIM_COLOUR, grow=pixel)
