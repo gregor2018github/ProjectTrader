@@ -1,7 +1,7 @@
 """The weather: spells of clear sky, cloud and rain, one after another, in game time.
 
-Each spell is a kind out of WEATHER_SPELLS (clear, overcast, drizzle, rain,
-downpour) lasting a few game hours, after which the next is drawn from its
+Each spell is a kind out of WEATHER_SPELLS (clear, overcast, and a shower:
+drizzle, rain, downpour, clearing) lasting some game hours, after which the next is drawn from its
 "next" weights. The kinds only say where the weather is heading: what the map
 shows and plays - how hard it rains (`rain`), how overcast it is (`clouds`)
 and how the wind slants the drops (`wind`) - glides there at

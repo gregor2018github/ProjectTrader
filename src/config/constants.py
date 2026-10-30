@@ -43,8 +43,11 @@ MARKET_OPEN_WINDOW = (4.75, 6.75)   # Traders set off for their stalls between 0
 # Townsfolk stroll from one front door on the Tiled "Doors" layer to another.
 # The town tops the streets back up whenever fewer than this many are out;
 # anyone already walking when night falls still finishes their way home.
-STROLLERS_BY_DAY = 5                # People out on the streets during the day
-STROLLERS_BY_NIGHT = 2              # People out on the streets at night
+STROLLERS_BY_DAY = 9                # People out on the streets during the day...
+STROLLERS_BY_NIGHT = 3              # ...and at night,
+STROLLERS_IN_RAIN_BY_DAY = 5        # and as many while it rains (no new ones go out till fewer are)
+STROLLERS_IN_RAIN_BY_NIGHT = 2
+STROLL_RAIN_FROM = 0.15             # Rain this hard (Weather.rain, 0 to 1) keeps people in; a passing sprinkle does not
 STROLL_NIGHT_START_HOUR = 21.0      # From 21:00 the streets thin out
 STROLL_NIGHT_END_HOUR = 6.0         # From 06:00 they fill up again
 STROLL_RELEASE_SECONDS_MIN = 1.0    # Shortest real-time gap between two people stepping out
@@ -210,19 +213,23 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
 # The spells the weather goes through: how hard it rains (0 to 1), how overcast it is (0 to 1),
 # how much the wind slants the rain (sideways per unit fallen), how long a spell lasts
-# (shortest, longest hours) and the weights of what comes after it. Rain only ever comes
-# out of an overcast sky, and a downpour only out of rain.
+# (shortest, longest hours) and the weights of what comes after it.
+# A shower is one run through drizzle, rain, now and then a downpour, and clearing (a last
+# light drizzle): 5 to 12 hours in all. It only comes out of an overcast sky, which brings
+# one about every other time; with the clear spells between, that is 1 to 2 showers a week.
 WEATHER_SPELLS = {
-    "clear":    {"rain": 0.0,  "clouds": 0.0,  "wind": 0.05, "hours": (8.0, 30.0),
+    "clear":    {"rain": 0.0,  "clouds": 0.0,  "wind": 0.05, "hours": (30.0, 80.0),
                  "next": {"overcast": 1.0}},
-    "overcast": {"rain": 0.0,  "clouds": 0.6,  "wind": 0.10, "hours": (1.0, 5.0),
-                 "next": {"clear": 0.45, "drizzle": 0.30, "rain": 0.25}},
-    "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "hours": (1.0, 4.0),
-                 "next": {"overcast": 0.45, "rain": 0.40, "clear": 0.15}},
-    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "hours": (1.0, 5.0),
-                 "next": {"drizzle": 0.45, "overcast": 0.35, "downpour": 0.20}},
-    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "hours": (0.5, 2.0),
+    "overcast": {"rain": 0.0,  "clouds": 0.6,  "wind": 0.10, "hours": (2.0, 5.0),
+                 "next": {"clear": 0.45, "drizzle": 0.55}},
+    "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "hours": (1.0, 2.5),
                  "next": {"rain": 1.0}},
+    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "hours": (3.0, 6.5),
+                 "next": {"clearing": 0.75, "downpour": 0.25}},
+    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "hours": (0.5, 1.5),
+                 "next": {"clearing": 1.0}},
+    "clearing": {"rain": 0.2,  "clouds": 0.6,  "wind": 0.08, "hours": (1.0, 1.5),
+                 "next": {"clear": 1.0}},
 }
 WEATHER_START = "clear"              # The weather a new game starts in
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)

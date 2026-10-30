@@ -19,6 +19,7 @@ from .models.institutions.town import Town
 from .models.population import PopulationManager
 from .models.ambience import AMBIENCE_FIRST_CHANNEL, Ambience
 from .models.weather import Weather
+from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -501,6 +502,7 @@ class Game:
                     self.last_update = current_time
                     minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
+                    self.game_map.tmx_map.street_life.raining = self.weather.rain >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.wetness)
 
                     # update prices once per hour

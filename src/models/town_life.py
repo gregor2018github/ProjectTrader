@@ -6,8 +6,10 @@ one out of their own front door whenever the streets are emptier than they
 should be, and lets them see themselves back in. Nobody is ever out twice,
 because there is only ever the one object per person.
 
-How busy the streets are depends on the hour -- see ``STROLLERS_BY_DAY`` and
-``STROLLERS_BY_NIGHT`` in the constants. Anyone already out when night falls
+How busy the streets are depends on the hour and the weather -- see
+``STROLLERS_BY_DAY`` and ``STROLLERS_BY_NIGHT`` in the constants, and their
+``_IN_RAIN_`` counterparts while it rains (``raining``, set by the game from
+the weather). Anyone already out when night falls or the rain sets in
 finishes their walk; the town only stops sending new people.
 """
 
@@ -19,6 +21,8 @@ from ..config.constants import (
     KNOCK_ANSWER_CHANCE,
     STROLLERS_BY_DAY,
     STROLLERS_BY_NIGHT,
+    STROLLERS_IN_RAIN_BY_DAY,
+    STROLLERS_IN_RAIN_BY_NIGHT,
     STROLL_NIGHT_START_HOUR,
     STROLL_NIGHT_END_HOUR,
     STROLL_RELEASE_SECONDS_MIN,
@@ -66,6 +70,7 @@ class StreetLife:
         # same street, so each pair is only ever searched for once.
         self._routes: Dict[Tuple[int, int], Optional[List[Tuple[float, float]]]] = {}
         self._release_left: float = 0.0
+        self.raining: bool = False   # set by the game from the weather; fewer go out while it rains
         self.last_update_time: Optional[datetime.datetime] = None
 
         self._assign_homes()
@@ -107,6 +112,8 @@ class StreetLife:
         Args:
             current_time: The current in-game time.
         """
+        if self.raining:
+            return STROLLERS_IN_RAIN_BY_NIGHT if self._is_night(current_time) else STROLLERS_IN_RAIN_BY_DAY
         return STROLLERS_BY_NIGHT if self._is_night(current_time) else STROLLERS_BY_DAY
 
     def _is_unseen(self, current_time: datetime.datetime) -> bool:
