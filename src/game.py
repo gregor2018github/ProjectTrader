@@ -36,6 +36,7 @@ from .persistence.save_manager import (
 )
 
 GAME_FADE_IN_SECONDS = 0.9   # the loading screen fading away over the first frames
+MIXER_FREE_CHANNELS = 16     # channels for one-off sounds (voices, doors, coins), besides the reserved ones
 
 
 class Game:
@@ -232,8 +233,12 @@ class Game:
         pygame.mixer.init()
         # Reserve channel 0 exclusively for footstep sounds and the next ones
         # for the ambient loops (models/ambience.py), so that Sound.play()
-        # calls (e.g. knock, church bell) can never steal them.
-        pygame.mixer.set_reserved(AMBIENCE_FIRST_CHANNEL + Ambience.CHANNELS)
+        # calls (e.g. knock, church bell) can never steal them. The mixer only
+        # has 8 channels to begin with: open enough that the one-off sounds
+        # keep MIXER_FREE_CHANNELS of their own after the reserved ones.
+        reserved = AMBIENCE_FIRST_CHANNEL + Ambience.CHANNELS
+        pygame.mixer.set_num_channels(reserved + MIXER_FREE_CHANNELS)
+        pygame.mixer.set_reserved(reserved)
 
     def fade_in_from(self, cover: pygame.Surface) -> None:
         """Have the first frames of run() fade in from *cover*, e.g. the loading screen."""
