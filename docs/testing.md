@@ -14,7 +14,7 @@ is imported: no window opens and nothing plays.
 
 `tests/` mirrors `src/`: the tests of `src/models/depot.py` are in
 `tests/models/`, split by concern (`test_depot_trading.py`, `_storage`,
-`_licenses`, `_bookkeeping`). Fixtures shared by a folder live in its
+`_filters`, `_licenses`, `_bookkeeping`). Fixtures shared by a folder live in its
 `conftest.py`; stand-ins for the game's big objects live in `tests/fakes.py`.
 
 ## How the code splits up for testing

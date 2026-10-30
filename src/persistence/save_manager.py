@@ -137,6 +137,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "good_stock": dict(depot.good_stock),
             "starting_slots": [dict(slot) for slot in depot.starting_slots],
             "pack_slots": [dict(slot) for slot in depot.pack_slots],
+            "storage_order": list(depot.storage_order),
             "properties": {k: list(v) for k, v in depot.properties.items()},
             "expenditures": depot.expenditures,
             "income": depot.income,
@@ -478,6 +479,8 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     # Saves from before storage slots have none; Game.restore_owned_buildings settles them
     depot.starting_slots = d.get("starting_slots") or depot.empty_slots(STARTING_STORAGE_SLOTS)
     depot.pack_slots = d.get("pack_slots") or depot.empty_slots(PACK_SLOTS)
+    # Older saves have no priority list: settle_storage() makes the default one
+    depot.storage_order = d.get("storage_order") or []
     depot.properties = {k: list(v) for k, v in d["properties"].items()}
     depot.expenditures = d["expenditures"]
     depot.income = d["income"]

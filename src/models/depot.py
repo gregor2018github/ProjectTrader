@@ -1,10 +1,15 @@
 import datetime
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, Iterable, List, Optional, Any, Tuple
 from ..config.constants import (
     ALMS_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS,
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
+
+START = "start"  # the starting storage's key in Depot.storage_order; a warehouse's is its Tiled id
+
+Storage = Tuple[Any, List[Dict[str, Any]], int, Optional[List[str]]]  # key, slots, slot size, goods it accepts
+
 
 class Depot:
     """Manages the player's financial state, inventory, and trade history.
@@ -30,6 +35,7 @@ class Depot:
         self.warehouse_count: int = 1                   # number of warehouses owned (by default 1)
         self.starting_slots: List[Dict[str, Any]] = self.empty_slots(STARTING_STORAGE_SLOTS)  # see STORAGE SLOTS
         self.pack_slots: List[Dict[str, Any]] = self.empty_slots(PACK_SLOTS)  # what the player carries
+        self.storage_order: List[Any] = [START]  # which storage purchases go to first, see STORAGE SLOTS
         self.good_stock: Dict[str, int] = {             # current stock of goods
             "Wood": 0, "Stone": 0, "Iron": 0,
             "Wool": 0, "Hide": 0, "Fish": 0,
@@ -237,7 +243,11 @@ class Depot:
         room = self.room_for(good.name)
         if quantity_to_buy > room:
             in_storage = sum(self.good_stock.values()) - self.pack_total()
-            if in_storage + quantity_to_buy <= self.storage_capacity:
+            if quantity_to_buy <= self.room_for(good.name, filtered=False):
+                game_state.show_warning(
+                    f"No room for {quantity_to_buy} {good.name}: your free storage is reserved for "
+                    f"other goods. Your warehouses' filters decide what goes where.")
+            elif in_storage + quantity_to_buy <= self.storage_capacity:
                 game_state.show_warning(
                     f"No room for {quantity_to_buy} {good.name}: each slot holds one good only, "
                     f"and only {room} more {good.name} fit.")
@@ -712,7 +722,9 @@ class Depot:
             "buy_storage": warehouse.buy_storage,
             "slots": self.empty_slots(warehouse.buy_slots),
             "slot_size": warehouse.buy_slot_size,
+            "accepts": None,
         })
+        self.storage_order = self.storage_priority()  # the new one at the end
         self.stats.properties_bought += 1
         on_money_spent(game_state, warehouse.buy_price)
         game_state.log_event(
@@ -728,9 +740,16 @@ class Depot:
     # storage, which is no building, has STARTING_STORAGE_SLOTS of SLOT_SIZE
     # (starting_slots); each owned warehouse has its own, in its properties
     # entry ("slots", "slot_size"). Purchases top up the slots already holding
-    # the good first, then take empty ones, the starting storage's before the
-    # warehouses' in the order bought; sales empty the newest warehouse first,
-    # its least filled slots of the good first.
+    # the good first, then take empty ones, going through the storages in
+    # storage_order, the player's priority list (the starting storage first and
+    # the warehouses in the order bought, until reordered); sales go through it
+    # from the other end, the least filled slots of the good first.
+    #
+    # Filters steer where goods may go: a warehouse accepts all goods or only
+    # some (its entry's "accepts", None for all), and a slot may be reserved
+    # for one good ("reserved"), which it alone then takes, whatever the
+    # warehouse accepts. They only decide where new goods go: what a slot
+    # already holds stays.
     #
     # The player's pack (pack_slots, PACK_SLOTS of PACK_SLOT_SIZE) is slots
     # too, its goods part of good_stock like any others. Purchases never go
@@ -757,11 +776,61 @@ class Depot:
         entry = self.warehouse_entry(tmx_id)
         return [dict(slot) for slot in entry.get("slots", [])] if entry else []
 
+    def _ordered_storages(self) -> List[Storage]:
+        """Every storage, in the order of the priority list; any it misses go last."""
+        by_key = {START: (self.starting_slots, SLOT_SIZE, None)}
+        for entry in self._owned_warehouses():
+            if "slots" in entry:
+                by_key[entry.get("tmx_id")] = (entry["slots"], entry["slot_size"], entry.get("accepts"))
+        order = [key for key in dict.fromkeys(self.storage_order) if key in by_key]
+        order += [key for key in by_key if key not in order]
+        return [(key, *by_key[key]) for key in order]
+
     def _storages(self) -> List[Tuple[List[Dict[str, Any]], int]]:
-        """Every storage's slots with their size: the starting storage, then the warehouses as bought."""
-        storages = [(self.starting_slots, SLOT_SIZE)]
-        storages += [(e["slots"], e["slot_size"]) for e in self._owned_warehouses() if "slots" in e]
-        return storages
+        """Every storage's slots with their size, in the order of the priority list."""
+        return [(slots, size) for _, slots, size, _ in self._ordered_storages()]
+
+    def storage_priority(self) -> List[Any]:
+        """The storages' keys (START, or a warehouse's Tiled id) in the order purchases go to them."""
+        return [key for key, _, _, _ in self._ordered_storages()]
+
+    def move_in_priority(self, key: Any, step: int) -> None:
+        """Move a storage up (step < 0) or down the priority list."""
+        order = self.storage_priority()
+        if key not in order:
+            return
+        i = order.index(key)
+        j = max(0, min(len(order) - 1, i + step))
+        order.insert(j, order.pop(i))
+        self.storage_order = order
+
+    def set_accepted_goods(self, tmx_id: int, goods: Optional[Iterable[str]]) -> None:
+        """Let a warehouse accept only these goods (None: all of them)."""
+        entry = self.warehouse_entry(tmx_id)
+        if entry is not None:
+            entry["accepts"] = None if goods is None else sorted(goods)
+
+    def set_slot_reservation(self, tmx_id: int, slot_index: int, good_name: Optional[str]) -> None:
+        """Reserve a warehouse slot for one good, or free it for any (None)."""
+        entry = self.warehouse_entry(tmx_id)
+        if entry is None or not 0 <= slot_index < len(entry.get("slots", [])):
+            return
+        slot = entry["slots"][slot_index]
+        if good_name is None:
+            slot.pop("reserved", None)
+        else:
+            slot["reserved"] = good_name
+
+    @staticmethod
+    def slot_takes(slot: Dict[str, Any], good_name: str, accepts: Optional[List[str]]) -> bool:
+        """Whether a slot may take (more of) a good: it holds no other, and its
+        reservation, or failing one its storage's filter, lets the good in."""
+        if slot["good"] not in (None, good_name):
+            return False
+        reserved = slot.get("reserved")
+        if reserved is not None:
+            return reserved == good_name
+        return accepts is None or good_name in accepts
 
     def total_capacity(self) -> int:
         """Every unit the player can hold: the storages' and the pack's."""
@@ -771,38 +840,52 @@ class Depot:
         """How many units the player carries."""
         return sum(slot["qty"] for slot in self.pack_slots if slot["good"] is not None)
 
-    def room_for(self, good_name: str) -> int:
-        """How many more units of a good a purchase can store: the rest of its slots and all empty ones."""
+    @classmethod
+    def _room(cls, storages: List[Storage], good_name: str, filtered: bool) -> int:
         return sum(
             max(0, size - slot["qty"])
-            for slots, size in self._storages()
+            for _, slots, size, accepts in storages
             for slot in slots
-            if slot["good"] in (None, good_name)
+            if (cls.slot_takes(slot, good_name, accepts) if filtered else slot["good"] in (None, good_name))
         )
 
-    def _store_goods(self, good_name: str, quantity: int) -> int:
-        """Put bought goods in the storages' slots; returns how many did not fit."""
-        return self._fill(self._storages(), good_name, quantity)
+    def room_for(self, good_name: str, filtered: bool = True) -> int:
+        """How many more units of a good a purchase can store: the rest of its slots
+        and the empty ones, those the filters keep for other goods left out unless
+        filtered is False."""
+        return self._room(self._ordered_storages(), good_name, filtered)
 
-    @staticmethod
-    def _fill(storages: List[Tuple[List[Dict[str, Any]], int]], good_name: str, quantity: int) -> int:
+    def room_in_warehouse(self, tmx_id: int, good_name: str, filtered: bool = True) -> int:
+        """How many more units of a good one warehouse can take."""
+        return self._room([s for s in self._ordered_storages() if s[0] == tmx_id], good_name, filtered)
+
+    def _store_goods(self, good_name: str, quantity: int, filtered: bool = True) -> int:
+        """Put bought goods in the storages' slots; returns how many did not fit."""
+        return self._fill(self._ordered_storages(), good_name, quantity, filtered)
+
+    @classmethod
+    def _fill(cls, storages: List[Storage], good_name: str, quantity: int, filtered: bool = True) -> int:
         """Top up these slots holding the good, then take empty ones; returns how many did not fit."""
-        for slots, size in storages:
+        def takes(slot: Dict[str, Any], accepts: Optional[List[str]]) -> bool:
+            return cls.slot_takes(slot, good_name, accepts) if filtered else slot["good"] in (None, good_name)
+
+        for _, slots, size, accepts in storages:
             for slot in slots:
-                if quantity > 0 and slot["good"] == good_name:
+                if quantity > 0 and slot["good"] == good_name and takes(slot, accepts):
                     put = min(quantity, max(0, size - slot["qty"]))
                     slot["qty"] += put
                     quantity -= put
-        for slots, size in storages:
+        for _, slots, size, accepts in storages:
             for slot in slots:
-                if quantity > 0 and slot["good"] is None:
+                if quantity > 0 and slot["good"] is None and takes(slot, accepts):
                     put = min(quantity, size)
                     slot["good"], slot["qty"] = good_name, put
                     quantity -= put
         return quantity
 
     def _take_goods(self, good_name: str, quantity: int) -> None:
-        """Take goods out of their slots, newest warehouse and least filled slot first, the pack last."""
+        """Take goods out of their slots, the last storage in the priority list and the
+        least filled slot first, the pack last."""
         for slots, _ in list(reversed(self._storages())) + [(self.pack_slots, PACK_SLOT_SIZE)]:
             for slot in sorted((s for s in slots if s["good"] == good_name), key=lambda s: s["qty"]):
                 if quantity <= 0:
@@ -816,16 +899,17 @@ class Depot:
         extra = self.starting_slots[STARTING_STORAGE_SLOTS:]
         self.starting_slots[STARTING_STORAGE_SLOTS:] = [s for s in extra if s["good"] is not None]
 
-    def _move(self, source: List[Dict[str, Any]], index: int,
-              target: List[Dict[str, Any]], target_size: int, quantity: int) -> int:
-        """Move up to quantity of one slot's good into other slots; returns how many moved."""
+    def _move(self, source: List[Dict[str, Any]], index: int, target: List[Dict[str, Any]],
+              target_size: int, quantity: int, accepts: Optional[List[str]] = None) -> int:
+        """Move up to quantity of one slot's good into other slots, as their filters
+        allow; returns how many moved."""
         if not 0 <= index < len(source):
             return 0
         slot = source[index]
         if slot["good"] is None or quantity <= 0:
             return 0
         quantity = min(quantity, slot["qty"])
-        moved = quantity - self._fill([(target, target_size)], slot["good"], quantity)
+        moved = quantity - self._fill([(None, target, target_size, accepts)], slot["good"], quantity)
         slot["qty"] -= moved
         if slot["qty"] <= 0:
             slot["good"], slot["qty"] = None, 0
@@ -839,11 +923,13 @@ class Depot:
         return self._move(entry["slots"], slot_index, self.pack_slots, PACK_SLOT_SIZE, quantity)
 
     def store_in_warehouse(self, tmx_id: int, pack_index: int, quantity: int) -> int:
-        """Put up to quantity of a pack slot's good into a warehouse; returns how many moved."""
+        """Put up to quantity of a pack slot's good into a warehouse, as its filters
+        allow; returns how many moved."""
         entry = self.warehouse_entry(tmx_id)
         if entry is None:
             return 0
-        return self._move(self.pack_slots, pack_index, entry["slots"], entry["slot_size"], quantity)
+        return self._move(self.pack_slots, pack_index, entry["slots"], entry["slot_size"], quantity,
+                          entry.get("accepts"))
 
     def settle_storage(self, warehouse_layouts: Dict[int, Tuple[int, int]]) -> None:
         """Make the slots agree with good_stock after loading a save.
@@ -854,9 +940,10 @@ class Depot:
 
         Should the slots not hold exactly good_stock (a save from before slots,
         or one edited by hand), everything is packed into them again, the
-        largest stocks first; what does not fit gets extra slots in the
-        starting storage, which go once they are emptied. The pack keeps what
-        it carries, unless that is more than the player has.
+        largest stocks first, where the filters let them and then where they
+        do not; what does not fit gets extra slots in the starting storage,
+        which go once they are emptied. The pack keeps what it carries, unless
+        that is more than the player has.
         """
         for entry in self._owned_warehouses():
             if "slots" not in entry:
@@ -864,6 +951,8 @@ class Depot:
                     entry.get("tmx_id"), (entry.get("buy_storage", 0) // SLOT_SIZE, SLOT_SIZE))
                 entry["slots"], entry["slot_size"] = self.empty_slots(count), size
             entry.pop("stock", None)
+            entry.setdefault("accepts", None)
+        self.storage_order = self.storage_priority()
         if len(self.starting_slots) < STARTING_STORAGE_SLOTS:
             self.starting_slots += self.empty_slots(STARTING_STORAGE_SLOTS - len(self.starting_slots))
         if len(self.pack_slots) < PACK_SLOTS:
@@ -896,6 +985,8 @@ class Depot:
         stored = {g: q - carried.get(g, 0) for g, q in self.good_stock.items()}
         for good_name, quantity in sorted(stored.items(), key=lambda item: -item[1]):
             left = self._store_goods(good_name, quantity) if quantity > 0 else 0
+            if left > 0:
+                left = self._store_goods(good_name, left, filtered=False)
             while left > 0:
                 put = min(left, SLOT_SIZE)
                 self.starting_slots.append({"good": good_name, "qty": put})

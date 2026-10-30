@@ -53,15 +53,29 @@ DIM_ALPHA = 120              # how dark the game behind the window gets
 _icons: Dict[Tuple[str, int], Optional[pygame.Surface]] = {}
 
 
+FILTER_BUTTON = 20           # a slot's reservation button, in its top-left corner
+
+
+def draw_funnel(surf: pygame.Surface, rect: pygame.Rect, color: Tuple[int, int, int]) -> None:
+    """A small funnel, the sign of a filter, filling rect."""
+    x, y, w, h = rect
+    pygame.draw.polygon(surf, color, [
+        (x + w * 0.15, y + h * 0.2), (x + w * 0.85, y + h * 0.2),
+        (x + w * 0.58, y + h * 0.52), (x + w * 0.58, y + h * 0.82),
+        (x + w * 0.42, y + h * 0.72), (x + w * 0.42, y + h * 0.52),
+    ])
+
+
 class SlotSection:
     """One block of slots on a window: its heading line, total bar and slot rects.
 
     Slots of a single unit (by hand) are drawn small, side by side in one
-    row, without a fill bar of their own.
+    row, without a fill bar of their own. A section with reservations has a
+    small funnel button in each slot's corner to reserve it for one good.
     """
 
     def __init__(self, kind: str, slot_count: int, slot_size: int, top: int,
-                 label: str, amount_label: str) -> None:
+                 label: str, amount_label: str, reservations: bool = False) -> None:
         """
         Args:
             kind: Which section this is, as the window names it.
@@ -70,8 +84,10 @@ class SlotSection:
             top: Its heading line's top, in panel coordinates.
             label: The heading's left text ("Slots in use" gets the count added).
             amount_label: The heading's right text, before the units held.
+            reservations: Whether its slots can be reserved for one good.
         """
         self.kind = kind
+        self.reservations = reservations
         self.slot_count = slot_count
         self.slot_size = slot_size
         self.label = label
@@ -116,6 +132,19 @@ class SlotSection:
             left, right = SIDE_PAD, panel.width - SIDE_PAD
         self.bar_rect = pygame.Rect(left, self.bar_y, right - left, TOTAL_BAR_H)
 
+    def filter_button(self, index: int) -> pygame.Rect:
+        """The reservation button of a slot, in screen space."""
+        box = self.slot_rects[index][0]
+        return pygame.Rect(box.x + 4, box.y + 4, FILTER_BUTTON, FILTER_BUTTON)
+
+    def filter_button_at(self, pos: Tuple[int, int]) -> Optional[int]:
+        if not self.reservations:
+            return None
+        for i in range(len(self.slot_rects)):
+            if self.filter_button(i).collidepoint(pos):
+                return i
+        return None
+
     def slot_at(self, pos: Tuple[int, int]) -> Optional[int]:
         for i, (box, bar) in enumerate(self.slot_rects):
             if box.collidepoint(pos) or (bar.width and bar.collidepoint(pos)):
@@ -128,7 +157,9 @@ class InventoryWindow:
 
     Subclasses build their sections and call _place_panel(), and say what the
     slots hold (_read_slots), what the footer reads (_footer) and what a
-    hovered slot's tooltip says (_slot_tooltip).
+    hovered slot's tooltip says (_slot_tooltip). They may add to the panel
+    (_draw_extra, with _extra_key telling when it changes) and draw over it
+    every frame (_draw_overlay).
     """
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState') -> None:
@@ -206,6 +237,17 @@ class InventoryWindow:
         """The tooltip of a hovered slot."""
         raise NotImplementedError
 
+    def _extra_key(self) -> tuple:
+        """What else the panel shows, beyond the slots and footer, so it is redrawn when that changes."""
+        return ()
+
+    def _draw_extra(self, surf: pygame.Surface) -> None:
+        """Draw more onto the panel, under the title (panel coordinates)."""
+
+    def _draw_overlay(self, mouse_pos: Tuple[int, int]) -> bool:
+        """Draw over the panel this frame (screen coordinates); True keeps the slots' hover effects off."""
+        return False
+
     # ------------------------------------------------------------------
     # Data
     # ------------------------------------------------------------------
@@ -264,7 +306,8 @@ class InventoryWindow:
         # Redraw the panel only when something on it changed
         slots = self._read_slots()
         footer = self._footer(slots)
-        key = tuple(tuple((s["good"], s["qty"]) for s in slots[kind]) for kind in self.sections) + (footer,)
+        key = tuple(tuple((s["good"], s["qty"], s.get("reserved")) for s in slots[kind]) for kind in self.sections)
+        key += (footer, self._extra_key())
         if key != self._panel_key:
             self._slots = slots
             self._panel = self._render_panel(slots, footer)
@@ -279,6 +322,8 @@ class InventoryWindow:
             return  # fading out: no hover effects
 
         mouse_pos = pygame.mouse.get_pos()
+        if self._draw_overlay(mouse_pos):
+            return
         if self.close_rect.collidepoint(mouse_pos):
             self._draw_close_button(self.screen, self.close_rect, hovered=True)
             return
@@ -312,6 +357,7 @@ class InventoryWindow:
         surf.blit(subtitle, subtitle.get_rect(centerx=w // 2, top=SUBTITLE_Y))
         pygame.draw.line(surf, DARK_BROWN, (30, RULE_Y), (w - 30, RULE_Y), 2)
         self._draw_close_button(surf, self.close_rect.move(-self.panel_rect.x, -self.panel_rect.y), hovered=False)
+        self._draw_extra(surf)
 
         for kind, section in self.sections.items():
             self._draw_section(surf, section, slots[kind])
@@ -353,7 +399,7 @@ class InventoryWindow:
                 self._draw_hand_slot(surf, box, slot)
             else:
                 self._draw_slot(surf, box, slot_bar.move(-self.panel_rect.x, -self.panel_rect.y),
-                                slot, section.slot_size)
+                                slot, section.slot_size, section.reservations)
 
     @staticmethod
     def _draw_close_button(surf: pygame.Surface, rect: pygame.Rect, hovered: bool) -> None:
@@ -363,8 +409,9 @@ class InventoryWindow:
         pygame.draw.line(surf, WHITE, (rect.left + m, rect.bottom - m), (rect.right - m, rect.top + m), 2)
 
     def _draw_slot(self, surf: pygame.Surface, box: pygame.Rect, bar: pygame.Rect,
-                   slot: Dict[str, Any], slot_size: int) -> None:
+                   slot: Dict[str, Any], slot_size: int, reservations: bool = False) -> None:
         good_name, qty = slot["good"], slot["qty"]
+        reserved = slot.get("reserved")
 
         # Fill bar, filling from the bottom: green once the slot is full
         pygame.draw.rect(surf, WHEAT, bar)
@@ -378,19 +425,37 @@ class InventoryWindow:
         if good_name is None:
             pygame.draw.rect(surf, EMPTY_SLOT, box)
             pygame.draw.rect(surf, LIGHT_GRAY, box, 1)
-            empty = self.small_font.render("Empty", True, LIGHT_GRAY)
-            surf.blit(empty, empty.get_rect(center=box.center))
-            return
+            if reserved is None:
+                empty = self.small_font.render("Empty", True, LIGHT_GRAY)
+                surf.blit(empty, empty.get_rect(center=box.center))
+            else:
+                # An empty reserved slot shows what it is kept for, faintly
+                icon = self._icon(reserved)
+                if icon:
+                    faint = icon.copy()
+                    faint.set_alpha(80)
+                    surf.blit(faint, faint.get_rect(center=(box.centerx, box.top + 8 + ICON_SIZE // 2)))
+                label = self.small_font.render(f"for {reserved}", True, DARK_GRAY)
+                surf.blit(label, label.get_rect(centerx=box.centerx, bottom=box.bottom - 14))
+        else:
+            pygame.draw.rect(surf, BEIGE, box)
+            pygame.draw.rect(surf, DARK_BROWN, box, 2)
+            icon = self._icon(good_name)
+            if icon:
+                surf.blit(icon, icon.get_rect(center=(box.centerx, box.top + 8 + ICON_SIZE // 2)))
+            name = self.small_font.render(good_name, True, DARK_BROWN)
+            surf.blit(name, name.get_rect(centerx=box.centerx, bottom=box.bottom - 24))
+            amount = self.small_font.render(f"{qty} / {slot_size}", True, DARK_GRAY)
+            surf.blit(amount, amount.get_rect(centerx=box.centerx, bottom=box.bottom - 6))
 
-        pygame.draw.rect(surf, BEIGE, box)
-        pygame.draw.rect(surf, DARK_BROWN, box, 2)
-        icon = self._icon(good_name)
-        if icon:
-            surf.blit(icon, icon.get_rect(center=(box.centerx, box.top + 8 + ICON_SIZE // 2)))
-        name = self.small_font.render(good_name, True, DARK_BROWN)
-        surf.blit(name, name.get_rect(centerx=box.centerx, bottom=box.bottom - 24))
-        amount = self.small_font.render(f"{qty} / {slot_size}", True, DARK_GRAY)
-        surf.blit(amount, amount.get_rect(centerx=box.centerx, bottom=box.bottom - 6))
+        if reservations:
+            # The reservation button: a filled funnel when the slot is reserved
+            button = pygame.Rect(box.x + 4, box.y + 4, FILTER_BUTTON, FILTER_BUTTON)
+            if reserved is not None:
+                pygame.draw.rect(surf, DARK_BROWN, button, border_radius=3)
+                draw_funnel(surf, button, WHITE)
+            else:
+                draw_funnel(surf, button, LIGHT_GRAY if good_name is None else (190, 175, 150))
 
     def _draw_hand_slot(self, surf: pygame.Surface, box: pygame.Rect, slot: Dict[str, Any]) -> None:
         """A small slot of one unit: just the good's picture, its name is in the tooltip."""
