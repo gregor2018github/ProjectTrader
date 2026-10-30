@@ -11,7 +11,7 @@ occlusion and the Town Plan all follow from the object. No Python is needed
 unless the building is a new *kind*.
 
 Helper (run from the repo root): `python .claude/skills/place-building/place_building.py`
-with `near`, `render` and `place`. Its docstring has the arguments.
+with `near`, `render`, `place`, `move` and `roof`. Its docstring has the arguments.
 
 ## Steps
 
@@ -133,9 +133,33 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    HEAD:assets/tiles/Map1.tmx` written to a temp file inside `assets/tiles/`,
    so its tileset paths resolve).
 
-7. **Render again** with figures in front of the door and look at it.
+7. **Give it a roof.** Rain only splashes on a building where its `Roofs`
+   polygon says so (`src/models/roofs.py`); a building without one gets no
+   splashes at all, which is right for fences, carts and decorations but not
+   for anything with a roof or an awning. After placing it (the object needs
+   its id):
+   ```
+   python .claude/skills/place-building/place_building.py roof <ID> --show <scratchpad>/roof.png
+   ```
+   and open the PNG. By default the roof is found by colour from the
+   sprite's top 30 % (`--band`); that works where roof and walls differ in
+   hue: slate or clay over plaster, thatch, a stall's cloth. If it floods the
+   walls or misses half the roof, try `--band 0.12` (the gable or awning
+   pulled wall colours in), then `--seed SX,SY` on each roof colour (and
+   lower `--tolerance`, default 60). Where roof and walls share a hue (red
+   clay over brown timber, stone roofs on stone, a gable wall between two
+   slopes), trace it by hand instead: one `--points "SX,SY SX,SY ..."` per
+   roof part, read off a gridded zoom of the sprite like the lights, in
+   sprite pixels. Include awnings and stall canopies, leave out gable walls,
+   towers' walls and chimneys. Running it again replaces the building's
+   roofs; `move` carries them along. The Townhall, Church, Guildhall,
+   House_19/20/21/23/24/26, the Mill, House_1 and the Meat, Wood and Herbs
+   stalls are traced by hand: see their polygons in `Map1.tmx` for the kind
+   of shape.
 
-8. **Load it headless** and check the wiring (door attached with a step,
+8. **Render again** with figures in front of the door and look at it.
+
+9. **Load it headless** and check the wiring (door attached with a step,
    every light on this house, smoke present, no overlapping collision):
    ```
    SDL_VIDEODRIVER=dummy PYTHONPATH=. python -c "
@@ -149,7 +173,7 @@ with `near`, `render` and `place`. Its docstring has the arguments.
    (`TMXMap._load_lights`), so fewer lights than you placed means one of them
    is outside the 5-tiles-above zone.
 
-9. Tick its item in `docs/TODO.md` (move it to "Finished Features") and
+10. Tick its item in `docs/TODO.md` (move it to "Finished Features") and
    commit the map with the sprite, `Houses.png` and `building_catalog.json` if
    they are still uncommitted.
 

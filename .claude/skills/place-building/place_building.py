@@ -44,6 +44,19 @@ Run from the repo root. Subcommands:
       Smoke_<name>[_k], and its Tiled preview cells. Check the "moved" list:
       lights it takes at the old spot are the ones the game gave it there.
 
+  roof ID [--seed SX,SY ...] [--points "SX,SY SX,SY ..." ...] [--tolerance N]
+       [--band F] [--show OUT.png] [--dry-run]
+      Give a building its roof: polygons on the Roofs object layer (made if
+      missing), named after it, the only part of it rain splashes on. Without
+      --points the roof is found by colour: grown from --seed pixels, or from
+      the commonest colours of the sprite's top --band, by hue more than by
+      brightness, tile lines closed and dormers filled. That works where roof
+      and walls differ in hue (slate over timber, thatch, stall cloth); where
+      they don't (clay over brown timber, stone on stone), trace the roof by
+      hand with --points, in SPRITE PIXELS like --door. Run again to replace
+      a building's roofs; --show draws the result over a 3x zoom to check.
+      move carries a building's roofs along.
+
 Map1.tmx is LF (git shows CRLF warnings on Windows; ignore them). This
 keeps whatever line ending the file has and touches nothing else.
 """
@@ -288,7 +301,7 @@ def cmd_move(a):
     dx, dy = x - ox, y - oy
     if not dx and not dy:
         sys.exit('already there')
-    moving = _attached(text, a.id)
+    moving = _attached(text, a.id) + _roofs_of(text, a.id)
     for o in moving:
         text = _shift_object(text, o, dx, dy)
         print(f'moved {o.split(" x=")[0].strip()}')
@@ -506,6 +519,221 @@ def cmd_render(a):
     print('saved', a.out)
 
 
+# ------------------------------------------------------------------- roofs
+
+def _sprite_rect(xml):
+    """(left, top, right, bottom) of a Houses object's drawn sprite, in world pixels; None without one."""
+    props = _obj_props(xml)
+    f = props.get('File_name')
+    path = f'assets/map_sprites/houses/{f}'
+    if not f or not os.path.exists(path):
+        return None
+    x = float(re.search(r' x="([^"]+)"', xml).group(1))
+    y = float(re.search(r' y="([^"]+)"', xml).group(1))
+    w, h = _png_size(path)
+    s = float(props.get('Scale', 1))
+    return x, y - h * s, x + w * s, y
+
+
+def _roofs_of(text, obj_id):
+    """XML of the Roofs objects that belong to a building: named after it, starting inside its sprite."""
+    xml = re.search(rf' <object id="{obj_id}" [^>]*>.*?</object>', text, re.S).group(0)
+    name = re.search(r'name="([^"]*)"', xml).group(1)
+    box = _sprite_rect(xml)
+    grp = re.search(r'<objectgroup [^>]*name="Roofs"[^>]*>(.*?)</objectgroup>', text, re.S)
+    if not grp or not box:
+        return []
+    found = []
+    for o in re.finditer(r'<object id="\d+" name="([^"]*)" x="([^"]+)" y="([^"]+)">\s*<polygon [^>]*/>\s*</object>',
+                         grp.group(1)):
+        px, py = float(o.group(2)), float(o.group(3))
+        if o.group(1) == name and box[0] - 1 <= px <= box[2] + 1 and box[1] - 1 <= py <= box[3] + 1:
+            found.append(o.group(0))
+    return found
+
+
+def _lum(c):
+    return 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2]
+
+
+def _roof_mask(img, seeds, tol, band):
+    """The roof of a sprite as a pygame.Mask, grown from colours.
+
+    Seeds (sprite pixels) give the roof's colours; without them, the most
+    common colours of the top *band* of the sprite are taken. Pixels near one
+    of them in hue (weighted 3x) and brightness, connected to a seed (or to
+    the band), make the roof; very dark outline pixels never do. Then the
+    tile lines are closed, holes under a quarter of the roof (dormers,
+    chimneys) are filled, and bits under 15 % of the largest piece dropped.
+    """
+    import pygame
+    from collections import Counter, deque
+    from src.ui.layout_modules.town_plan.terrain import dilate, erode
+    w, h = img.get_size()
+    painted = pygame.mask.from_surface(img)
+    box = img.get_bounding_rect()
+    col = img.get_at
+    if seeds:
+        refs = [tuple(col(p))[:3] for p in seeds]
+        starts = list(seeds)
+    else:
+        band_end = box.top + int(box.height * band)
+        counts = Counter()
+        for y in range(box.top, band_end):
+            for x in range(w):
+                c = col((x, y))
+                if c.a > 200 and _lum(c) > 40:
+                    counts[(c.r // 20, c.g // 20, c.b // 20)] += 1
+        total, acc, refs = sum(counts.values()), 0, []
+        for k, n in counts.most_common(6):
+            refs.append((k[0] * 20 + 10, k[1] * 20 + 10, k[2] * 20 + 10))
+            acc += n
+            if acc > 0.55 * total:
+                break
+        starts = [(x, y) for y in range(box.top, band_end) for x in range(w)]
+
+    def near(c):
+        if c[3] <= 200 or _lum(c) <= 28:
+            return False
+        for r in refs:
+            dc = abs((c[0] - c[1]) - (r[0] - r[1])) + abs((c[1] - c[2]) - (r[1] - r[2]))
+            if abs(_lum(c) - _lum(r)) + 3 * dc < tol:
+                return True
+        return False
+    seen = bytearray(w * h)
+    queue = deque()
+    for x, y in starts:
+        if not seen[y * w + x] and near(tuple(col((x, y)))):
+            seen[y * w + x] = 1
+            queue.append((x, y))
+    grown = pygame.Mask((w, h))
+    while queue:
+        x, y = queue.popleft()
+        grown.set_at((x, y))
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx]:
+                seen[ny * w + nx] = 1
+                if near(tuple(col((nx, ny)))):
+                    queue.append((nx, ny))
+    grown = erode(dilate(grown, 3), 3)
+    outside = pygame.Mask((w + 2, h + 2), fill=True)
+    outside.erase(grown, (1, 1))
+    holes = outside.copy()
+    holes.erase(outside.connected_component((0, 0)), (0, 0))
+    roof = grown.copy()
+    for hole in holes.connected_components():
+        if hole.count() < 0.25 * max(1, grown.count()):
+            roof.draw(hole, (-1, -1))
+    roof = roof.overlap_mask(painted, (0, 0))
+    pieces = roof.connected_components()
+    out = pygame.Mask((w, h))
+    if pieces:
+        big = max(p.count() for p in pieces)
+        for p in pieces:
+            if p.count() >= 0.15 * big:
+                out.draw(p, (0, 0))
+    return out
+
+
+def _simplify(points, eps):
+    """Douglas-Peucker on a closed outline."""
+    if len(points) < 4:
+        return points
+
+    def dp(pts):
+        (ax, ay), (bx, by) = pts[0], pts[-1]
+        dx, dy = bx - ax, by - ay
+        norm = (dx * dx + dy * dy) ** 0.5 or 1.0
+        far, index = 0.0, 0
+        for i in range(1, len(pts) - 1):
+            d = abs(dy * (pts[i][0] - ax) - dx * (pts[i][1] - ay)) / norm
+            if d > far:
+                far, index = d, i
+        if far <= eps:
+            return [pts[0], pts[-1]]
+        return dp(pts[:index + 1])[:-1] + dp(pts[index:])
+    # split the ring at its farthest point from the start, so both halves are open lines
+    start = points[0]
+    far = max(range(len(points)), key=lambda i: (points[i][0] - start[0]) ** 2 + (points[i][1] - start[1]) ** 2)
+    return dp(points[:far + 1])[:-1] + dp(points[far:] + [start])[:-1]
+
+
+def cmd_roof(a):
+    os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+    import pygame
+    sys.path.insert(0, os.getcwd())
+    pygame.init()
+    pygame.display.set_mode((1, 1))
+    text, layers = load_tmx()
+    nl = '\r\n' if '\r\n' in text else '\n'
+    m = re.search(rf' <object id="{a.id}" name="([^"]*)"[^>]*>.*?</object>', text, re.S)
+    if not m:
+        sys.exit(f'no object with id {a.id}')
+    xml, name = m.group(0), m.group(1)
+    props = _obj_props(xml)
+    path = f'assets/map_sprites/houses/{props.get("File_name")}'
+    if not os.path.exists(path):
+        sys.exit(f'object {a.id} has no sprite ({path})')
+    img = pygame.image.load(path).convert_alpha()
+    scale = float(props.get('Scale', 1))
+    ox = float(re.search(r' x="([^"]+)"', xml).group(1))
+    oy = float(re.search(r' y="([^"]+)"', xml).group(1))
+    top = oy - img.get_height() * scale
+
+    if a.points:
+        polygons = [[tuple(float(v) for v in p.split(',')) for p in spec.split()] for spec in a.points]
+    else:
+        seeds = [tuple(int(v) for v in s.split(',')) for s in a.seed]
+        mask = _roof_mask(img, seeds, a.tolerance, a.band)
+        polygons = []
+        for piece in mask.connected_components():
+            outline = piece.outline()
+            if len(outline) >= 3:
+                polygons.append(_simplify(outline, a.eps))
+    if not polygons:
+        sys.exit('no roof found; give --seed or --points')
+
+    if a.show:
+        shown = pygame.transform.scale_by(img, 3)
+        layer = pygame.Surface(shown.get_size(), pygame.SRCALPHA)
+        for poly in polygons:
+            pts = [(px * 3, py * 3) for px, py in poly]
+            pygame.draw.polygon(layer, (255, 0, 255, 110), pts)
+            pygame.draw.lines(layer, (255, 0, 255, 255), True, pts, 2)
+        shown.blit(layer, (0, 0))
+        pygame.image.save(shown, a.show)
+        print('shown in', a.show)
+
+    for old in _roofs_of(text, a.id):
+        text = text.replace(nl + '  ' + old, '', 1)
+        print('removed old roof', old.split(' x=')[0].strip())
+    if 'name="Roofs"' not in text:
+        nxt = re.search(r'nextlayerid="(\d+)"', text)
+        layer_id = int(nxt.group(1))
+        text = text.replace(nxt.group(0), f'nextlayerid="{layer_id + 1}"', 1)
+        lights = re.search(r' <objectgroup [^>]*name="Lights"', text)
+        text = text[:lights.start()] + f' <objectgroup id="{layer_id}" name="Roofs">{nl} </objectgroup>{nl}' \
+            + text[lights.start():]
+        print(f'made the Roofs object layer (id {layer_id})')
+    for poly in polygons:
+        world = [(round(ox + px * scale, 2), round(top + py * scale, 2)) for px, py in poly]
+        x0, y0 = world[0]
+        rel = ' '.join(f'{round(wx - x0, 2):g},{round(wy - y0, 2):g}' for wx, wy in world)
+        nxt = re.search(r'nextobjectid="(\d+)"', text)
+        new_id = int(nxt.group(1))
+        text = text.replace(nxt.group(0), f'nextobjectid="{new_id + 1}"', 1)
+        obj = (f'<object id="{new_id}" name="{name}" x="{x0:g}" y="{y0:g}">{nl}'
+               f'   <polygon points="{rel}"/>{nl}  </object>')
+        grp = re.search(r'<objectgroup [^>]*name="Roofs"[^>]*>.*?(\s*</objectgroup>)', text, re.S)
+        text = text[:grp.start(1)] + nl + '  ' + obj + text[grp.start(1):]
+        print(f'roof {new_id} for "{name}": {len(world)} points')
+    if a.dry_run:
+        print('dry run, nothing written')
+    else:
+        save_tmx(text, layers)
+        print('written', TMX)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest='cmd', required=True)
@@ -530,8 +758,17 @@ def main():
     p.add_argument('id', type=int); p.add_argument('x', type=float); p.add_argument('y', type=float)
     p.add_argument('--dry-run', action='store_true')
     p.add_argument('--no-snap', action='store_true', help='keep X,Y as given, off the tile grid')
+    p = sub.add_parser('roof')
+    p.add_argument('id', type=int)
+    p.add_argument('--seed', action='append', default=[], help='SX,SY on the roof (sprite pixels); repeatable')
+    p.add_argument('--points', action='append', default=[], help='"SX,SY SX,SY ..." a roof traced by hand; repeatable')
+    p.add_argument('--tolerance', type=float, default=60, help='how far in colour the roof reaches (default 60)')
+    p.add_argument('--band', type=float, default=0.3, help='share of the sprite from the top to take the roof colours from')
+    p.add_argument('--eps', type=float, default=1.5, help='how far the polygon may stray from the outline, sprite px')
+    p.add_argument('--show', help='save a 3x zoom of the sprite with the roof over it')
+    p.add_argument('--dry-run', action='store_true')
     a = ap.parse_args()
-    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place, 'move': cmd_move}[a.cmd](a)
+    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place, 'move': cmd_move, 'roof': cmd_roof}[a.cmd](a)
 
 
 if __name__ == '__main__':

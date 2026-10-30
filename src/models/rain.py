@@ -3,7 +3,8 @@
 Drops live in world space, like smoke and ripples, so the rain stays put
 under a walking camera. Each falls for a fraction of a second towards a spot
 picked uniformly in the view, and on landing becomes a little crown of
-spray on land, or a widening ring on water or in a puddle (bridge decks are land). How many
+spray on land, or a widening ring on water or in a puddle (bridge decks are land).
+On a building it only splashes on a roof (TMXMap.roofs, models/roofs.py). How many
 are in the air follows Weather.rain and the view's size
 (RAIN_DROPS_PER_MEGAPIXEL); their slant follows Weather.wind.
 
@@ -146,6 +147,8 @@ class Rainfall:
             if rng.random() < RAIN_SPLASH_SHARE:
                 fell = drop[4] + dt   # what was left of its fall this frame
                 x, y = drop[0] + drop[2] * fell, drop[1] + drop[3] * fell
+                if not tmx_map.roofs.splashes_at(x, y):
+                    continue   # on a wall, a window, a fence: only a roof is splashed on
                 on_water = ((int(x // tile), int(y // tile)) in water and tmx_map.bridge_at(x, y) is None
                             or puddles is not None and puddles.puddle_at(x, y))
                 self.splashes.append([x, y, 0.0, on_water])

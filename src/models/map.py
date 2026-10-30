@@ -38,6 +38,7 @@ from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .fog import FogOfWar
 from .rain import Rainfall
+from .roofs import Roofs
 from .puddles import Puddles
 from .wet_ground import WetGround
 from .navigation import NavGrid
@@ -191,6 +192,7 @@ class TMXMap:
         self._load_lights()
         self._load_areas()
         self._load_smoke()
+        self._load_roofs()
         self._load_movements()
         self._load_water()
         self._rasterize_water_tiles()
@@ -707,6 +709,16 @@ class TMXMap:
                         
                         self.building_light_groups[obj.name].add_light(building_light)
     
+    def _load_roofs(self) -> None:
+        """The roofs, polygons on the 'Roofs' object layer: the only part of a building rain splashes on."""
+        polygons = []
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Roofs":
+                for obj in layer:
+                    if getattr(obj, 'points', None):
+                        polygons.append([(p.x, p.y) for p in obj.points])   # already world points, as for water
+        self.roofs: Roofs = Roofs(self.houses, polygons)
+
     def _load_smoke(self) -> None:
         """Load Smoke objects from the 'Smoke' object layer and create SmokeEmitters."""
         import re
