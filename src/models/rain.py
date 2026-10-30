@@ -12,7 +12,9 @@ splash; near ones do (RAIN_SPLASH_SHARE of them). Every sprite is made once
 per zoom, slant and brightness and kept, and the whole frame's worth goes to
 the screen in one Surface.blits() call; the clip of the map view cuts off
 what hangs over its edge. Drawn after the day/night lighting, dimmed by
-*light* instead, so the rain stays visible at night without lighting up.
+*light* instead: the falling drops no further than NIGHT_LIGHT_MIN, so the
+rain stays visible at night, the splashes and rings on the ground down to
+SPLASH_LIGHT_MIN, so they do not shine white in the dark.
 """
 
 import random
@@ -23,7 +25,8 @@ import pygame
 from ..config.constants import RAIN_DROPS_PER_MEGAPIXEL, RAIN_SPLASH_SHARE, TILE_SIZE
 
 RAIN_COLOUR = (200, 214, 232)     # pale blue-grey: water catching the overcast sky
-NIGHT_LIGHT_MIN = 0.5             # how dim the rain gets in the dark (1.0 is daylight)
+NIGHT_LIGHT_MIN = 0.5             # how dim the falling rain gets in the dark (1.0 is daylight)...
+SPLASH_LIGHT_MIN = 0.12           # ...and its splashes and rings on the ground, which follow the dark closely
 # The drop kinds: (length, opacity, fall speed in world px/s, near). The far ones first.
 DROP_KINDS = (
     (7, 85, 430, False),
@@ -165,19 +168,20 @@ class Rainfall:
         self.drops = alive
 
     def _sprites_for(self, scale: float, wind: float, light: float) -> tuple:
-        """(streaks per drop kind, splash frames, ring frames), each sprite with its anchor."""
-        key = (scale, round(wind, 2), round(light, 1))
+        """(streaks per drop kind, splash frames, ring frames), each sprite with its anchor, for a scene *light*."""
+        key = (scale, round(wind, 2), round(light, 2))
         cached = self._sprites.get(key)
         if cached is None:
             if len(self._sprites) > 48:
                 self._sprites.clear()
-            colour = _shade(key[2])
+            colour = _shade(max(NIGHT_LIGHT_MIN, key[2]))
+            ground = _shade(max(SPLASH_LIGHT_MIN, key[2]))
             width = max(1, round(scale))   # near drops: 2 px when zoomed in, like the art's pixels
             streaks = [_make_streak(length * scale, alpha, width if near else 1, key[1], colour)
                        for length, alpha, _speed, near in DROP_KINDS]
             pixel = max(1, round(scale))
-            splashes = [_make_splash(dots, ring, pixel, colour) for dots, ring in _SPLASH_FRAMES]
-            rings = [_make_splash((), ring, pixel, colour) for ring in _RING_FRAMES]
+            splashes = [_make_splash(dots, ring, pixel, ground) for dots, ring in _SPLASH_FRAMES]
+            rings = [_make_splash((), ring, pixel, ground) for ring in _RING_FRAMES]
             cached = self._sprites[key] = (streaks, splashes, rings)
         return cached
 
@@ -187,7 +191,7 @@ class Rainfall:
         if not self.drops and not self.splashes:
             return
         scale = _scale_of(camera)
-        streaks, splashes, rings = self._sprites_for(scale, wind, max(NIGHT_LIGHT_MIN, min(1.0, light)))
+        streaks, splashes, rings = self._sprites_for(scale, wind, round(min(1.0, light) * 20) / 20)
         ox = offset_x - round(camera.x * scale)
         oy = offset_y - round(camera.y * scale)
         batch = []
