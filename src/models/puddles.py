@@ -34,6 +34,7 @@ the ground, under every walker, and the day/night lighting darkens it with
 the rest.
 """
 
+import math
 import random
 from typing import Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
@@ -61,6 +62,16 @@ SKY_COLOUR = (172, 188, 210, 48)     # the overcast sky mirrored in it, laid eve
 RIM_COLOUR = (214, 228, 242, 140)    # the thin pale edge of the water, catching the light...
 RIM_FAR_SHARE = 0.35                 # ...on its near side; on the far side only this much of it
 GLINT_COLOUR = (232, 240, 248, 150)  # a thin glint of light on its far side
+RIPPLE_COLOUR = (236, 244, 252)      # the rings (alpha fading from 230) round the feet of whoever wades through
+RIPPLE_STEP_PX = 14                  # world pixels walked in a puddle between two steps' rings
+RIPPLE_SECONDS = 1.0                 # how long a step's rings spread before they are gone
+RIPPLE_WIDTH_TILES = (0.2, 1.6)      # the outer ring's width, as it starts and as it fades
+RIPPLE_RINGS = (1.0, 0.68, 0.4)      # the rings of a step, as shares of the outer one
+WOBBLE_PX = 3.0                      # how far a fresh step shakes the reflection sideways, in art pixels
+SPLASH_SECONDS = 0.22                # the droplets a step throws up, flying...
+SPLASH_REACH_TILES = 0.35            # ...this far out
+SPLASH_COLOUR = (230, 240, 250, 210)
+RIPPLE_FLAT = 0.42                   # its height for its width, as the puddles are seen
 REFLECTION_TINT = (222, 234, 248)    # what stands over a puddle, mirrored in it: cooled by this...
 REFLECTION_ALPHA = 115               # ...and this see-through (255 is a perfect mirror)
 
@@ -166,8 +177,8 @@ class _Blockers:
 def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface, ...]:
     """The puddle grown to *growth*, at a screen scale, all centred on surfaces of one size:
     what to multiply the ground with (white is no change), the sky in it, what to lay over
-    the reflections (rim, glint), and the water's shape as alpha (REFLECTION_ALPHA inside,
-    0 out) to cut a reflection to."""
+    the reflections (rim, glint), and the water's shape as alpha twice: REFLECTION_ALPHA
+    inside to cut a reflection to, and 255 inside to cut the rings of who wades through to."""
     px = TILE_SIZE * scale * growth   # screen pixels per tile of the puddle's shape
     pixel = max(1, round(scale))      # one pixel of the art at this scale
     w = int(puddle.width * px) + 4 * pixel + 4
@@ -208,7 +219,8 @@ def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface
     mirror = pygame.Surface((w, h), pygame.SRCALPHA)
     mirror.fill((255, 255, 255, 0))
     lobes((255, 255, 255, REFLECTION_ALPHA), target=mirror)
-    return multiply, sky, over, mirror
+    water = lobes((255, 255, 255, 255))
+    return multiply, sky, over, mirror, water
 
 
 class Puddles:
@@ -224,6 +236,9 @@ class Puddles:
         self._by_tile: Dict[Tuple[int, int], List[Puddle]] = {}
         self._sprites: Dict[tuple, Tuple[pygame.Surface, ...]] = {}
         self._flips: Dict[int, Tuple[pygame.Surface, pygame.Surface]] = {}
+        self._walked: Dict[int, Tuple[float, float, float]] = {}   # per figurine: feet, distance since its last ring
+        self.ripples: List[list] = []   # each [puddle, x, y, age]: rings round the feet of who walks through
+        self._clock = 0.0               # seconds the walkers have been updated for, to move the wobble
         self._by_chunk: Dict[Tuple[int, int], List[Puddle]] = {}
         self._blockers = _Blockers(tmx_map)
         self._trodden: Set[Tuple[int, int]] = set()
@@ -321,13 +336,60 @@ class Puddles:
                     self._by_tile.setdefault((tx, ty), []).append(puddle)
         self.placed = list(self.puddles)
 
-    def puddle_at(self, x: float, y: float) -> bool:
-        """Whether a world point is in a puddle grown enough for raindrops to ring on it."""
+    def puddle_under(self, x: float, y: float) -> Optional[Puddle]:
+        """The puddle at a world point, if it is grown enough for anything to ring on it."""
         for puddle in self._by_tile.get((int(x // TILE_SIZE), int(y // TILE_SIZE)), ()):
             growth = puddle.growth(self.wetness)
             if growth >= RING_SIZE_MIN and puddle.covers(x, y, growth):
-                return True
-        return False
+                return puddle
+        return None
+
+    def puddle_at(self, x: float, y: float) -> bool:
+        """Whether a world point is in a puddle grown enough for raindrops to ring on it."""
+        return self.puddle_under(x, y) is not None
+
+    def _wobble(self, layer: pygame.Surface, amplitude: float, pixel: int) -> pygame.Surface:
+        """The reflection shaken sideways in bands of a few pixels, as a disturbed surface breaks it up."""
+        if amplitude < 0.5:
+            return layer
+        out = pygame.Surface(layer.get_size(), pygame.SRCALPHA)
+        band = 2 * pixel
+        for top in range(0, layer.get_height(), band):
+            shift = round(amplitude * math.sin(top / pixel * 0.9 + self._clock * 14.0))
+            out.blit(layer, (shift, top), pygame.Rect(0, top, layer.get_width(), band))
+        return out
+
+    def update_walkers(self, dt: float, figurines) -> None:
+        """Ring the water round the feet of every figurine walking through a puddle (call while the game runs).
+
+        A ring every RIPPLE_STEP_PX walked in the water, and one at once on
+        stepping in; standing still makes none.
+        """
+        self._clock += dt
+        self.ripples = [ripple for ripple in self.ripples if ripple[3] + dt < RIPPLE_SECONDS]
+        for ripple in self.ripples:
+            ripple[3] += dt
+        if self.wetness <= 0:
+            self._walked.clear()
+            return
+        walked = {}
+        for figurine in figurines:
+            off_x, off_y = figurine.sprite_draw_offset
+            fx = figurine.x + off_x + figurine.sprite_width / 2
+            fy = figurine.y + off_y + figurine.sprite_height - 2
+            last = self._walked.get(id(figurine))
+            distance = RIPPLE_STEP_PX
+            if last is not None:
+                moved = ((fx - last[0]) ** 2 + (fy - last[1]) ** 2) ** 0.5
+                distance = last[2] + moved
+                puddle = self.puddle_under(fx, fy) if moved > 0 else None
+                if puddle is None:
+                    distance = RIPPLE_STEP_PX if moved > 0 else last[2]   # ready to ring on stepping in
+                elif distance >= RIPPLE_STEP_PX:
+                    self.ripples.append([puddle, fx, fy, 0.0])
+                    distance = 0.0
+            walked[id(figurine)] = (fx, fy, distance)
+        self._walked = walked
 
     def _flipped(self, sprite: pygame.Surface) -> pygame.Surface:
         """The sprite upside down, kept (sprites themselves are kept per zoom, so they come again)."""
@@ -362,6 +424,7 @@ class Puddles:
         in_view = [puddle for cy in range(cy0, cy1 + 1) for cx in range(cx0, cx1 + 1)
                    for puddle in self._by_chunk.get((cx, cy), ())]
         shown = []
+        rects = {}   # the puddles shown, each to its (rect, sprites)
         for puddle in in_view:
             growth = puddle.growth(self.wetness)
             if growth <= 0:
@@ -376,6 +439,7 @@ class Puddles:
                 sprites = self._sprites[key] = _render(puddle, step / GROWTH_STEPS, scale)
             w, h = sprites[0].get_size()
             shown.append((pygame.Rect(round(sx - w / 2) + offset_x, round(sy - h / 2) + offset_y, w, h), sprites))
+            rects[puddle] = shown[-1]
         if not shown:
             return
         screen.blits([(multiply, rect, None, pygame.BLEND_MULT) for rect, (multiply, *_rest) in shown],
@@ -390,7 +454,12 @@ class Puddles:
             sprite = item['sprite']
             x, y = round(item['pos'][0]), round(item['pos'][1])
             standing.append((x, y + sprite.get_height(), sprite.get_width(), sprite.get_height(), sprite))
-        for rect, (*_layers, mirror) in shown:
+        # How hard each puddle's surface is being stirred, by the freshest step in it
+        stirred: Dict[Puddle, float] = {}
+        for puddle, _x, _y, age in self.ripples:
+            stirred[puddle] = max(stirred.get(puddle, 0.0), 1 - age / RIPPLE_SECONDS)
+        pixel = max(1, round(scale))
+        for puddle, (rect, (_m, _s, _o, mirror, _w)) in rects.items():
             layer = None
             for x, base, w, h, sprite in standing:
                 if base >= rect.bottom or base + h <= rect.top or x >= rect.right or x + w <= rect.left:
@@ -401,6 +470,43 @@ class Puddles:
             if layer is not None:
                 layer.fill(REFLECTION_TINT, special_flags=pygame.BLEND_RGB_MULT)
                 layer.blit(mirror, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                if puddle in stirred:
+                    layer = self._wobble(layer, WOBBLE_PX * pixel * stirred[puddle] ** 1.5, pixel)
                 screen.blit(layer, rect)
 
-        screen.blits([(over, rect) for rect, (_m, _s, over, _r) in shown], doreturn=False)
+        # Rings round the feet of who wades through, spreading and fading, cut to the water
+        rings: Dict[Puddle, pygame.Surface] = {}
+        drops = []
+        for puddle, x, y, age in self.ripples:
+            if puddle not in rects:
+                continue
+            rect, sprites = rects[puddle]
+            layer = rings.get(puddle)
+            if layer is None:
+                layer = rings[puddle] = pygame.Surface(rect.size, pygame.SRCALPHA)
+            progress = age / RIPPLE_SECONDS
+            alpha = 230 * (1 - progress) ** 1.3
+            thick = 2 * pixel if progress < 0.45 else pixel
+            centre = (x * scale - cam_x + offset_x - rect.x, y * scale - cam_y + offset_y - rect.y)
+            for share in RIPPLE_RINGS:   # the outer ring, and smaller ones inside it
+                spread = RIPPLE_WIDTH_TILES[0] + (RIPPLE_WIDTH_TILES[1] - RIPPLE_WIDTH_TILES[0]) * progress ** 0.7
+                width = spread * share * TILE_SIZE * scale
+                height = max(2 * pixel, width * RIPPLE_FLAT)
+                pygame.draw.ellipse(layer, (*RIPPLE_COLOUR, round(alpha * (0.5 + 0.5 * share))),
+                                    (round(centre[0] - width / 2), round(centre[1] - height / 2),
+                                     round(width), round(height)), min(thick, max(1, round(height / 2))))
+            if age < SPLASH_SECONDS:
+                drops.append((rect.x + centre[0], rect.y + centre[1], age / SPLASH_SECONDS))
+        for puddle, layer in rings.items():
+            rect, (*_layers, water) = rects[puddle]
+            layer.blit(water, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+            screen.blit(layer, rect)
+        # The droplets a step throws up: out to the sides and up, falling back, not cut to the water
+        reach = SPLASH_REACH_TILES * TILE_SIZE * scale
+        for sx, sy, t in drops:
+            for dx, lift in ((-1.0, 0.55), (-0.55, 0.9), (0.55, 0.9), (1.0, 0.55), (-0.2, 1.1), (0.25, 1.0)):
+                px = sx + dx * reach * t
+                py = sy - lift * reach * 4 * t * (1 - t) * 0.8 - reach * 0.1 * t
+                screen.fill(SPLASH_COLOUR, (round(px), round(py), pixel, pixel))
+
+        screen.blits([(over, rect) for rect, (_m, _s, over, *_rest) in shown], doreturn=False)

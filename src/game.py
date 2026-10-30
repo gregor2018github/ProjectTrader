@@ -27,7 +27,7 @@ from .ui.helper_modules.sound_control import SoundControl  # Add import for Soun
 from .ui.helper_modules.contract_acquisition import ContractView
 from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
-from .ui.helper_modules.figurine_click_menu import release_ended_conversations
+from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
@@ -652,6 +652,7 @@ class Game:
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
                                                   self.game_map.camera, self.game_map.tmx_map,
                                                   self.game_map.puddles)
+                        self.game_map.puddles.update_walkers(delta_time, iter_figurines(self.game_map))
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size
                         if self.sheep_sounds:
