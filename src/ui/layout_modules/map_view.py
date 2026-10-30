@@ -127,7 +127,10 @@ def draw_map_view(
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
     # The puddles go on the ground under everything, mirroring what stands over them
-    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y, render_queue)
+    walkers = [(figurine._get_scaled_sprite(game_map.camera.zoom), *figurine_screen_pos(figurine, game_map.camera),
+                figurine.y_sort) for figurine in iter_figurines(game_map)]
+    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y,
+                          [(sprite, x + offset_x, y + offset_y, depth) for sprite, x, y, depth in walkers])
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)

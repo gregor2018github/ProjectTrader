@@ -27,8 +27,10 @@ none taller than MAX_HEIGHT_TILES. The ground under it is multiplied darker
 and cooler, so its own texture shows through as it would under shallow
 water; in it is mirrored whatever stands behind it or in it (houses, trees,
 people, animals: the render queue's sprites, flipped about their base line,
-cooled and see-through), and over that go a faint reflection of the sky, a
-thin pale rim and a glint. Each is
+cooled and see-through; what stands over each is worked out once, in world
+space, so a building scrolled half out of view still shows in a puddle in
+it), and over that go a faint reflection of the sky, a thin pale rim and a
+glint. Each is
 drawn once per zoom and size step (GROWTH_STEPS) and kept; it lies flat on
 the ground, under every walker, and the day/night lighting darkens it with
 the rest.
@@ -236,6 +238,10 @@ class Puddles:
         self._by_tile: Dict[Tuple[int, int], List[Puddle]] = {}
         self._sprites: Dict[tuple, Tuple[pygame.Surface, ...]] = {}
         self._flips: Dict[int, Tuple[pygame.Surface, pygame.Surface]] = {}
+        # What can be mirrored, and per puddle what stands over it (see _standing_over)
+        self._mirrorable = [thing for thing in list(tmx_map.houses) + list(tmx_map.trees)
+                            if getattr(thing, 'image', None) is not None]
+        self._over: Dict[Puddle, list] = {}
         self._walked: Dict[int, Tuple[float, float, float]] = {}   # per figurine: feet, distance since its last ring
         self.ripples: List[list] = []   # each [puddle, x, y, age]: rings round the feet of who walks through
         self._clock = 0.0               # seconds the walkers have been updated for, to move the wobble
@@ -275,6 +281,7 @@ class Puddles:
         self.puddles = []
         self._by_tile = {}
         self._by_chunk = {}
+        self._over = {}
         self._sprites.clear()
         trodden = self._trodden
         taken: Dict[Tuple[int, int], List[Puddle]] = {}
@@ -400,15 +407,39 @@ class Puddles:
             entry = self._flips[id(sprite)] = (sprite, pygame.transform.flip(sprite, False, True))
         return entry[1]
 
+    def _standing_over(self, puddle: Puddle) -> list:
+        """The buildings and trees whose mirror image reaches the puddle, worked out once per puddle.
+
+        In world space, so it does not matter whether they are on screen: a
+        building whose top has scrolled out of view still shows in a puddle
+        in it. A thing mirrors into a puddle when it stands over it (its x
+        range overlaps) and its base line is above the puddle's bottom while
+        its height, flipped down from there, reaches the puddle's top.
+        """
+        found = self._over.get(puddle)
+        if found is None:
+            half_w, half_h = puddle.width * TILE_SIZE / 2, puddle.height * TILE_SIZE / 2
+            left, right = puddle.x - half_w, puddle.x + half_w
+            top, bottom = puddle.y - half_h, puddle.y + half_h
+            found = []
+            for thing in self._mirrorable:
+                image = thing.image
+                if (thing.x < right and thing.x + image.get_width() > left
+                        and thing.y < bottom and thing.y + image.get_height() > top):
+                    found.append(thing)
+            self._over[puddle] = found
+        return found
+
     def draw(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int,
-             render_queue: Sequence[Dict] = ()) -> None:
+             figurines: Sequence[Tuple[pygame.Surface, int, int, float]] = ()) -> None:
         """Lay the puddles in view on the ground, with what stands over them mirrored in them.
 
-        Call it before the render queue is drawn: the queue's sprites (every
-        house, tree and figurine in view) are what the puddles mirror, each
-        flipped about its base line (the bottom of its sprite, where it meets
-        the ground), so only what stands behind or in a puddle shows in it.
-        Lights and other blended entries are left out.
+        Call it before the render queue is drawn. What a puddle mirrors is
+        every building and tree standing over it (_standing_over(), whether
+        on screen or not) and the *figurines* (sprite, left, top on screen,
+        y_sort), each flipped about its base line (the bottom of its sprite,
+        where it meets the ground) and drawn in depth order, so only what
+        stands behind or in a puddle shows in it.
         """
         if self.wetness <= 0 or not self.puddles:
             return
@@ -446,22 +477,25 @@ class Puddles:
                      doreturn=False)
         screen.blits([(sky, rect) for rect, (_m, sky, *_rest) in shown], doreturn=False)
 
-        # What may be mirrored: (left, base line, width, height, sprite), in drawing order
-        standing = []
-        for item in render_queue:
-            if item.get('flags'):
-                continue
-            sprite = item['sprite']
-            x, y = round(item['pos'][0]), round(item['pos'][1])
-            standing.append((x, y + sprite.get_height(), sprite.get_width(), sprite.get_height(), sprite))
+        walkers = [(y_sort, x, top + sprite.get_height(), sprite) for sprite, x, top, y_sort in figurines]
         # How hard each puddle's surface is being stirred, by the freshest step in it
         stirred: Dict[Puddle, float] = {}
         for puddle, _x, _y, age in self.ripples:
             stirred[puddle] = max(stirred.get(puddle, 0.0), 1 - age / RIPPLE_SECONDS)
         pixel = max(1, round(scale))
         for puddle, (rect, (_m, _s, _o, mirror, _w)) in rects.items():
+            # (depth, left, base line on screen, sprite) of all that may show in it, nearest drawn last
+            standing = []
+            for thing in self._standing_over(puddle):
+                sprite = thing.get_scaled_sprite(camera.zoom)
+                if sprite is not None:
+                    sx, sy = camera.apply(thing.x, thing.y)
+                    standing.append((thing.y_sort, round(sx + offset_x), round(sy + offset_y), sprite))
+            standing += walkers
+            standing.sort(key=lambda entry: entry[0])
             layer = None
-            for x, base, w, h, sprite in standing:
+            for _depth, x, base, sprite in standing:
+                w, h = sprite.get_size()
                 if base >= rect.bottom or base + h <= rect.top or x >= rect.right or x + w <= rect.left:
                     continue
                 if layer is None:
