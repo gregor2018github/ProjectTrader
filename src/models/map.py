@@ -39,6 +39,7 @@ from .door import Door
 from .fog import FogOfWar
 from .rain import Rainfall
 from .puddles import Puddles
+from .wet_ground import WetGround
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -1132,6 +1133,8 @@ class GameMap:
         self.rain: Rainfall = Rainfall()
         # Puddles where the ground is open, as wet as the weather has made it
         self.puddles: Puddles = Puddles(self.tmx_map)
+        # The ground darkening as it gets wet; its kinds of ground come from the Town Plan
+        self.wet_ground: WetGround = WetGround(self.tmx_map.width, self.tmx_map.height)
 
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0

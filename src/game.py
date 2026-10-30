@@ -108,6 +108,7 @@ class Game:
         self.town_plan: TownPlan = TownPlan(self.game_map)
         self.town_plan.prepare()   # now, behind the loading screen, not when first opened
         self.game_map.puddles.set_trodden(self.town_plan.trodden_tiles())   # puddles gather on roads and paving
+        self.game_map.wet_ground.set_ground(self.town_plan.ground_masks(self.game_map.wet_ground.size))
 
         self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:

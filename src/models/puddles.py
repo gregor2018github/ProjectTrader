@@ -46,8 +46,8 @@ from ..config.constants import (
 PUDDLE_CLEARANCE = 0.3     # tiles a puddle keeps from every building and tree
 PUDDLE_SPACING = 2.5       # tiles at least between two puddles' centres
 PUDDLE_GAP = 1.0           # tiles at least between two puddles' edges
-ASPECT = (0.42, 0.58)      # a puddle's height for its width, flattest and roundest
-MAX_HEIGHT_TILES = PUDDLE_SIZE_TILES[1] * ASPECT[1]   # no puddle is taller than this, however wide
+ASPECT = (0.34, 0.5)       # a puddle's height for its width, flattest and roundest
+MAX_HEIGHT_TILES = 0.93       # no puddle is taller than this, however wide
 PUDDLE_GROW_SPAN = 0.25    # wetness over a puddle's threshold it takes to reach its full size
 THRESHOLDS = (0.03, 0.7)   # the wetness the puddles start to show at, the first and the last
 GROWTH_STEPS = 6           # sizes a puddle is drawn in on its way to full
@@ -76,12 +76,27 @@ class Puddle:
         wide = rng.random() < PUDDLE_WIDE_SHARE
         width = rng.uniform(*(PUDDLE_WIDE_TILES if wide else PUDDLE_SIZE_TILES))
         height = min(width * rng.uniform(*ASPECT), MAX_HEIGHT_TILES)
-        # (centre x, centre y, width, height): the main body, then lobes swelling out of it
-        self.lobes: List[Tuple[float, float, float, float]] = [(0.0, 0.0, width, height)]
-        for _ in range(rng.randint(2, 4) + (2 if wide else 0)):
-            scale = rng.uniform(0.4, 0.7)
-            self.lobes.append((rng.uniform(-0.32, 0.32) * width, rng.uniform(-0.18, 0.18) * height,
-                               min(width * scale, height * 2.5), height * scale * rng.uniform(0.85, 1.15)))
+        # (centre x, centre y, width, height). A flat core off the middle...
+        core_w = width * rng.uniform(0.42, 0.58)
+        self.lobes: List[Tuple[float, float, float, float]] = [
+            (rng.uniform(-0.1, 0.1) * width, 0.0, core_w, height * rng.uniform(0.7, 0.9))]
+        # ...arms running out to both sides, flatter the further out, drifting up or down...
+        for side in (-1, 1):
+            reach, drift, last_h = 0.0, 0.0, self.lobes[0][3]
+            for _ in range(rng.randint(2, 3)):
+                arm_w = width * rng.uniform(0.22, 0.42)
+                arm_h = height * rng.uniform(0.4, 0.75) * (1 - reach / width)
+                reach = min(width / 2 - arm_w / 2, reach + arm_w * rng.uniform(0.45, 0.8))
+                # it may drift up or down, but not off the one before it
+                drift += rng.uniform(-0.3, 0.3) * min(last_h, arm_h)
+                self.lobes.append((side * reach, drift, arm_w, arm_h))
+                last_h = arm_h
+        # ...and small nubs bulging out of the edge here and there
+        for _ in range(rng.randint(2, 4)):
+            bx, by, bw, bh = rng.choice(self.lobes)
+            nub_w = width * rng.uniform(0.1, 0.2)
+            self.lobes.append((bx + rng.uniform(-0.45, 0.45) * bw, by + rng.choice((-1, 1)) * bh * rng.uniform(0.3, 0.45),
+                               nub_w, nub_w * rng.uniform(0.5, 0.8)))
         self.width = max(abs(cx) * 2 + w for cx, _cy, w, _h in self.lobes)
         self.height = max(abs(cy) * 2 + h for _cx, cy, _w, h in self.lobes)
         if self.height > MAX_HEIGHT_TILES:   # the lobes stuck out: flatten the whole of it
@@ -203,6 +218,7 @@ class Puddles:
         self.tmx_map = tmx_map
         self.rng = rng or random.Random()
         self.puddles: List[Puddle] = []
+        self.placed: List[Puddle] = []   # the puddles once all of them are placed; a new list each wet spell
         self.wetness = 0.0
         self._dried = True           # the ground has been dry since the puddles were placed
         self._by_tile: Dict[Tuple[int, int], List[Puddle]] = {}
@@ -303,6 +319,7 @@ class Puddles:
                 for tx in range(int((puddle.x - puddle.width * TILE_SIZE / 2) // TILE_SIZE),
                                 int((puddle.x + puddle.width * TILE_SIZE / 2) // TILE_SIZE) + 1):
                     self._by_tile.setdefault((tx, ty), []).append(puddle)
+        self.placed = list(self.puddles)
 
     def puddle_at(self, x: float, y: float) -> bool:
         """Whether a world point is in a puddle grown enough for raindrops to ring on it."""

@@ -14,6 +14,7 @@ from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is_player_near
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
+from ...models.wet_ground import wet_level
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -57,6 +58,11 @@ def draw_map_view(
     
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_map.water_anim_time)
+    # The ground darker where it is wet, under the bridges, the puddles and everyone
+    weather = getattr(game_state.game, "weather", None)
+    if weather:
+        game_map.wet_ground.draw(screen, game_map.camera, offset_x, offset_y,
+                                 wet_level(weather.wetness, weather.rain), game_map.puddles)
     _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
 
     # Update light states
@@ -129,7 +135,6 @@ def draw_map_view(
     
     # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed),
     # darkened further under cloud
-    weather = getattr(game_state.game, "weather", None)
     clouds = weather.clouds if weather else 0.0
     ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds)
 

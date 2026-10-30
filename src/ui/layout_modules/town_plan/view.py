@@ -190,6 +190,11 @@ class TownPlan:
         water = self._ground.masks((tmx.width, tmx.height))["water"]
         self._marks = gather(tmx, water)
 
+    def ground_masks(self, size: Tuple[int, int]) -> Dict[str, pygame.Mask]:
+        """Masks of the kinds of ground ("water", "sand", "road", "plaza", "wood"), *size* large (for the wet ground)."""
+        self._ensure_built()
+        return self._ground.masks(size)
+
     def trodden_tiles(self) -> Set[Tuple[int, int]]:
         """The map's tiles of road and paving, as the plan reads them off the ground (for the puddles)."""
         self._ensure_built()
