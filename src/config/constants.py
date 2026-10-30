@@ -235,6 +235,8 @@ PUDDLE_DRY_PER_HOUR = 0.3            # How fast the ground dries without rain, p
 PUDDLE_PATH_TILES_EACH = 12          # One puddle for about every that many tiles of road and paving
 PUDDLE_OFF_PATH_SHARE = 0.12         # Off the roads and paving (grass, sand) only this share of that
 PUDDLE_SIZE_TILES = (0.6, 1.6)       # A full puddle's width in tiles, smallest and largest
+PUDDLE_WIDE_SHARE = 0.2              # Share of the puddles that are longer, no taller than the largest above
+PUDDLE_WIDE_TILES = (1.8, 3.2)       # Their width in tiles, smallest and largest
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7

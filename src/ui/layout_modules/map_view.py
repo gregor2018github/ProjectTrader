@@ -58,7 +58,6 @@ def draw_map_view(
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_map.water_anim_time)
     _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
-    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y)
 
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
@@ -121,6 +120,8 @@ def draw_map_view(
     
     # Sort by Y coordinate and render
     render_queue.sort(key=lambda obj: obj['y_sort'])
+    # The puddles go on the ground under everything, mirroring what stands over them
+    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y, render_queue)
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)

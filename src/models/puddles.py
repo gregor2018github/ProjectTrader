@@ -22,23 +22,32 @@ reverse order.
 
 What it looks like: a main ellipse with a few smaller lobes overlapping it
 (so no two are the same shape, but all stay rounded and flat, as seen from
-above). The ground under it is multiplied darker and cooler, a damp rim
-and the water, so its own texture shows through as it would under shallow
-water; over that go a faint reflection of the sky and a thin glint. Each is
+above); PUDDLE_WIDE_SHARE of them are drawn longer (PUDDLE_WIDE_TILES), but
+none taller than MAX_HEIGHT_TILES. The ground under it is multiplied darker
+and cooler, so its own texture shows through as it would under shallow
+water; in it is mirrored whatever stands behind it or in it (houses, trees,
+people, animals: the render queue's sprites, flipped about their base line,
+cooled and see-through), and over that go a faint reflection of the sky, a
+thin pale rim and a glint. Each is
 drawn once per zoom and size step (GROWTH_STEPS) and kept; it lies flat on
 the ground, under every walker, and the day/night lighting darkens it with
 the rest.
 """
 
 import random
-from typing import Dict, Iterator, List, Optional, Set, Tuple
+from typing import Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
 import pygame
 
-from ..config.constants import PUDDLE_OFF_PATH_SHARE, PUDDLE_PATH_TILES_EACH, PUDDLE_SIZE_TILES, TILE_SIZE
+from ..config.constants import (
+    PUDDLE_OFF_PATH_SHARE, PUDDLE_PATH_TILES_EACH, PUDDLE_SIZE_TILES, PUDDLE_WIDE_SHARE, PUDDLE_WIDE_TILES, TILE_SIZE,
+)
 
 PUDDLE_CLEARANCE = 0.3     # tiles a puddle keeps from every building and tree
 PUDDLE_SPACING = 2.5       # tiles at least between two puddles' centres
+PUDDLE_GAP = 1.0           # tiles at least between two puddles' edges
+ASPECT = (0.42, 0.58)      # a puddle's height for its width, flattest and roundest
+MAX_HEIGHT_TILES = PUDDLE_SIZE_TILES[1] * ASPECT[1]   # no puddle is taller than this, however wide
 PUDDLE_GROW_SPAN = 0.25    # wetness over a puddle's threshold it takes to reach its full size
 THRESHOLDS = (0.03, 0.7)   # the wetness the puddles start to show at, the first and the last
 GROWTH_STEPS = 6           # sizes a puddle is drawn in on its way to full
@@ -47,11 +56,13 @@ PLACE_ATTEMPTS_PER_TICK = 600   # spots tried per update while placing
 TRIES_PER_PUDDLE = 6       # spots tried for each puddle wanted, most near something they must keep clear of
 CHUNK_TILES = 8            # puddles are filed in squares of this many tiles, to find those in view
 
-# The ground is multiplied by these, so its own texture shows through: darker and cooler where wet
-RIM_MULTIPLY = (196, 190, 184)       # the damp ground round the water
-WATER_MULTIPLY = (132, 146, 166)     # the water
+WATER_MULTIPLY = (132, 146, 166)     # the ground is multiplied by this, so it shows through: darker and cooler
 SKY_COLOUR = (172, 188, 210, 70)     # the overcast sky mirrored in it, laid over
+RIM_COLOUR = (214, 228, 242, 170)    # the thin pale edge of the water, catching the light...
+RIM_FAR_SHARE = 0.35                 # ...on its near side; on the far side only this much of it
 GLINT_COLOUR = (232, 240, 248, 150)  # a thin glint of light on its far side
+REFLECTION_TINT = (222, 234, 248)    # what stands over a puddle, mirrored in it: cooled by this...
+REFLECTION_ALPHA = 150               # ...and this see-through (255 is a perfect mirror)
 
 
 class Puddle:
@@ -62,16 +73,21 @@ class Puddle:
     def __init__(self, x: float, y: float, rng: random.Random) -> None:
         self.x = x
         self.y = y
-        width = rng.uniform(*PUDDLE_SIZE_TILES)
-        height = width * rng.uniform(0.42, 0.58)
+        wide = rng.random() < PUDDLE_WIDE_SHARE
+        width = rng.uniform(*(PUDDLE_WIDE_TILES if wide else PUDDLE_SIZE_TILES))
+        height = min(width * rng.uniform(*ASPECT), MAX_HEIGHT_TILES)
         # (centre x, centre y, width, height): the main body, then lobes swelling out of it
         self.lobes: List[Tuple[float, float, float, float]] = [(0.0, 0.0, width, height)]
-        for _ in range(rng.randint(2, 4)):
+        for _ in range(rng.randint(2, 4) + (2 if wide else 0)):
             scale = rng.uniform(0.4, 0.7)
             self.lobes.append((rng.uniform(-0.32, 0.32) * width, rng.uniform(-0.18, 0.18) * height,
-                               width * scale, height * scale * rng.uniform(0.85, 1.15)))
+                               min(width * scale, height * 2.5), height * scale * rng.uniform(0.85, 1.15)))
         self.width = max(abs(cx) * 2 + w for cx, _cy, w, _h in self.lobes)
         self.height = max(abs(cy) * 2 + h for _cx, cy, _w, h in self.lobes)
+        if self.height > MAX_HEIGHT_TILES:   # the lobes stuck out: flatten the whole of it
+            squash = MAX_HEIGHT_TILES / self.height
+            self.lobes = [(cx, cy * squash, w, h * squash) for cx, cy, w, h in self.lobes]
+            self.height = MAX_HEIGHT_TILES
         self.threshold = rng.uniform(*THRESHOLDS)
 
     def growth(self, wetness: float) -> float:
@@ -132,36 +148,52 @@ class _Blockers:
         return False
 
 
-def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface, pygame.Surface]:
-    """The puddle grown to *growth*, at a screen scale, both centred on surfaces of one size:
-    what to multiply the ground with (white is no change) and what to lay over it."""
+def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface, ...]:
+    """The puddle grown to *growth*, at a screen scale, all centred on surfaces of one size:
+    what to multiply the ground with (white is no change), the sky in it, what to lay over
+    the reflections (rim, glint), and the water's shape as alpha (REFLECTION_ALPHA inside,
+    0 out) to cut a reflection to."""
     px = TILE_SIZE * scale * growth   # screen pixels per tile of the puddle's shape
     pixel = max(1, round(scale))      # one pixel of the art at this scale
     w = int(puddle.width * px) + 4 * pixel + 4
     h = int(puddle.height * px) + 4 * pixel + 4
     cx, cy = w / 2, h / 2
 
-    def lobes(target, colour, grow: float = 0.0, shrink: float = 1.0, lift: float = 0.0) -> None:
+    def lobes(colour, grow: float = 0.0, shrink: float = 1.0, lift: float = 0.0,
+              target: Optional[pygame.Surface] = None) -> pygame.Surface:
+        """All the lobes in one colour, so where they overlap it does not double up."""
+        if target is None:
+            target = pygame.Surface((w, h), pygame.SRCALPHA)
         for lx, ly, lw, lh in puddle.lobes:
             rw, rh = lw * px * shrink + 2 * grow, lh * px * shrink + 2 * grow
             if rw >= 1 and rh >= 1:
                 pygame.draw.ellipse(target, colour, (round(cx + lx * px * shrink - rw / 2),
                                                      round(cy + ly * px * shrink - lift - rh / 2),
                                                      round(rw), round(rh)))
+        return target
 
     multiply = pygame.Surface((w, h))
     multiply.fill((255, 255, 255))
-    lobes(multiply, RIM_MULTIPLY, grow=pixel)
-    lobes(multiply, WATER_MULTIPLY)
-    # The sky: the shape smaller and a little further up, all of it in one go so overlaps do not double up
-    over = pygame.Surface((w, h), pygame.SRCALPHA)
-    lobes(over, SKY_COLOUR, shrink=0.65, lift=0.12 * puddle.height * px)
+    lobes(WATER_MULTIPLY, target=multiply)
+    # The sky: the shape smaller and a little further up; under the reflections
+    sky = lobes(SKY_COLOUR, shrink=0.65, lift=0.12 * puddle.height * px)
+    # The rim: one pixel of the art round the water (the shape grown less the shape),
+    # catching the light on the near side and fading out towards the far one
+    rim = lobes(RIM_COLOUR, grow=pixel)
+    rim.blit(lobes((255, 255, 255, 255)), (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+    for row in range(h):
+        fade = RIM_FAR_SHARE + (1 - RIM_FAR_SHARE) * row / max(1, h - 1)
+        rim.fill((255, 255, 255, round(255 * fade)), (0, row, w, 1), special_flags=pygame.BLEND_RGBA_MULT)
+    over = rim
     if growth > 0.5:
         _lx, ly, mw, mh = puddle.lobes[0]
         length = max(2 * pixel, round(mw * px * 0.22))
         over.fill(GLINT_COLOUR, (round(cx - mw * px * 0.12 - length / 2), round(cy + ly * px - mh * px * 0.26),
                                  length, pixel))
-    return multiply, over
+    mirror = pygame.Surface((w, h), pygame.SRCALPHA)
+    mirror.fill((255, 255, 255, 0))
+    lobes((255, 255, 255, REFLECTION_ALPHA), target=mirror)
+    return multiply, sky, over, mirror
 
 
 class Puddles:
@@ -174,7 +206,8 @@ class Puddles:
         self.wetness = 0.0
         self._dried = True           # the ground has been dry since the puddles were placed
         self._by_tile: Dict[Tuple[int, int], List[Puddle]] = {}
-        self._sprites: Dict[tuple, Tuple[pygame.Surface, pygame.Surface]] = {}
+        self._sprites: Dict[tuple, Tuple[pygame.Surface, ...]] = {}
+        self._flips: Dict[int, Tuple[pygame.Surface, pygame.Surface]] = {}
         self._by_chunk: Dict[Tuple[int, int], List[Puddle]] = {}
         self._blockers = _Blockers(tmx_map)
         self._trodden: Set[Tuple[int, int]] = set()
@@ -213,7 +246,7 @@ class Puddles:
         self._by_chunk = {}
         self._sprites.clear()
         trodden = self._trodden
-        taken: Dict[Tuple[int, int], List[Tuple[float, float]]] = {}
+        taken: Dict[Tuple[int, int], List[Puddle]] = {}
         spacing = PUDDLE_SPACING * TILE_SIZE
 
         def spots() -> Iterator[Tuple[Puddle, bool]]:
@@ -253,12 +286,15 @@ class Puddles:
             if any(b.colliderect(area) for b in bridges) or self._blockers.hit(area):
                 continue
             home = (int(puddle.x // spacing), int(puddle.y // spacing))
-            near = [p for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+            near = [p for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2)
                     for p in taken.get((home[0] + dx, home[1] + dy), ())]
-            if any((px - puddle.x) ** 2 + (py - puddle.y) ** 2 < spacing ** 2 for px, py in near):
+            if any((o.x - puddle.x) ** 2 + (o.y - puddle.y) ** 2 < spacing ** 2
+                   or (abs(o.x - puddle.x) < ((o.width + puddle.width) / 2 + PUDDLE_GAP) * TILE_SIZE
+                       and abs(o.y - puddle.y) < ((o.height + puddle.height) / 2 + PUDDLE_GAP) * TILE_SIZE)
+                   for o in near):
                 continue
             placed[on_path] += 1
-            taken.setdefault(home, []).append((puddle.x, puddle.y))
+            taken.setdefault(home, []).append(puddle)
             self.puddles.append(puddle)
             chunk = CHUNK_TILES * TILE_SIZE
             self._by_chunk.setdefault((int(puddle.x // chunk), int(puddle.y // chunk)), []).append(puddle)
@@ -276,14 +312,31 @@ class Puddles:
                 return True
         return False
 
-    def draw(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int) -> None:
-        """Lay the puddles in view on the ground."""
+    def _flipped(self, sprite: pygame.Surface) -> pygame.Surface:
+        """The sprite upside down, kept (sprites themselves are kept per zoom, so they come again)."""
+        entry = self._flips.get(id(sprite))
+        if entry is None or entry[0] is not sprite:
+            if len(self._flips) > 1500:
+                self._flips.clear()
+            entry = self._flips[id(sprite)] = (sprite, pygame.transform.flip(sprite, False, True))
+        return entry[1]
+
+    def draw(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int,
+             render_queue: Sequence[Dict] = ()) -> None:
+        """Lay the puddles in view on the ground, with what stands over them mirrored in them.
+
+        Call it before the render queue is drawn: the queue's sprites (every
+        house, tree and figurine in view) are what the puddles mirror, each
+        flipped about its base line (the bottom of its sprite, where it meets
+        the ground), so only what stands behind or in a puddle shows in it.
+        Lights and other blended entries are left out.
+        """
         if self.wetness <= 0 or not self.puddles:
             return
         scale = round(TILE_SIZE * camera.zoom) / float(TILE_SIZE)
         cam_x, cam_y = round(camera.x * scale), round(camera.y * scale)
         view_w, view_h = camera.screen_width, camera.screen_height
-        reach = PUDDLE_SIZE_TILES[1] * TILE_SIZE * scale
+        reach = max(PUDDLE_SIZE_TILES[1], PUDDLE_WIDE_TILES[1]) * TILE_SIZE * scale
         if len(self._sprites) > 4000:
             self._sprites.clear()
         chunk = CHUNK_TILES * TILE_SIZE * scale
@@ -291,7 +344,7 @@ class Puddles:
         cx1, cy1 = int((cam_x + view_w + reach) // chunk), int((cam_y + view_h + reach) // chunk)
         in_view = [puddle for cy in range(cy0, cy1 + 1) for cx in range(cx0, cx1 + 1)
                    for puddle in self._by_chunk.get((cx, cy), ())]
-        batch = []
+        shown = []
         for puddle in in_view:
             growth = puddle.growth(self.wetness)
             if growth <= 0:
@@ -304,8 +357,33 @@ class Puddles:
             sprites = self._sprites.get(key)
             if sprites is None:
                 sprites = self._sprites[key] = _render(puddle, step / GROWTH_STEPS, scale)
-            multiply, over = sprites
-            pos = (round(sx - multiply.get_width() / 2) + offset_x, round(sy - multiply.get_height() / 2) + offset_y)
-            batch.append((multiply, pos, None, pygame.BLEND_MULT))
-            batch.append((over, pos, None, 0))
-        screen.blits(batch, doreturn=False)
+            w, h = sprites[0].get_size()
+            shown.append((pygame.Rect(round(sx - w / 2) + offset_x, round(sy - h / 2) + offset_y, w, h), sprites))
+        if not shown:
+            return
+        screen.blits([(multiply, rect, None, pygame.BLEND_MULT) for rect, (multiply, *_rest) in shown],
+                     doreturn=False)
+        screen.blits([(sky, rect) for rect, (_m, sky, *_rest) in shown], doreturn=False)
+
+        # What may be mirrored: (left, base line, width, height, sprite), in drawing order
+        standing = []
+        for item in render_queue:
+            if item.get('flags'):
+                continue
+            sprite = item['sprite']
+            x, y = round(item['pos'][0]), round(item['pos'][1])
+            standing.append((x, y + sprite.get_height(), sprite.get_width(), sprite.get_height(), sprite))
+        for rect, (*_layers, mirror) in shown:
+            layer = None
+            for x, base, w, h, sprite in standing:
+                if base >= rect.bottom or base + h <= rect.top or x >= rect.right or x + w <= rect.left:
+                    continue
+                if layer is None:
+                    layer = pygame.Surface(rect.size, pygame.SRCALPHA)
+                layer.blit(self._flipped(sprite), (x - rect.x, base - rect.y))
+            if layer is not None:
+                layer.fill(REFLECTION_TINT, special_flags=pygame.BLEND_RGB_MULT)
+                layer.blit(mirror, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                screen.blit(layer, rect)
+
+        screen.blits([(over, rect) for rect, (_m, _s, over, _r) in shown], doreturn=False)
