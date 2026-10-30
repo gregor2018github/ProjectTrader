@@ -207,15 +207,10 @@ class EventHandler:
         elif choice == "Load":
             slot = getattr(game_state, "_pending_load_slot", None)
             if slot is not None:  # slot 0 is the autosave
-                from ..persistence.save_manager import load_game as _load, apply_save_data
+                from ..persistence.save_manager import load_game as _load
                 try:
                     data = _load(slot)
-                    apply_save_data(data, game_state, game_state.game.player,
-                                   game_state.game.depot, game_state.game.goods,
-                                   population_manager=game_state.game.population_manager)
-                    game_state.game.game_map.map_player.x = game_state.game.player.position[0]
-                    game_state.game.game_map.map_player.y = game_state.game.player.position[1]
-                    game_state.game.game_map.restore_fog(data.get("fog"))
+                    game_state.game.restore_loaded_save(data)
                     game_state.game.reset_autosave_timer()
                     game_state.info_window = None
                     game_state._pending_load_slot = None

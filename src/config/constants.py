@@ -206,6 +206,34 @@ SMOKE_START_HOUR_RANGE = 3.5         # latest activation: 21:00
 SMOKE_DURATION_MIN = 4.0             # burns at least 4 hours
 SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
+# WEATHER CONSTANTS (models/weather.py; hours are game hours, about 10 s each at normal speed)
+
+# The spells the weather goes through: how hard it rains (0 to 1), how overcast it is (0 to 1),
+# how much the wind slants the rain (sideways per unit fallen), how long a spell lasts
+# (shortest, longest hours) and the weights of what comes after it. Rain only ever comes
+# out of an overcast sky, and a downpour only out of rain.
+WEATHER_SPELLS = {
+    "clear":    {"rain": 0.0,  "clouds": 0.0,  "wind": 0.05, "hours": (8.0, 30.0),
+                 "next": {"overcast": 1.0}},
+    "overcast": {"rain": 0.0,  "clouds": 0.6,  "wind": 0.10, "hours": (1.0, 5.0),
+                 "next": {"clear": 0.45, "drizzle": 0.30, "rain": 0.25}},
+    "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "hours": (1.0, 4.0),
+                 "next": {"overcast": 0.45, "rain": 0.40, "clear": 0.15}},
+    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "hours": (1.0, 5.0),
+                 "next": {"drizzle": 0.45, "overcast": 0.35, "downpour": 0.20}},
+    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "hours": (0.5, 2.0),
+                 "next": {"rain": 1.0}},
+}
+WEATHER_START = "clear"               # The weather a new game starts in
+WEATHER_GLIDE_PER_HOUR = 1.5          # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
+WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
+RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
+RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land
+RAIN_VOLUME = 0.45                    # Volume of the rain loop at full rain (1.0 is 100%)
+# How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
+RAIN_HUSHES_BIRDS = 0.9
+RAIN_HUSHES_CRICKETS = 0.7
+
 # LOAN SYSTEM CONSTANTS
 
 OVERDRAFT_DAILY_RATE = 0.02          # 2% of negative balance charged per day as penalty

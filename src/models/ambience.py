@@ -26,22 +26,30 @@ player stands (and when):
 - the market's crowd, by the distance to the nearest open booth
   (MARKET_VOLUME_BY_DISTANCE): a booth is open while one of its traders
   minds it, so the crowd is there by day, thins as the booths pack up, and
-  is gone once the last one is shut.
+  is gone once the last one is shut;
+- the rain, by how hard it rains (Weather.rain, up to RAIN_VOLUME). Rain
+  also hushes the birds and the crickets (RAIN_HUSHES_BIRDS,
+  RAIN_HUSHES_CRICKETS). Without an amb_rain_loop sound file a rain loop is
+  made from noise when the game loads (make_rain_sound).
 
 Every loop glides towards the volume it is given (LOOP_GLIDE_PER_S) rather
 than jumping, as when the nearest booth shuts, and it starts from silence.
 """
 
+import array
 import datetime
 import heapq
+import math
+import random
 from typing import Iterable, Optional, Sequence, Set, Tuple
 
 import pygame
 
 from ..config.constants import (
     BIRDS_BY_HOUR, CRICKETS_BY_HOUR, CRICKETS_VOLUME, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER,
-    FOREST_RADIUS_TILES, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RIVER_VOLUME_BY_DISTANCE,
-    SEA_VOLUME_BY_DISTANCE, TOWN_FULL_COVER, TOWN_RADIUS_TILES,
+    FOREST_RADIUS_TILES, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RAIN_HUSHES_BIRDS,
+    RAIN_HUSHES_CRICKETS, RAIN_VOLUME, RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE, TOWN_FULL_COVER,
+    TOWN_RADIUS_TILES,
 )
 from .institutions.market import Market
 
@@ -206,6 +214,58 @@ def open_sea(sea: Set[Tuple[int, int]], tiles_wide: int, tiles_high: int) -> Set
     return reached
 
 
+RAIN_LOOP_SECONDS = 4.0        # length of the made-up rain loop
+RAIN_DROPS_PER_SECOND = 140    # the ticks of single drops in it, over the hiss
+
+
+def make_rain_sound() -> Optional[pygame.mixer.Sound]:
+    """A seamless loop of rain made from noise, for when there is no amb_rain_loop recording.
+
+    White noise and the ticks of single drops, kept between about 400 Hz and
+    5 kHz by two simple filters, swelling a little; each stereo side gets
+    its own noise, so it sounds wide. The end is faded into the beginning, so
+    it loops without a click. None if the mixer is not 16 bit.
+    """
+    init = pygame.mixer.get_init()
+    if not init or init[1] != -16:
+        return None
+    rate, _fmt, channels = init
+    length = int(rate * RAIN_LOOP_SECONDS)
+    overlap = rate // 4
+    total = length + overlap
+    high_pass = 1.0 / (1.0 + 2 * math.pi * 400 / rate)
+    low_pass = 1.0 - math.exp(-2 * math.pi * 5000 / rate)
+    sides = []
+    for side in range(min(channels, 2)):
+        rng = random.Random(side)
+        raw = [rng.random() - 0.5 for _ in range(total)]
+        for _ in range(int(RAIN_DROPS_PER_SECOND * total / rate)):
+            start, strength = rng.randrange(total), rng.uniform(0.5, 2.5)
+            decay = rng.randrange(rate // 400, rate // 150)
+            for i in range(start, min(total, start + decay)):
+                raw[i] += strength * (1 - (i - start) / decay) ** 2 * (rng.random() - 0.5)
+        phase_a, phase_b = rng.uniform(0, 6.3), rng.uniform(0, 6.3)
+        out = [0.0] * total
+        hp = lp = last = 0.0
+        for i, x in enumerate(raw):
+            hp = high_pass * (hp + x - last)
+            last = x
+            lp += low_pass * (hp - lp)
+            t = 2 * math.pi * i / length
+            out[i] = lp * (1 + 0.15 * math.sin(2 * t + phase_a) + 0.08 * math.sin(5 * t + phase_b))
+        for i in range(overlap):
+            fade = i / overlap
+            out[i] = out[i] * fade + out[length + i] * (1 - fade)
+        sides.append(out[:length])
+    peak = max(max(abs(v) for v in out) for out in sides) or 1.0
+    gain = 0.7 * 32767 / peak
+    samples = array.array('h', [0] * (length * channels))
+    for c in range(channels):
+        out = sides[c % len(sides)]
+        samples[c::channels] = array.array('h', (int(v * gain) for v in out))
+    return pygame.mixer.Sound(buffer=samples)
+
+
 class AmbientLoop:
     """One looping sound on a channel of its own, gliding towards the volume it is given.
 
@@ -253,7 +313,7 @@ class Ambience:
     cover and the distances to the water are worked out.
     """
 
-    CHANNELS = 6
+    CHANNELS = 7
 
     def __init__(self, sounds: dict, first_channel: int, tmx_map) -> None:
         self.mill = AmbientLoop(sounds.get('amb_mill_interior_loop'), first_channel)
@@ -262,6 +322,7 @@ class Ambience:
         self.river = AmbientLoop(sounds.get('amb_river_loop'), first_channel + 3)
         self.sea = AmbientLoop(sounds.get('amb_sea_waves_loop'), first_channel + 4)
         self.market = AmbientLoop(sounds.get('amb_market_dense_loop'), first_channel + 5)
+        self.rain = AmbientLoop(sounds.get('amb_rain_loop') or make_rain_sound(), first_channel + 6)
         self.booths = [house for house in tmx_map.houses if isinstance(house, Market)]
         ts = tmx_map.tile_size
         size = (ts, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
@@ -275,8 +336,8 @@ class Ambience:
         waves = open_sea(sea, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
         self.to_sea = Distance(waves, SEA_VOLUME_BY_DISTANCE[-1][0], *size)
 
-    def update(self, tmx_map, player, date: datetime.datetime, audible: bool) -> None:
-        """Set every loop's volume for where the player stands and the time of day."""
+    def update(self, tmx_map, player, date: datetime.datetime, audible: bool, rain: float = 0.0) -> None:
+        """Set every loop's volume for where the player stands, the time of day and how hard it rains."""
         px = player.x + player.width / 2
         py = player.y + player.height / 2
 
@@ -291,14 +352,14 @@ class Ambience:
         daylight = by_steps(BIRDS_BY_HOUR, hour)
         if daylight > 0:
             wooded = min(1.0, self.trees.at(px, py) / FOREST_FULL_COVER)
-            birds = FOREST_BIRDS_VOLUME * wooded * daylight
+            birds = FOREST_BIRDS_VOLUME * wooded * daylight * (1.0 - RAIN_HUSHES_BIRDS * rain)
         self.forest_birds.update(birds, audible)
 
         crickets = 0.0
         night = by_steps(CRICKETS_BY_HOUR, hour)
         if night > 0:
             nature = 1.0 - min(1.0, self.town.at(px, py) / TOWN_FULL_COVER)
-            crickets = CRICKETS_VOLUME * nature * night
+            crickets = CRICKETS_VOLUME * nature * night * (1.0 - RAIN_HUSHES_CRICKETS * rain)
         self.crickets.update(crickets, audible)
 
         self.river.update(by_steps(RIVER_VOLUME_BY_DISTANCE, self.to_river.at(px, py)), audible)
@@ -311,6 +372,8 @@ class Ambience:
         market = by_steps(MARKET_VOLUME_BY_DISTANCE, min(open_near) / tmx_map.tile_size) if open_near else 0.0
         self.market.update(market, audible)
 
+        self.rain.update(RAIN_VOLUME * rain ** 0.7, audible)   # a drizzle is heard more than its share
+
     def stop(self) -> None:
-        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, self.market):
+        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, self.market, self.rain):
             loop.stop()

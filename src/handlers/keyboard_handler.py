@@ -2,6 +2,7 @@ import pygame
 from typing import List, Any, TYPE_CHECKING
 
 from .mouse_handler import VIEW_MODES, set_view_fullscreen
+from ..config import settings_store
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -85,6 +86,13 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
     # Handle function keys
     elif event.key in [pygame.K_F1, pygame.K_F2, pygame.K_F3, pygame.K_F4, pygame.K_F5, pygame.K_F6]:
         _handle_function_key(event.key, game_state, goods, depot)
+    # Debug: the next kind of weather, at once
+    elif event.key == pygame.K_F9:
+        if settings_store.get("show_map_debug") and game_state.game:
+            from ..config.constants import WEATHER_SPELLS
+            weather = game_state.game.weather
+            kinds = list(WEATHER_SPELLS)
+            weather.force(kinds[(kinds.index(weather.kind) + 1) % len(kinds)])
     # The player's inventory (it closes itself on I again)
     elif event.key == pygame.K_i:
         if not game_state.info_window:

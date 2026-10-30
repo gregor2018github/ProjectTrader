@@ -18,6 +18,7 @@ from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
 from .models.ambience import AMBIENCE_FIRST_CHANNEL, Ambience
+from .models.weather import Weather
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -86,6 +87,9 @@ class Game:
         self.goods: List[Good] = self._initialize_goods()
         self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
         self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
+
+        # Clear sky, cloud and rain, going on with the game's clock
+        self.weather: Weather = Weather()
 
         # Initialize depot
         self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
@@ -201,14 +205,21 @@ class Game:
 
         # If loading from a save file, restore all game state now that every object exists
         if save_data is not None:
-            apply_save_data(save_data, self.state, self.player, self.depot, self.goods,
-                            population_manager=self.population_manager)
-            self.game_map.map_player.x = self.player.position[0]
-            self.game_map.map_player.y = self.player.position[1]
-            self.game_map.restore_fog(save_data.get("fog"))
-            self.restore_owned_buildings()
-            self._update_player_market_area()
-            self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
+            self.restore_loaded_save(save_data)
+
+    def restore_loaded_save(self, save_data: Dict[str, Any]) -> None:
+        """Put a loaded save into the running game: the saved state, and everything
+        on the map that follows from it. Used both when the game starts from a
+        save and when one is loaded while playing."""
+        apply_save_data(save_data, self.state, self.player, self.depot, self.goods,
+                        population_manager=self.population_manager)
+        self.game_map.map_player.x = self.player.position[0]
+        self.game_map.map_player.y = self.player.position[1]
+        self.game_map.restore_fog(save_data.get("fog"))
+        self.weather.load(save_data.get("weather"))
+        self.restore_owned_buildings()
+        self._update_player_market_area()
+        self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
 
     @staticmethod
     def init_pygame() -> None:
@@ -248,8 +259,9 @@ class Game:
         self.screen.blit(self._fade_cover, (0, 0))
 
     def restore_owned_buildings(self) -> None:
-        """After loading a save, mark Warehouse objects on the map as owned
-        based on tmx_ids stored in depot.properties["warehouses"], and settle
+        """After loading a save, mark the Warehouse objects on the map as owned or
+        not by the tmx_ids stored in depot.properties["warehouses"] (both ways: a
+        save loaded while playing may own fewer than the session did), and settle
         the goods into their storage slots."""
         from .models.institutions.warehouse import Warehouse
         owned_ids = {
@@ -261,8 +273,7 @@ class Game:
         for house in self.game_map.tmx_map.houses:
             if isinstance(house, Warehouse):
                 layouts[house.tmx_id] = (house.buy_slots, house.buy_slot_size)
-                if house.tmx_id in owned_ids:
-                    house.is_owned = True
+                house.is_owned = house.tmx_id in owned_ids
         self.depot.settle_storage(layouts)
 
     def _update_player_market_area(self) -> None:
@@ -482,6 +493,7 @@ class Game:
                 if current_time - self.last_update >= self.update_delay:
                     self.last_update = current_time
                     minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
+                    self.weather.update(self.state.date)
 
                     # update prices once per hour
                     if hour_changed:
@@ -629,6 +641,8 @@ class Game:
                         # rest walk on (see figurine_click_menu)
                         release_ended_conversations(self.state, self.game_map)
                         self.game_map.update(delta_time, self.state.date)
+                        self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
+                                                  self.game_map.camera, self.game_map.tmx_map)
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size
                         if self.sheep_sounds:
@@ -655,7 +669,7 @@ class Game:
                 else:
                     self.game_map.map_player.stop_footstep_sound()
                 self.ambience.update(self.game_map.tmx_map, self.game_map.map_player, self.state.date,
-                                     is_map_visible and self.state.time_level > 1)
+                                     is_map_visible and self.state.time_level > 1, self.weather.rain)
 
                 # Update church bell volume if it's playing
                 if self.church_bell_channel and self.church_bell_channel.get_sound() is self.church_bell_sound:
@@ -884,7 +898,7 @@ class Game:
         self.player.position = (int(mp.x), int(mp.y))
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, population_manager=self.population_manager,
-                  fog=self.game_map.fog)
+                  fog=self.game_map.fog, weather=self.weather)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

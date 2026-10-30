@@ -37,6 +37,7 @@ from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .fog import FogOfWar
+from .rain import Rainfall
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -1126,6 +1127,8 @@ class GameMap:
         # Transient VFX (e.g. splash ripples from thrown stones) — not part of the
         # static TMX data, so they live on GameMap rather than TMXMap.
         self.ripples: List[Ripple] = []
+        # The rain in the air and splashing around the view, as the weather has it
+        self.rain: Rainfall = Rainfall()
 
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0

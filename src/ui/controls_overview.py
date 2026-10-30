@@ -39,6 +39,7 @@ RIGHT_COLUMN: List[Section] = [
     ("Time", [
         ([["Space"]], "Pause / resume"),
         ([["+"], ["-"]], "Faster / slower (map not shown)"),
+        ([["F9"]], "Next weather (debug overlay on)"),
     ]),
     ("Trading (at the market)", [
         ([["F1"], ["F2"]], "Buy / sell, first row"),

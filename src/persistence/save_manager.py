@@ -100,7 +100,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -213,6 +213,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "population": _serialize_population(population_manager),
         # Explored land; loaded by GameMap.restore_fog, missing means none
         "fog": fog.to_save() if fog is not None else None,
+        # Loaded by Weather.load, missing means the weather goes on as it is
+        "weather": weather.to_save() if weather is not None else None,
     }
 
 
@@ -238,11 +240,11 @@ def _serialize_population(pm: Any) -> Optional[Dict[str, Any]]:
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None) -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager, fog)
+    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager, fog, weather)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)

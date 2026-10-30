@@ -125,8 +125,15 @@ def draw_map_view(
         flags = obj.get('flags', 0)
         screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])), special_flags=flags)
     
-    # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed)
-    _apply_lighting(screen, map_content_rect, game_state.date, render_queue)
+    # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed),
+    # darkened further under cloud
+    weather = getattr(game_state.game, "weather", None)
+    clouds = weather.clouds if weather else 0.0
+    ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds)
+
+    # The rain over everything, dimmed with the light rather than by the overlay
+    if weather:
+        game_map.rain.draw(screen, game_map.camera, offset_x, offset_y, weather.wind, max(ambient) / 255)
 
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
@@ -195,27 +202,37 @@ def _apply_lighting(
     screen: pygame.Surface,
     rect: pygame.Rect,
     current_time: datetime.datetime,
-    render_queue: List[Dict[str, Any]]
-) -> None:
-    """Apply a colored overlay to the map based on the time of day.
+    render_queue: List[Dict[str, Any]],
+    clouds: float = 0.0
+) -> Tuple[int, int, int]:
+    """Apply a colored overlay to the map based on the time of day and the clouds.
     
     Args:
         screen: The surface to draw onto.
         rect: The area to apply the lighting to.
         current_time: The current game time.
         render_queue: The list of rendered objects (to find/apply active lights to the mask).
+        clouds: How overcast it is (0 to 1), dimming towards CLOUD_TINT.
+
+    Returns:
+        The ambient color multiplied in, (255, 255, 255) in clear daylight.
     """
     # Calculate ambient color
     color = _get_ambient_color(current_time)
+    if clouds > 0:
+        # Clouds take away daylight: in the dark there is little left for them to take
+        cover = clouds * max(color) / 255
+        color = tuple(round(c * (1 - cover * (1 - t / 255))) for c, t in zip(color, CLOUD_TINT))
     
     # If it's effectively full daylight (white), don't draw anything to save resources
     if color == (255, 255, 255):
-        return
+        return color
         
-    # Create a lighting overlay
-    # optimizing: we could cache this surface if rect size hasn't changed
-    # but for now we create it fresh to keep logic simple
-    lighting_surf = pygame.Surface((rect.width, rect.height))
+    # The lighting overlay, kept from frame to frame while the view keeps its size
+    global _lighting_surf
+    if _lighting_surf is None or _lighting_surf.get_size() != rect.size:
+        _lighting_surf = pygame.Surface(rect.size)
+    lighting_surf = _lighting_surf
     lighting_surf.fill(color)
     
     # We want lights to "break through" the darkness.
@@ -251,6 +268,12 @@ def _apply_lighting(
 
     # Apply using multiply blend mode for a lighting effect
     screen.blit(lighting_surf, rect, special_flags=pygame.BLEND_MULT)
+    return color
+
+
+# Full cloud multiplies the light by this: a cool grey, as under a rain sky
+CLOUD_TINT = (165, 172, 190)
+_lighting_surf = None   # the overlay of _apply_lighting, reused
 
 
 def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
@@ -676,6 +699,9 @@ def draw_map_debug_ui(
         f"FPS: {fps:.1f}",
         f"Time: {time_str}",
     ]
+    weather = getattr(game_state.game, "weather", None)
+    if weather:
+        lines.append(f"{weather.kind.capitalize()} {weather.rain:.2f}")
 
     line_h = 20
     pad = 6
