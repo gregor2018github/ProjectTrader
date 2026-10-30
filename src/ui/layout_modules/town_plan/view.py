@@ -18,7 +18,7 @@ buildings cannot be pointed at. With the debug overlay on, a switch on the
 sheet shows all of it instead, until switched back.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import pygame
 
@@ -189,6 +189,20 @@ class TownPlan:
         self._ground = Ground(tmx.tmx_data)
         water = self._ground.masks((tmx.width, tmx.height))["water"]
         self._marks = gather(tmx, water)
+
+    def trodden_tiles(self) -> Set[Tuple[int, int]]:
+        """The map's tiles of road and paving, as the plan reads them off the ground (for the puddles)."""
+        self._ensure_built()
+        tmx = self.game_map.tmx_map
+        size = (tmx.width * 2, tmx.height * 2)   # two pixels a tile, so a narrow road is not averaged away
+        masks = self._ground.masks(size)
+        trodden = masks["road"].copy()
+        trodden.draw(masks["plaza"], (0, 0))
+        # Down to a pixel a tile: a tile is trodden if any of its pixels is
+        shrunk = pygame.transform.smoothscale(
+            trodden.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 255)), (tmx.width, tmx.height))
+        per_tile = pygame.mask.from_threshold(shrunk, (255, 255, 255, 255), (192, 192, 192, 255))
+        return {(x, y) for y in range(tmx.height) for x in range(tmx.width) if per_tile.get_at((x, y))}
 
     def _plan_at(self, level: int) -> pygame.Surface:
         if level not in self._engraved:

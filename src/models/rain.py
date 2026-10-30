@@ -3,7 +3,7 @@
 Drops live in world space, like smoke and ripples, so the rain stays put
 under a walking camera. Each falls for a fraction of a second towards a spot
 picked uniformly in the view, and on landing becomes a little crown of
-spray on land, or a widening ring on water (bridge decks are land). How many
+spray on land, or a widening ring on water or in a puddle (bridge decks are land). How many
 are in the air follows Weather.rain and the view's size
 (RAIN_DROPS_PER_MEGAPIXEL); their slant follows Weather.wind.
 
@@ -107,8 +107,11 @@ class Rainfall:
         self.splashes: List[list] = []
         self._sprites: Dict[tuple, tuple] = {}
 
-    def update(self, dt: float, rain: float, wind: float, camera, tmx_map) -> None:
-        """Let *dt* seconds of rain fall in the camera's view (only call while the game runs)."""
+    def update(self, dt: float, rain: float, wind: float, camera, tmx_map, puddles=None) -> None:
+        """Let *dt* seconds of rain fall in the camera's view (only call while the game runs).
+
+        A drop landing in one of the *puddles* rings on it, as on water.
+        """
         scale = _scale_of(camera)
         view_w = camera.screen_width / scale
         view_h = camera.screen_height / scale
@@ -140,7 +143,8 @@ class Rainfall:
             if rng.random() < RAIN_SPLASH_SHARE:
                 fell = drop[4] + dt   # what was left of its fall this frame
                 x, y = drop[0] + drop[2] * fell, drop[1] + drop[3] * fell
-                on_water = (int(x // tile), int(y // tile)) in water and tmx_map.bridge_at(x, y) is None
+                on_water = ((int(x // tile), int(y // tile)) in water and tmx_map.bridge_at(x, y) is None
+                            or puddles is not None and puddles.puddle_at(x, y))
                 self.splashes.append([x, y, 0.0, on_water])
 
         # Top up to the wanted number: the drops that landed fall anew, and one more than

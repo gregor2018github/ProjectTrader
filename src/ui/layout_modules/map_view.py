@@ -58,6 +58,7 @@ def draw_map_view(
     # Render the map layers
     _render_map_layers(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_map.water_anim_time)
     _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
+    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y)
 
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
@@ -702,6 +703,7 @@ def draw_map_debug_ui(
     weather = getattr(game_state.game, "weather", None)
     if weather:
         lines.append(f"{weather.kind.capitalize()} {weather.rain:.2f}")
+        lines.append(f"Wet: {weather.wetness:.2f}")
 
     line_h = 20
     pad = 6

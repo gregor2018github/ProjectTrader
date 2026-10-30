@@ -38,6 +38,7 @@ from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .fog import FogOfWar
 from .rain import Rainfall
+from .puddles import Puddles
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -1129,6 +1130,8 @@ class GameMap:
         self.ripples: List[Ripple] = []
         # The rain in the air and splashing around the view, as the weather has it
         self.rain: Rainfall = Rainfall()
+        # Puddles where the ground is open, as wet as the weather has made it
+        self.puddles: Puddles = Puddles(self.tmx_map)
 
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0

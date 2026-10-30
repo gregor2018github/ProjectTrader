@@ -230,6 +230,11 @@ WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
 RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land
 RAIN_VOLUME = 0.45                    # Volume of the rain loop at full rain (1.0 is 100%)
+PUDDLE_FILL_PER_HOUR = 0.6           # How fast full rain wets the ground for puddles, per game hour (1.0 is soaked)
+PUDDLE_DRY_PER_HOUR = 0.3            # How fast the ground dries without rain, per game hour, in sunshine (half as fast under full cloud)
+PUDDLE_PATH_TILES_EACH = 12          # One puddle for about every that many tiles of road and paving
+PUDDLE_OFF_PATH_SHARE = 0.12         # Off the roads and paving (grass, sand) only this share of that
+PUDDLE_SIZE_TILES = (0.6, 1.6)       # A full puddle's width in tiles, smallest and largest
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7

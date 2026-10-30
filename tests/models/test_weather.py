@@ -73,3 +73,20 @@ def test_load_without_weather_keeps_it(weather):
     weather.load(None)
     weather.load({"kind": "hail"})
     assert weather.to_save() == before
+
+
+def test_ground_wets_in_rain_and_dries_after(weather, monkeypatch):
+    monkeypatch.setattr(weather_module, "PUDDLE_FILL_PER_HOUR", 0.5)
+    monkeypatch.setattr(weather_module, "PUDDLE_DRY_PER_HOUR", 0.2)
+    weather.force("wet")
+    weather.hours_left = 99
+    weather.rain, weather.clouds = 1.0, 0.0           # already pouring
+    weather.advance(1.0)
+    assert weather.wetness == pytest.approx(0.5)
+    weather.advance(4.0)
+    assert weather.wetness == 1.0                      # soaked, no wetter
+    weather.rain = 0.0
+    weather.force("clear")
+    weather.hours_left = 99
+    weather.advance(1.0)                               # the clouds go at 0.5 an hour: dries at 0.2 * (1 - 0.5 * 0.5)
+    assert weather.wetness == pytest.approx(1.0 - 0.2 * 0.75)

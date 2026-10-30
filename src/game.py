@@ -107,6 +107,7 @@ class Game:
         # The paper plan of the town shown in the "building" view
         self.town_plan: TownPlan = TownPlan(self.game_map)
         self.town_plan.prepare()   # now, behind the loading screen, not when first opened
+        self.game_map.puddles.set_trodden(self.town_plan.trodden_tiles())   # puddles gather on roads and paving
 
         self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:
@@ -499,6 +500,7 @@ class Game:
                     self.last_update = current_time
                     minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
+                    self.game_map.puddles.update(self.weather.wetness)
 
                     # update prices once per hour
                     if hour_changed:
@@ -647,7 +649,8 @@ class Game:
                         release_ended_conversations(self.state, self.game_map)
                         self.game_map.update(delta_time, self.state.date)
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
-                                                  self.game_map.camera, self.game_map.tmx_map)
+                                                  self.game_map.camera, self.game_map.tmx_map,
+                                                  self.game_map.puddles)
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size
                         if self.sheep_sounds:
