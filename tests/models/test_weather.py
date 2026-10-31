@@ -39,6 +39,7 @@ def test_next_spell_follows_when_one_runs_out(weather):
 
 def test_levels_glide_towards_the_spell(weather):
     weather.force("wet")
+    weather.clouds = 1.0                               # already overcast: the rain need not wait
     weather.advance(1.0)
     assert weather.rain == pytest.approx(0.5)
     assert weather.wind == pytest.approx(0.5)          # already there, held
@@ -55,6 +56,7 @@ def test_update_counts_game_time_and_caps_jumps(weather):
     weather.update(start + datetime.timedelta(minutes=30))
     assert weather.hours_left == pytest.approx(1.5)
     weather.force("wet")
+    weather.clouds = 1.0
     weather.update(start + datetime.timedelta(days=3))  # a jump counts as an hour at most
     assert weather.rain == pytest.approx(0.5)
 
@@ -80,7 +82,7 @@ def test_ground_wets_in_rain_and_dries_after(weather, monkeypatch):
     monkeypatch.setattr(weather_module, "PUDDLE_DRY_PER_HOUR", 0.2)
     weather.force("wet")
     weather.hours_left = 99
-    weather.rain, weather.clouds = 1.0, 0.0           # already pouring
+    weather.rain, weather.clouds = 1.0, 1.0           # already pouring
     weather.advance(1.0)
     assert weather.wetness == pytest.approx(0.5)
     weather.advance(4.0)
@@ -88,7 +90,7 @@ def test_ground_wets_in_rain_and_dries_after(weather, monkeypatch):
     weather.rain = 0.0
     weather.force("clear")
     weather.hours_left = 99
-    weather.advance(1.0)                               # the clouds go at 0.5 an hour: dries at 0.2 * (1 - 0.5 * 0.5)
+    weather.advance(1.0)                               # the clouds go from 1.0 at 0.5 an hour: dries at 0.2 * (1 - 0.5 * 0.5)
     assert weather.wetness == pytest.approx(1.0 - 0.2 * 0.75)
 
 
@@ -142,11 +144,27 @@ def test_old_save_without_fog_loads_clear(weather):
     assert weather.fog == 0.0
 
 
-def test_force_at_once_jumps_to_the_spell(foggy):
-    foggy.force("fog", at_once=True)
-    assert (foggy.rain, foggy.clouds, foggy.fog) == (0.0, 0.0, 1.0)
-    foggy.force("wet", at_once=True)
-    assert (foggy.rain, foggy.clouds, foggy.fog) == (1.0, 1.0, 0.0)
+def test_rain_waits_for_its_clouds(weather, monkeypatch):
+    monkeypatch.setattr(weather_module, "RAIN_FROM_CLOUDS", 0.4)
+    weather.force("wet")
+    weather.advance(0.5)                               # clouds 0.25: too few to rain from
+    assert weather.clouds == pytest.approx(0.25)
+    assert weather.rain == 0.0
+    weather.advance(0.5)                               # clouds 0.5: a sixth of the way from 0.4 to 1.0
+    assert weather.rain_ceiling() == pytest.approx(1.0 / 6)
+    assert weather.rain == pytest.approx(1.0 / 6)
+    weather.advance(1.0)                               # clouds there, rain following
+    assert weather.clouds == 1.0
+    assert weather.rain == pytest.approx(1.0 / 6 + 0.5)
+
+
+def test_forced_spell_develops_and_lasts_until_it_has(foggy):
+    foggy.force("fog")
+    assert foggy.fog == 0.0                            # nothing jumps
+    assert foggy.hours_left >= 1.0 / 0.25 + 9.0        # four hours to thicken, then its own nine
+    foggy.force("wet")
+    assert foggy.rain == 0.0 and foggy.clouds == 0.0
+    assert foggy.hours_left >= (1.0 + 1.0) / 0.5 + 3.0
 
 
 def test_held_weather_stays_and_ignores_the_hour(foggy):

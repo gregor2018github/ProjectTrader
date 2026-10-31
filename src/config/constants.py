@@ -240,6 +240,7 @@ WEATHER_SPELLS = {
 }
 WEATHER_START = "clear"              # The weather a new game starts in
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
+RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this overcast, and is at full strength when the spell's clouds are there
 WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
 RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land

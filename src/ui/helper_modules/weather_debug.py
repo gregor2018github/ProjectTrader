@@ -1,9 +1,10 @@
 """The settings' weather page, offered only with the debug overlay on: start any kind of weather.
 
 One button per spell of WEATHER_SPELLS starts it (Weather.force), the one
-under way marked. "At once" puts rain, clouds, wind and fog where the spell
-has them straight away instead of letting them glide there as usual; "Hold"
-keeps the spell from running out and its fog from thinning with the hour
+under way marked. Nothing jumps: the weather develops towards it as it would
+in play, the clouds gathering before the rain sets in, the fog thickening
+over hours, and the spell lasts until it has got there. "Hold" keeps the
+spell from running out and its fog from thinning with the hour
 (Weather.held, not saved), so it can be looked at as long as needed. The
 ground can be soaked or dried at once, for the puddles and the wet ground.
 A line at the top shows where the weather stands, live.
@@ -30,7 +31,6 @@ class WeatherDebugPage:
         self.weather = weather
         self.font = font
         self.small_font = small_font
-        self.at_once = True
         w, h = BUTTON_SIZE
         kinds = list(WEATHER_SPELLS)
         grid_w = COLUMNS * w + (COLUMNS - 1) * GAP
@@ -43,8 +43,7 @@ class WeatherDebugPage:
         y = top + rows * (h + GAP) + 24
         half = (grid_w - GAP) // 2
         self.option_buttons: List[Tuple[pygame.Rect, str]] = [
-            (pygame.Rect(left, y, half, h), "at_once"),
-            (pygame.Rect(left + half + GAP, y, half, h), "hold"),
+            (pygame.Rect(left, y, grid_w, h), "hold"),
             (pygame.Rect(left, y + h + GAP, half, h), "soak"),
             (pygame.Rect(left + half + GAP, y + h + GAP, half, h), "dry"),
         ]
@@ -53,8 +52,6 @@ class WeatherDebugPage:
 
     def _label(self, action: str) -> Tuple[str, bool]:
         """An option button's text, and whether it shows as switched on."""
-        if action == "at_once":
-            return ("Change: at once" if self.at_once else "Change: gliding"), self.at_once
         if action == "hold":
             return ("Hold: on" if self.weather.held else "Hold: off"), self.weather.held
         return ("Soak ground" if action == "soak" else "Dry ground"), False
@@ -91,13 +88,11 @@ class WeatherDebugPage:
             return "Back"
         for rect, kind in self.spell_buttons:
             if rect.collidepoint(pos):
-                self.weather.force(kind, at_once=self.at_once)
+                self.weather.force(kind)
                 return None
         for rect, action in self.option_buttons:
             if rect.collidepoint(pos):
-                if action == "at_once":
-                    self.at_once = not self.at_once
-                elif action == "hold":
+                if action == "hold":
                     self.weather.held = not self.weather.held
                 elif action == "soak":
                     self.weather.wetness = 1.0

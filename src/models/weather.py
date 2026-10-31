@@ -6,7 +6,11 @@ after which the next is drawn from its "next" weights. The kinds only say where 
 shows and plays - how hard it rains (`rain`), how overcast it is (`clouds`)
 and how the wind slants the drops (`wind`) - glides there at
 WEATHER_GLIDE_PER_HOUR, so a shower sets in and passes off rather than
-switching on.
+switching on. The rain waits for its clouds: it only starts once the sky is
+RAIN_FROM_CLOUDS overcast and reaches the spell's strength as the clouds
+reach the spell's cover (rain_ceiling()), so out of a clear sky the clouds
+gather first and the rain follows; as it clears, the rain eases off before
+the clouds go.
 
 The fog (`fog`, 0 to 1) glides more slowly still (FOG_GLIDE_PER_HOUR), so
 it rolls in and lifts over hours. Where it heads is the spell's fog, or the
@@ -30,7 +34,7 @@ import random
 from typing import Any, Dict, Optional
 
 from ..config.constants import (
-    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, PUDDLE_FILL_PER_HOUR, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
+    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
 )
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather
@@ -119,8 +123,8 @@ class Weather:
             self.hours_left -= overshoot
         spell = WEATHER_SPELLS[self.kind]
         step = WEATHER_GLIDE_PER_HOUR * hours
-        self.rain = _glide(self.rain, spell["rain"], step)
         self.clouds = _glide(self.clouds, spell["clouds"], step)
+        self.rain = _glide(self.rain, self.rain_ceiling(), step)
         self.wind = _glide(self.wind, spell["wind"] * self.wind_side, step)
         self.fog = _glide(self.fog, self.fog_target(), FOG_GLIDE_PER_HOUR * hours)
         if self.rain > 0:
@@ -128,15 +132,24 @@ class Weather:
         else:
             self.wetness = max(0.0, self.wetness - PUDDLE_DRY_PER_HOUR * (1 - 0.5 * self.clouds) * hours)
 
-    def force(self, kind: str, at_once: bool = False) -> None:
-        """Start a spell of *kind* now (debug); the levels glide to it as usual, or are there *at_once*."""
+    def rain_ceiling(self) -> float:
+        """As hard as it may rain under the clouds there are: none below RAIN_FROM_CLOUDS of cover,
+        the spell's rain once its clouds are there."""
+        spell = WEATHER_SPELLS[self.kind]
+        if spell["rain"] <= 0:
+            return 0.0
+        span = spell["clouds"] - RAIN_FROM_CLOUDS
+        gathered = 1.0 if span <= 0 else (self.clouds - RAIN_FROM_CLOUDS) / span
+        return spell["rain"] * max(0.0, min(1.0, gathered))
+
+    def force(self, kind: str) -> None:
+        """Start a spell of *kind* now (debug). The levels develop towards it as they would anyway,
+        and it lasts at least as long as that takes plus its shortest length, so it is seen in full."""
         self._start_spell(kind)
-        if at_once:
-            spell = WEATHER_SPELLS[kind]
-            self.rain = spell["rain"]
-            self.clouds = spell["clouds"]
-            self.wind = spell["wind"] * self.wind_side
-            self.fog = self.fog_target()
+        spell = WEATHER_SPELLS[kind]
+        building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain)) / WEATHER_GLIDE_PER_HOUR
+        thickening = abs(self.fog_target() - self.fog) / FOG_GLIDE_PER_HOUR
+        self.hours_left = max(self.hours_left, max(building, thickening) + spell["hours"][0])
 
     def to_save(self) -> Dict[str, Any]:
         return {"kind": self.kind, "hours_left": self.hours_left, "rain": self.rain,
