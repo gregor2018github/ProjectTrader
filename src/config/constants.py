@@ -159,7 +159,7 @@ SHEEP_SOUND_MAX_DISTANCE = 900.0     # World pixels beyond which sheep are compl
 DOOR_SOUND_MAX_DISTANCE = 700.0      # World pixels beyond which NPC doors are completely silent
 # Volume of the mill's gear loop (1.0 is 100%) by distance from its walls in tiles,
 # blended linearly between the steps; silent beyond the last
-MILL_VOLUME_BY_DISTANCE = ((0, 0.35), (2, 0.25), (5, 0.14), (10, 0.06), (15, 0.02), (20, 0.0))
+MILL_VOLUME_BY_DISTANCE = ((0, 0.5), (2, 0.34), (5, 0.16), (10, 0.06), (15, 0.02), (20, 0.0))
 FOREST_BIRDS_VOLUME = 0.6             # Volume of the birdsong deep in a wood by day (1.0 is 100%)
 FOREST_RADIUS_TILES = 8.0             # Trees this near the player count towards a wood, the nearer the more
 FOREST_FULL_COVER = 3.0               # That many trees' worth around the player is a wood; fewer, softer birds
@@ -178,7 +178,7 @@ RIVER_VOLUME_BY_DISTANCE = ((1, 0.35), (3, 0.25), (6, 0.12), (10, 0.04), (14, 0.
 SEA_VOLUME_BY_DISTANCE = ((1, 0.5), (4, 0.4), (8, 0.22), (14, 0.08), (20, 0.0))
 # Volume of the market crowd (1.0 is 100%) by distance from the nearest open booth's walls, in tiles,
 # blended linearly; silent beyond the last, and once every booth near is shut
-MARKET_VOLUME_BY_DISTANCE = ((0, 0.4), (3, 0.32), (8, 0.15), (14, 0.05), (20, 0.0))
+MARKET_VOLUME_BY_DISTANCE = ((0, 0.4), (4, 0.32), (11, 0.15), (20, 0.05), (28, 0.0))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map
