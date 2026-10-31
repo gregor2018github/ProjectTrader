@@ -4,6 +4,7 @@ import pygame
 from typing import TYPE_CHECKING, Tuple
 from .loan_dialog import _BaseDialog, _close_dialog
 from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED, SANDY_BROWN
+from ...config.constants import RANK_UNLOCKS
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -39,12 +40,17 @@ class BuyBuildingDialog(_BaseDialog):
             return True
         if self.buy_btn.collidepoint(pos):
             depot = self.game_state.game.depot
-            if depot.money >= self.warehouse.buy_price:
+            if not self._rank_allows():
+                self.game_state.show_warning(f"Only a {RANK_UNLOCKS['buy_buildings']} or higher may buy buildings.")
+            elif depot.money >= self.warehouse.buy_price:
                 depot.buy_warehouse(self.warehouse, self.game_state)
                 _close_dialog(self.game_state)
             else:
                 self.game_state.show_warning("Not enough money to purchase this building.")
         return True
+
+    def _rank_allows(self) -> bool:
+        return self.game_state.game.merchant_rank.has_unlocked("buy_buildings")
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
@@ -64,6 +70,7 @@ class BuyBuildingDialog(_BaseDialog):
 
         depot = self.game_state.game.depot
         can_afford = depot.money >= self.warehouse.buy_price
+        rank_allows = self._rank_allows()
 
         p = self.panel.move(*off)
         cx = p.centerx
@@ -75,6 +82,9 @@ class BuyBuildingDialog(_BaseDialog):
             (f"Storage gained:  {self.warehouse.buy_slots} slots of {self.warehouse.buy_slot_size}", DARK_GREEN),
             (f"Your money:  {depot.money:,.0f} gold", BLACK),
         ]
+        if not rank_allows:
+            # Takes the place of the money line, so the panel needs no more room
+            lines[-1] = (f"Only a {RANK_UNLOCKS['buy_buildings']} or higher may buy", DARK_RED)
         for text, color in lines:
             y = self._text(surf, text, cx, y, color=color, center=True) + 4
 
@@ -82,8 +92,8 @@ class BuyBuildingDialog(_BaseDialog):
         buy_r = self.buy_btn.move(*off)
         cancel_r = self.cancel_btn.move(*off)
 
-        buy_label = "Buy" if can_afford else "Can't Afford"
-        buy_border = DARK_GREEN if can_afford else DARK_RED
+        buy_label = "Rank Too Low" if not rank_allows else "Buy" if can_afford else "Can't Afford"
+        buy_border = DARK_GREEN if can_afford and rank_allows else DARK_RED
         self._draw_btn(surf, buy_r, buy_label, mouse, border=buy_border)
         self._draw_btn(surf, cancel_r, "Cancel", mouse)
 

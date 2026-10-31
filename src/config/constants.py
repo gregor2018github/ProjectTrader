@@ -76,6 +76,27 @@ START_TIME = "08:00"                # When the simulation time starts, format: H
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
 STARTING_MONEY = 100                # Starting money for the player
 INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
+# MERCHANT RANK: titles the player climbs and can lose again, see src/models/merchant_rank.py.
+# A rank asks for all four at once: net wealth, property value (buildings at their buy price),
+# lifetime trade volume (goods bought plus goods sold, in coins) and reputation.
+MERCHANT_RANKS = (
+    # name,        net wealth, property,    volume, reputation
+    ("Peddler",            0,        0,          0,     0),
+    ("Hawker",           500,        0,      1_000,     5),   # no property: buildings are first bought as a Hawker
+    ("Chapman",        1_800,      350,      4_000,    15),
+    ("Trader",         6_300,    1_250,     17_000,    30),
+    ("Merchant",      22_000,    4_500,     70_000,    60),
+    ("Burgher",       80_000,   16_000,    290_000,   100),
+    ("Guildmaster",  280_000,   56_000,  1_200_000,   160),
+    ("Patrician",  1_000_000,  200_000,  5_000_000,   250),
+)
+RANK_GRACE_DAYS = 14                # Days a rank's conditions may stay unmet before it is lost
+RANK_UNLOCKS = {                    # What a rank opens, by the rank first reaching it; never taken away again
+    "buy_buildings": "Hawker",
+}
+REPUTATION_MONTHLY_DECAY = 0.10     # Share of the reputation that fades at the start of each month
+DONATION_REPUTATION_SCALE = 100.0   # Reputation for giving away as much as one's wealth (ln 2 of it, see MerchantRank)
+DONATION_REPUTATION_WEALTH_FLOOR = 200.0  # The least wealth a gift is measured against, so a poor man's coin counts but not endlessly
 SLOT_SIZE = 20                      # units of one good a storage slot holds, unless a warehouse's Buy_slot_size says otherwise
 STARTING_STORAGE_SLOTS = 5          # slots of the starting storage, which is no building
 INITIAL_STORAGE_CAPACITY = STARTING_STORAGE_SLOTS * SLOT_SIZE  # how many items the player can store at the start

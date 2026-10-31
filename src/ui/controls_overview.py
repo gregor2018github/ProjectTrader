@@ -32,6 +32,7 @@ LEFT_COLUMN: List[Section] = [
         ([["6"], ["M"]], "Town Map"),
         ([["Left click"]], "Sidebar picture: whole screen"),
         ([["Left click"]], "Its side buttons: one half"),
+        ([["Left click"]], "Rank in the top bar: the ladder"),
     ]),
 ]
 

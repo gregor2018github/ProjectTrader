@@ -107,7 +107,8 @@ class Town(House):
             if depot.book_donation(amount, category="Town Donations"):
                 self.treasury += amount
                 on_money_donated(game_state, amount)
-                game_state.log_event("DONATION", f"Donated {amount:.0f}g to the Town")
+                gain = game_state.game.merchant_rank.record_gift(amount)
+                game_state.log_event("DONATION", f"Donated {amount:.0f}g to the Town (reputation +{gain:.2f})")
                 # Close menu on success
                 game_state.info_window = None
                 game_state.active_house_menu = None

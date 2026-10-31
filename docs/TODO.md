@@ -19,7 +19,9 @@
 - [ ] improve the water animation, actually split it into sea and river tiles
 - [ ] add a bridge to go over the river
 - [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
-- [ ] implement a merchant rank system
+- [x] implement a merchant rank system
+- [ ] decide the merchant rank perks: unlocks (kept for good, by the highest rank reached) and bonuses (by the rank held)
+- [ ] more sources of reputation (quests, guild duties, feasts), for and against
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features

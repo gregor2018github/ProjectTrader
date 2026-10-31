@@ -25,7 +25,7 @@ _SCROLL_W = 12  # scrollbar width
 _CLOSE = 24     # close-button size
 
 # ── categories ───────────────────────────────────────────────────────────────
-CATEGORIES = ["ALL", "TRADE", "LICENSE", "LOAN", "DONATION", "FINANCE", "SYSTEM"]
+CATEGORIES = ["ALL", "TRADE", "LICENSE", "LOAN", "DONATION", "FINANCE", "RANK", "SYSTEM"]
 
 _BADGE_COLOR: Dict[str, Tuple[int, int, int]] = {
     "TRADE":    (60, 140, 60),
@@ -33,6 +33,7 @@ _BADGE_COLOR: Dict[str, Tuple[int, int, int]] = {
     "LOAN":     (160, 40, 40),
     "DONATION": (100, 40, 140),
     "FINANCE":  (180, 90, 20),
+    "RANK":     (30, 90, 150),
     "SYSTEM":   (80, 80, 80),
 }
 

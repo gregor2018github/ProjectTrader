@@ -269,7 +269,8 @@ def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
         game_state.show_warning("You have not a coin to spare.")
         return
     on_money_donated(game_state, ALMS_COIN)
-    game_state.log_event("DONATION", f"Gave {ALMS_COIN:.0f}g to {npc.display_name}")
+    gain = game_state.game.merchant_rank.record_gift(ALMS_COIN)
+    game_state.log_event("DONATION", f"Gave {ALMS_COIN:.0f}g to {npc.display_name} (reputation +{gain:.2f})")
 
 
 def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:

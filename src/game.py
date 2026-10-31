@@ -11,9 +11,11 @@ from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
 from .ui.layout_modules.town_plan import TownPlan
+from .ui import cursor
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
+from .models.merchant_rank import MerchantRank
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
@@ -100,6 +102,7 @@ class Game:
 
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        self.merchant_rank: MerchantRank = MerchantRank(self.depot, self.player, self.goods)
 
         # Initialize game map (for the 2D map view)
         # Map viewport is the left half of the screen minus borders
@@ -125,8 +128,8 @@ class Game:
         # Initial check for area
         self._update_player_market_area()
 
-        # Queue for license-expiry warnings that need to be shown as info dialogs
-        self._pending_license_warnings: List[str] = []
+        # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
+        self._pending_notices: List[str] = []
 
         # Autosave — settings can only change in the main menu, so read them once
         self.autosave_enabled: bool = bool(settings_store.get("autosave_enabled"))
@@ -195,21 +198,6 @@ class Game:
             self.images['button_sound_80']
         )
         
-        # Load and setup custom cursor
-        try:
-            cursor_path = os.path.join(PICTURES_PATH, "cursor_1.png")
-            if os.path.exists(cursor_path):
-                raw_cursor = pygame.image.load(cursor_path).convert_alpha()
-                # Original size (554x751) is too big, scale down to roughly 30 width keeping aspect ratio
-                # 30 / 554 = 0.054. 751 * 0.054 = 40.5
-                self.cursor_img = pygame.transform.smoothscale(raw_cursor, (30, 41))
-            else:
-                self.cursor_img = None
-                print(f"Cursor file not found at {cursor_path}")
-        except Exception as e:
-            print(f"Failed to load custom cursor: {e}")
-            self.cursor_img = None
-
         # If loading from a save file, restore all game state now that every object exists
         if save_data is not None:
             self.restore_loaded_save(save_data)
@@ -224,6 +212,7 @@ class Game:
         self.game_map.map_player.y = self.player.position[1]
         self.game_map.restore_map_fog(save_data.get("fog"))
         self.weather.load(save_data.get("weather"))
+        self.merchant_rank.load(save_data.get("merchant_rank"))
         self.restore_owned_buildings()
         self._update_player_market_area()
         self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
@@ -488,8 +477,7 @@ class Game:
         # Window things are done here, on the main thread: the game may have been built on another
         pygame.display.set_caption("Merchant's Rise")
         pygame.display.set_icon(self.icon)
-        if self.cursor_img:
-            pygame.mouse.set_visible(False)
+        cursor.use("hand")
         try:
             while running:
 
@@ -607,11 +595,20 @@ class Game:
                                 f"{goods_lines}\n"
                                 f"Please renew to continue trading."
                             )
-                            self._pending_license_warnings.append(msg)
+                            self._pending_notices.append(msg)
+
+                        if month_changed:
+                            self.merchant_rank.new_month()
+                        rank_change = self.merchant_rank.daily_check(self.state.date.date())
+                        if rank_change:
+                            ledger_line, message = rank_change
+                            self.state.log_event("RANK", ledger_line)
+                            if message:
+                                self._pending_notices.append(message)
 
                 # Show one queued license warning if no dialog is currently open
-                if self._pending_license_warnings and not self.state.info_window:
-                    msg = self._pending_license_warnings.pop(0)
+                if self._pending_notices and not self.state.info_window:
+                    msg = self._pending_notices.pop(0)
                     window = InfoWindow(
                         self.state.screen, msg, ["OK"], self.state.font, self
                     )
@@ -880,13 +877,12 @@ class Game:
 
                 self._draw_fade_cover()
 
-                # Draw custom cursor on top of everything
+                # The pointer is a system cursor, so it shows over the black bars too
                 if self.state.contract_acquisition:
-                    self.state.contract_acquisition.draw_cursor()
-                elif self.cursor_img and pygame.mouse.get_focused():
-                    mouse_pos = pygame.mouse.get_pos()
-                    self.screen.blit(self.cursor_img, mouse_pos)
-                    
+                    cursor.use(self.state.contract_acquisition.cursor_pointer())
+                else:
+                    cursor.use("hand")
+
                 pygame.display.update()
         except KeyboardInterrupt:
             pass
@@ -916,7 +912,8 @@ class Game:
         self.player.position = (int(mp.x), int(mp.y))
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, population_manager=self.population_manager,
-                  fog=self.game_map.map_fog, weather=self.weather)
+                  fog=self.game_map.map_fog, weather=self.weather,
+                  merchant_rank=self.merchant_rank)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

@@ -324,6 +324,12 @@ def handle_mouse_click(pos: Tuple[int, int],
             scroll_top_bar(game_state, step)
             return
 
+    # Merchant rank title (top bar) opens the rank overview
+    if 'merchant_rank' in buttons and buttons['merchant_rank'].collidepoint(pos):
+        from ..ui.helper_modules.rank_window import open_rank_window
+        open_rank_window(game_state)
+        return
+
     # Handle town population statistics panel click (Bottom bar)
     if 'town_population' in buttons and buttons['town_population'].collidepoint(pos):
         from ..ui.general_layout.layout import _get_town_for_stats

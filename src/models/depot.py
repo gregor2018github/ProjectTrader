@@ -438,27 +438,29 @@ class Depot:
         Returns:
             float: The newly calculated total wealth value.
         """
-        total_value = self.money
+        total_value = self.net_wealth(goods)
+        self.wealth.append(total_value)
+        self.money_history.append(self.money)
+        self.property_value_history.append(self.get_property_value())
+        self.loan_history.append(self.outstanding_loans())
+        return total_value
 
-        for good_name, quantity in self.good_stock.items():
-            for good in goods:
-                if good.name == good_name:
-                    total_value += quantity * good.get_price()
-                    break
+    def net_wealth(self, goods: List[Any]) -> float:
+        """Money, the goods in stock at their current price and the property, less the loans outstanding."""
+        prices = {good.name: good.get_price() for good in goods}
+        goods_value = sum(quantity * prices.get(name, 0.0) for name, quantity in self.good_stock.items())
+        return self.money + goods_value + self.get_property_value() - self.outstanding_loans()
 
-        outstanding = sum(
+    def outstanding_loans(self) -> float:
+        """The principal still owed on all active loans."""
+        return sum(
             loan.get("remaining_principal", loan.get("amount", 0.0))
             for loan in self.active_loans
         )
-        property_value = self.get_property_value()
-        total_value += property_value
-        total_value -= outstanding
 
-        self.wealth.append(total_value)
-        self.money_history.append(self.money)
-        self.property_value_history.append(property_value)
-        self.loan_history.append(outstanding)
-        return total_value
+    def trade_volume(self) -> float:
+        """Everything ever paid for goods and received for them, in coins."""
+        return self.stats.money_spent_goods + self.stats.money_received
     
     def get_property_value(self) -> float:
         """Return the total value of all owned properties.

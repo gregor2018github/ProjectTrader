@@ -297,6 +297,11 @@ def _draw_top_bar(
     warehouses_text = main_font.render(f"Warehouses: {main_depot.warehouse_count}", True, BLACK)
     screen.blit(warehouses_text, (1365, 10))
 
+    # Merchant rank, right-aligned beside the warehouses; red while it is slipping
+    rank_rect = _draw_top_bar_rank(screen, main_font, game_state, mouse_pos)
+    if rank_rect:
+        buttons['merchant_rank'] = rank_rect
+
     # Total Stock counter
     screen.blit(stock_30, (1330, 30))
     total_stock = sum(main_depot.good_stock.values())
@@ -315,6 +320,23 @@ def _draw_top_bar(
                 break
 
     return buttons
+
+
+def _draw_top_bar_rank(screen: pygame.Surface, main_font: pygame.font.Font,
+                       game_state: "GameState", mouse_pos: tuple) -> Optional[pygame.Rect]:
+    """Draw the rank title at the right end of the top bar's first row; returns its clickable rect."""
+    merchant_rank = getattr(getattr(game_state, 'game', None), 'merchant_rank', None)
+    if merchant_rank is None:
+        return None
+    slipping = merchant_rank.grace_since is not None
+    text = main_font.render(merchant_rank.rank.name, True, DARK_RED if slipping else DARK_BROWN)
+    rect = text.get_rect(topright=(SCREEN_WIDTH - 12, 10)).inflate(8, 4)
+    if rect.collidepoint(mouse_pos) and not getattr(game_state, 'info_window', None):
+        hover = pygame.Surface(rect.size, pygame.SRCALPHA)
+        hover.fill((0, 0, 0, 30))
+        screen.blit(hover, rect)
+    screen.blit(text, text.get_rect(center=rect.center))
+    return rect
 
 
 def clamp_top_bar_offset(game_state: "GameState") -> int:
