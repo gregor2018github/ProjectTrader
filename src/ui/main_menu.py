@@ -553,7 +553,7 @@ class MainMenu:
 
     def _build_settings_rects(self) -> None:
         panel_w = 480
-        panel_h = 476
+        panel_h = 528
         cx = _TOTAL_WIDTH // 2
         cy = SCREEN_HEIGHT // 2
         self._settings_panel_rect = pygame.Rect(
@@ -596,6 +596,11 @@ class MainMenu:
             self._settings_res_btn_rect.right - arrow_w, row4_y, arrow_w, btn_h
         )
 
+        # Row 5 — FPS limit stepper, under the autosave one
+        row5_y = row4_y + 52
+        self._settings_fps_dec_rect = self._settings_interval_dec_rect.move(0, row5_y - row4_y)
+        self._settings_fps_inc_rect = self._settings_interval_inc_rect.move(0, row5_y - row4_y)
+
         # Save / Discard buttons at the bottom
         s_btn_w, s_btn_h = 140, 42
         gap = 24
@@ -636,6 +641,44 @@ class MainMenu:
         index = min(range(len(options)), key=lambda i: abs(options[i] - current))
         index = max(0, min(len(options) - 1, index + direction))
         self._settings_pending["autosave_minutes"] = options[index]
+
+    def _fps_index(self) -> int:
+        """Where the pending FPS limit is in FPS_OPTIONS, an off-list value snapped to its nearest."""
+        options = settings_store.FPS_OPTIONS
+        current = self._settings_pending.get("fps_limit", settings_store.get("fps_limit"))
+        if current in options:
+            return options.index(current)
+        return min((i for i, fps in enumerate(options) if fps), key=lambda i: abs(options[i] - current))
+
+    def _step_fps_limit(self, direction: int) -> None:
+        """Move the pending FPS limit one option up or down."""
+        options = settings_store.FPS_OPTIONS
+        index = max(0, min(len(options) - 1, self._fps_index() + direction))
+        self._settings_pending["fps_limit"] = options[index]
+
+    def _draw_stepper(self, dec_rect: pygame.Rect, inc_rect: pygame.Rect, value: str,
+                      can_dec: bool, can_inc: bool, enabled: bool,
+                      mouse_pos: Tuple[int, int]) -> None:
+        """Draw a value between a left and a right arrow button, greyed out unless *enabled*."""
+        y = dec_rect.centery
+        for rect, can_step, points in (
+            (dec_rect, can_dec,
+             [(dec_rect.centerx + 4, y - 6), (dec_rect.centerx + 4, y + 6),
+              (dec_rect.centerx - 5, y)]),
+            (inc_rect, can_inc,
+             [(inc_rect.centerx - 4, y - 6), (inc_rect.centerx - 4, y + 6),
+              (inc_rect.centerx + 5, y)]),
+        ):
+            active = enabled and can_step
+            hovered = active and rect.collidepoint(mouse_pos)
+            pygame.draw.rect(self.screen, PALE_BROWN if hovered else TAN, rect, border_radius=4)
+            pygame.draw.rect(self.screen, DARK_BROWN if enabled else GRAY, rect, 2, border_radius=4)
+            pygame.draw.polygon(self.screen, DARK_BROWN if active else GRAY, points)
+        value_surf = self.subtitle_font.render(value, True, DARK_BROWN if enabled else DARK_GRAY)
+        self.screen.blit(
+            value_surf,
+            value_surf.get_rect(center=((dec_rect.right + inc_rect.left) // 2, y)),
+        )
 
     def _draw_toggle(self, rect: pygame.Rect, enabled: bool) -> None:
         """Draw an on/off pill switch with its On/Off label to the right."""
@@ -683,6 +726,10 @@ class MainMenu:
             self._step_autosave_minutes(-1)
         elif self._settings_interval_inc_rect.collidepoint(pos):
             self._step_autosave_minutes(1)
+        elif self._settings_fps_dec_rect.collidepoint(pos):
+            self._step_fps_limit(-1)
+        elif self._settings_fps_inc_rect.collidepoint(pos):
+            self._step_fps_limit(1)
         elif self._settings_controls_rect.collidepoint(pos):
             if self._controls is None:
                 self._controls = ControlsOverview(self.screen.get_size())
@@ -733,33 +780,26 @@ class MainMenu:
         self._draw_toggle(self._settings_autosave_toggle_rect, autosave_on)
 
         # ── Row 4: Autosave interval stepper (greyed out while off) ──
-        dec_rect = self._settings_interval_dec_rect
-        inc_rect = self._settings_interval_inc_rect
-        row4_y = dec_rect.centery
         self._draw_settings_label(
-            "Autosave Every", row4_y, DARK_BROWN if autosave_on else DARK_GRAY
+            "Autosave Every", self._settings_interval_dec_rect.centery,
+            DARK_BROWN if autosave_on else DARK_GRAY,
         )
         options = settings_store.AUTOSAVE_MINUTE_OPTIONS
         minutes = self._settings_pending.get("autosave_minutes", 5)
-        for rect, can_step, points in (
-            (dec_rect, minutes > options[0],
-             [(dec_rect.centerx + 4, row4_y - 6), (dec_rect.centerx + 4, row4_y + 6),
-              (dec_rect.centerx - 5, row4_y)]),
-            (inc_rect, minutes < options[-1],
-             [(inc_rect.centerx - 4, row4_y - 6), (inc_rect.centerx - 4, row4_y + 6),
-              (inc_rect.centerx + 5, row4_y)]),
-        ):
-            active = autosave_on and can_step
-            hovered = active and rect.collidepoint(mouse_pos)
-            pygame.draw.rect(self.screen, PALE_BROWN if hovered else TAN, rect, border_radius=4)
-            pygame.draw.rect(self.screen, DARK_BROWN if autosave_on else GRAY, rect, 2, border_radius=4)
-            pygame.draw.polygon(self.screen, DARK_BROWN if active else GRAY, points)
-        value_surf = self.subtitle_font.render(
-            f"{minutes} min", True, DARK_BROWN if autosave_on else DARK_GRAY
+        self._draw_stepper(
+            self._settings_interval_dec_rect, self._settings_interval_inc_rect,
+            f"{minutes} min", minutes > options[0], minutes < options[-1],
+            autosave_on, mouse_pos,
         )
-        self.screen.blit(
-            value_surf,
-            value_surf.get_rect(center=((dec_rect.right + inc_rect.left) // 2, row4_y)),
+
+        # ── Row 5: FPS limit stepper ─────────────────────────────────
+        self._draw_settings_label("FPS Limit", self._settings_fps_dec_rect.centery)
+        fps_options = settings_store.FPS_OPTIONS
+        fps_index = self._fps_index()
+        self._draw_stepper(
+            self._settings_fps_dec_rect, self._settings_fps_inc_rect,
+            settings_store.fps_label(fps_options[fps_index]),
+            fps_index > 0, fps_index < len(fps_options) - 1, True, mouse_pos,
         )
 
         # ── Row 2: Resolution dropdown ───────────────────────────────

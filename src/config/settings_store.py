@@ -4,7 +4,7 @@ import json
 import os
 from typing import Any, Dict
 
-from .constants import MAIN_PATH
+from .constants import MAIN_PATH, MAX_FRAMES_PER_SEC
 
 _SETTINGS_PATH = os.path.join(MAIN_PATH, "settings.json")
 
@@ -13,10 +13,19 @@ _DEFAULTS: Dict[str, Any] = {
     "resolution": "1760x1064",
     "autosave_enabled": True,
     "autosave_minutes": 5,
+    "fps_limit": MAX_FRAMES_PER_SEC,
 }
 
 # Autosave intervals (minutes of play time) selectable in the settings UI.
 AUTOSAVE_MINUTE_OPTIONS = [1, 2, 3, 5, 10, 15, 20, 30]
+
+# FPS limits selectable in the settings UI; 0 is no limit.
+FPS_OPTIONS = [30, 60, 75, 100, 120, 144, 165, 240, 0]
+
+
+def fps_label(fps: int) -> str:
+    return "Unlimited" if fps == 0 else f"{fps} FPS"
+
 
 # Ordered list of windowed resolution presets shown in the settings UI.
 # "Fullscreen" is always appended as the final option.

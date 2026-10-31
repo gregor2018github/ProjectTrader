@@ -56,19 +56,19 @@ def use(pointer: Optional[str]) -> None:
     _shown = (pointer, scale)
 
     image = _image(pointer)
-    if image is not None:
-        _, height, (tip_x, tip_y) = _POINTERS[pointer]
-        w, h = image.get_size()
-        size = (max(1, round(w * height / h * scale)), max(1, round(height * scale)))
-        image = pygame.transform.smoothscale(image, size)
-        hotspot = (min(int(tip_x * size[0]), size[0] - 1), min(int(tip_y * size[1]), size[1] - 1))
-        try:
-            pygame.mouse.set_cursor(pygame.cursors.Cursor(hotspot, image))
-        except pygame.error as e:
-            print(f"Failed to set cursor '{pointer}': {e}")
+    try:
+        if image is None:
             pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-    else:
-        pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
+        else:
+            _, height, (tip_x, tip_y) = _POINTERS[pointer]
+            w, h = image.get_size()
+            size = (max(1, round(w * height / h * scale)), max(1, round(height * scale)))
+            image = pygame.transform.smoothscale(image, size)
+            hotspot = (min(int(tip_x * size[0]), size[0] - 1), min(int(tip_y * size[1]), size[1] - 1))
+            pygame.mouse.set_cursor(pygame.cursors.Cursor(hotspot, image))
+    except pygame.error as e:
+        # A display without cursors (headless, as in the tests): whatever is there stays
+        print(f"Failed to set cursor '{pointer}': {e}")
     pygame.mouse.set_visible(True)
 
 

@@ -33,7 +33,7 @@ from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, MAX_FRAMES_PER_SEC, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -135,6 +135,8 @@ class Game:
         self.autosave_enabled: bool = bool(settings_store.get("autosave_enabled"))
         self.autosave_interval: float = 60.0 * float(settings_store.get("autosave_minutes"))
         self._autosave_elapsed: float = 0.0
+        # 0 lets the frame rate run free
+        self.fps_limit: int = int(settings_store.get("fps_limit"))
         self.save_indicator: SaveIndicator = SaveIndicator(self.small_font)
 
         # Load images
@@ -482,7 +484,7 @@ class Game:
             while running:
 
                 # Limit to X frames per second
-                delta_time = self.clock.tick(MAX_FRAMES_PER_SEC) / 1000.0  # Convert milliseconds to seconds
+                delta_time = self.clock.tick(self.fps_limit) / 1000.0  # Convert milliseconds to seconds
                 self.state.playtime_seconds += delta_time
                 current_time = pygame.time.get_ticks()
 
