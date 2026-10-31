@@ -12,8 +12,9 @@ PUDDLE_PATH_TILES_EACH tiles of road and paving (the tiles the Town Plan
 reads as such, handed over with set_trodden()), whose spots are tried on
 those tiles, and only PUDDLE_OFF_PATH_SHARE of that on grass and sand, tried
 anywhere. Placing them is spread over
-a few ticks (PLACE_ATTEMPTS_PER_TICK), so the rain setting in never stalls a
-frame; they only start growing then anyway.
+updates, at most PLACE_BUDGET_S of each (checked every PLACE_ATTEMPTS_PER_STEP
+spots tried), so the rain setting in never stalls a frame; they only start
+growing then anyway.
 
 How big: each puddle has a threshold of Weather.wetness it starts to show
 at, and grows to its full size over PUDDLE_GROW_SPAN more; drying, it
@@ -38,6 +39,7 @@ the rest.
 
 import math
 import random
+import time
 from typing import Dict, Iterator, List, Optional, Sequence, Set, Tuple
 
 import pygame
@@ -55,7 +57,8 @@ PUDDLE_GROW_SPAN = 0.25    # wetness over a puddle's threshold it takes to reach
 THRESHOLDS = (0.03, 0.7)   # the wetness the puddles start to show at, the first and the last
 GROWTH_STEPS = 6           # sizes a puddle is drawn in on its way to full
 RING_SIZE_MIN = 0.4        # how grown a puddle must be for raindrops on it to make rings
-PLACE_ATTEMPTS_PER_TICK = 600   # spots tried per update while placing
+PLACE_ATTEMPTS_PER_STEP = 50    # spots tried between looks at the clock while placing
+PLACE_BUDGET_S = 0.0015         # time an update may spend placing
 TRIES_PER_PUDDLE = 6       # spots tried for each puddle wanted, most near something they must keep clear of
 CHUNK_TILES = 8            # puddles are filed in squares of this many tiles, to find those in view
 
@@ -262,7 +265,11 @@ class Puddles:
         elif self._dried:
             self._dried = False
             self._placing = self._place()
-        if self._placing is not None and next(self._placing, StopIteration) is StopIteration:
+        if self._placing is not None:
+            deadline = time.perf_counter() + PLACE_BUDGET_S
+            for _ in self._placing:
+                if time.perf_counter() >= deadline:
+                    return
             self._placing = None
 
     def place(self) -> None:
@@ -304,7 +311,7 @@ class Puddles:
         off_wanted = int((cols * rows - len(trodden)) / PUDDLE_PATH_TILES_EACH * PUDDLE_OFF_PATH_SHARE)
         placed = {True: 0, False: 0}
         for attempt, (puddle, on_path) in enumerate(spots()):
-            if attempt % PLACE_ATTEMPTS_PER_TICK == PLACE_ATTEMPTS_PER_TICK - 1:
+            if attempt % PLACE_ATTEMPTS_PER_STEP == PLACE_ATTEMPTS_PER_STEP - 1:
                 yield
             if placed[on_path] >= (path_wanted if on_path else off_wanted):
                 continue
