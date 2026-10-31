@@ -1,7 +1,7 @@
 """The weather: spells of clear sky, cloud, rain and fog, one after another, in game time.
 
 Each spell is a kind out of WEATHER_SPELLS (clear, overcast, a shower:
-drizzle, rain, downpour, clearing; and mist and fog) lasting some game hours,
+drizzle, rain, downpour, clearing; a thunderstorm; and mist and fog) lasting some game hours,
 after which the next is drawn from its "next" weights. The kinds only say where the weather is heading: what the map
 shows and plays - how hard it rains (`rain`), how overcast it is (`clouds`)
 and how the wind slants the drops (`wind`) - glides there at
@@ -11,6 +11,10 @@ RAIN_FROM_CLOUDS overcast and reaches the spell's strength as the clouds
 reach the spell's cover (rain_ceiling()), so out of a clear sky the clouds
 gather first and the rain follows; as it clears, the rain eases off before
 the clouds go.
+
+A thunderstorm's `storm` level (0 to 1, the spell's "storm", 0 for every
+other kind) glides like the clouds: it darkens the sky beyond the rain
+clouds (map_view) and brings the lightning (models/lightning.py).
 
 The fog (`fog`, 0 to 1) glides more slowly still (FOG_GLIDE_PER_HOUR), so
 it rolls in and lifts over hours. Where it heads is the spell's fog, or the
@@ -80,6 +84,7 @@ class Weather:
         self.rain: float = spell["rain"]
         self.clouds: float = spell["clouds"]
         self.wind: float = spell["wind"] * self.wind_side
+        self.storm: float = spell.get("storm", 0.0)
         self.wetness: float = 0.0
         self._last_date: Optional[datetime.datetime] = None
         self._hour: Optional[float] = None   # the hour of the day last seen, for FOG_BY_HOUR
@@ -139,6 +144,7 @@ class Weather:
         self.clouds = _glide(self.clouds, spell["clouds"], step)
         self.rain = _glide(self.rain, self.rain_ceiling(), step)
         self.wind = _glide(self.wind, spell["wind"] * self.wind_side, step)
+        self.storm = _glide(self.storm, spell.get("storm", 0.0), step)
         self.fog = _glide(self.fog, self.fog_target(), FOG_GLIDE_PER_HOUR * hours)
         if self.rain > 0:
             self.wetness = min(1.0, self.wetness + PUDDLE_FILL_PER_HOUR * self.rain * hours)
@@ -160,14 +166,15 @@ class Weather:
         and it lasts at least as long as that takes plus its shortest length, so it is seen in full."""
         self._start_spell(kind)
         spell = WEATHER_SPELLS[kind]
-        building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain)) / WEATHER_GLIDE_PER_HOUR
+        building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain)
+                    + abs(spell.get("storm", 0.0) - self.storm)) / WEATHER_GLIDE_PER_HOUR
         thickening = abs(self.fog_target() - self.fog) / FOG_GLIDE_PER_HOUR
         self.hours_left = max(self.hours_left, max(building, thickening) + spell["hours"][0])
 
     def to_save(self) -> Dict[str, Any]:
         return {"kind": self.kind, "hours_left": self.hours_left, "rain": self.rain,
                 "clouds": self.clouds, "wind": self.wind, "wind_side": self.wind_side,
-                "wetness": self.wetness, "fog": self.fog}
+                "wetness": self.wetness, "fog": self.fog, "storm": self.storm}
 
     def load(self, saved: Optional[Dict[str, Any]]) -> None:
         """Take over a save's weather; a save without one (or with an unknown kind) keeps the current."""
@@ -182,4 +189,5 @@ class Weather:
         self.wind_side = 1 if saved.get("wind_side", 1) >= 0 else -1
         self.wetness = float(saved.get("wetness", 0.0))
         self.fog = float(saved.get("fog", 0.0))
+        self.storm = float(saved.get("storm", 0.0))
         self._last_date = None   # the saved date is not the one this weather last saw

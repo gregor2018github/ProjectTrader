@@ -195,3 +195,15 @@ def test_new_game_starts_partway_through_its_spell(monkeypatch):
     monkeypatch.setattr(weather_module, "WEATHER_SPELLS", SPELLS)
     w = Weather(random.Random(4), kind="clear", partway=True)
     assert 0.0 <= w.hours_left < 2.0
+
+
+def test_storm_level_glides_in_and_out(weather, monkeypatch):
+    spells = dict(SPELLS, storm={"rain": 1.0, "clouds": 1.0, "wind": 0.5, "storm": 1.0,
+                                 "hours": (3.0, 3.0), "next": {"clear": 1.0}})
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", spells)
+    weather.force("storm")
+    weather.advance(1.0)
+    assert weather.storm == pytest.approx(0.5)
+    weather.force("clear")                             # a spell without a storm level calms it
+    weather.advance(1.0)
+    assert weather.storm == pytest.approx(0.0)

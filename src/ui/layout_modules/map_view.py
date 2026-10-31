@@ -139,7 +139,8 @@ def draw_map_view(
     # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed),
     # darkened further under cloud
     clouds = weather.clouds if weather else 0.0
-    ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds)
+    storm = weather.storm if weather else 0.0
+    ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds, storm)
 
     # The fog over everything but the rain, lit by the light rather than darkened by the overlay
     if weather:
@@ -150,6 +151,12 @@ def draw_map_view(
     # The rain over everything, dimmed with the light rather than by the overlay
     if weather:
         game_map.rain.draw(screen, game_map.camera, offset_x, offset_y, weather.wind, max(ambient) / 255)
+
+    # A lightning flash over all of it (models/lightning.py)
+    lightning = getattr(game_state.game, "lightning", None)
+    if lightning and lightning.flash_add:
+        add = lightning.flash_add
+        screen.fill((add, add, add + add // 8), map_content_rect, special_flags=pygame.BLEND_RGB_ADD)
 
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
@@ -219,7 +226,8 @@ def _apply_lighting(
     rect: pygame.Rect,
     current_time: datetime.datetime,
     render_queue: List[Dict[str, Any]],
-    clouds: float = 0.0
+    clouds: float = 0.0,
+    storm: float = 0.0
 ) -> Tuple[int, int, int]:
     """Apply a colored overlay to the map based on the time of day and the clouds.
     
@@ -229,6 +237,7 @@ def _apply_lighting(
         current_time: The current game time.
         render_queue: The list of rendered objects (to find/apply active lights to the mask).
         clouds: How overcast it is (0 to 1), dimming towards CLOUD_TINT.
+        storm: How much of a thunderstorm there is (0 to 1), dimming further towards STORM_TINT.
 
     Returns:
         The ambient color multiplied in, (255, 255, 255) in clear daylight.
@@ -239,6 +248,10 @@ def _apply_lighting(
         # Clouds take away daylight: in the dark there is little left for them to take
         cover = clouds * max(color) / 255
         color = tuple(round(c * (1 - cover * (1 - t / 255))) for c, t in zip(color, CLOUD_TINT))
+    if storm > 0:
+        # A storm's sky is darker still, by day above all
+        gloom = storm * max(color) / 255
+        color = tuple(round(c * (1 - gloom * (1 - t / 255))) for c, t in zip(color, STORM_TINT))
     
     # If it's effectively full daylight (white), don't draw anything to save resources
     if color == (255, 255, 255):
@@ -289,6 +302,8 @@ def _apply_lighting(
 
 # Full cloud multiplies the light by this: a cool grey, as under a rain sky
 CLOUD_TINT = (165, 172, 190)
+# A thunderstorm multiplies that by this as well: darker, and a little bluer
+STORM_TINT = (175, 180, 200)
 _lighting_surf = None   # the overlay of _apply_lighting, reused
 
 

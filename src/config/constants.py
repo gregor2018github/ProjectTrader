@@ -227,6 +227,8 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 # light drizzle): mostly 6 to 12 hours, now and then most of a day of rain. It only comes out of an
 # overcast sky, which brings one about every other time; with the clear spells between, that is
 # 1 to 2 showers a week.
+# A thunderstorm ("storm", the only spell with a "storm" level, 0 when left out) now and then breaks out
+# of the rain or a downpour: as hard as it rains, a darker sky (STORM_TINT in map_view) and lightning.
 # Mist comes out of a clear sky or after a shower, still air either way, and now and then
 # thickens into fog; both hang longest at night and in the early morning (FOG_BY_HOUR).
 WEATHER_SPELLS = {
@@ -237,9 +239,11 @@ WEATHER_SPELLS = {
     "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "fog": 0.1, "hours": (1.0, 2.5),
                  "next": {"rain": 1.0}},
     "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "fog": 0.0, "hours": (3.0, 24.0, 5.0),
-                 "next": {"clearing": 0.65, "downpour": 0.35}},
+                 "next": {"clearing": 0.6, "downpour": 0.3, "storm": 0.1}},
     "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "fog": 0.0, "hours": (1.5, 3.5),
-                 "next": {"clearing": 1.0}},
+                 "next": {"clearing": 0.8, "storm": 0.2}},
+    "storm":    {"rain": 1.0,  "clouds": 1.0,  "wind": 0.40, "fog": 0.0, "storm": 1.0, "hours": (1.0, 3.0),
+                 "next": {"rain": 0.6, "clearing": 0.4}},
     "clearing": {"rain": 0.2,  "clouds": 0.6,  "wind": 0.08, "fog": 0.2, "hours": (1.0, 1.5),
                  "next": {"clear": 0.65, "mist": 0.35}},
     "mist":     {"rain": 0.0,  "clouds": 0.25, "wind": 0.02, "fog": 0.45, "hours": (4.0, 9.0),
@@ -253,6 +257,13 @@ RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this ov
 WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
 RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land
+# Lightning (models/lightning.py), in real seconds while the map runs, at full storm
+LIGHTNING_FROM_STORM = 0.5           # No lightning until the storm level is this high; more often the higher it is
+LIGHTNING_EVERY_S = (6.0, 30.0)      # Seconds between strikes at full storm, shortest and longest
+LIGHTNING_FLASH_ADD = 150            # How much a flash at its brightest adds to the map's colours (0 to 255)
+THUNDER_CHANCE = 0.85                # Share of the strikes heard as thunder; the rest are too far
+THUNDER_DELAY_S = (0.3, 5.0)         # Seconds from flash to thunder, near to far
+THUNDER_VOLUME = (0.9, 0.35)         # Volume of the thunder (1.0 is 100%), near and far
 RAIN_VOLUME = 0.45                    # Volume of the rain loops at their fullest (1.0 is 100%)
 # The rain's recordings, lightest first, each with its share of RAIN_VOLUME by how hard it rains
 # (Weather.rain: clearing 0.2, drizzle 0.3, rain 0.65, downpour 1.0), blended linearly between the

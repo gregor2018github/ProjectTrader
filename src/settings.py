@@ -93,10 +93,11 @@ class SettingsWindow:
         self.weather_page: Optional[WeatherDebugPage] = None
         weather = getattr(self.game, "weather", None)
         if weather is not None and settings_store.get("show_map_debug"):
-            page_rect = pygame.Rect(0, 0, 640, 460)
+            page_rect = pygame.Rect(0, 0, 640, 520)
             page_rect.center = self.window_rect.center
             self.weather_page = WeatherDebugPage(page_rect, weather, font,
-                                                 getattr(self.game, "small_font", font))
+                                                 getattr(self.game, "small_font", font),
+                                                 getattr(self.game, "lightning", None))
 
         # The chooser shown first: one button per page, and Close
         self.mode: str = "choose"
