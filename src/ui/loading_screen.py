@@ -14,6 +14,7 @@ from typing import Any, Callable, Optional
 
 import pygame
 from ..config.constants import FONTS_PATH
+from . import cursor
 from .paper import draw_paper
 from .layout_modules.town_plan.style import INK, INK_FADED
 
@@ -212,6 +213,8 @@ def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]]
             if event.type == pygame.QUIT:
                 raise SystemExit
 
+        # The display was just set up anew, which brought back the system arrow
+        cursor.use("hand")
         screen.blit(background, (0, 0))
 
         if sprites:
