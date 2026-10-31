@@ -246,7 +246,16 @@ RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this ov
 WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
 RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land
-RAIN_VOLUME = 0.45                    # Volume of the rain loop at full rain (1.0 is 100%)
+RAIN_VOLUME = 0.45                    # Volume of the rain loops at their fullest (1.0 is 100%)
+# The rain's recordings, lightest first, each with its share of RAIN_VOLUME by how hard it rains
+# (Weather.rain: clearing 0.2, drizzle 0.3, rain 0.65, downpour 1.0), blended linearly between the
+# steps, so one fades into the next as the rain grows heavier or eases off
+RAIN_LAYERS = (
+    ("amb_rain_light_2_loop", ((0.0, 0.0), (0.03, 0.6), (0.15, 1.0), (0.25, 1.0), (0.4, 0.0))),
+    ("amb_rain_light_loop",   ((0.15, 0.0), (0.3, 1.0), (0.45, 0.85), (0.6, 0.0))),
+    ("amb_rain_medium_loop",  ((0.4, 0.0), (0.55, 0.8), (0.7, 1.0), (0.85, 0.7), (1.0, 0.35))),
+    ("amb_rain_heavy_loop",   ((0.7, 0.0), (0.85, 0.7), (1.0, 1.0))),
+)
 PUDDLE_FILL_PER_HOUR = 0.6           # How fast full rain wets the ground for puddles, per game hour (1.0 is soaked)
 PUDDLE_DRY_PER_HOUR = 0.3            # How fast the ground dries without rain, per game hour, in sunshine (half as fast under full cloud)
 PUDDLE_PATH_TILES_EACH = 24          # One puddle for about every that many tiles of road and paving
