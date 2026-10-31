@@ -179,6 +179,13 @@ SEA_VOLUME_BY_DISTANCE = ((1, 0.5), (4, 0.4), (8, 0.22), (14, 0.08), (20, 0.0))
 # Volume of the market crowd (1.0 is 100%) by distance from the nearest open booth's walls, in tiles,
 # blended linearly; silent beyond the last, and once every booth near is shut
 MARKET_VOLUME_BY_DISTANCE = ((0, 0.4), (4, 0.32), (11, 0.15), (20, 0.05), (28, 0.0))
+MARKET_GROUP_TILES = 12                # Booths this near one another (in tiles) stand in one market
+# Each market's crowd recording, given out from the market with the most booths down (and round again if there are more markets)
+MARKET_LOOPS = ("amb_town_market_A_loop", "amb_town_market_B_loop")
+# Volume of the quiet streets (1.0 is 100%) by how many houses are around, counted as the crickets' town is
+# (each within TOWN_RADIUS_TILES counting 1 on the spot down to 0 at that radius, booths not counted),
+# blended linearly: one house on its own comes to 1 at most, so it stays silent; it gives way to a market's crowd
+STREETS_BY_HOUSES = ((1.4, 0.0), (2.5, 0.1), (4.0, 0.18))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
 START_X_POSITION = 4308               # Player starting X position on the map
 START_Y_POSITION = 4553               # Player starting Y position on the map

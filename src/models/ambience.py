@@ -26,7 +26,12 @@ player stands (and when):
 - the market's crowd, by the distance to the nearest open booth
   (MARKET_VOLUME_BY_DISTANCE): a booth is open while one of its traders
   minds it, so the crowd is there by day, thins as the booths pack up, and
-  is gone once the last one is shut;
+  is gone once the last one is shut. Booths standing together make one
+  market (group_markets), and each market has a recording of its own
+  (MARKET_LOOPS, the biggest market first);
+- the quiet streets, where houses stand close together (STREETS_BY_HOUSES,
+  by a Cover of the houses, booths not counted): a lone house out in the
+  country is not enough for it. It gives way to a market's crowd;
 - the rain, by how hard it rains (Weather.rain, up to RAIN_VOLUME): four
   recordings from drizzle to downpour (RAIN_LAYERS), each on a channel of
   its own, fading into one another as the rain grows heavier or eases off.
@@ -45,8 +50,8 @@ import pygame
 
 from ..config.constants import (
     BIRDS_BY_HOUR, CRICKETS_BY_HOUR, CRICKETS_VOLUME, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER,
-    FOREST_RADIUS_TILES, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RAIN_HUSHES_BIRDS,
-    RAIN_HUSHES_CRICKETS, RAIN_LAYERS, RAIN_VOLUME, RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE, TOWN_FULL_COVER,
+    FOREST_RADIUS_TILES, MARKET_GROUP_TILES, MARKET_LOOPS, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RAIN_HUSHES_BIRDS,
+    RAIN_HUSHES_CRICKETS, RAIN_LAYERS, RAIN_VOLUME, RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE, STREETS_BY_HOUSES, TOWN_FULL_COVER,
     TOWN_RADIUS_TILES,
 )
 from .institutions.market import Market
@@ -212,6 +217,21 @@ def open_sea(sea: Set[Tuple[int, int]], tiles_wide: int, tiles_high: int) -> Set
     return reached
 
 
+def group_markets(booths: Sequence[Market], tile_size: int) -> list:
+    """The booths in markets: a booth whose centre is within MARKET_GROUP_TILES of another's walls is in its market.
+
+    Biggest market first, so each keeps its recording (MARKET_LOOPS) however the booths are listed.
+    """
+    reach = MARKET_GROUP_TILES * tile_size
+    markets: list = []
+    for booth in booths:
+        near = [m for m in markets
+                if any(distance_to_rect(*booth.collision_rect.center, other.collision_rect) < reach for other in m)]
+        merged = [booth] + [b for m in near for b in m]
+        markets = [m for m in markets if m not in near] + [merged]
+    return sorted(markets, key=lambda m: (-len(m), min(b.collision_rect.y for b in m)))
+
+
 class AmbientLoop:
     """One looping sound on a channel of its own, gliding towards the volume it is given.
 
@@ -259,7 +279,7 @@ class Ambience:
     cover and the distances to the water are worked out.
     """
 
-    CHANNELS = 6 + len(RAIN_LAYERS)
+    CHANNELS = 5 + len(MARKET_LOOPS) + 1 + len(RAIN_LAYERS)
 
     def __init__(self, sounds: dict, first_channel: int, tmx_map) -> None:
         self.mill = AmbientLoop(sounds.get('amb_mill_interior_loop'), first_channel)
@@ -267,17 +287,27 @@ class Ambience:
         self.crickets = AmbientLoop(sounds.get('amb_crickets_night_loop'), first_channel + 2)
         self.river = AmbientLoop(sounds.get('amb_river_loop'), first_channel + 3)
         self.sea = AmbientLoop(sounds.get('amb_sea_waves_loop'), first_channel + 4)
-        self.market = AmbientLoop(sounds.get('amb_market_dense_loop'), first_channel + 5)
-        self.rain = [(AmbientLoop(sounds.get(name), first_channel + 6 + i), steps)
+        channel = first_channel + 5
+        self.markets = [AmbientLoop(sounds.get(name), channel + i) for i, name in enumerate(MARKET_LOOPS)]
+        channel += len(MARKET_LOOPS)
+        self.streets = AmbientLoop(sounds.get('amb_town_streets_quiet_loop'), channel)
+        channel += 1
+        self.rain = [(AmbientLoop(sounds.get(name), channel + i), steps)
                      for i, (name, steps) in enumerate(RAIN_LAYERS)]
-        self.booths = [house for house in tmx_map.houses if isinstance(house, Market)]
         ts = tmx_map.tile_size
+        booths = [house for house in tmx_map.houses if isinstance(house, Market)]
+        #: (booths, loop) for every market, the loops taken in turn from the biggest market on
+        self.market_booths = [(market, self.markets[i % len(self.markets)])
+                              for i, market in enumerate(group_markets(booths, ts))]
         size = (ts, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
         stems = [(tree.x + tree.stem_position * ts, tree.y) for tree in tmx_map.trees]
         self.trees = Cover(stems, FOREST_RADIUS_TILES, *size)
         buildings = [house.collision_rect.center for house in tmx_map.houses
                      if not (house.name or '').startswith(NOT_TOWN_BUILDINGS)]
         self.town = Cover(buildings, TOWN_RADIUS_TILES, *size)
+        houses = [house.collision_rect.center for house in tmx_map.houses
+                  if not isinstance(house, Market) and not (house.name or '').startswith(NOT_TOWN_BUILDINGS)]
+        self.houses = Cover(houses, TOWN_RADIUS_TILES, *size)
         sea, river = split_water(tmx_map.water_tiles, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
         self.to_river = Distance(river, RIVER_VOLUME_BY_DISTANCE[-1][0], *size)
         waves = open_sea(sea, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
@@ -312,17 +342,27 @@ class Ambience:
         self.river.update(by_steps(RIVER_VOLUME_BY_DISTANCE, self.to_river.at(px, py)), audible)
         self.sea.update(by_steps(SEA_VOLUME_BY_DISTANCE, self.to_sea.at(px, py)), audible)
 
-        # Only booths in earshot are asked whether they are open
+        # Each market by its nearest open booth; only booths in earshot are asked whether they are open.
+        # Markets sharing a recording are heard by the nearer
         earshot = MARKET_VOLUME_BY_DISTANCE[-1][0] * tmx_map.tile_size
-        booths = ((distance_to_rect(px, py, booth.collision_rect), booth) for booth in self.booths)
-        open_near = [d for d, booth in booths if d < earshot and not booth.is_closed_at(date)]
-        market = by_steps(MARKET_VOLUME_BY_DISTANCE, min(open_near) / tmx_map.tile_size) if open_near else 0.0
-        self.market.update(market, audible)
+        crowds = {id(loop): 0.0 for loop in self.markets}
+        for booths, loop in self.market_booths:
+            near = ((distance_to_rect(px, py, booth.collision_rect), booth) for booth in booths)
+            open_near = [d for d, booth in near if d < earshot and not booth.is_closed_at(date)]
+            if open_near:
+                crowd = by_steps(MARKET_VOLUME_BY_DISTANCE, min(open_near) / tmx_map.tile_size)
+                crowds[id(loop)] = max(crowds[id(loop)], crowd)
+        for loop in self.markets:
+            loop.update(crowds[id(loop)], audible)
+
+        crowd = max(crowds.values(), default=0.0) / MARKET_VOLUME_BY_DISTANCE[0][1]
+        streets = by_steps(STREETS_BY_HOUSES, self.houses.at(px, py)) * (1.0 - min(1.0, crowd))
+        self.streets.update(streets, audible)
 
         for layer, steps in self.rain:
             layer.update(RAIN_VOLUME * by_steps(steps, rain), audible)
 
     def stop(self) -> None:
-        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, self.market,
+        for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, *self.markets, self.streets,
                      *(layer for layer, _steps in self.rain)):
             loop.stop()
