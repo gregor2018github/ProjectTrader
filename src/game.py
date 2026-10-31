@@ -91,7 +91,7 @@ class Game:
         self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
 
         # Clear sky, cloud and rain, going on with the game's clock
-        self.weather: Weather = Weather()
+        self.weather: Weather = Weather(partway=True)
 
         # Initialize depot
         self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)

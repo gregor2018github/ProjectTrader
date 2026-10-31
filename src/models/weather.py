@@ -30,6 +30,7 @@ models/rain.py, models/fog.py and map_view, heard through Ambience. Saved under 
 """
 
 import datetime
+import math
 import random
 from typing import Any, Dict, Optional
 
@@ -64,12 +65,17 @@ class Weather:
     Args:
         rng: Where the spells' lengths and successors are drawn from (seed one in tests).
         kind: The spell to start in; its levels are taken over at once.
+        partway: Start somewhere along that spell rather than at its beginning (a new game).
     """
 
-    def __init__(self, rng: Optional[random.Random] = None, kind: str = WEATHER_START) -> None:
+    def __init__(self, rng: Optional[random.Random] = None, kind: str = WEATHER_START,
+                 partway: bool = False) -> None:
         self.rng = rng or random.Random()
         self.wind_side = 1 if self.rng.random() < 0.5 else -1
         self._start_spell(kind)
+        if partway:
+            # Somewhere along it, so a new game does not always have the whole first spell ahead
+            self.hours_left *= self.rng.random()
         spell = WEATHER_SPELLS[kind]
         self.rain: float = spell["rain"]
         self.clouds: float = spell["clouds"]
@@ -84,8 +90,15 @@ class Weather:
 
     def _start_spell(self, kind: str) -> None:
         self.kind = kind
-        shortest, longest = WEATHER_SPELLS[kind]["hours"]
-        self.hours_left: float = self.rng.uniform(shortest, longest)
+        hours = WEATHER_SPELLS[kind]["hours"]
+        if len(hours) > 2:
+            # (shortest, longest, median): skewed so that half are shorter than the median and
+            # the long ones grow rarer the longer they are
+            shortest, longest, median = hours
+            power = math.log((median - shortest) / (longest - shortest)) / math.log(0.5)
+            self.hours_left: float = shortest + (longest - shortest) * self.rng.random() ** power
+        else:
+            self.hours_left = self.rng.uniform(hours[0], hours[1])
         if self.rng.random() < WEATHER_WIND_TURN_CHANCE:
             self.wind_side = -self.wind_side
 

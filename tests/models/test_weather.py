@@ -174,3 +174,24 @@ def test_held_weather_stays_and_ignores_the_hour(foggy):
     assert foggy.fog_target() == 1.0                   # noon would allow only half
     foggy.advance(50.0)
     assert foggy.kind == "fog"                         # its 9 hours never run out
+
+
+def test_spell_with_a_median_length_is_mostly_short(weather, monkeypatch):
+    spells = dict(SPELLS, long={"rain": 1.0, "clouds": 1.0, "wind": 0.0, "hours": (3.0, 24.0, 5.0),
+                                "next": {"clear": 1.0}})
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", spells)
+    lengths = []
+    for _ in range(400):
+        weather.force("long")
+        weather.hours_left = 0.0                       # forget force()'s minimum, draw anew
+        weather._start_spell("long")
+        lengths.append(weather.hours_left)
+    assert 3.0 <= min(lengths) and max(lengths) <= 24.0
+    assert 160 <= sum(1 for h in lengths if h < 5.0) <= 240     # about half under the median
+    assert 0 < sum(1 for h in lengths if h > 15.0) < 100       # the long ones there, but seldom
+
+
+def test_new_game_starts_partway_through_its_spell(monkeypatch):
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", SPELLS)
+    w = Weather(random.Random(4), kind="clear", partway=True)
+    assert 0.0 <= w.hours_left < 2.0

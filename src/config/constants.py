@@ -213,11 +213,13 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
 # The spells the weather goes through: how hard it rains (0 to 1), how overcast it is (0 to 1),
 # how much the wind slants the rain (sideways per unit fallen), how thick the fog is (0 to 1,
-# before FOG_BY_HOUR), how long a spell lasts (shortest, longest hours) and the weights of what
-# comes after it.
+# before FOG_BY_HOUR), how long a spell lasts (shortest, longest hours, and optionally the median:
+# then half are shorter than that and the long ones grow rarer the longer they are) and the
+# weights of what comes after it.
 # A shower is one run through drizzle, rain, now and then a downpour, and clearing (a last
-# light drizzle): 5 to 12 hours in all. It only comes out of an overcast sky, which brings
-# one about every other time; with the clear spells between, that is 1 to 2 showers a week.
+# light drizzle): mostly 6 to 12 hours, now and then most of a day of rain. It only comes out of an
+# overcast sky, which brings one about every other time; with the clear spells between, that is
+# 1 to 2 showers a week.
 # Mist comes out of a clear sky or after a shower, still air either way, and now and then
 # thickens into fog; both hang longest at night and in the early morning (FOG_BY_HOUR).
 WEATHER_SPELLS = {
@@ -227,18 +229,18 @@ WEATHER_SPELLS = {
                  "next": {"clear": 0.45, "drizzle": 0.55}},
     "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "fog": 0.1, "hours": (1.0, 2.5),
                  "next": {"rain": 1.0}},
-    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "fog": 0.0, "hours": (3.0, 6.5),
-                 "next": {"clearing": 0.75, "downpour": 0.25}},
-    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "fog": 0.0, "hours": (0.5, 1.5),
+    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "fog": 0.0, "hours": (3.0, 24.0, 5.0),
+                 "next": {"clearing": 0.65, "downpour": 0.35}},
+    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "fog": 0.0, "hours": (1.5, 3.5),
                  "next": {"clearing": 1.0}},
     "clearing": {"rain": 0.2,  "clouds": 0.6,  "wind": 0.08, "fog": 0.2, "hours": (1.0, 1.5),
                  "next": {"clear": 0.65, "mist": 0.35}},
     "mist":     {"rain": 0.0,  "clouds": 0.25, "wind": 0.02, "fog": 0.45, "hours": (4.0, 9.0),
-                 "next": {"clear": 0.6, "overcast": 0.15, "fog": 0.25}},
-    "fog":      {"rain": 0.0,  "clouds": 0.4,  "wind": 0.01, "fog": 1.0, "hours": (4.0, 10.0),
+                 "next": {"clear": 0.5, "overcast": 0.15, "fog": 0.35}},
+    "fog":      {"rain": 0.0,  "clouds": 0.4,  "wind": 0.01, "fog": 1.0, "hours": (6.0, 12.0),
                  "next": {"mist": 1.0}},
 }
-WEATHER_START = "clear"              # The weather a new game starts in
+WEATHER_START = "clear"              # The weather a new game starts in, somewhere along the spell (not always at its start)
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
 RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this overcast, and is at full strength when the spell's clouds are there
 WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
@@ -252,7 +254,7 @@ PUDDLE_OFF_PATH_SHARE = 0.08         # Off the roads and paving (grass, sand) on
 PUDDLE_SIZE_TILES = (0.8, 1.6)       # A full puddle's width in tiles, smallest and largest
 PUDDLE_WIDE_SHARE = 0.2              # Share of the puddles that are longer, no taller than the largest above
 PUDDLE_WIDE_TILES = (1.8, 3.2)       # Their width in tiles, smallest and largest
-FOG_GLIDE_PER_HOUR = 0.3             # How fast the fog thickens or lifts towards its target, per game hour (slower than the rain)
+FOG_GLIDE_PER_HOUR = 0.35            # How fast the fog thickens or lifts towards its target, per game hour (slower than the rain)
 # How much of a spell's fog there is at each hour (hour, share), between them smoothly: it
 # hangs at night and in the early morning, and the sun mostly burns it off by noon
 FOG_BY_HOUR = ((0.0, 1.0), (7.0, 1.0), (10.0, 0.6), (13.0, 0.35), (17.0, 0.4), (20.0, 0.75), (23.0, 1.0), (24.0, 1.0))
