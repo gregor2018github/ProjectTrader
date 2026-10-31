@@ -1,7 +1,7 @@
 from ..house import House
 from typing import TYPE_CHECKING
 import pygame
-from ...ui.transaction_feedback import on_money_spent
+from ...ui.transaction_feedback import on_money_donated
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -31,7 +31,7 @@ class Church(House):
             
             if depot.book_donation(amount, category="Church Donations"):
                 self.treasury += amount
-                on_money_spent(game_state, amount)
+                on_money_donated(game_state, amount)
                 game_state.log_event("DONATION", f"Donated {amount:.0f}g to the Church")
                 # Close menu on success
                 game_state.info_window = None

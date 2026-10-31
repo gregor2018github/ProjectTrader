@@ -17,7 +17,7 @@ from ...config import settings_store
 from ...config.colors import DARK_BROWN, BLACK
 from ...config.constants import ALMS_CATEGORY, ALMS_COIN, FONTS_PATH, SHEEP_VOLUME
 from ..text_reveal import LetterReveal
-from ..transaction_feedback import on_money_spent
+from ..transaction_feedback import on_money_donated
 from .house_click_menu import get_hovered_house, is_player_near
 
 if TYPE_CHECKING:
@@ -257,8 +257,8 @@ def release_ended_conversations(game_state: 'GameState', game_map: 'GameMap') ->
 def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
     """Hand one of the poor a coin, booked as alms.
 
-    The player gets the usual money-spent feedback for it: the coin sound and
-    the rising amount above the cursor, as when buying anything else.
+    The player gets the donation feedback for it: a single coin heard flipped or dropped and
+    the rising amount above the cursor.
 
     Args:
         game_state: The current game state.
@@ -268,7 +268,7 @@ def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
     if not depot.book_donation(ALMS_COIN, category=ALMS_CATEGORY):
         game_state.show_warning("You have not a coin to spare.")
         return
-    on_money_spent(game_state, ALMS_COIN)
+    on_money_donated(game_state, ALMS_COIN)
     game_state.log_event("DONATION", f"Gave {ALMS_COIN:.0f}g to {npc.display_name}")
 
 

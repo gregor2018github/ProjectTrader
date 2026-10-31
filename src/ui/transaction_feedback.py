@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import random
 import pygame
 from typing import TYPE_CHECKING, Optional
 
@@ -18,6 +19,7 @@ _DURATION = 1.5   # seconds
 _RISE_PX = 90     # pixels risen by end of animation
 _PAD = 7          # padding around content inside the background pill
 _BG_COLOR = (255, 255, 255, 160)  # white, semi-transparent
+_SINGLE_COIN_SOUNDS = ("coin_flip", "coin_flip", "coin_single_1", "coin_single_2")  # flip or single, half each
 
 
 def _load_assets() -> tuple[pygame.Surface, pygame.font.Font]:
@@ -84,6 +86,17 @@ def on_money_spent(game_state: "GameState", amount: float = 0.0) -> None:
     """Trigger feedback when the player spends money (buy, donate, etc.)."""
     if game_state.game:
         game_state.game.play_sound("falling_coins_buy")
+    _spawn(game_state, amount, is_spent=True)
+
+
+def on_money_donated(game_state: "GameState", amount: float = 0.0) -> None:
+    """Feedback for a gift (alms, church, town): a single coin is heard flipped or dropped
+    (coin_flip, or one of the coin_single variants, by even odds); more is the usual falling coins."""
+    if amount != 1:
+        on_money_spent(game_state, amount)
+        return
+    if game_state.game:
+        game_state.game.play_sound(random.choice(_SINGLE_COIN_SOUNDS))
     _spawn(game_state, amount, is_spent=True)
 
 

@@ -101,7 +101,7 @@ Bridges are rectangles on the `Bridges` object layer (`Bridge`, `src/models/brid
 
 Each door is handed to the building whose collision rect its point sits in (`TMXMap._attach_door_to_house`), which is what connects a knock to the people behind it. Knocking on a house somebody is home in has a `KNOCK_ANSWER_CHANCE` of being answered: `StreetLife.answer_knock()` picks one of its residents, who opens the door, steps onto the doorstep, stands there `KNOCK_ANSWER_SECONDS` and goes back in. Talking to them holds that wait for as long as the bubble is open.
 
-Clicking a figurine opens its menu (`src/ui/helper_modules/figurine_click_menu.py`). Anyone whose `SOCIAL_CLASS` is `"Poor"` is also offered a coin: `ALMS_COIN` is booked as a donation under `ALMS_CATEGORY` ("Alms", a bookkeeping category of its own),, with the usual money-spent feedback (`on_money_spent`).
+Clicking a figurine opens its menu (`src/ui/helper_modules/figurine_click_menu.py`). Anyone whose `SOCIAL_CLASS` is `"Poor"` is also offered a coin: `ALMS_COIN` is booked as a donation under `ALMS_CATEGORY` ("Alms", a bookkeeping category of its own), with the donation feedback (`on_money_donated`, which for a gift of one coin plays `coin_flip` or a `coin_single` variant, by even odds, instead of the falling coins; church and town donations use it too).
 
 ### Town Plan
 
