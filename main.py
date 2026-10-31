@@ -1,3 +1,4 @@
+import gc
 import os
 import sys
 import traceback
@@ -204,11 +205,18 @@ def main() -> None:
         game, last_frame = run_loading_screen(
             screen, work=lambda: Game(save_data=save_data, screen=screen), duration=1.5)
         game.fade_in_from(last_frame)
+        # The loaded game is a quarter of a million objects that live as long
+        # as it does: kept out of the garbage collector's way, a full collection
+        # takes nothing instead of 15 ms here (several times that on a slow PC)
+        gc.collect()
+        gc.freeze()
 
         if SMOKE_TEST_SECONDS:
             pygame.time.set_timer(pygame.QUIT, int(float(SMOKE_TEST_SECONDS) * 1000), loops=1)
 
         result = game.run()
+        # Back to the main menu: this game's objects may be collected again
+        gc.unfreeze()
 
         if result != "main_menu" or SMOKE_TEST_SECONDS:
             break
