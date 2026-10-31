@@ -13,8 +13,8 @@ os.chdir(sys._MEIPASS if FROZEN else os.path.dirname(os.path.abspath(__file__)))
 # starts a new game, quits after that long and exits 1 on any error
 SMOKE_TEST_SECONDS = os.environ.get("MERCHANTS_RISE_SMOKE_TEST")
 
-# Smooth GPU scaling in fullscreen (pygame's SCALED would pick "nearest"),
-# matching the smoothscale used for the smaller windowed resolutions
+# Smooth GPU scaling in fullscreen and the smaller windows (pygame's SCALED
+# would pick "nearest"), as the smoothscale of the CPU fallback looks
 os.environ.setdefault("SDL_RENDER_SCALE_QUALITY", "linear")
 
 import pygame
@@ -39,6 +39,8 @@ _scale_y: float = 1.0
 _offset_x: int = 0      # black-bar offset in physical pixels
 _offset_y: int = 0
 _scale_uniform: float = 1.0
+# (SCALED, fullscreen) of the window made last: get_flags() does not show SCALED
+_display_kind: tuple[bool, bool] | None = None
 
 _orig_display_flip = pygame.display.flip
 _orig_display_get_surface = pygame.display.get_surface
@@ -54,7 +56,7 @@ def _present() -> None:
     if _render_surf is None or _display_surf is None:
         return
     if _render_surf is _display_surf:
-        pass  # drawn in place; in fullscreen the GPU does the scaling
+        pass  # drawn in place; with SCALED the GPU does the scaling
     elif _offset_x == 0 and _offset_y == 0 and _scale_uniform == 1.0:
         _display_surf.blit(_render_surf, (0, 0))
     else:
@@ -130,31 +132,90 @@ def _install_patches() -> None:
     pygame.event.wait = _patched_event_wait
 
 
+def _scaled_window(size: tuple[int, int]) -> pygame.Surface | None:
+    """A window of *size* the logical 1760x1064 surface is shrunk into on the GPU.
+
+    pygame's SCALED does that for fullscreen, but 2.6.1 neither lets the
+    window be smaller than the logical size (it sets that as the window's
+    minimum) nor scale below 1x (it turns on SDL's integer scaling). Both are
+    undone here through SDL itself, the one pygame already loaded. SDL then
+    letterboxes and maps the mouse back to logical coordinates, as in
+    fullscreen. None if any of it fails: the CPU fallback is used instead.
+    """
+    import ctypes
+    from pygame._sdl2.video import Window, WINDOWPOS_CENTERED
+
+    surface = pygame.display.set_mode((_NATIVE_W, _NATIVE_H), pygame.SCALED)
+    try:
+        # By bare name Windows hands back the SDL2.dll already loaded by pygame
+        candidates = ["SDL2", os.path.join(os.path.dirname(pygame.__file__), "SDL2.dll")]
+        window = Window.from_display_module()
+        for candidate in candidates:
+            try:
+                sdl = ctypes.CDLL(candidate)
+            except OSError:
+                continue
+            sdl.SDL_GetWindowFromID.restype = ctypes.c_void_p
+            sdl.SDL_GetRenderer.restype = ctypes.c_void_p
+            handle = sdl.SDL_GetWindowFromID(ctypes.c_uint32(window.id))
+            renderer = sdl.SDL_GetRenderer(ctypes.c_void_p(handle)) if handle else None
+            if renderer:
+                break
+        else:
+            return None
+        if sdl.SDL_RenderSetIntegerScale(ctypes.c_void_p(renderer), 0) != 0:
+            return None
+        sdl.SDL_SetWindowMinimumSize(ctypes.c_void_p(handle), 1, 1)
+        window.size = size
+        window.position = WINDOWPOS_CENTERED
+        pygame.event.pump()
+        if tuple(window.size) != tuple(size):
+            return None
+    except Exception as e:
+        print(f"GPU scaling of the window failed, scaling on the CPU: {e}")
+        return None
+    return surface
+
+
 def _setup_display() -> pygame.Surface:
     """Create the physical window and the logical 1760x1064 render surface."""
     global _render_surf, _display_surf, _scale_x, _scale_y, _offset_x, _offset_y, _scale_uniform
+    global _display_kind
 
     res = settings_store.get("resolution")
-
-    # pygame cannot switch a window back to SCALED once it has been plain
-    # ("failed to create renderer"), so start the display afresh on the change
-    current = _orig_display_get_surface()
-    if current is not None and bool(current.get_flags() & pygame.SCALED) != (res == "Fullscreen"):
-        pygame.display.quit()
-        pygame.display.init()
-
-    if res == "Fullscreen":
-        # SCALED lets SDL stretch the logical surface to the screen on the GPU,
-        # letterboxed, and maps the mouse back to logical coordinates itself.
-        # Scaling with smoothscale on the CPU instead cost ~6 ms a frame at WQHD.
-        _display_surf = pygame.display.set_mode(
-            (_NATIVE_W, _NATIVE_H), pygame.FULLSCREEN | pygame.SCALED)
-    else:
+    fullscreen = res == "Fullscreen"
+    win_w, win_h = _NATIVE_W, _NATIVE_H
+    if not fullscreen:
         try:
             win_w, win_h = (int(x) for x in res.split("x"))
         except Exception:
-            win_w, win_h = _NATIVE_W, _NATIVE_H
-        _display_surf = pygame.display.set_mode((win_w, win_h))
+            pass
+    # Fullscreen and the smaller windows are SCALED: SDL stretches the logical
+    # surface to the window on the GPU, letterboxed, and maps the mouse back to
+    # logical coordinates itself. Scaling with smoothscale on the CPU instead
+    # cost 3-6 ms a frame here, far more on a slow PC.
+    scaled = fullscreen or (win_w, win_h) != (_NATIVE_W, _NATIVE_H)
+
+    # pygame cannot switch a window back to SCALED once it has been plain
+    # ("failed to create renderer"), so start the display afresh for a SCALED
+    # window, and on any change of kind of window
+    if _display_kind is not None and (scaled or _display_kind != (scaled, fullscreen)):
+        pygame.display.quit()
+        pygame.display.init()
+
+    if fullscreen:
+        _display_surf = pygame.display.set_mode(
+            (_NATIVE_W, _NATIVE_H), pygame.FULLSCREEN | pygame.SCALED)
+    else:
+        _display_surf = _scaled_window((win_w, win_h)) if scaled else None
+        if _display_surf is None:
+            if scaled:
+                pygame.display.quit()
+                pygame.display.init()
+            # The native size, or the CPU fallback: smoothscaled in _present()
+            _display_surf = pygame.display.set_mode((win_w, win_h))
+            scaled = False
+    _display_kind = (scaled, fullscreen)
 
     pw, ph = _display_surf.get_size()
     _scale_uniform = min(pw / _NATIVE_W, ph / _NATIVE_H)
@@ -167,9 +228,10 @@ def _setup_display() -> pygame.Surface:
     _scale_y = _NATIVE_H / fit_h
 
     if (pw, ph) == (_NATIVE_W, _NATIVE_H):
-        # Native window, or fullscreen with SCALED: draw straight onto it
+        # Native window, or a SCALED one: draw straight onto it
         _render_surf = _display_surf
-    elif _render_surf is None or _render_surf is _display_surf:
+    else:
+        # Made anew: the one before may have belonged to a display since quit
         _render_surf = pygame.Surface((_NATIVE_W, _NATIVE_H)).convert()
 
     pygame.display.set_caption("Merchant's Rise")

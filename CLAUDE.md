@@ -51,7 +51,7 @@ Tests live in `tests/`, mirroring `src/`, and run headless. So far the `Depot` (
 
 Total window: **1760×1064** (SCREEN_WIDTH=1650 + SIDEBAR_WIDTH=110).
 
-That frame is scaled to fit the screen (`main.py`), with black bars beside it on a wider one. The mouse pointer is therefore a system cursor (`src/ui/cursor.py`, `cursor.use("hand" | "quill" | None)`), sized to the scaled frame, not drawn into it, so it moves over the bars too; presses on the bars are dropped.
+That frame is scaled to fit the screen (`main.py`), with black bars beside it on a wider one. Fullscreen and the smaller windowed presets are `SCALED` displays stretched on the GPU (`_scaled_window()` lowers pygame's minimum window size and turns off SDL's integer scaling through `ctypes`, which pygame 2.6.1 does not offer); only if that fails is the frame smoothscaled on the CPU. The mouse pointer is therefore a system cursor (`src/ui/cursor.py`, `cursor.use("hand" | "quill" | None)`), sized to the scaled frame, not drawn into it, so it moves over the bars too; presses on the bars are dropped.
 
 The content area (1650px wide) is split into two equal **modules** (MODULE_WIDTH = 825px each). Each side can independently show `'map'`, `'market'`, `'depot'`, or `'building'` (the town plan). When both sides show the same module, it takes the full width. The top bar (60px) and bottom bar (60px) are always visible. The 110px right sidebar holds the navigation pictograms.
 
