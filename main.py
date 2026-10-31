@@ -142,11 +142,11 @@ def _scaled_window(size: tuple[int, int]) -> pygame.Surface | None:
     letterboxes and maps the mouse back to logical coordinates, as in
     fullscreen. None if any of it fails: the CPU fallback is used instead.
     """
-    import ctypes
-    from pygame._sdl2.video import Window, WINDOWPOS_CENTERED
-
     surface = pygame.display.set_mode((_NATIVE_W, _NATIVE_H), pygame.SCALED)
     try:
+        import ctypes
+        from pygame._sdl2.video import Window, WINDOWPOS_CENTERED
+
         # By bare name Windows hands back the SDL2.dll already loaded by pygame
         candidates = ["SDL2", os.path.join(os.path.dirname(pygame.__file__), "SDL2.dll")]
         window = Window.from_display_module()
