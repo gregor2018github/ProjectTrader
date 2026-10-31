@@ -485,6 +485,13 @@ def _build_render_queue(
     render_queue: List[Dict[str, Any]] = []
     tmx_map = game_map.tmx_map
     camera = game_map.camera
+    # The part of the world in view, two tiles over each edge for rounding: the
+    # trees, crops and lights are looked up in it, then culled exactly below
+    tile = tmx_map.tile_size
+    scale = round(tile * camera.zoom) / tile
+    world_view = pygame.Rect(int(camera.x) - 2 * tile, int(camera.y) - 2 * tile,
+                             int(camera.screen_width / scale) + 4 * tile,
+                             int(camera.screen_height / scale) + 4 * tile)
 
     # Add houses to queue
     for house in tmx_map.houses:
@@ -509,10 +516,17 @@ def _build_render_queue(
     # Add mill blade overlays — same y_sort as the mill building so they
     # sort together; appended after the house entry so they render on top.
     for mill in tmx_map.mills:
+        if not mill.blade_pivot:
+            continue
+        px, py = mill.blade_pivot
+        screen_x, screen_y = camera.apply(px, py)
+        # Turning the blades is not cheap: only for a mill in view
+        reach = mill.get_blade_reach(camera.zoom)
+        if not (screen_x + reach >= 0 and screen_x - reach < camera.screen_width and
+                screen_y + reach >= 0 and screen_y - reach < camera.screen_height):
+            continue
         blade_sprite = mill.get_blade_sprite(camera.zoom)
-        if blade_sprite and mill.blade_pivot:
-            px, py = mill.blade_pivot
-            screen_x, screen_y = camera.apply(px, py)
+        if blade_sprite:
             draw_x = screen_x + offset_x - blade_sprite.get_width() / 2
             draw_y = screen_y + offset_y - blade_sprite.get_height() / 2
             if (draw_x + blade_sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
@@ -524,7 +538,7 @@ def _build_render_queue(
                 })
 
     # Add active lights to queue
-    for light in tmx_map.lights:
+    for light in tmx_map.light_index.query(world_view):
         if light.is_on(current_time):
             # Get scaled surface and glow offset
             sprite, glow_extend = light.get_render_data(camera.zoom)
@@ -550,49 +564,45 @@ def _build_render_queue(
                 })
 
     # Add active building lights to queue (Townhall, Church, etc.)
-    for group in tmx_map.building_light_groups.values():
-        for building_light in group.lights:
-            if building_light.is_on(current_time):
-                # Get scaled surface
-                sprite, glow_extend = building_light.get_render_data(camera.zoom)
-                
-                # Calculate screen position using bbox coordinates
-                screen_x, screen_y = camera.apply(building_light.bbox_x, building_light.bbox_y)
-                
-                draw_x = screen_x + offset_x - glow_extend
-                draw_y = screen_y + offset_y - glow_extend
+    for building_light in tmx_map.building_light_index.query(world_view):
+        if building_light.is_on(current_time):
+            # Get scaled surface
+            sprite, glow_extend = building_light.get_render_data(camera.zoom)
+            
+            # Calculate screen position using bbox coordinates
+            screen_x, screen_y = camera.apply(building_light.bbox_x, building_light.bbox_y)
+            
+            draw_x = screen_x + offset_x - glow_extend
+            draw_y = screen_y + offset_y - glow_extend
 
-                # Culling check
-                if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                    draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
-                    
-                    render_queue.append({
-                        'sprite': sprite,
-                        'pos': (draw_x, draw_y),
-                        'y_sort': building_light.y_sort,
-                        'flags': pygame.BLEND_ADD
-                    })
-
-    # Add field crop sprites to queue (with wind sway animation)
-    for field in tmx_map.fields:
-        if not field.images:
-            continue
-        for (world_cx, world_by, sprite_idx) in field.sprite_placements:
-            screen_x, screen_y = camera.apply(world_cx, world_by)
-            angle = field.get_sway_angle(world_cx, world_by)
-            sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)
-            draw_x = screen_x + rel_x + offset_x
-            draw_y = screen_y + rel_y + offset_y
+            # Culling check
             if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                    draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+                
                 render_queue.append({
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),
-                    'y_sort': world_by
+                    'y_sort': building_light.y_sort,
+                    'flags': pygame.BLEND_ADD
                 })
 
+    # Add field crop sprites to queue (with wind sway animation)
+    for field, (world_cx, world_by, sprite_idx) in tmx_map.crop_index.query(world_view):
+        screen_x, screen_y = camera.apply(world_cx, world_by)
+        angle = field.get_sway_angle(world_cx, world_by)
+        sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)
+        draw_x = screen_x + rel_x + offset_x
+        draw_y = screen_y + rel_y + offset_y
+        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
+                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
+            render_queue.append({
+                'sprite': sprite,
+                'pos': (draw_x, draw_y),
+                'y_sort': world_by
+            })
+
     # Add trees to queue
-    for tree in tmx_map.trees:
+    for tree in tmx_map.tree_index.query(world_view):
         sprite = tree.get_scaled_sprite(camera.zoom)
         if sprite:
             screen_x, screen_y = camera.apply(tree.x, tree.y)

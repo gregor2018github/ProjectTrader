@@ -14,6 +14,11 @@ from ..config.constants import (
 )
 
 
+def _window_alpha(intensity: float) -> int:
+    """How opaque a window is drawn at a flicker intensity."""
+    return max(0, min(255, int(180 * intensity)))
+
+
 class Light:
     """Represents a rectangular window light source.
     
@@ -77,8 +82,7 @@ class Light:
         surface = pygame.Surface((scaled_width, scaled_height), pygame.SRCALPHA)
         
         # Create light effect within the window
-        window_alpha = int(180 * self.current_intensity)
-        window_alpha = max(0, min(255, window_alpha))
+        window_alpha = _window_alpha(self.current_intensity)
         
         # Draw base window fill
         surface.fill((*self.window_color, window_alpha))
@@ -95,8 +99,7 @@ class Light:
         """Update light state and flicker."""
         # Check if we need to reschedule for a new day
         # We shift the time by 12 hours so the transition happens at 12:00 midday
-        scheduling_time = current_time - datetime.timedelta(hours=12)
-        current_cycle_date = scheduling_time.strftime("%Y-%m-%d")
+        current_cycle_date = (current_time - datetime.timedelta(hours=12)).date()
         
         if self.last_date_check != current_cycle_date:
             self._schedule_for_night(current_time)
@@ -114,9 +117,6 @@ class Light:
             # Subtle intensity variation (0.9 to 1.0 range for gentle flicker)
             self.current_intensity = 0.95 + (wave * 0.03 + noise)
             self.current_intensity = max(0.85, min(1.0, self.current_intensity))
-            
-            # Invalidate cache when intensity changes significantly
-            self._surface_cache.clear()
         else:
             self.current_intensity = 1.0
 
@@ -159,8 +159,11 @@ class Light:
         Returns:
             Tuple of (surface, glow_extend) where glow_extend is 0.
         """
-        # Create surface (cache is cleared on intensity change)
-        surface = self._create_light_surface(camera_zoom)
+        # The flicker only ever takes a few dozen alpha values: one surface each
+        key = (round(float(camera_zoom), 3), _window_alpha(self.current_intensity))
+        surface = self._surface_cache.get(key)
+        if surface is None:
+            surface = self._surface_cache[key] = self._create_light_surface(camera_zoom)
         
         # No glow extension anymore
         return surface, 0
@@ -237,8 +240,7 @@ class BuildingLight:
         surface = pygame.Surface((scaled_width, scaled_height), pygame.SRCALPHA)
         
         # Calculate window alpha based on intensity
-        window_alpha = int(180 * self.current_intensity)
-        window_alpha = max(0, min(255, window_alpha))
+        window_alpha = _window_alpha(self.current_intensity)
         
         # Scale polygon points relative to bounding box top-left
         scaled_points = []
@@ -267,8 +269,6 @@ class BuildingLight:
             
             self.current_intensity = 0.95 + (wave * 0.03 + noise)
             self.current_intensity = max(0.85, min(1.0, self.current_intensity))
-            
-            self._surface_cache.clear()
         else:
             self.current_intensity = 1.0
 
@@ -287,7 +287,10 @@ class BuildingLight:
         Returns:
             Tuple of (surface, glow_extend) where glow_extend is 0.
         """
-        surface = self._create_light_surface(camera_zoom)
+        key = (round(float(camera_zoom), 3), _window_alpha(self.current_intensity))
+        surface = self._surface_cache.get(key)
+        if surface is None:
+            surface = self._surface_cache[key] = self._create_light_surface(camera_zoom)
         return surface, 0
 
 
@@ -311,7 +314,7 @@ class BuildingLightGroup:
         self.is_active_tonight = False
         self.start_hour = 0.0
         self.end_hour = 0.0
-        self.last_date_check: Optional[str] = None
+        self.last_date_check: Optional[datetime.date] = None
 
     def add_light(self, light: BuildingLight) -> None:
         """Add a light to this group.
@@ -325,8 +328,7 @@ class BuildingLightGroup:
     def update(self, current_time: datetime.datetime) -> None:
         """Update group scheduling and all lights in the group."""
         # Check if we need to reschedule for a new day
-        scheduling_time = current_time - datetime.timedelta(hours=12)
-        current_cycle_date = scheduling_time.strftime("%Y-%m-%d")
+        current_cycle_date = (current_time - datetime.timedelta(hours=12)).date()
         
         if self.last_date_check != current_cycle_date:
             self._schedule_for_night(current_time)

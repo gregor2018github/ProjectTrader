@@ -1,5 +1,6 @@
 """Mill institution — extends House with rotating blade animation."""
 
+import math
 import os
 import pygame
 from typing import Optional, Tuple, Dict
@@ -46,6 +47,14 @@ class Mill(House):
     def update_blades(self, dt: float) -> None:
         """Advance blade rotation by dt seconds."""
         self.blade_angle = (self.blade_angle + BLADE_SPEED_DEG_PER_SEC * dt) % 360.0
+
+    def get_blade_reach(self, zoom: float) -> float:
+        """How far, in screen pixels, the turning blades reach from the pivot at
+        most: half the diagonal of the blade sprite, whatever its angle."""
+        if self._blade_orig is None:
+            return 0.0
+        width, height = self._blade_orig.get_size()
+        return math.hypot(width * zoom, height * zoom) / 2 + 2
 
     def get_blade_sprite(self, zoom: float) -> Optional[pygame.Surface]:
         """Return the rotated blade surface for the current angle and zoom.

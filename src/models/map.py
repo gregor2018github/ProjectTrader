@@ -5,6 +5,7 @@ player movement, collision detection, and map object management.
 """
 
 import os
+import math
 import datetime
 import pygame
 import pytmx
@@ -23,6 +24,7 @@ from .tree import Tree
 from .bridge import Bridge, DEFAULT_RAIL_TILES, off_deck_parts
 from .ground_chunks import GroundChunks
 from .map_warmup import MapWarmup
+from .spatial_index import SpatialIndex
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
@@ -202,6 +204,7 @@ class TMXMap:
         self._load_bridges()
         #: The ground tile layers, drawn in cached chunks (ground_chunks.py)
         self.ground_chunks: GroundChunks = GroundChunks(self)
+        self._index_for_drawing()
 
         # Everything that blocks a walker is parsed by now, so the grid the
         # townsfolk find their way on can be rasterized and the doors placed
@@ -219,6 +222,40 @@ class TMXMap:
         # They are ordinary NPCs for drawing, clicking and updating; only the
         # decision to send them out is StreetLife's.
         self.npcs.extend(townsfolk)
+
+    def _index_for_drawing(self) -> None:
+        """File the trees, crop sprites and window lights by where they are
+        drawn, so the map view only looks at those near it (spatial_index.py).
+        Rectangles are in world pixels, a little generous for rounding."""
+        self.tree_index: SpatialIndex[Tree] = SpatialIndex()
+        for tree in self.trees:
+            if tree.image:
+                width, height = tree.image.get_size()
+                self.tree_index.add(tree, pygame.Rect(int(tree.x) - 2, int(tree.y - height) - 2,
+                                                      width + 4, height + 4))
+        #: (field, placement) pairs, a placement as in Field.sprite_placements
+        self.crop_index: SpatialIndex[Tuple[Field, Tuple[float, float, int]]] = SpatialIndex()
+        for field in self.fields:
+            if not field.images:
+                continue
+            for placement in field.sprite_placements:
+                centre_x, base_y, sprite_idx = placement
+                image = field.images[sprite_idx]
+                # Field.get_sway_sprite turns a copy twice as tall about its root
+                width = self.tile_size * 1.1
+                height = image.get_height() * width / image.get_width()
+                reach = math.ceil(math.hypot(width, 2 * height) / 2) + 2
+                self.crop_index.add((field, placement), pygame.Rect(
+                    int(centre_x) - reach, int(base_y) - reach, 2 * reach, 2 * reach))
+        self.light_index: SpatialIndex[Light] = SpatialIndex()
+        for light in self.lights:
+            self.light_index.add(light, pygame.Rect(int(light.x) - 2, int(light.y) - 2,
+                                                    int(light.width) + 4, int(light.height) + 4))
+        self.building_light_index: SpatialIndex[BuildingLight] = SpatialIndex()
+        for group in self.building_light_groups.values():
+            for light in group.lights:
+                self.building_light_index.add(light, pygame.Rect(
+                    int(light.bbox_x) - 2, int(light.bbox_y) - 2, int(light.width) + 4, int(light.height) + 4))
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""

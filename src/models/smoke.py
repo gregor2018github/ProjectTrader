@@ -9,7 +9,7 @@ Roughly one third of emitters are randomly chosen to be active each night
 import datetime
 import random
 import pygame
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from ..config.constants import (
     SMOKE_PROBABILITY,
@@ -87,7 +87,7 @@ class SmokeEmitter:
         self._active_tonight: bool = False
         self._start_hour: float = 0.0
         self._end_hour: float = 0.0
-        self._last_date_check: str = ""
+        self._last_date_check: Optional[datetime.date] = None
 
     # ------------------------------------------------------------------
     # Scheduling
@@ -103,8 +103,7 @@ class SmokeEmitter:
     def _check_schedule(self, current_time: datetime.datetime) -> None:
         """Re-roll the schedule once per in-game day (same cycle as lights)."""
         # Shift by 12 h so the day boundary falls at noon, not midnight
-        scheduling_time = current_time - datetime.timedelta(hours=12)
-        cycle_date = scheduling_time.strftime("%Y-%m-%d")
+        cycle_date = (current_time - datetime.timedelta(hours=12)).date()
         if self._last_date_check != cycle_date:
             self._schedule_for_night()
             self._last_date_check = cycle_date

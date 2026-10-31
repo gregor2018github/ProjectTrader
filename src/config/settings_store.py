@@ -2,11 +2,12 @@
 
 import json
 import os
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from .constants import MAIN_PATH, MAX_FRAMES_PER_SEC
 
 _SETTINGS_PATH = os.path.join(MAIN_PATH, "settings.json")
+_cache: Optional[Dict[str, Any]] = None   # the file's contents, see _load_raw
 
 _DEFAULTS: Dict[str, Any] = {
     "show_map_debug": True,
@@ -39,17 +40,28 @@ RESOLUTION_PRESETS = [
 
 
 def _load_raw() -> Dict[str, Any]:
-    try:
-        with open(_SETTINGS_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if isinstance(data, dict):
-            return data
-    except Exception:
-        pass
-    return {}
+    """The settings as stored, read from disk only the first time.
+
+    Every write goes through _save_raw, which keeps this copy in step; some
+    settings are asked for every frame, and reading the file each time can
+    stall a frame on a slow disk or under a virus scanner.
+    """
+    global _cache
+    if _cache is None:
+        _cache = {}
+        try:
+            with open(_SETTINGS_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                _cache = data
+        except Exception:
+            pass
+    return _cache
 
 
 def _save_raw(data: Dict[str, Any]) -> None:
+    global _cache
+    _cache = dict(data)
     try:
         with open(_SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -65,7 +77,7 @@ def get(key: str) -> Any:
 
 def set(key: str, value: Any) -> None:
     """Persist *key* = *value* to disk immediately."""
-    raw = _load_raw()
+    raw = dict(_load_raw())
     raw[key] = value
     _save_raw(raw)
 
