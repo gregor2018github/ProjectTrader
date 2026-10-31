@@ -11,11 +11,16 @@ How busy the streets are depends on the hour and the weather -- see
 ``_IN_RAIN_`` counterparts while it rains (``raining``, set by the game from
 the weather). Anyone already out when night falls or the rain sets in
 finishes their walk; the town only stops sending new people.
+
+A route not walked before is worked out over several frames, at most
+ROUTE_BUDGET_S of each (a long one takes tens of milliseconds, a slow
+computer's whole frame); whoever is going out waits indoors meanwhile.
 """
 
 import datetime
 import random
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple
+import time
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence, Tuple
 
 from ..config.constants import (
     KNOCK_ANSWER_CHANCE,
@@ -30,7 +35,7 @@ from ..config.constants import (
 )
 from .door import Door
 from .figurines.humans.npcs.townsperson import Townsperson
-from .navigation import NavGrid
+from .navigation import NavGrid, RouteSteps
 
 if TYPE_CHECKING:
     from .house import House
@@ -44,6 +49,9 @@ TARGET_ATTEMPTS = 6
 #: was not on show and the walkers stood frozen in the street while time ran
 #: on. Everyone then goes straight indoors and the streets refill from there.
 CATCH_UP_MINUTES = 30
+
+#: Time a frame may spend working out the route of someone about to go out
+ROUTE_BUDGET_S = 0.002
 
 
 class StreetLife:
@@ -70,6 +78,8 @@ class StreetLife:
         # same street, so each pair is only ever searched for once.
         self._routes: Dict[Tuple[int, int], Optional[List[Tuple[float, float]]]] = {}
         self._release_left: float = 0.0
+        # Someone about to go out while their route is worked out, see update()
+        self._sending: Optional[Generator[None, None, bool]] = None
         self.raining: bool = False   # set by the game from the weather; fewer go out while it rains
         self.last_update_time: Optional[datetime.datetime] = None
 
@@ -130,8 +140,9 @@ class StreetLife:
     # Sending people out
     # ------------------------------------------------------------------
 
-    def _route_between(self, start: Door, end: Door) -> Optional[List[Tuple[float, float]]]:
-        """The walkable route from one doorstep to another, worked out once.
+    def _route_between(self, start: Door, end: Door) -> RouteSteps:
+        """The walkable route from one doorstep to another, worked out once,
+        in steps (see NavGrid.route_steps).
 
         Args:
             start: The door walked out of.
@@ -143,7 +154,7 @@ class StreetLife:
         """
         key = (start.id, end.id)
         if key not in self._routes:
-            self._routes[key] = self.nav.find_route(start.step, end.step)
+            self._routes[key] = yield from self.nav.route_steps(start.step, end.step)
         return self._routes[key]
 
     def _pick_walker(self) -> Optional[Townsperson]:
@@ -165,8 +176,9 @@ class StreetLife:
                    if not person.is_out and person.home_door is not None]
         return min(indoors, key=lambda person: person.rest_left) if indoors else None
 
-    def _send_someone_out(self) -> bool:
-        """Pick a townsperson who is in and start them on a walk.
+    def _send_someone_out(self) -> Generator[None, None, bool]:
+        """Pick a townsperson who is in and start them on a walk, in steps
+        while a new route is worked out.
 
         Returns:
             bool: True if somebody set off.
@@ -174,11 +186,16 @@ class StreetLife:
         person = self._pick_walker()
         if person is None or len(self.doors) < 2:
             return False
+        home = person.home_door
         for _ in range(TARGET_ATTEMPTS):
             target = random.choice(self.doors)
-            if target.id == person.home_door.id:
+            if target.id == home.id:
                 continue
-            route = self._route_between(person.home_door, target)
+            route = yield from self._route_between(home, target)
+            # While it was worked out they may have answered a knock or been
+            # sent in at another door
+            if person.is_out or person.home_door is not home:
+                return False
             if route and person.begin_outing(route, target):
                 return True
         return False
@@ -247,8 +264,19 @@ class StreetLife:
         out_count = sum(1 for person in self.townsfolk if person.is_out)
         target = self.target_count(current_time)
         self._release_left -= dt
-        if out_count < target and self._release_left <= 0.0:
-            if self._send_someone_out():
+        if self._sending is None and out_count < target and self._release_left <= 0.0:
+            self._sending = self._send_someone_out()
+        if self._sending is not None:
+            deadline = time.perf_counter() + ROUTE_BUDGET_S
+            try:
+                while True:
+                    next(self._sending)
+                    if time.perf_counter() >= deadline:
+                        return
+            except StopIteration as done:
+                self._sending = None
+                sent = done.value
+            if sent:
                 # Doors opening one after the other read better than a crowd
                 # spilling out at once -- but not while the streets are still
                 # well short of what they should hold.

@@ -23,7 +23,7 @@ see, not merely round what you can bump into.
 
 import heapq
 import math
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Tuple
 
 import pygame
 
@@ -52,6 +52,15 @@ MAX_SEARCH_CELLS = 20000
 
 #: How far out from a blocked cell to look for a walkable one, in cells.
 NEAREST_FREE_RADIUS = 6
+
+#: route_steps() hands back control after this many cells searched, or after
+#: straight lines tried while smoothing that were sampled this many times
+#: together: a fraction of a millisecond each
+SEARCH_CELLS_PER_STEP = 150
+SIGHT_SAMPLES_PER_STEP = 250
+
+#: A route worked out in steps: yields now and then, returns the route
+RouteSteps = Generator[None, None, Optional[List[Tuple[float, float]]]]
 
 #: How much of a walker's sprite has to be hidden behind a building before the
 #: ground they stand on counts as no place to walk. Well short of all of it:
@@ -407,7 +416,32 @@ class NavGrid:
     def find_route(
         self, start: Tuple[float, float], goal: Tuple[float, float]
     ) -> Optional[List[Tuple[float, float]]]:
-        """Work out a walkable route between two world points.
+        """Work out a walkable route between two world points, in one go.
+
+        :meth:`route_steps` is the same, in small steps.
+
+        Args:
+            start: World (x, y) to set off from.
+            goal: World (x, y) to arrive at.
+
+        Returns:
+            List: World points, beginning at ``start`` and ending at ``goal``,
+            each reachable from the one before in a straight line. None if
+            there is no way through.
+        """
+        steps = self.route_steps(start, goal)
+        while True:
+            try:
+                next(steps)
+            except StopIteration as done:
+                return done.value
+
+    def route_steps(self, start: Tuple[float, float], goal: Tuple[float, float]) -> RouteSteps:
+        """Work out a walkable route between two world points, a little at a time.
+
+        A long route takes tens of milliseconds, a slow computer's whole
+        frame, so this yields every so often and the caller goes on with it
+        next frame (see StreetLife); the route is the generator's return value.
 
         The cell path A* returns runs along tile centres and turns in steps of
         45 degrees, which reads as a walker following the paving rather than
@@ -429,16 +463,16 @@ class NavGrid:
         if start_cell == goal_cell:
             return [start, goal]
 
-        cells = self._search(start_cell, goal_cell)
+        cells = yield from self._search(start_cell, goal_cell)
         if cells is None:
             return None
         points = [start] + [self.cell_centre(*cell) for cell in cells] + [goal]
-        return self._smooth(points)
+        return (yield from self._smooth(points))
 
     def _search(
         self, start: Tuple[int, int], goal: Tuple[int, int]
-    ) -> Optional[List[Tuple[int, int]]]:
-        """A* over the grid.
+    ) -> Generator[None, None, Optional[List[Tuple[int, int]]]]:
+        """A* over the grid, yielding every SEARCH_CELLS_PER_STEP cells.
 
         Args:
             start: Cell to set off from; must be walkable.
@@ -457,6 +491,7 @@ class NavGrid:
         # The counter breaks ties, so the heap never compares two cells directly
         counter = 0
         queue: List[Tuple[float, int, Tuple[int, int]]] = [(heuristic(start), 0, start)]
+        counter_since_yield = 0
 
         while queue:
             _, _, cell = heapq.heappop(queue)
@@ -470,6 +505,10 @@ class NavGrid:
                 return route
             if len(best_cost) > MAX_SEARCH_CELLS:
                 return None
+            counter_since_yield += 1
+            if counter_since_yield >= SEARCH_CELLS_PER_STEP:
+                counter_since_yield = 0
+                yield
 
             cost = best_cost[cell]
             for step_x, step_y, step_cost in NEIGHBOURS:
@@ -492,8 +531,11 @@ class NavGrid:
                     )
         return None
 
-    def _smooth(self, points: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
-        """Drop every point that can be walked past in a straight line.
+    def _smooth(
+        self, points: Sequence[Tuple[float, float]]
+    ) -> Generator[None, None, List[Tuple[float, float]]]:
+        """Drop every point that can be walked past in a straight line,
+        yielding every SIGHT_SAMPLES_PER_STEP samples along the lines tried.
 
         Args:
             points: The route as it came out of the search.
@@ -503,10 +545,15 @@ class NavGrid:
         """
         route = [points[0]]
         index = 0
+        samples = 0.0
         while index < len(points) - 1:
             # Reach as far ahead as the walker can see, then go straight there
             furthest = index + 1
             for candidate in range(len(points) - 1, index, -1):
+                samples += math.dist(points[index], points[candidate]) / LINE_SAMPLE_STEP + 1
+                if samples >= SIGHT_SAMPLES_PER_STEP:
+                    samples = 0.0
+                    yield
                 if self.has_line_of_sight(points[index], points[candidate]):
                     furthest = candidate
                     break
