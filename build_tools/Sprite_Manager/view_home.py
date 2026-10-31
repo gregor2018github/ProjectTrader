@@ -1,4 +1,4 @@
-"""The start page: all sprites at a glance, and a big card into each of humans, plants and buildings.
+"""The start page: all sprites at a glance, and a big card into each of humans, plants, buildings and crops.
 
 Along the top, over everything:
 
@@ -6,21 +6,24 @@ Along the top, over everything:
     Today         sprites new and redone today, by their file dates
     Work          answers waiting for review, and unfinished new plants and buildings
 
-Under it one card per area; clicking it (or 1, 2, 3; Tab is the humans)
+Under it one card per area; clicking it (or 1, 2, 3, 4; Tab is the humans)
 opens it, and Escape there comes back here.
 
     Humans        the share of their sprites done, a bar per kind, and the figures
     Plants        how many, one bar split by kind with the biggest kinds, and the newest
     Buildings     the same
+    Crops         the share of their stage sprites done, a bar per stage, and the ripe crops
 
 The pictures fill whatever room the card has left, so a taller window shows more.
 """
 
 from dataclasses import dataclass, field
+from typing import Optional
 
 import pygame
 
 import pose_review
+from crops import find_crops
 from daily_progress import Today, made_today
 from figures import TRADER_CATEGORY
 from images import pixel_fit
@@ -79,6 +82,40 @@ def gather_humans(app):
     return humans
 
 
+@dataclass
+class Crops:
+    crops: int = 0
+    stages: list = field(default_factory=list)   # [(stage title, done, needed)] over all crops, by stage
+    done: int = 0
+    needed: int = 0
+    waiting: int = 0
+    today: Optional[Today] = None
+    pictures: list = field(default_factory=list)  # the crops' pictures
+
+
+def gather_crops():
+    """The numbers of the crops' card: their stage sprites by stage, summed over the crops by stage title."""
+    totals = {}
+    stats = Crops()
+    paths = []
+    for crop in find_crops():
+        stats.crops += 1
+        for stage in crop.growing:
+            row = totals.setdefault(stage.title, [0, 0])
+            row[0] += crop.done(stage)
+            row[1] += crop.needed(stage)
+            paths += [crop.sprite_path(stage.key, v) for v in range(1, crop.variants + 1)]
+        stats.waiting += len(ReviewStore(crop.out_dir).pending())
+        sprite = crop.thumb_sprite()
+        if sprite is not None:
+            stats.pictures.append(HomeView.face(sprite.subsurface(sprite.get_bounding_rect())))
+    stats.stages = [(title, done, needed) for title, (done, needed) in totals.items()]
+    stats.done = sum(done for _, done, _ in stats.stages)
+    stats.needed = sum(needed for _, _, needed in stats.stages)
+    stats.today = made_today([p for p in paths if p.is_file()])
+    return stats
+
+
 class Area:
     """One of the three cards: which screen it opens, and its rect as last drawn."""
 
@@ -97,6 +134,7 @@ class HomeView(View):
         self.domains = {}    # {domain key: library_summary.Stats}
         self.today = {}      # {domain key: Today}, of the plants' and buildings' files
         self.faces = []      # small pictures of the figures, for the humans' card
+        self.crops = Crops()
 
     def refresh(self):
         app = self.app
@@ -106,6 +144,7 @@ class HomeView(View):
             self.domains[domain.key] = gather(domain, sprites, app.jobs(domain), app.atlas_fills)
             self.today[domain.key] = made_today([s.path for s in sprites if s.path])
         self.faces = [self.face(app.npc_thumbs[n.name]) for n in app.npcs]
+        self.crops = gather_crops()
 
     @staticmethod
     def face(thumb):
@@ -117,7 +156,7 @@ class HomeView(View):
 
     def header(self):
         return ('Sprite Manager',
-                'Every sprite of the game at a glance. Click an area, or press 1, 2 or 3, to work on it; '
+                'Every sprite of the game at a glance. Click an area, or press 1 to 4, to work on it; '
                 'Escape there comes back here, and here closes the tool.')
 
     def footer(self):
@@ -133,7 +172,7 @@ class HomeView(View):
         self.draw_summary(screen, pygame.Rect(area.x, area.y, area.w, SUMMARY_H))
         top = area.y + SUMMARY_H + PANEL_GAP + 8
         height = area.bottom - top
-        width = (area.w - 2 * PANEL_GAP) // 3
+        width = (area.w - (len(self.areas) - 1) * PANEL_GAP) // len(self.areas)
         for index, card in enumerate(self.areas):
             card.rect = pygame.Rect(area.x + index * (width + PANEL_GAP), top, width, height)
             self.draw_area(screen, card, mouse)
@@ -143,13 +182,14 @@ class HomeView(View):
         third = (rect.w - 2 * PANEL_GAP) // 3
         panels = [pygame.Rect(rect.x + i * (third + PANEL_GAP), rect.y, third, rect.h) for i in range(3)]
         domains = {key: self.stats(key).total for key in self.domains}
-        counts = [('humans', self.humans.done)] + list(domains.items())
+        counts = [('humans', self.humans.done)] + list(domains.items()) + [('crops', self.crops.done)]
         self.draw_numbers(screen, panels[0], 'All sprites', [(sum(n for _, n in counts), 'sprites', TEXT)],
                           ', '.join(f'{n} {key}' for key, n in counts))
-        new = self.humans.today.new + sum(t.new for t in self.today.values())
-        redone = self.humans.today.redone + sum(t.redone for t in self.today.values())
+        today = [self.humans.today, *self.today.values(), self.crops.today or Today(0, 0)]
+        new = sum(t.new for t in today)
+        redone = sum(t.redone for t in today)
         self.draw_numbers(screen, panels[1], 'Today', [(new, 'new', NEW_COLOR), (redone, 'redone', DONE_COLOR)])
-        waiting = self.humans.waiting + sum(self.stats(key).waiting for key in self.domains)
+        waiting = self.humans.waiting + self.crops.waiting + sum(self.stats(key).waiting for key in self.domains)
         unfinished = sum(self.stats(key).unfinished for key in self.domains)
         self.draw_numbers(screen, panels[2], 'Work',
                           [(waiting, 'to review', WAIT_COLOR), (unfinished, 'unfinished', DONE_COLOR)])
@@ -192,6 +232,12 @@ class HomeView(View):
             big, big_color = f'{humans.done * 100 // max(1, humans.needed)}%', progress_color(share)
             subtitle = f'{humans.figures} figures: {humans.traders} traders, {humans.townsfolk} townsfolk'
             pictures = self.faces
+        elif card.key == 'crops':
+            crops = self.crops
+            share = crops.done / crops.needed if crops.needed else 0
+            big, big_color = f'{crops.done * 100 // max(1, crops.needed)}%', progress_color(share)
+            subtitle = f'{crops.crops} crop{"" if crops.crops == 1 else "s"}, {crops.done} of {crops.needed} stage sprites'
+            pictures = crops.pictures
         else:
             stats = self.stats(card.key)
             big, big_color = str(stats.total), TEXT
@@ -210,6 +256,8 @@ class HomeView(View):
 
         if card.key == 'humans':
             y = self.draw_kind_rows(screen, inner, y)
+        elif card.key == 'crops':
+            y = self.draw_stage_rows(screen, inner, y)
         else:
             y = self.draw_kinds(screen, inner, y, self.stats(card.key))
         self.draw_pictures(screen, pygame.Rect(inner.x, y + 12, inner.w, inner.bottom - WORK_H - 12 - y - 12),
@@ -239,6 +287,14 @@ class HomeView(View):
         text = fonts.small.render(f'{missing} still to make' if missing else 'all done', True, TEXT_DIM)
         screen.blit(text, (inner.x, y + 4))
         return y + ROW_H
+
+    def draw_stage_rows(self, screen, inner, y):
+        """The crops: a bar per growth stage, with done / needed."""
+        for title, done, needed in self.crops.stages:
+            self.draw_row(screen, inner, y, title, done / max(1, needed), f'{done} / {needed}',
+                          progress_color(done / max(1, needed)))
+            y += ROW_H
+        return y
 
     def draw_kinds(self, screen, inner, y, stats):
         """Plants or buildings: one bar split by kind, then the kinds largest first."""
@@ -279,6 +335,10 @@ class HomeView(View):
             humans = self.humans
             work = [(humans.waiting, 'to review', WAIT_COLOR), (humans.today.new, 'new today', NEW_COLOR),
                     (humans.today.redone, 'redone today', DONE_COLOR)]
+        elif card.key == 'crops':
+            today = self.crops.today or Today(0, 0)
+            work = [(self.crops.waiting, 'to review', WAIT_COLOR), (today.new, 'new today', NEW_COLOR),
+                    (today.redone, 'redone today', DONE_COLOR)]
         else:
             stats = self.stats(card.key)
             work = [(stats.waiting, 'to review', WAIT_COLOR), (stats.unfinished, 'unfinished', DONE_COLOR),

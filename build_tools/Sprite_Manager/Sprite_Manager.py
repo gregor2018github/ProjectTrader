@@ -1,5 +1,5 @@
 """Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
-and the plant and building sprites of the map.
+the plant and building sprites of the map, and the growth stages of the crops on the fields.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -18,9 +18,9 @@ switches to full screen.
 
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
-   card each for the humans, the plants and the buildings with how far they
-   are. Click one (or 1, 2, 3) to go there; "Start page" or Escape there
-   comes back, and Escape on the start page closes the tool.
+   card each for the humans, the plants, the buildings and the crops with
+   how far they are. Click one (or 1, 2, 3, 4) to go there; "Start page" or
+   Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
    shows how many walk (and run) frames and standing sprites there are; the
@@ -168,6 +168,21 @@ build_tools/output/<plants|buildings>/<job>/:
    and collision box (sprite_library.py has the whole story), and the tool
    goes back to the plants or buildings.
 
+Crops: "Crops" on the start page (4) lists every crop of the fields, a folder
+assets/map_sprites/fields/<crop>/ with a crop.json (crops.py), and "+" adds
+one. A crop grows in stages, at least four: the ploughed field (ground tiles,
+no sprites), then e.g. sprouting, young, growing and ripe, each with as many
+variants as the game scatters over a field (<crop>_<stage>_<n>.png). On a
+crop's screen (view_crop.py) the stages are on the left - add one after the
+chosen one, take it out, change the variants, and the stage's title,
+description and height, which go into its prompt - its variants in the
+middle with the chosen variant growing stage by stage under them, and the
+chosen variant's sheet on the right, sent as for the walk frames. A sheet
+(crop_sheets.py) is two cells: the nearest sprite of the same plant at
+another stage (else another variant, else another crop's ripe one, for a new
+crop), and the red frame with a dashed red line as high as the stage grows.
+Its answers open in view_crop_answers.py; accepting saves the stage sprite.
+
 The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
@@ -204,6 +219,12 @@ The code, for whoever works on it next:
     export_dialog.py   the dialog choosing GIF or video
     daily_progress.py  the sprites new and redone today, by file dates
     even_colours.py    evening out the colours of a direction's frames against flicker
+    crops.py           the crops: their stages, variants and sprites on disk, what a stage sprite is drawn from
+    crop_sheets.py     a stage sprite's split image and prompt, and cutting its answer out
+    view_crops.py      the crops, one card each
+    view_crop.py       one crop: its stages, the chosen stage's variants, the growth strip, the sheet
+    view_crop_answers.py  the answers for one stage sprite, and accepting one
+    new_crop_dialog.py the dialog asking for a new crop's name and look
     sprite_library.py  plants and buildings alike: kinds, catalogs, finding the sprites, adding one
     plants.py          the plants: their kinds, proposals, prompt and stems
     buildings.py       the buildings and decorations: their kinds, proposals, prompt and Tiled boxes
@@ -250,6 +271,8 @@ from theme import (  # noqa: E402
     BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
     PANEL_GAP, ROOT, TEXT, TEXT_DIM, open_window, toggle_fullscreen, window_size,
 )
+from view_crop import CropView  # noqa: E402
+from view_crops import CropsView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_home import HomeView  # noqa: E402
@@ -266,7 +289,7 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
-SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'))   # Tab goes round them
+SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'))   # Tab goes round them
 FPS = 30
 
 
@@ -481,9 +504,24 @@ class SpriteManager:
                 self.set_status(message, error=not updated)
             self.reload_library(domain)
 
+    # --- crops --------------------------------------------------------------
+
+    def open_crop(self, crop):
+        """Work on a crop's stage sprites."""
+        self.npc = crop
+        self.store = ReviewStore(crop.out_dir)
+        self.worker = None
+        self.set_status('')
+        self.show(CropView(self))
+
+    def close_crop(self):
+        self.npc = self.store = self.worker = None
+        self.set_status('')
+        self.show(CropsView(self))
+
     @staticmethod
     def screens():
-        """(key, title) of humans, plants and buildings."""
+        """(key, title) of humans, plants, buildings and crops."""
         return SCREENS
 
     @staticmethod
@@ -495,7 +533,7 @@ class SpriteManager:
         return find_jobs(domain)
 
     def switch_buttons(self, current):
-        """Footer buttons to the other two of humans, plants and buildings; each knows its screen."""
+        """Footer buttons to the other areas of humans, plants, buildings and crops; each knows its screen."""
         buttons = []
         for key, title in SCREENS:
             if key != current:
@@ -509,19 +547,24 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants or the buildings."""
+        """Show the start page, the humans, the plants, the buildings or the crops."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
         if screen == 'home':
             self.show(HomeView(self))
         elif screen == 'humans':
             self.show(NpcListView(self))
+        elif screen == 'crops':
+            self.show(CropsView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
 
     def switch_to_next(self):
         keys = [key for key, _ in SCREENS]
-        current = self.view.domain.key if isinstance(self.view, LibraryView) else 'humans'
+        if isinstance(self.view, LibraryView):
+            current = self.view.domain.key
+        else:
+            current = 'crops' if isinstance(self.view, CropsView) else 'humans'
         self.switch_to(keys[(keys.index(current) + 1) % len(keys)])
 
     def start_job(self, domain, sprite):

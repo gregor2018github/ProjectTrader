@@ -1,0 +1,12 @@
+{
+ "title": "Wheat",
+ "description": "tall stalks of wheat with plump golden ears",
+ "variants": 4,
+ "stages": [
+  {"key": "bare", "title": "Ploughed", "description": "the bare ploughed field, nothing sown yet", "height": 0.0},
+  {"key": "sprouts", "title": "Sprouting", "description": "a few tiny green tips just broken through the soil, short and sparse", "height": 0.12},
+  {"key": "young", "title": "Young", "description": "a low tuft of fresh green blades, like young grass", "height": 0.35},
+  {"key": "growing", "title": "Growing", "description": "tall green stalks, nearly full height, the ears formed but still green", "height": 0.8},
+  {"key": "ripe", "title": "Ripe", "description": "fully grown and ripe, golden ears ready for the harvest", "height": 1.0}
+ ]
+}

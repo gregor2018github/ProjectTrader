@@ -1,3 +1,4 @@
+import json
 import pygame
 import os
 import random
@@ -32,6 +33,9 @@ _ANGLE_STEP = 0.5
 # Fields with nothing sown: the ground tiles show the ploughed earth, there are
 # no crop sprites to scatter
 BARE_FIELDS = {"Ploughed"}
+
+# Every crop is a folder in here, see crop_sprite_paths()
+CROPS_DIR = os.path.join('assets', 'map_sprites', 'fields')
 
 
 class Field:
@@ -105,28 +109,22 @@ class Field:
     # ------------------------------------------------------------------
 
     def _load_images(self) -> None:
-        """Discover and load all sprite variants for this field type.
+        """Load the sprite variants of this field's crop, fully grown.
 
-        Looks for ``assets/map_sprites/fields/{name_lower}_1.png``,
-        ``_2.png``, … until the next index is missing.
+        The crop is the folder ``assets/map_sprites/fields/{name_lower}/``;
+        see ``crop_sprite_paths()``.
         """
         if self.name in BARE_FIELDS:
             return
-        base = self.name.lower()
-        i = 1
-        while True:
-            path = os.path.join('assets', 'map_sprites', 'fields', f'{base}_{i}.png')
-            if not os.path.exists(path):
-                break
+        for path in crop_sprite_paths(self.name):
             try:
                 self.images.append(pygame.image.load(path).convert_alpha())
             except pygame.error as e:
                 print(f"Failed to load field image: {path} - {e}")
                 break
-            i += 1
 
         if not self.images:
-            print(f"No field sprites found for '{self.name}' in assets/map_sprites/fields/")
+            print(f"No field sprites found for '{self.name}' in {os.path.join(CROPS_DIR, self.name.lower())}")
 
     def _generate_placements(self) -> None:
         """Pre-generate one random sprite assignment per tile in the field bounds.
@@ -288,6 +286,38 @@ class Field:
         result = (rotated, -(RW // 2), -(RH // 2))
         self._rotated_cache[cache_key] = result
         return result
+
+
+def crop_sprite_paths(name: str, stage: Optional[str] = None) -> List[str]:
+    """The sprite variants of a crop at one growth stage, by number.
+
+    A crop is a folder ``assets/map_sprites/fields/<crop>/`` whose crop.json
+    lists its stages, from the bare field to the ripe crop (made and kept in
+    the Sprite Manager's crops area); its sprites are
+    ``<crop>_<stage>_1.png``, ``_2.png``, … until the next is missing.
+
+    Args:
+        name: The field's crop, e.g. 'Wheat'.
+        stage: A stage key from crop.json; None for the last, the ripe crop.
+
+    Returns:
+        The paths found, empty if the crop or the stage has none.
+    """
+    crop = name.lower()
+    folder = os.path.join(CROPS_DIR, crop)
+    if stage is None:
+        try:
+            with open(os.path.join(folder, 'crop.json'), encoding='utf-8') as file:
+                stage = json.load(file)['stages'][-1]['key']
+        except (OSError, ValueError, KeyError, IndexError) as e:
+            print(f"Cannot read the stages of the crop '{name}': {e}")
+            return []
+    paths = []
+    while True:
+        path = os.path.join(folder, f'{crop}_{stage}_{len(paths) + 1}.png')
+        if not os.path.exists(path):
+            return paths
+        paths.append(path)
 
 
 def _inside(points: List[Tuple[float, float]], px: float, py: float) -> bool:
