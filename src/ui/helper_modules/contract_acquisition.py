@@ -92,16 +92,6 @@ class ContractView:
         # Load Images
         # 1. Essential UI Images
         try:
-            self.cursor_quill = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "cursor_quill.png")).convert_alpha()
-            orig_cw, orig_ch = self.cursor_quill.get_size()
-            cursor_height = 80
-            c_scale = cursor_height / orig_ch
-            self.cursor_quill = pygame.transform.smoothscale(self.cursor_quill, (int(orig_cw * c_scale), int(orig_ch * c_scale)))
-        except Exception as e:
-            print(f"Error loading quill image: {e}")
-            self.cursor_quill = None
-
-        try:
             self.stamp_image = pygame.image.load(os.path.join(PICTURES_PATH, "contracts", "stamp.png")).convert_alpha()
             s_w, s_h = self.stamp_image.get_size()
             s_scale = 150 / s_w # target width 150
@@ -717,14 +707,8 @@ class ContractView:
 
         self.screen.blit(paper_surf, (self.paper_rect.x + self.shake_offset[0], self.paper_rect.y + self.shake_offset[1]))
 
-    def draw_cursor(self) -> None:
-        """Draw the custom quill cursor if the contract is active and not yet decided."""
-        if self.cursor_quill and not self.is_stamped and not self.is_denied:
-            mouse_pos = pygame.mouse.get_pos()
-            # Offset so the tip is at the mouse position
-            # Assuming the tip is at the bottom-left of the image
-            # The quill usually leans right, so tip is bottom-left
-            # We draw the image so its bottom-left is at mouse_pos
-            rect = self.cursor_quill.get_rect()
-            rect.bottomleft = mouse_pos
-            self.screen.blit(self.cursor_quill, rect)
+    def cursor_pointer(self) -> Optional[str]:
+        """The pointer to show: the quill (see src/ui/cursor.py) until the contract is decided, then none."""
+        if not self.is_stamped and not self.is_denied:
+            return "quill"
+        return None

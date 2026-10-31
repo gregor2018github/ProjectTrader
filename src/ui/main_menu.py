@@ -13,6 +13,7 @@ from ..persistence.save_manager import delete_save, get_save_slots, load_game as
 from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
 from .controls_overview import ControlsOverview
+from . import cursor
 from .slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
     delete_cross_rect, draw_delete_cross, rows_height,
@@ -67,16 +68,7 @@ class MainMenu:
             self.subtitle_font = pygame.font.SysFont("arial", 22)
             self.button_font = pygame.font.SysFont("arial", 28)
 
-        # Custom cursor
-        self.cursor_img: Optional[pygame.Surface] = None
-        try:
-            cursor_path = os.path.join(PICTURES_PATH, "cursor_1.png")
-            if os.path.exists(cursor_path):
-                raw_cursor = pygame.image.load(cursor_path).convert_alpha()
-                self.cursor_img = pygame.transform.smoothscale(raw_cursor, (30, 41))
-        except Exception:
-            pass
-        pygame.mouse.set_visible(self.cursor_img is None)
+        cursor.use("hand")
 
         # Game icon displayed inside the panel
         self.icon_surf: Optional[pygame.Surface] = None
@@ -200,8 +192,6 @@ class MainMenu:
             elif self._view == "controls":
                 self.screen.fill(BEIGE)
                 self._controls.draw(self.screen, mouse_pos, dim=False)
-                if self.cursor_img and pygame.mouse.get_focused():
-                    self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
             else:
                 self._draw_settings(mouse_pos)
             pygame.display.flip()
@@ -488,9 +478,6 @@ class MainMenu:
         if self._delete_confirm:
             self._delete_confirm.draw(self.screen, confirm_pos)
 
-        if self.cursor_img and pygame.mouse.get_focused():
-            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
-
     # ------------------------------------------------------------------
     # Drawing
     # ------------------------------------------------------------------
@@ -559,9 +546,6 @@ class MainMenu:
 
             text_surf = self.button_font.render(label, True, text_color)
             self.screen.blit(text_surf, text_surf.get_rect(center=rect.center))
-
-        if self.cursor_img and pygame.mouse.get_focused():
-            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())
 
     # ------------------------------------------------------------------
     # Settings view helpers
@@ -886,6 +870,3 @@ class MainMenu:
                         (opt_rect.left + 2, opt_rect.bottom),
                         (opt_rect.right - 3, opt_rect.bottom),
                     )
-
-        if self.cursor_img and pygame.mouse.get_focused():
-            self.screen.blit(self.cursor_img, pygame.mouse.get_pos())

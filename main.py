@@ -20,6 +20,7 @@ import pygame
 from src.game import Game
 from src.ui.main_menu import MainMenu
 from src.ui.loading_screen import run_loading_screen
+from src.ui import cursor
 from src.config import settings_store
 from src.config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
@@ -86,9 +87,13 @@ def _patched_mouse_get_pos() -> tuple[int, int]:
 def _translate_event(ev: pygame.event.Event) -> pygame.event.Event:
     if ev.type in _MOUSE_EVENT_TYPES:
         px, py = ev.pos
-        lx = max(0, min(int((px - _offset_x) * _scale_x), _NATIVE_W - 1))
-        ly = max(0, min(int((py - _offset_y) * _scale_y), _NATIVE_H - 1))
-        new_pos = (lx, ly)
+        lx = int((px - _offset_x) * _scale_x)
+        ly = int((py - _offset_y) * _scale_y)
+        if ev.type == pygame.MOUSEBUTTONDOWN and not (0 <= lx < _NATIVE_W and 0 <= ly < _NATIVE_H):
+            # A press on the black bars beside the game clicks nothing, rather
+            # than whatever is at the frame's edge
+            return pygame.event.Event(pygame.NOEVENT)
+        new_pos = (max(0, min(lx, _NATIVE_W - 1)), max(0, min(ly, _NATIVE_H - 1)))
         if ev.type == pygame.MOUSEMOTION:
             rx, ry = ev.rel
             return pygame.event.Event(
@@ -102,7 +107,8 @@ def _translate_event(ev: pygame.event.Event) -> pygame.event.Event:
 
 
 def _patched_event_get(*args, **kwargs):
-    return [_translate_event(e) for e in _orig_event_get(*args, **kwargs)]
+    events = (_translate_event(e) for e in _orig_event_get(*args, **kwargs))
+    return [e for e in events if e.type != pygame.NOEVENT]
 
 
 def _patched_event_poll() -> pygame.event.Event:
@@ -166,6 +172,7 @@ def _setup_display() -> pygame.Surface:
         _render_surf = pygame.Surface((_NATIVE_W, _NATIVE_H)).convert()
 
     pygame.display.set_caption("Merchant's Rise")
+    cursor.reset()
     return _render_surf
 
 

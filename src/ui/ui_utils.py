@@ -55,8 +55,8 @@ def draw_9slice(surface: pygame.Surface, image: pygame.Surface,
     surface.blit(scaled, rect)
 
 
-# Size of the custom cursor image, which is drawn with its top-left corner at
-# the mouse position (see Game / MainMenu cursor_img).
+# Width, in the game's pixels, of the hand pointer, whose tip is its top-left
+# corner (see src/ui/cursor.py).
 CURSOR_W = 30
 
 
