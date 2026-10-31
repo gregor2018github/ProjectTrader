@@ -732,7 +732,11 @@ def draw_map_debug_ui(
     ]
     weather = getattr(game_state.game, "weather", None)
     if weather:
-        lines.append(f"{weather.kind.capitalize()} {weather.rain:.2f}")
+        lines.append(f"{weather.kind.capitalize()}")
+        lines.append(f"Rain: {weather.rain:.2f}")
+        lines.append(f"Clouds: {weather.clouds:.2f}")
+        if weather.storm > 0:
+            lines.append(f"Storm: {weather.storm:.2f}")
         lines.append(f"Wet: {weather.wetness:.2f}")
         lines.append(f"Fog lvl: {weather.fog:.2f}")
 
