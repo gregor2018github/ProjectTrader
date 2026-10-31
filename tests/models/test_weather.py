@@ -140,3 +140,19 @@ def test_old_save_without_fog_loads_clear(weather):
     weather.fog = 0.7
     weather.load(saved)
     assert weather.fog == 0.0
+
+
+def test_force_at_once_jumps_to_the_spell(foggy):
+    foggy.force("fog", at_once=True)
+    assert (foggy.rain, foggy.clouds, foggy.fog) == (0.0, 0.0, 1.0)
+    foggy.force("wet", at_once=True)
+    assert (foggy.rain, foggy.clouds, foggy.fog) == (1.0, 1.0, 0.0)
+
+
+def test_held_weather_stays_and_ignores_the_hour(foggy):
+    foggy.force("fog")
+    foggy.held = True
+    foggy.update(datetime.datetime(1400, 5, 1, 12, 0))
+    assert foggy.fog_target() == 1.0                   # noon would allow only half
+    foggy.advance(50.0)
+    assert foggy.kind == "fog"                         # its 9 hours never run out

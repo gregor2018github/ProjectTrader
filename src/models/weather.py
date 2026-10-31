@@ -73,6 +73,9 @@ class Weather:
         self.wetness: float = 0.0
         self._last_date: Optional[datetime.datetime] = None
         self._hour: Optional[float] = None   # the hour of the day last seen, for FOG_BY_HOUR
+        # Debug (the settings' weather page), not saved: the spell does not run out, and its fog
+        # is not thinned by the hour
+        self.held: bool = False
         self.fog: float = self.fog_target()
 
     def _start_spell(self, kind: str) -> None:
@@ -89,7 +92,7 @@ class Weather:
     def fog_target(self) -> float:
         """The fog the weather is heading for now: the spell's or the wet ground's, as the hour allows."""
         ground = FOG_FROM_WETNESS * self.wetness * (1.0 - min(1.0, self.rain * 4))
-        share = 1.0 if self._hour is None else fog_share_at(self._hour)
+        share = 1.0 if self._hour is None or self.held else fog_share_at(self._hour)
         return max(WEATHER_SPELLS[self.kind].get("fog", 0.0), ground) * share
 
     @property
@@ -108,7 +111,8 @@ class Weather:
 
     def advance(self, hours: float) -> None:
         """Let *hours* of game time pass: move on through the spells, and glide towards the current one."""
-        self.hours_left -= hours
+        if not self.held:
+            self.hours_left -= hours
         while self.hours_left <= 0:
             overshoot = -self.hours_left
             self._start_spell(self._next_kind())
@@ -124,9 +128,15 @@ class Weather:
         else:
             self.wetness = max(0.0, self.wetness - PUDDLE_DRY_PER_HOUR * (1 - 0.5 * self.clouds) * hours)
 
-    def force(self, kind: str) -> None:
-        """Start a spell of *kind* now (debug); the levels glide to it as usual."""
+    def force(self, kind: str, at_once: bool = False) -> None:
+        """Start a spell of *kind* now (debug); the levels glide to it as usual, or are there *at_once*."""
         self._start_spell(kind)
+        if at_once:
+            spell = WEATHER_SPELLS[kind]
+            self.rain = spell["rain"]
+            self.clouds = spell["clouds"]
+            self.wind = spell["wind"] * self.wind_side
+            self.fog = self.fog_target()
 
     def to_save(self) -> Dict[str, Any]:
         return {"kind": self.kind, "hours_left": self.hours_left, "rain": self.rain,

@@ -4,6 +4,8 @@ from .config.colors import LIGHT_GRAY, DARK_GRAY, BLACK, WHITE, RED, GREEN, BLUE
 from .ui.helper_modules.color_wheel import ColorWheel
 from .ui.ui_utils import draw_9slice
 from .ui.controls_overview import ControlsOverview
+from .ui.helper_modules.weather_debug import WeatherDebugPage
+from .config import settings_store
 
 if TYPE_CHECKING:
     from .game import Game
@@ -87,12 +89,22 @@ class SettingsWindow:
         # Overview of all controls, shown over the chooser while open
         self.controls: Optional[ControlsOverview] = None
 
+        # With the debug overlay on, a page to start any kind of weather
+        self.weather_page: Optional[WeatherDebugPage] = None
+        weather = getattr(self.game, "weather", None)
+        if weather is not None and settings_store.get("show_map_debug"):
+            page_rect = pygame.Rect(0, 0, 640, 460)
+            page_rect.center = self.window_rect.center
+            self.weather_page = WeatherDebugPage(page_rect, weather, font,
+                                                 getattr(self.game, "small_font", font))
+
         # The chooser shown first: one button per page, and Close
         self.mode: str = "choose"
-        self.choose_rect: pygame.Rect = pygame.Rect(0, 0, 420, 300)
+        labels = ["Chart Colors", "Controls"] + (["Weather"] if self.weather_page else []) + ["Close"]
+        self.choose_rect: pygame.Rect = pygame.Rect(0, 0, 420, 95 + len(labels) * 58 + 31)
         self.choose_rect.center = self.window_rect.center
         self.choose_buttons: List[Tuple[pygame.Rect, str]] = []
-        for i, label in enumerate(["Chart Colors", "Controls", "Close"]):
+        for i, label in enumerate(labels):
             btn_rect = pygame.Rect(0, 0, 240, 42)
             btn_rect.midtop = (self.choose_rect.centerx, self.choose_rect.top + 95 + i * 58)
             self.choose_buttons.append((btn_rect, label))
@@ -133,6 +145,10 @@ class SettingsWindow:
             if self.controls:
                 self.controls.draw(self.screen, pygame.mouse.get_pos())
             return
+        if self.mode == "weather":
+            self._draw_frame(self.weather_page.rect)
+            self.weather_page.draw(self.screen)
+            return
 
         self._draw_frame(self.window_rect)
 
@@ -165,9 +181,9 @@ class SettingsWindow:
     def handle_key(self, event: pygame.event.Event) -> Optional[str]:
         """Keep keys from reaching the game while open.
 
-        Escape steps back: out of the controls overview or the colors page
-        (discarding its changes) to the chooser, and from the chooser out of
-        the settings.
+        Escape steps back: out of the controls overview, the weather page or
+        the colors page (discarding its changes) to the chooser, and from the
+        chooser out of the settings.
         """
         if event.type != pygame.KEYDOWN:
             return None
@@ -177,7 +193,9 @@ class SettingsWindow:
         elif event.key == pygame.K_ESCAPE:
             if self.mode == "choose":
                 return "Back"
-            if not self.active_color_wheel:
+            if self.mode == "weather":
+                self.mode = "choose"
+            elif not self.active_color_wheel:
                 self._discard_colors()
                 self.mode = "choose"
         return None
@@ -202,8 +220,14 @@ class SettingsWindow:
                         self.mode = "colors"
                     elif label == "Controls":
                         self.controls = ControlsOverview(self.screen.get_size())
+                    elif label == "Weather":
+                        self.mode = "weather"
                     else:
                         return "Back"
+            return None
+        if self.mode == "weather":
+            if self.weather_page.handle_click(pos) == "Back":
+                self.mode = "choose"
             return None
 
         # If a color wheel is active, delegate the click to it.
