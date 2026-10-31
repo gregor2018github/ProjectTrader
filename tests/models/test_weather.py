@@ -90,3 +90,53 @@ def test_ground_wets_in_rain_and_dries_after(weather, monkeypatch):
     weather.hours_left = 99
     weather.advance(1.0)                               # the clouds go at 0.5 an hour: dries at 0.2 * (1 - 0.5 * 0.5)
     assert weather.wetness == pytest.approx(1.0 - 0.2 * 0.75)
+
+
+@pytest.fixture
+def foggy(weather, monkeypatch):
+    spells = dict(SPELLS, fog={"rain": 0.0, "clouds": 0.0, "wind": 0.0, "fog": 1.0, "hours": (9.0, 9.0),
+                               "next": {"clear": 1.0}})
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", spells)
+    monkeypatch.setattr(weather_module, "FOG_GLIDE_PER_HOUR", 0.25)
+    monkeypatch.setattr(weather_module, "FOG_FROM_WETNESS", 0.4)
+    monkeypatch.setattr(weather_module, "FOG_BY_HOUR", ((0.0, 1.0), (12.0, 0.5), (24.0, 1.0)))
+    return weather
+
+
+def test_fog_share_follows_the_hour(foggy):
+    assert weather_module.fog_share_at(0.0) == 1.0
+    assert weather_module.fog_share_at(12.0) == 0.5
+    assert weather_module.fog_share_at(6.0) == pytest.approx(0.75)   # halfway, eased
+    assert weather_module.fog_share_at(30.0) == pytest.approx(0.75)  # past midnight wraps round
+
+
+def test_fog_rolls_in_slowly(foggy):
+    foggy.force("fog")
+    foggy.advance(1.0)
+    assert foggy.fog == pytest.approx(0.25)
+    foggy.advance(4.0)
+    assert foggy.fog == 1.0                            # no thicker than the spell's
+
+
+def test_fog_thins_with_the_hour(foggy):
+    foggy.force("fog")
+    foggy.fog = 1.0
+    foggy.update(datetime.datetime(1400, 5, 1, 12, 0))   # notes the hour: noon allows half
+    assert foggy.fog_target() == pytest.approx(0.5)
+    foggy.update(datetime.datetime(1400, 5, 1, 13, 0))
+    assert foggy.fog < 1.0
+
+
+def test_wet_ground_breathes_fog_once_the_rain_stops(foggy):
+    foggy.wetness = 1.0
+    assert foggy.fog_target() == pytest.approx(0.4)
+    foggy.rain = 1.0
+    assert foggy.fog_target() == 0.0                   # not while it rains
+
+
+def test_old_save_without_fog_loads_clear(weather):
+    saved = weather.to_save()
+    del saved["fog"]
+    weather.fog = 0.7
+    weather.load(saved)
+    assert weather.fog == 0.0

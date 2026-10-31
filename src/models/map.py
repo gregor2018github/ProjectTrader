@@ -36,8 +36,9 @@ from .figurines.humans.npcs import (
 from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.patrol_path import PatrolPath
 from .door import Door
-from .fog import FogOfWar
+from .map_fog import FogOfWar
 from .rain import Rainfall
+from .fog import Fog
 from .roofs import Roofs
 from .puddles import Puddles
 from .wet_ground import WetGround
@@ -1143,6 +1144,8 @@ class GameMap:
         self.ripples: List[Ripple] = []
         # The rain in the air and splashing around the view, as the weather has it
         self.rain: Rainfall = Rainfall()
+        # The fog over the view, gathering over the water
+        self.fog: Fog = Fog(self.tmx_map.width, self.tmx_map.height, self.tmx_map.water_tiles)
         # Puddles where the ground is open, as wet as the weather has made it
         self.puddles: Puddles = Puddles(self.tmx_map)
         # The ground darkening as it gets wet; its kinds of ground come from the Town Plan
@@ -1152,18 +1155,18 @@ class GameMap:
         self.water_anim_time: float = 0.0
 
         # What the player has seen so far; a new game has seen nothing yet
-        self.fog: FogOfWar = FogOfWar(self.tmx_map.width, self.tmx_map.height, self.tmx_map.tile_size)
+        self.map_fog: FogOfWar = FogOfWar(self.tmx_map.width, self.tmx_map.height, self.tmx_map.tile_size)
         self.reveal_around_player()
 
     def reveal_around_player(self) -> None:
         """Explore the fog of war around the player's centre."""
-        self.fog.reveal(self.map_player.x + self.map_player.width / 2.0,
-                        self.map_player.y + self.map_player.height / 2.0)
+        self.map_fog.reveal(self.map_player.x + self.map_player.width / 2.0,
+                            self.map_player.y + self.map_player.height / 2.0)
 
-    def restore_fog(self, saved: Optional[Dict[str, Any]]) -> None:
+    def restore_map_fog(self, saved: Optional[Dict[str, Any]]) -> None:
         """Take over a save's explored land (None: nothing explored), plus the
         player's surroundings. Call once the player stands where the save left him."""
-        self.fog.load(saved)
+        self.map_fog.load(saved)
         self.reveal_around_player()
 
     def add_ripple(self, x: float, y: float, delay: float = 0.0, radius_cap: float = 18.0) -> None:

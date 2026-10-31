@@ -219,7 +219,7 @@ class Game:
                         population_manager=self.population_manager)
         self.game_map.map_player.x = self.player.position[0]
         self.game_map.map_player.y = self.player.position[1]
-        self.game_map.restore_fog(save_data.get("fog"))
+        self.game_map.restore_map_fog(save_data.get("fog"))
         self.weather.load(save_data.get("weather"))
         self.restore_owned_buildings()
         self._update_player_market_area()
@@ -654,6 +654,7 @@ class Game:
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
                                                   self.game_map.camera, self.game_map.tmx_map,
                                                   self.game_map.puddles)
+                        self.game_map.fog.update(delta_time, self.weather.fog, self.weather.wind, self.game_map.camera)
                         self.game_map.puddles.update_walkers(delta_time, iter_figurines(self.game_map))
                         tile_size = self.game_map.tmx_map.tile_size
                         self.depot.stats.tiles_walked += self.game_map.map_player.frame_distance_px / tile_size
@@ -910,7 +911,7 @@ class Game:
         self.player.position = (int(mp.x), int(mp.y))
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, population_manager=self.population_manager,
-                  fog=self.game_map.fog, weather=self.weather)
+                  fog=self.game_map.map_fog, weather=self.weather)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

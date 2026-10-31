@@ -212,24 +212,31 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 # WEATHER CONSTANTS (models/weather.py; hours are game hours, about 10 s each at normal speed)
 
 # The spells the weather goes through: how hard it rains (0 to 1), how overcast it is (0 to 1),
-# how much the wind slants the rain (sideways per unit fallen), how long a spell lasts
-# (shortest, longest hours) and the weights of what comes after it.
+# how much the wind slants the rain (sideways per unit fallen), how thick the fog is (0 to 1,
+# before FOG_BY_HOUR), how long a spell lasts (shortest, longest hours) and the weights of what
+# comes after it.
 # A shower is one run through drizzle, rain, now and then a downpour, and clearing (a last
 # light drizzle): 5 to 12 hours in all. It only comes out of an overcast sky, which brings
 # one about every other time; with the clear spells between, that is 1 to 2 showers a week.
+# Mist comes out of a clear sky or after a shower, still air either way, and now and then
+# thickens into fog; both hang longest at night and in the early morning (FOG_BY_HOUR).
 WEATHER_SPELLS = {
-    "clear":    {"rain": 0.0,  "clouds": 0.0,  "wind": 0.05, "hours": (30.0, 80.0),
-                 "next": {"overcast": 1.0}},
-    "overcast": {"rain": 0.0,  "clouds": 0.6,  "wind": 0.10, "hours": (2.0, 5.0),
+    "clear":    {"rain": 0.0,  "clouds": 0.0,  "wind": 0.05, "fog": 0.0, "hours": (30.0, 80.0),
+                 "next": {"overcast": 0.8, "mist": 0.2}},
+    "overcast": {"rain": 0.0,  "clouds": 0.6,  "wind": 0.10, "fog": 0.0, "hours": (2.0, 5.0),
                  "next": {"clear": 0.45, "drizzle": 0.55}},
-    "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "hours": (1.0, 2.5),
+    "drizzle":  {"rain": 0.3,  "clouds": 0.75, "wind": 0.08, "fog": 0.1, "hours": (1.0, 2.5),
                  "next": {"rain": 1.0}},
-    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "hours": (3.0, 6.5),
+    "rain":     {"rain": 0.65, "clouds": 0.9,  "wind": 0.18, "fog": 0.0, "hours": (3.0, 6.5),
                  "next": {"clearing": 0.75, "downpour": 0.25}},
-    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "hours": (0.5, 1.5),
+    "downpour": {"rain": 1.0,  "clouds": 1.0,  "wind": 0.30, "fog": 0.0, "hours": (0.5, 1.5),
                  "next": {"clearing": 1.0}},
-    "clearing": {"rain": 0.2,  "clouds": 0.6,  "wind": 0.08, "hours": (1.0, 1.5),
-                 "next": {"clear": 1.0}},
+    "clearing": {"rain": 0.2,  "clouds": 0.6,  "wind": 0.08, "fog": 0.2, "hours": (1.0, 1.5),
+                 "next": {"clear": 0.65, "mist": 0.35}},
+    "mist":     {"rain": 0.0,  "clouds": 0.25, "wind": 0.02, "fog": 0.45, "hours": (4.0, 9.0),
+                 "next": {"clear": 0.6, "overcast": 0.15, "fog": 0.25}},
+    "fog":      {"rain": 0.0,  "clouds": 0.4,  "wind": 0.01, "fog": 1.0, "hours": (4.0, 10.0),
+                 "next": {"mist": 1.0}},
 }
 WEATHER_START = "clear"              # The weather a new game starts in
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
@@ -244,6 +251,14 @@ PUDDLE_OFF_PATH_SHARE = 0.08         # Off the roads and paving (grass, sand) on
 PUDDLE_SIZE_TILES = (0.8, 1.6)       # A full puddle's width in tiles, smallest and largest
 PUDDLE_WIDE_SHARE = 0.2              # Share of the puddles that are longer, no taller than the largest above
 PUDDLE_WIDE_TILES = (1.8, 3.2)       # Their width in tiles, smallest and largest
+FOG_GLIDE_PER_HOUR = 0.3             # How fast the fog thickens or lifts towards its target, per game hour (slower than the rain)
+# How much of a spell's fog there is at each hour (hour, share), between them smoothly: it
+# hangs at night and in the early morning, and the sun mostly burns it off by noon
+FOG_BY_HOUR = ((0.0, 1.0), (7.0, 1.0), (10.0, 0.6), (13.0, 0.35), (17.0, 0.4), (20.0, 0.75), (23.0, 1.0), (24.0, 1.0))
+FOG_FROM_WETNESS = 0.3               # Soaked ground breathes this much fog of its own (before FOG_BY_HOUR), whatever the spell
+FOG_DRIFT_TILES_PER_S = 0.35         # How fast the fog banks drift, in tiles per second, still air included
+FOG_WISPS_PER_MEGAPIXEL = 16         # Loose wisps of fog drifting about per million pixels of map view at full fog
+FOG_CLEAR_RADIUS_TILES = 6.0         # Round the player the fog is thinner, out to this far
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7

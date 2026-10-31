@@ -141,6 +141,12 @@ def draw_map_view(
     clouds = weather.clouds if weather else 0.0
     ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds)
 
+    # The fog over everything but the rain, lit by the light rather than darkened by the overlay
+    if weather:
+        player = game_map.map_player
+        game_map.fog.draw(screen, game_map.camera, offset_x, offset_y, weather.fog, ambient,
+                          (player.x + player.width / 2, player.y + player.height / 2), render_queue)
+
     # The rain over everything, dimmed with the light rather than by the overlay
     if weather:
         game_map.rain.draw(screen, game_map.camera, offset_x, offset_y, weather.wind, max(ambient) / 255)
@@ -713,6 +719,7 @@ def draw_map_debug_ui(
     if weather:
         lines.append(f"{weather.kind.capitalize()} {weather.rain:.2f}")
         lines.append(f"Wet: {weather.wetness:.2f}")
+        lines.append(f"Fog lvl: {weather.fog:.2f}")
 
     line_h = 20
     pad = 6

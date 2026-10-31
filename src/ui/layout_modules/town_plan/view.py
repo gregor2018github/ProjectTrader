@@ -13,7 +13,7 @@ dragging. Its parts:
 - ``style``     holds the colours and tuning.
 
 Only land the player has explored is charted: the rest is covered with blank
-paper, after the game map's fog of war (``models/fog.py``), and its names and
+paper, after the game map's fog of war (``models/map_fog.py``), and its names and
 buildings cannot be pointed at. With the debug overlay on, a switch on the
 sheet shows all of it instead, until switched back.
 """
@@ -275,7 +275,7 @@ class TownPlan:
         return self._debug and self.reveal_all
 
     def _explored(self, world_pos: Tuple[float, float]) -> bool:
-        return self._showing_all or self.game_map.fog.is_explored(*world_pos)
+        return self._showing_all or self.game_map.map_fog.is_explored(*world_pos)
 
     def _uncharted_paper(self, rect: pygame.Rect, inner: pygame.Rect, anchor: Tuple[int, int]) -> pygame.Surface:
         """The paper under ``inner`` a shade darker, to cover the land not explored yet with.
@@ -295,7 +295,7 @@ class TownPlan:
         """Lay blank paper over the land not explored yet, fading in at the edge."""
         left, top = self.screen_to_world(inner.left, inner.top)
         right, bottom = self.screen_to_world(inner.right, inner.bottom)
-        veil, origin = self.game_map.fog.veil((left, top, right, bottom), self.scale)
+        veil, origin = self.game_map.map_fog.veil((left, top, right, bottom), self.scale)
         x, y = self.world_to_screen(*origin)
         pos = (round(x), round(y))
         # The white veil times the paper: the paper, as opaque as the land is unknown

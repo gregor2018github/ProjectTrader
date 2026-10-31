@@ -211,7 +211,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             for g in goods
         ],
         "population": _serialize_population(population_manager),
-        # Explored land; loaded by GameMap.restore_fog, missing means none
+        # Explored land; loaded by GameMap.restore_map_fog, missing means none
         "fog": fog.to_save() if fog is not None else None,
         # Loaded by Weather.load, missing means the weather goes on as it is
         "weather": weather.to_save() if weather is not None else None,
