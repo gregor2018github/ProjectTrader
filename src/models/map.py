@@ -22,6 +22,7 @@ from .institutions.warehouse import Warehouse
 from .tree import Tree
 from .bridge import Bridge, DEFAULT_RAIL_TILES, off_deck_parts
 from .ground_chunks import GroundChunks
+from .map_warmup import MapWarmup
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
@@ -1160,6 +1161,9 @@ class GameMap:
         # What the player has seen so far; a new game has seen nothing yet
         self.map_fog: FogOfWar = FogOfWar(self.tmx_map.width, self.tmx_map.height, self.tmx_map.tile_size)
         self.reveal_around_player()
+
+        # Scales and bakes what the view draws before it is needed (map_warmup.py)
+        self.warmup: MapWarmup = MapWarmup(self)
 
     def reveal_around_player(self) -> None:
         """Explore the fog of war around the player's centre."""

@@ -204,6 +204,11 @@ class Game:
         if save_data is not None:
             self.restore_loaded_save(save_data)
 
+        # Everything the map view draws at the starting zoom, made now behind
+        # the loading screen rather than in the first frames (map_warmup.py);
+        # the view is the full width, as a game starts with the map on both sides
+        self.game_map.warmup.prepare((MODULE_WIDTH * 2 - 10, SCREEN_HEIGHT - 120 - 10))
+
     def restore_loaded_save(self, save_data: Dict[str, Any]) -> None:
         """Put a loaded save into the running game: the saved state, and everything
         on the map that follows from it. Used both when the game starts from a
@@ -871,6 +876,9 @@ class Game:
                         popup.update(delta_time)
                         popup.draw()
                     self.state.coin_popups = [p for p in self.state.coin_popups if p.alive]
+
+                # Get ahead on the map's drawing with a little of each frame (map_warmup.py)
+                self.game_map.warmup.step()
 
                 # Autosave before the cursor is drawn so it stays out of the thumbnail
                 self._tick_autosave(delta_time)

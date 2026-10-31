@@ -254,6 +254,7 @@ WATER_FRAME_INTERVAL = 0.22  # seconds per animation frame
 _WATER_VARIANT_COUNT = 3
 
 _water_tile_cache: Dict[Tuple[float, int], List[pygame.Surface]] = {}
+_water_frame_cache: Dict[Tuple[float, int, int], pygame.Surface] = {}
 _water_edge_cache: Dict[Tuple[float, int], List[pygame.Surface]] = {}
 
 _WATER_DEEP = (26, 70, 116)
@@ -323,38 +324,49 @@ def get_water_tile_frames(tile_size: int, zoom: float, variant: int) -> List[pyg
     cached = _water_tile_cache.get(cache_key)
     if cached is not None:
         return cached
+    frames = [bake_water_frame(tile_size, zoom, i) for i in range(WATER_FRAME_COUNT)]
+    _water_tile_cache[cache_key] = frames
+    return frames
+
+
+def bake_water_frame(tile_size: int, zoom: float, index: int) -> pygame.Surface:
+    """One frame of get_water_tile_frames, baked once and kept.
+
+    Separate so that map_warmup.py can bake a zoom level's frames one at a
+    time, a few milliseconds each, rather than all in one go.
+    """
+    cache_key = (round(float(zoom), 3), tile_size, index)
+    cached = _water_frame_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     size = max(1, int(round(tile_size * zoom)))
     deep = _WATER_DEEP
     light = _WATER_LIGHT
     two_pi = 2.0 * math.pi
-
-    frames: List[pygame.Surface] = []
-    for i in range(WATER_FRAME_COUNT):
-        phase = two_pi * i / WATER_FRAME_COUNT
-        surf = pygame.Surface((size, size))
-        pixels = pygame.PixelArray(surf)
-        for y in range(size):
-            fy = y / size
-            for x in range(size):
-                fx = x / size
-                v = 0.0
-                for cx, cy, speed, weight in _WAVE_COMPONENTS:
-                    v += weight * math.sin(two_pi * (cx * fx + cy * fy) + phase * speed)
-                # v is in roughly [-1, 1]; raise to an odd power to keep the
-                # highlight sparse (soft glints) instead of a smooth 50/50
-                # gradient, which read as too strong/opaque at full spread.
-                t = max(0.0, min(1.0, (v + 1.0) / 2.0))
-                t = t ** 3
-                r = int(deep[0] + (light[0] - deep[0]) * t)
-                g = int(deep[1] + (light[1] - deep[1]) * t)
-                b = int(deep[2] + (light[2] - deep[2]) * t)
-                pixels[x, y] = (r, g, b)
-        pixels.close()
-        frames.append(surf.convert())
-
-    _water_tile_cache[cache_key] = frames
-    return frames
+    phase = two_pi * index / WATER_FRAME_COUNT
+    surf = pygame.Surface((size, size))
+    pixels = pygame.PixelArray(surf)
+    for y in range(size):
+        fy = y / size
+        for x in range(size):
+            fx = x / size
+            v = 0.0
+            for cx, cy, speed, weight in _WAVE_COMPONENTS:
+                v += weight * math.sin(two_pi * (cx * fx + cy * fy) + phase * speed)
+            # v is in roughly [-1, 1]; raise to an odd power to keep the
+            # highlight sparse (soft glints) instead of a smooth 50/50
+            # gradient, which read as too strong/opaque at full spread.
+            t = max(0.0, min(1.0, (v + 1.0) / 2.0))
+            t = t ** 3
+            r = int(deep[0] + (light[0] - deep[0]) * t)
+            g = int(deep[1] + (light[1] - deep[1]) * t)
+            b = int(deep[2] + (light[2] - deep[2]) * t)
+            pixels[x, y] = (r, g, b)
+    pixels.close()
+    frame = surf.convert()
+    _water_frame_cache[cache_key] = frame
+    return frame
 
 
 def get_water_edge_overlay_frames(tile_size: int, zoom: float, variant: int = 0) -> List[pygame.Surface]:
