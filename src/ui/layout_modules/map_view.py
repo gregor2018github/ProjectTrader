@@ -366,6 +366,9 @@ def _render_map_layers(
         offset_x: Horizontal offset for the view area.
         offset_y: Vertical offset for the view area.
         water_anim_time: Elapsed unpaused map time, drives the water flipbook frame.
+
+    The ground tiles come from the map's cached chunks (models/ground_chunks.py),
+    the layers up to Ground_Mid under the water and the rest over it.
     """
     world_view_width = camera.screen_width / camera.zoom
     world_view_height = camera.screen_height / camera.zoom
@@ -375,47 +378,14 @@ def _render_map_layers(
     end_x = min(tmx_map.width, int((camera.x + world_view_width) // tmx_map.tile_size) + 2)
     end_y = min(tmx_map.height, int((camera.y + world_view_height) // tmx_map.tile_size) + 2)
 
-    water_tiles = tmx_map.water_tiles
-    # The static water tile art lives in the "Ground_Mid" layer, and *only*
-    # that layer gets its water cells replaced by the animated surface.
-    # Layers below it (Ground_Low-1, Ground_Low) must still render normally
-    # at those same cells: boundary tiles are only *partly* water (the rest
-    # is cut away via alpha, see water.py's masking), so whatever grass art
-    # sits underneath needs to actually be there for that cut-away part to
-    # reveal — skipping it (as an earlier version did, on the assumption
-    # every water tile is fully opaque) left a black hole instead of grass.
-    # Layers above Ground_Mid, like "Ground_High" (shoreline decoration —
-    # grass overhangs at the water's edge), also always render normally.
-    water_drawn = not water_tiles
-
-    for layer in tmx_map.tmx_data.visible_layers:
-        # Only render tile layers that start with "Ground"
-        if isinstance(layer, pytmx.TiledTileLayer) and layer.name.startswith("Ground"):
-            is_water_layer = layer.name == "Ground_Mid"
-            for y in range(start_y, end_y):
-                for x in range(start_x, end_x):
-                    if is_water_layer and not water_drawn and (x, y) in water_tiles:
-                        continue
-                    gid = layer.data[y][x]
-                    if gid:
-                        tile_image = tmx_map._get_scaled_tile(gid, camera.zoom)
-                        if tile_image:
-                            world_x, world_y = tmx_map.grid_to_world(x, y)
-                            screen_x, screen_y = camera.apply(world_x, world_y)
-                            # Tiled aligns tiles to the bottom-left of the grid cell
-                            # Use rounded tile size for consistency with scaling logic
-                            scaled_grid_size = round(tmx_map.tile_size * camera.zoom)
-                            screen_y -= (tile_image.get_height() - scaled_grid_size)
-                            screen.blit(tile_image, (round(screen_x) + offset_x, round(screen_y) + offset_y))
-
-            if not water_drawn and layer.name == "Ground_Mid":
-                _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
-                water_drawn = True
-
-    # Fallback for maps without a "Ground_Mid" layer — still draw the water
-    # somewhere rather than silently dropping it.
-    if not water_drawn:
-        _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
+    # Ground_Mid's water cells are left out of the chunks below the water: the
+    # animated water fills them, cut to each boundary tile's own shape (see
+    # water.py's masking), with the grass of the layers under it showing
+    # where the tile is only partly water. The shoreline decoration of the
+    # layers above (grass overhangs at the water's edge) goes over it.
+    tmx_map.ground_chunks.draw_below(screen, camera, offset_x, offset_y)
+    _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
+    tmx_map.ground_chunks.draw_above(screen, camera, offset_x, offset_y)
 
 
 def _draw_bridges(

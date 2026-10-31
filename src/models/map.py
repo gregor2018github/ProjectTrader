@@ -21,6 +21,7 @@ from .institutions.well import Well
 from .institutions.warehouse import Warehouse
 from .tree import Tree
 from .bridge import Bridge, DEFAULT_RAIL_TILES, off_deck_parts
+from .ground_chunks import GroundChunks
 from .field import Field
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
@@ -198,6 +199,8 @@ class TMXMap:
         self._load_water()
         self._rasterize_water_tiles()
         self._load_bridges()
+        #: The ground tile layers, drawn in cached chunks (ground_chunks.py)
+        self.ground_chunks: GroundChunks = GroundChunks(self)
 
         # Everything that blocks a walker is parsed by now, so the grid the
         # townsfolk find their way on can be rasterized and the doors placed
