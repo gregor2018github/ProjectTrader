@@ -29,7 +29,8 @@ py -c "import pstats; pstats.Stats('walk.prof').sort_stats('tottime').print_stat
 | Clear midday, starting zoom, median | 6.5–7.5 ms | 3.6–4.5 ms |
 | Night, rain, fog, wet ground, zoom 1.0, median | 10.5–12.3 ms | 6.7–7.4 ms |
 | First frame of a game | 110 ms | (made while loading) |
-| First frame at a new zoom level | 40–85 ms | 3–5 ms |
+| First frame at a new zoom level (hidden Ctrl levels included) | 35–85 ms | 3–5 ms |
+| Puddles placed as rain sets in | 8 ms an update, 4 updates | ≤ 1.5 ms an update |
 | A townsperson's new route | 20–40 ms in one frame | ≤ 2 ms a frame |
 
 ## Imitating a slow PC

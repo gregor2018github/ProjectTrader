@@ -11,8 +11,8 @@ and on every new zoom level (40 to 110 ms a frame here, far more on a slow PC).
 ground around the player; then `step()` every frame, for at most
 WARMUP_BUDGET_S, keeps the ground ready just outside the view (so walking never
 waits for a chunk) and works through the other zoom levels a small job at a
-time, the nearest ones first. The hidden farthest-out levels are only warmed
-once the player has been to one.
+time, the nearest ones first and the hidden farthest-out levels (reached
+with Ctrl held) last.
 """
 
 import time
@@ -82,13 +82,14 @@ class MapWarmup:
     # --- Jobs -------------------------------------------------------------
 
     def _next_zoom_jobs(self) -> Iterator[None]:
-        """The next zoom level not warmed yet, nearest to the current one first."""
+        """The next zoom level not warmed yet: the normal ones before the hidden
+        ones, each nearest to the current level first."""
         game_map = self.game_map
         levels = game_map.zoom_levels
         current = game_map.zoom_index
-        # The hidden levels only once the player has gone out that far
-        lowest = min(game_map.min_normal_zoom_index, current)
-        candidates = sorted(range(lowest, len(levels)), key=lambda index: abs(index - current))
+        hidden = game_map.min_normal_zoom_index
+        candidates = sorted(range(len(levels)),
+                            key=lambda index: (index < hidden <= current, abs(index - current)))
         for index in candidates:
             zoom = levels[index]
             if round(zoom, 3) in self.warm_zooms:
