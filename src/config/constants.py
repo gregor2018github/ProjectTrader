@@ -200,6 +200,15 @@ TOWN_FULL_COVER = 2.0                 # That many buildings' worth around the pl
 # How much the crickets chirp by hour of the day (0 to 1): taking over from the birds at
 # dusk, from 19:30 to full by 21:00, and falling silent at dawn, from 4:30 to 6:00
 CRICKETS_BY_HOUR = ((4.5, 1.0), (6.0, 0.0), (19.5, 0.0), (21.0, 1.0))
+# Owls in the woods at night (models/owls.py): game hours of night deep in a wood between two
+# calls (fewer trees, longer), how loud the nearest call is (1.0 is 100%), the share of that a
+# call gets, drawn at random (near or far), and how far to one side it may come from (0 to 1)
+OWL_EVERY_HOURS = (1.0, 3.0)
+OWL_VOLUME = 0.5
+OWL_LOUDNESS = (0.15, 1.0)
+OWL_PAN = 0.6
+# How much the owls call by hour of the day (0 to 1): from 20:00, all night from 21:30, falling silent from 5:00 to 6:00
+OWLS_BY_HOUR = ((5.0, 1.0), (6.0, 0.0), (20.0, 0.0), (21.5, 1.0))
 # Volume of the rivers' and the sea's loops (1.0 is 100%) by distance from the nearest water of each,
 # in tiles from the water tile's centre (so about 1 standing on the bank), blended linearly; silent beyond the last
 RIVER_VOLUME_BY_DISTANCE = ((1, 0.35), (3, 0.25), (6, 0.12), (10, 0.04), (14, 0.0))
@@ -320,6 +329,7 @@ FOG_CLEAR_RADIUS_TILES = 6.0         # Round the player the fog is thinner, out 
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7
+RAIN_HUSHES_OWLS = 0.9
 
 # LOAN SYSTEM CONSTANTS
 
