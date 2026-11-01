@@ -12,6 +12,8 @@ NEW_COLOR = (90, 140, 200)
 RAW_COLOR = (120, 114, 104)
 WAVE_COLOR = (200, 170, 110)
 CURSOR_COLOR = (240, 236, 228)
+HOVER_COLOR = (170, 164, 154)
+PLAYED_TINT = (40, 34, 22, 0)     # added over the part already played
 QUIET_DB = -40.0         # loudness under which a sound is flagged: far below the others (around -20 to -35)
 
 
@@ -44,7 +46,7 @@ def size_text(size):
 
 
 def lengths_text(family, decoded):
-    """The length of a family's files, or their range; '' while not decoded (or never: music, raw)."""
+    """The length of a family's files, or their range; '' while not decoded."""
     lengths = [decoded[file.path][1].length for file in family.files if file.path in decoded]
     if not lengths:
         return ''
@@ -88,7 +90,9 @@ class Waveforms:
     def __init__(self):
         self._cache = {}
 
-    def draw(self, screen, rect, path, analysis, position=None, warn=False):
+    def draw(self, screen, rect, path, analysis, position=None, warn=False, hover=None, font=None):
+        """The waveform, the part played up to *position* (0..1) lit; with the mouse at x *hover*,
+        a line there and the time it points at, written in *font*."""
         key = (path, rect.size)
         image = self._cache.get(key)
         if image is None:
@@ -96,7 +100,17 @@ class Waveforms:
         screen.blit(image, rect)
         if position is not None:
             x = rect.x + round(position * (rect.w - 1))
+            played = pygame.Surface((x - rect.x, rect.h), pygame.SRCALPHA)
+            played.fill(PLAYED_TINT)
+            screen.blit(played, rect.topleft, special_flags=pygame.BLEND_RGBA_ADD)
             pygame.draw.line(screen, CURSOR_COLOR, (x, rect.y), (x, rect.bottom - 1), 2)
+        if hover is not None:
+            pygame.draw.line(screen, HOVER_COLOR, (hover, rect.y), (hover, rect.bottom - 1))
+            if font:
+                share = (hover - rect.x) / max(1, rect.w - 1)
+                label = font.render(duration_text(share * analysis.length), True, CURSOR_COLOR)
+                x = min(hover + 4, rect.right - label.get_width() - 2)
+                screen.blit(label, (x, rect.y + 1))
 
     @staticmethod
     def _make(size, peaks, warn):

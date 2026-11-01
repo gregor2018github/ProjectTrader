@@ -32,8 +32,9 @@ Right, the chosen family:
 - Note (N): what it is for, or meant for; Enter saves it to
   sound_catalog.json, beside this file, which also holds the credits of the
   files that came from Freesound (author, title, licence; click to open).
-- The files: play (or click the waveform), length, peak and loudness,
-  "Copy name" for the key to play it by, "Show in folder".
+- The files: play, length, peak and loudness, the waveform (music and raw
+  recordings too, once read), lit as far as it has played; click it to play
+  from that point. "Copy name" for the key to play it by, "Show in folder".
 
 Keys: Up/Down (Page Up/Down) pick a family, Space plays one of its files at
 random as the game does (or stops), 1-9 a given one, L loops what is played
@@ -113,8 +114,8 @@ class SoundManager:
         self.status_error = False
 
         self.library = Library()
-        self.decoded = {}                # {path: (Sound, Analysis, mtime)}, filled by the decoder
-        self.decoder = audio.Decoder([f.path for f in self.library.sound_files()], self.decoded)
+        self.decoded = {}                # {path: (Sound or None, Analysis, mtime)}, filled by the decoder
+        self.decoder = self.new_decoder()
         self.player = audio.Player()
         self.last_played = None
         self.selected = None
@@ -148,13 +149,20 @@ class SoundManager:
         if family:
             self.sound_list.ensure_visible(family)
 
-    def play(self, file):
-        """Play a file, or stop it if it is the one playing."""
-        if self.player.is_playing(file):
+    def new_decoder(self):
+        """Read the game's sounds, then the music and the raw recordings (those not kept)."""
+        streamed = [f.path for family in self.library.families if family.place != SOUND for f in family.files]
+        return audio.Decoder([f.path for f in self.library.sound_files()], self.decoded, streamed)
+
+    def play(self, file, share=None):
+        """Play a file, or stop it if it is the one playing; from *share* (0..1) of the way through, if given."""
+        if share is None and self.player.is_playing(file):
             self.player.stop()
             return
+        decoded = self.decoded.get(file.path)
+        sound, length = (decoded[0], decoded[1].length) if decoded else (None, None)
         try:
-            self.player.play(file, self.decoded.get(file.path) if file.place == SOUND else None, self.loop)
+            self.player.play(file, sound, length, self.loop, start=(share or 0.0) * (length or 0.0))
             self.last_played = file
         except pygame.error as exc:
             self.set_status(f'Cannot play {file.path.name}: {exc}', error=True)
@@ -172,6 +180,8 @@ class SoundManager:
             self.open_code(argument)
         elif action == 'play':
             self.play(argument)
+        elif action == 'seek':
+            self.play(*argument)
         elif action == 'play family':
             self.play_family(argument)
         elif action == 'copy':
@@ -208,7 +218,7 @@ class SoundManager:
         chosen = (self.selected.place, self.selected.name) if self.selected else None
         self.library.reload()
         audio.forget_changed(self.decoded)
-        self.decoder = audio.Decoder([f.path for f in self.library.sound_files()], self.decoded)
+        self.decoder = self.new_decoder()
         self.sound_list.rebuild()
         self.selected = None
         again = next((f for f in self.library.families if (f.place, f.name) == chosen), None)
@@ -258,7 +268,8 @@ class SoundManager:
                  f'{len(sounds) - played} not used yet' + (f'  ({new} new, not in git)' if new else ''),
                  f'{music} music tracks', f'{raw} raw recordings']
         if self.decoder.busy:
-            parts.append(f'reading {len(self.decoded)} / {len(sounds)}...')
+            done, total = self.decoder.progress()
+            parts.append(f'reading {done} / {total}...')
         summary = fonts.small.render('     ·     '.join(parts), True, TEXT)
         screen.blit(summary, (PANEL_GAP, 54))
 

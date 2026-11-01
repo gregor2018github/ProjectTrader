@@ -1,5 +1,8 @@
 """The right pane: one family of sounds - where the game uses it, the note on it, and each file.
 
+Clicking a file's waveform plays it from that point; the part already
+played is lit, so it doubles as the progress bar, for music too.
+
 Every use names the function it is in and its line; clicking it opens the
 file at that line in VS Code. The note is typed straight into the pane
 (click it, or N) and saved to sound_catalog.json with Enter. Each file has
@@ -9,7 +12,7 @@ its play button, length, levels and waveform, the key the code plays it by
 
 import pygame
 
-from sound_library import MUSIC, RAW, SOUND
+from sound_library import MUSIC, RAW
 from sound_widgets import (
     QUIET_DB, Waveforms, draw_badge, draw_play, duration_text, NEW_COLOR, size_text, state,
 )
@@ -91,6 +94,8 @@ class DetailPanel:
             if rect.collidepoint(pos):
                 if action != 'note' and self.editing:
                     self.stop_editing(save=True)
+                if action == 'seek':   # from where the bar was clicked
+                    argument = (argument, max(0.0, min(1.0, (pos[0] - rect.x) / max(1, rect.w - 1))))
                 self.app.act(action, argument)
                 return True
         if self.editing:
@@ -270,12 +275,12 @@ class DetailPanel:
             warn = info.loud_db < QUIET_DB
             facts[:0] = [duration_text(info.length), f'peak {info.peak_db:.0f} dB',
                          f'loudness {info.loud_db:.0f} dB' + ('  - very quiet' if warn else '')]
-        elif file.place == SOUND:
-            facts.append('reading...' if app.decoder.busy else 'could not be read')
         else:
-            facts.append('streamed: no waveform')
+            facts.append('reading...' if app.decoder.busy else 'could not be read')
         if playing:
-            facts.append(f'playing {duration_text(app.player.elapsed())}')
+            position = app.player.position()
+            at = app.player.elapsed() if position is None else position * app.player.length
+            facts.append(f'playing {duration_text(at)}')
         line = fonts.small.render('   ·   '.join(facts), True, ERROR_COLOR if warn else TEXT_DIM)
         screen.blit(line, (inner.x, y))
         y += line.get_height() + 4
@@ -283,8 +288,10 @@ class DetailPanel:
         if decoded:
             wave = pygame.Rect(inner.x, y, inner.w, WAVE_H)
             position = app.player.position() if playing else None
-            self.waves.draw(screen, wave, file.path, decoded[1], position, warn)
-            self.hits.append((wave, 'play', file))
+            hover = wave.collidepoint(mouse) and self.area.collidepoint(mouse)
+            self.waves.draw(screen, wave, file.path, decoded[1], position, warn,
+                            hover=mouse[0] if hover else None, font=fonts.small)
+            self.hits.append((wave, 'seek', file))
             y = wave.bottom + 4
 
         for credit in app.library.catalog.credits_of(file):
