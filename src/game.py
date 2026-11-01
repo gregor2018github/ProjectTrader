@@ -24,6 +24,7 @@ from .models.lightning import Lightning
 from .models.coughs import Coughs
 from .models.owls import Owls
 from .models.dogs import Dogs
+from .ui.view_transition import ViewTransition
 from .models.weather import Weather
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
@@ -171,6 +172,9 @@ class Game:
         self.owls: Owls = Owls(self.sounds, self.ambience.trees)
         # Dogs barking in town now and then (models/dogs.py)
         self.dogs: Dogs = Dogs(self.sounds, self.ambience.town)
+        # A sheet of parchment unrolled over a module whose view changed, with a page turning
+        self.view_transition: ViewTransition = ViewTransition(self.sounds)
+        self.view_transition.prepare()
 
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
@@ -639,6 +643,10 @@ class Game:
                     if hasattr(good, '_external_hover') and not good._external_hover:
                         good.hovered = False
                 
+                # Before the screen is cleared: it still holds the old view, should the view have changed
+                self.view_transition.begin_frame(self.screen, self.state.left_side_mode,
+                                                 self.state.right_side_mode, delta_time)
+
                 # 1. Fill base background
                 self.screen.fill(BEIGE)
                 # The plan only takes input while it is drawn this frame
@@ -798,6 +806,9 @@ class Game:
                         draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
                     else:
                         render_module(self.state.right_side_mode, right_module_rect)
+
+                # 3. The parchment rolling over a view that has just changed
+                self.view_transition.draw(self.screen)
 
 
                 # 4. Draw persistent UI elements (Top and Bottom Bars)
