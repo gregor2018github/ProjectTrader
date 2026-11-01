@@ -22,10 +22,7 @@ from ..config.constants import (
     FOREST_FULL_COVER, OWL_EVERY_HOURS, OWL_LOUDNESS, OWL_PAN, OWL_VOLUME, OWLS_BY_HOUR, RAIN_HUSHES_OWLS,
 )
 from .ambience import Cover, by_steps
-
-#: A jump in game time longer than this between two updates (loading a save,
-#: the map shown again after a while) is not counted towards the next call.
-LONGEST_STEP = datetime.timedelta(hours=1)
+from .map_clock import MapClock
 
 
 class Owls:
@@ -44,23 +41,20 @@ class Owls:
         self.trees = trees
         self.last_call: Optional[pygame.mixer.Sound] = None
         self.wait = self.rng.uniform(*OWL_EVERY_HOURS)   # game hours of night in the woods to the next call
-        self.last_time: Optional[datetime.datetime] = None
+        self.clock = MapClock()
 
     def update(self, now: datetime.datetime, running: bool, player, rain: float = 0.0) -> None:
         """Count the game time since the last update while *running* (the map shown and not
         paused), as much of it as it is night in the woods around *player*, and call when due."""
-        last, self.last_time = self.last_time, now
-        if not running or last is None or not self.calls:
-            return
-        step = now - last
-        if step <= datetime.timedelta(0) or step > LONGEST_STEP:
+        hours = self.clock.hours(now, running)
+        if hours <= 0 or not self.calls:
             return
         night = by_steps(OWLS_BY_HOUR, now.hour + now.minute / 60.0)
         if night <= 0:
             return
         wooded = min(1.0, self.trees.at(player.x + player.width / 2, player.y + player.height / 2)
                      / FOREST_FULL_COVER)
-        self.wait -= step.total_seconds() / 3600 * night * wooded * (1.0 - RAIN_HUSHES_OWLS * rain)
+        self.wait -= hours * night * wooded * (1.0 - RAIN_HUSHES_OWLS * rain)
         if self.wait <= 0:
             self.call()
             self.wait = self.rng.uniform(*OWL_EVERY_HOURS)

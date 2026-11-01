@@ -209,6 +209,17 @@ OWL_LOUDNESS = (0.15, 1.0)
 OWL_PAN = 0.6
 # How much the owls call by hour of the day (0 to 1): from 20:00, all night from 21:30, falling silent from 5:00 to 6:00
 OWLS_BY_HOUR = ((5.0, 1.0), (6.0, 0.0), (20.0, 0.0), (21.5, 1.0))
+# Dogs barking in town (models/dogs.py): game hours in town between two barks (2 to 3 a day;
+# at the edge of town longer), how loud the nearest is (1.0 is 100%), the share of that a bark
+# gets, drawn at random (near or far), and how far to one side it may come from (0 to 1)
+DOG_EVERY_HOURS = (8.0, 12.0)
+DOG_VOLUME = 0.5
+DOG_LOUDNESS = (0.25, 1.0)
+DOG_PAN = 0.7
+DOG_BOUT_BARKS = (2, 5)               # A dog barking single barks barks this many times,
+DOG_BOUT_GAP_S = (0.35, 1.1)          # this many real seconds apart
+DOG_CHORUS_HOURS = (21, 5)            # From and to which hour the village's dogs may answer each other far off,
+DOG_CHORUS_CHANCE = 0.35              # in this share of the barks then
 # Volume of the rivers' and the sea's loops (1.0 is 100%) by distance from the nearest water of each,
 # in tiles from the water tile's centre (so about 1 standing on the bank), blended linearly; silent beyond the last
 RIVER_VOLUME_BY_DISTANCE = ((1, 0.35), (3, 0.25), (6, 0.12), (10, 0.04), (14, 0.0))

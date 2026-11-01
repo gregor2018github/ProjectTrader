@@ -21,10 +21,7 @@ import pygame
 from ..config.constants import (
     COUGH_EVERY_HOURS, COUGH_FALLOFF, COUGH_MAX_DISTANCE, COUGH_RETRY_HOURS, COUGH_VOLUME,
 )
-
-#: A jump in game time longer than this between two updates (loading a save,
-#: the map shown again after a while) is not counted towards the next cough.
-LONGEST_STEP = datetime.timedelta(hours=1)
+from .map_clock import MapClock
 
 
 class Coughs:
@@ -43,18 +40,15 @@ class Coughs:
         }
         self.last_cough: Optional[pygame.mixer.Sound] = None
         self.wait = self.rng.uniform(*COUGH_EVERY_HOURS)   # game hours on the map to the next cough
-        self.last_time: Optional[datetime.datetime] = None
+        self.clock = MapClock()
 
     def update(self, now: datetime.datetime, running: bool, npcs: Iterable, player) -> None:
         """Count the game time since the last update while *running* (the map shown and
         not paused), and when a cough is due, have someone near *player* cough."""
-        last, self.last_time = self.last_time, now
-        if not running or last is None:
+        hours = self.clock.hours(now, running)
+        if hours <= 0:
             return
-        step = now - last
-        if step <= datetime.timedelta(0) or step > LONGEST_STEP:
-            return
-        self.wait -= step.total_seconds() / 3600
+        self.wait -= hours
         if self.wait > 0:
             return
         if self.cough(npcs, player):
