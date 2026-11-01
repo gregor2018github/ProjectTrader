@@ -20,3 +20,4 @@ class TraderWeaver(Trader):
     EXTRA_GOODS = ("Linen",)
     # A skilled craftswoman working her own loom.
     SOCIAL_CLASS = "Commons"
+    GENDER = "female"

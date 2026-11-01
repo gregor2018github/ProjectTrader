@@ -49,6 +49,8 @@ class NPC(Human):
     SPRITE_PREFIX: str = ""
     #: Which of SOCIAL_CLASSES the NPC belongs to.
     SOCIAL_CLASS: str = "Commons"
+    #: "male" or "female"; picks the voice of their coughs, among others.
+    GENDER: str = "male"
     #: Traders talk shop: their chat also draws on the trader sentences.
     IS_TRADER: bool = False
 

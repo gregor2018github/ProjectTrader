@@ -23,3 +23,4 @@ class TraderShepherdess(Trader):
     MARKET_NAME = "Wool & Hide Market"
     # Tends the sheep out on the pastures: plain country folk.
     SOCIAL_CLASS = "Commons"
+    GENDER = "female"

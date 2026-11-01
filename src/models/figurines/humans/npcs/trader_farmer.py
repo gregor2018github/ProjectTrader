@@ -17,3 +17,4 @@ class TraderFarmer(Trader):
     MARKET_NAME = "Wheat Market"
     # Works her own land and brings the harvest to town: plain country folk.
     SOCIAL_CLASS = "Commons"
+    GENDER = "female"

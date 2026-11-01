@@ -21,6 +21,7 @@ from .models.institutions.town import Town
 from .models.population import PopulationManager
 from .models.ambience import AMBIENCE_FIRST_CHANNEL, Ambience
 from .models.lightning import Lightning
+from .models.coughs import Coughs
 from .models.weather import Weather
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
@@ -162,6 +163,8 @@ class Game:
         self.ambience: Ambience = Ambience(self.sounds, AMBIENCE_FIRST_CHANNEL, self.game_map.tmx_map)
         # A thunderstorm's flashes and thunder (models/lightning.py), drawn by map_view
         self.lightning: Lightning = Lightning(self.sounds)
+        # Now and then someone out in town near the player coughs (models/coughs.py)
+        self.coughs: Coughs = Coughs(self.sounds)
 
         self.update_delay: int = 1000 // MAX_RECULCULATIONS_PER_SEC  # milliseconds between updates
         self.last_update: int = 0
@@ -691,6 +694,8 @@ class Game:
                 self.ambience.update(self.game_map.tmx_map, self.game_map.map_player, self.state.date,
                                      is_map_visible and self.state.time_level > 1, self.weather.rain)
                 self.lightning.update(delta_time, self.weather.storm, is_map_visible and self.state.time_level > 1)
+                self.coughs.update(self.state.date, is_map_visible and self.state.time_level > 1,
+                                   self.game_map.tmx_map.npcs, self.game_map.map_player)
 
                 # Update church bell volume if it's playing
                 if self.church_bell_channel and self.church_bell_channel.get_sound() is self.church_bell_sound:

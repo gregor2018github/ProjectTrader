@@ -178,6 +178,13 @@ WELL_WISH_SHOCK_FACTOR = 0.4          # Price shock magnitude from a well wish (
 WELL_WISH_DURATION_DAYS = 5           # Number of days the well price shock lasts
 SHEEP_SOUND_MAX_DISTANCE = 900.0     # World pixels beyond which sheep are completely silent
 DOOR_SOUND_MAX_DISTANCE = 700.0      # World pixels beyond which NPC doors are completely silent
+# Someone out in town coughing now and then (models/coughs.py): game hours on the map
+# between two coughs (1 to 2 a day), and when nobody is near, how long until it tries again
+COUGH_EVERY_HOURS = (12.0, 24.0)
+COUGH_RETRY_HOURS = 0.5
+COUGH_VOLUME = 0.5                    # Volume of a cough right beside the player (1.0 is 100%)
+COUGH_MAX_DISTANCE = 800.0            # World pixels; NPCs farther off are never the ones coughing
+COUGH_FALLOFF = 1.6                   # Volume is (1 - distance / max) to this power: far coughs barely audible
 # Volume of the mill's gear loop (1.0 is 100%) by distance from its walls in tiles,
 # blended linearly between the steps; silent beyond the last
 MILL_VOLUME_BY_DISTANCE = ((0, 0.5), (2, 0.34), (5, 0.16), (10, 0.06), (15, 0.02), (20, 0.0))

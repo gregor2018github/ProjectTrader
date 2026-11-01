@@ -18,3 +18,4 @@ class TraderHerbalist(Trader):
     # Gathers and dries her wares herself and sells them by the bunch: plain
     # working folk.
     SOCIAL_CLASS = "Commons"
+    GENDER = "female"

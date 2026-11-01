@@ -23,3 +23,4 @@ class TraderAlewife(Trader):
     MARKET_NAME = "Wine & Beer Market"
     # Brews in her own kitchen and sells by the jug: plain working folk.
     SOCIAL_CLASS = "Commons"
+    GENDER = "female"

@@ -116,14 +116,15 @@ def discover_townsfolk(tile_size: int) -> List['Townsperson']:
             print(f"Skipping townsperson {folder}: {error}")
             continue
         name = profile.get("name") or folder
-        townsfolk.append(Townsperson(folder, name, tile_size))
+        gender = "female" if profile.get("gender") == "female" else "male"
+        townsfolk.append(Townsperson(folder, name, tile_size, gender))
     return townsfolk
 
 
 class Townsperson(NPC):
     """A townsperson who walks from one front door to another."""
 
-    def __init__(self, folder: str, name: str, tile_size: int) -> None:
+    def __init__(self, folder: str, name: str, tile_size: int, gender: str = "male") -> None:
         """Create a townsperson from their sprite folder.
 
         They start indoors and out of sight; :class:`StreetLife` gives them a
@@ -134,6 +135,7 @@ class Townsperson(NPC):
                 ``"commons_avice"``. Its prefix gives their social class.
             name: Display name, from their ``npc.json``.
             tile_size: Base tile size for scaling.
+            gender: "male" or "female", from their ``npc.json``.
         """
         super().__init__(name, 0.0, 0.0, tile_size)
         # Instance attributes shadowing the class ones NPC reads: every
@@ -143,6 +145,7 @@ class Townsperson(NPC):
         self.SOCIAL_CLASS = CLASS_BY_FOLDER_PREFIX.get(
             folder.split("_", 1)[0], NPC.SOCIAL_CLASS
         )
+        self.GENDER = gender
 
         self.speed = (
             STROLL_SPEED
