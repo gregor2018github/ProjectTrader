@@ -1,4 +1,4 @@
-"""The merchant rank overview, opened from the rank title in the top bar.
+"""The merchant rank overview, opened from the rank title in the top bar or at the guildhall.
 
 One table: what the player has of each condition, then every rank with what it
 asks for, met conditions in green; the rank held is highlighted.

@@ -271,6 +271,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         house: The clicked house.
     """
     from .info_window import InfoWindow
+    from .rank_window import open_rank_window
     from ...models.institutions.church import Church
     from ...models.institutions.town import Town
     from ...models.institutions.market import Market
@@ -286,6 +287,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name and house.name.startswith("House"):
         options.insert(0, "Knock")
     
+    # The merchants' guild keeps the ranks: the same overview as the rank in the top bar
+    if house.name == "Guildhall":
+        options.insert(0, "Merchant Rank")
+
     if isinstance(house, (Church, Town)):
         options.insert(0, "Donate Money")
 
@@ -380,6 +385,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
                 names = f" ({', '.join(person.name for person in inside)})" if inside else ""
                 msg += f"\nTownsfolk inside now: {len(inside)}{names}"
             game_state.info_window = InfoWindow(game_state.screen, msg, ["OK"], game_state.font, game_state.game)
+            return
+
+        if option_text == "Merchant Rank" and house.name == "Guildhall":
+            open_rank_window(game_state)
             return
 
         if option_text == "Donate Money" and isinstance(house, (Church, Town)):
