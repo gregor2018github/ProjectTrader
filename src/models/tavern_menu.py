@@ -1,7 +1,7 @@
 """The daily menu a tavern offers, drawn from the dishes in assets/texts/taverns/dishes.csv.
 
 Each dish there has a class (low, middle or high: which kind of tavern serves
-it), a course and whether it has meat. A tavern's class is the `Tavern`
+it), a course, whether it has meat and its price in coins. A tavern's class is the `Tavern`
 property on its building in Tiled. Its menu is drawn anew each day from the
 dishes of its class, `MENU_COURSES` of each course, the same all day and
 different from tavern to tavern. On fast days, every Friday and the forty days
@@ -44,6 +44,7 @@ class Dish:
     tavern_class: str
     course: str
     meat: bool
+    price: float
     description: str
 
 
@@ -66,6 +67,7 @@ def load_dishes(path: str = DISHES_PATH) -> List[Dish]:
                 tavern_class=tavern_class,
                 course=course,
                 meat=row["meat"].strip().lower() == "yes",
+                price=float(row["price"]),
                 description=row["description"].strip(),
             ))
     return dishes

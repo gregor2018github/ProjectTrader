@@ -15,13 +15,13 @@ MENU = {
 }
 
 DISHES = [
-    Dish("Hochepot", "middle", "pottage", True, ""),
-    Dish("Funges", "middle", "pottage", False, ""),
-    Dish("Beef Y-stewed", "middle", "main", True, ""),
-    Dish("Bratwurst", "middle", "main", True, ""),
-    Dish("Eels in Green Sauce", "middle", "main", False, ""),
-    Dish("Ale", "middle", "drink", False, ""),
-    Dish("Hippocras", "high", "drink", False, ""),
+    Dish("Hochepot", "middle", "pottage", True, 1.0, ""),
+    Dish("Funges", "middle", "pottage", False, 1.0, ""),
+    Dish("Beef Y-stewed", "middle", "main", True, 1.0, ""),
+    Dish("Bratwurst", "middle", "main", True, 1.0, ""),
+    Dish("Eels in Green Sauce", "middle", "main", False, 1.0, ""),
+    Dish("Ale", "middle", "drink", False, 1.0, ""),
+    Dish("Hippocras", "high", "drink", False, 1.0, ""),
 ]
 
 MONDAY = datetime.date(1500, 1, 8)
@@ -45,6 +45,7 @@ def test_the_dish_file_reads_and_serves_every_class_every_course():
             assert offer, f"no {course} for a {tavern_class} tavern"
             # Something to serve on fast days too
             assert any(not d.meat for d in offer), f"no meatless {course} for a {tavern_class} tavern"
+    assert all(dish.price > 0 for dish in dishes)
 
 
 def test_easter_on_known_dates():

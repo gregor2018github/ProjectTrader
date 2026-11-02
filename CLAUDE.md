@@ -123,7 +123,7 @@ That parchment is `src/ui/paper.py`'s `draw_paper()`, shared with the loading sc
 
 ### Taverns
 
-A building with a `Tavern` property in Tiled (`low`, `middle` or `high`, kept as `House.tavern_class`) is a tavern; its house menu has "Daily Menu", which opens `TavernMenuWindow` (`src/ui/helper_modules/tavern_menu_window.py`). The dishes are period ones in `assets/texts/taverns/dishes.csv` (dish, class, course, meat, description); `daily_menu()` in `src/models/tavern_menu.py` draws `MENU_COURSES` of each course from the tavern's class, the same all day (seeded by the date and the tavern) and different from tavern to tavern, with no meat on fast days (Fridays and Lent). So far there is one, the Grey Griffin Inn on the market square (`middle`).
+A building with a `Tavern` property in Tiled (`low`, `middle` or `high`, kept as `House.tavern_class`) is a tavern; its house menu has "Daily Menu", which opens `TavernMenuWindow` (`src/ui/helper_modules/tavern_menu_window.py`). The dishes are period ones in `assets/texts/taverns/dishes.csv` (dish, class, course, meat, price in coins, description; the menu shows the price); `daily_menu()` in `src/models/tavern_menu.py` draws `MENU_COURSES` of each course from the tavern's class, the same all day (seeded by the date and the tavern) and different from tavern to tavern, with no meat on fast days (Fridays and Lent). So far there is one, the Grey Griffin Inn on the market square (`middle`).
 
 ### Key Directories
 
