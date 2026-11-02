@@ -4,7 +4,8 @@ The game's 30px good icons blur when drawn larger, so bigger UI (the
 warehouse inventory) uses the 1024px paintings in assets/pictures instead.
 Those have a plain background (white, cream, dark blue...), which this tool
 cuts away once: the background is told by the corners' colours and only what
-is joined to a corner goes, loose JPEG specks are dropped, and the figure is
+is joined to a corner goes (plus the enclosed bits of it listed in HOLES, such
+as the gap in a handle), loose JPEG specks are dropped, and the figure is
 cropped and saved as assets/pictures/<good>_icon.png, ICON_SIZE pixels on its
 longer side. Run it again after adding or repainting a good:
 
@@ -25,16 +26,19 @@ GOODS = ["Wood", "Stone", "Iron", "Wool", "Hide", "Fish", "Wheat", "Wine",
 SOURCE_FILES = {"Candle": "candles_full.jpg", "Hide": "hides_full.jpeg"}  # the rest are <good>_full.jpeg
 ICON_SIZE = 128
 BACKGROUND_TOLERANCE = (40, 40, 40, 255)
+# Background shut in by the figure, which the corners cannot reach: a point inside each, in the painting's pixels
+HOLES = {"Beer": [(760, 480)]}
 MIN_PIECE_SHARE = 0.0005     # parts of the painting smaller than this share of it are specks
 
 
-def cut_out(img: pygame.Surface) -> pygame.Surface:
-    """The painting's figure on a transparent background, cropped to it."""
+def cut_out(img: pygame.Surface, holes=()) -> pygame.Surface:
+    """The painting's figure on a transparent background, cropped to it; `holes` are
+    points inside enclosed patches of background that go too."""
     w, h = img.get_size()
     background = pygame.mask.Mask((w, h))
-    for corner in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
-        similar = pygame.mask.from_threshold(img, img.get_at(corner), BACKGROUND_TOLERANCE)
-        background.draw(similar.connected_component(corner), (0, 0))
+    for seed in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1), *holes):
+        similar = pygame.mask.from_threshold(img, img.get_at(seed), BACKGROUND_TOLERANCE)
+        background.draw(similar.connected_component(seed), (0, 0))
     background.invert()
 
     figure = pygame.mask.Mask((w, h))
@@ -55,7 +59,7 @@ def main() -> int:
         source = os.path.join(PICTURES, SOURCE_FILES.get(good, f"{good.lower()}_full.jpeg"))
         target = os.path.join(PICTURES, f"{good.lower()}_icon.png")
         try:
-            cut = cut_out(pygame.image.load(source).convert_alpha())
+            cut = cut_out(pygame.image.load(source).convert_alpha(), HOLES.get(good, ()))
         except (pygame.error, FileNotFoundError, ValueError) as error:
             print(f"{good}: skipped ({error})")
             failed += 1
