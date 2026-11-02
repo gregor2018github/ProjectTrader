@@ -11088,8 +11088,10 @@
     <property name="Col_margin_right_pixel" type="int" value="-16"/>
     <property name="Collision_to_right" type="int" value="7"/>
     <property name="Collision_up" type="int" value="3"/>
+    <property name="Display_name" value="The Grey Griffin Inn"/>
     <property name="File_name" value="House_2.png"/>
     <property name="Max_inhabitants" type="int" value="35"/>
+    <property name="Tavern" value="middle"/>
     <property name="Tiles_to_right" type="int" value="7"/>
     <property name="Tiles_up" type="int" value="11"/>
    </properties>

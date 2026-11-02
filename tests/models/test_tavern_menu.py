@@ -1,0 +1,99 @@
+"""The tavern's daily menu: the dish file, fast days, and how the day's dishes are drawn."""
+
+import datetime
+
+import pytest
+
+from src.models import tavern_menu
+from src.models.tavern_menu import (
+    COURSES, TAVERN_CLASSES, Dish, daily_menu, easter, is_fast_day, is_lent, load_dishes,
+)
+
+# Pinned so that changing how much a tavern serves does not break the tests
+MENU = {
+    "middle": {"pottage": 1, "main": 2, "side": 0, "sweet": 0, "drink": 1},
+}
+
+DISHES = [
+    Dish("Hochepot", "middle", "pottage", True, ""),
+    Dish("Funges", "middle", "pottage", False, ""),
+    Dish("Beef Y-stewed", "middle", "main", True, ""),
+    Dish("Bratwurst", "middle", "main", True, ""),
+    Dish("Eels in Green Sauce", "middle", "main", False, ""),
+    Dish("Ale", "middle", "drink", False, ""),
+    Dish("Hippocras", "high", "drink", False, ""),
+]
+
+MONDAY = datetime.date(1500, 1, 8)
+FRIDAY = datetime.date(1500, 1, 5)
+
+
+@pytest.fixture(autouse=True)
+def pinned_menu(monkeypatch):
+    monkeypatch.setattr(tavern_menu, "MENU_COURSES", MENU)
+
+
+def names(menu):
+    return {course: [dish.name for dish in dishes] for course, dishes in menu}
+
+
+def test_the_dish_file_reads_and_serves_every_class_every_course():
+    dishes = load_dishes()
+    for tavern_class in TAVERN_CLASSES:
+        for course, _ in COURSES:
+            offer = [d for d in dishes if d.tavern_class == tavern_class and d.course == course]
+            assert offer, f"no {course} for a {tavern_class} tavern"
+            # Something to serve on fast days too
+            assert any(not d.meat for d in offer), f"no meatless {course} for a {tavern_class} tavern"
+
+
+def test_easter_on_known_dates():
+    assert easter(2024) == datetime.date(2024, 3, 31)
+    assert easter(2025) == datetime.date(2025, 4, 20)
+    assert easter(1500).weekday() == 6
+
+
+def test_lent_runs_from_ash_wednesday_to_holy_saturday():
+    sunday = easter(1500)
+    ash_wednesday = sunday - datetime.timedelta(days=46)
+    assert ash_wednesday.weekday() == 2
+    assert not is_lent(ash_wednesday - datetime.timedelta(days=1))
+    assert is_lent(ash_wednesday)
+    assert is_lent(sunday - datetime.timedelta(days=1))
+    assert not is_lent(sunday)
+
+
+def test_fridays_are_fast_days():
+    assert is_fast_day(FRIDAY)
+    assert not is_fast_day(MONDAY)
+
+
+def test_a_tavern_serves_its_class_in_menu_order():
+    menu = daily_menu(MONDAY, "middle", "inn", DISHES)
+    assert [course for course, _ in menu] == ["pottage", "main", "drink"]
+    served = names(menu)
+    assert len(served["pottage"]) == 1
+    assert len(served["main"]) == 2
+    assert served["drink"] == ["Ale"]
+
+
+def test_no_meat_on_a_fast_day():
+    menu = daily_menu(FRIDAY, "middle", "inn", DISHES)
+    assert names(menu) == {"pottage": ["Funges"], "main": ["Eels in Green Sauce"], "drink": ["Ale"]}
+
+
+def test_the_menu_holds_all_day_and_changes_between_days():
+    noon = daily_menu(MONDAY, "middle", "inn", DISHES)
+    assert daily_menu(MONDAY, "middle", "inn", DISHES) == noon
+    days = [MONDAY + datetime.timedelta(days=n) for n in range(4)]  # Monday to Thursday
+    assert len({str(names(daily_menu(day, "middle", "inn", DISHES))) for day in days}) > 1
+
+
+def test_taverns_of_the_same_class_serve_differently():
+    days = [MONDAY + datetime.timedelta(days=n) for n in range(4)]
+    assert any(daily_menu(day, "middle", "inn", DISHES) != daily_menu(day, "middle", "alehouse", DISHES)
+               for day in days)
+
+
+def test_an_unknown_class_serves_nothing():
+    assert daily_menu(MONDAY, "royal", "inn", DISHES) == []

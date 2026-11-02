@@ -643,6 +643,7 @@ class TMXMap:
                             scale=float(obj.properties.get('Scale', 1.0)),
                         )
                     house.display_name = obj.properties.get('Display_name', '')
+                    house.tavern_class = str(obj.properties.get('Tavern', '')).strip().lower()
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

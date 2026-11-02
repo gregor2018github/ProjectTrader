@@ -53,6 +53,8 @@ class House:
         self.tile_size = tile_size
         self.name = name
         self.display_name: str = ""
+        #: "low", "middle" or "high" for a tavern (its `Tavern` property in Tiled), else ""
+        self.tavern_class: str = ""
         self.house_class = house_class
         self.max_inhabitants = max(0, int(max_inhabitants))
         self.has_max_inhabitants_property = bool(has_max_inhabitants_property)
