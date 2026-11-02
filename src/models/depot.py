@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, Iterable, List, Optional, Any, Tuple
 from ..config.constants import (
-    ALMS_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS,
+    ALMS_CATEGORY, CHURCH_FEAST_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS,
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
@@ -70,6 +70,7 @@ class Depot:
             "Church Donations": 0,
             "Town Donations": 0,
             ALMS_CATEGORY: 0,
+            CHURCH_FEAST_CATEGORY: 0,
         }
         self.labor_income: Dict[str, float] = {}        # minigame income subcategories (current day)
 
@@ -101,6 +102,7 @@ class Depot:
             "Church Donations": [0.0],
             "Town Donations": [0.0],
             ALMS_CATEGORY: [0.0],
+            CHURCH_FEAST_CATEGORY: [0.0],
         }
         self.labor_income_history: Dict[str, List[float]] = {}      # minigame income subcategory history for bookkeeping
         # FIFO queue to track purchased goods with their prices
@@ -643,6 +645,59 @@ class Depot:
         self.donations[category] += amount
         self.stats.donations_total += amount
         return True
+
+    def missing_goods(self, needed: Dict[str, int]) -> Dict[str, int]:
+        """How many of each good the stock falls short of `needed`; empty if it has them all."""
+        return {
+            name: quantity - self.good_stock.get(name, 0)
+            for name, quantity in needed.items()
+            if self.good_stock.get(name, 0) < quantity
+        }
+
+    def donate_goods(self, needed: Dict[str, int], goods: List[Any], category: str) -> Optional[float]:
+        """Give goods away from the stock, booked as a donation at their current market price.
+
+        The goods leave the slots and the oldest purchases first, like a sale but
+        with no trade cycle: nothing was earned on them. Money does not change.
+
+        Args:
+            needed: Good name -> units given.
+            goods: All good objects, for their current prices.
+            category: The donation subcategory (e.g. "Church Feasts").
+
+        Returns:
+            The value booked, or None (and nothing taken) if the stock lacks any of them.
+        """
+        if self.missing_goods(needed):
+            return None
+        prices = {good.name: good.get_price() for good in goods}
+        value = sum(quantity * prices.get(name, 0.0) for name, quantity in needed.items())
+
+        for name, quantity in needed.items():
+            self._take_goods(name, quantity)
+            self.good_stock[name] -= quantity
+            remaining = quantity
+            entries = self.purchase_history.get(name, [])
+            while remaining > 0 and entries:
+                oldest = entries[0]
+                if oldest["quantity"] <= remaining:
+                    remaining -= oldest["quantity"]
+                    entries.pop(0)
+                else:
+                    oldest["quantity"] -= remaining
+                    oldest["total_cost"] = oldest["price"] * oldest["quantity"]
+                    remaining = 0
+
+        self.expenditures += value
+        self.donation_expenditures += value
+        if category not in self.donations:
+            self.donations[category] = 0
+            self.donation_history[category] = [0.0] * len(self.donation_expenditure_history)
+        self.donations[category] += value
+        self.stats.donations_total += value
+        self.stats.goods_donated += sum(needed.values())
+        self.stats.goods_donated_value += value
+        return value
 
     def book_labor_income(self, amount: float, category: str) -> None:
         """Book income earned directly from a minigame (e.g. woodhacking).

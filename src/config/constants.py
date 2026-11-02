@@ -58,6 +58,13 @@ KNOCK_ANSWER_SECONDS = 5.0          # Real seconds they stand outside before goi
 # Giving a coin to one of the town's poor, from the figurine menu.
 ALMS_COIN = 1                       # Coins handed over per gift
 ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked under
+# Meals for the poor, given to the church in goods from the player's stock (name, goods and how many of each).
+# They are booked as donations at the goods' market price on the day.
+CHURCH_FEASTS = [
+    ("Meal for the Poor", {"Wheat": 40, "Fish": 20, "Beer": 15}),
+    ("Feast for the Poor", {"Wheat": 80, "Meat": 30, "Wine": 15, "Beer": 40}),
+]
+CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods given for them are booked under
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 

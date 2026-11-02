@@ -291,6 +291,12 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name == "Guildhall":
         options.insert(0, "Merchant Rank")
 
+    if house.tavern_class:
+        options.insert(0, "Daily Menu")
+
+    if isinstance(house, Church):
+        options.insert(0, "Donate Goods")
+
     if isinstance(house, (Church, Town)):
         options.insert(0, "Donate Money")
 
@@ -391,9 +397,18 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             open_rank_window(game_state)
             return
 
+        if option_text == "Daily Menu" and house.tavern_class:
+            from .tavern_menu_window import open_tavern_menu
+            open_tavern_menu(game_state, house)
+            return
+
         if option_text == "Donate Money" and isinstance(house, (Church, Town)):
             house.open_donation_menu(game_state, click_pos)
             # Don't close window here as open_donation_menu replaces it
+            return
+
+        if option_text == "Donate Goods" and isinstance(house, Church):
+            house.open_feast_menu(game_state)
             return
 
         if option_text == "Trading Licenses" and isinstance(house, Town):

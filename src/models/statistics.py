@@ -28,7 +28,9 @@ class Statistics:
 
         # Finance
         self.loans_taken: int = 0               # take_loan() calls
-        self.donations_total: float = 0.0       # cumulative gold donated
+        self.donations_total: float = 0.0       # cumulative gold donated, goods given at their value included
+        self.goods_donated: int = 0             # units of goods given away (church feasts)
+        self.goods_donated_value: float = 0.0   # their market value on the day they were given
         self.overdraft_count: int = 0           # days ending with a negative balance (penalty fired)
 
         # Minigames
@@ -56,6 +58,8 @@ class Statistics:
             "licenses_acquired": self.licenses_acquired,
             "loans_taken": self.loans_taken,
             "donations_total": self.donations_total,
+            "goods_donated": self.goods_donated,
+            "goods_donated_value": self.goods_donated_value,
             "overdraft_count": self.overdraft_count,
             "days_played": self.days_played,
             "minigames_played": self.minigames_played,
@@ -78,6 +82,8 @@ class Statistics:
         obj.licenses_acquired = d.get("licenses_acquired", 0)
         obj.loans_taken = d.get("loans_taken", 0)
         obj.donations_total = d.get("donations_total", 0.0)
+        obj.goods_donated = d.get("goods_donated", 0)
+        obj.goods_donated_value = d.get("goods_donated_value", 0.0)
         obj.overdraft_count = d.get("overdraft_count", 0)
         obj.days_played = d.get("days_played", 0)
         obj.minigames_played = d.get("minigames_played", 0)

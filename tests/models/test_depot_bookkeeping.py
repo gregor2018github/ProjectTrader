@@ -243,3 +243,60 @@ def test_goods_added_after_a_save_get_empty_records(depot):
     assert depot.stock_history["Silk"] == [0, 0, 0]
     assert depot.purchase_history["Silk"] == []
     assert depot.trade_cycles["by_good"]["Silk"]["total"] == 0
+
+
+# GOODS GIVEN AWAY (church feasts)
+
+def test_donated_goods_are_booked_at_their_market_price(depot, game_state, wood, stone):
+    depot.buy(wood, 10, game_state)
+    depot.buy(stone, 5, game_state)
+    money = depot.money
+    expenditures = depot.expenditures
+    wood.price, stone.price = 12.0, 3.0
+
+    value = depot.donate_goods({"Wood": 4, "Stone": 5}, [wood, stone], "Church Feasts")
+
+    assert value == 4 * 12 + 5 * 3
+    assert depot.money == money
+    assert depot.good_stock["Wood"] == 6
+    assert depot.good_stock["Stone"] == 0
+    assert sum(s["qty"] for s in depot.starting_slots if s["good"] == "Wood") == 6
+    assert depot.donations["Church Feasts"] == value
+    assert depot.donation_expenditures == value
+    assert depot.expenditures == expenditures + value
+    assert depot.stats.donations_total == value
+    assert depot.stats.goods_donated == 9
+    assert depot.stats.goods_donated_value == value
+
+
+def test_donated_goods_leave_the_oldest_purchases_without_a_trade_cycle(depot, game_state, wood):
+    depot.buy(wood, 10, game_state)
+    wood.price = 20.0
+    depot.buy(wood, 10, game_state)
+
+    depot.donate_goods({"Wood": 12}, [wood], "Church Feasts")
+
+    assert [entry["quantity"] for entry in depot.purchase_history["Wood"]] == [8]
+    assert depot.trade_cycles["total"] == 0
+    assert depot.stats.goods_sold == 0
+
+
+def test_a_donation_of_goods_not_all_in_stock_takes_nothing(depot, game_state, wood, stone):
+    depot.buy(wood, 10, game_state)
+
+    assert depot.missing_goods({"Wood": 12, "Stone": 1}) == {"Wood": 2, "Stone": 1}
+    assert depot.donate_goods({"Wood": 12, "Stone": 1}, [wood, stone], "Church Feasts") is None
+    assert depot.good_stock["Wood"] == 10
+    assert depot.donation_expenditures == 0
+    assert depot.stats.goods_donated == 0
+
+
+def test_donated_goods_are_not_counted_as_good_cost(depot, game_state, wood):
+    depot.buy(wood, 10, game_state)
+    good_cost = depot.get_expense_breakdown()["trading_expenses"]["Good Cost"]
+
+    value = depot.donate_goods({"Wood": 5}, [wood], "Church Feasts")
+
+    breakdown = depot.get_expense_breakdown()
+    assert breakdown["trading_expenses"]["Good Cost"] == good_cost
+    assert breakdown["donations"]["Church Feasts"] == value

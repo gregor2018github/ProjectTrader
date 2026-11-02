@@ -44,6 +44,8 @@ SECTIONS = [
     ("Finance", [
         ("Loans taken",           "loans_taken",       _fmt_int),
         ("Total donated",         "donations_total",   _fmt_gold),
+        ("Goods donated",         "goods_donated",     _fmt_int),
+        ("Value of goods donated", "goods_donated_value", _fmt_gold),
         ("Overdraft penalties",   "overdraft_count",   _fmt_int),
     ]),
     ("Minigames", [
@@ -78,7 +80,7 @@ class StatisticsView:
         # Panel
         total_w  = SCREEN_WIDTH + SIDEBAR_WIDTH
         panel_w  = int(total_w * 0.40)
-        panel_h  = int(SCREEN_HEIGHT * 0.74)
+        panel_h  = min(self._content_height(), SCREEN_HEIGHT - 40)
         self.panel_rect = pygame.Rect(
             (total_w - panel_w) // 2,
             (SCREEN_HEIGHT - panel_h) // 2,
@@ -93,6 +95,14 @@ class StatisticsView:
             self.panel_rect.top + 8,
             cb, cb,
         )
+
+    def _content_height(self) -> int:
+        """The panel's height, laid out as draw() lays it: title, divider, then the sections."""
+        row_h = self.row_font.get_height() + 6
+        height = 16 + self.title_font.get_height() + 12 + 18
+        for _, rows in SECTIONS:
+            height += self.section_font.get_height() + 2 + 6 + row_h * len(rows) + 12
+        return height + 10
 
     # ------------------------------------------------------------------
     # Input
