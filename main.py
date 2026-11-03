@@ -41,6 +41,8 @@ _offset_y: int = 0
 _scale_uniform: float = 1.0
 # (SCALED, fullscreen) of the window made last: get_flags() does not show SCALED
 _display_kind: tuple[bool, bool] | None = None
+# The resolution setting the window was made for
+_display_res: str | None = None
 
 _orig_display_flip = pygame.display.flip
 _orig_display_get_surface = pygame.display.get_surface
@@ -180,9 +182,14 @@ def _scaled_window(size: tuple[int, int]) -> pygame.Surface | None:
 def _setup_display() -> pygame.Surface:
     """Create the physical window and the logical 1760x1064 render surface."""
     global _render_surf, _display_surf, _scale_x, _scale_y, _offset_x, _offset_y, _scale_uniform
-    global _display_kind
+    global _display_kind, _display_res
 
     res = settings_store.get("resolution")
+    # Remaking the window shows the desktop for a moment (a SCALED one restarts
+    # the whole display), so keep it unless the setting has changed
+    if res == _display_res and _render_surf is not None:
+        return _render_surf
+    _display_res = res
     fullscreen = res == "Fullscreen"
     win_w, win_h = _NATIVE_W, _NATIVE_H
     if not fullscreen:
