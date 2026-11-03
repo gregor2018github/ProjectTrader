@@ -670,8 +670,9 @@ class Game:
                 if is_map_visible:
                     # Update map with player movement
                     if self.state.time_level > 1:  # Only update if game is not paused
-                        if self.state.mouse_clicked_on.startswith("quantity_"):
-                            # Arrow keys move the text cursor while a quantity field is focused
+                        if (self.state.mouse_clicked_on.startswith("quantity_")
+                                or getattr(self.state.info_window, "takes_text", False)):
+                            # Keys typed into a text field (a quantity, a save's name) don't walk
                             self.game_map.map_player.set_movement(0.0, 0.0)
                         else:
                             keys = pygame.key.get_pressed()

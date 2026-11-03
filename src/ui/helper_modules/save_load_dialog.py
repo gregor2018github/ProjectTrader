@@ -399,6 +399,11 @@ class SaveDialog(_BaseSlotDialog):
         # Capture the game frame before the dialog is drawn (no dialog UI in screenshot)
         self.screenshot: pygame.Surface = pygame.display.get_surface().copy()
 
+    @property
+    def takes_text(self) -> bool:
+        """True while the name field has the keyboard, so the map ignores held keys."""
+        return self._phase == "name"
+
     def _read_entries(self) -> List[Optional[dict]]:
         # The autosave slot is written by the game only, never picked by hand
         return [None] + [e for e in get_save_slots() if not e["autosave"]]
