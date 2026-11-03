@@ -126,7 +126,7 @@ class MapWarmup:
                                                       round(_AMBIENT_AMP / _ANGLE_STEP) + 2)]
         for field in self.game_map.tmx_map.fields:
             for sprite_idx in range(len(field.images)):
-                for angle in bins:
+                for angle in ((0.0,) if sprite_idx in field.still_sprites else bins):
                     field.get_sway_sprite(sprite_idx, zoom, angle)
                 yield
 

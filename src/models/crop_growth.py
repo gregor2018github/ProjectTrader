@@ -13,6 +13,9 @@ much earlier or later, so near a change some already show the next stage and
 some still the last, and the field turns over plant by plant within a day or
 two.
 
+The furrows of the bare field (furrows()) fade out over the first stage
+after it, as the sprouts come up, and back in as the crop is harvested.
+
 Where a field starts comes from its Tiled object (see Field), and what it
 has reached is saved with the game (to_save(), load()).
 """
@@ -90,6 +93,28 @@ class CropGrowth:
         if moment < self.since:
             return (self.index - 1) % len(self.stages)
         return self.index
+
+    def furrows(self, now: datetime.datetime, fade_days: float) -> float:
+        """How strongly the bare field's furrows show, 0..1: fully while it lies bare, fading out evenly
+        over the stage after it, and back in over `fade_days` centred on the harvest (the ripe crop's end)."""
+        half = datetime.timedelta(days=fade_days / 2.0)
+
+        def risen(moment: datetime.datetime) -> float:
+            """0 until half the fade before `moment`, 1 from half of it after."""
+            if not half:
+                return 1.0 if now >= moment else 0.0
+            return min(1.0, max(0.0, (now - (moment - half)) / (2 * half)))
+
+        last = len(self.stages) - 1
+        shown = 0.0
+        if self.index == 0:
+            shown = risen(self.since)
+        if self.index == 1:   # sprouting: the furrows wear away as it grows
+            elapsed = (now - self.since) / datetime.timedelta(days=self.days)
+            shown = max(shown, min(1.0, max(0.0, 1.0 - elapsed)))
+        if self.index == last:
+            shown = max(shown, risen(self.ends))           # being harvested
+        return shown
 
     def to_save(self) -> Dict[str, Any]:
         return {"stage": self.stage, "since": self.since.isoformat(), "days": self.days}

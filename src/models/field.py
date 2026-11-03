@@ -6,7 +6,7 @@ import random
 import math
 from typing import Any, List, Tuple, Dict, Optional
 
-from ..config.constants import FIELD_PLANT_SPREAD_DAYS, FIELD_STAGE_DAYS, TILE_SIZE
+from ..config.constants import FIELD_PLANT_SPREAD_DAYS, FIELD_STAGE_DAYS, FIELD_STILL_STAGES, TILE_SIZE
 from .crop_growth import CropGrowth
 
 # ---------------------------------------------------------------------------
@@ -46,17 +46,23 @@ _FURROW_SEED = 7
 _FURROW_ZOOMS_KEPT = 2        # scaled furrow overlays kept per field
 _FURROW_LIGHT = (255, 226, 190)
 _FURROW_LIGHT_ALPHA = 0.8     # how strongly the lit wall and ridges brighten the soil, for the shade above 1
+_FURROW_DROP = TILE_SIZE / 2 - 2   # world px the furrows lie lower than their tiles, onto the plants' feet
 
 
 class Field:
     """Represents a rectangular field object on the map.
 
-    Scatters crop sprites across every tile within the TMX object bounding
-    rect, one plant per tile.  The crop grows through the stages of its
+    Scatters crop sprites across the field's inner tiles, one plant per
+    tile; the tiles along its edge are the headland, ragged dirt in the
+    ground tiles, and stay empty.  The crop grows through the stages of its
     crop.json (crop_growth.py): every stage's sprites are loaded into
     ``images``, and each plant shows a variant of the stage it has reached
     (``sprite_placements``, renewed by ``update_growth()``; ``None`` while it
-    is at a stage without sprites, the bare field).  Where the field starts
+    is at a stage without sprites, the bare field).  While the field lies
+    bare its furrows show (``furrow_overlay()``), fading out as it is sown
+    and back in as it is harvested.  The first FIELD_STILL_STAGES stages
+    with sprites, the low sprouts, do not sway in the wind
+    (``still_sprites``).  Where the field starts
     comes from its Tiled object's properties:
 
         Start_stage  the stage key a new game starts at (default: the first, the bare field)
@@ -101,6 +107,7 @@ class Field:
         self.outline: List[Tuple[float, float]] = outline or [
             (x, y), (x + width, y), (x + width, y + height), (x, y + height)]
 
+        self.inner_tiles: List[Tuple[int, int]] = []
         # Loaded source images: every variant of every stage, one after another
         self.images: List[pygame.Surface] = []
         # Per stage of the crop, the indices of its variants in self.images (empty for the bare field)
@@ -113,13 +120,14 @@ class Field:
         self.sprite_placements: List[Tuple[float, float, Optional[int]]] = []
         # The same field lays out the same way every time, so a save shows what it showed
         self._rng = random.Random(f'field-{tmx_id}')
-        # The furrows: (col, row) of the inner tiles by plant number, which of them lie bare now,
-        # and the overlay of those at each zoom level drawn lately
-        self._furrow_cells: Dict[int, Tuple[int, int]] = {}
-        self._bare: frozenset = frozenset()
+        # The furrows: how strongly they show now (0..1), and the overlay at each zoom level drawn lately
+        self.furrow_alpha: float = 0.0
         self._furrow_cache: Dict[float, Tuple[pygame.Surface, float, float]] = {}
 
         stages = self._load_images()
+        # The sprites of the first stages that have any, too low to sway
+        with_sprites = [sprites for sprites in self.stage_sprites if sprites]
+        self.still_sprites = frozenset(i for sprites in with_sprites[:FIELD_STILL_STAGES] for i in sprites)
         self.growth: Optional[CropGrowth] = None
         if self.images:
             # Its timing is left to chance anew each game
@@ -173,7 +181,7 @@ class Field:
         return stages
 
     def _generate_placements(self) -> None:
-        """Place one plant per tile in the field bounds.
+        """Place one plant on each inner tile of the field: inside its outline, and so are its four neighbours.
 
         Each plant stores:
             world_cx  – horizontal center of the tile in world pixels
@@ -190,25 +198,18 @@ class Field:
         row_start = math.floor(self.y / TILE_SIZE)
         row_end   = math.floor((self.y + self.height - 1) / TILE_SIZE)
 
+        tiles = {(col, row) for col in range(col_start, col_end + 1) for row in range(row_start, row_end + 1)
+                 if _inside(self.outline, (col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE)}
+        #: The inner tiles, the ones planted and ploughed
+        self.inner_tiles = sorted(cell for cell in tiles if all(
+            (cell[0] + dc, cell[1] + dr) in tiles for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1))))
         half = FIELD_PLANT_SPREAD_DAYS / 2.0
-        for col in range(col_start, col_end + 1):
-            for row in range(row_start, row_end + 1):
-                world_cx = col * TILE_SIZE + TILE_SIZE / 2.0
-                world_by = float((row + 1) * TILE_SIZE)
-                if not _inside(self.outline, world_cx, world_by - TILE_SIZE / 2.0):
-                    continue
-                self.plants.append((world_cx, world_by, self._rng.uniform(-half, half), self._rng.random()))
+        for col, row in self.inner_tiles:
+            world_cx = col * TILE_SIZE + TILE_SIZE / 2.0
+            world_by = float((row + 1) * TILE_SIZE)
+            self.plants.append((world_cx, world_by, self._rng.uniform(-half, half), self._rng.random()))
         ripe = len(self.stage_sprites) - 1
         self.sprite_placements = [(cx, by, self._variant(ripe, pick)) for cx, by, _, pick in self.plants]
-        self._find_furrow_cells()
-
-    def _find_furrow_cells(self) -> None:
-        """The plants on inner tiles, the ones furrows are drawn on; the edge tiles are the headland."""
-        tiles = {(int(cx // TILE_SIZE), int(by // TILE_SIZE) - 1): number
-                 for number, (cx, by, _, _) in enumerate(self.plants)}
-        for (col, row), number in tiles.items():
-            if all((col + dc, row + dr) in tiles for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1))):
-                self._furrow_cells[number] = (col, row)
 
     # ------------------------------------------------------------------
     # Growth
@@ -221,41 +222,41 @@ class Field:
 
     def _place_plants(self, now: datetime.datetime) -> None:
         growth = self.growth
-        stages = [growth.plant_stage(now, offset) for _, _, offset, _ in self.plants]
-        self.sprite_placements = [(cx, by, self._variant(stage, pick))
-                                  for (cx, by, _, pick), stage in zip(self.plants, stages)]
-        bare = frozenset(number for number in self._furrow_cells if stages[number] == 0)
-        if bare != self._bare:
-            self._bare = bare
-            self._furrow_cache.clear()
+        self.sprite_placements = [(cx, by, self._variant(growth.plant_stage(now, offset), pick))
+                                  for cx, by, offset, pick in self.plants]
+        self.furrow_alpha = growth.furrows(now, FIELD_PLANT_SPREAD_DAYS)
 
     def furrow_overlay(self, zoom: float) -> Optional[Tuple[pygame.Surface, float, float]]:
-        """The furrows of the bare inner tiles at `zoom`, with the world point of its top-left corner;
-        None while none lies bare. Made again only when the bare tiles or the zoom change."""
-        if not self._bare:
+        """The furrows over the inner tiles at `zoom`, see-through as far as they have faded, with the
+        world point of its top-left corner; None while they do not show. Made once per zoom level."""
+        alpha = round(self.furrow_alpha * 255)
+        if alpha <= 0 or not self.inner_tiles:
             return None
         zoom_key = round(float(zoom), 3)
-        cached = self._furrow_cache.get(zoom_key)
-        if cached:
-            return cached
-        cells = {self._furrow_cells[number] for number in self._bare}
+        if zoom_key not in self._furrow_cache:
+            self._furrow_cache[zoom_key] = self._make_furrows(zoom)
+            while len(self._furrow_cache) > _FURROW_ZOOMS_KEPT:
+                self._furrow_cache.pop(next(iter(self._furrow_cache)))
+        overlay, world_x, world_y = self._furrow_cache[zoom_key]
+        overlay.set_alpha(alpha)
+        return overlay, world_x, world_y
+
+    def _make_furrows(self, zoom: float) -> Tuple[pygame.Surface, float, float]:
+        cells = set(self.inner_tiles)
         left, top = min(c for c, _ in cells), min(r for _, r in cells)
         right, bottom = max(c for c, _ in cells) + 1, max(r for _, r in cells) + 1
         flat = pygame.Surface(((right - left) * TILE_SIZE, (bottom - top) * TILE_SIZE), pygame.SRCALPHA)
         tiles = _furrow_tiles()
         for col, row in cells:
-            # A furrow is rounded off where the bare ground ends: at the headland, or at a plant
-            # still standing (or already sprouting) while the field turns over
-            starts, ends = (col, row - 1) not in cells, (col, row + 1) not in cells
+            # Each furrow runs across the field and is rounded off at the headland
+            starts, ends = (col - 1, row) not in cells, (col + 1, row) not in cells
             kind = 'single' if starts and ends else 'first' if starts else 'last' if ends else 'mid'
-            variant = tiles[kind][(col * 7 + row * 13) % _FURROW_VARIANTS]
-            flat.blit(variant, ((col - left) * TILE_SIZE, (row - top) * TILE_SIZE))
+            flat.blit(tiles[kind][(col * 7 + row * 13) % _FURROW_VARIANTS],
+                      ((col - left) * TILE_SIZE, (row - top) * TILE_SIZE))
         size = (max(1, round(flat.get_width() * zoom)), max(1, round(flat.get_height() * zoom)))
         overlay = pygame.transform.smoothscale(flat, size) if zoom < 1 else pygame.transform.scale(flat, size)
-        while len(self._furrow_cache) >= _FURROW_ZOOMS_KEPT:
-            self._furrow_cache.pop(next(iter(self._furrow_cache)))
-        self._furrow_cache[zoom_key] = (overlay, float(left * TILE_SIZE), float(top * TILE_SIZE))
-        return self._furrow_cache[zoom_key]
+        # Half a tile down, so the grooves run where the plants stand, on their tiles' bottom edge
+        return overlay, float(left * TILE_SIZE), float(top * TILE_SIZE + _FURROW_DROP)
 
     def start_growth(self, now: datetime.datetime) -> None:
         """Begin as a new game does, from the Tiled object's Start_stage and Start_day."""
@@ -430,8 +431,9 @@ _FURROW_TILES: Dict[str, List[pygame.Surface]] = {}
 
 
 def _furrow_tiles() -> Dict[str, List[pygame.Surface]]:
-    """{'first' | 'mid' | 'last' | 'single': variant tiles}: a furrow down the tile's middle, rounded off
-    at the top of the first tile, the bottom of the last and both ends of a single one. Black where it darkens the soil, light where it
+    """{'first' | 'mid' | 'last' | 'single': variant tiles}: a furrow across the tile's middle, rounded off
+    at the left of the first tile, the right of the last and both ends of a single one. Each is drawn
+    upright, as plough_field.py baked them, and turned on its side. Black where it darkens the soil, light where it
     brightens it, so laid over any dirt it shades it as the shade factor says. Made once."""
     if _FURROW_TILES:
         return _FURROW_TILES
@@ -459,7 +461,8 @@ def _furrow_tiles() -> Dict[str, List[pygame.Surface]]:
                         tile.set_at((x, y), (0, 0, 0, min(255, int((1.0 - f) * 255))))
                     else:
                         tile.set_at((x, y), (*_FURROW_LIGHT, min(255, int((f - 1.0) * _FURROW_LIGHT_ALPHA * 255))))
-            _FURROW_TILES[kind].append(tile)
+            # Turned a quarter anticlockwise: the rounded top becomes the left end, the lit wall the upper
+            _FURROW_TILES[kind].append(pygame.transform.rotate(tile, 90))
     return _FURROW_TILES
 
 

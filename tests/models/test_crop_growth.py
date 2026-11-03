@@ -118,3 +118,30 @@ def test_a_missing_or_unfitting_save_is_refused(growth, saved):
 def test_needs_stages():
     with pytest.raises(ValueError):
         CropGrowth([])
+
+
+def test_furrows_show_fully_while_bare(growth):
+    growth.start(START, "bare", day=5.0)
+    assert growth.furrows(START, fade_days=2.0) == 1.0
+
+
+def test_furrows_wear_away_over_the_sprouting_stage(growth):
+    growth.start(START, "sprouts")
+    assert growth.furrows(START, 2.0) == pytest.approx(1.0)
+    assert growth.furrows(START + days(5), 2.0) == pytest.approx(0.5)
+    assert growth.furrows(START + days(9.9), 2.0) == pytest.approx(0.01)
+
+
+def test_no_furrows_under_the_grown_crop(growth):
+    growth.start(START, "young", day=5.0)
+    assert growth.furrows(START, 2.0) == 0.0
+
+
+def test_furrows_come_back_around_the_harvest(growth):
+    growth.start(START, "ripe")
+    assert growth.furrows(START + days(8.5), 2.0) == 0.0
+    assert growth.furrows(START + days(10), 2.0) == pytest.approx(0.5)   # the harvest itself, half way
+    growth.update(START + days(10.5))
+    assert growth.stage == "bare"
+    assert growth.furrows(START + days(10.5), 2.0) == pytest.approx(0.75)
+    assert growth.furrows(START + days(11), 2.0) == pytest.approx(1.0)

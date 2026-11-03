@@ -386,7 +386,7 @@ def _render_map_layers(
     tmx_map.ground_chunks.draw_below(screen, camera, offset_x, offset_y)
     _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
     tmx_map.ground_chunks.draw_above(screen, camera, offset_x, offset_y)
-    # The furrows of the fields where the crop lies bare, flat on the ground
+    # The furrows of the fields lying bare, flat on the ground
     for field in tmx_map.fields:
         furrows = field.furrow_overlay(camera.zoom)
         if furrows:
@@ -599,7 +599,8 @@ def _build_render_queue(
         if sprite_idx is None:   # a plant at a stage without sprites, the bare field
             continue
         screen_x, screen_y = camera.apply(world_cx, world_by)
-        angle = field.get_sway_angle(world_cx, world_by)
+        # The low first stages stand still in the wind
+        angle = 0.0 if sprite_idx in field.still_sprites else field.get_sway_angle(world_cx, world_by)
         sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)
         draw_x = screen_x + rel_x + offset_x
         draw_y = screen_y + rel_y + offset_y
