@@ -178,10 +178,14 @@ chosen one, take it out, change the variants, and the stage's title,
 description and height, which go into its prompt - its variants in the
 middle with the chosen variant growing stage by stage under them, and the
 chosen variant's sheet on the right, sent as for the walk frames. A sheet
-(crop_sheets.py) is two cells: the nearest sprite of the same plant at
-another stage (else another variant, else another crop's ripe one, for a new
-crop), and the red frame with a dashed red line as high as the stage grows.
-Its answers open in view_crop_answers.py; accepting saves the stage sprite.
+(crop_sheets.py) is two cells: a reference sprite, and the red frame with a
+sketch of the new one, made on the sketch screen (view_crop_design.py, Enter
+or a click on the sheet) as for a new plant, with dashed lines for the
+ground and the height the stage grows to that are not sent. There the
+reference is picked, and with it the prompt: another stage of the crop to
+grow it from, another variant of the stage for a variation, or another
+crop's ripe sprite for a crop with none yet. Its answers open in
+view_crop_answers.py; accepting saves the stage sprite.
 
 The code, for whoever works on it next:
 
@@ -194,7 +198,7 @@ The code, for whoever works on it next:
     view_review.py     screens 3 and 4, all answers and one answer
     view_library.py    the plants or the buildings, by kind; setting a sprite's kind
     library_summary.py the overview above them: counts, kinds, newest, work, how full the collections are
-    view_sprite_design.py  a new plant or building: sketch, type, subcategory and colour
+    view_sprite_design.py  a new plant or building: sketch, type, subcategory and colour (SketchView, shared by the crops)
     view_sprite_answers.py its answers, and accepting one
     view_first.py      screen 2 for a new person: his first sprite
     new_figure.py      adding a person; his split image, description and prompt
@@ -220,9 +224,10 @@ The code, for whoever works on it next:
     daily_progress.py  the sprites new and redone today, by file dates
     even_colours.py    evening out the colours of a direction's frames against flicker
     crops.py           the crops: their stages, variants and sprites on disk, what a stage sprite is drawn from
-    crop_sheets.py     a stage sprite's split image and prompt, and cutting its answer out
+    crop_sheets.py     a stage sprite's sketch, split image and prompt, and cutting its answer out
     view_crops.py      the crops, one card each
     view_crop.py       one crop: its stages, the chosen stage's variants, the growth strip, the sheet
+    view_crop_design.py  sketching a stage sprite and picking what it is drawn from
     view_crop_answers.py  the answers for one stage sprite, and accepting one
     new_crop_dialog.py the dialog asking for a new crop's name and look
     sprite_library.py  plants and buildings alike: kinds, catalogs, finding the sprites, adding one

@@ -14,7 +14,7 @@ them. The first one, the ploughed field, has no sprites: its furrows are
 ground tiles (build_tools/Field_Plougher). Every other stage has `variants`
 sprites, <crop>_<stage key>_<n>.png, scattered at random over the field's
 tiles as the game draws the ripe ones now (src/models/field.py). A stage's
-height is the share of the ripe plant's height it grows to; its sheet draws
+height is the share of the ripe plant's height it grows to; its sketch screen draws
 the line the new sprite reaches up to from it. Stages can be added between
 the others and taken out again; a stage's key is fixed when it is made, so
 renaming one does not rename its files.

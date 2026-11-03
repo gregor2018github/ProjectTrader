@@ -25,6 +25,9 @@ template says how.
 
 The colours last painted with are kept per domain in recent_colours.json in
 its output folder, for the quick picks under the colour wheel.
+
+The sketching itself - painting, filling, undo, the colours in words - is
+SketchCanvas, which the crops' stage sketches (crop_sheets.py) share.
 """
 
 import colorsys
@@ -99,151 +102,53 @@ def hex_colour(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
 
 
-def load_recent_colours(domain):
-    """The colours last painted with in the domain's jobs, newest first."""
+def load_recent_colours(folder):
+    """The colours last painted with in the sketches kept under `folder`, newest first."""
     try:
-        data = json.loads((domain.output / RECENT_FILE).read_text(encoding='utf-8'))
+        data = json.loads((folder / RECENT_FILE).read_text(encoding='utf-8'))
         return [tuple(c) for c in data if len(c) == 3][:RECENT_COLOURS]
     except (OSError, ValueError, TypeError):
         return []
 
 
-def remember_colour(domain, recent, colour):
-    """Move `colour` to the front of `recent` and keep the list on disk."""
+def remember_colour(folder, recent, colour):
+    """Move `colour` to the front of `recent` and keep the list on disk, in `folder`."""
     colour = tuple(colour)
     if colour in recent:
         recent.remove(colour)
     recent.insert(0, colour)
     del recent[RECENT_COLOURS:]
     try:
-        domain.output.mkdir(parents=True, exist_ok=True)
-        (domain.output / RECENT_FILE).write_text(json.dumps([list(c) for c in recent]) + '\n',
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / RECENT_FILE).write_text(json.dumps([list(c) for c in recent]) + '\n',
                                                  encoding='utf-8')
     except OSError:
         pass
 
 
 # ---------------------------------------------------------------------------
-# The job
+# The sketch
 # ---------------------------------------------------------------------------
 
-@dataclass
-class JobSheet:
-    """The split image and its prompt, shaped like a sheets.FrameSheet for the API and the answers."""
+class SketchCanvas:
+    """A sketch in flat colours in the red-framed cell of a split image: painting, filling, undo, its colours.
 
-    surface: pygame.Surface
-    path: Path
-    prompt: str
-    pose: str = POSE
-    name: str = 'New sprite'
-    layout: str = '1x2'   # or '2x1', the job's layout_name
+    A subclass sets `sketch` (a see-through surface of `cell_size`), `colour`
+    (the one in hand) and `palette` (every colour painted with), calls
+    _start_canvas(), and says where the colours used last are kept
+    (recent_folder). The design screens (view_sprite_design.SketchView) paint
+    through these methods.
+    """
 
+    recent_folder = None   # where load_recent_colours() keeps the quick picks for these sketches
 
-class SpriteJob:
-    """One new sprite in the making, kept in its folder."""
-
-    prefix = 'plant'   # answers are named plant_plant_web.png, ... as the first jobs had them
-    is_new = False
-    is_player = False
-
-    def __init__(self, domain, folder):
-        """
-        Args:
-            domain: The sprite_library.Domain the job makes a sprite of.
-            folder: Its folder in the domain's output.
-        """
-        self.domain = domain
-        self.folder = Path(folder)
-        data = json.loads((self.folder / JOB_FILE).read_text(encoding='utf-8'))
-        self.kind = data.get('kind', '')
-        if self.kind not in domain.kinds_by_key:
-            self.kind = domain.kinds[0].key
-        self.subcategory = data.get('subcategory', '')
-        self.colour = tuple(data.get('colour', domain.default_colour))   # the one in hand
-        self.palette = [tuple(c) for c in data.get('palette', [self.colour])]   # every one painted with
-        sketch_version = data.get('sketch_version', 1)
-        self.example_label = data.get('example', '')
-        self.example_kind = data.get('example_kind', self.kind)
-        self.created = data.get('created', '')
-        self.accepted = data.get('accepted', {})   # {answer image: saved sprite path}
-        self.prompt_notes = list(data.get('prompt_notes', []))   # rule lines of this job's own, set in job.json
-        # The cell's layout is kept with the job, so its sketch stays where it was drawn
-        self.layout = tuple(data.get('layout', LEGACY_LAYOUT))
-        self.cell_shape = data.get('cell_shape', SQUARE)
-        self.example = pygame.image.load(str(self.folder / EXAMPLE_FILE)).convert_alpha()
-        self.factor, self.cell_size, self.margin = self.geometry()
-        self.sketch = self._load_sketch(sketch_version)
+    def _start_canvas(self):
         self.undo_stack = []
         self._painted = None           # has_sketch() and colours(), until the sketch changes
         self._colours = None
 
-    @classmethod
-    def create(cls, domain, sprite):
-        """A new job with a listed sprite_library.LibrarySprite as its example."""
-        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        folder = domain.output / f'{sprite.kind}_{stamp}'
-        count = 2
-        while folder.exists():   # two jobs started in one second
-            folder = domain.output / f'{sprite.kind}_{stamp}_{count}'
-            count += 1
-        folder.mkdir(parents=True)
-        pygame.image.save(sprite.surface, str(folder / EXAMPLE_FILE))
-        kind = sprite.kind if sprite.kind in domain.kinds_by_key else domain.kinds[0].key
-        data = {'kind': kind, 'subcategory': '', 'colour': list(domain.default_colour),
-                'example': sprite.label if sprite.path is None else sprite.path.name,
-                'example_kind': sprite.kind, 'created': datetime.now().isoformat(timespec='seconds'),
-                'accepted': {}, 'layout': [domain.example_share, GROUND_SHARE], 'cell_shape': FITTED,
-                'sketch_version': SKETCH_VERSION}
-        (folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
-        return cls(domain, folder)
-
-    # --- what the app needs of a figure ------------------------------------
-
-    @property
-    def name(self):
-        return self.folder.name
-
-    @property
-    def out_dir(self):
-        return self.folder
-
-    @property
-    def label(self):
-        kind = self.domain.kinds_by_key[self.kind].noun
-        return f'{self.subcategory} ({kind})' if self.subcategory else kind
-
-    # --- state --------------------------------------------------------------
-
-    def save(self):
-        """job.json and sketch.png."""
-        data = {'kind': self.kind, 'subcategory': self.subcategory, 'colour': list(self.colour),
-                'example': self.example_label, 'example_kind': self.example_kind, 'created': self.created,
-                'accepted': self.accepted, 'layout': list(self.layout), 'cell_shape': self.cell_shape,
-                'sketch_version': SKETCH_VERSION,
-                'palette': [list(c) for c in self.palette]}
-        if self.prompt_notes:
-            data['prompt_notes'] = self.prompt_notes
-        (self.folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
-        pygame.image.save(self.sketch, str(self.folder / SKETCH_FILE))
-
-    def _load_sketch(self, version):
-        sketch = pygame.Surface(self.cell_size, pygame.SRCALPHA)
-        sketch.fill(CLEAR)
-        try:
-            image = pygame.image.load(str(self.folder / SKETCH_FILE)).convert_alpha()
-        except (pygame.error, OSError):
-            return sketch
-        if image.get_size() != self.cell_size:
-            image = pygame.transform.scale(image, self.cell_size)
-        if version < 2:   # a mask in black, meant to be shown in the job's colour
-            return pygame.mask.from_surface(image, 128).to_surface(setcolor=self.colour + (255,),
-                                                                   unsetcolor=CLEAR)
-        sketch.blit(image, (0, 0))
-        return sketch
-
-    def discard(self):
-        """Delete the job's folder and all its answers."""
-        shutil.rmtree(self.folder, ignore_errors=True)
+    def draw_guides(self, sheet):
+        """Help lines over the sketch cell of `sheet`, for the design screen only; never sent."""
 
     def has_sketch(self):
         if self._painted is None:
@@ -340,6 +245,150 @@ class SpriteJob:
         self.sketch.fill(CLEAR)
         self._touched()
 
+    def drawable(self):
+        """Where the sketch may go, in sketch-cell coordinates: inside the red frame."""
+        inset = TARGET_FRAME_WIDTH + 4
+        cw, ch = self.cell_size
+        return pygame.Rect(inset, inset, cw - 2 * inset, ch - 2 * inset)
+
+    def sketch_surface(self):
+        return self.sketch
+
+    def prompt_colours(self):
+        """The sketch's colours worth naming, most used first."""
+        colours = [c for c, share in self.colours() if share >= MIN_COLOUR_SHARE][:PROMPT_COLOURS]
+        return colours or [self.colour]
+
+    def colour_words(self):
+        """The sketch's colours in words, e.g. 'dark green and brown'."""
+        names = list(dict.fromkeys(colour_name(c) for c in self.prompt_colours()))
+        return names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
+
+
+# ---------------------------------------------------------------------------
+# The job
+# ---------------------------------------------------------------------------
+
+@dataclass
+class JobSheet:
+    """The split image and its prompt, shaped like a sheets.FrameSheet for the API and the answers."""
+
+    surface: pygame.Surface
+    path: Path
+    prompt: str
+    pose: str = POSE
+    name: str = 'New sprite'
+    layout: str = '1x2'   # or '2x1', the job's layout_name
+
+
+class SpriteJob(SketchCanvas):
+    """One new sprite in the making, kept in its folder."""
+
+    prefix = 'plant'   # answers are named plant_plant_web.png, ... as the first jobs had them
+    is_new = False
+    is_player = False
+
+    def __init__(self, domain, folder):
+        """
+        Args:
+            domain: The sprite_library.Domain the job makes a sprite of.
+            folder: Its folder in the domain's output.
+        """
+        self.domain = domain
+        self.folder = Path(folder)
+        data = json.loads((self.folder / JOB_FILE).read_text(encoding='utf-8'))
+        self.kind = data.get('kind', '')
+        if self.kind not in domain.kinds_by_key:
+            self.kind = domain.kinds[0].key
+        self.subcategory = data.get('subcategory', '')
+        self.colour = tuple(data.get('colour', domain.default_colour))   # the one in hand
+        self.palette = [tuple(c) for c in data.get('palette', [self.colour])]   # every one painted with
+        sketch_version = data.get('sketch_version', 1)
+        self.example_label = data.get('example', '')
+        self.example_kind = data.get('example_kind', self.kind)
+        self.created = data.get('created', '')
+        self.accepted = data.get('accepted', {})   # {answer image: saved sprite path}
+        self.prompt_notes = list(data.get('prompt_notes', []))   # rule lines of this job's own, set in job.json
+        # The cell's layout is kept with the job, so its sketch stays where it was drawn
+        self.layout = tuple(data.get('layout', LEGACY_LAYOUT))
+        self.cell_shape = data.get('cell_shape', SQUARE)
+        self.example = pygame.image.load(str(self.folder / EXAMPLE_FILE)).convert_alpha()
+        self.factor, self.cell_size, self.margin = self.geometry()
+        self.sketch = self._load_sketch(sketch_version)
+        self._start_canvas()
+
+    @classmethod
+    def create(cls, domain, sprite):
+        """A new job with a listed sprite_library.LibrarySprite as its example."""
+        stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        folder = domain.output / f'{sprite.kind}_{stamp}'
+        count = 2
+        while folder.exists():   # two jobs started in one second
+            folder = domain.output / f'{sprite.kind}_{stamp}_{count}'
+            count += 1
+        folder.mkdir(parents=True)
+        pygame.image.save(sprite.surface, str(folder / EXAMPLE_FILE))
+        kind = sprite.kind if sprite.kind in domain.kinds_by_key else domain.kinds[0].key
+        data = {'kind': kind, 'subcategory': '', 'colour': list(domain.default_colour),
+                'example': sprite.label if sprite.path is None else sprite.path.name,
+                'example_kind': sprite.kind, 'created': datetime.now().isoformat(timespec='seconds'),
+                'accepted': {}, 'layout': [domain.example_share, GROUND_SHARE], 'cell_shape': FITTED,
+                'sketch_version': SKETCH_VERSION}
+        (folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
+        return cls(domain, folder)
+
+    # --- what the app needs of a figure ------------------------------------
+
+    @property
+    def name(self):
+        return self.folder.name
+
+    @property
+    def out_dir(self):
+        return self.folder
+
+    @property
+    def recent_folder(self):
+        return self.domain.output
+
+    @property
+    def label(self):
+        kind = self.domain.kinds_by_key[self.kind].noun
+        return f'{self.subcategory} ({kind})' if self.subcategory else kind
+
+    # --- state --------------------------------------------------------------
+
+    def save(self):
+        """job.json and sketch.png."""
+        data = {'kind': self.kind, 'subcategory': self.subcategory, 'colour': list(self.colour),
+                'example': self.example_label, 'example_kind': self.example_kind, 'created': self.created,
+                'accepted': self.accepted, 'layout': list(self.layout), 'cell_shape': self.cell_shape,
+                'sketch_version': SKETCH_VERSION,
+                'palette': [list(c) for c in self.palette]}
+        if self.prompt_notes:
+            data['prompt_notes'] = self.prompt_notes
+        (self.folder / JOB_FILE).write_text(json.dumps(data, indent=1) + '\n', encoding='utf-8')
+        pygame.image.save(self.sketch, str(self.folder / SKETCH_FILE))
+
+    def _load_sketch(self, version):
+        sketch = pygame.Surface(self.cell_size, pygame.SRCALPHA)
+        sketch.fill(CLEAR)
+        try:
+            image = pygame.image.load(str(self.folder / SKETCH_FILE)).convert_alpha()
+        except (pygame.error, OSError):
+            return sketch
+        if image.get_size() != self.cell_size:
+            image = pygame.transform.scale(image, self.cell_size)
+        if version < 2:   # a mask in black, meant to be shown in the job's colour
+            return pygame.mask.from_surface(image, 128).to_surface(setcolor=self.colour + (255,),
+                                                                   unsetcolor=CLEAR)
+        sketch.blit(image, (0, 0))
+        return sketch
+
+    def discard(self):
+        """Delete the job's folder and all its answers."""
+        shutil.rmtree(self.folder, ignore_errors=True)
+
     # --- the split image ----------------------------------------------------
 
     def geometry(self):
@@ -378,12 +427,6 @@ class SpriteJob:
         dx, dy = (0, ch + FRAME_WIDTH) if self.stacked else (cw + FRAME_WIDTH, 0)
         return [pygame.Rect(FRAME_WIDTH + i * dx, FRAME_WIDTH + i * dy, cw, ch) for i in range(2)]
 
-    def drawable(self):
-        """Where the sketch may go, in sketch-cell coordinates: inside the red frame."""
-        inset = TARGET_FRAME_WIDTH + 4
-        cw, ch = self.cell_size
-        return pygame.Rect(inset, inset, cw - 2 * inset, ch - 2 * inset)
-
     def ground(self):
         """The example's foot line, in cell coordinates."""
         return self.cell_size[1] - self.margin
@@ -406,19 +449,6 @@ class SpriteJob:
             sheet.blit(self.sketch_surface(), sketch_cell)
         pygame.draw.rect(sheet, TARGET_FRAME_COLOR, sketch_cell, TARGET_FRAME_WIDTH)
         return sheet
-
-    def sketch_surface(self):
-        return self.sketch
-
-    def prompt_colours(self):
-        """The sketch's colours worth naming, most used first."""
-        colours = [c for c, share in self.colours() if share >= MIN_COLOUR_SHARE][:PROMPT_COLOURS]
-        return colours or [self.colour]
-
-    def colour_words(self):
-        """The sketch's colours in words, e.g. 'dark green and brown'."""
-        names = list(dict.fromkeys(colour_name(c) for c in self.prompt_colours()))
-        return names[0] if len(names) == 1 else ', '.join(names[:-1]) + ' and ' + names[-1]
 
     def prompt(self):
         kinds = self.domain.kinds_by_key

@@ -8,8 +8,11 @@ height, which go into its prompt, and the crop's own description, which the
 prompt of a crop's very first sprite needs. In the middle the chosen stage's
 variants, and under them the growth of the chosen variant, every stage side
 by side at one scale, so a stage out of step shows. Right the chosen
-variant's sheet (crop_sheets.py) with the ways to an answer, as for the walk
-frames; its answers open in view_crop_answers.py.
+variant's sheet as it would be sent (crop_sheets.py): what it is drawn from
+and its sketch, made on the sketch screen (view_crop_design.py, Enter or a
+click on the sheet), with the ways to an answer as for the walk frames; a
+variant not sketched yet cannot be sent. Its answers open in
+view_crop_answers.py.
 """
 
 from pathlib import Path
@@ -20,7 +23,7 @@ import gemini_client
 import pose_review
 import win_clipboard
 from answers import AnswerError, ask_open_file, clipboard_answer, store_web_answer
-from crop_sheets import write_sheet
+from crop_sheets import crop_sketch
 from crops import MAX_VARIANTS, find_crops
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
 from images import fitted, is_blank, trim
@@ -30,6 +33,7 @@ from theme import (
 )
 from view import View
 from view_crop_answers import CropAnswersView
+from view_crop_design import CropDesignView
 from widgets import PANEL_TITLE, Button, Card, CardGrid, Checker, TextField, draw_panel, fit_text
 
 STAGE_PANEL_W = 320
@@ -59,7 +63,9 @@ class CropView(View):
         self.crop = app.npc
         self.store = app.store
         self.others = find_crops()
-        self.sheets = {}              # {variant: CropSheet or None} of the chosen stage
+        self.sketches = {}            # {variant: CropSketch or None} of the chosen stage
+        self.sheet_rect = None        # where the sheet was last drawn, a click there opens the sketch
+        self.sheet_cache = None       # ((sketch id, size), image) of the sheet as last drawn
         self.grid = CardGrid()
         self.stage_rows = []          # [(rect, index)] as last drawn
         self.strip = None             # (size, [(title, image or None, bare)]) of the growth strip, as last made
@@ -81,6 +87,7 @@ class CropView(View):
         self.taller_button = Button('+', w=SMALL_BUTTON_W, h=FIELD_H)
         self.answers_button = Button('Answers', w=150)
         self.missing_button = Button('Send missing', w=220)
+        self.sketch_button = Button('Sketch', h=BUTTON_H)
         self.copy_image_button = Button('Copy image', h=BUTTON_H)
         self.copy_prompt_button = Button('Copy prompt', h=BUTTON_H)
         self.paste_button = Button('Paste answer', h=BUTTON_H)
@@ -89,7 +96,8 @@ class CropView(View):
         self.web_button = Button('Send in browser', h=BUTTON_H)
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
         self.web_missing_button = Button('Send missing in browser', h=BUTTON_H)
-        self.sheet_button_rows = ((self.copy_image_button, self.copy_prompt_button),
+        self.sheet_button_rows = ((self.sketch_button,),
+                                  (self.copy_image_button, self.copy_prompt_button),
                                   (self.paste_button, self.open_button),
                                   (self.send_button, self.web_button),
                                   (self.gimp_button,),
@@ -102,6 +110,7 @@ class CropView(View):
                         (self.taller_button, lambda: self.change_height(HEIGHT_STEP)),
                         (self.answers_button, self.open_answers),
                         (self.missing_button, self.send_missing),
+                        (self.sketch_button, self.open_sketch),
                         (self.copy_image_button, self.copy_image),
                         (self.copy_prompt_button, self.copy_prompt),
                         (self.paste_button, self.paste_answer),
@@ -128,8 +137,22 @@ class CropView(View):
                 return index
         return len(stages) - 1
 
+    def current_sketch(self):
+        return self.sketches.get(self.variant)
+
     def current_sheet(self):
-        return self.sheets.get(self.variant)
+        """The chosen variant's sheet written to disk, ready to send; None (with the reason shown) if not ready."""
+        sketch = self.current_sketch()
+        if sketch is None:
+            return None
+        if not sketch.has_sketch():
+            self.app.set_status(f'Sketch {sketch.pose} first (Enter)', error=True)
+            return None
+        try:
+            return sketch.sheet()
+        except SHEET_ERRORS as exc:
+            self.app.set_status(f'Cannot write the sheet of {sketch.pose}: {exc}', error=True)
+            return None
 
     def current_path(self):
         stage = self.stage()
@@ -153,23 +176,24 @@ class CropView(View):
         self.variant = variant
         self.strip = None
 
-    def build_sheets(self):
-        """The chosen stage's sheets, from the sprites on disk as they are now."""
-        self.sheets = {}
+    def build_sketches(self):
+        """The chosen stage's sketches, from the sprites and sketches on disk as they are now."""
+        self.sketches = {}
+        self.sheet_cache = None
         if self.stage().bare:
             return
         for variant in range(1, self.crop.variants + 1):
             try:
-                self.sheets[variant] = write_sheet(self.crop, self.stage_index, variant, self.others)
+                self.sketches[variant] = crop_sketch(self.crop, self.stage_index, variant, self.others)
             except SHEET_ERRORS as exc:
-                self.sheets[variant] = None
+                self.sketches[variant] = None
                 self.app.set_status(f'Cannot build the sheet of {self.crop.pose(self.stage().key, variant)}: {exc}',
                                     error=True)
 
     def refresh(self):
         """Sheets, cards and the growth strip, after sprites or answers changed."""
         self.others = find_crops()
-        self.build_sheets()
+        self.build_sketches()
         self.build_cards()
         self.strip = None
         self.watcher.reset()
@@ -184,9 +208,10 @@ class CropView(View):
             return note, ERROR_COLOR
         if note:
             return note, WAITING
-        if self.sheets.get(variant) is None:
+        sketch = self.sketches.get(variant)
+        if sketch is None:
             return 'nothing to draw it from', ERROR_COLOR
-        return 'not drawn', TEXT_DIM
+        return ('sketched', TEXT) if sketch.has_sketch() else ('not sketched', TEXT_DIM)
 
     def build_cards(self):
         cards = []
@@ -194,9 +219,9 @@ class CropView(View):
         if not stage.bare:
             for variant in range(1, self.crop.variants + 1):
                 sprite = self.crop.sprite(stage.key, variant)
-                sheet = self.sheets.get(variant)
-                if sheet:
-                    surface = sheet.surface if is_blank(sprite) else sheet.with_result(sprite)
+                sketch = self.sketches.get(variant)
+                if sketch:
+                    surface = sketch.build_sheet() if is_blank(sprite) else sketch.with_result(sprite)
                     thumb = fitted(surface, THUMB_SIZE)
                 elif not is_blank(sprite):
                     thumb = fitted(trim(sprite), THUMB_SIZE)
@@ -217,9 +242,20 @@ class CropView(View):
             note, color = f'{note}  +{waiting}', WAITING
         return note, color
 
-    def missing_sheets(self):
+    def missing_sketches(self):
+        """The sketched variants of the stage not drawn yet: what "Send missing" sends."""
         stage = self.stage()
-        return [s for v, s in self.sheets.items() if s and not self.crop.has(stage.key, v)]
+        return [s for v, s in self.sketches.items() if s and s.has_sketch() and not self.crop.has(stage.key, v)]
+
+    def missing_sheets(self):
+        """The missing_sketches() written as sheets."""
+        sheets = []
+        for sketch in self.missing_sketches():
+            try:
+                sheets.append(sketch.sheet())
+            except SHEET_ERRORS as exc:
+                self.app.set_status(f'Cannot write the sheet of {sketch.pose}: {exc}', error=True)
+        return sheets
 
     # --- changing the crop ------------------------------------------------
 
@@ -372,10 +408,24 @@ class CropView(View):
 
     def open_answers(self, sheet=None, entry=None):
         """The answers of the chosen variant (or of `sheet`'s), `entry` first."""
-        sheet = sheet or self.current_sheet()
-        if sheet is None or not (entry or self.store.for_pose(sheet.pose)):
-            return
-        self.app.show(CropAnswersView(self.app, self, sheet, entry))
+        if sheet is None:
+            sketch = self.current_sketch()
+            if sketch is None or not self.store.for_pose(sketch.pose):
+                return
+            try:
+                sheet = sketch.sheet()
+            except SHEET_ERRORS as exc:
+                self.app.set_status(f'Cannot write the sheet of {sketch.pose}: {exc}', error=True)
+                return
+        if entry or self.store.for_pose(sheet.pose):
+            self.app.show(CropAnswersView(self.app, self, sheet, entry))
+
+    def open_sketch(self):
+        """The sketch screen of the chosen variant."""
+        sketch = self.current_sketch()
+        if sketch:
+            self.commit_fields()
+            self.app.show(CropDesignView(self.app, self, sketch))
 
     # --- editing by hand ----------------------------------------------------
 
@@ -408,9 +458,9 @@ class CropView(View):
 
     def header(self):
         return (f'{self.crop.title}: growth stages',
-                'Up/Down = stage, Left/Right = variant. Ctrl+W = send in browser, Ctrl+Shift+W = send missing in '
-                'browser, Ctrl+C = copy sheet, Ctrl+Shift+C = copy prompt, Ctrl+V or drop a file = answer, '
-                'R = answers, G = edit in GIMP, S = settings.')
+                'Up/Down = stage, Left/Right = variant, Enter = sketch. Ctrl+W = send in browser, Ctrl+Shift+W = '
+                'send missing (sketched) in browser, Ctrl+C = copy sheet, Ctrl+Shift+C = copy prompt, Ctrl+V or drop '
+                'a file = answer, R = answers, G = edit in GIMP, S = settings.')
 
     def footer(self):
         app = self.app
@@ -418,12 +468,11 @@ class CropView(View):
 
     def update_footer(self):
         app = self.app
-        sheet = self.current_sheet()
-        answers = self.store.for_pose(sheet.pose) if sheet else []
+        answers = [] if self.stage().bare else self.store.for_pose(self.pose())
         waiting = sum(e.status == pose_review.PENDING for e in answers)
         self.answers_button.label = f'Answers ({waiting})' if waiting else 'Answers'
         self.answers_button.enabled = bool(answers)
-        missing = len(self.missing_sheets()) * app.settings.tries
+        missing = len(self.missing_sketches()) * app.settings.tries
         self.missing_button.label = 'Sending ...' if app.busy() else f'Send missing ({missing})'
         self.missing_button.enabled = bool(missing) and not app.busy() and not gemini_client.SDK_ERROR
 
@@ -571,13 +620,10 @@ class CropView(View):
     def draw_sheet(self, screen, rect, mouse):
         app = self.app
         fonts = app.fonts
-        sheet = self.current_sheet()
+        sketch = self.current_sketch()
         stage = self.stage()
-        if sheet:
-            ref = sheet.reference
-            source = (f'{ref.stage.title} {ref.variant}' if ref.crop.name == self.crop.name
-                      else f'{ref.crop.title} (another crop)')
-            title = f'Sheet for {sheet.pose}  -  drawn from {source}'
+        if sketch:
+            title = f'Sheet for {sketch.pose}  -  {sketch.mode_label()}'
         elif stage.bare:
             title = 'No sheet: the ploughed field has no sprites'
         else:
@@ -595,8 +641,14 @@ class CropView(View):
                 row[1].rect = pygame.Rect(inner.right - half, y, half, BUTTON_H)
             y += BUTTON_H + BUTTON_GAP
         area = pygame.Rect(inner.x, inner.y, inner.w, rows[0][0].rect.y - BUTTON_GAP - inner.y)
-        if sheet:
-            screen.blit(fitted(sheet.surface, area.size, CARD_BG), area)
+        self.sheet_rect = None
+        ready = bool(sketch and sketch.has_sketch())
+        if sketch:
+            screen.blit(self.sheet_image(sketch, area.size), area)
+            self.sheet_rect = area
+            if not ready:
+                text = fonts.small.render('Not sketched yet - Enter or click to sketch it', True, ERROR_COLOR)
+                screen.blit(text, text.get_rect(midbottom=(area.centerx, area.bottom - 6)))
         elif not stage.bare:
             lines = ('Every stage sprite is drawn from another sprite:',
                      'this crop\'s, or another crop\'s ripe one.',
@@ -605,7 +657,8 @@ class CropView(View):
                 text = fonts.small.render(fit_text(fonts.small, line, area.w), True, TEXT_DIM)
                 screen.blit(text, text.get_rect(midtop=(area.centerx, area.y + 20 + 20 * index)))
 
-        ready = bool(sheet)
+        self.sketch_button.enabled = bool(sketch)
+        self.sketch_button.label = 'Sketch' if ready else 'Sketch (not sketched yet)'
         for button in (self.copy_image_button, self.copy_prompt_button, self.paste_button):
             button.enabled = ready and win_clipboard.AVAILABLE
         self.open_button.enabled = ready
@@ -614,7 +667,7 @@ class CropView(View):
             self.web_missing_button.label = f'Stop browser queue ({app.web_queue_left()} left)'
             self.web_missing_button.enabled = bool(app.web_queue)
         else:
-            missing = len(self.missing_sheets())
+            missing = len(self.missing_sketches())
             self.web_missing_button.label = f'Send missing in browser ({missing})'
             self.web_missing_button.enabled = bool(missing)
         self.send_button.enabled = ready and not app.busy() and not gemini_client.SDK_ERROR
@@ -627,6 +680,16 @@ class CropView(View):
         for row in rows:
             for button in row:
                 button.draw(screen, fonts.font, mouse)
+
+    def sheet_image(self, sketch, size):
+        """The sheet as it would be sent, fitted into `size`; with the help lines while not sketched."""
+        key = (id(sketch), size)
+        if self.sheet_cache is None or self.sheet_cache[0] != key:
+            surface = sketch.build_sheet()
+            if not sketch.has_sketch():
+                sketch.draw_guides(surface)
+            self.sheet_cache = (key, fitted(surface, size, CARD_BG))
+        return self.sheet_cache[1]
 
     # --- input --------------------------------------------------------------
 
@@ -647,6 +710,9 @@ class CropView(View):
             if row.collidepoint(pos):
                 self.select_stage(index)
                 return
+        if self.sheet_rect and self.sheet_rect.collidepoint(pos):
+            self.open_sketch()
+            return
         card = self.grid.card_at(pos)
         if card:
             self.select_variant(card.key)
@@ -682,6 +748,8 @@ class CropView(View):
         elif event.key in (pygame.K_LEFT, pygame.K_RIGHT) and self.grid.cards:
             step = 1 if event.key == pygame.K_RIGHT else -1
             self.select_variant((self.variant - 1 + step) % self.crop.variants + 1)
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.open_sketch()
         elif event.key == pygame.K_r:
             self.open_answers()
         elif event.key == pygame.K_g:

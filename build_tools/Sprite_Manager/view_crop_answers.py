@@ -133,9 +133,12 @@ class CropAnswersView(View):
             self.app.set_status('Answer in - Accept (Enter) if it is right')
 
     def send(self):
-        self.app.send([self.sheet])
+        if self.sheet.sketched:
+            self.app.send([self.sheet])
 
     def send_web(self):
+        if not self.sheet.sketched:
+            return
         crop, store, sheet = self.crop, self.store, self.sheet
         self.app.send_web(sheet, f'{crop.title} {sheet.pose}', lambda path: self.take_downloaded(crop, store, path))
 
@@ -215,9 +218,10 @@ class CropAnswersView(View):
         image_area = pygame.Rect(inner.x, inner.y, inner.w, self.paste_button.rect.y - BUTTON_GAP - inner.y)
         screen.blit(fitted(self.sheet.surface, image_area.size, CARD_BG), image_area)
         self.paste_button.enabled = win_clipboard.AVAILABLE
-        self.send_button.enabled = not self.app.busy() and not gemini_client.SDK_ERROR
+        sketched = self.sheet.sketched   # an answer to a sheet from before the sketches: sketch it first
+        self.send_button.enabled = sketched and not self.app.busy() and not gemini_client.SDK_ERROR
         self.send_button.label = 'Sending ...' if self.app.busy() else 'Send to Gemini again'
-        self.web_button.enabled = not self.app.web_queue_busy()
+        self.web_button.enabled = sketched and not self.app.web_queue_busy()
         for row in self.button_rows:
             for button in row:
                 button.draw(screen, fonts.font, mouse)

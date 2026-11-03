@@ -1,6 +1,7 @@
 """Screen 2 of the plants and buildings: designing a new sprite before it goes to the model.
 
-Left the split image as it will be sent: the example, and the red frame to
+SketchView is the part the crops' stage sketches share (view_crop_design.py):
+left the split image as it will be sent: the example, and the red frame to
 sketch the new sprite's shape in with the mouse, in as many colours as it
 takes. With the brush the left button paints and the right rubs out, and
 Shift+click goes on from where the last stroke ended in a straight line;
@@ -11,7 +12,8 @@ colour from the sketch. Under it the tool, brush size, undo and the ways to the 
 for the humans: copy image and prompt for the web view, paste or open its
 answer, or send to the API. Right the kind (the example's, to begin with),
 an optional subcategory that goes into the prompt, and the colour in hand,
-from the wheel or from the colours used last (keys 1 to 0).
+from the wheel or from the colours used last (keys 1 to 0). DesignView adds
+the kind and the subcategory of a new plant or building above the colour.
 
 Everything is saved in the job's folder as it changes, so a job can be left
 and picked up again from the overview.
@@ -49,21 +51,20 @@ BRUSH_RING = (60, 60, 60)   # where the brush would paint, over the white cell
 CURSOR_SWATCH = 12          # the colour in hand, beside the mouse over the cell
 
 
-class DesignView(View):
-    def __init__(self, app):
+class SketchView(View):
+    """Sketching in the red frame of a split image and sending it. The job is a sprite_job.SketchCanvas
+    with cells(), build_sheet() and write_sheet(); answers are booked for the app's npc and store."""
+
+    def __init__(self, app, job):
         super().__init__(app)
-        self.job = app.npc
+        self.job = job
         self.wheel = ColourWheel(self.job.colour)
-        self.field = TextField(self.job.subcategory, placeholder='e.g. oak, rosebush (optional)')
         self.tool = 'brush'
         self.brush = 'S'
         self.tool_chips = []
         self.brush_chips = []
-        self.recent = load_recent_colours(self.job.domain)
+        self.recent = load_recent_colours(self.job.recent_folder)
         self.recent_chips = []        # [(rect, colour)]
-        self.kind_chips = []
-        self.proposal_chips = []      # [(rect, text)] while the subcategory field is typed in
-        self.proposals_rect = None
         self.stroke = None             # (last point, colour or None to rub out) while the mouse paints
         self.line = None               # (start, end, colour) while a straight line is dragged
         self.last_point = None         # where the last stroke or line ended, for Shift+click
@@ -81,19 +82,14 @@ class DesignView(View):
         self.web_button = Button('Send in browser', h=BUTTON_H)
         self.send_buttons = (self.web_button, self.copy_image_button, self.copy_prompt_button, self.paste_button,
                              self.open_button, self.send_button)
-        self.answers_button = Button('Answers', w=150)
-        self.discard_button = Button('Discard', w=110)
-        self.discard_armed = False
-        self.actions = ((self.undo_button, self.undo),
+        self.actions = [(self.undo_button, self.undo),
                         (self.clear_button, self.clear),
                         (self.copy_image_button, self.copy_image),
                         (self.copy_prompt_button, self.copy_prompt),
                         (self.web_button, self.send_web),
                         (self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
-                        (self.send_button, self.send),
-                        (self.answers_button, self.app.open_answers),
-                        (self.discard_button, self.discard))
+                        (self.send_button, self.send)]
 
     # --- state ------------------------------------------------------------
 
@@ -110,7 +106,21 @@ class DesignView(View):
             self.app.set_status(f'Cannot save the job: {exc}', error=True)
 
     def unfinished(self):
-        return '' if self.job.has_sketch() else f'Sketch the new {self.job.domain.noun} in the red frame first'
+        """Why the sketch cannot go to the model yet; '' if it can."""
+        return '' if self.job.has_sketch() else 'Sketch it in the red frame first'
+
+    def sheet_title(self):
+        return 'Split image - sketch in the red frame'
+
+    def controls_title(self):
+        return 'Colour'
+
+    def web_label(self):
+        """What the browser's queue calls the sheet."""
+        return 'sketch'
+
+    def show_answer(self, sheet, entry):
+        """An answer for `sheet` is in: show it."""
 
     def ready_sheet(self):
         """The split image written to disk as it is now; None (with the reason shown) if not ready."""
@@ -162,15 +172,15 @@ class DesignView(View):
     def send_web(self):
         sheet = self.ready_sheet()
         if sheet:
-            job, store = self.job, self.app.store
-            self.app.send_web(sheet, f'new {job.domain.noun}',
-                              lambda path: self.take_downloaded(job, store, sheet, path))
+            npc, store, job = self.app.npc, self.app.store, self.job
+            self.app.send_web(sheet, self.web_label(),
+                              lambda path: self.take_downloaded(npc, store, job, sheet, path))
 
-    def take_downloaded(self, job, store, sheet, path):
-        """Book the browser's answer for a sheet sent earlier; show it if this job is still on screen."""
-        entry = store_web_answer(job, store, sheet, path)
+    def take_downloaded(self, npc, store, job, sheet, path):
+        """Book the browser's answer for a sheet sent earlier; show it if its sketch is still on screen."""
+        entry = store_web_answer(npc, store, sheet, path)
         if self.app.view is self and self.job is job:
-            self.app.open_answers(entry)
+            self.show_answer(sheet, entry)
 
     def paste_answer(self):
         try:
@@ -193,44 +203,15 @@ class DesignView(View):
         sheet = self.ready_sheet()
         if not sheet:
             return
-        entry = store_web_answer(self.job, self.app.store, sheet, source, kind)
-        self.app.open_answers(entry)
+        entry = store_web_answer(self.app.npc, self.app.store, sheet, source, kind)
+        self.show_answer(sheet, entry)
 
     def send(self):
         sheet = self.ready_sheet()
         if sheet:
             self.app.send([sheet])
 
-    def discard(self):
-        """Delete the job and its answers; asks once more first."""
-        if not self.discard_armed:
-            self.discard_armed = True
-            self.app.set_status(f'Click "Sure?" to delete this new {self.job.domain.noun} and all its answers',
-                                error=True)
-            return
-        self.job.discard()
-        self.app.close_job()
-        self.app.set_status(f'Discarded {self.job.name}')
-
     # --- view -------------------------------------------------------------
-
-    def header(self):
-        return (f'2. New {self.job.domain.noun} from {self.job.example_label}',
-                'Sketch the shape in the red frame (B brush, L line, F fill, left paints, right rubs out, '
-                'Shift+click straight on, Alt+click takes a colour, 1-0 recent colours, Ctrl+Z undo), '
-                'pick the type, then send it (Ctrl+W in the browser). Ctrl+V or drop a file = answer.')
-
-    def footer(self):
-        app = self.app
-        return ((app.back_button, app.folder_button, self.discard_button),
-                (app.settings_button, self.answers_button))
-
-    def update_footer(self):
-        count = len(self.app.store.entries)
-        waiting = len(self.app.store.pending())
-        self.answers_button.label = f'Answers ({waiting} new)' if waiting else f'Answers ({count})'
-        self.answers_button.enabled = bool(count)
-        self.discard_button.label = 'Sure?' if self.discard_armed else 'Discard'
 
     def areas(self):
         """(sheet panel, controls panel)."""
@@ -247,7 +228,7 @@ class DesignView(View):
 
     def draw_sheet_panel(self, screen, rect, mouse):
         fonts = self.app.fonts
-        draw_panel(screen, fonts, rect, f'Split image - sketch the new {self.job.domain.noun} in the red frame')
+        draw_panel(screen, fonts, rect, self.sheet_title())
         inner = rect.inflate(-20, -20)
 
         # From the bottom: the ways to the model, then the brush row
@@ -293,6 +274,7 @@ class DesignView(View):
                 not area.contains(self.display_rect) or self.display_rect.size != self._fit(area):
             sheet = job.build_sheet(with_sketch=False)
             sheet.blit(job.sketch_surface(), job.cells()[1])
+            job.draw_guides(sheet)
             self.display = pygame.transform.smoothscale(sheet, self._fit(area))
             self.dirty = False
         self.display_rect = self.display.get_rect(center=area.center)
@@ -364,21 +346,10 @@ class DesignView(View):
 
     def draw_controls(self, screen, rect, mouse):
         fonts = self.app.fonts
-        draw_panel(screen, fonts, rect, f'The new {self.job.domain.noun}')
+        draw_panel(screen, fonts, rect, self.controls_title())
         inner = rect.inflate(-28, -28)
-        x, y, w = inner.x, inner.y, inner.w
-
-        screen.blit(fonts.small.render('Type', True, TEXT_DIM), (x, y))
-        y += 22
-        domain = self.job.domain
-        self.kind_chips, y = draw_chips(screen, fonts.small, [k.key for k in domain.kinds],
-                                        lambda key: domain.kinds_by_key[key].title, self.job.kind, x, y, w, mouse)
-        y += 16
-        screen.blit(fonts.small.render('Subcategory, goes into the prompt', True, TEXT_DIM), (x, y))
-        y += 22
-        self.field.rect = pygame.Rect(x, y, w, 36)
-        self.field.draw(screen, fonts.font, mouse)
-        y += 36 + 16
+        x, w = inner.x, inner.w
+        y = self.draw_choices(screen, x, inner.y, w, mouse)
 
         screen.blit(fonts.small.render('Colour in hand', True, TEXT_DIM), (x, y))
         y += 22
@@ -395,7 +366,14 @@ class DesignView(View):
         text = fit_text(fonts.font, f'{colour_name(colour)}  {hex_colour(colour)}', w - SWATCH_H - 12)
         label = fonts.font.render(text, True, TEXT)
         screen.blit(label, label.get_rect(midleft=(swatch.x + SWATCH_H + 12, swatch.centery)))
-        self.draw_proposals(screen, self.field.rect, inner, mouse)
+        self.draw_overlays(screen, inner, mouse)
+
+    def draw_choices(self, screen, x, y, w, mouse):
+        """What the sketch is of, above the colour; returns the y under it."""
+        return y
+
+    def draw_overlays(self, screen, inner, mouse):
+        """Drawn last over the controls panel, e.g. a box dropping down."""
 
     def draw_recent(self, screen, x, y, w, mouse):
         """The colours used last as a row of swatches, as many as fit."""
@@ -415,49 +393,9 @@ class DesignView(View):
         if not self.recent:
             screen.blit(self.app.fonts.small.render('none yet', True, TEXT_DIM), (x, y + 6))
 
-    def proposals(self):
-        """The subcategories proposed for the kind, narrowed down to what is typed."""
-        typed = self.field.text.strip().lower()
-        return [s for s in self.job.domain.suggestions.get(self.job.kind, ())
-                if typed in s.lower() and s.lower() != typed]
-
-    def draw_proposals(self, screen, field, inner, mouse):
-        """Below the subcategory field while it is typed in: the proposals as chips, over the wheel."""
-        self.proposal_chips, self.proposals_rect = [], None
-        proposals = self.proposals() if self.field.focused else []
-        if not proposals:
-            return
-        small = self.app.fonts.small
-        x, w = inner.x + PROPOSALS_PAD, inner.w - 2 * PROPOSALS_PAD
-        top = field.bottom + 6
-        kind = self.job.domain.kinds_by_key[self.job.kind]
-        title = small.render(f'Proposals for {kind.title.lower()}', True, TEXT_DIM)
-        # Lay the chips out once off screen to know how tall the box must be
-        scratch = pygame.Surface((1, 1))
-        _, bottom = draw_chips(scratch, small, proposals, str, None, x, 0, w, (-1, -1))
-        box = pygame.Rect(inner.x, top, inner.w, bottom + title.get_height() + 3 * PROPOSALS_PAD)
-        pygame.draw.rect(screen, DIALOG_BG, box, border_radius=8)
-        pygame.draw.rect(screen, DIALOG_LINE, box, 2, border_radius=8)
-        screen.blit(title, (x, top + PROPOSALS_PAD))
-        chips_y = top + 2 * PROPOSALS_PAD + title.get_height()
-        self.proposal_chips, _ = draw_chips(screen, small, proposals, str, None, x, chips_y, w, mouse)
-        self.proposals_rect = box
-
     # --- input ------------------------------------------------------------
 
     def click(self, pos):
-        if not self.discard_button.rect.collidepoint(pos):
-            self.discard_armed = False
-        if self.proposals_rect and self.proposals_rect.collidepoint(pos):
-            for chip, value in self.proposal_chips:
-                if chip.collidepoint(pos):
-                    self.field.text = value
-                    self.field.focus(False)
-                    self.take_subcategory()
-            return
-        self.field.focus(self.field.rect.collidepoint(pos))
-        if not self.field.focused:
-            self.take_subcategory()
         for button, action in self.actions:
             if button.hit(pos):
                 action()
@@ -475,11 +413,6 @@ class DesignView(View):
         for chip, colour in self.recent_chips:
             if chip.collidepoint(pos):
                 self.pick_colour(colour)
-                return
-        for chip, value in self.kind_chips:
-            if chip.collidepoint(pos):
-                self.job.kind = value
-                self.changed()
                 return
         if self.wheel.press(pos):
             self.take_colour()
@@ -542,7 +475,7 @@ class DesignView(View):
     def used(self, colour):
         """A colour went onto the sketch: it heads the colours used last."""
         if colour is not None:
-            remember_colour(self.job.domain, self.recent, colour)
+            remember_colour(self.job.recent_folder, self.recent, colour)
 
     def mouse_motion(self, pos, buttons):
         if self.wheel.dragging:
@@ -582,23 +515,7 @@ class DesignView(View):
         if save:
             self.changed()
 
-    def take_subcategory(self):
-        text = self.field.text.strip()
-        if text != self.job.subcategory:
-            self.job.subcategory = text
-            self.changed()
-
-    def captures_keys(self):
-        return self.field.focused
-
-    def text_input(self, text):
-        self.field.type(text)
-
     def key(self, event):
-        if self.field.focused:
-            if self.field.key(event) == 'done':
-                self.take_subcategory()
-            return
         ctrl = event.mod & pygame.KMOD_CTRL
         number = '1234567890'.find(event.unicode) if event.unicode and not ctrl else -1
         if number >= 0:
@@ -623,8 +540,154 @@ class DesignView(View):
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:
             self.open_answer()
+
+
+class DesignView(SketchView):
+    """A new plant or building: the sketch, and above the colour its kind and subcategory."""
+
+    def __init__(self, app):
+        super().__init__(app, app.npc)
+        self.field = TextField(self.job.subcategory, placeholder='e.g. oak, rosebush (optional)')
+        self.kind_chips = []
+        self.proposal_chips = []      # [(rect, text)] while the subcategory field is typed in
+        self.proposals_rect = None
+        self.answers_button = Button('Answers', w=150)
+        self.discard_button = Button('Discard', w=110)
+        self.discard_armed = False
+        self.actions += [(self.answers_button, self.app.open_answers),
+                         (self.discard_button, self.discard)]
+
+    def unfinished(self):
+        return '' if self.job.has_sketch() else f'Sketch the new {self.job.domain.noun} in the red frame first'
+
+    def sheet_title(self):
+        return f'Split image - sketch the new {self.job.domain.noun} in the red frame'
+
+    def controls_title(self):
+        return f'The new {self.job.domain.noun}'
+
+    def web_label(self):
+        return f'new {self.job.domain.noun}'
+
+    def show_answer(self, sheet, entry):
+        self.app.open_answers(entry)
+
+    def discard(self):
+        """Delete the job and its answers; asks once more first."""
+        if not self.discard_armed:
+            self.discard_armed = True
+            self.app.set_status(f'Click "Sure?" to delete this new {self.job.domain.noun} and all its answers',
+                                error=True)
+            return
+        self.job.discard()
+        self.app.close_job()
+        self.app.set_status(f'Discarded {self.job.name}')
+
+    def header(self):
+        return (f'2. New {self.job.domain.noun} from {self.job.example_label}',
+                'Sketch the shape in the red frame (B brush, L line, F fill, left paints, right rubs out, '
+                'Shift+click straight on, Alt+click takes a colour, 1-0 recent colours, Ctrl+Z undo), '
+                'pick the type, then send it (Ctrl+W in the browser). Ctrl+V or drop a file = answer.')
+
+    def footer(self):
+        app = self.app
+        return ((app.back_button, app.folder_button, self.discard_button),
+                (app.settings_button, self.answers_button))
+
+    def update_footer(self):
+        count = len(self.app.store.entries)
+        waiting = len(self.app.store.pending())
+        self.answers_button.label = f'Answers ({waiting} new)' if waiting else f'Answers ({count})'
+        self.answers_button.enabled = bool(count)
+        self.discard_button.label = 'Sure?' if self.discard_armed else 'Discard'
+
+    def draw_choices(self, screen, x, y, w, mouse):
+        fonts = self.app.fonts
+        screen.blit(fonts.small.render('Type', True, TEXT_DIM), (x, y))
+        y += 22
+        domain = self.job.domain
+        self.kind_chips, y = draw_chips(screen, fonts.small, [k.key for k in domain.kinds],
+                                        lambda key: domain.kinds_by_key[key].title, self.job.kind, x, y, w, mouse)
+        y += 16
+        screen.blit(fonts.small.render('Subcategory, goes into the prompt', True, TEXT_DIM), (x, y))
+        y += 22
+        self.field.rect = pygame.Rect(x, y, w, 36)
+        self.field.draw(screen, fonts.font, mouse)
+        return y + 36 + 16
+
+    def draw_overlays(self, screen, inner, mouse):
+        self.draw_proposals(screen, self.field.rect, inner, mouse)
+
+    def proposals(self):
+        """The subcategories proposed for the kind, narrowed down to what is typed."""
+        typed = self.field.text.strip().lower()
+        return [s for s in self.job.domain.suggestions.get(self.job.kind, ())
+                if typed in s.lower() and s.lower() != typed]
+
+    def draw_proposals(self, screen, field, inner, mouse):
+        """Below the subcategory field while it is typed in: the proposals as chips, over the wheel."""
+        self.proposal_chips, self.proposals_rect = [], None
+        proposals = self.proposals() if self.field.focused else []
+        if not proposals:
+            return
+        small = self.app.fonts.small
+        x, w = inner.x + PROPOSALS_PAD, inner.w - 2 * PROPOSALS_PAD
+        top = field.bottom + 6
+        kind = self.job.domain.kinds_by_key[self.job.kind]
+        title = small.render(f'Proposals for {kind.title.lower()}', True, TEXT_DIM)
+        # Lay the chips out once off screen to know how tall the box must be
+        scratch = pygame.Surface((1, 1))
+        _, bottom = draw_chips(scratch, small, proposals, str, None, x, 0, w, (-1, -1))
+        box = pygame.Rect(inner.x, top, inner.w, bottom + title.get_height() + 3 * PROPOSALS_PAD)
+        pygame.draw.rect(screen, DIALOG_BG, box, border_radius=8)
+        pygame.draw.rect(screen, DIALOG_LINE, box, 2, border_radius=8)
+        screen.blit(title, (x, top + PROPOSALS_PAD))
+        chips_y = top + 2 * PROPOSALS_PAD + title.get_height()
+        self.proposal_chips, _ = draw_chips(screen, small, proposals, str, None, x, chips_y, w, mouse)
+        self.proposals_rect = box
+
+    # --- input ------------------------------------------------------------
+
+    def click(self, pos):
+        if not self.discard_button.rect.collidepoint(pos):
+            self.discard_armed = False
+        if self.proposals_rect and self.proposals_rect.collidepoint(pos):
+            for chip, value in self.proposal_chips:
+                if chip.collidepoint(pos):
+                    self.field.text = value
+                    self.field.focus(False)
+                    self.take_subcategory()
+            return
+        self.field.focus(self.field.rect.collidepoint(pos))
+        if not self.field.focused:
+            self.take_subcategory()
+        for chip, value in self.kind_chips:
+            if chip.collidepoint(pos):
+                self.job.kind = value
+                self.changed()
+                return
+        super().click(pos)
+
+    def take_subcategory(self):
+        text = self.field.text.strip()
+        if text != self.job.subcategory:
+            self.job.subcategory = text
+            self.changed()
+
+    def captures_keys(self):
+        return self.field.focused
+
+    def text_input(self, text):
+        self.field.type(text)
+
+    def key(self, event):
+        if self.field.focused:
+            if self.field.key(event) == 'done':
+                self.take_subcategory()
         elif event.key == pygame.K_TAB and self.app.store.entries:
             self.app.open_answers()
+        else:
+            super().key(event)
 
     def back(self):
         self.field.focus(False)
