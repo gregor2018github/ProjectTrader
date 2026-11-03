@@ -386,6 +386,13 @@ def _render_map_layers(
     tmx_map.ground_chunks.draw_below(screen, camera, offset_x, offset_y)
     _draw_animated_water(screen, tmx_map, camera, offset_x, offset_y, water_anim_time, start_x, start_y, end_x, end_y)
     tmx_map.ground_chunks.draw_above(screen, camera, offset_x, offset_y)
+    # The furrows of the fields where the crop lies bare, flat on the ground
+    for field in tmx_map.fields:
+        furrows = field.furrow_overlay(camera.zoom)
+        if furrows:
+            overlay, world_x, world_y = furrows
+            screen_x, screen_y = camera.apply(world_x, world_y)
+            screen.blit(overlay, (round(screen_x) + offset_x, round(screen_y) + offset_y))
 
 
 def _draw_bridges(
