@@ -1,6 +1,6 @@
 # Perf Probe
 
-Measures the game's frame times without a window, on a fixed walk: through the town, then through the densest wood. Use it before and after a change that could cost time (new things drawn on the map, a new effect, something worked out per frame) and compare.
+Measures the game's frame times without a window, on a fixed walk: through the town, then through the densest wood, then across each sown field (its crop as a new game finds it, or as the save has it). Use it before and after a change that could cost time (new things drawn on the map, a new effect, something worked out per frame) and compare.
 
 ```bash
 py build_tools/Perf_Probe/perf_probe.py                          # clear midday, starting zoom
@@ -8,13 +8,14 @@ py build_tools/Perf_Probe/perf_probe.py --hour 22 --zoom 1.0 --wet   # the heavy
 py build_tools/Perf_Probe/perf_probe.py --spikes 25              # what each frame over 25 ms did
 py build_tools/Perf_Probe/perf_probe.py --profile walk.prof      # cProfile of the whole walk
 py build_tools/Perf_Probe/perf_probe.py --zooms                  # first frame at each zoom level
+py build_tools/Perf_Probe/perf_probe.py --save 1                 # from save slot 1 instead of a new game
 ```
 
 ## Reading it
 
 Each stretch of the walk prints its median, 95th percentile and slowest frame, and how many frames took over 33 ms (below 30 fps). The median is the steady cost; the maximum shows stutters. Garbage collections are listed with their longest pause.
 
-`--spikes MS` profiles every frame, which makes them all slower: read it for *what* a slow frame did, not for its time. Two spikes are the probe's own: the first frame, and the one where the walk jumps from the town to the wood, each drawing ground the player has not walked to.
+`--spikes MS` profiles every frame, which makes them all slower: read it for *what* a slow frame did, not for its time. Two spikes are the probe's own: the first frame, and the ones where the walk jumps from the town to the wood and on to the fields, each drawing ground the player has not walked to.
 
 To look into a `--profile` file:
 

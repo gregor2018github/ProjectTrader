@@ -47,16 +47,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--spikes", type=float, metavar="MS",
                         help="profile every frame and print what each one slower than MS did")
     parser.add_argument("--profile", metavar="FILE", help="write a cProfile of the whole walk")
+    parser.add_argument("--save", type=int, metavar="SLOT", help="start from this save slot instead of a new game")
     parser.add_argument("--zooms", action="store_true",
                         help="instead of walking: the first frame at each zoom level, once warmed up")
     return parser.parse_args()
 
 
-def build_game(screen: pygame.Surface):
+def build_game(screen: pygame.Surface, slot=None):
     from src.game import Game
+    from src.persistence.save_manager import load_game
     Game.init_pygame()
     started = time.perf_counter()
-    game = Game(save_data=None, screen=screen)
+    game = Game(save_data=load_game(slot) if slot else None, screen=screen)
     print(f"game built in {time.perf_counter() - started:.2f} s")
     # As main.py does once the loading screen is done
     gc.collect()
@@ -86,6 +88,11 @@ def walk_plan(game):
         ("town2", (start[0] + 900, start[1] + 300), (start[0] - 600, start[1] - 200)),
         ("wood", (wood[0] - 500, wood[1]), (wood[0] + 500, wood[1] + 200)),
     ]
+    # Across the middle of each sown field, its crop standing as it does at the start
+    for field in tmx.fields:
+        if field.images:
+            middle = field.y + field.height / 2
+            stretches.append(("field", (field.x, middle), (field.x + field.width, middle)))
     plan = []
     for name, (ax, ay), (bx, by) in stretches:
         frames = int(((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5 / player.speed * 1000 / FRAME_MS)
@@ -211,7 +218,7 @@ def main() -> None:
     args = parse_args()
     pygame.init()
     screen = pygame.display.set_mode((1760, 1064))
-    game = build_game(screen)
+    game = build_game(screen, args.save)
     set_scene(game, args)
     if args.zooms:
         zooms(game)

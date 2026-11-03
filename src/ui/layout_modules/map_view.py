@@ -593,24 +593,26 @@ def _build_render_queue(
                     'flags': pygame.BLEND_ADD
                 })
 
-    # Add field crop sprites to queue (with wind sway animation)
+    # Add field crop sprites to queue (with wind sway animation). A field is the densest
+    # crowd of sprites on the map, so the camera's transform is worked out once, not per
+    # sprite: it is linear, origin plus world position times scale (see Camera.apply)
+    origin_x, origin_y = camera.apply(0.0, 0.0)
+    scale = camera.apply(1.0, 0.0)[0] - origin_x
+    base_x, base_y = origin_x + offset_x, origin_y + offset_y
+    right, bottom = camera.screen_width + offset_x, camera.screen_height + offset_y
+    zoom = camera.zoom
     for field, number in tmx_map.crop_index.query(world_view):
         world_cx, world_by, sprite_idx = field.sprite_placements[number]
         if sprite_idx is None:   # a plant at a stage without sprites, the bare field
             continue
-        screen_x, screen_y = camera.apply(world_cx, world_by)
         # The low first stages stand still in the wind
         angle = 0.0 if sprite_idx in field.still_sprites else field.get_sway_angle(world_cx, world_by)
-        sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)
-        draw_x = screen_x + rel_x + offset_x
-        draw_y = screen_y + rel_y + offset_y
-        if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
-            render_queue.append({
-                'sprite': sprite,
-                'pos': (draw_x, draw_y),
-                'y_sort': world_by
-            })
+        sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, zoom, angle)
+        draw_x = base_x + world_cx * scale + rel_x
+        draw_y = base_y + world_by * scale + rel_y
+        width, height = sprite.get_size()
+        if draw_x + width >= offset_x and draw_x < right and draw_y + height >= offset_y and draw_y < bottom:
+            render_queue.append({'sprite': sprite, 'pos': (draw_x, draw_y), 'y_sort': world_by})
 
     # Add trees to queue
     for tree in tmx_map.tree_index.query(world_view):

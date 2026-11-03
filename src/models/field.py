@@ -47,6 +47,7 @@ _FURROW_ZOOMS_KEPT = 2        # scaled furrow overlays kept per field
 _FURROW_LIGHT = (255, 226, 190)
 _FURROW_LIGHT_ALPHA = 0.8     # how strongly the lit wall and ridges brighten the soil, for the shade above 1
 _FURROW_DROP = TILE_SIZE / 2 - 2   # world px the furrows lie lower than their tiles, onto the plants' feet
+_FURROW_MIN_ALPHA = 12        # fainter shading is left out, so most of the overlay is clear and blits quickly
 
 
 class Field:
@@ -239,7 +240,8 @@ class Field:
             while len(self._furrow_cache) > _FURROW_ZOOMS_KEPT:
                 self._furrow_cache.pop(next(iter(self._furrow_cache)))
         overlay, world_x, world_y = self._furrow_cache[zoom_key]
-        overlay.set_alpha(alpha)
+        if overlay.get_alpha() != alpha:   # set only when it changes: it re-encodes the RLE
+            overlay.set_alpha(alpha, pygame.RLEACCEL)
         return overlay, world_x, world_y
 
     def _make_furrows(self, zoom: float) -> Tuple[pygame.Surface, float, float]:
@@ -256,6 +258,8 @@ class Field:
                       ((col - left) * TILE_SIZE, (row - top) * TILE_SIZE))
         size = (max(1, round(flat.get_width() * zoom)), max(1, round(flat.get_height() * zoom)))
         overlay = pygame.transform.smoothscale(flat, size) if zoom < 1 else pygame.transform.scale(flat, size)
+        # Mostly clear: run-length encoded, the clear runs cost nothing to blit
+        overlay.set_alpha(255, pygame.RLEACCEL)
         # Half a tile down, so the grooves run where the plants stand, on their tiles' bottom edge
         return overlay, float(left * TILE_SIZE), float(top * TILE_SIZE + _FURROW_DROP)
 
@@ -414,8 +418,11 @@ class Field:
         rotated = pygame.transform.rotate(padded, angle_bin)
 
         RW, RH = rotated.get_size()
+        # Cut down to what is painted: the padding is half of it, and every crop is blitted each frame
+        painted = rotated.get_bounding_rect()
+        rotated = rotated.subsurface(painted).copy()
         # Draw so the centre of the rotated image lands at (screen_x, screen_y)
-        result = (rotated, -(RW // 2), -(RH // 2))
+        result = (rotated, -(RW // 2) + painted.x, -(RH // 2) + painted.y)
         self._rotated_cache[cache_key] = result
         return result
 
@@ -459,9 +466,11 @@ def _furrow_tiles() -> Dict[str, List[pygame.Surface]]:
                     if abs(d) < 3 and rng.random() < 0.04 and not past:
                         f *= 0.8                                   # clods in the groove
                     if f < 1.0:
-                        tile.set_at((x, y), (0, 0, 0, min(255, int((1.0 - f) * 255))))
+                        colour, alpha = (0, 0, 0), int((1.0 - f) * 255)
                     else:
-                        tile.set_at((x, y), (*_FURROW_LIGHT, min(255, int((f - 1.0) * _FURROW_LIGHT_ALPHA * 255))))
+                        colour, alpha = _FURROW_LIGHT, int((f - 1.0) * _FURROW_LIGHT_ALPHA * 255)
+                    if alpha >= _FURROW_MIN_ALPHA:
+                        tile.set_at((x, y), (*colour, min(255, alpha)))
             # Turned a quarter anticlockwise: the rounded top becomes the left end, the lit wall the upper
             _FURROW_TILES[kind].append(pygame.transform.rotate(tile, 90))
     return _FURROW_TILES
