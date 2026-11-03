@@ -10739,12 +10739,12 @@
   </object>
  </objectgroup>
  <objectgroup id="26" name="Fields">
-  <object id="305" name="Wheat" x="3424" y="5440">
+  <object id="305" name="Wheat" x="3392" y="5408">
    <properties>
     <property name="Start_day" type="float" value="0"/>
     <property name="Start_stage" value="ripe"/>
    </properties>
-   <polygon points="0,0 608,0 608,128 928,128 928,384 0,384"/>
+   <polygon points="0,0 672,0 672,128 992,128 992,448 0,448"/>
   </object>
   <object id="763" name="Wheat" x="4128" y="6080">
    <properties>

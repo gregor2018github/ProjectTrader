@@ -181,7 +181,8 @@ class Field:
         return stages
 
     def _generate_placements(self) -> None:
-        """Place one plant on each inner tile of the field: inside its outline, and so are its four neighbours.
+        """Place one plant on each inner tile of the field: inside its outline, and so are its eight neighbours
+        (so the inner corner of an L, ragged like the edge, stays empty too).
 
         Each plant stores:
             world_cx  – horizontal center of the tile in world pixels
@@ -202,7 +203,7 @@ class Field:
                  if _inside(self.outline, (col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE)}
         #: The inner tiles, the ones planted and ploughed
         self.inner_tiles = sorted(cell for cell in tiles if all(
-            (cell[0] + dc, cell[1] + dr) in tiles for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1))))
+            (cell[0] + dc, cell[1] + dr) in tiles for dc in (-1, 0, 1) for dr in (-1, 0, 1)))
         half = FIELD_PLANT_SPREAD_DAYS / 2.0
         for col, row in self.inner_tiles:
             world_cx = col * TILE_SIZE + TILE_SIZE / 2.0
