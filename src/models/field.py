@@ -1,11 +1,13 @@
+import datetime
 import json
 import pygame
 import os
 import random
 import math
-from typing import List, Tuple, Dict, Optional
+from typing import Any, List, Tuple, Dict, Optional
 
-from ..config.constants import TILE_SIZE
+from ..config.constants import FIELD_PLANT_SPREAD_DAYS, FIELD_STAGE_DAYS, TILE_SIZE
+from .crop_growth import CropGrowth
 
 # ---------------------------------------------------------------------------
 # Wind / sway constants
@@ -41,9 +43,19 @@ CROPS_DIR = os.path.join('assets', 'map_sprites', 'fields')
 class Field:
     """Represents a rectangular field object on the map.
 
-    Scatters randomly-chosen crop sprites across every tile within the
-    TMX object bounding rect.  Sprites are pre-placed once at load time
-    and cached per zoom level to avoid per-frame allocations.
+    Scatters crop sprites across every tile within the TMX object bounding
+    rect, one plant per tile.  The crop grows through the stages of its
+    crop.json (crop_growth.py): every stage's sprites are loaded into
+    ``images``, and each plant shows a variant of the stage it has reached
+    (``sprite_placements``, renewed by ``update_growth()``; ``None`` while it
+    is at a stage without sprites, the bare field).  Where the field starts
+    comes from its Tiled object's properties:
+
+        Start_stage  the stage key a new game starts at (default: the first, the bare field)
+        Start_day    how many days into it (default 0), give or take FIELD_START_JITTER_DAYS
+        Stage_days   how long its stages last (default FIELD_STAGE_DAYS)
+
+    Sprites are cached per zoom level to avoid per-frame allocations.
 
     Wind animation is driven by update(dt) and expressed as a per-sprite
     rotation around the sprite's bottom-centre.  Rotated surfaces are
@@ -52,7 +64,8 @@ class Field:
     """
 
     def __init__(self, x: float, y: float, width: float, height: float, name: str,
-                 outline: Optional[List[Tuple[float, float]]] = None) -> None:
+                 outline: Optional[List[Tuple[float, float]]] = None, tmx_id: int = 0,
+                 properties: Optional[Dict[str, Any]] = None) -> None:
         """Initialize the field.
 
         Args:
@@ -65,24 +78,39 @@ class Field:
                   A name in ``BARE_FIELDS`` has none.
             outline: World points of a field drawn as a polygon in Tiled (x, y,
                      width and height are then its bounds), or None for a rectangle.
+            tmx_id: The Tiled object's id, which its growth is saved under.
+            properties: The Tiled object's custom properties (Start_stage, Start_day, Stage_days).
         """
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.name = name
+        self.tmx_id = tmx_id
+        properties = properties or {}
+        self.start_stage: Optional[str] = properties.get('Start_stage') or None
+        self.start_day: float = float(properties.get('Start_day', 0.0))
         self.outline: List[Tuple[float, float]] = outline or [
             (x, y), (x + width, y), (x + width, y + height), (x, y + height)]
 
-        # Loaded source images (one per sprite variant)
+        # Loaded source images: every variant of every stage, one after another
         self.images: List[pygame.Surface] = []
+        # Per stage of the crop, the indices of its variants in self.images (empty for the bare field)
+        self.stage_sprites: List[range] = []
         # Per-zoom scaled image lists
         self.scaled_sprite_cache: Dict[float, List[pygame.Surface]] = {}
-        # Fixed random placement: (world_cx, world_by, sprite_idx)
-        self.sprite_placements: List[Tuple[float, float, int]] = []
+        # One plant per tile: (world_cx, world_by, offset in days, variant pick 0..1)
+        self.plants: List[Tuple[float, float, float, float]] = []
+        # What each plant shows now: (world_cx, world_by, sprite_idx or None)
+        self.sprite_placements: List[Tuple[float, float, Optional[int]]] = []
+        # The same field lays out the same way every time, so a save shows what it showed
+        self._rng = random.Random(f'field-{tmx_id}')
 
-        self._load_images()
+        stages = self._load_images()
+        self.growth: Optional[CropGrowth] = None
         if self.images:
+            # Its timing is left to chance anew each game
+            self.growth = CropGrowth(stages, float(properties.get('Stage_days', FIELD_STAGE_DAYS)))
             self._generate_placements()
 
         # Wind projection range (world_by - world_cx along the diagonal)
@@ -108,47 +136,94 @@ class Field:
     # Loading
     # ------------------------------------------------------------------
 
-    def _load_images(self) -> None:
-        """Load the sprite variants of this field's crop, fully grown.
+    def _load_images(self) -> List[str]:
+        """Load the sprite variants of every stage of this field's crop; returns the stage keys.
 
         The crop is the folder ``assets/map_sprites/fields/{name_lower}/``;
         see ``crop_sprite_paths()``.
         """
         if self.name in BARE_FIELDS:
-            return
-        for path in crop_sprite_paths(self.name):
-            try:
-                self.images.append(pygame.image.load(path).convert_alpha())
-            except pygame.error as e:
-                print(f"Failed to load field image: {path} - {e}")
-                break
+            return []
+        stages = crop_stages(self.name)
+        for stage in stages:
+            first = len(self.images)
+            for path in crop_sprite_paths(self.name, stage):
+                try:
+                    self.images.append(pygame.image.load(path).convert_alpha())
+                except pygame.error as e:
+                    print(f"Failed to load field image: {path} - {e}")
+                    break
+            self.stage_sprites.append(range(first, len(self.images)))
 
         if not self.images:
             print(f"No field sprites found for '{self.name}' in {os.path.join(CROPS_DIR, self.name.lower())}")
+        return stages
 
     def _generate_placements(self) -> None:
-        """Pre-generate one random sprite assignment per tile in the field bounds.
+        """Place one plant per tile in the field bounds.
 
-        Each placement stores:
+        Each plant stores:
             world_cx  – horizontal center of the tile in world pixels
             world_by  – bottom edge of the tile in world pixels (used for
                         y-sort and bottom-aligned drawing)
-            sprite_idx – index into self.images
+            offset    – how many days ahead of the field (behind if negative)
+                        it grows, within FIELD_PLANT_SPREAD_DAYS
+            pick      – which variant of a stage it shows, 0..1
+
+        Until the growth is started they all show the ripe crop.
         """
         col_start = math.floor(self.x / TILE_SIZE)
         col_end   = math.floor((self.x + self.width  - 1) / TILE_SIZE)
         row_start = math.floor(self.y / TILE_SIZE)
         row_end   = math.floor((self.y + self.height - 1) / TILE_SIZE)
 
-        n = len(self.images)
+        half = FIELD_PLANT_SPREAD_DAYS / 2.0
         for col in range(col_start, col_end + 1):
             for row in range(row_start, row_end + 1):
                 world_cx = col * TILE_SIZE + TILE_SIZE / 2.0
                 world_by = float((row + 1) * TILE_SIZE)
                 if not _inside(self.outline, world_cx, world_by - TILE_SIZE / 2.0):
                     continue
-                sprite_idx = random.randint(0, n - 1)
-                self.sprite_placements.append((world_cx, world_by, sprite_idx))
+                self.plants.append((world_cx, world_by, self._rng.uniform(-half, half), self._rng.random()))
+        ripe = len(self.stage_sprites) - 1
+        self.sprite_placements = [(cx, by, self._variant(ripe, pick)) for cx, by, _, pick in self.plants]
+
+    # ------------------------------------------------------------------
+    # Growth
+    # ------------------------------------------------------------------
+
+    def _variant(self, stage: int, pick: float) -> Optional[int]:
+        """The index in self.images of the variant `pick` (0..1) chooses at a stage; None if it has none."""
+        sprites = self.stage_sprites[stage]
+        return sprites[min(len(sprites) - 1, int(pick * len(sprites)))] if sprites else None
+
+    def _place_plants(self, now: datetime.datetime) -> None:
+        growth = self.growth
+        self.sprite_placements = [(cx, by, self._variant(growth.plant_stage(now, offset), pick))
+                                  for cx, by, offset, pick in self.plants]
+
+    def start_growth(self, now: datetime.datetime) -> None:
+        """Begin as a new game does, from the Tiled object's Start_stage and Start_day."""
+        if self.growth:
+            self.growth.start(now, self.start_stage, self.start_day)
+            self._place_plants(now)
+
+    def load_growth(self, saved: Optional[Dict[str, Any]], now: datetime.datetime) -> None:
+        """Take over a save's growth; without one (an older save) begin as a new game does."""
+        if self.growth:
+            if self.growth.load(saved, now):
+                self._place_plants(now)
+            else:
+                self.start_growth(now)
+
+    def update_growth(self, now: datetime.datetime) -> None:
+        """Bring the field and its plants up to `now` (called every game hour)."""
+        if self.growth:
+            self.growth.update(now)
+            self._place_plants(now)
+
+    def growth_to_save(self) -> Optional[Dict[str, Any]]:
+        return self.growth.to_save() if self.growth else None
 
     # ------------------------------------------------------------------
     # Rendering helpers
@@ -288,6 +363,16 @@ class Field:
         return result
 
 
+def crop_stages(name: str) -> List[str]:
+    """The stage keys of a crop's crop.json, the bare field first; empty if it cannot be read."""
+    try:
+        with open(os.path.join(CROPS_DIR, name.lower(), 'crop.json'), encoding='utf-8') as file:
+            return [stage['key'] for stage in json.load(file)['stages']]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        print(f"Cannot read the stages of the crop '{name}': {e}")
+        return []
+
+
 def crop_sprite_paths(name: str, stage: Optional[str] = None) -> List[str]:
     """The sprite variants of a crop at one growth stage, by number.
 
@@ -306,12 +391,10 @@ def crop_sprite_paths(name: str, stage: Optional[str] = None) -> List[str]:
     crop = name.lower()
     folder = os.path.join(CROPS_DIR, crop)
     if stage is None:
-        try:
-            with open(os.path.join(folder, 'crop.json'), encoding='utf-8') as file:
-                stage = json.load(file)['stages'][-1]['key']
-        except (OSError, ValueError, KeyError, IndexError) as e:
-            print(f"Cannot read the stages of the crop '{name}': {e}")
+        stages = crop_stages(name)
+        if not stages:
             return []
+        stage = stages[-1]
     paths = []
     while True:
         path = os.path.join(folder, f'{crop}_{stage}_{len(paths) + 1}.png')

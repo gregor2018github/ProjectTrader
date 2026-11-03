@@ -310,6 +310,13 @@ WEATHER_START = "clear"              # The weather a new game starts in, somewhe
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
 RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this overcast, and is at full strength when the spell's clouds are there
 WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the other side
+
+# Crops on the fields (crop_growth.py): each goes round its crop.json's stages, the bare field to the ripe crop and
+# back once harvested. A field's Tiled object may set Start_stage, Start_day and Stage_days of its own
+FIELD_STAGE_DAYS = 10.0              # How long a stage lasts, in game days
+FIELD_STAGE_VARIATION = 0.2          # Each stage lasts that much longer or shorter at random (0.2: 8 to 12 days)
+FIELD_START_JITTER_DAYS = 2.0        # A field starts up to this many days earlier or later in its starting stage, so fields differ
+FIELD_PLANT_SPREAD_DAYS = 2.0        # The plants of a field change stage within this many days of each other
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain
 RAIN_SPLASH_SHARE = 0.6               # Share of the near drops that are seen to splash where they land
 # Lightning (models/lightning.py), in real seconds while the map runs, at full storm

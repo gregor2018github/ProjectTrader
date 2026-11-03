@@ -10739,8 +10739,18 @@
   </object>
  </objectgroup>
  <objectgroup id="26" name="Fields">
-  <object id="305" name="Wheat" x="3424" y="5568" width="928.003" height="255.967"/>
-  <object id="307" name="Wheat" x="3424" y="5440" width="608" height="127.992"/>
+  <object id="305" name="Wheat" x="3424" y="5568" width="928.003" height="255.967">
+   <properties>
+    <property name="Start_day" type="float" value="5"/>
+    <property name="Start_stage" value="bare"/>
+   </properties>
+  </object>
+  <object id="307" name="Wheat" x="3424" y="5440" width="608" height="127.992">
+   <properties>
+    <property name="Start_day" type="float" value="0"/>
+    <property name="Start_stage" value="ripe"/>
+   </properties>
+  </object>
   <object id="763" name="Ploughed" x="4128" y="6080">
    <polygon points="0,0 736,0 736,384 448,384 448,640 0,640"/>
   </object>

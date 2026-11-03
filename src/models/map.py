@@ -233,19 +233,18 @@ class TMXMap:
                 width, height = tree.image.get_size()
                 self.tree_index.add(tree, pygame.Rect(int(tree.x) - 2, int(tree.y - height) - 2,
                                                       width + 4, height + 4))
-        #: (field, placement) pairs, a placement as in Field.sprite_placements
-        self.crop_index: SpatialIndex[Tuple[Field, Tuple[float, float, int]]] = SpatialIndex()
+        #: (field, plant number) pairs, the plant's sprite now in field.sprite_placements
+        self.crop_index: SpatialIndex[Tuple[Field, int]] = SpatialIndex()
         for field in self.fields:
             if not field.images:
                 continue
-            for placement in field.sprite_placements:
-                centre_x, base_y, sprite_idx = placement
-                image = field.images[sprite_idx]
-                # Field.get_sway_sprite turns a copy twice as tall about its root
-                width = self.tile_size * 1.1
-                height = image.get_height() * width / image.get_width()
-                reach = math.ceil(math.hypot(width, 2 * height) / 2) + 2
-                self.crop_index.add((field, placement), pygame.Rect(
+            # Big enough for the tallest sprite of any stage, so growing never needs filing again
+            width = self.tile_size * 1.1
+            height = max(image.get_height() * width / image.get_width() for image in field.images)
+            # Field.get_sway_sprite turns a copy twice as tall about its root
+            reach = math.ceil(math.hypot(width, 2 * height) / 2) + 2
+            for number, (centre_x, base_y, _) in enumerate(field.sprite_placements):
+                self.crop_index.add((field, number), pygame.Rect(
                     int(centre_x) - reach, int(base_y) - reach, 2 * reach, 2 * reach))
         self.light_index: SpatialIndex[Light] = SpatialIndex()
         for light in self.lights:
@@ -685,7 +684,8 @@ class TMXMap:
                     else:
                         outline = None
                         x, y, width, height = obj.x, obj.y, obj.width, obj.height
-                    field = Field(x=x, y=y, width=width, height=height, name=obj.name, outline=outline)
+                    field = Field(x=x, y=y, width=width, height=height, name=obj.name, outline=outline,
+                                  tmx_id=obj.id, properties=dict(getattr(obj, "properties", {}) or {}))
                     self.fields.append(field)
 
     def _load_lights(self) -> None:
@@ -974,6 +974,25 @@ class TMXMap:
         """Advance wind animation for all fields (call once per frame)."""
         for field in self.fields:
             field.update(dt)
+
+    def start_crops(self, now: datetime.datetime) -> None:
+        """Every field's crop as a new game begins it (Field.start_growth)."""
+        for field in self.fields:
+            field.start_growth(now)
+
+    def restore_crops(self, saved: Optional[Dict[str, Any]], now: datetime.datetime) -> None:
+        """The crops of a save, keyed by the fields' Tiled ids; a field missing from it begins anew."""
+        saved = saved or {}
+        for field in self.fields:
+            field.load_growth(saved.get(str(field.tmx_id)), now)
+
+    def update_crops(self, now: datetime.datetime) -> None:
+        """Let the crops grow up to `now` (once a game hour)."""
+        for field in self.fields:
+            field.update_growth(now)
+
+    def crops_to_save(self) -> Dict[str, Any]:
+        return {str(field.tmx_id): field.growth_to_save() for field in self.fields if field.growth}
 
     def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all smoke emitters (call once per frame when not paused)."""

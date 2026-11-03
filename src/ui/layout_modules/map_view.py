@@ -587,7 +587,10 @@ def _build_render_queue(
                 })
 
     # Add field crop sprites to queue (with wind sway animation)
-    for field, (world_cx, world_by, sprite_idx) in tmx_map.crop_index.query(world_view):
+    for field, number in tmx_map.crop_index.query(world_view):
+        world_cx, world_by, sprite_idx = field.sprite_placements[number]
+        if sprite_idx is None:   # a plant at a stage without sprites, the bare field
+            continue
         screen_x, screen_y = camera.apply(world_cx, world_by)
         angle = field.get_sway_angle(world_cx, world_by)
         sprite, rel_x, rel_y = field.get_sway_sprite(sprite_idx, camera.zoom, angle)

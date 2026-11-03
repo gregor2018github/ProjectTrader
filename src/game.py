@@ -113,6 +113,8 @@ class Game:
         map_view_width = SCREEN_WIDTH // 2 - 10
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
         self.game_map: GameMap = GameMap(map_view_width, map_view_height)
+        # The crops on the fields, where their Tiled objects say a new game finds them
+        self.game_map.tmx_map.start_crops(self.state.date)
         # The paper plan of the town shown in the "building" view
         self.town_plan: TownPlan = TownPlan(self.game_map)
         self.town_plan.prepare()   # now, behind the loading screen, not when first opened
@@ -232,6 +234,8 @@ class Game:
         self.game_map.map_player.y = self.player.position[1]
         self.game_map.restore_map_fog(save_data.get("fog"))
         self.weather.load(save_data.get("weather"))
+        # Missing from saves made before the crops grew: the fields then begin as in a new game
+        self.game_map.tmx_map.restore_crops(save_data.get("fields"), self.state.date)
         self.merchant_rank.load(save_data.get("merchant_rank"))
         self.restore_owned_buildings()
         self._update_player_market_area()
@@ -518,6 +522,7 @@ class Game:
 
                     # update prices once per hour
                     if hour_changed:
+                        self.game_map.tmx_map.update_crops(self.state.date)
                         for good in self.goods:
                             good.recover_volume()
                             good.update_price()
@@ -949,7 +954,7 @@ class Game:
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, population_manager=self.population_manager,
                   fog=self.game_map.map_fog, weather=self.weather,
-                  merchant_rank=self.merchant_rank)
+                  merchant_rank=self.merchant_rank, fields=self.game_map.tmx_map.crops_to_save())
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""
