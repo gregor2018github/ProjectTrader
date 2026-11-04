@@ -5,8 +5,12 @@ The scenario: the frozen definitions in ``tests/sim/golden/data/`` (so tuning
 new game does, then one game year with a few scripted player trades (buying a
 staple up, dumping a good) and well wishes on the way.
 
-The snapshot holds every number of the final state, and digests of the long
-histories. The goldens pin the living market per phase (``docs/p1_living_market.md``):
+The snapshot holds every number of the final state. A long history of floats is
+kept as its length, a digest of every bit, and a sample of its values: the
+digest only holds on the platform that wrote the goldens (the maths library's
+last bits differ between Windows and Linux), so ``test_golden`` checks it there
+and elsewhere compares the numbers and samples to 1e-12. The goldens pin the
+living market per phase (``docs/p1_living_market.md``):
 when behaviour is *meant* to change, regenerate them and say so in the commit::
 
     python -m tests.sim.golden_harness --write
@@ -15,6 +19,7 @@ import datetime
 import hashlib
 import json
 import os
+import platform
 import sys
 from typing import Any, Dict, List, Tuple
 
@@ -27,6 +32,7 @@ SEEDS = (1, 20260411)
 PRESIM_DAYS = 60
 RUN_DAYS = 28               # one game year
 START = datetime.datetime(1500, 1, 1, 8, 0)
+SAMPLE_SIZE = 12            # values kept of each float history, evenly spaced, the last one included
 
 # Residential houses' Max_inhabitants, a fixed stand-in for the map's
 HOUSE_CAPACITIES: List[int] = [6, 8, 4, 12, 5, 7, 9, 3, 10, 6, 8, 15, 4, 6, 7, 5, 11, 6, 9, 4, 8, 20, 7] * 3
@@ -45,13 +51,35 @@ def _digest(values: Any) -> str:
     return hashlib.sha256(json.dumps(values, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _has_floats(value: Any) -> bool:
+    if isinstance(value, float):
+        return True
+    if isinstance(value, dict):
+        return any(_has_floats(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_has_floats(v) for v in value)
+    return False
+
+
+def _sample(values: List[Any]) -> List[Any]:
+    """Up to SAMPLE_SIZE of the values, evenly spaced, the first and the last included."""
+    if len(values) <= SAMPLE_SIZE:
+        return list(values)
+    step = (len(values) - 1) / (SAMPLE_SIZE - 1)
+    return [values[round(i * step)] for i in range(SAMPLE_SIZE)]
+
+
 def _compact(record: Dict[str, Any]) -> Dict[str, Any]:
-    """A state record with each list replaced by its length and digest."""
+    """A state record with each list of floats replaced by its length, digest and a sample.
+
+    Lists without floats (head counts) are kept whole: they are the same on every platform.
+    """
     out = {}
     for key, value in record.items():
-        if isinstance(value, list):
+        if isinstance(value, list) and _has_floats(value):
             out[key + "_len"] = len(value)
             out[key + "_sha256"] = _digest(value)
+            out[key + "_sample"] = _sample(value)
         else:
             out[key] = value
     return out
@@ -86,6 +114,11 @@ def run_scenario(seed: int) -> Dict[str, Any]:
     }
 
 
+def platform_tag() -> str:
+    """The platform whose floats the goldens hold to the last bit."""
+    return f"{platform.system()}-{platform.machine()}".lower()
+
+
 def golden_path(seed: int) -> str:
     return os.path.join(GOLDEN_DIR, f"living_market_seed{seed}.json")
 
@@ -93,7 +126,7 @@ def golden_path(seed: int) -> str:
 def write_goldens() -> None:
     for seed in SEEDS:
         with open(golden_path(seed), "w", encoding="utf-8") as f:
-            json.dump(run_scenario(seed), f, indent=1, sort_keys=True)
+            json.dump({"written_on": platform_tag(), "snapshot": run_scenario(seed)}, f, indent=1, sort_keys=True)
             f.write("\n")
         print("wrote", golden_path(seed))
 

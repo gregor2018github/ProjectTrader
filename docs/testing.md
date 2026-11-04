@@ -33,7 +33,11 @@ it is where the bugs cost most and the tests are cheapest.
    These kinds of test guard the core:
    - **Goldens** (`test_golden.py`): a fixed scenario (the economy run ahead, a
      year, scripted player trades and well wishes) snapshotted to
-     `tests/sim/golden/` for two seeds and matched to the last bit. They run on
+     `tests/sim/golden/` for two seeds. On the platform that wrote them
+     (`written_on`, Windows so far) they are matched to the last bit, digests
+     of the float histories included; everywhere else (the maths library's last
+     bits differ on Linux) every number and a sample of each float history to
+     a relative 1e-12, and that bit-exact test is skipped. They run on
      their own frozen copy of the data (`tests/sim/golden/data/`), so tuning
      `assets/data/` does not break them; they were regenerated at each phase of
      P1 (P1.1 to P1.3). When behaviour is meant to change, regenerate with
