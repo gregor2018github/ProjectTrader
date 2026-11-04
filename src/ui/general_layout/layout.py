@@ -12,8 +12,8 @@ from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ...sim.calendar import format_long
 
-# Goods in the top bar: those the player holds and those pinned (right-click in the market
-# view), in goods.json order, one column of (upper, lower) per slot; only
+# Goods in the top bar: those pinned (right-click in the market view) and those the player
+# holds, in goods.json order, one column of (upper, lower) per slot; only
 # TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.
 TOP_BAR_VISIBLE_COLUMNS = 5
 TOP_BAR_COLUMN_SPACING = 160
@@ -289,10 +289,6 @@ def _draw_top_bar(
     offset = clamp_top_bar_offset(game_state)
     columns = top_bar_columns(game_state)
     visible_columns = columns[offset:offset + TOP_BAR_VISIBLE_COLUMNS]
-    if not columns:
-        hint = getattr(game_state, 'small_font', main_font).render(
-            "Goods you hold show here; right-click one in the market to pin it", True, DARK_GRAY)
-        screen.blit(hint, (start_x - 30, 22))
     for i, column in enumerate(visible_columns):
         text_x = start_x + (i * spacing)
         for row, good_name in enumerate(column):

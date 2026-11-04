@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Tuple
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT, PRICE_TICK_MINUTES, PRICE_TICKS_PER_DAY
 from ..paper import CHART_PAPER_EDGE, draw_paper
+from ..pin_marker import draw_pin_corner
 from ...sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
 
 if TYPE_CHECKING:
@@ -482,7 +483,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         if good.name in goods_images_30:
             screen.blit(goods_images_30[good.name], (box_x + 10, box_y + 10))
         if good.name in pinned:
-            _draw_pin(screen, (image_box.right - 9, image_box.top + 9))
+            draw_pin_corner(screen, image_box, DARK_BROWN)
         
         if is_hovered:
             no_license = depot is not None and current_date is not None and not depot.has_license(good.name, current_date)
@@ -522,13 +523,6 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
             screen.blit(name_surface, tooltip_rect)
     
     return image_boxes
-
-
-def _draw_pin(screen: pygame.Surface, center: Tuple[int, int]) -> None:
-    """A pin's head in a selection box's corner: the good stays in the top bar."""
-    pygame.draw.line(screen, DARK_BROWN, center, (center[0] - 5, center[1] + 6), 2)
-    pygame.draw.circle(screen, DARK_RED, center, 5)
-    pygame.draw.circle(screen, DARK_BROWN, center, 5, 1)
 
 
 def _draw_selection_arrows(screen: pygame.Surface, select_bar: pygame.Rect, arrow_width: int, scroll_offset: int, max_offset: int, mouse_pos: Tuple[int, int], suppress_hover: bool) -> List[Tuple[pygame.Rect, int]]:

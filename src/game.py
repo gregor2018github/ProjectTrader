@@ -4,7 +4,7 @@ import random
 import datetime
 import time
 from typing import Dict, List, Optional, Any, Tuple
-from .game_state import GameState
+from .game_state import GameState, quick_trade_quantity
 from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
 from .models.institutions.market import Market
@@ -43,7 +43,7 @@ from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, DEFAULT_TRADE_QUANTITY, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -117,7 +117,9 @@ class Game:
         licenses = definitions.licenses()
         self.state.available_goods = names
         self.state.licenses = licenses
-        self.state.good_quantities = {name: DEFAULT_TRADE_QUANTITY for name in names}
+        self.state.default_good_quantities = {d.name: quick_trade_quantity(d.outside_price) for d in definitions.goods}
+        self.state.good_quantities = dict(self.state.default_good_quantities)
+        self.state.pinned_goods = names[:TOP_BAR_DEFAULT_PINS]
         Market.SOLD_AT = {}
         for d in definitions.goods:
             for market_name in d.sold_at:

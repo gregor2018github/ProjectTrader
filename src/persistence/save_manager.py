@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, DEFAULT_TRADE_QUANTITY, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
+from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
 SAVE_VERSION = 3   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
                    # 3: the economy is the "sim" block (src/sim/), with its own "sim_version"; "goods" keeps only how the UI shows them
@@ -444,11 +444,14 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     }
     game_state.quicktrade_slots.update({k: list(v) for k, v in gs.get("quicktrade_slots", {}).items()})
     game_state.event_log = _dt_list(gs.get("event_log", []), "timestamp")
-    default_qtys = {name: DEFAULT_TRADE_QUANTITY for name in getattr(game_state, "available_goods", [])}
+    default_qtys = dict(getattr(game_state, "default_good_quantities", {}))
     saved_qtys = gs.get("good_quantities", {})
     default_qtys.update(saved_qtys)
     game_state.good_quantities = default_qtys
-    game_state.pinned_goods = [g for g in gs.get("pinned_goods", []) if g in default_qtys]
+    # A save from before the pins starts with the first goods pinned, as a new game does
+    good_names = list(getattr(game_state, "available_goods", []))
+    pins = gs.get("pinned_goods", good_names[:TOP_BAR_DEFAULT_PINS])
+    game_state.pinned_goods = [g for g in pins if g in good_names]
     # Sync time-tracker fields to restored date so hourly/daily events fire correctly
     game_state.sync_time_trackers()
 

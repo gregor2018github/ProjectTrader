@@ -227,7 +227,7 @@ The player's trades fall between ticks, when the game calls `Good.buy` / `Good.s
 | Dead workshop | any workshop at utilisation 0 for more than a year | warning |
 | Structural shortage | any good importing at its limit on more than X % of days | X = 50 (warning) |
 | Market balance | any day's `market_balance` not zero within float tolerance (the market place holds no money) | 1e-9 of the money supply |
-| Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways) | — |
+| Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on a 100g lot (whole units at the day's price, at least 1) beats twice its round trip (two fees plus slippage both ways) | — |
 
 The report is a short text summary per run, plus a table over the 20 seeds × 50 years. Phase 4's CSVs add daily consumption, production, imports and exports per good, purse and fulfilment per class and tier, and per workshop its cash, utilisation, capacity and output.
 
@@ -335,7 +335,7 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
 ## Open questions after phase 2
 
 17. **Price-sensitive demand.** Decided and built (see "Price-sensitive demand" above).
-18. **What "running short" means in a market that rations by price.** Decided: the days a class bought less than its whole basket of a good, for any reason (price or an empty market); at least 3 goods on more than 5 % of days, a warning. With price-sensitive demand this is met easily: any good priced above its outside price is bought a little short every day, so 10–15 goods count, most of them on every day. A sharper target would need a threshold on *how* short (e.g. under 90 % of the basket).
+18. **What "running short" means in a market that rations by price.** Decided: the days a class bought less than its whole basket of a good, for any reason (price or an empty market); at least 3 goods on more than 5 % of days, a warning. With price-sensitive demand this is met easily: any good priced above its outside price is bought a little short every day, so 10–15 goods count, most of them on every day. Sharpened in review: a day counts when some class bought less than 90 % of its basket of the good.
 
 **Phase 3** (the new goods; decided in review)
 - **30 goods.** Flax, Livestock, Clay, Spices, Flour, Charcoal, Tallow, Leather, Cloth, Bread, Salted Fish, Garments, Shoes, Tools and Furniture are new.
@@ -349,10 +349,11 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
   - Licence checks (`Depot.has_license`, through `Depot.license_of`), the overview and saves work by licence. The overview lists the licences and names the other goods each covers.
   - Old saves keep their licences, as each existing good kept its own. Only Spices got new (placeholder) contract texts.
 - **Booths.** A good's `sold_at` lists the market booths that carry it beyond those named after it (`Market.SOLD_AT`, filled by the game): for example Flour and Bread at the Wheat Market.
-- **The top bar** shows the goods the player holds plus those pinned (right-click a good's box in the market view; a pin marks it), in `goods.json` order, with its scroll arrows. Pins are saved.
+- **The top bar** shows the pinned goods (right-click a good's box in the market view; a folded corner marks its box there) and those held, in `goods.json` order; past 10 goods its arrows scroll it a column at a time. A new game, and a save without pins, starts with the first 10 goods pinned (`TOP_BAR_DEFAULT_PINS`). Pins are saved.
+- **Quick-trade quantities** start at about 15g worth of each good at its outside price, on a scale of round steps (`quick_trade_quantity()`: Wood 15, Iron 3, Spices 1).
 - **The chart colours page** scrolls sideways with the wheel.
 - **Placeholder icons** for the new goods (`<good>_30.png`): a disc in the good's chart colour with its initials.
-- **The church's "Meal for the Poor"** gives Bread (45) instead of Wheat. The "Feast for the Poor" still gives Wheat.
+- **The church's meals** give Bread instead of Wheat: the "Meal for the Poor" 45, the "Feast for the Poor" 45 with 8 more Beer (about the 80 Wheat's worth).
 - **Calibration.**
   - The poor's comfort basket holds some meat (usually dear), so their comfort can fall below 1 while their luxuries are still bought.
   - The upper classes' comfort elasticity is higher, Commons 0.6 and Middling Sort and Nobility 1.0.

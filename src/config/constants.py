@@ -64,7 +64,7 @@ ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked u
 # They are booked as donations at the goods' market price on the day.
 CHURCH_FEASTS = [
     ("Meal for the Poor", {"Bread": 45, "Fish": 20, "Beer": 15}),
-    ("Feast for the Poor", {"Wheat": 80, "Meat": 30, "Wine": 15, "Beer": 40}),
+    ("Feast for the Poor", {"Bread": 45, "Meat": 30, "Wine": 15, "Beer": 48}),
 ]
 CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods given for them are booked under
 
@@ -179,7 +179,13 @@ BASE_CONTRACT_FEE = 50
 # The goods in the bottom bar's three quick-trade slots at each market square
 # (an "Areas" rectangle named Market_Area...) when a game starts. A square not
 # listed starts with the first three goods its booths sell.
-DEFAULT_TRADE_QUANTITY = "2"         # The quick-trade quantity a good starts with
+# The quick-trade quantity a good starts with: the units worth about QUICK_TRADE_LOT_VALUE at its
+# outside price, rounded to the nearest of QUICK_TRADE_STEPS (by ratio), at least 1
+QUICK_TRADE_LOT_VALUE = 15
+QUICK_TRADE_STEPS = (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50)
+# A new game (and a save without pins) starts with this many goods pinned to the top bar, the first
+# of goods.json; it holds as many, so it is full without scrolling
+TOP_BAR_DEFAULT_PINS = 10
 DEFAULT_QUICKTRADE_SLOTS = {
     "Market_Area": ["Wood", "Stone", "Iron"],
     "Market_Area_Northwest": ["Herbs", "Salt", "Candle"],

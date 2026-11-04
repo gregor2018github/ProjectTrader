@@ -1,4 +1,5 @@
 import datetime
+import math
 import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Set, Tuple, TYPE_CHECKING
@@ -6,6 +7,8 @@ from .ui.helper_modules.warning_message import WarningMessage
 from .sim import calendar as game_calendar
 from .config.constants import (
     DEFAULT_QUICKTRADE_SLOTS,
+    QUICK_TRADE_LOT_VALUE,
+    QUICK_TRADE_STEPS,
     START_DATE, 
     START_TIME,
     TIME_STEP_LEVEL_1, 
@@ -27,6 +30,13 @@ if TYPE_CHECKING:
 # (price_tick every PRICE_TICK_MINUTES; day, season and year by the game calendar,
 # src/models/game_calendar.py; a season is also a week)
 TimeChanges = namedtuple('TimeChanges', ['minute', 'price_tick', 'hour', 'day', 'season', 'year'])
+
+
+def quick_trade_quantity(outside_price: float) -> str:
+    """A good's starting quick-trade quantity: about QUICK_TRADE_LOT_VALUE worth at its outside price,
+    the nearest of QUICK_TRADE_STEPS by ratio (so 7.5 units become 8, 0.6 become 1)."""
+    units = QUICK_TRADE_LOT_VALUE / outside_price if outside_price > 0 else QUICK_TRADE_STEPS[0]
+    return str(min(QUICK_TRADE_STEPS, key=lambda step: abs(math.log(step / units))))
 
 class GameState:
     """Central repository for game session data and transient UI states.
@@ -91,8 +101,9 @@ class GameState:
         self.mouse_clicked_on: str = "none"
         
         # Remembered quantity per good for quick trading (persisted across sessions); the game fills
-        # in DEFAULT_TRADE_QUANTITY for every good of goods.json (Game.__init__)
+        # in each good's quick_trade_quantity() (Game.__init__), kept as the defaults for older saves
         self.good_quantities: Dict[str, str] = {}
+        self.default_good_quantities: Dict[str, str] = {}
 
         # Input fields for quick trading at the bottom of the screen
         # These are derived from chart_selection_order + good_quantities via sync_quicktrade_fields()
