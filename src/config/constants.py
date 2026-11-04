@@ -258,6 +258,15 @@ FOG_CELLS_PER_TILE = 4                # Fog of war: explored cells per tile each
 
 # LIGHTING CONSTANTS (Hours are decimal, for example 18.5 = 18:30)
 
+# The length of the day over the year (src/models/daylight.py): what goes by daylight is set out for a day of
+# Spring or Autumn (full daylight 8:00 to 17:00, night 21:00 to 4:00, the window lights from 18:30); in the middle
+# of Summer the dawn comes this much earlier and the dusk this much later, in the middle of Winter the other way
+# round, and in between by degrees
+DAYLIGHT_DAWN_SHIFT_HOURS = 1.0      # Midsummer: full daylight from 7:00; midwinter: from 9:00
+DAYLIGHT_DUSK_SHIFT_HOURS = 1.5      # Midsummer: night from 22:30; midwinter: from 19:30 (the sun setting from 15:30)
+DAYLIGHT_TWILIGHT_STRETCH = 0.5      # In Autumn and Winter the dawns and dusks last up to this much longer (0.5: 6 hours, not 4),
+                                     # the most where Autumn turns to Winter, none in Spring and Summer
+
 # Regular windows
 LIGHT_PROBABILITY = 0.4
 LIGHT_START_HOUR_MIN = 18.5

@@ -47,6 +47,7 @@ from ..config.constants import (
     FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_BY_SEASON, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
 )
 from .game_calendar import SEASONS, game_date
+from .daylight import sun_hour
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather
 
@@ -149,7 +150,7 @@ class Weather:
     def update(self, date: datetime.datetime) -> None:
         """Advance by however much game time has passed since the last call."""
         last, self._last_date = self._last_date, date
-        self._hour = date.hour + date.minute / 60.0
+        self._hour = sun_hour(date)   # the fog burns off with the daylight, later in Winter
         self.season = game_date(date).season_name
         if last is None:
             return

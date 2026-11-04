@@ -125,9 +125,11 @@ def test_fog_rolls_in_slowly(foggy):
 def test_fog_thins_with_the_hour(foggy):
     foggy.force("fog")
     foggy.fog = 1.0
-    foggy.update(datetime.datetime(1400, 5, 1, 12, 0))   # notes the hour: noon allows half
+    # Noon in the middle of Spring, where the sun hour is the clock's (models/daylight.py)
+    noon = datetime.datetime.combine(EPOCH, datetime.time(12)) + datetime.timedelta(days=3)
+    foggy.update(noon)                                     # notes the hour: noon allows half
     assert foggy.fog_target() == pytest.approx(0.5)
-    foggy.update(datetime.datetime(1400, 5, 1, 13, 0))
+    foggy.update(noon + datetime.timedelta(hours=1))
     assert foggy.fog < 1.0
 
 

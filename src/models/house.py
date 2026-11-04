@@ -3,6 +3,7 @@ import os
 import random
 from typing import Optional, Dict, List, TYPE_CHECKING
 from ..config.constants import KNOCK_VOLUME
+from .daylight import sun_hour
 
 if TYPE_CHECKING:
     from .door import Door
@@ -127,7 +128,7 @@ class House:
             game_state.game.game_map.tmx_map.street_life.answer_knock(self)
 
         # 3. Light interaction if it's night
-        hour = game_state.date.hour + game_state.date.minute / 60.0
+        hour = sun_hour(game_state.date)
         is_night = hour < 7 or hour > 19
 
         if is_night and self.associated_lights:

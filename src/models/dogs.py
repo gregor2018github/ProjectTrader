@@ -31,6 +31,7 @@ from ..config.constants import (
     DOG_VOLUME, TOWN_FULL_COVER,
 )
 from .ambience import Cover
+from .daylight import sun_hour
 from .map_clock import MapClock
 
 
@@ -81,7 +82,8 @@ class Dogs:
         pan = self.rng.uniform(-DOG_PAN, DOG_PAN)   # -1 all left, 1 all right
         stereo = (volume * min(1.0, 1.0 - pan), volume * min(1.0, 1.0 + pan))
         start, end = DOG_CHORUS_HOURS
-        night = now.hour >= start or now.hour < end
+        hour = sun_hour(now)
+        night = hour >= start or hour < end
         if self.chorus and night and self.rng.random() < DOG_CHORUS_CHANCE:
             self.play(self.chorus, stereo)
         elif self.single and (not self.far or self.rng.random() < 0.5):

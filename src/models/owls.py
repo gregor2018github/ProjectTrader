@@ -22,6 +22,7 @@ from ..config.constants import (
     FOREST_FULL_COVER, OWL_EVERY_HOURS, OWL_LOUDNESS, OWL_PAN, OWL_VOLUME, OWLS_BY_HOUR, RAIN_HUSHES_OWLS,
 )
 from .ambience import Cover, by_steps
+from .daylight import sun_hour
 from .map_clock import MapClock
 
 
@@ -49,7 +50,7 @@ class Owls:
         hours = self.clock.hours(now, running)
         if hours <= 0 or not self.calls:
             return
-        night = by_steps(OWLS_BY_HOUR, now.hour + now.minute / 60.0)
+        night = by_steps(OWLS_BY_HOUR, sun_hour(now))
         if night <= 0:
             return
         wooded = min(1.0, self.trees.at(player.x + player.width / 2, player.y + player.height / 2)

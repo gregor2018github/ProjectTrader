@@ -55,6 +55,7 @@ from ..config.constants import (
     TOWN_RADIUS_TILES,
 )
 from .institutions.market import Market
+from .daylight import sun_hour
 
 LOOP_GLIDE_PER_S = 0.5         # how fast a loop's volume may change, per second (1.0 is all of it)
 AMBIENCE_FIRST_CHANNEL = 1      # channel 0 is the player's footsteps'
@@ -324,7 +325,7 @@ class Ambience:
             mill = by_steps(MILL_VOLUME_BY_DISTANCE, tiles)
         self.mill.update(mill, audible)
 
-        hour = date.hour + date.minute / 60.0
+        hour = sun_hour(date)   # the birds and crickets go by daylight, longer in Summer
         birds = 0.0
         daylight = by_steps(BIRDS_BY_HOUR, hour)
         if daylight > 0:

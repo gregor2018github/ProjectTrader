@@ -11,6 +11,7 @@ import random
 import pygame
 from typing import Dict, List, Optional, Tuple
 
+from .daylight import sun_hour
 from ..config.constants import (
     SMOKE_PROBABILITY,
     SMOKE_START_HOUR_MIN, SMOKE_START_HOUR_RANGE,
@@ -112,7 +113,7 @@ class SmokeEmitter:
         """True when the chimney should be smoking right now."""
         if not self._active_tonight:
             return False
-        hour = current_time.hour + current_time.minute / 60.0
+        hour = sun_hour(current_time)   # the fires are lit as it gets dark
         effective_hour = hour + 24 if hour < 12 else hour
         return self._start_hour <= effective_hour <= self._end_hour
 

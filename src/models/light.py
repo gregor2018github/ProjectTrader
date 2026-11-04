@@ -6,6 +6,7 @@ import datetime
 import math
 from typing import Optional
 
+from .daylight import sun_hour
 from ..config.constants import (
     LIGHT_PROBABILITY, LIGHT_START_HOUR_MIN, LIGHT_START_HOUR_RANGE,
     LIGHT_DURATION_MIN, LIGHT_DURATION_RANGE,
@@ -141,8 +142,8 @@ class Light:
         if not self.is_active_tonight:
             return False
             
-        hour = current_time.hour + current_time.minute / 60.0
-        
+        hour = sun_hour(current_time)   # the windows light up as it gets dark, earlier in Winter
+
         # Handle midnight wrap
         effective_hour = hour
         if hour < 12:
@@ -364,8 +365,8 @@ class BuildingLightGroup:
         if not self.is_active_tonight:
             return False
             
-        hour = current_time.hour + current_time.minute / 60.0
-        
+        hour = sun_hour(current_time)   # the windows light up as it gets dark, earlier in Winter
+
         # Handle midnight wrap
         effective_hour = hour
         if hour < 12:

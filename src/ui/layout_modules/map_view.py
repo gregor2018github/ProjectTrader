@@ -15,6 +15,7 @@ from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
+from ...models.daylight import sun_hour
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -309,11 +310,14 @@ _lighting_surf = None   # the overlay of _apply_lighting, reused
 
 def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
     """Calculate the ambient light color based on current time.
-    
+
+    The keyframes are a day of Spring or Autumn; the sun hour (models/daylight.py)
+    makes the day longer in Summer and shorter, with longer dawns and dusks, in Winter.
+
     Returns:
         RGB tuple representing the ambient light.
     """
-    hour = date.hour + date.minute / 60.0
+    hour = sun_hour(date)
     
     # Keyframes define the color at specific times of day
     # Format: (hour, (r, g, b))
