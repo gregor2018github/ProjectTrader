@@ -4,8 +4,9 @@ The roofs are polygons on the map's `Roofs` object layer, one or more per
 building, named after it (as building lights are on `Lights`); they are not
 tied to their building otherwise. A raindrop landing where a building's
 sprite is painted only splashes inside a roof; on a wall, a window, a door,
-a fence or a cart it just ends unseen. Where no building is painted (the
-ground, tree crowns) it splashes as before.
+a fence or a cart it just ends unseen. Where no building is painted it
+splashes on the ground, drawn under everything standing (a tree's crown, a
+person), which hides it there; a roof's splashes are drawn over everything.
 
 Both the buildings' painted pixels (`pygame.mask` of each sprite, shared by
 buildings that share a sprite) and the roofs are filed by the tiles they
@@ -69,7 +70,3 @@ class Roofs:
     def on_roof(self, x: float, y: float) -> bool:
         """Whether a world point is inside a roof."""
         return any(_inside(points, x, y) for points in self._roofs.get((int(x // TILE_SIZE), int(y // TILE_SIZE)), ()))
-
-    def splashes_at(self, x: float, y: float) -> bool:
-        """Whether a raindrop landing here is seen to splash: anywhere but on a building, except its roof."""
-        return not self.on_building(x, y) or self.on_roof(x, y)

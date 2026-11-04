@@ -12,10 +12,16 @@ There are two depths: far drops are shorter, fainter and slower, and do not
 splash; near ones do (RAIN_SPLASH_SHARE of them). Every sprite is made once
 per zoom, slant and brightness and kept, and the whole frame's worth goes to
 the screen in one Surface.blits() call; the clip of the map view cuts off
-what hangs over its edge. Drawn after the day/night lighting, dimmed by
-*light* instead: the falling drops no further than NIGHT_LIGHT_MIN, so the
-rain stays visible at night, the splashes and rings on the ground down to
-SPLASH_LIGHT_MIN, so they do not shine white in the dark.
+what hangs over its edge.
+
+The splashes and rings on the ground are drawn on the ground (draw_ground(),
+after the puddles and before anything standing), so a person, a tree or a
+building in front of them hides them, and the day/night lighting darkens them
+with the ground. Only the splashes on a roof, and the falling drops, are drawn
+over everything (draw(), after the lighting), dimmed by *light* instead: the
+falling drops no further than NIGHT_LIGHT_MIN, so the rain stays visible at
+night, the roof splashes down to SPLASH_LIGHT_MIN, so they do not shine white
+in the dark.
 """
 
 import random
@@ -107,7 +113,7 @@ class Rainfall:
         self.rng = rng or random.Random()
         # Each drop: [x, y, vx, vy, seconds left, kind]; (x, y) is its head, in world px
         self.drops: List[list] = []
-        # Each splash: [x, y, age in seconds, on water]
+        # Each splash: [x, y, age in seconds, on water, on a roof]
         self.splashes: List[list] = []
         self._sprites: Dict[tuple, tuple] = {}
 
@@ -147,11 +153,15 @@ class Rainfall:
             if rng.random() < RAIN_SPLASH_SHARE:
                 fell = drop[4] + dt   # what was left of its fall this frame
                 x, y = drop[0] + drop[2] * fell, drop[1] + drop[3] * fell
-                if not tmx_map.roofs.splashes_at(x, y):
-                    continue   # on a wall, a window, a fence: only a roof is splashed on
+                roofs = tmx_map.roofs
+                if roofs.on_building(x, y):
+                    if not roofs.on_roof(x, y):
+                        continue   # on a wall, a window, a fence: only a roof is splashed on
+                    self.splashes.append([x, y, 0.0, False, True])
+                    continue
                 on_water = ((int(x // tile), int(y // tile)) in water and tmx_map.bridge_at(x, y) is None
                             or puddles is not None and puddles.puddle_at(x, y))
-                self.splashes.append([x, y, 0.0, on_water])
+                self.splashes.append([x, y, 0.0, on_water, False])
 
         # Top up to the wanted number: the drops that landed fall anew, and one more than
         # there were (the rain setting in) starts part way down, so they do not land in step
@@ -188,9 +198,31 @@ class Rainfall:
             cached = self._sprites[key] = (streaks, splashes, rings)
         return cached
 
+    def _add_splashes(self, add, splashes, rings, scale: float, ox: int, oy: int, roof: bool) -> None:
+        for x, y, age, on_water, on_roof in self.splashes:
+            if on_roof != roof:
+                continue
+            if on_water:
+                sprite, (ax, ay) = rings[min(int(age / RING_FRAME_SECONDS), len(rings) - 1)]
+            else:
+                sprite, (ax, ay) = splashes[min(int(age / SPLASH_FRAME_SECONDS), len(splashes) - 1)]
+            add((sprite, (int(x * scale) + ox - ax, int(y * scale) + oy - ay)))
+
+    def draw_ground(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int, wind: float) -> None:
+        """Draw the splashes and rings on the ground, at full brightness: the lighting drawn later darkens them."""
+        if not self.splashes:
+            return
+        scale = _scale_of(camera)
+        _streaks, splashes, rings = self._sprites_for(scale, wind, 1.0)
+        batch = []
+        self._add_splashes(batch.append, splashes, rings, scale,
+                           offset_x - round(camera.x * scale), offset_y - round(camera.y * scale), roof=False)
+        if batch:
+            screen.blits(batch, doreturn=False)
+
     def draw(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int,
              wind: float, light: float) -> None:
-        """Draw the drops and splashes; *light* (0 to 1) is how bright the scene is."""
+        """Draw the falling drops and the splashes on roofs; *light* (0 to 1) is how bright the scene is."""
         if not self.drops and not self.splashes:
             return
         scale = _scale_of(camera)
@@ -199,12 +231,7 @@ class Rainfall:
         oy = offset_y - round(camera.y * scale)
         batch = []
         add = batch.append
-        for x, y, age, on_water in self.splashes:
-            if on_water:
-                sprite, (ax, ay) = rings[min(int(age / RING_FRAME_SECONDS), len(rings) - 1)]
-            else:
-                sprite, (ax, ay) = splashes[min(int(age / SPLASH_FRAME_SECONDS), len(splashes) - 1)]
-            add((sprite, (int(x * scale) + ox - ax, int(y * scale) + oy - ay)))
+        self._add_splashes(add, splashes, rings, scale, ox, oy, roof=True)
         for drop in self.drops:
             sprite, (ax, ay) = streaks[drop[5]]
             add((sprite, (int(drop[0] * scale) + ox - ax, int(drop[1] * scale) + oy - ay)))

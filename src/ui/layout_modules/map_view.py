@@ -135,6 +135,9 @@ def draw_map_view(
     puddle_glows = game_map.puddles.draw(
         screen, game_map.camera, offset_x, offset_y,
         [(sprite, x + offset_x, y + offset_y, depth) for sprite, x, y, depth in walkers], game_state.date)
+    # The rain's splashes on the ground, under whoever and whatever stands over them
+    if weather:
+        game_map.rain.draw_ground(screen, game_map.camera, offset_x, offset_y, weather.wind)
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)
@@ -153,7 +156,7 @@ def draw_map_view(
         game_map.fog.draw(screen, game_map.camera, offset_x, offset_y, weather.fog, ambient,
                           (player.x + player.width / 2, player.y + player.height / 2), render_queue)
 
-    # The rain over everything, dimmed with the light rather than by the overlay
+    # The falling rain and the splashes on roofs over everything, dimmed with the light rather than by the overlay
     if weather:
         game_map.rain.draw(screen, game_map.camera, offset_x, offset_y, weather.wind, max(ambient) / 255)
 
