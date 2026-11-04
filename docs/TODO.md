@@ -1,5 +1,20 @@
 # Project Trader TODOs
 
+## Living Market (P1, branch p1-living-market, before the merge)
+
+See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends").
+
+- [ ] P1.4: the full health report: the remaining checks of docs/p1_living_market.md (price stuck at a clamp, price far from outside, hunger, poorly supplied, money supply, bad numbers, population, happiness range, workshop cash, dead workshop, structural shortage) and a table over 20 seeds × 50 years
+- [ ] P1.5: the town hall's population stats show need fulfilment per class and tier
+- [ ] P1.5: the market view shows daily demand and supply per good
+- [ ] playtest the living market, then merge p1-living-market into master
+- [ ] show something for the simulation's events (price shock ended, population changed, workshop capacity changed): Game._handle_sim_events drops them so far
+- [ ] loose end: cheap goods aren't worth trading against the flat transaction fee; later a percentage fee plus a minimum
+- [ ] loose end: labour: the poor's wage sits at its cap, the middling sort is never hired (no building hires from it)
+- [ ] loose end: the town is always full (migration settles at its housing); growth needs new housing (P3 plots, P6 public building)
+- [ ] loose end: shortages and gluts are not visible on the map yet (empty or overflowing stalls, remarks from the townsfolk)
+- [ ] next candidates for the sim: the depot's daily books (cost of living, loans, overdraft, wealth history), the weather, the crops' growth
+
 ## High Priority
 
 - [ ] add snow animation for winter season
@@ -17,7 +32,7 @@
 - [ ] have actual images of the food plates bought by the player that you see when you bought them
 - [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
 - [ ] unify the contract text parts. it should all be stored in one file instead of two per contract type
-- [ ] make new contracts for the new products
+- [ ] make new contracts for the new products (most trade under their guild's licence; Spices has its own, with placeholder contract texts)
 - [ ] add different walking sounds for different surfaces (grass, bridge, snow, etc)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
@@ -35,8 +50,7 @@
 - [ ] Market events
 - [ ] make an alternative female player sprite
 - [ ] Warehouse upgrades
-- [ ] Price influenced by Supply and Demand
-- [ ] add candles, salts and herbs as tradable goods
+- [ ] retake the README screenshots: readme1.png, readme2.png and readme5.png (and readme.gif, taken with them) still show the old top bar with 12 goods, dates like 29.01.1500 and "Monthly Depot Statistics"; none shows the seasons, weather or 30 goods
 - [ ] info windows that have a "OK" button at the bottom should have several alternative words at the bottom that sound more medieval (e.g., "I understand", "I will consider it", "So be it"...)
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
@@ -52,12 +66,24 @@
 
 ## Finished Features
 
+- [x] the market crowd's sound swells in over a game hour after a booth opens and dies away after it shuts
+- [x] top bar shows pinned goods (right-click a good in the market view; a folded corner marks it) and those held, scrolling past 10; quick-trade quantities start at about 15g worth of each good
+- [x] living market P1.3: 30 goods in chains (wheat → flour → bread, livestock → meat, hides and tallow → leather, shoes and candles, wool and flax → cloth and linen → garments, iron and charcoal → tools that wear out, ...), licences per guild, extra goods at the booths (sold_at), placeholder icons
+- [x] living market P1.2: town-owned workshops running recipes with byproducts, a labour market with moving wages, a treasury with tribute to the lord, a market place that holds no money (checked daily)
+- [x] living market P1.1: price influenced by supply and demand: needs and purses per class in three tiers, price-sensitive demand, outside prices that move, merchants importing and exporting, happiness from how well needs are met
+- [x] sim core (P0): the economy in src/sim/ without pygame, a scheduler, one seeded random generator, data files in assets/data/, a headless runner (python -m src.sim.run) and health report, goldens and determinism tests
+- [x] candles, salt and herbs as tradable goods
+- [x] light has a mood per season: warm in autumn, cold and bluish in winter
+- [x] daylight follows the seasons: longer days in summer, darker earlier in winter
+- [x] weather follows the seasons: less rain and the only thunderstorms in summer, more rain and fog in autumn
+- [x] crops follow the seasons: bare in winter, sown on the 1st of Spring, harvested at the end of Autumn
+- [x] time: a day takes 8 real minutes at normal speed, prices tick every 30 game minutes
+- [x] compress the calendar for a game spanning generations: a year is 4 seasons × 7 days (28 days, almost four real hours at normal speed), dates shown by the game calendar, licences sold in seasons
 - [x] Add sound effects for birds chirping during the day and crickets at night
 - [x] implement a merchant rank system
 - [x] add a bridge to go over the river
 - [x] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
 - [x] plant more trees to increase the size of the forest
-- [x] compress the calendar for a game spanning generations: a game day is ~4 real minutes at normal speed, so a year takes ~24 real hours; decide on a shorter year (e.g. 4 seasons × 7 days, ageing once a year) before the dynasty system (see docs/roadmap.md, open questions)
 - [x] a ploughed field (furrows up and down) south of the farm road, with the farmhouse (thatched cottage, House_25 at Scale 0.5) in its lower right corner
 - [x] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed (the Old Barn: 600 gold, +250 storage)
 - [x] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background

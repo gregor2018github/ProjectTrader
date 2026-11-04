@@ -58,20 +58,17 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - uncles' trading shop
     - medium warehouse
     - open warehouse with different optical fillgrades depending on how full they are
-    - forester's shop
     - seeside fisherman's shop
     - monestary with wine yard on hill
     - mine at mountain side
     - large warehouse
     - graveyard next to the church
-    - guild hall
     - bakery
     - butcher
     - more regular houses
 
 - Decoration Buildings
     - fountain
-    - base plowed field texture (farming goods can grow on there later)
     - statues
     - park bench
     - crates and barrels
@@ -82,7 +79,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - fisherman who always tells you to buy fish
     - cows on the meadow with eating and walking animations
     - ghost coming out of the graveyard at night
-    - water that is actually moving
     - bird flocks in highest zoom stage
     - clouds in highest zoom stage
     - animation for idle main character
@@ -103,10 +99,6 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - when trading license runs out and you still have goods that require it, blackmarket option to sell them at a 60% loss, compared to the normal market price, furthermore, there will be risk of legal consequences (like being fined or even jailed) if you get caught selling goods without a valid license
 
 - have a market screamer/NPC that announces change
-- trees can be scalable in size
-    - that will allow for more variation on the map with less assets created
-    - would look weird in the map preview though
-
 - carriage system 
     - player only has a limited amount of 100 storage units in carriage
     - he can only trade goods from the carriage if it is parked at a market area
@@ -118,27 +110,17 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
     - only available after paying lots of money and time at the scribe to learn how to read and write (or maybe you can just buy the newspaper without learning to read, but then you won't understand it and thus won't get the information about price changes)
 
 - MAP FEATURES
-    - we need cobblestone roads, squares
-    - trees can grow in clusters of similar types (requires multiple tree sprites per type)
     - buildings can be entered (shop, house, warehouse, guild, etc)
     - inner views of buildings
-    - NPSs for decoration (for now just standing around)
     - Shadows
         - static for trees and buildings
         - traveling for NPCs and player
-    - at night time trading booths close and are covered with tarps
 
 - have a pub where you can eat fancy food 
     - you might get temporary buffs (like better prices, more storage space, faster movement, etc)
-    - menu will change daily with real medieval recipes
-    - there are always three recipes available (cheap, medium, expensive)
 
 - at the end of the year you will receive income tax and property tax statements that you have to pay
     - if you don't pay them on time you get fined or worse
-
-- when opening a new menu page, there must be a rolling scroll effect
-    - animation
-    - sound effect
 
 - add different chart types like candlestick charts
 
@@ -149,14 +131,10 @@ HERE EVERYTHING CAN GO - IMPLEMENTED IDEAS ARE DELETED FROM THIS FILE
 - warehouses can be upgraded to hold more items
 
 - a real city in the background
-    - update statistics daily/weekly/monthly to not overload the system
     - the city must grow!
 
-- dynamic economy based on supply and demand
-    - base demand is determined by the population of the city
-    - low prices increase demand, high prices decrease demand
+- demand that learns
     - long periods of high or low supply can influence base demand
-    - fulfilling demand of the city properly leads to growth of the city (balance between )
 
 - player can own houses where they live
 

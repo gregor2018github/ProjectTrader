@@ -2,7 +2,7 @@
 
 An orientation page for anyone (human or coding agent) about to touch market prices. It explains the model at a high level, then points to where each piece lives in the code. Line numbers drift, so search for the named function or constant rather than trusting them.
 
-The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`). Its state is `GoodState` (`src/sim/state.py`), and its rules are functions in `src/sim/systems/market.py`. The game's `Good` (`src/models/good.py`) is only a view of them. The design behind it is `p1_living_market.md` (P1, the living market). Phases 1 and 2 of it are built: demand from the town's households, supply from the town's workshops, and the outside world's merchants between them.
+The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`). Its state is `GoodState` (`src/sim/state.py`), and its rules are functions in `src/sim/systems/market.py`. The game's `Good` (`src/models/good.py`) is only a view of them. The design behind it is `p1_living_market.md` (P1, the living market). Its phases P1.1 to P1.3 are built: demand from the town's households, supply from the town's workshops in chains of 30 goods, and the outside world's merchants between them.
 
 ---
 
@@ -121,7 +121,10 @@ Older blocks and saves migrate on loading:
 
 ## 9. Where this is heading
 
-Phase 3 of P1 (`p1_living_market.md`) grows the goods to about 30, with chains three steps deep (wheat → flour → bread, livestock → meat, hide and tallow → leather and candles, iron and charcoal → tools that wear out). A workshop's capacity grows slowly after busy spells and shrinks more slowly after losses. That hysteresis makes flooding a market to drive out its makers a real strategy, and keeping a town well supplied real work. P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
+- **P1.4 and P1.5** (`p1_living_market.md`): the full health report over many seeds and years, and a minimal UI showing each good's daily demand and supply in the market view.
+- **The fee.** The flat transaction fee makes cheap goods (Bread, Clay, Charcoal, Flax, Pottery) not worth trading in small lots: their swings never pay for a round trip (`python -m src.sim.health`, tradability). A percentage fee with a minimum is the likely fix (`roadmap.md`, "Known issues and loose ends").
+- **Hysteresis.** A workshop's capacity already grows slowly after busy spells and shrinks more slowly after losses (`production.change_capacity`). That makes flooding a market to drive out its makers a strategy once the player can own workshops (P3).
+- **Other towns.** P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
 
 ---
 

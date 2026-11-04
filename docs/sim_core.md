@@ -8,7 +8,7 @@ It holds:
 - **Workshops and their owners**: each workshop runs its building's recipe as hard as its margin says. It hires from one class (pro rata when hands are short), sells into the market, grows after busy spells and shrinks after losses. Its owner tops it up and takes its profits. No rule reads what kind of owner it is.
 - **Money**: the market place holds none (the merchants own the stock), so the town's money changes by exactly what crosses its border, and `market_balance` checks it.
 
-The 30 goods and their chains (P1 phase 3) are in; the runner's and health report's full set of checks (phase 4) comes next. The goldens in `tests/sim/golden/` pin the behaviour of each phase.
+The 30 goods and their chains (P1.3) are in; the health report's full set of checks (P1.4) and a minimal UI (P1.5) come next. The goldens in `tests/sim/golden/` pin the living market as it stands, and are regenerated whenever its behaviour is meant to change.
 
 ---
 
@@ -36,7 +36,7 @@ The 30 goods and their chains (P1 phase 3) are in; the runner's and health repor
 | `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`, `CapacityChanged`) on an `EventQueue`. |
 | `data.py` | `load_definitions()` reads goods, needs, recipes and building types from `assets/data/` into a `Definitions` (`GoodDef`, `ClassNeedsDef` / `NeedDef`, `RecipeDef`, `BuildingDef`); `load_scenario()` reads `scenarios/<name>.json` into a `ScenarioDef` (`OwnerDef`, `WorkshopSeed`). Each raises `DataError` with the file, entry and field. |
 | `simulation.py` | `Simulation`: state, definitions, generator, scheduler and events together. It subscribes the systems, founds the town and establishes the scenario's workshops, runs the economy ahead (`presimulate`), takes commands (`trade_with_player`, `apply_well_shock`), keeps the books (`town_money`, `_close_books`), and saves and loads its block, migrating older ones. |
-| `health.py` | The health report for a headless run (`python -m src.sim.health runs/<name> ...`): the market balance check and the tradability measure so far; P1 phase 4 adds the rest of `p1_living_market.md`'s checks. |
+| `health.py` | The health report for a headless run (`python -m src.sim.health runs/<name> ...`): the market balance check, the warnings for a town that should run slightly short, and the tradability measure so far; P1.4 adds the rest of `p1_living_market.md`'s checks. |
 | `scenario/tmx_town.py` | An adapter, used only by the runner: reads the houses' `Max_inhabitants` from `Map1.tmx` with `xml.etree` into a `TownSpec`. The core never knows about TMX. The strategic map's towns (P7) will have no map file. |
 | `run.py` | The headless runner. |
 
@@ -91,7 +91,7 @@ The save's `"sim"` block is `Simulation.to_dict()`:
 `"rng"` is `Random.getstate()` as a plain list, not a pickle. `Simulation.load()` restores the generator last, so a loaded game draws exactly what the saved one would have, and a save made mid-morning goes on with its plan half bought. Other rules on loading:
 - Goods saved but no longer defined are dropped, and so are plan items for them.
 - Goods defined but not saved get a flat history as long as the others'.
-- A block without workshops (sim_version 1, or saved before phase 2) gets the established scenario's owners and workshops, fresh.
+- A block without workshops (sim_version 1, or saved before P1.2) gets the established scenario's owners and workshops, fresh.
 - A block newer than `SIM_VERSION` is refused (`SimVersionError`).
 - **sim_version 1 (P0)** blocks migrate: each good keeps its histories, and its stock as a share of its new target. Each class keeps its count and happiness and gets a starting purse. Targets and today's plan are worked out from the current demand, and the outside prices start at their means.
 
@@ -129,7 +129,7 @@ people = pd.read_csv("runs/baseline/population_daily.csv")
 people[people["class"] != "All"].pivot(index="day", columns="class", values="fulfilment_luxury").plot()
 ```
 
-50 years (1,400 days) take about 3 s here.
+50 years (1,400 days) take about 6 s here.
 
 **The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than `SHORT_BELOW`, 90 %, of its whole basket of it, for any reason: `least_share`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on a lot worth `TRADE_LOT_VALUE` (100) at the day's price (whole units, at least 1) beats twice that lot's round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
@@ -176,7 +176,7 @@ The tiers are bought in that order.
 Not moved yet, in rough order of value:
 
 - **The depot's daily books** (cost of living, loans, overdraft, wealth history). P3 turns the player into an owner like the town (`OwnerState`, `p1_living_market.md` "Owners"), so the player, the AI dynasties and the town share them.
-- **Weather** (`src/models/weather.py`), which already runs on game time and is saved. It would need the sim's generator and a pygame-free split of `Weather` from its sounds.
-- **Crop growth** (`src/models/crop_growth.py`), already a pure function of the date. The roadmap keeps harvests cosmetic, but a farm's look could follow its workshop.
+- **Weather** (`src/models/weather.py`), which already runs on game time, is saved, imports no pygame (its sounds live in `Ambience` and `Lightning`) and takes a `random.Random` of its own (the game passes none, so it makes an unseeded one). It would need a generator seeded from the sim's, and its state in the sim's block.
+- **Crop growth** (`src/models/crop_growth.py`), already a pure function of the date. Harvests are cosmetic so far, a decision now under reconsideration (`roadmap.md`, "Seasons & fields"): the farms' output could follow the fields, or at least a farm's look could follow its workshop.
 - **The well's odds and cooldown** (`src/models/institutions/well.py`), still on the global `random`.
 - **The merchant rank's daily check and reputation decay** (`src/models/merchant_rank.py`), once prestige (P2) becomes a currency.

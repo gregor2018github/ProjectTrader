@@ -18,7 +18,8 @@ is imported: no window opens and nothing plays.
 `_filters`, `_licenses`, `_bookkeeping`). Fixtures shared by a folder live in its
 `conftest.py`; stand-ins for the game's big objects live in `tests/fakes.py`.
 Tests that load the real map or the whole game are marked `@pytest.mark.slow`
-(registered in `pytest.ini`); they run by default.
+(registered in `pytest.ini`); they run by default. So far only
+`tests/sim/test_run.py` is (the runner reads the town from `Map1.tmx`).
 
 ## How the code splits up for testing
 
@@ -29,22 +30,27 @@ it is where the bugs cost most and the tests are cheapest.
    plain state and functions, no pygame at all. Test the systems on hand-made
    `GoodState` / `PopulationState` with a `random.Random(seed)` of the test's
    own, the scheduler on hand-picked moments, the data loaders on small dicts.
-   Four kinds of test guard the core as a whole:
+   These kinds of test guard the core:
    - **Goldens** (`test_golden.py`): a fixed scenario (the economy run ahead, a
      year, scripted player trades and well wishes) snapshotted to
-     `tests/sim/golden/` and matched to the last bit. They run on their own frozen
-     copy of the data (`tests/sim/golden/data/`), so tuning `assets/data/` does not
-     break them; they pin each phase of P1. When behaviour is meant to change,
-     regenerate with `python -m tests.sim.golden_harness --write` and say so in
-     the commit; otherwise a failing golden is a bug.
+     `tests/sim/golden/` for two seeds and matched to the last bit. They run on
+     their own frozen copy of the data (`tests/sim/golden/data/`), so tuning
+     `assets/data/` does not break them; they were regenerated at each phase of
+     P1 (P1.1 to P1.3). When behaviour is meant to change, regenerate with
+     `python -m tests.sim.golden_harness --write` and say so in the commit;
+     otherwise a failing golden is a bug.
    - **Rules one by one** (`test_market.py`, `test_households.py`,
      `test_production.py`) on small definitions from `tests/sim/builders.py`, and
      the whole economy on a toy town (`test_simulation.py`: the player buying up
      the bread leaves the town short; `test_production.py`: a bakery feeding its
      town, paying its workers and its owner's surplus, and shrinking when it
      cannot pay its way).
-   - **The health report** (`test_health.py`): the market balance and the
-     tradability measure on hand-made rows.
+   - **The parts the rest stands on**: the calendar (`test_calendar.py`), the
+     scheduler (`test_scheduler.py`) and the data loaders (`test_data.py`).
+   - **The health report** (`test_health.py`): the market balance, the
+     "runs slightly short" warnings and the tradability measure on hand-made rows.
+   - **The views** (`test_views.py`): `Good`, `Town` and `PopulationManager`
+     show what the simulation holds, after a change to its state or a load.
    - **Determinism** (`test_run.py`): the same seed writes byte-identical CSVs,
      another seed different ones.
    - **Save round trip** (`test_simulation_save.py`): a saved and loaded
@@ -52,10 +58,12 @@ it is where the bugs cost most and the tests are cheapest.
      still load.
    - **Headless** (`test_no_pygame.py`): every module imports with
      `sys.modules["pygame"] = None` and none of the game; no global `random` calls.
-1. **Pure models**: the depot, `Statistics`, license dates, polygon insets, A*
-   on a small grid. Plain unit tests, no pygame display, no map. The depot's
-   goods are `Good` views of a one-good `Simulation` each (`make_good` in
-   `tests/models/conftest.py`).
+1. **Pure models**: plain unit tests, no pygame display, no map. Covered: the
+   depot (its licence dates included), the weather, the lightning, the daylight,
+   the crops' growth, the merchant rank, the tavern menu, and the coughs, owls
+   and dogs (when and how they sound). Not yet: `Statistics`, polygon insets, A*
+   on a small grid. The depot's goods are `Good` views of a one-good
+   `Simulation` each (`make_good` in `tests/models/conftest.py`).
 2. **Models that talk to `GameState`**: give them a `FakeGameState`
    (`tests/fakes.py`). It has only the members the code under test uses and
    records warnings and ledger entries so tests can check them. When the code
@@ -66,9 +74,12 @@ it is where the bugs cost most and the tests are cheapest.
    `to_dict` / `from_dict`.
 4. **Map-dependent code** (`TMXMap`, `NavGrid`, `Door`, `Cover`): integration
    tests that load the real `Map1.tmx` headless, e.g. "every door has a step",
-   "every trader's stall path is reachable from his door". They are slower, so
-   they will get a `@pytest.mark.slow`.
-5. **UI**: no unit tests. At most smoke tests that draw each view onto a
+   "every trader's stall path is reachable from his door". None yet. They are
+   slower, so they will get a `@pytest.mark.slow`.
+5. **UI**: mostly no unit tests; where a piece of UI holds logic of its own, it
+   is tested apart from the drawing (`tests/ui/test_view_transition.py`: which
+   part of the screen the parchment rolls over, for how long, and which page
+   turn is heard). Otherwise at most smoke tests that draw each view onto a
    `pygame.Surface` and check that nothing raises.
 
 ## Rules of thumb

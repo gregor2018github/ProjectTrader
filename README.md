@@ -5,7 +5,7 @@ A hobby project for learning purposes:
 
 ## Overview
 
-In **Merchant's Rise**, you take on the role of an aspiring trader in a living medieval town. Manage your depot, trade various goods, acquire trading licenses, and navigate a handcrafted pixel-art world to grow your wealth — while keeping a close eye on the town's population and their happiness.
+In **Merchant's Rise**, you take on the role of an aspiring trader in a living medieval town. Manage your depot, trade 30 goods in a market driven by the town's own needs and workshops, acquire trading licenses, and navigate a handcrafted pixel-art world through the seasons to grow your wealth — while keeping a close eye on the town's population and their happiness.
 
 ## Installation & Running
 
@@ -29,49 +29,91 @@ In **Merchant's Rise**, you take on the role of an aspiring trader in a living m
    python main.py
    ```
 
-Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no build steps or tests.
+Dependencies: `pygame==2.6.1` and `PyTMX==3.32`. There are no build steps.
+
+**Tests** (headless, no window opens):
+
+```bash
+pip install -r requirements-dev.txt   # adds pytest
+python -m pytest
+python -m pytest -m "not slow"        # skip the tests that load the real map
+```
+
+`docs/testing.md` describes how each part of the code is tested.
+
+**A Windows release** (an exe that needs nothing installed) is built with `py build_tools/Release/build_release.py <version>`; see `CLAUDE.md`.
 
 ## Key Features
 
-- **Trading System** — Buy and sell 12 different commodities with dynamic market prices, transaction costs, and FIFO profit tracking.
+- **Trading System** — Buy and sell 30 goods, from wheat, wood and fish to bread, tools, garments and spices. Each good has one price, set by supply and demand: how much the market holds against what the town needs. Every unit you buy or sell moves the price (slippage), each trade costs a fee, and profit is tracked FIFO against what you paid. Goods are stored in slots (each holds one good) in your starting storage, in warehouses you buy, and in the pack you carry; warehouses can be set to take only some goods.
 
   ![Trading System](assets/pictures/readme1.png)
 
-- **Trade License System** — Each tradeable good requires a license to deal in. Licenses are acquired via contracts, cost a monthly fee, and expire after a set duration — so managing your portfolio of active contracts is part of the strategy.
+- **A Living Economy** — The town feeds itself. Each social class buys a basket of needs in three tiers (basic, comfort, luxury) with the money it earns, buying less of a good the dearer it gets. The town's workshops turn raw goods into finished ones in real chains: wheat → flour → bread, livestock → meat, hides and tallow → leather, shoes and candles, wool and flax → cloth and linen → garments, iron and charcoal → tools that wear out. They hire townsfolk, run as hard as their margins allow, and grow or shrink with business. Merchants import what runs short and export gluts at the outside price, which drifts over the weeks. Your trades land in the same market: buy up the bread at ten in the morning and the poor go short at eleven.
+
+- **Trade License System** — Each good is traded under a guild's license (Flour and Bread under Wheat, Tools under Iron, ...). Licenses are acquired via contracts at the town hall, cost a fee per season, and expire after the seasons bought — so managing your active licenses is part of the strategy.
+
+- **Seasons & Calendar** — A year has four seasons of seven days, Spring to Winter, so a game can span generations. Dates read like "Wednesday, 3rd of Spring 1500". Demand and prices follow the seasons too: more firewood and candles in winter, and many goods' outside prices rise and fall with the time of year.
+
+- **Weather & Light** — Rain from drizzle to downpour, mist and fog, and summer thunderstorms with lightning and thunder, following the seasons: more rain and fog in autumn, the storms only in summer. Rain splashes on roofs and ripples on water, puddles gather on the roads, and the ground darkens as it gets wet. Days are longer in summer and darker earlier in winter, and the light has a mood per season: warm in autumn, cold and bluish in winter.
+
+- **Growing Crops** — The fields lie bare and ploughed through the winter, are sown on the 1st of Spring, grow through their stages and are harvested at the end of Autumn, each field a little ahead of or behind the next.
 
 - **Depot Management** — Monitor your inventory, storage capacity, and historical wealth broken down into cash, goods value, property, and loans. Stacked bar charts show your stock composition over time.
 
-- **Economic Visualization** — In-game charts for wealth, money, stock, population, and happiness — all with hover tooltips showing the exact date, values, and breakdowns.
+- **Economic Visualization** — In-game charts for prices, wealth, money, stock, population, and happiness — all with hover tooltips showing the exact date, values, and breakdowns. Pin the goods you follow to the top bar.
 
-- **Save / Load System** — Three save slots with compressed, tamper-protected save files. All game state is persisted: economy, map position, population histories, and more.
+- **Merchant Rank** — Rise from Peddler to Patrician on net wealth, property, trade volume and reputation, which you earn by giving to the church, the town and the poor. A rank you can no longer hold slips away after a grace period.
 
-- **Exploration Map** — A top-down tiled map (Tiled/TMX) with a zoomable, pannable camera. Walk your character through a medieval world complete with buildings, fields, trees, and animated NPCs.
+- **Save / Load System** — Numbered save slots (as many as you like) plus an autosave, with compressed, tamper-protected save files, thumbnails and playtime. All game state is persisted: the economy, map position, weather, explored land, and more.
+
+- **Exploration Map** — A top-down tiled map (Tiled/TMX) with a zoomable, pannable camera. Walk your character through a medieval world complete with buildings, fields, forests, bridges and animated NPCs. A paper Town Map charts the land you have explored.
 
   ![Exploration Map](assets/pictures/readme5.png)
 
-- **Population Simulation** — The town has four social classes (Poor, Commons, Middling Sort, Nobility) whose population and happiness evolve daily. Overcrowding reduces happiness; a half-empty town gives a bonus. Watch the trends in the depot's Population and Happiness charts.
+- **Population Simulation** — The town has four social classes (Poor, Commons, Middling Sort, Nobility). Each class's happiness follows how well its needs were met, and people move in or out with it, up to what the town's houses hold; overcrowding lowers happiness. Watch the trends in the depot's Population and Happiness charts.
 
-- **Living Animations** — Sheep wander around the fields and bleat when you get close. Wheat fields sway in the wind. The windmill's blades rotate continuously. Chimney smoke drifts from buildings at night. A full day/night cycle shifts the lighting and atmosphere across the world.
+- **Living Animations** — Sheep wander around the fields and bleat when you get close. Crops sway in the wind. The windmill's blades rotate continuously. Chimney smoke drifts from buildings at night. Townsfolk step out of their doors and walk the streets, fewer at night and in the rain, and traders mind their booths during their hours. A full day/night cycle shifts the lighting and atmosphere across the world.
 
   ![Day and Night Cycle](assets/pictures/readme.gif)
 
-- **Ambient Soundscape** — The world sounds like where you stand: birdsong in the woods by day and crickets out in the fields at night, the river near its banks, waves along the open sea, the crowd at the market while its booths are open, and the creaking gears of the mill. Each fades in and out with your distance to it; no sound areas are drawn by hand: they're worked out from the map itself (trees, buildings, water) when the game loads.
+- **Ambient Soundscape** — The world sounds like where you stand: birdsong in the woods by day and crickets out in the fields at night, owls in the woods and dogs in town, the river near its banks, waves along the open sea, the crowd at the market while its booths are open, the rain as hard as it falls, and the creaking gears of the mill. Each fades in and out with your distance to it; no sound areas are drawn by hand: they're worked out from the map itself (trees, buildings, water) when the game loads.
 
 - **Dialogue System** — Engage with NPCs through a dialogue interface with portrait art, text boxes, and voice sounds.
 
   ![Dialogue System](assets/pictures/readme2.png)
 
-- **Buildings & Institutions** — Church (with proximity bell sounds), Town Hall (population stats), Market, Bank, and Mill, each with their own interactions and visual details including night lighting effects.
+- **Buildings & Institutions** — Church (with proximity bell sounds, donations and meals for the poor), Town Hall (population stats, licenses), Market, Bank (loans), Guildhall (merchant rank), the Grey Griffin Inn (a daily menu of period dishes), warehouses to buy, and the Mill, each with their own interactions and visual details including night lighting effects.
+
+The screenshots above were taken before the 30 goods, the new calendar and the weather; they still show the old top bar with 12 goods.
+
+## Headless Simulation
+
+The economy runs in its own package, `src/sim/`, which imports no pygame, so decades of it can be simulated in seconds for balancing:
+
+```bash
+python -m src.sim.run --years 20 --seed 1 --out runs/baseline   # a few seconds
+python -m src.sim.health runs/baseline                          # check the run
+```
+
+The runner starts the town as a new game does and writes daily CSVs into the folder: `goods_daily.csv` (price, outside price, stock and target, demand, production, imports and exports per good), `population_daily.csv` (head count, jobs, wage, happiness, purse and need fulfilment per class), `workshops_daily.csv` (capacity, utilisation, margin, workers, cash) and `town_daily.csv` (the town's money and the merchants' books), plus `meta.json` (seed, settings, git commit). The same seed gives byte-identical files. The health report checks that the town's money balances and warns when the town is not running slightly short or a good's swings aren't worth trading. `docs/sim_core.md` has the details.
 
 ## Game Controls
 
 | Input | Action |
 |---|---|
 | Arrow keys / WASD | Move character on the map |
+| Mouse wheel | Zoom the map (Ctrl + wheel zooms out further) |
 | Space | Toggle pause / normal speed |
+| + / – | Zoom the map in and out; with the map not shown, faster / slower |
+| 1 – 6 | Switch views: Explore, Market, Depot, Politics, Trade Routes, Town Map (M also opens the Town Map) |
 | F1 – F6 | Hotkeys for buying and selling goods |
+| I | What you carry |
 | Q | Open quit confirmation |
+| Right click on a good (market view) | Pin it to the top bar |
 | Mouse | Interact with all UI elements |
+
+The full list is under Settings → Controls in the game.
 
 ## Build Tools
 
@@ -141,12 +183,14 @@ python build_tools/Field_Plougher/plough_field.py
 ```
 main.py                  Entry point
 src/
-  models/                Core data: Player, Good, Depot, Map, institutions
+  sim/                   The headless economy: calendar, scheduler, market, households, workshops, runner
+  models/                Core data: Player, Good, Depot, Map, weather, institutions
   ui/                    All UI components (charts, menus, dialogs, layout)
   handlers/              Keyboard and mouse input routing
   config/                Constants and colour definitions
   persistence/           Save / load system
 assets/
+  data/                  The economy's definitions: goods, needs, recipes, buildings, scenarios (JSON)
   tiles/                 Tiled tilesets and TMX map file
   map_sprites/           Building and NPC sprites
   pictures/              UI icons, portraits, and buttons
@@ -154,4 +198,5 @@ assets/
   music/                 Music tracks
 build_tools/             Standalone tools for making sprites, sounds and the map (see Build Tools)
 docs/                    Design documents and development roadmap
+tests/                   Tests, mirroring src/ (pytest)
 ```

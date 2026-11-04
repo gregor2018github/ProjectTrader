@@ -1,6 +1,6 @@
 # Timing & Calculation Overview
 
-This document maps out **when** everything in the game is computed — useful for spotting future performance bottlenecks. The main performance concern is rendering while zoomed out far, which increases tile count dramatically.
+This document maps out **when** everything in the game is computed — useful for spotting future performance bottlenecks. The main performance concern is drawing the map while zoomed out far; the economy itself is cheap (the headless runner does 50 game years in about 6 seconds). Line numbers drift, so search for the named function rather than trusting a line. `build_tools/Perf_Probe/perf_probe.py` measures frame times on a fixed walk; run it before and after a change that may cost frame time.
 
 ---
 
@@ -8,139 +8,148 @@ This document maps out **when** everything in the game is computed — useful fo
 
 ```
 game.py: run()
-├── clock.tick(100)              → cap at MAX_FRAMES_PER_SEC = 100 FPS
-├── [time gate] every 16.67ms   → GameState.update() + simulation events
-├── [always]                    → reset hover state
-├── [always]                    → render modules, bars, overlays
+├── clock.tick(fps_limit)                → the "FPS Limit" setting (default MAX_FRAMES_PER_SEC = 100; 0 runs free)
+├── [time gate] every ≥16.67 ms          → GameState.update(), weather, sim.advance_to(), game's hourly/daily work
+├── [always]                             → notices, reset hover state, update map/sounds, render modules, bars, overlays
+├── [always]                             → input events, coin popups, MapWarmup.step(), autosave
 └── pygame.display.update()
 ```
 
-The simulation gate (`MAX_RECALCULATIONS_PER_SEC = 60`) decouples game logic from the render rate so the two can drift independently.
+The time gate (`MAX_RECULCULATIONS_PER_SEC = 60`, sic) decouples the game clock from the frame rate, so the two can drift independently.
 
 ---
 
-## Every Frame (up to 100×/sec)
+## Every Frame
 
-These run unconditionally on every iteration of the main loop.
+These run on every iteration of the main loop.
 
 | What | File | Notes |
 |---|---|---|
-| Drain pending license-expiry warning into `info_window` (if queue non-empty and no dialog open) | game.py | Trivial |
-| Reset hover/box state for all 12 goods | game.py:451–455 | Trivial |
-| Draw active content modules (map / chart / depot) | game.py:554–588 | Cost depends on mode; see sections below |
-| Draw top bar, bottom bar | layout.py | Text + progress bars — moderate |
-| Draw right sidebar pictograms | layout.py | Trivial |
-| Draw active overlays (menu, dialogue, info window, etc.) | game.py:615–680 | Only drawn when active |
-| Update + draw coin popups | game.py:668–672 | Trivial; usually 0–2 alive |
-| Blit custom cursor | game.py:679 | Trivial |
-| `pygame.display.update()` | game.py:681 | GPU flip |
+| Show one queued notice (licence expiry, rank change) as an `InfoWindow` if no dialog is open | game.py | Trivial |
+| Reset hover/box state for all 30 goods | game.py | Trivial |
+| `ViewTransition.begin_frame()` (grabs the old view if a module changed) | view_transition.py | A screen copy only when a view changes |
+| Update the map, if shown and not paused (see "Map View" below) | game.py, map.py | Main cost when the map is shown |
+| `Ambience.update()`, `Lightning.update()`, `Coughs`, `Owls`, `Dogs` | ambience.py, lightning.py, ... | Volume glides and timers, trivial |
+| Church bell volume while it rings | game.py | Trivial |
+| Draw active content modules (map / market chart / depot / town plan) | game.py `render_module` | Cost depends on mode; see sections below |
+| Parchment roll over a changed view | view_transition.py | Only while it runs |
+| Draw top bar, bottom bar, right sidebar | layout.py | Text + icons — moderate |
+| Debug overlay, menu, time and sound controls, pause overlay | game.py | Trivial |
+| Draw active overlays (dropdowns, dialogue, info window, contract, minigame, warning, message) | game.py | Only when active |
+| Handle input events | event_handler.py | Event-driven, see below |
+| Update + draw coin popups | game.py | Trivial; usually 0–2 alive |
+| `MapWarmup.step()` | map_warmup.py | Pre-scales what the map needs at other zoom levels, at most `WARMUP_BUDGET_S` (1.5 ms) a frame, until all is done |
+| Autosave timer, save indicator, fade cover | game.py | An autosave writes the save file and a thumbnail: a one-off spike |
+| `pygame.display.update()` | game.py | Flip (frames are scaled to the window on the GPU, see `main.py`) |
 
 ---
 
-## Simulation Gate (up to 60×/sec, every ≥16.67ms)
+## Time Gate (up to 60×/sec, every ≥16.67 ms)
 
-`GameState.update()` is called at most 60 times per second. It advances the simulated clock and returns a `TimeChanges` namedtuple with flags `minute_changed`, `hour_changed`, `day_changed`, `week_changed`, `month_changed`, `year_changed`.
+`GameState.update()` is called at most 60 times per second. It advances the game clock by the speed level's `TIME_STEP_LEVEL_*` (game minutes per update; 0.05 at normal speed, so a day takes 8 real minutes) and returns a `TimeChanges` namedtuple with flags `minute`, `price_tick`, `hour`, `day`, `season`, `year`. The calendar's ticks come from `src/sim/calendar.py` (`tick_numbers()`).
 
-The main loop then fires the appropriate event handlers based on those flags.
+Then, in order:
+
+| What | File | Cost |
+|---|---|---|
+| `Weather.update(date)`: spells, rain, clouds, wind, fog, storm, wetness | weather.py | Trivial |
+| Street life told whether it rains; `Puddles.update(wetness)` (places new puddles over a few updates, at most `PLACE_BUDGET_S` each) | town_life.py, puddles.py | Trivial, a little while puddles are placed |
+| `sim.advance_to(date)`: the simulation's scheduler fires every tick passed (see below) | src/sim/simulation.py | Low; more at the fast speeds, when several ticks pass per update |
+| `Game._handle_sim_events()`: drains the sim's event queue | game.py | Trivial (nothing is shown for the events yet) |
+| The game's hourly and daily work on the flags (see below) | game.py | Low |
 
 ---
 
-## Hourly Events
+## The Simulation's Ticks (`src/sim/`)
 
-Triggered when `hour_changed` is True. The simulation speed (`time_level`) controls how fast real time maps to in-game hours.
+Fired by `Simulation.advance_to()` inside the time gate, from price tick to price tick; `docs/sim_core.md` has the exact order.
 
-| What | File | Cost |
+| Tick | What | Cost |
 |---|---|---|
-| `good.update_price()` × 12 | game.py:372–375, good.py:58–77 | `random.normalvariate()` + mean reversion per good — moderate |
-| `good.update_price_history_chart()` × 12 | game.py:374–375, good.py:83–85 | Append to hourly list — trivial |
-| `population_manager.update_happiness()` | game.py:377, population.py:68–111 | Random noise + equilibrium drift per group (4 groups) — moderate |
-| `population_manager.record_happiness_history()` | game.py:379 | Append per-group + aggregate — trivial |
-| Church bell at hours 0 and 12 | game.py:382–389 | Sound play + volume set — trivial |
+| Price tick (every 30 game minutes, 48 a day) | Each good's noise step (one draw) and a chart point × 30 goods | Trivial |
+| Hour, in market hours (slices ending 07:00–18:00) | Orders of every class (4) and workshop (26); each good's buyers cleared at one price; workshops run their share of the day's batches and sell; merchants import and export | O(goods × (classes + workshops)) — low |
+| Hour, every hour | Happiness glides towards its target, history point | Trivial |
+| Day (midnight) | Books close (`market_balance`); per good: close the day, outside price's walk, well shock, target stock; workshops settle wages and owners' surplus; classes earn and plan; migration; workshops plan, hire, wages move, capacity grows or shrinks; daily records | Low |
+| Week, season, year | Nothing subscribed | — |
 
 ---
 
-## Daily Events
+## The Game's Hourly Work
 
-Triggered when `day_changed` is True.
+Triggered when `hour` changed.
 
 | What | File | Cost |
 |---|---|---|
-| `depot.stats.days_played += 1` | game.py:393 | Trivial |
-| `depot.update_income_and_expenditures()` | game.py:394, depot.py:420–443 | Archive day's counters — trivial |
-| Cost-of-living deduction | game.py:395–397 | Arithmetic — trivial |
-| Loan processing (principal + interest per loan, settle at maturity) | game.py:400–431 | Scales with loan count; currently O(loans) — moderate |
-| Overdraft penalty (2% of negative balance) | game.py:434–437 | Trivial |
-| License expiry check — warn if any license expires tomorrow | game.py, `day_changed` block | Dict scan O(licenses), trivial |
-| `depot.update_wealth(goods)` — money + stock×price − loans | game.py:439, depot.py | 12-good loop — moderate |
-| Total stock sum + append to history | game.py:440 | Trivial |
-| Per-good stock history append × 12 | game.py:441 | Trivial |
-| `good.update_price_history()` × 12 | game.py:442–443 | Append to daily list — trivial |
-| `good.tick_well_shock_day()` × 12 | game.py:444 | Decrement counter, restore bounds if expired — trivial |
-| `population_manager.update_population()` | game.py:446, population.py:119–142 | Compute delta from happiness, redistribute into groups with clamping — moderate |
-| `population_manager.record_population_history()` | game.py:448 | Append — trivial |
+| `TMXMap.update_crops(date)`: each field's growth stage from the date | map.py, crop_growth.py | Trivial |
+| Church bell at hours 0 and 12 | game.py | Sound play — trivial |
 
 ---
 
-## Weekly / Monthly / Yearly Events
+## The Game's Daily Work
 
-The `TimeChanges` flags `week_changed`, `month_changed`, and `year_changed` are **computed but not yet acted on** in the main loop. These slots are available for future logic at no extra cost.
+Triggered when `day` changed.
+
+| What | File | Cost |
+|---|---|---|
+| `depot.stats.days_played += 1` | game.py | Trivial |
+| `depot.update_income_and_expenditures()` — archive yesterday's counters | depot.py | Trivial |
+| `depot.update_wealth(goods)`, `update_total_stock()`, `update_stock_history()` | depot.py | 30-good loop — trivial |
+| Cost-of-living deduction | game.py | Trivial |
+| Loan processing (principal + interest per loan, settle at maturity) | game.py | O(loans) — trivial |
+| Overdraft penalty (`OVERDRAFT_DAILY_RATE` of a negative balance) | game.py | Trivial |
+| Licence expiry check — notice if any licence expires tomorrow | game.py | O(licences), trivial |
+| Each season: `MerchantRank.new_season()` (reputation fades) | merchant_rank.py | Trivial |
+| `MerchantRank.daily_check()` — rise or slip | merchant_rank.py | Trivial |
+
+The week and year flags are not acted on by the game yet (`TimeChanges` has no week flag; the sim's week tick has no subscriber).
 
 ---
 
-## Map View — Per Frame (when map is visible)
+## Map View — Per Frame (when the map is visible)
 
-These run every frame while at least one side shows the map.
-
-### Movement & Sound
+### Updates (only when not paused)
 | What | File | Cost |
 |---|---|---|
-| Read held keys, apply player velocity | game.py:473–474 | Trivial |
-| `game_map.update(delta_time, date)` — move player, advance animation frame | game.py:475 | Trivial |
-| Accumulate tiles_walked stat | game.py:476–477 | Trivial |
-| Sheep sound distance check per sheep | game.py:478–492 | O(sheep) Euclidean distance calc — moderate |
+| Read held keys, apply player velocity | game.py, map.py | Trivial |
+| `GameMap.update()`: move the player, reveal the fog of war around him, sheep, NPCs and street life (a new route is worked out over several frames, at most `ROUTE_BUDGET_S` each), crops' sway, chimney smoke, mill blades, ripples, camera | map.py, town_life.py, navigation.py | Moderate; a route search is capped per frame |
+| `Rainfall.update()`, `Fog.update()`, `Puddles.update_walkers()` | rain.py, fog.py, puddles.py | Scales with the rain's drops / fog layers; low when dry and clear |
+| Tiles walked stat, sheep sounds, door sounds | game.py | O(sheep) distance checks — trivial |
+| Player's market area (which booths are near) | game.py | Trivial |
 
-### Camera
+### Drawing (`draw_map_view`, map_view.py)
 | What | File | Cost |
 |---|---|---|
-| `Camera.update()` — center on player with zoom + map-bound clamping | map_view.py:51–52 | Float math — moderate |
-| Compute `scaled_tile_size`, `scale_factor`, pixel offsets | map_view.py | Derived from camera — trivial |
+| Ground: cached chunks of `CHUNK_TILES`² tiles per zoom level, below and above the animated water | ground_chunks.py | A few blits per frame; a chunk not yet made costs a one-off spike (`MapWarmup` makes them ahead) |
+| Animated water, wet ground (redrawn only when the camera moved a quarter tile or the wetness changed), bridges | map_view.py, wet_ground.py | Moderate |
+| Light and market states updated | map.py | O(lights) — trivial |
+| Hover detection: houses checked linearly, then figurines | house_click_menu.py, figurine_click_menu.py | O(houses) — moderate |
+| Build the render queue: houses, figurines, smoke, and the lights, crops and trees near the view from `SpatialIndex`es | map_view.py, spatial_index.py | O(objects in view) — moderate |
+| Y-sort the render queue, puddles (with reflections), blit the queue | map_view.py, puddles.py | O(n log n) + blits — moderate |
+| Lighting overlay (ambient colour from the sun hour, season tint, clouds, storm; lights added) | map_view.py | One surface fill and blits — moderate |
+| Fog (worked out at 2 px a tile, 15×/s or when the camera crosses a pixel), rain drops in one `blits()` call, lightning flash | fog.py, rain.py | Moderate in fog or rain |
 
-### Tile Rendering ⚠️ Main bottleneck when zoomed out
-| What | File | Cost |
-|---|---|---|
-| Calculate tile range from viewport | map_view.py:233–240 | Trivial |
-| For each visible tile × each ground layer: lookup/scale/blit | map_view.py:241–272 | **Expensive** — scales with visible tile count |
-| Tile scale cache lookup (`_get_scaled_tile`) | map.py:572–596 | Cache hit: trivial. Cache miss (zoom change): `smoothscale` per tile |
-
-**Why zoom-out hurts:** At low zoom the viewport covers more world, so more tiles fall in the visible range and get blitted per frame. A zoom change also invalidates the tile scale cache for that zoom level, forcing `smoothscale` on every visible tile in that first frame.
-
-### Object Rendering
-| What | File | Cost |
-|---|---|---|
-| House hover detection — collision check against all houses | map_view.py:62–91 | O(houses) per frame — moderate |
-| Build render queue — houses, mills, lights, smoke, trees, fields, player | map_view.py:95, 275–391 | O(objects) — moderate |
-| Y-sort the render queue | map_view.py:114 | O(n log n) — moderate |
-| Blit each object in sorted order | map_view.py:116–127 | Scales with object count |
-
-### Lighting
-| What | File | Cost |
-|---|---|---|
-| `light.update(time)` per light — check on/off + flicker | map_view.py:58, light.py | O(lights) — trivial per light |
-| Compute ambient color from hour keyframes | map_view.py:130–145 | Interpolation — trivial |
-| Create lighting surface, fill, blit lights with ADD blend | map_view.py:147–188 | O(active lights) surface ops — moderate |
-| Blit lighting surface over scene with MULT blend | map_view.py:186–188 | One blit — trivial |
+**Why zoom-out hurts:** at low zoom the viewport covers more world, so more chunks, trees, crops and figurines fall in view. The first frame at a new zoom level used to rescale everything; `MapWarmup` now does that ahead, while loading and a little each frame, so only something it does not know about stutters (see CLAUDE.md, Map System).
 
 ---
 
-## Chart View — Per Frame (when market chart is visible)
+## Town Plan — Per Frame (when the 'building' view is visible)
 
 | What | File | Cost |
 |---|---|---|
-| Compute max price across visible goods' hourly history | chart_view.py | O(goods × history length) — moderate |
+| The engraved plan for the zoom level (made once while loading, `TownPlan.prepare()`) | town_plan/ | One blit |
+| Parchment, unexplored land's cover, player mark, camera frame, stalls, names, hover tooltip | town_plan/ornaments.py, view.py | Moderate |
+
+---
+
+## Chart View — Per Frame (when the market chart is visible)
+
+| What | File | Cost |
+|---|---|---|
+| Compute max price across visible goods' price-tick history | chart_view.py | O(goods × history length) — moderate |
 | Draw chart background and axes | chart_view.py | Trivial |
 | For each visible good: draw price line | chart_view.py | O(visible goods × points) |
 | Mouse hover: find closest good + draw tooltip | chart_view.py | O(visible goods) distance calc |
-| Draw good selection boxes with hover effects | chart_view.py | O(12 goods) |
+| Draw good selection boxes with hover effects and pin markers | chart_view.py | O(30 goods) |
 
 ---
 
@@ -151,7 +160,7 @@ Mostly text and rect blitting; redraws fully every frame.
 | What | File | Cost |
 |---|---|---|
 | Header, date range, navigation buttons | depot_view.py | Trivial |
-| Goods stock list (scroll if needed) | depot_view.py | O(12 goods) |
+| Goods stock list (scroll if needed) | depot_view.py | O(30 goods) |
 | Trade statistics, profit/loss breakdown | depot_view.py | Trivial |
 | Wealth / stock / population history charts | depot_view_chart.py | O(history length) line drawing |
 
@@ -163,33 +172,35 @@ No caching: text surfaces are re-rendered every frame even when values haven't c
 
 ### Mouse clicks — `mouse_handler.py`
 - **Info window active:** all clicks routed there exclusively, nothing else fires.
-- **Trade buy/sell:** check license, compute cost, update depot and price — moderate.
+- **Trade buy/sell:** check booth, opening hours, licence, money and storage; `Simulation.trade_with_player()` prices each unit at its stock — O(units), low.
 - **Chart toggle:** flip good visibility flag — trivial.
 - **House click on map:** open info window — trivial.
+- **Town plan:** drag and wheel go to `TownPlan` first while it is drawn.
 - **All other clicks:** set a flag or toggle state — trivial.
 
 ### Keyboard — `keyboard_handler.py`
 - WASD / arrows: set player velocity — trivial.
-- 1–5: change `time_level` — trivial.
-- Space: toggle pause — trivial.
+- 1–6, M: change the view — trivial (the view transition starts).
+- Space, + / –: pause, speed or zoom — trivial.
 - Everything else: trivial.
 
 ### Contract acquisition
 - **Creation:** file I/O + image loading for parchment UI — one-time ~10–50ms, pauses simulation.
 - **Per-frame while active:** advance quill/particle animation — trivial.
-- **On approval:** date arithmetic to set license expiry — trivial.
+- **On approval:** date arithmetic to set licence expiry — trivial.
 
 ---
 
-## Startup (once)
+## Startup (once, behind the loading screen)
 
 | What | File | Cost |
 |---|---|---|
-| Load TMX map + parse houses, towns, churches, markets, trees | game.py:96, map.py | Expensive — file I/O |
-| Load all PNG assets | game.py:112–287 | Expensive — disk reads |
-| Load all sounds | game.py:114–311 | Expensive — disk reads |
-| Market presimulation: 60 days × 24 hours of price updates | game.py:83 | ~1440 `update_price()` calls — moderate total |
-| Population initialization from house sum | game.py:98–106 | Trivial |
+| Load the definitions (`assets/data/`) and create the `Simulation` with a fresh seed | game.py, src/sim/data.py | Trivial |
+| Load TMX map + parse houses, markets, trees, fields, doors, bridges, roofs; build `NavGrid`, `Cover`, spatial indexes | map.py | Expensive — file I/O and rasterising |
+| `TownPlan.prepare()`: the plan engraved at every zoom level | town_plan/ | Expensive |
+| Found the town, establish the scenario's workshops, `Simulation.presimulate(MARKET_PRESIMULATION_DAYS)` (60 days of the whole economy) | game.py, simulation.py | Moderate — about 0.3 s |
+| Load all PNG assets and sounds | game.py | Expensive — disk reads |
+| `MapWarmup.prepare()`: the starting zoom and the ground around the player | map_warmup.py | Moderate |
 
 ---
 
@@ -197,26 +208,23 @@ No caching: text surfaces are re-rendered every frame even when values haven't c
 
 | Category | Frequency | Relative Cost |
 |---|---|---|
-| Tile rendering (zoomed in) | Every frame | Moderate |
-| Tile rendering (zoomed out) ⚠️ | Every frame | **High** |
-| Tile rescaling on zoom change ⚠️ | First frame after zoom | **High (spike)** |
+| Map drawing (zoomed in) | Every frame | Moderate |
+| Map drawing (zoomed out) ⚠️ | Every frame | **High** |
+| Chunks or sprites not yet warmed up at a zoom level | First frames after a zoom | Spike (mostly avoided by `MapWarmup`) |
+| Fog and heavy rain | Every frame (map) | Moderate to high |
 | Render queue build + Y-sort | Every frame (map) | Moderate |
-| Sheep sound distance checks | Every frame (map) | Moderate |
-| Lighting overlay | Every frame (map) | Moderate |
 | House hover detection | Every frame (map) | Moderate |
 | Chart line drawing | Every frame (chart) | Moderate |
 | Depot view text rendering | Every frame (depot) | Moderate |
-| Hourly price updates × 12 | Hourly (simulated) | Low |
-| Hourly happiness updates | Hourly (simulated) | Low |
-| Daily wealth calculation | Daily (simulated) | Low |
-| Daily population redistribution | Daily (simulated) | Low |
-| Loan processing | Daily (simulated) | Low (scales with loan count) |
+| Simulation: price ticks, hourly slices | Per game tick | Low |
+| Simulation: day | Daily (game time) | Low |
+| Game's daily bookkeeping, loans | Daily (game time) | Low |
 
 ---
 
 ## Known Gaps / Future Slots
 
-- `week_changed`, `month_changed`, `year_changed` flags are computed but unused — free slots for seasonal events, tax cycles, etc.
+- The week and year ticks have no subscribers yet, in the game or the simulation — free slots for tax cycles, ageing (once a year), etc.
 - Depot view text surfaces are not cached — a text-surface cache keyed on value would eliminate repeated font renders.
-- House hover detection checks every house linearly — spatial partitioning (grid or quadtree) would help on large maps.
-- Sheep sound calculation is O(sheep) per frame — could be bounded by checking only sheep within `SHEEP_SOUND_MAX_DISTANCE` using a spatial index.
+- House hover detection checks every house linearly — the spatial indexes used for trees, crops and lights (`SpatialIndex`) could serve it too.
+- At the fastest speed (`TIME_STEP_LEVEL_5`, 6 game minutes an update) a day passes in about 4 real seconds, so the simulation's slices and the game's daily work come often; still cheap, but worth watching as the sim grows.
