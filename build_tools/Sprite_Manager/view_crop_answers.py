@@ -68,6 +68,26 @@ class CropAnswersView(View):
     def target(self):
         return self.crop.sprite_path(self.sheet.stage.key, self.sheet.variant)
 
+    # --- what differs for another kind of sprite (view_animal_answers.py) --
+
+    def make_detail(self, entry):
+        return CropDetail(self.crop, entry)
+
+    def current_sprite(self):
+        """The sprite in the game now, which accepting replaces; None if there is none."""
+        return self.crop.sprite(self.sheet.stage.key, self.sheet.variant)
+
+    def save_output(self, output):
+        """Save an accepted sprite; returns (status message).
+
+        Raises:
+            pygame.error, OSError: If it cannot be written.
+        """
+        path = self.target
+        replaced = path.is_file()
+        pygame.image.save(trim(output), str(path))
+        return f'{"Replaced" if replaced else "Saved"} {path.name}'
+
     # --- state ------------------------------------------------------------
 
     def refresh(self):
@@ -99,7 +119,7 @@ class CropAnswersView(View):
         if entry is None:
             return
         try:
-            self.detail = CropDetail(self.crop, entry)
+            self.detail = self.make_detail(entry)
         except Exception as exc:  # a deleted or unreadable file
             self.app.set_status(f'Cannot open {entry.image}: {exc}', error=True)
             return
@@ -152,10 +172,8 @@ class CropAnswersView(View):
         """Save the chosen answer as the stage sprite, over the one there may be, and go back to the crop."""
         if not (self.detail and self.detail.result):
             return
-        path = self.target
-        replaced = path.is_file()
         try:
-            pygame.image.save(trim(self.detail.result.output), str(path))
+            message = self.save_output(self.detail.result.output)
         except (pygame.error, OSError) as exc:
             self.app.set_status(f'Could not save: {exc}', error=True)
             return
@@ -164,8 +182,8 @@ class CropAnswersView(View):
                 entry.status = pose_review.REJECTED   # replaced: no longer the one in the game
         self.store.set_status(self.entry, pose_review.ACCEPTED)
         self.back()
-        self.app.set_status(f'{"Replaced" if replaced else "Saved"} {path.name}')
-        self.app.toast.show(f'{self.sheet.stage.title} {self.sheet.variant} saved')
+        self.app.set_status(message)
+        self.app.toast.show(f'{self.sheet.name} saved')
 
     def reject(self):
         if not self.entry:
@@ -248,7 +266,7 @@ class CropAnswersView(View):
             text = small.render(fit_text(small, detail.error, area.w - 20), True, ERROR_COLOR)
             screen.blit(text, text.get_rect(center=area.center))
             return
-        current = self.crop.sprite(self.sheet.stage.key, self.sheet.variant)
+        current = self.current_sprite()
         shown = [('drawn from', detail.reference), ('new', detail.result.output)]
         if not is_blank(current):
             shown.append(('now in the game', trim(current)))

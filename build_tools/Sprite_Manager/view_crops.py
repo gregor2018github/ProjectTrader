@@ -48,7 +48,7 @@ class CropsView(View):
     def header(self):
         return ('Crops',
                 'Every crop of the fields, grown in stages from the ploughed field to the ripe crop. Click one to '
-                'make its stage sprites, + to add a crop. Tab = humans, plants, buildings.')
+                'make its stage sprites, + to add a crop. Tab = the next area.')
 
     def footer(self):
         return (self.app.home_button,) + tuple(self.switch_buttons), (self.app.settings_button,)

@@ -1,5 +1,6 @@
 """Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
-the plant and building sprites of the map, and the growth stages of the crops on the fields.
+the plant and building sprites of the map, the growth stages of the crops on the fields, and the
+frames of the animals.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -18,8 +19,8 @@ switches to full screen.
 
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
-   card each for the humans, the plants, the buildings and the crops with
-   how far they are. Click one (or 1, 2, 3, 4) to go there; "Start page" or
+   card each for the humans, the plants, the buildings, the crops and the
+   animals with how far they are. Click one (or 1 to 5) to go there; "Start page" or
    Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
@@ -136,7 +137,7 @@ out); drawing one by hand gives the model a cleaner guide.
 Sheets, prompts, answers and review.json live in build_tools/output/<npc>/walk/.
 
 Plants and buildings: "Plants" and "Buildings" on the start page or the
-humans' screen (Tab goes round all three) switch to every plant, or every building and
+humans' screen (Tab goes round the areas) switch to every plant, or every building and
 decoration, by kind: needle and broadleaf trees, bushes, flowers ...;
 dwellings, workshops, public buildings, farm buildings, market stalls, walls
 and fences, decorations. Which kind each sprite is, is written down in
@@ -187,6 +188,21 @@ grow it from, another variant of the stage for a variation, or another
 crop's ripe sprite for a crop with none yet. Its answers open in
 view_crop_answers.py; accepting saves the stage sprite.
 
+Animals: "Animals" on the start page (5) lists every folder under
+assets/map_sprites/figurines/animals/ (animals.py), and "+" adds one. An
+animal is seen from the side facing left: a standing sprite, four walk frames
+and two grazing ones (<animal>_left_<frame>.png); accepting a frame saves it
+mirrored as <animal>_right_<frame>.png too, which the game plays walking
+right. The sheep is to the animals what the chibi is to the humans: every
+other animal's walk and grazing frames are drawn on a 2x2 sheet in the
+sheep's pose, its frame as a grey ghost in the red frame scaled to the
+animal (animal_sheets.py). A new animal starts with its standing sprite,
+drawn beside the sheep standing in its own style and at its scale. On an
+animal's screen (view_animal.py) the frames are on the left, the chosen one
+beside the sheep's pose and the walk and grazing playing in the middle, and
+the sheet on the right, sent as for the walk frames; its answers open in
+view_animal_answers.py (the crops' answers screen with an animal's frame).
+
 The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
@@ -230,6 +246,12 @@ The code, for whoever works on it next:
     view_crop_design.py  sketching a stage sprite and picking what it is drawn from
     view_crop_answers.py  the answers for one stage sprite, and accepting one
     new_crop_dialog.py the dialog asking for a new crop's name and look
+    animals.py         the animals: their frames on disk, the sheep as the pose guide, saving a frame and its mirror
+    animal_sheets.py   an animal's frame: its split image and prompt, and cutting its answer out
+    view_animals.py    the animals, one card each
+    view_animal.py     one animal: its frames, the sheep's pose beside the chosen one, the animations, the sheet
+    view_animal_answers.py  the answers for one frame, and accepting one
+    new_animal_dialog.py  the dialog asking for a new animal's name and look
     sprite_library.py  plants and buildings alike: kinds, catalogs, finding the sprites, adding one
     plants.py          the plants: their kinds, proposals, prompt and stems
     buildings.py       the buildings and decorations: their kinds, proposals, prompt and Tiled boxes
@@ -276,6 +298,8 @@ from theme import (  # noqa: E402
     BG, CARD_BG, CARD_GAP, DONE_COLOR, ERROR_COLOR, FOOTER_HEIGHT, HEADER_HEIGHT, NPC_THUMB_SIZE,
     PANEL_GAP, ROOT, TEXT, TEXT_DIM, open_window, toggle_fullscreen, window_size,
 )
+from view_animal import AnimalView  # noqa: E402
+from view_animals import AnimalsView  # noqa: E402
 from view_crop import CropView  # noqa: E402
 from view_crops import CropsView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
@@ -294,7 +318,8 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
-SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'))   # Tab goes round them
+SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'),
+           ('animals', 'Animals'))   # Tab goes round them
 FPS = 30
 
 
@@ -524,9 +549,24 @@ class SpriteManager:
         self.set_status('')
         self.show(CropsView(self))
 
+    # --- animals ------------------------------------------------------------
+
+    def open_animal(self, animal):
+        """Work on an animal's frames."""
+        self.npc = animal
+        self.store = ReviewStore(animal.out_dir)
+        self.worker = None
+        self.set_status('')
+        self.show(AnimalView(self))
+
+    def close_animal(self):
+        self.npc = self.store = self.worker = None
+        self.set_status('')
+        self.show(AnimalsView(self))
+
     @staticmethod
     def screens():
-        """(key, title) of humans, plants, buildings and crops."""
+        """(key, title) of humans, plants, buildings, crops and animals."""
         return SCREENS
 
     @staticmethod
@@ -538,7 +578,7 @@ class SpriteManager:
         return find_jobs(domain)
 
     def switch_buttons(self, current):
-        """Footer buttons to the other areas of humans, plants, buildings and crops; each knows its screen."""
+        """Footer buttons to the other areas; each knows its screen."""
         buttons = []
         for key, title in SCREENS:
             if key != current:
@@ -552,7 +592,7 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants, the buildings or the crops."""
+        """Show the start page, the humans, the plants, the buildings, the crops or the animals."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
         if screen == 'home':
@@ -561,6 +601,8 @@ class SpriteManager:
             self.show(NpcListView(self))
         elif screen == 'crops':
             self.show(CropsView(self))
+        elif screen == 'animals':
+            self.show(AnimalsView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
 
@@ -568,8 +610,10 @@ class SpriteManager:
         keys = [key for key, _ in SCREENS]
         if isinstance(self.view, LibraryView):
             current = self.view.domain.key
+        elif isinstance(self.view, CropsView):
+            current = 'crops'
         else:
-            current = 'crops' if isinstance(self.view, CropsView) else 'humans'
+            current = 'animals' if isinstance(self.view, AnimalsView) else 'humans'
         self.switch_to(keys[(keys.index(current) + 1) % len(keys)])
 
     def start_job(self, domain, sprite):

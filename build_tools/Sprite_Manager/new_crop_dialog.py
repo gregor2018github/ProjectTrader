@@ -12,6 +12,22 @@ FIELD_GAP = 30
 
 
 class NewCropDialog:
+    # What a subclass for another kind of thing changes (new_animal_dialog.py)
+    TITLE = 'New crop'
+    CAPTIONS = ('Name  (the folder and the sprites are named after it)',
+                'What it looks like ripe  (for the prompt of its first sprite)')
+    PLACEHOLDERS = ('e.g. Barley', 'e.g. nodding golden ears with long whiskers')
+    ROOT = CROPS_DIR
+    MAX_LENGTH = NAME_MAX_LENGTH
+
+    @staticmethod
+    def folder_name(text):
+        return crop_folder_name(text)
+
+    @staticmethod
+    def create_item(name, description):
+        return create_crop(name, description)
+
     def __init__(self, fonts, on_created):
         """
         Args:
@@ -21,8 +37,8 @@ class NewCropDialog:
         self.fonts = fonts
         self.on_created = on_created
         self.rect = pygame.Rect((0, 0), DIALOG_SIZE)
-        self.name = TextField('', placeholder='e.g. Barley', h=FIELD_H)
-        self.description = TextField('', placeholder='e.g. nodding golden ears with long whiskers', h=FIELD_H)
+        self.name = TextField('', placeholder=self.PLACEHOLDERS[0], h=FIELD_H)
+        self.description = TextField('', placeholder=self.PLACEHOLDERS[1], h=FIELD_H)
         self.cancel_button = Button('Cancel', w=120)
         self.create_button = Button('Create', w=120)
         self.error = ''
@@ -44,16 +60,14 @@ class NewCropDialog:
         self.place()
         draw_dialog_box(screen, self.rect)
         fonts = self.fonts
-        screen.blit(fonts.title.render('New crop', True, TEXT), (self.rect.x + DIALOG_PAD, self.rect.y + 18))
-        captions = ('Name  (the folder and the sprites are named after it)',
-                    'What it looks like ripe  (for the prompt of its first sprite)')
-        for field, caption in zip(self.fields(), captions):
+        screen.blit(fonts.title.render(self.TITLE, True, TEXT), (self.rect.x + DIALOG_PAD, self.rect.y + 18))
+        for field, caption in zip(self.fields(), self.CAPTIONS):
             screen.blit(fonts.small.render(caption, True, TEXT_DIM), (field.rect.x, field.rect.y - 22))
             field.draw(screen, fonts.font, mouse)
         if self.error:
             line, color = self.error, ERROR_COLOR
-        elif crop_folder_name(self.name.text):
-            line, color = f'fields/{crop_folder_name(self.name.text)}/', TEXT_DIM
+        elif self.folder_name(self.name.text):
+            line, color = f'{self.ROOT.name}/{self.folder_name(self.name.text)}/', TEXT_DIM
         else:
             line = ''
         if line:
@@ -76,7 +90,7 @@ class NewCropDialog:
         if event.type == pygame.TEXTINPUT and focused:
             focused.type(event.text)
             if focused is self.name:
-                self.name.text = self.name.text[:NAME_MAX_LENGTH]
+                self.name.text = self.name.text[:self.MAX_LENGTH]
             self.error = ''
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
@@ -98,15 +112,15 @@ class NewCropDialog:
         return 'close'
 
     def create(self):
-        name = crop_folder_name(self.name.text)
+        name = self.folder_name(self.name.text)
         if not name:
             self.error = 'Type a name.'
             return None
-        if (CROPS_DIR / name).exists():
-            self.error = f'fields/{name}/ exists already.'
+        if (self.ROOT / name).exists():
+            self.error = f'{self.ROOT.name}/{name}/ exists already.'
             return None
         try:
-            crop = create_crop(self.name.text, self.description.text)
+            crop = self.create_item(self.name.text, self.description.text)
         except (ValueError, OSError) as exc:
             self.error = str(exc)
             return None
