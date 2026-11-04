@@ -32,6 +32,12 @@ ARRIVAL_TOLERANCE = 1.0
 # rather than flickering between "left" and "front_left".
 DIAGONAL_THRESHOLD = 0.4
 
+# Hysteresis around DIAGONAL_THRESHOLD: a component already shown in the facing
+# is kept down to the threshold minus this, one not shown needs the threshold
+# plus this. Without it a segment whose slope sits right at the threshold
+# flips the walk between two directions every frame.
+DIAGONAL_HYSTERESIS = 0.1
+
 # Standing poses tried, in order, for the fallback / size-reference sprite.
 FALLBACK_DIRECTIONS = ("left", "front", "right", "back")
 
@@ -164,11 +170,15 @@ class NPC(Human):
         largest = max(abs(dx), abs(dy))
         if largest <= 0.0:
             return self.animator.current_direction
-        deadzone = largest * DIAGONAL_THRESHOLD
-        horizontal = "" if abs(dx) < deadzone else ("right" if dx > 0 else "left")
-        if abs(dy) < deadzone:
-            return horizontal or self.animator.current_direction
-        vertical = "front" if dy > 0 else "back"
+        current = self.animator.current_direction
+        now_x = 1.0 if "right" in current else (-1.0 if "left" in current else 0.0)
+        now_y = 1.0 if "front" in current else (-1.0 if "back" in current else 0.0)
+        fx = self._facing_component(dx, largest, now_x)
+        fy = self._facing_component(dy, largest, now_y)
+        horizontal = "" if fx == 0.0 else ("right" if fx > 0 else "left")
+        if fy == 0.0:
+            return horizontal or current
+        vertical = "front" if fy > 0 else "back"
         return f"{vertical}_{horizontal}" if horizontal else vertical
 
     def _hold_for_talk(self, dt: float) -> bool:
@@ -271,11 +281,28 @@ class NPC(Human):
         largest = max(abs(dx), abs(dy))
         if largest <= 0.0:
             return
-        deadzone = largest * DIAGONAL_THRESHOLD
         self.set_movement(
-            0.0 if abs(dx) < deadzone else (1.0 if dx > 0 else -1.0),
-            0.0 if abs(dy) < deadzone else (1.0 if dy > 0 else -1.0),
+            self._facing_component(dx, largest, self.vel_x),
+            self._facing_component(dy, largest, self.vel_y),
         )
+
+    @staticmethod
+    def _facing_component(delta: float, largest: float, current: float) -> float:
+        """One axis of the facing, -1, 0 or 1, with hysteresis.
+
+        Args:
+            delta: Movement along this axis.
+            largest: The larger of the two axes' movements (positive).
+            current: This axis' facing so far (-1, 0 or 1).
+
+        Returns:
+            float: The new facing component.
+        """
+        sign = 1.0 if delta > 0 else -1.0
+        # Kept while it points the same way and stays above the lower bound;
+        # taken up only above the higher one.
+        threshold = DIAGONAL_THRESHOLD + (-DIAGONAL_HYSTERESIS if current == sign else DIAGONAL_HYSTERESIS)
+        return sign if abs(delta) >= largest * threshold else 0.0
 
     def _animate(self, dt: float, is_moving: bool, direction: Optional[str] = None) -> None:
         """Advance the animator and any fade, and refresh the current frame.
