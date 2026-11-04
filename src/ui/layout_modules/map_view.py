@@ -15,6 +15,7 @@ from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
+from ...models.fog import halo_margin, halos_show
 from ...models.daylight import season_tint, sun_hour
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
@@ -107,7 +108,8 @@ def draw_map_view(
             game_state.hover_last_target = None
 
     # Build render queue for Y-sorting (houses and figurines)
-    render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date)
+    render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date,
+                                       halos=bool(weather) and halos_show(weather.fog))
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)
@@ -488,15 +490,17 @@ def _build_render_queue(
     game_map: 'GameMap',
     offset_x: int,
     offset_y: int,
-    current_time: datetime.datetime
+    current_time: datetime.datetime,
+    halos: bool = False
 ) -> List[Dict[str, Any]]:
     """Build a list of objects to render, sorted by Y coordinate.
-    
+
     Args:
         game_map: The GameMap model instance.
         offset_x: Horizontal offset for the view area.
         offset_y: Vertical offset for the view area.
         current_time: The current game time.
+        halos: Whether the lights cast halos in fog: then lights out of view whose halo reaches in are kept.
         
     Returns:
         List of render items with sprite, position, and y_sort value.
@@ -556,24 +560,30 @@ def _build_render_queue(
                     'y_sort': mill.y_sort,
                 })
 
-    # Add active lights to queue
+    # Add active lights to queue. In fog each casts a halo wider than itself (fog.py), drawn from this
+    # queue, so then a light is kept while its halo reaches into view (the indexes file lights with it)
+    def light_in_view(draw_x: float, draw_y: float, sprite: pygame.Surface) -> bool:
+        w, h = sprite.get_size()
+        mx, my = halo_margin(w, h) if halos else (0, 0)
+        return (draw_x + w + mx >= offset_x and draw_x - mx < camera.screen_width + offset_x and
+                draw_y + h + my >= offset_y and draw_y - my < camera.screen_height + offset_y)
+
     for light in tmx_map.light_index.query(world_view):
         if light.is_on(current_time):
             # Get scaled surface and glow offset
             sprite, glow_extend = light.get_render_data(camera.zoom)
-            
+
             # Calculate screen position
             # light.x, light.y is top-left of window rectangle in world coordinates
             screen_x, screen_y = camera.apply(light.x, light.y)
-            
+
             # Draw position accounts for glow extending beyond the window
             draw_x = screen_x + offset_x - glow_extend
             draw_y = screen_y + offset_y - glow_extend
 
             # Culling check
-            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
-                
+            if light_in_view(draw_x, draw_y, sprite):
+
                 render_queue.append({
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),
@@ -595,9 +605,8 @@ def _build_render_queue(
             draw_y = screen_y + offset_y - glow_extend
 
             # Culling check
-            if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
-                draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
-                
+            if light_in_view(draw_x, draw_y, sprite):
+
                 render_queue.append({
                     'sprite': sprite,
                     'pos': (draw_x, draw_y),

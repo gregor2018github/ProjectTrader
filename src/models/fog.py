@@ -75,6 +75,16 @@ HALO_GROW = 3.2                 # a lit window's halo in fog, as many times the 
 HALO_STRENGTH = 0.8             # and how bright it is at full fog, as a share of the window's light
 
 
+def halos_show(level: float) -> bool:
+    """Whether the lit windows cast halos in fog this thick (Weather.fog)."""
+    return level > 0.005 and HALO_STRENGTH * level > 0.02
+
+
+def halo_margin(width: float, height: float) -> Tuple[float, float]:
+    """How far, in screen px, the halo of a light sprite this size reaches past each of its edges."""
+    return (round(width * HALO_GROW) // 4 * 4 + 4 - width) / 2, (round(height * HALO_GROW) // 4 * 4 + 4 - height) / 2
+
+
 def _scale_of(camera) -> float:
     """The camera's world-to-screen scale, as Camera.apply() works it out."""
     return round(TILE_SIZE * camera.zoom) / float(TILE_SIZE)
@@ -376,9 +386,9 @@ class Fog:
 
     def _draw_halos(self, screen, render_queue, level: float) -> None:
         """A soft round glow in each light's colour round it, for the light it spreads in the fog."""
-        strength = HALO_STRENGTH * level
-        if strength <= 0.02:
+        if not halos_show(level):
             return
+        strength = HALO_STRENGTH * level
         if len(self._halos) > 128:
             self._halos.clear()
         batch = []

@@ -42,7 +42,7 @@ from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .map_fog import FogOfWar
 from .rain import Rainfall
-from .fog import Fog
+from .fog import Fog, HALO_GROW
 from .roofs import Roofs
 from .puddles import Puddles
 from .wet_ground import WetGround
@@ -246,15 +246,18 @@ class TMXMap:
             for number, (centre_x, base_y, _) in enumerate(field.sprite_placements):
                 self.crop_index.add((field, number), pygame.Rect(
                     int(centre_x) - reach, int(base_y) - reach, 2 * reach, 2 * reach))
+        # Lights are filed with the halo they cast in fog (HALO_GROW), so one just out of view still lights it
+        def halo_rect(x: float, y: float, width: float, height: float) -> pygame.Rect:
+            grow_x = int(width * (HALO_GROW - 1) / 2) + 4
+            grow_y = int(height * (HALO_GROW - 1) / 2) + 4
+            return pygame.Rect(int(x) - grow_x, int(y) - grow_y, int(width) + 2 * grow_x, int(height) + 2 * grow_y)
         self.light_index: SpatialIndex[Light] = SpatialIndex()
         for light in self.lights:
-            self.light_index.add(light, pygame.Rect(int(light.x) - 2, int(light.y) - 2,
-                                                    int(light.width) + 4, int(light.height) + 4))
+            self.light_index.add(light, halo_rect(light.x, light.y, light.width, light.height))
         self.building_light_index: SpatialIndex[BuildingLight] = SpatialIndex()
         for group in self.building_light_groups.values():
             for light in group.lights:
-                self.building_light_index.add(light, pygame.Rect(
-                    int(light.bbox_x) - 2, int(light.bbox_y) - 2, int(light.width) + 4, int(light.height) + 4))
+                self.building_light_index.add(light, halo_rect(light.bbox_x, light.bbox_y, light.width, light.height))
 
     def _load_areas(self) -> None:
         """Load area objects from the 'Areas' object layer."""
