@@ -26,10 +26,10 @@ PLAYER_SPEED = 120                  # pixels per second
 PLAYER_DIAGONAL_SPEED_FACTOR = 0.8  # per-axis multiplier when moving diagonally (0.707 = same speed as straight)
 MAX_FRAMES_PER_SEC = 100           # default for the "FPS Limit" setting (settings_store "fps_limit")
 
-# TIME STEP CONSTANTS (minutes per tick for each speed level)
+# TIME STEP CONSTANTS (game minutes per tick for each speed level; MAX_RECULCULATIONS_PER_SEC ticks a second)
 TIME_STEP_LEVEL_1 = 0.0             # Level 1: Paused
 TIME_STEP_LEVEL_2 = 0.02             # Level 2: Slow
-TIME_STEP_LEVEL_3 = 0.10             # Level 3: Normal
+TIME_STEP_LEVEL_3 = 0.05             # Level 3: Normal (3 game minutes a second: a day takes 8 real minutes)
 TIME_STEP_LEVEL_4 = 1.00            # Level 4: Fast
 TIME_STEP_LEVEL_5 = 6.00            # Level 5: Fastest
 
@@ -77,6 +77,8 @@ MARKET_VOLUME_GLUT_RATIO = 1.1      # Above this share of the normal volume the 
 MARKET_VOLUME_ELASTICITY = 0.7      # How strongly the price answers a volume past those thresholds
 MARKET_VOLUME_FACTOR_MIN = 0.4      # The cheapest a glut can make a good, as a factor on its price
 MARKET_VOLUME_FACTOR_MAX = 3.0      # The dearest scarcity can make a good, as a factor on its price
+PRICE_TICK_MINUTES = 30             # Prices move (and the price chart gets a point) every this many game minutes
+PRICE_TICKS_PER_DAY = 24 * 60 // PRICE_TICK_MINUTES
 MARKET_VOLUME_DAILY_RECOVERY = 0.1  # Share of the gap to the normal volume the market closes per day (stand-in for supply and demand)
 START_DATE = "01.01.1500"           # Where the clock starts, format: dd.mm.yyyy; the game calendar's first day (see below)
 # CALENDAR (src/models/game_calendar.py): the clock runs on as an ordinary datetime, but the
@@ -277,7 +279,7 @@ SMOKE_START_HOUR_RANGE = 3.5         # latest activation: 21:00
 SMOKE_DURATION_MIN = 4.0             # burns at least 4 hours
 SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 
-# WEATHER CONSTANTS (models/weather.py; hours are game hours, about 10 s each at normal speed)
+# WEATHER CONSTANTS (models/weather.py; hours are game hours, 20 s each at normal speed)
 
 # The spells the weather goes through: how hard it rains (0 to 1), how overcast it is (0 to 1),
 # how much the wind slants the rain (sideways per unit fallen), how thick the fog is (0 to 1,

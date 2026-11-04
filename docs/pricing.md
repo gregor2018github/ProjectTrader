@@ -36,17 +36,17 @@ At creation (`Good.__init__`, `src/models/good.py`):
 
 `price` is a **property**: reading it computes `walk_price × volume_factor()`. Setting it changes `walk_price` so that the price shown at the current volume becomes the given value.
 
-Before the first frame, `Game._presimulate_market_history()` runs the hourly update forward for `MARKET_PRESIMULATION_DAYS` (60) days. The charts therefore open with history, and the game starts at an already-drifted price, not the hand-set one.
+Before the first frame, `Game._presimulate_market_history()` runs the price tick forward for `MARKET_PRESIMULATION_DAYS` (60) days of `PRICE_TICKS_PER_DAY` ticks. The charts therefore open with history, and the game starts at an already-drifted price, not the hand-set one.
 
-## 2. The hourly random walk
+## 2. The random walk, once a price tick
 
-`Good.update_price()` is called once per in-game hour from the main loop in `Game.run()` (`if hour_changed:`). It sets `walk_price = walk_price × random.normalvariate(mu, sigma)`:
+`Good.update_price()` is called once a price tick, every `PRICE_TICK_MINUTES` (30) game minutes, so `PRICE_TICKS_PER_DAY` (48) times a day, from the main loop in `Game.run()` (`if price_tick_changed:`). The step does not depend on the tick's length, so more ticks a day make a day's swings bigger. It sets `walk_price = walk_price × random.normalvariate(mu, sigma)`:
 
 | Situation | `mu` | `sigma` | Effect |
 |---|---|---|---|
-| Inside the corridor | 1.00 | 0.10 | Free random walk, about ±10 % per hour |
+| Inside the corridor | 1.00 | 0.10 | Free random walk, about ±10 % per tick |
 | Above `upper_bound` | 0.999 | 0.01 | Slow, calm decline |
-| Below `lower_bound` | 1.02 | 0.01 | Calm recovery of about 2 % per hour |
+| Below `lower_bound` | 1.02 | 0.01 | Calm recovery of about 2 % per tick |
 | Walk < 1 (on top of the above) | +0.03 | – | Extra push up so cheap goods don't collapse toward 0 |
 
 The bounds are **soft**: one in-corridor step can jump well past a bound, and the drift back is gradual. The corridor bounds only the walk, never the volume factor, so a price raised by scarcity is not pulled back by the corridor.
@@ -68,7 +68,7 @@ The curve is continuous at the thresholds and grows steeper the further the volu
 
 All the numbers are in `src/config/constants.py` under "MARKET VOLUME".
 
-**Placeholder recovery.** Every hour, before the walk step, `Good.recover_volume()` closes part of the gap to `normal_quantity`: `MARKET_VOLUME_DAILY_RECOVERY` (10 %) per day, and at least one unit per hour while any gap remains. This stands in for traders restocking and townsfolk buying. It is meant to be replaced by real supply and demand (see §9).
+**Placeholder recovery.** Every price tick, before the walk step, `Good.recover_volume()` closes part of the gap to `normal_quantity`: `MARKET_VOLUME_DAILY_RECOVERY` (10 %) per day, and at least one unit per tick while any gap remains. This stands in for traders restocking and townsfolk buying. It is meant to be replaced by real supply and demand (see §9).
 
 ## 4. What a trade costs
 
@@ -106,7 +106,7 @@ Throwing a coin in the well (`Well`, `src/models/institutions/well.py`) has a `W
 
 | List | Appended by | When | Used by |
 |---|---|---|---|
-| `price_history_hourly` | `update_price_history_chart()` | every hour, right after `update_price()` (its last entry is also overwritten after each trade) | market chart (`chart_view.py`) |
+| `price_history_hourly` | `update_price_history_chart()` | every price tick, right after `update_price()` (its last entry is also overwritten after each trade) | market chart (`chart_view.py`) |
 | `price_history_daily` | `update_price_history()` | every day | depot detail / bookkeeping (`depot_view_detail.py`) |
 
 Both lists store the full price (walk × volume factor). They grow for the whole session and are saved in full.
@@ -142,7 +142,7 @@ Hooks for this: `normal_quantity` (what the market expects) and `market_quantity
 | Price state, random walk, volume factor, quote/slippage, recovery, bounds, well shock, histories | `src/models/good.py` (`Good`) |
 | Starting prices and quantities of every good | `src/game.py`, `Game._create_goods()` |
 | Pre-game simulation | `src/game.py`, `Game._presimulate_market_history()` |
-| Hourly / daily calls into goods | `src/game.py`, `Game.run()` (`if hour_changed:` / `if day_changed:`) |
+| Per-tick / daily calls into goods | `src/game.py`, `Game.run()` (`if price_tick_changed:` / `if day_changed:`) |
 | Balance constants (`MARKET_VOLUME_*`, `MARKET_PRESIMULATION_DAYS`, `INITIAL_TRANSACTION_COST`, `STARTING_LICENSES`, `WELL_WISH_*`) | `src/config/constants.py` |
 | Buying, selling, fees, FIFO profit, wealth, licenses | `src/models/depot.py` (`Depot`) |
 | Can this good be traded here / now? | `src/game_state.py`, `is_good_sold_here()`, `is_good_tradable()` |

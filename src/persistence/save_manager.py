@@ -15,9 +15,9 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
+from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
-SAVE_VERSION = 1
+SAVE_VERSION = 2   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
 
 # Slot number of the single autosave.  Manual slots start at 1, so 0 never
 # collides; the autosave is stored as autosave.sav instead of slot_0.sav.
@@ -55,6 +55,19 @@ def _used_slots() -> List[int]:
             if number.isdigit() and int(number) > 0:
                 slots.append(int(number))
     return sorted(slots)
+
+
+def _hourly_to_ticks(prices: List[float]) -> List[float]:
+    """An hourly price chart (saves before version 2) at one point per price tick, the ticks
+    between two hours filled in on the straight line; the last point stays the latest price."""
+    per_hour = max(1, 60 // PRICE_TICK_MINUTES)
+    if per_hour == 1 or len(prices) < 2:
+        return list(prices)
+    ticks = []
+    for a, b in zip(prices, prices[1:]):
+        ticks.extend(a + (b - a) * k / per_hour for k in range(per_hour))
+    ticks.append(prices[-1])
+    return ticks
 
 
 def _dt_to_str(dt: datetime.datetime) -> str:
@@ -547,11 +560,15 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     # Goods added to the game after this save was made get a made-up price
     # history as long as the saved goods', and empty depot entries.
     saved_goods = {gd["name"] for gd in data["goods"]}
-    hours = max((len(gd["price_history_hourly"]) for gd in data["goods"]), default=1)
+    if data.get("save_version", 1) < 2:
+        # Hourly charts: fill in points between the hours, so they run at the price ticks' pace
+        for gd in data["goods"]:
+            gd["price_history_hourly"] = _hourly_to_ticks(gd["price_history_hourly"])
+    ticks = max((len(gd["price_history_hourly"]) for gd in data["goods"]), default=1)
     days = max((len(gd["price_history_daily"]) for gd in data["goods"]), default=1)
     for g in goods:
         if g.name not in saved_goods:
-            g.simulate_history(hours, days)
+            g.simulate_history(ticks, days)
     depot.add_missing_goods([g.name for g in goods])
 
     good_by_name = {g.name: g for g in goods}

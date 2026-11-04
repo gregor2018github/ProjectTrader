@@ -26,7 +26,7 @@ from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
-from .config.constants import STROLL_RAIN_FROM
+from .config.constants import PRICE_TICKS_PER_DAY, STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -349,7 +349,7 @@ class Game:
             days: Number of in-game days to simulate.
         """
         for _ in range(days):
-            for _ in range(24):
+            for _ in range(PRICE_TICKS_PER_DAY):
                 for good in self.goods:
                     good.update_price()
                     good.update_price_history_chart()
@@ -515,19 +515,20 @@ class Game:
                 
                 if current_time - self.last_update >= self.update_delay:
                     self.last_update = current_time
-                    minute_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
+                    minute_changed, price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
                     self.game_map.tmx_map.street_life.raining = self.weather.rain >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.wetness)
 
-                    # update prices once per hour
-                    if hour_changed:
-                        self.game_map.tmx_map.update_crops(self.state.date)
+                    # Prices move every PRICE_TICK_MINUTES, each move a point on the price chart
+                    if price_tick_changed:
                         for good in self.goods:
                             good.recover_volume()
                             good.update_price()
-                            # Update chart price history hourly
                             good.update_price_history_chart()
+
+                    if hour_changed:
+                        self.game_map.tmx_map.update_crops(self.state.date)
 
                         if self.population_manager:
                             self.population_manager.update_happiness()

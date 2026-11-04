@@ -4,11 +4,11 @@ from typing import List, Optional, Tuple
 from ..config.constants import (
     WELL_WISH_SHOCK_FACTOR, WELL_WISH_DURATION_DAYS,
     MARKET_VOLUME_SCARCE_RATIO, MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_ELASTICITY,
-    MARKET_VOLUME_FACTOR_MIN, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_DAILY_RECOVERY,
+    MARKET_VOLUME_FACTOR_MIN, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_DAILY_RECOVERY, PRICE_TICKS_PER_DAY,
 )
 
-# Share of the gap to the normal volume closed per hour, so that 24 hours close MARKET_VOLUME_DAILY_RECOVERY
-_HOURLY_RECOVERY = 1.0 - (1.0 - MARKET_VOLUME_DAILY_RECOVERY) ** (1.0 / 24.0)
+# Share of the gap to the normal volume closed per price tick, so that a day's ticks close MARKET_VOLUME_DAILY_RECOVERY
+_TICK_RECOVERY = 1.0 - (1.0 - MARKET_VOLUME_DAILY_RECOVERY) ** (1.0 / PRICE_TICKS_PER_DAY)
 
 class Good:
     """Represents a tradeable commodity in the game world.
@@ -37,7 +37,7 @@ class Good:
         self.normal_quantity: int = max(1, int(market_quantity))  # The volume the market thinks is normal
         self.walk_price: float = float(price)                     # The random walk part of the price
         self.price_history_daily: List[float] = [self.price]    # store price history for bookkeeping, updated daily
-        self.price_history_hourly: List[float] = [self.price]   # store detailed price history for charts, updated hourly
+        self.price_history_hourly: List[float] = [self.price]   # the price chart: one point per price tick (PRICE_TICK_MINUTES; named for the save format)
         self.color_orig: Tuple[int, int, int] = color           # Original color when game started
         self.color_current: Tuple[int, int, int] = color        # Currently saved color
         self.color_temp: Tuple[int, int, int] = color           # Temporary color changes from settings
@@ -129,7 +129,7 @@ class Good:
             self.price_history_hourly[-1] = self.price
 
     def recover_volume(self) -> None:
-        """Move the market's volume an hour's share back towards normal.
+        """Move the market's volume a price tick's share back towards normal.
 
         A stand-in for traders restocking and townsfolk buying, until the town
         has a supply and demand of its own. Moves at least one unit while there
@@ -138,11 +138,12 @@ class Good:
         gap = self.normal_quantity - self.market_quantity
         if gap == 0:
             return
-        step = max(1, math.floor(abs(gap) * _HOURLY_RECOVERY))
+        step = max(1, math.floor(abs(gap) * _TICK_RECOVERY))
         self.market_quantity += step if gap > 0 else -step
 
     def update_price(self) -> None:
-        """Simulate market price fluctuations using a normal distribution.
+        """Simulate market price fluctuations using a normal distribution (once a price tick,
+        every PRICE_TICK_MINUTES; a day's swing grows with the number of ticks in it).
         
         Moves the random walk part of the price, which tends to revert if it
         exceeds the upper bound or drops below the lower bound.
@@ -167,10 +168,10 @@ class Good:
         self.price_history_daily.append(self.price)
     
     def update_price_history_chart(self) -> None:
-        """Update the price history for charts (hourly)."""
+        """Update the price history for charts (once a price tick, every PRICE_TICK_MINUTES)."""
         self.price_history_hourly.append(self.price)
     
-    def simulate_history(self, hours: int, days: int) -> None:
+    def simulate_history(self, ticks: int, days: int) -> None:
         """Make up a price history of the given lengths from the starting price.
 
         For a good added after a save was made: its history must be as long as
@@ -178,13 +179,13 @@ class Good:
         """
         self.walk_price = self.base_price
         self.price_history_hourly = [self.price]
-        for _ in range(max(hours, 1) - 1):
+        for _ in range(max(ticks, 1) - 1):
             self.update_price()
             self.update_price_history_chart()
-        # One daily entry per 24 hours, the last of them today
+        # One daily entry per day's ticks, the last of them today
         last = len(self.price_history_hourly) - 1
         self.price_history_daily = [
-            self.price_history_hourly[max(0, last - 24 * k)] for k in reversed(range(max(days, 1)))
+            self.price_history_hourly[max(0, last - PRICE_TICKS_PER_DAY * k)] for k in reversed(range(max(days, 1)))
         ]
 
     def get_price(self) -> float:

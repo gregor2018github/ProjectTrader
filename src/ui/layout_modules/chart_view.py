@@ -2,7 +2,7 @@ import pygame
 import datetime
 from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
 from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT, PRICE_TICK_MINUTES, PRICE_TICKS_PER_DAY
 from ..paper import CHART_PAPER_EDGE, draw_paper
 from ...models.game_calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
 
@@ -169,8 +169,8 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             # Use any visible good to get history length (assuming they all have it)
             visible_goods = [g for g in goods if g.show_in_charts]
             price_history_len = len(visible_goods[0].price_history_hourly[-int(max_chart_size):])
-            hours_ago = price_history_len - 1 - idx
-            hover_date = current_date - datetime.timedelta(hours=hours_ago)
+            ticks_ago = price_history_len - 1 - idx
+            hover_date = current_date - datetime.timedelta(minutes=ticks_ago * PRICE_TICK_MINUTES)
             date_text = format_date(hover_date)
 
             no_license = depot is not None and not depot.has_license(closest_good.name, current_date)
@@ -276,15 +276,16 @@ def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], ma
         max_chart_size: Chart width.
         max_chart_height: Chart height.
         current_date: Current game time.
-        history_len: Length of the displayed history (one point per hour).
+        history_len: Length of the displayed history (one point per price tick).
     """
     period_days = {"Day": 1, "Season": DAYS_PER_SEASON, "Year": DAYS_PER_YEAR}.get(CHART_TIME_MARKER_UNIT)
     if not period_days:
         return
     current_idx = history_len - 1
-    # Hours since the current period began; a marker every period before that
-    first_marker_offset = (day_number(current_date) % period_days) * 24 + current_date.hour
-    step = 24 * period_days
+    # Price ticks since the current period began; a marker every period before that
+    minutes_today = current_date.hour * 60 + current_date.minute
+    first_marker_offset = (day_number(current_date) % period_days) * PRICE_TICKS_PER_DAY + minutes_today // PRICE_TICK_MINUTES
+    step = PRICE_TICKS_PER_DAY * period_days
     for i in range(current_idx - first_marker_offset, -1, -step):
         if i < max_chart_size:
             x = chart_border[0] + i

@@ -8,8 +8,8 @@ Spring of CALENDAR_START_YEAR. Nothing should read ``.month``, ``.year``,
 ``.weekday()`` or ``strftime`` dates off the clock for the player to see; the
 clock's own calendar date runs about thirteen times slower than this one.
 
-At normal speed a game day takes a few real minutes, so a game year (28 days)
-takes one to two real hours, which lets a playthrough span generations.
+At normal speed a game day takes 8 real minutes, so a game year (28 days)
+takes almost four real hours, which lets a playthrough span generations.
 """
 import datetime
 from typing import Dict, NamedTuple, Optional, Union

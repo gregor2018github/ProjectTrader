@@ -8,6 +8,7 @@ from .config.constants import (
     DEFAULT_QUICKTRADE_SLOTS,
     START_DATE, 
     START_TIME,
+    PRICE_TICK_MINUTES,
     TIME_STEP_LEVEL_1, 
     TIME_STEP_LEVEL_2, 
     TIME_STEP_LEVEL_3, 
@@ -24,8 +25,9 @@ if TYPE_CHECKING:
     from .models.institutions.market import Market
 
 # Named tuple for tracking which time units have changed in a tick
-# (day, season and year by the game calendar, src/models/game_calendar.py; a season is also a week)
-TimeChanges = namedtuple('TimeChanges', ['minute', 'hour', 'day', 'season', 'year'])
+# (price_tick every PRICE_TICK_MINUTES; day, season and year by the game calendar,
+# src/models/game_calendar.py; a season is also a week)
+TimeChanges = namedtuple('TimeChanges', ['minute', 'price_tick', 'hour', 'day', 'season', 'year'])
 
 class GameState:
     """Central repository for game session data and transient UI states.
@@ -235,10 +237,16 @@ class GameState:
     def sync_time_trackers(self) -> None:
         """Take the current date as already seen, so no day, season or year begins on the next update."""
         self.last_minute = self.date.minute
+        self.last_price_tick = self.price_tick_number()
         self.last_hour = self.date.hour
         self.last_day = game_calendar.day_number(self.date)
         self.last_season = game_calendar.season_number(self.date)
         self.last_year = game_calendar.year_of(self.date)
+
+    def price_tick_number(self) -> int:
+        """How many PRICE_TICK_MINUTES have passed since the calendar's first day, for telling when prices move."""
+        minutes = game_calendar.day_number(self.date) * 24 * 60 + self.date.hour * 60 + self.date.minute
+        return minutes // PRICE_TICK_MINUTES
 
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""
@@ -323,18 +331,21 @@ class GameState:
         """
         self.update_time()
         current_minute = self.date.minute
+        current_price_tick = self.price_tick_number()
         current_hour = self.date.hour
         current_day = game_calendar.day_number(self.date)
         current_season = game_calendar.season_number(self.date)
         current_year = game_calendar.year_of(self.date)
 
         minute_changed = current_minute != self.last_minute
+        price_tick_changed = current_price_tick != self.last_price_tick
         hour_changed = current_hour != self.last_hour
         day_changed = current_day != self.last_day
         season_changed = current_season != self.last_season
         year_changed = current_year != self.last_year
 
         self.last_minute = current_minute
+        self.last_price_tick = current_price_tick
         self.last_hour = current_hour
         self.last_day = current_day
         self.last_season = current_season
@@ -366,4 +377,4 @@ class GameState:
         for key in remove_keys:
             del self.button_click_effects[key]
                 
-        return TimeChanges(minute_changed, hour_changed, day_changed, season_changed, year_changed)
+        return TimeChanges(minute_changed, price_tick_changed, hour_changed, day_changed, season_changed, year_changed)
