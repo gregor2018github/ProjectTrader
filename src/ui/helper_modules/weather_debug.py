@@ -7,6 +7,9 @@ over hours, and the spell lasts until it has got there. "Hold" keeps the
 spell from running out and its fog from thinning with the hour
 (Weather.held, not saved), so it can be looked at as long as needed. The
 ground can be soaked or dried at once, for the puddles and the wet ground.
+"Snow: always" lets everything fall as snow whatever the season
+(Weather.always_snow, not saved); "Lay snow" covers the ground in snow at
+once, "Clear snow" takes it away (Weather.snow_cover).
 "Strike lightning" flashes and thunders at once, storm or not
 (Lightning.strike, models/lightning.py).
 A line at the top shows where the weather stands, live; one above "Back"
@@ -41,7 +44,7 @@ class WeatherDebugPage:
         kinds = list(WEATHER_SPELLS)
         grid_w = COLUMNS * w + (COLUMNS - 1) * GAP
         left = rect.centerx - grid_w // 2
-        top = rect.top + 140
+        top = rect.top + 156
         self.spell_buttons: List[Tuple[pygame.Rect, str]] = [
             (pygame.Rect(left + (i % COLUMNS) * (w + GAP), top + (i // COLUMNS) * (h + GAP), w, h), kind)
             for i, kind in enumerate(kinds)]
@@ -53,6 +56,8 @@ class WeatherDebugPage:
             (pygame.Rect(left + half + GAP, y, half, h), "strike"),
             (pygame.Rect(left, y + h + GAP, half, h), "soak"),
             (pygame.Rect(left + half + GAP, y + h + GAP, half, h), "dry"),
+            (pygame.Rect(left, y + 2 * (h + GAP), half, h), "always_snow"),
+            (pygame.Rect(left + half + GAP, y + 2 * (h + GAP), half, h), "snow_cover"),
         ]
         self.back_button = pygame.Rect(0, 0, 160, h)
         self.back_button.midbottom = (rect.centerx, rect.bottom - 28)
@@ -63,6 +68,11 @@ class WeatherDebugPage:
             return ("Hold: on" if self.weather.held else "Hold: off"), self.weather.held
         if action == "strike":
             return "Strike lightning", False
+        if action == "always_snow":
+            on = self.weather.always_snow
+            return ("Snow: always" if on else "Snow: by season"), on
+        if action == "snow_cover":
+            return ("Clear snow" if self.weather.snow_cover > 0.5 else "Lay snow"), False
         return ("Soak ground" if action == "soak" else "Dry ground"), False
 
     def _button(self, screen: pygame.Surface, rect: pygame.Rect, text: str, active: bool, mouse) -> None:
@@ -81,7 +91,9 @@ class WeatherDebugPage:
         hours = "held" if weather.held else f"{weather.hours_left:.1f} h left"
         lines = (f"Now: {weather.kind.capitalize()} ({hours})   Storm {weather.storm:.2f}",
                  f"Rain {weather.rain:.2f}   Clouds {weather.clouds:.2f}   Fog {weather.fog:.2f}"
-                 f" (heading for {weather.fog_target():.2f})   Wet {weather.wetness:.2f}")
+                 f" (heading for {weather.fog_target():.2f})   Wet {weather.wetness:.2f}",
+                 f"Snow {weather.snow:.2f}   Lying {weather.snow_cover:.2f}"
+                 f"   Falls as snow {1.0 if weather.always_snow else weather.snow_share:.2f}")
         for i, line in enumerate(lines):
             text = self.small_font.render(line, True, BLACK)
             screen.blit(text, text.get_rect(center=(self.rect.centerx, self.rect.top + 84 + i * 22)))
@@ -109,6 +121,10 @@ class WeatherDebugPage:
                 elif action == "strike":
                     if self.lightning:
                         self.lightning.strike()
+                elif action == "always_snow":
+                    self.weather.always_snow = not self.weather.always_snow
+                elif action == "snow_cover":
+                    self.weather.snow_cover = 0.0 if self.weather.snow_cover > 0.5 else 1.0
                 elif action == "soak":
                     self.weather.wetness = 1.0
                 else:

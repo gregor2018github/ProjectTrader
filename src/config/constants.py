@@ -418,6 +418,17 @@ FOG_FROM_WETNESS = 0.3               # Soaked ground breathes this much fog of i
 FOG_DRIFT_TILES_PER_S = 0.35         # How fast the fog banks drift, in tiles per second, still air included
 FOG_WISPS_PER_MEGAPIXEL = 16         # Loose wisps of fog drifting about per million pixels of map view at full fog
 FOG_CLEAR_RADIUS_TILES = 6.0         # Round the player the fog is thinner, out to this far
+# Snow (models/weather.py, snow.py, snow_cover.py, roof_snow.py). In Winter the rain falls as snow: the share of it
+# that does, by the day of the year (0 the 1st of Spring, 28 days a year; between the points in straight lines, the
+# year wrapping round), so the first and last days of Winter bring sleet, half rain and half snow, and it thaws on
+# the last day of Winter.
+SNOW_BY_DAY_OF_YEAR = ((0.0, 0.0), (21.0, 0.0), (21.75, 1.0), (27.25, 1.0), (28.0, 0.0))
+SNOW_FILL_PER_HOUR = 0.12            # How fast full snowfall covers the ground, per game hour (1.0 is deep snow everywhere)
+SNOW_MELT_PER_HOUR = 0.1             # How fast the snow thaws where none would fall any more, per game hour
+SNOW_RAIN_MELT_PER_HOUR = 0.25       # How much faster full rain washes it away, per game hour
+SNOW_MELT_WETS = 1.5                 # Thawing snow wets the ground by this much per unit of cover melted (puddles after a thaw)
+SNOW_FLAKES_PER_MEGAPIXEL = 900      # Flakes in the air per million pixels of map view at full snowfall
+SNOW_ROOFS_FROM = (0.08, 0.4)        # The roofs whiten from this much snow on the ground and are fully white at the second
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7

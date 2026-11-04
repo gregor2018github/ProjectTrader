@@ -86,7 +86,7 @@ class SettingsWindow:
         self.weather_page: Optional[WeatherDebugPage] = None
         weather = getattr(self.game, "weather", None)
         if weather is not None and settings_store.get("show_map_debug"):
-            page_rect = pygame.Rect(0, 0, 640, 520)
+            page_rect = pygame.Rect(0, 0, 640, 600)
             page_rect.center = self.window_rect.center
             self.weather_page = WeatherDebugPage(page_rect, weather, font,
                                                  getattr(self.game, "small_font", font),

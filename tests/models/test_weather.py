@@ -19,6 +19,7 @@ SPELLS = {
 def weather(monkeypatch):
     monkeypatch.setattr(weather_module, "WEATHER_SPELLS", SPELLS)
     monkeypatch.setattr(weather_module, "WEATHER_BY_SEASON", {})      # the seasons have tests of their own
+    monkeypatch.setattr(weather_module, "SNOW_BY_DAY_OF_YEAR", ((0.0, 0.0), (28.0, 0.0)))   # snow too
     monkeypatch.setattr(weather_module, "WEATHER_GLIDE_PER_HOUR", 0.5)
     monkeypatch.setattr(weather_module, "WEATHER_WIND_TURN_CHANCE", 0.0)
     w = Weather(random.Random(1), kind="clear")
@@ -280,3 +281,71 @@ def test_a_spell_with_nothing_the_season_allows_after_it_clears_up(monkeypatch):
     weather = Weather(random.Random(3), kind="fog")
     weather.update(SPRING + datetime.timedelta(days=7))
     assert weather._next_kind() == "clear"
+
+
+# Snow: the rain falls as snow in Winter, lies, and thaws into wet ground
+
+SNOWY_WINTER = ((0.0, 0.0), (21.0, 0.0), (22.0, 1.0), (27.0, 1.0), (28.0, 0.0))
+MIDWINTER = datetime.datetime.combine(EPOCH, datetime.time(12)) + datetime.timedelta(days=24)
+MIDSPRING = datetime.datetime.combine(EPOCH, datetime.time(12)) + datetime.timedelta(days=3)
+
+
+@pytest.fixture
+def snowy(weather, monkeypatch):
+    monkeypatch.setattr(weather_module, "SNOW_BY_DAY_OF_YEAR", SNOWY_WINTER)
+    monkeypatch.setattr(weather_module, "SNOW_FILL_PER_HOUR", 0.1)
+    monkeypatch.setattr(weather_module, "SNOW_MELT_PER_HOUR", 0.2)
+    monkeypatch.setattr(weather_module, "SNOW_RAIN_MELT_PER_HOUR", 0.0)
+    monkeypatch.setattr(weather_module, "SNOW_MELT_WETS", 1.0)
+    weather.force("wet")
+    weather.hours_left = 99
+    weather.clouds = 1.0
+    return weather
+
+
+def test_snow_share_follows_the_year(snowy):
+    share = weather_module.snow_share_at
+    assert share(3.0) == 0.0                           # Spring
+    assert share(21.5) == pytest.approx(0.5)           # the first day of Winter: sleet
+    assert share(24.0) == 1.0
+    assert share(27.5) == pytest.approx(0.5)           # thawing on its last
+    assert share(28.0 + 24.0) == 1.0                   # every year
+
+
+def test_in_winter_it_snows_instead_of_raining(snowy):
+    snowy.update(MIDWINTER)
+    for _ in range(4):
+        snowy.advance(1.0)
+    assert (snowy.rain, snowy.snow) == (0.0, 1.0)
+    assert snowy.wetness == 0.0                        # snow does not wet the ground
+    assert snowy.snow_cover == pytest.approx(0.1 * (0.5 + 1.0 + 1.0 + 1.0))   # the snowfall glides in at 0.5 an hour
+
+
+def test_snow_lies_through_the_winter_and_thaws_after(snowy):
+    snowy.update(MIDWINTER)
+    snowy.snow_cover = 0.8
+    snowy.force("clear")
+    snowy.hours_left = 99
+    snowy.advance(10.0)
+    assert snowy.snow_cover == 0.8                     # cold enough to snow: it stays
+    snowy.update(MIDSPRING)
+    snowy.advance(1.0)
+    assert snowy.snow_cover == pytest.approx(0.6)      # thawing at 0.2 an hour...
+    assert snowy.wetness == pytest.approx(0.2)         # ...into the ground
+    assert snowy.puddle_level == pytest.approx(0.2 * 0.4)   # the snow left hides the puddles
+
+
+def test_debug_snow_falls_in_any_season(snowy):
+    snowy.update(MIDSPRING)
+    snowy.always_snow = True
+    snowy.advance(4.0)
+    assert snowy.rain == 0.0 and snowy.snow == 1.0
+
+
+def test_snow_is_saved(snowy):
+    snowy.snow, snowy.snow_cover = 0.4, 0.7
+    other = Weather(random.Random(3), kind="clear")
+    other.load(snowy.to_save())
+    assert (other.snow, other.snow_cover) == (0.4, 0.7)
+    other.load({"kind": "clear", "hours_left": 1, "rain": 0, "clouds": 0, "wind": 0})   # an older save
+    assert (other.snow, other.snow_cover) == (0.0, 0.0)

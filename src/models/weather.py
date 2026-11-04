@@ -33,6 +33,16 @@ it rises while it rains (PUDDLE_FILL_PER_HOUR at full rain) and dries out
 once it stops (PUDDLE_DRY_PER_HOUR, slower under cloud). The puddles
 (models/puddles.py) grow and dry with it.
 
+In Winter the rain falls as snow (`snow`, 0 to 1): the precipitation the
+spell and its clouds allow is split by the share of it the day of the year
+turns to snow (snow_share_at(), SNOW_BY_DAY_OF_YEAR), so the first and last
+days of Winter bring sleet. Snowfall builds up `snow_cover` on the ground
+(SNOW_FILL_PER_HOUR, 0 bare to 1 deep), which stays as long as it is cold
+enough to snow and thaws once it is not (SNOW_MELT_PER_HOUR, faster in rain),
+the meltwater wetting the ground (SNOW_MELT_WETS), so a thaw leaves puddles.
+Snow neither wets the ground nor is heard. It is drawn by models/snow.py
+(the flakes), models/snow_cover.py (the ground) and models/roof_snow.py.
+
 Owned by Game and advanced with the game's clock (update() each tick), so it
 stops when the game is paused and runs on while the map is hidden. Drawn by
 models/rain.py, models/fog.py and map_view, heard through Ambience. Saved under "weather".
@@ -44,10 +54,10 @@ import random
 from typing import Any, Dict, Optional
 
 from ..config.constants import (
-    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_BY_SEASON, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
+    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, SNOW_BY_DAY_OF_YEAR, SNOW_FILL_PER_HOUR, SNOW_MELT_PER_HOUR, SNOW_MELT_WETS, SNOW_RAIN_MELT_PER_HOUR, WEATHER_BY_SEASON, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
 )
 from ..sim.calendar import SEASONS, game_date
-from .daylight import sun_hour
+from .daylight import day_of_year, sun_hour
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather
 
@@ -68,6 +78,18 @@ def fog_share_at(hour: float) -> float:
             t = t * t * (3 - 2 * t)   # eased, so the fog does not turn sharply at the points
             return v0 + (v1 - v0) * t
     return FOG_BY_HOUR[-1][1]
+
+
+def snow_share_at(day: float) -> float:
+    """The share of the precipitation that falls as snow on *day* of the year (SNOW_BY_DAY_OF_YEAR)."""
+    points = SNOW_BY_DAY_OF_YEAR
+    span = points[-1][0] - points[0][0]
+    if span > 0:
+        day = points[0][0] + (day - points[0][0]) % span
+    for (d0, v0), (d1, v1) in zip(points, points[1:]):
+        if d0 <= day <= d1:
+            return v0 + (v1 - v0) * ((day - d0) / (d1 - d0) if d1 > d0 else 0.0)
+    return points[-1][1]
 
 
 class Weather:
@@ -94,6 +116,11 @@ class Weather:
         self.wind: float = spell["wind"] * self.wind_side
         self.storm: float = spell.get("storm", 0.0)
         self.wetness: float = 0.0
+        self.snow: float = 0.0          # how hard it snows (the share of the precipitation that falls as snow)
+        self.snow_cover: float = 0.0    # how deep the snow lies on the ground, 0 bare to 1
+        self.snow_share: float = 0.0    # the share of the precipitation that falls as snow now, from update()
+        # Debug (the settings' weather page), not saved: everything falls as snow, whatever the season
+        self.always_snow: bool = False
         self._last_date: Optional[datetime.datetime] = None
         self._hour: Optional[float] = None   # the hour of the day last seen, for FOG_BY_HOUR
         # Debug (the settings' weather page), not saved: the spell does not run out, and its fog
@@ -139,7 +166,7 @@ class Weather:
 
     def fog_target(self) -> float:
         """The fog the weather is heading for now: the spell's or the wet ground's, as the hour allows."""
-        ground = FOG_FROM_WETNESS * self.wetness * (1.0 - min(1.0, self.rain * 4))
+        ground = FOG_FROM_WETNESS * self.wetness * (1.0 - min(1.0, (self.rain + self.snow) * 4))
         share = 1.0 if self._hour is None or self.held else fog_share_at(self._hour)
         return max(WEATHER_SPELLS[self.kind].get("fog", 0.0), ground) * share * self._season_fog()
 
@@ -152,6 +179,7 @@ class Weather:
         last, self._last_date = self._last_date, date
         self._hour = sun_hour(date)   # the fog burns off with the daylight, later in Winter
         self.season = game_date(date).season_name
+        self.snow_share = snow_share_at(day_of_year(date))
         if last is None:
             return
         minutes = min((date - last).total_seconds() / 60.0, MAX_STEP_MINUTES)
@@ -169,7 +197,10 @@ class Weather:
         spell = WEATHER_SPELLS[self.kind]
         step = WEATHER_GLIDE_PER_HOUR * hours
         self.clouds = _glide(self.clouds, spell["clouds"], step)
-        self.rain = _glide(self.rain, self.rain_ceiling(), step)
+        falling = self.rain_ceiling()
+        snow_share = 1.0 if self.always_snow else self.snow_share
+        self.rain = _glide(self.rain, falling * (1.0 - snow_share), step)
+        self.snow = _glide(self.snow, falling * snow_share, step)
         self.wind = _glide(self.wind, spell["wind"] * self.wind_side, step)
         self.storm = _glide(self.storm, spell.get("storm", 0.0), step)
         self.fog = _glide(self.fog, self.fog_target(), FOG_GLIDE_PER_HOUR * hours)
@@ -177,9 +208,24 @@ class Weather:
             self.wetness = min(1.0, self.wetness + PUDDLE_FILL_PER_HOUR * self.rain * hours)
         else:
             self.wetness = max(0.0, self.wetness - PUDDLE_DRY_PER_HOUR * (1 - 0.5 * self.clouds) * hours)
+        self._settle_snow(hours, snow_share)
 
+    def _settle_snow(self, hours: float, snow_share: float) -> None:
+        """The snow lying: deeper while it snows, thawing (into wet ground) once it would not snow any more."""
+        if self.snow > 0:
+            self.snow_cover = min(1.0, self.snow_cover + SNOW_FILL_PER_HOUR * self.snow * hours)
+        if self.snow_cover > 0:
+            melt = (SNOW_MELT_PER_HOUR * (1.0 - snow_share) + SNOW_RAIN_MELT_PER_HOUR * self.rain) * hours
+            melted = min(self.snow_cover, melt)
+            self.snow_cover -= melted
+            self.wetness = min(1.0, self.wetness + SNOW_MELT_WETS * melted)
+
+    @property
+    def puddle_level(self) -> float:
+        """How wet the ground is where it shows: snow lying over it hides its puddles."""
+        return self.wetness * (1.0 - self.snow_cover)
     def rain_ceiling(self) -> float:
-        """As hard as it may rain under the clouds there are: none below RAIN_FROM_CLOUDS of cover,
+        """As hard as it may rain or snow under the clouds there are: none below RAIN_FROM_CLOUDS of cover,
         the spell's rain once its clouds are there."""
         spell = WEATHER_SPELLS[self.kind]
         if spell["rain"] <= 0:
@@ -194,7 +240,7 @@ class Weather:
         self._start_spell(kind)
         self.forced = True
         spell = WEATHER_SPELLS[kind]
-        building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain)
+        building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain - self.snow)
                     + abs(spell.get("storm", 0.0) - self.storm)) / WEATHER_GLIDE_PER_HOUR
         thickening = abs(self.fog_target() - self.fog) / FOG_GLIDE_PER_HOUR
         self.hours_left = max(self.hours_left, max(building, thickening) + spell["hours"][0])
@@ -202,7 +248,8 @@ class Weather:
     def to_save(self) -> Dict[str, Any]:
         return {"kind": self.kind, "hours_left": self.hours_left, "rain": self.rain,
                 "clouds": self.clouds, "wind": self.wind, "wind_side": self.wind_side,
-                "wetness": self.wetness, "fog": self.fog, "storm": self.storm}
+                "wetness": self.wetness, "fog": self.fog, "storm": self.storm,
+                "snow": self.snow, "snow_cover": self.snow_cover}
 
     def load(self, saved: Optional[Dict[str, Any]]) -> None:
         """Take over a save's weather; a save without one (or with an unknown kind) keeps the current."""
@@ -218,4 +265,6 @@ class Weather:
         self.wetness = float(saved.get("wetness", 0.0))
         self.fog = float(saved.get("fog", 0.0))
         self.storm = float(saved.get("storm", 0.0))
+        self.snow = float(saved.get("snow", 0.0))
+        self.snow_cover = float(saved.get("snow_cover", 0.0))
         self._last_date = None   # the saved date is not the one this weather last saw

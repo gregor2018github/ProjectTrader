@@ -146,6 +146,7 @@ class Game:
         self.town_plan.prepare()   # now, behind the loading screen, not when first opened
         self.game_map.puddles.set_trodden(self.town_plan.trodden_tiles())   # puddles gather on roads and paving
         self.game_map.wet_ground.set_ground(self.town_plan.ground_masks(self.game_map.wet_ground.size))
+        self.game_map.snow_cover.set_ground(self.town_plan.ground_masks(self.game_map.snow_cover.size))
 
         # The town's people live in the simulation; the town hall and the charts show them
         self.town: Optional[Town] = None
@@ -536,8 +537,8 @@ class Game:
                     self.last_update = current_time
                     minute_changed, _price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
-                    self.game_map.tmx_map.street_life.raining = self.weather.rain >= STROLL_RAIN_FROM
-                    self.game_map.puddles.update(self.weather.wetness)
+                    self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
+                    self.game_map.puddles.update(self.weather.puddle_level)
 
                     # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
                     # happiness every hour, migration and the well shock every day (src/sim/)
@@ -690,6 +691,8 @@ class Game:
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
                                                   self.game_map.camera, self.game_map.tmx_map,
                                                   self.game_map.puddles, iter_figurines(self.game_map))
+                        self.game_map.snow.update(delta_time, self.weather.snow, self.weather.wind,
+                                                  self.game_map.camera, self.game_map.tmx_map)
                         self.game_map.fog.update(delta_time, self.weather.fog, self.weather.wind, self.game_map.camera)
                         self.game_map.puddles.update_walkers(delta_time, iter_figurines(self.game_map))
                         tile_size = self.game_map.tmx_map.tile_size

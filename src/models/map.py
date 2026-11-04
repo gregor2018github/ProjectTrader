@@ -44,8 +44,11 @@ from .map_fog import FogOfWar
 from .rain import Rainfall
 from .fog import Fog, HALO_GROW
 from .roofs import Roofs
+from .roof_snow import RoofSnow
 from .puddles import Puddles
 from .wet_ground import WetGround
+from .snow import Snowfall
+from .snow_cover import SnowCover
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -764,6 +767,7 @@ class TMXMap:
                     if getattr(obj, 'points', None):
                         polygons.append([(p.x, p.y) for p in obj.points])   # already world points, as for water
         self.roofs: Roofs = Roofs(self.houses, polygons)
+        self.roof_snow: RoofSnow = RoofSnow(polygons)   # the roofs white in a snowy winter
 
     def _load_smoke(self) -> None:
         """Load Smoke objects from the 'Smoke' object layer and create SmokeEmitters."""
@@ -1205,6 +1209,9 @@ class GameMap:
         self.puddles: Puddles = Puddles(self.tmx_map)
         # The ground darkening as it gets wet; its kinds of ground come from the Town Plan
         self.wet_ground: WetGround = WetGround(self.tmx_map.width, self.tmx_map.height)
+        # The snow in the air in winter, and lying on the ground; its kinds of ground come from the Town Plan too
+        self.snow: Snowfall = Snowfall()
+        self.snow_cover: SnowCover = SnowCover(self.tmx_map.width, self.tmx_map.height)
 
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0

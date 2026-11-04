@@ -15,6 +15,7 @@ from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
+from ...models.roof_snow import roof_snow_level
 from ...models.fog import halo_margin, halos_show
 from ...models.daylight import season_tint, sun_hour
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
@@ -65,6 +66,8 @@ def draw_map_view(
     if weather:
         game_map.wet_ground.draw(screen, game_map.camera, offset_x, offset_y,
                                  wet_level(weather.wetness, weather.rain), game_map.puddles)
+        # The snow lying in winter, over the wet ground
+        game_map.snow_cover.draw(screen, game_map.camera, offset_x, offset_y, weather.snow_cover)
     _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
 
     # Update light states
@@ -109,7 +112,8 @@ def draw_map_view(
 
     # Build render queue for Y-sorting (houses and figurines)
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date,
-                                       halos=bool(weather) and halos_show(weather.fog))
+                                       halos=bool(weather) and halos_show(weather.fog),
+                                       roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)
@@ -138,6 +142,7 @@ def draw_map_view(
     # The rain's splashes on the ground, under whoever and whatever stands over them
     if weather:
         game_map.rain.draw_ground(screen, game_map.camera, offset_x, offset_y, weather.wind)
+        game_map.snow.draw_ground(screen, game_map.camera, offset_x, offset_y)
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)
@@ -159,6 +164,7 @@ def draw_map_view(
     # The falling rain and the splashes on roofs over everything, dimmed with the light rather than by the overlay
     if weather:
         game_map.rain.draw(screen, game_map.camera, offset_x, offset_y, weather.wind, max(ambient) / 255)
+        game_map.snow.draw(screen, game_map.camera, offset_x, offset_y, max(ambient) / 255)
 
     # A lightning flash over all of it (models/lightning.py)
     lightning = getattr(game_state.game, "lightning", None)
@@ -501,7 +507,8 @@ def _build_render_queue(
     offset_x: int,
     offset_y: int,
     current_time: datetime.datetime,
-    halos: bool = False
+    halos: bool = False,
+    roof_snow: float = 0.0
 ) -> List[Dict[str, Any]]:
     """Build a list of objects to render, sorted by Y coordinate.
 
@@ -511,6 +518,7 @@ def _build_render_queue(
         offset_y: Vertical offset for the view area.
         current_time: The current game time.
         halos: Whether the lights cast halos in fog: then lights out of view whose halo reaches in are kept.
+        roof_snow: How white the roofs are with snow (0 to 1, roof_snow_level()); each cap goes just over its building.
         
     Returns:
         List of render items with sprite, position, and y_sort value.
@@ -545,6 +553,11 @@ def _build_render_queue(
                     'y_sort': house.y_sort,
                     'owner': house,  # lets the hover glow find this entry
                 })
+                if roof_snow > 0:
+                    cap = tmx_map.roof_snow.sprite(house, sprite.get_size(), roof_snow)
+                    if cap is not None:
+                        # The same y_sort, appended after: the sort is stable, so it stays just over it
+                        render_queue.append({'sprite': cap, 'pos': (draw_x, draw_y), 'y_sort': house.y_sort})
 
     # Add mill blade overlays — same y_sort as the mill building so they
     # sort together; appended after the house entry so they render on top.
@@ -766,6 +779,8 @@ def draw_map_debug_ui(
         if weather.storm > 0:
             lines.append(f"Storm: {weather.storm:.2f}")
         lines.append(f"Wet: {weather.wetness:.2f}")
+        if weather.snow > 0 or weather.snow_cover > 0:
+            lines.append(f"Snow: {weather.snow:.2f}  Cover: {weather.snow_cover:.2f}")
         lines.append(f"Fog lvl: {weather.fog:.2f}")
 
     line_h = 20

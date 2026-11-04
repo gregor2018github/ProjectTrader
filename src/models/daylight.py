@@ -41,8 +41,12 @@ _DAWN = (4.0, 8.0)      # the night ends .. full daylight
 _DUSK = (17.0, 21.0)    # the sun begins to set .. night
 
 
-def _day_of_year(moment: datetime.datetime) -> float:
+def day_of_year(moment: datetime.datetime) -> float:
+    """Days since the 1st of Spring began, with the time of day as a fraction (0 to DAYS_PER_YEAR)."""
     return day_number(moment) % DAYS_PER_YEAR + (moment.hour + moment.minute / 60.0) / 24.0
+
+
+_day_of_year = day_of_year
 
 
 def summer_share(moment: datetime.datetime) -> float:
