@@ -26,7 +26,9 @@ player stands (and when):
 - the market's crowd, by the distance to the nearest open booth
   (MARKET_VOLUME_BY_DISTANCE): a booth is open while one of its traders
   minds it, so the crowd is there by day, thins as the booths pack up, and
-  is gone once the last one is shut. Booths standing together make one
+  is gone once the last one is shut. Each booth's crowd swells over
+  MARKET_SWELL_HOURS of game time after it opens and dies away as long
+  after it shuts (Ambience.bustle). Booths standing together make one
   market (group_markets), and each market has a recording of its own
   (MARKET_LOOPS, the biggest market first);
 - the quiet streets, where houses stand close together (STREETS_BY_HOUSES,
@@ -50,7 +52,7 @@ import pygame
 
 from ..config.constants import (
     BIRDS_BY_HOUR, CRICKETS_BY_HOUR, CRICKETS_VOLUME, FOREST_BIRDS_VOLUME, FOREST_FULL_COVER,
-    FOREST_RADIUS_TILES, MARKET_GROUP_TILES, MARKET_LOOPS, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RAIN_HUSHES_BIRDS,
+    FOREST_RADIUS_TILES, MARKET_GROUP_TILES, MARKET_LOOPS, MARKET_SWELL_HOURS, MARKET_VOLUME_BY_DISTANCE, MILL_VOLUME_BY_DISTANCE, RAIN_HUSHES_BIRDS,
     RAIN_HUSHES_CRICKETS, RAIN_LAYERS, RAIN_VOLUME, RIVER_VOLUME_BY_DISTANCE, SEA_VOLUME_BY_DISTANCE, STREETS_BY_HOUSES, TOWN_FULL_COVER,
     TOWN_RADIUS_TILES,
 )
@@ -77,6 +79,12 @@ def by_steps(steps: Sequence[Tuple[float, float]], x: float) -> float:
         if x < x1:
             return v0 + (v1 - v0) * (x - x0) / (x1 - x0)
     return steps[-1][1]
+
+
+def smoothstep(t: float) -> float:
+    """0 to 1 along an S-curve: slow at both ends."""
+    t = min(max(t, 0.0), 1.0)
+    return t * t * (3.0 - 2.0 * t)
 
 
 def distance_to_rect(x: float, y: float, rect: pygame.Rect) -> float:
@@ -300,6 +308,9 @@ class Ambience:
         #: (booths, loop) for every market, the loops taken in turn from the biggest market on
         self.market_booths = [(market, self.markets[i % len(self.markets)])
                               for i, market in enumerate(group_markets(booths, ts))]
+        #: how busy each booth is, 0 to 1 (by id), and the game time it was worked out for
+        self.bustle: dict = {}
+        self.bustle_date: Optional[datetime.datetime] = None
         size = (ts, tmx_map.tmx_data.width, tmx_map.tmx_data.height)
         stems = [(tree.x + tree.stem_position * ts, tree.y) for tree in tmx_map.trees]
         self.trees = Cover(stems, FOREST_RADIUS_TILES, *size)
@@ -343,16 +354,16 @@ class Ambience:
         self.river.update(by_steps(RIVER_VOLUME_BY_DISTANCE, self.to_river.at(px, py)), audible)
         self.sea.update(by_steps(SEA_VOLUME_BY_DISTANCE, self.to_sea.at(px, py)), audible)
 
-        # Each market by its nearest open booth; only booths in earshot are asked whether they are open.
-        # Markets sharing a recording are heard by the nearer
-        earshot = MARKET_VOLUME_BY_DISTANCE[-1][0] * tmx_map.tile_size
+        # Each market by its loudest booth: its distance's volume times how busy it is (swelling after it
+        # opens, dying away after it shuts). Markets sharing a recording are heard by the nearer
+        self._update_bustle(date)
         crowds = {id(loop): 0.0 for loop in self.markets}
         for booths, loop in self.market_booths:
-            near = ((distance_to_rect(px, py, booth.collision_rect), booth) for booth in booths)
-            open_near = [d for d, booth in near if d < earshot and not booth.is_closed_at(date)]
-            if open_near:
-                crowd = by_steps(MARKET_VOLUME_BY_DISTANCE, min(open_near) / tmx_map.tile_size)
-                crowds[id(loop)] = max(crowds[id(loop)], crowd)
+            for booth in booths:
+                busy = smoothstep(self.bustle[id(booth)])
+                if busy > 0:
+                    tiles = distance_to_rect(px, py, booth.collision_rect) / tmx_map.tile_size
+                    crowds[id(loop)] = max(crowds[id(loop)], busy * by_steps(MARKET_VOLUME_BY_DISTANCE, tiles))
         for loop in self.markets:
             loop.update(crowds[id(loop)], audible)
 
@@ -362,6 +373,26 @@ class Ambience:
 
         for layer, steps in self.rain:
             layer.update(RAIN_VOLUME * by_steps(steps, rain), audible)
+
+    def _update_bustle(self, date: datetime.datetime) -> None:
+        """Move every booth's bustle towards 1 while it is open and 0 while shut, by game time (MARKET_SWELL_HOURS).
+
+        On the first call (a new or loaded game) each booth starts where it is, so an open market is
+        busy at once; time running backwards (a load) does the same.
+        """
+        hours = None if self.bustle_date is None else (date - self.bustle_date).total_seconds() / 3600
+        self.bustle_date = date
+        step = None if hours is None or hours < 0 else hours / MARKET_SWELL_HOURS
+        for booths, _loop in self.market_booths:
+            for booth in booths:
+                target = 0.0 if booth.is_closed_at(date) else 1.0
+                level = self.bustle.get(id(booth))
+                if level is None or step is None:
+                    self.bustle[id(booth)] = target
+                elif target > level:
+                    self.bustle[id(booth)] = min(target, level + step)
+                else:
+                    self.bustle[id(booth)] = max(target, level - step)
 
     def stop(self) -> None:
         for loop in (self.mill, self.forest_birds, self.crickets, self.river, self.sea, *self.markets, self.streets,

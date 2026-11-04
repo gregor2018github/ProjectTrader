@@ -259,7 +259,10 @@ SEA_VOLUME_BY_DISTANCE = ((1, 0.5), (4, 0.4), (8, 0.22), (14, 0.08), (20, 0.0))
 # Volume of the market crowd (1.0 is 100%) by distance from the nearest open booth's walls, in tiles,
 # blended linearly; silent beyond the last, and once every booth near is shut
 MARKET_VOLUME_BY_DISTANCE = ((0, 0.4), (4, 0.32), (11, 0.15), (20, 0.05), (28, 0.0))
-MARKET_GROUP_TILES = 12                # Booths this near one another (in tiles) stand in one market
+# Game hours a booth's crowd takes to swell to its full after the booth opens, and to die away after it shuts
+# (an S-curve, so it starts and ends gently)
+MARKET_SWELL_HOURS = 1.0
+MARKET_GROUP_TILES = 12               # Booths this near one another (in tiles) stand in one market
 # Each market's crowd recording, given out from the market with the most booths down (and round again if there are more markets)
 MARKET_LOOPS = ("amb_town_market_A_loop", "amb_town_market_B_loop")
 # Volume of the quiet streets (1.0 is 100%) by how many houses are around, counted as the crickets' town is
