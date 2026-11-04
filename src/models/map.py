@@ -975,24 +975,10 @@ class TMXMap:
         for field in self.fields:
             field.update(dt)
 
-    def start_crops(self, now: datetime.datetime) -> None:
-        """Every field's crop as a new game begins it (Field.start_growth)."""
-        for field in self.fields:
-            field.start_growth(now)
-
-    def restore_crops(self, saved: Optional[Dict[str, Any]], now: datetime.datetime) -> None:
-        """The crops of a save, keyed by the fields' Tiled ids; a field missing from it begins anew."""
-        saved = saved or {}
-        for field in self.fields:
-            field.load_growth(saved.get(str(field.tmx_id)), now)
-
     def update_crops(self, now: datetime.datetime) -> None:
-        """Let the crops grow up to `now` (once a game hour)."""
+        """Let the crops grow to where the calendar has them at `now` (on starting or loading, then once a game hour)."""
         for field in self.fields:
             field.update_growth(now)
-
-    def crops_to_save(self) -> Dict[str, Any]:
-        return {str(field.tmx_id): field.growth_to_save() for field in self.fields if field.growth}
 
     def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all smoke emitters (call once per frame when not paused)."""

@@ -1,118 +1,91 @@
-"""A field's crop going round its stages, its plants changing one by one, and saving it."""
+"""A field's crop following the seasons, its plants changing one by one, and its furrows."""
 
 import datetime
-import random
 
 import pytest
 
 from src.models import crop_growth as crop_growth_module
-from src.models.crop_growth import CropGrowth
+from src.models.crop_growth import CropGrowth, field_season
+from src.models.game_calendar import EPOCH
 
-STAGES = ["bare", "sprouts", "young", "ripe"]
-START = datetime.datetime(1450, 3, 1, 10, 0)
+# Pinned: a 28-day year (game_calendar.py), five stages, sown on the 1st of Spring and
+# harvested at the end of Autumn, so each of the four growing stages lasts 21 / 4 days
+STAGES = ["bare", "sprouts", "young", "growing", "ripe"]
+SOW, HARVEST = 0.0, 21.0
+SHARE = 21.0 / 4
+YEAR = 28
 
 
-def days(n: float) -> datetime.timedelta:
-    return datetime.timedelta(days=n)
+def day(n: float) -> datetime.datetime:
+    """n days after the 1st of Spring 1500, at midnight."""
+    return datetime.datetime.combine(EPOCH, datetime.time()) + datetime.timedelta(days=n)
 
 
 @pytest.fixture
-def growth(monkeypatch):
-    """Stages of exactly 10 days, a new game's start day taken as it is."""
-    monkeypatch.setattr(crop_growth_module, "FIELD_STAGE_VARIATION", 0.0)
-    monkeypatch.setattr(crop_growth_module, "FIELD_START_JITTER_DAYS", 0.0)
-    return CropGrowth(STAGES, stage_days=10.0, rng=random.Random(1))
+def growth():
+    return CropGrowth(STAGES, SOW, HARVEST)
 
 
-def test_starts_where_told(growth):
-    growth.start(START, "young", day=3.0)
-    assert growth.stage == "young"
-    assert growth.since == START - days(3)
-    assert growth.ends == START + days(7)
+@pytest.mark.parametrize("n, stage", [
+    (0.0, "sprouts"),          # sown on the 1st of Spring
+    (SHARE - 0.01, "sprouts"),
+    (SHARE, "young"),
+    (2 * SHARE + 0.5, "growing"),
+    (3 * SHARE + 0.5, "ripe"),
+    (20.9, "ripe"),            # the last of Autumn
+    (21.0, "bare"),            # harvested: Winter lies bare
+    (27.9, "bare"),
+    (28.0, "sprouts"),         # sown again the next Spring
+    (YEAR * 30 + 8, "young"),  # and so every year
+    (-3.0, "bare"),            # the Winter before the first day
+])
+def test_the_stage_follows_the_calendar(growth, n, stage):
+    growth.update(day(n))
+    assert growth.stage == stage
 
 
-def test_unknown_start_stage_is_the_bare_field(growth):
-    growth.start(START, "turnips")
-    assert (growth.stage, growth.since) == ("bare", START)
+def test_a_stage_knows_when_it_began_and_ends(growth):
+    growth.update(day(6))
+    assert (growth.since, growth.ends) == (day(SHARE), day(2 * SHARE))
+    growth.update(day(24))
+    assert (growth.since, growth.ends) == (day(21), day(28))
+    assert growth.days == pytest.approx(7)
 
 
-def test_moves_on_when_a_stage_runs_out(growth):
-    growth.start(START, "bare", day=5.0)
-    assert not growth.update(START + days(4.9))
-    assert growth.update(START + days(5))
-    assert growth.stage == "sprouts"
-    assert growth.since == START + days(5)   # the next stage starts where the last ended, not when looked at
+def test_update_says_when_the_stage_changed(growth):
+    assert growth.update(day(1))            # from the unset start to sprouts
+    assert not growth.update(day(2))
+    assert growth.update(day(SHARE + 0.1))
 
 
-def test_ripe_is_harvested_back_to_bare(growth):
-    growth.start(START, "ripe")
-    growth.update(START + days(10))
+def test_a_long_jump_lands_on_the_season(growth):
+    growth.update(day(2))
+    growth.update(day(YEAR * 3 + 22))
     assert growth.stage == "bare"
 
 
-def test_a_long_jump_goes_through_every_stage_on_the_way(growth):
-    growth.start(START, "bare")
-    growth.update(START + days(55))   # once round the four stages (40 days), then half into sprouts
-    assert growth.stage == "sprouts"
-    assert growth.since == START + days(50)
-
-
 def test_plants_ahead_and_behind_show_the_neighbouring_stages(growth):
-    growth.start(START, "young")
-    near_end = START + days(9.5)
-    assert growth.plant_stage(near_end, 0.0) == STAGES.index("young")
-    assert growth.plant_stage(near_end, 0.8) == STAGES.index("ripe")      # already turned
-    just_after_start = START + days(0.5)
-    assert growth.plant_stage(just_after_start, -0.8) == STAGES.index("sprouts")   # not yet turned
+    now = day(SHARE - 0.5)       # half a day before the young stage
+    growth.update(now)
+    assert STAGES[growth.plant_stage(now, 1.0)] == "young"
+    assert STAGES[growth.plant_stage(now, -1.0)] == "sprouts"
+    assert STAGES[growth.plant_stage(day(20.5), 1.0)] == "bare"      # already harvested
+    assert STAGES[growth.plant_stage(day(21.5), -1.0)] == "ripe"     # still standing
 
 
-def test_plants_behind_the_harvest_still_stand_ripe(growth):
-    growth.start(START, "bare")
-    assert growth.plant_stage(START + days(0.2), -0.5) == STAGES.index("ripe")
+def test_a_field_may_be_sown_late_and_harvested_early():
+    growth = CropGrowth(STAGES, sow_day=7.0, harvest_day=15.0)     # Summer only, two days a stage
+    for n, stage in ((6.9, "bare"), (7.0, "sprouts"), (9.0, "young"), (14.9, "ripe"), (15.0, "bare")):
+        growth.update(day(n))
+        assert growth.stage == stage, n
 
 
-def test_stage_lengths_and_start_vary_within_their_bounds(monkeypatch):
-    monkeypatch.setattr(crop_growth_module, "FIELD_STAGE_VARIATION", 0.2)
-    monkeypatch.setattr(crop_growth_module, "FIELD_START_JITTER_DAYS", 2.0)
-    for seed in range(20):
-        growth = CropGrowth(STAGES, stage_days=10.0, rng=random.Random(seed))
-        growth.start(START, "bare", day=5.0)
-        assert 8.0 <= growth.days <= 12.0
-        assert START - days(7) <= growth.since <= START - days(3)
-
-
-def test_start_never_goes_before_the_stage_began(monkeypatch):
-    monkeypatch.setattr(crop_growth_module, "FIELD_STAGE_VARIATION", 0.0)
-    monkeypatch.setattr(crop_growth_module, "FIELD_START_JITTER_DAYS", 2.0)
-    for seed in range(20):
-        growth = CropGrowth(STAGES, stage_days=10.0, rng=random.Random(seed))
-        growth.start(START, "ripe", day=0.0)
-        assert growth.since <= START
-        assert growth.stage == "ripe"
-
-
-def test_saved_and_loaded(growth):
-    growth.start(START, "sprouts", day=2.0)
-    saved = growth.to_save()
-    other = CropGrowth(STAGES, stage_days=10.0)
-    assert other.load(saved, START)
-    assert (other.stage, other.since, other.days) == ("sprouts", growth.since, growth.days)
-
-
-def test_loading_catches_up_with_the_time_since(growth):
-    growth.start(START, "sprouts")
-    other = CropGrowth(STAGES, stage_days=10.0, rng=random.Random(2))
-    other.load(growth.to_save(), START + days(10))
-    assert other.stage == "young"
-
-
-@pytest.mark.parametrize("saved", [None, {}, {"stage": "turnips", "since": START.isoformat(), "days": 10},
-                                   {"stage": "young", "since": "yesterday", "days": 10}])
-def test_a_missing_or_unfitting_save_is_refused(growth, saved):
-    growth.start(START, "young")
-    before = growth.to_save()
-    assert not growth.load(saved, START)
-    assert growth.to_save() == before
+def test_a_harvest_past_the_new_year_runs_on_into_it():
+    growth = CropGrowth(STAGES, sow_day=21.0, harvest_day=7.0)     # Winter and Spring
+    growth.update(day(YEAR + 6))
+    assert growth.stage == "ripe"
+    growth.update(day(YEAR + 8))
+    assert growth.stage == "bare"
 
 
 def test_needs_stages():
@@ -120,28 +93,40 @@ def test_needs_stages():
         CropGrowth([])
 
 
+# A FIELD'S SEASON
+
+def test_each_field_keeps_its_own_season_within_the_jitter(monkeypatch):
+    monkeypatch.setattr(crop_growth_module, "FIELD_SOW_DAY", 0.0)
+    monkeypatch.setattr(crop_growth_module, "FIELD_HARVEST_DAY", 21.0)
+    monkeypatch.setattr(crop_growth_module, "FIELD_SEASON_JITTER_DAYS", 1.0)
+    seasons = [field_season(field_id) for field_id in range(20)]
+    assert all(-1 <= sow <= 1 and 20 <= harvest <= 22 for sow, harvest in seasons)
+    assert len(set(seasons)) == 20
+    assert field_season(7) == field_season(7)     # the same every game
+
+
+def test_tiled_properties_set_the_season():
+    assert field_season(7, {"Sow_day": 3, "Harvest_day": "18.5"}) == (3.0, 18.5)
+
+
+# FURROWS
+
 def test_furrows_show_fully_while_bare(growth):
-    growth.start(START, "bare", day=5.0)
-    assert growth.furrows(START, fade_days=2.0) == 1.0
+    assert growth.furrows(day(24), fade_days=2.0) == 1.0
 
 
 def test_furrows_wear_away_over_the_sprouting_stage(growth):
-    growth.start(START, "sprouts")
-    assert growth.furrows(START, 2.0) == pytest.approx(1.0)
-    assert growth.furrows(START + days(5), 2.0) == pytest.approx(0.5)
-    assert growth.furrows(START + days(9.9), 2.0) == pytest.approx(0.01)
+    assert growth.furrows(day(0), 2.0) == pytest.approx(1.0)
+    assert growth.furrows(day(SHARE / 2), 2.0) == pytest.approx(0.5)
+    assert growth.furrows(day(SHARE - 0.01), 2.0) == pytest.approx(0.01 / SHARE)
 
 
 def test_no_furrows_under_the_grown_crop(growth):
-    growth.start(START, "young", day=5.0)
-    assert growth.furrows(START, 2.0) == 0.0
+    assert growth.furrows(day(12), 2.0) == 0.0
 
 
 def test_furrows_come_back_around_the_harvest(growth):
-    growth.start(START, "ripe")
-    assert growth.furrows(START + days(8.5), 2.0) == 0.0
-    assert growth.furrows(START + days(10), 2.0) == pytest.approx(0.5)   # the harvest itself, half way
-    growth.update(START + days(10.5))
-    assert growth.stage == "bare"
-    assert growth.furrows(START + days(10.5), 2.0) == pytest.approx(0.75)
-    assert growth.furrows(START + days(11), 2.0) == pytest.approx(1.0)
+    assert growth.furrows(day(19.5), 2.0) == 0.0
+    assert growth.furrows(day(21), 2.0) == pytest.approx(0.5)   # the harvest itself, half way
+    assert growth.furrows(day(21.5), 2.0) == pytest.approx(0.75)
+    assert growth.furrows(day(22), 2.0) == pytest.approx(1.0)

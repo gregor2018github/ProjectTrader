@@ -6,8 +6,8 @@ import random
 import math
 from typing import Any, List, Tuple, Dict, Optional
 
-from ..config.constants import FIELD_PLANT_SPREAD_DAYS, FIELD_STAGE_DAYS, FIELD_STILL_STAGES, TILE_SIZE
-from .crop_growth import CropGrowth
+from ..config.constants import FIELD_PLANT_SPREAD_DAYS, FIELD_STILL_STAGES, TILE_SIZE
+from .crop_growth import CropGrowth, field_season
 
 # ---------------------------------------------------------------------------
 # Wind / sway constants
@@ -63,12 +63,14 @@ class Field:
     bare its furrows show (``furrow_overlay()``), fading out as it is sown
     and back in as it is harvested.  The first FIELD_STILL_STAGES stages
     with sprites, the low sprouts, do not sway in the wind
-    (``still_sprites``).  Where the field starts
-    comes from its Tiled object's properties:
+    (``still_sprites``).  The crop follows the seasons of the game
+    calendar; its Tiled object may set when (``field_season``):
 
-        Start_stage  the stage key a new game starts at (default: the first, the bare field)
-        Start_day    how many days into it (default 0), give or take FIELD_START_JITTER_DAYS
-        Stage_days   how long its stages last (default FIELD_STAGE_DAYS)
+        Sow_day      day of the year it is sown, 0 being the 1st of Spring (default FIELD_SOW_DAY)
+        Harvest_day  day of the year it is harvested (default FIELD_HARVEST_DAY)
+
+    Without them both are moved by up to FIELD_SEASON_JITTER_DAYS, the same
+    for this field every game.
 
     Sprites are cached per zoom level to avoid per-frame allocations.
 
@@ -93,8 +95,8 @@ class Field:
                   A name in ``BARE_FIELDS`` has none.
             outline: World points of a field drawn as a polygon in Tiled (x, y,
                      width and height are then its bounds), or None for a rectangle.
-            tmx_id: The Tiled object's id, which its growth is saved under.
-            properties: The Tiled object's custom properties (Start_stage, Start_day, Stage_days).
+            tmx_id: The Tiled object's id, which its season and its plants' layout follow from.
+            properties: The Tiled object's custom properties (Sow_day, Harvest_day).
         """
         self.x = x
         self.y = y
@@ -103,8 +105,6 @@ class Field:
         self.name = name
         self.tmx_id = tmx_id
         properties = properties or {}
-        self.start_stage: Optional[str] = properties.get('Start_stage') or None
-        self.start_day: float = float(properties.get('Start_day', 0.0))
         self.outline: List[Tuple[float, float]] = outline or [
             (x, y), (x + width, y), (x + width, y + height), (x, y + height)]
 
@@ -131,8 +131,7 @@ class Field:
         self.still_sprites = frozenset(i for sprites in with_sprites[:FIELD_STILL_STAGES] for i in sprites)
         self.growth: Optional[CropGrowth] = None
         if self.images:
-            # Its timing is left to chance anew each game
-            self.growth = CropGrowth(stages, float(properties.get('Stage_days', FIELD_STAGE_DAYS)))
+            self.growth = CropGrowth(stages, *field_season(tmx_id, properties))
             self._generate_placements()
 
         # Wind projection range (world_by - world_cx along the diagonal)
@@ -193,7 +192,7 @@ class Field:
                         it grows, within FIELD_PLANT_SPREAD_DAYS
             pick      – which variant of a stage it shows, 0..1
 
-        Until the growth is started they all show the ripe crop.
+        Until the growth is first updated they all show the ripe crop.
         """
         col_start = math.floor(self.x / TILE_SIZE)
         col_end   = math.floor((self.x + self.width  - 1) / TILE_SIZE)
@@ -263,28 +262,12 @@ class Field:
         # Half a tile down, so the grooves run where the plants stand, on their tiles' bottom edge
         return overlay, float(left * TILE_SIZE), float(top * TILE_SIZE + _FURROW_DROP)
 
-    def start_growth(self, now: datetime.datetime) -> None:
-        """Begin as a new game does, from the Tiled object's Start_stage and Start_day."""
-        if self.growth:
-            self.growth.start(now, self.start_stage, self.start_day)
-            self._place_plants(now)
-
-    def load_growth(self, saved: Optional[Dict[str, Any]], now: datetime.datetime) -> None:
-        """Take over a save's growth; without one (an older save) begin as a new game does."""
-        if self.growth:
-            if self.growth.load(saved, now):
-                self._place_plants(now)
-            else:
-                self.start_growth(now)
-
     def update_growth(self, now: datetime.datetime) -> None:
-        """Bring the field and its plants up to `now` (called every game hour)."""
+        """Bring the field and its plants to where the calendar has them at `now`
+        (when the game is built or loaded, and every game hour)."""
         if self.growth:
             self.growth.update(now)
             self._place_plants(now)
-
-    def growth_to_save(self) -> Optional[Dict[str, Any]]:
-        return self.growth.to_save() if self.growth else None
 
     # ------------------------------------------------------------------
     # Rendering helpers

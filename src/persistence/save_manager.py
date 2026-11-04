@@ -100,7 +100,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, fields: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -215,8 +215,6 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "fog": fog.to_save() if fog is not None else None,
         # Loaded by Weather.load, missing means the weather goes on as it is
         "weather": weather.to_save() if weather is not None else None,
-        # The crops' stages by field (TMXMap.crops_to_save); missing means they begin as in a new game
-        "fields": fields,
         # Loaded by MerchantRank.load, missing means the first rank
         "merchant_rank": merchant_rank.to_save() if merchant_rank is not None else None,
     }
@@ -244,12 +242,11 @@ def _serialize_population(pm: Any) -> Optional[Dict[str, Any]]:
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, fields: Optional[Dict[str, Any]] = None) -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager, fog, weather, merchant_rank,
-                           fields)
+    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager, fog, weather, merchant_rank)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)
