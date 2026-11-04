@@ -11,15 +11,16 @@ reads the CSVs ``python -m src.sim.run`` wrote and checks them. So far:
 - **the town runs slightly short** (warnings): without the player, each
   class's mean comfort fulfilment lies in ``COMFORT_BAND`` and its mean luxury
   fulfilment in ``LUXURY_BAND``, and at least ``SHORT_GOODS_MIN`` goods run
-  short (some class bought less than its whole basket of it, because it was
-  dear or the market had run out: ``bought < wanted``) on more than
-  ``SHORT_DAYS_SHARE`` of days.
+  short (some class bought less than ``SHORT_BELOW`` of its whole basket of
+  it, because it was dear, the market had run out or its money had: the
+  runner's ``least_share``) on more than ``SHORT_DAYS_SHARE`` of days.
 - **tradability** (a warning only, no threshold yet): per good, the median
   over the run of ``(30-day max price − 30-day min price) / price``, and how
-  often that range, over ``TRADE_UNITS`` units, beats twice what a round trip
-  of ``TRADE_UNITS`` units costs the player (two fees plus the slippage of
-  buying and selling them at that day's stock). It says whether a patient
-  trader could live off a good's swings.
+  often that range, over a lot worth ``TRADE_LOT_VALUE`` at the day's price
+  (whole units, at least 1), beats twice what a round trip of that lot costs
+  the player (two fees plus the slippage of buying and selling it at that
+  day's stock). It says whether a patient trader could live off a good's
+  swings.
 
 Phase 4 of P1 adds the other checks of ``docs/p1_living_market.md``.
 """
@@ -42,16 +43,16 @@ COMFORT_BAND = (0.80, 0.95)     # each class's mean comfort fulfilment, for a to
 LUXURY_BAND = (0.30, 0.70)      # ...and its mean luxury fulfilment
 SHORT_GOODS_MIN = 3             # at least this many goods...
 SHORT_DAYS_SHARE = 0.05         # ...run short on more than this share of days
-SHORT_TOLERANCE = 1e-6          # share of the basket a class may miss before the day counts as short (float rounding)
+SHORT_BELOW = 0.90              # a day is short for a good when some class bought less than this share of its basket
 TRADE_WINDOW_DAYS = 30
-TRADE_UNITS = 20                # a small trader's order
+TRADE_LOT_VALUE = 100.0         # a small trader's order, in money at the day's price (rounded to whole units)
 
 
 @dataclass
 class Tradability:
     good: str
     median_range: float         # median of (window max − window min) / price
-    share_worth_it: float       # share of days the window's range over TRADE_UNITS beats 2 × a round trip's cost
+    share_worth_it: float       # share of days the window's range over a TRADE_LOT_VALUE lot beats 2 × its round trip's cost
     days: int                   # days measured (those with a full window)
 
 
@@ -82,22 +83,25 @@ def fulfilment_by_class(population_rows: Sequence[Dict[str, str]]) -> Dict[str, 
 
 
 def short_days(goods_rows: Sequence[Dict[str, str]]) -> Dict[str, float]:
-    """Per good, the share of days the town ran short of it: some class bought less than its whole basket.
+    """Per good, the share of days the town ran short of it: some class bought less than SHORT_BELOW of its basket.
 
-    No class ever buys more than its basket, so the households together bought
-    less than they wanted exactly when some class did, for whatever reason:
-    the price (it bought less of a dear good) or an empty market.
+    For whatever reason: the price (it bought less of a dear good), an empty
+    market, or an empty purse. ``least_share`` is the worst class's share.
     """
     counts: Dict[str, List[int]] = {}
     for row in goods_rows:
         c = counts.setdefault(row["good"], [0, 0])
-        wanted = float(row["wanted"])
-        c[0] += wanted > 0 and float(row["bought"]) < wanted * (1 - SHORT_TOLERANCE)
+        c[0] += float(row["least_share"]) < SHORT_BELOW
         c[1] += 1
     return {good: below / days for good, (below, days) in counts.items()}
 
 
-def round_trip_cost(row: Dict[str, str], units: int = TRADE_UNITS, fee: float = INITIAL_TRANSACTION_COST) -> float:
+def lot_units(price: float, value: float = TRADE_LOT_VALUE) -> int:
+    """The whole units a lot worth *value* holds at *price*, at least 1."""
+    return max(1, round(value / price))
+
+
+def round_trip_cost(row: Dict[str, str], units: int, fee: float = INITIAL_TRANSACTION_COST) -> float:
     """What buying *units* and later selling them into the same stock costs the player: two fees and the slippage.
 
     Both legs are priced at that day's stock: by the time a patient trader
@@ -114,7 +118,7 @@ def round_trip_cost(row: Dict[str, str], units: int = TRADE_UNITS, fee: float = 
 
 
 def tradability(goods_rows: Sequence[Dict[str, str]], window: int = TRADE_WINDOW_DAYS,
-                units: int = TRADE_UNITS, fee: float = INITIAL_TRANSACTION_COST) -> List[Tradability]:
+                lot_value: float = TRADE_LOT_VALUE, fee: float = INITIAL_TRANSACTION_COST) -> List[Tradability]:
     """Per good, how wide its prices swing over *window* days, and how often that pays for a round trip."""
     by_good: Dict[str, List[Dict[str, str]]] = {}
     for row in goods_rows:
@@ -127,6 +131,7 @@ def tradability(goods_rows: Sequence[Dict[str, str]], window: int = TRADE_WINDOW
             span = prices[i - window + 1:i + 1]
             price_range = max(span) - min(span)
             ranges.append(price_range / prices[i])
+            units = lot_units(prices[i], lot_value)
             if price_range * units > 2 * round_trip_cost(rows[i], units, fee):
                 worth += 1
         days = len(ranges)
@@ -156,12 +161,13 @@ def report(run_dir: str) -> int:
     shares = short_days(goods)
     short = sorted((g for g, s in shares.items() if s > SHORT_DAYS_SHARE), key=lambda g: -shares[g])
     ok = len(short) >= SHORT_GOODS_MIN
-    print(f"[{'ok' if ok else 'warn'}] goods the town ran short of on more than {SHORT_DAYS_SHARE:.0%} of days: "
+    print(f"[{'ok' if ok else 'warn'}] goods some class bought under {SHORT_BELOW:.0%} of its basket of "
+          f"on more than {SHORT_DAYS_SHARE:.0%} of days: "
           f"{len(short)} (want at least {SHORT_GOODS_MIN}): "
           + ", ".join(f"{g} {shares[g]:.0%}" for g in short))
 
     print(f"[info] tradability: {TRADE_WINDOW_DAYS}-day price range, and the share of days it beats "
-          f"2 x a {TRADE_UNITS}-unit round trip (fees {INITIAL_TRANSACTION_COST} each, plus slippage)")
+          f"2 x the round trip of a {TRADE_LOT_VALUE:g}g lot (fees {INITIAL_TRANSACTION_COST} each, plus slippage)")
     print(f"       {'good':10} {'median range':>12} {'worth it':>9}")
     for t in sorted(tradability(goods), key=lambda t: -t.median_range):
         print(f"       {t.good:10} {t.median_range:12.1%} {t.share_worth_it:9.1%}")

@@ -111,7 +111,7 @@ It starts as a new game does (the game's start moment, the town from `Map1.tmx`,
 
 | File | One row per | Columns |
 |---|---|---|
-| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, unmet, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold` (`unmet`: what households asked for in a slice that the market had run out of) |
+| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, unmet, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold, least_share` (`unmet`: what households asked for in a slice that the market had run out of; `least_share`: the smallest share of its whole basket of the good any class bought that day, read after the market closed, 1 if none wanted it) |
 | `population_daily.csv` | day × class (and `All`) | `class, count, employed, labour_wanted, wage, happiness, happiness_target, purse, income, wages, payouts, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
 | `workshops_daily.csv` | day × workshop | `workshop, owner, building, capacity, utilisation, margin, planned, done_yesterday, workers, cash` |
 | `town_daily.csv` | day | `citizens, money_supply, purses, workshop_cash, owner_cash, money_created, money_leaked, money_invested, money_tribute, paid_to_merchants, paid_by_merchants, market_balance`, and the merchants' book: `merchant_sales, merchant_purchases, merchant_import_cost, merchant_export_revenue, merchant_transport, merchant_profit` |
@@ -131,7 +131,7 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 50 years (1,400 days) take about 3 s here.
 
-**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than its whole basket of it, for any reason) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than `SHORT_BELOW`, 90 %, of its whole basket of it, for any reason: `least_share`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on a lot worth `TRADE_LOT_VALUE` (100) at the day's price (whole units, at least 1) beats twice that lot's round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
 ## Data files
 

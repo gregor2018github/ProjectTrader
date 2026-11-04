@@ -10,7 +10,8 @@ systems ran (the flows are the day just ended):
   target_stock, and the day's flows: wanted (households' whole baskets),
   bought, unmet (asked for in a slice when the market had run out),
   input_wanted and input_bought (workshops), produced, imported, exported,
-  player_bought, player_sold;
+  player_bought, player_sold, and least_share (the smallest share of its whole
+  basket of the good any class bought that day; 1 if no class wanted any);
 - ``population_daily.csv``: one row per day and class (and ``All`` for the
   town): count, employed, labour_wanted (by its workshops), wage, happiness,
   happiness_target, purse, income (of which wages and payouts), spent, leaked,
@@ -64,7 +65,7 @@ SCENARIO = "home_town"
 STAMP_COLUMNS = ["day", "year", "season", "day_of_season"]
 GOODS_COLUMNS = STAMP_COLUMNS + ["good", "price", "outside_price", "reference", "stock", "target_stock",
                                  "wanted", "bought", "unmet", "input_wanted", "input_bought", "produced",
-                                 "imported", "exported", "player_bought", "player_sold"]
+                                 "imported", "exported", "player_bought", "player_sold", "least_share"]
 POPULATION_COLUMNS = STAMP_COLUMNS + ["class", "count", "employed", "labour_wanted", "wage", "happiness",
                                       "happiness_target", "purse",
                                       "income", "wages", "payouts", "spent", "leaked"] + [f"fulfilment_{t}" for t in TIERS]
@@ -104,16 +105,40 @@ def _fmt(value: Any) -> str:
     return repr(value) if isinstance(value, float) else str(value)
 
 
+# The hour (ending at it) the households' baskets are read, after the market closed and before
+# midnight's plans replace them
+BASKETS_READ_HOUR = 23
+
+
 class DailyRecorder:
     """Takes rows at every midnight, after the day's systems ran."""
 
     def __init__(self, sim: Simulation) -> None:
         self.sim = sim
+        self.least_share: Dict[str, float] = {}     # per good, yesterday's worst class's share of its basket
+        sim.scheduler.subscribe(calendar.HOUR, self.read_baskets)
         self.goods_rows: List[List[str]] = []
         self.population_rows: List[List[str]] = []
         self.workshop_rows: List[List[str]] = []
         self.town_rows: List[List[str]] = []
         sim.scheduler.subscribe(calendar.DAY, self.record)
+
+    def read_baskets(self, moment: datetime.datetime) -> None:
+        """After the market closed: per good, the smallest share of its whole basket any class bought."""
+        if moment.hour != BASKETS_READ_HOUR or self.sim.state.population is None:
+            return
+        wanted: Dict[Tuple[str, str], float] = {}
+        bought: Dict[Tuple[str, str], float] = {}
+        for c in self.sim.state.population.classes.values():
+            for item in c.plan:
+                key = (c.name, item.good)
+                wanted[key] = wanted.get(key, 0.0) + item.wanted
+                bought[key] = bought.get(key, 0.0) + item.bought
+        self.least_share = {}
+        for key, w in wanted.items():
+            if w > 0:
+                good = key[1]
+                self.least_share[good] = min(self.least_share.get(good, 1.0), bought[key] / w)
 
     def record(self, moment: datetime.datetime) -> None:
         state = self.sim.state
@@ -124,7 +149,7 @@ class DailyRecorder:
             self.goods_rows.append(stamp + [g.name] + [_fmt(v) for v in (
                 market.price(g), g.outside_price, market.reference(g), g.stock, g.target_stock,
                 f.wanted, f.bought, f.unmet, f.input_wanted, f.input_bought, f.produced,
-                f.imported, f.exported, f.player_bought, f.player_sold)])
+                f.imported, f.exported, f.player_bought, f.player_sold, self.least_share.get(g.name, 1.0))])
         pop = state.population
         purses = 0.0
         if pop is not None:
