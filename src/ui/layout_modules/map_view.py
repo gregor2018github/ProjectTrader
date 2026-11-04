@@ -710,6 +710,7 @@ def _build_render_queue(
             })
 
     # Add figurines (sheep, human NPCs, player last) to queue
+    placed = {}
     for figurine in iter_figurines(game_map):
         sprite = figurine._get_scaled_sprite(camera.zoom)
         # Rounded draw position prevents shimmering during slow movement
@@ -724,6 +725,9 @@ def _build_render_queue(
                 'y_sort': figurine.y_sort,
                 'owner': figurine,  # lets the hover glow find this entry
             })
+            placed[id(figurine)] = (sprite, draw_x, draw_y)
+    # The rain bursting off their tops, just over each of them
+    render_queue.extend(game_map.rain.figure_splash_entries(camera, placed))
 
     return render_queue
 

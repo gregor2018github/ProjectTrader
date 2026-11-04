@@ -22,6 +22,13 @@ over everything (draw(), after the lighting), dimmed by *light* instead: the
 falling drops no further than NIGHT_LIGHT_MIN, so the rain stays visible at
 night, the roof splashes down to SPLASH_LIGHT_MIN, so they do not shine white
 in the dark.
+
+Rain also bursts off the tops of people and animals (FIGURE_SPLASHES_PER_PX_S
+per world pixel of their width at full rain): a bead where it hits their outline
+that throws a few faint droplets up and out. These go into the render queue
+just after their figure (figure_splash_entries()), so whatever hides the figure
+hides them, and the lighting darkens them with it. The top of a figure's sprite
+is looked up only in the columns hit, and kept per sprite.
 """
 
 import random
@@ -47,6 +54,9 @@ FALL_SECONDS = (0.15, 0.35)       # how long a drop is seen falling before it la
 SPLASH_FRAME_SECONDS = 0.06       # each frame of a splash on land
 RING_FRAME_SECONDS = 0.11         # each frame of a ring on water
 SPAWN_MARGIN = 40                 # world px around the view drops may land in, so its edges are not bare
+FIGURE_SPLASHES_PER_PX_S = 0.06    # splashes off a figure per second per world px of its width, at full rain
+FIGURE_FRAME_SECONDS = 0.05       # each frame of a splash off a figure
+FIGURE_COLOUR = (226, 236, 250)   # a touch whiter than the falling rain: the bead catching the light
 _FAR = [i for i, kind in enumerate(DROP_KINDS) if not kind[3]]
 _NEAR = [i for i, kind in enumerate(DROP_KINDS) if kind[3]]
 
@@ -57,6 +67,16 @@ _SPLASH_FRAMES = (
     (((-2, -3, 130), (2, -3, 130)), (5, 2, 120)),
     (((-3, -3, 70), (3, -3, 70)), (8, 3, 70)),
 )
+# A drop bursting off a head or a back, around where it hits the outline: a bead, then a
+# few droplets thrown up and out, falling back and fading. Drawn as is or mirrored.
+_FIGURE_FRAMES = (
+    ((0, 0, 190), (0, -1, 100)),
+    ((-1, -1, 160), (1, -2, 150)),
+    ((-2, -2, 120), (2, -3, 110), (0, -2, 70)),
+    ((-3, -2, 75), (3, -3, 65)),
+    ((-4, -1, 35), (4, -2, 30)),
+)
+FIGURE_PIXEL = 1.5                # the droplets' pixels, in the art's pixels: a little coarser than the rest
 # Rings on water, each (w, h, alpha): wider and fainter
 _RING_FRAMES = ((4, 2, 150), (7, 3, 120), (10, 4, 85), (13, 5, 45))
 
@@ -116,12 +136,22 @@ class Rainfall:
         # Each splash: [x, y, age in seconds, on water, on a roof]
         self.splashes: List[list] = []
         self._sprites: Dict[tuple, tuple] = {}
+        # Each splash off a figure: [figurine, across its sprite (0 to 1), age in seconds, mirrored]
+        self.figure_splashes: List[list] = []
+        self._figure_sprites: Dict[float, tuple] = {}
+        # The top of a figure's sprite in a column: (id of the sprite, column) -> row or -1;
+        # the sprites are held in _top_sprites so their ids are not reused while filed
+        self._tops: Dict[Tuple[int, int], int] = {}
+        self._top_sprites: Dict[int, pygame.Surface] = {}
 
-    def update(self, dt: float, rain: float, wind: float, camera, tmx_map, puddles=None) -> None:
+    def update(self, dt: float, rain: float, wind: float, camera, tmx_map, puddles=None,
+               figurines=()) -> None:
         """Let *dt* seconds of rain fall in the camera's view (only call while the game runs).
 
-        A drop landing in one of the *puddles* rings on it, as on water.
+        A drop landing in one of the *puddles* rings on it, as on water; on the
+        *figurines* (those out of doors) it bursts off their tops.
         """
+        self._update_figure_splashes(dt, rain, camera, figurines)
         scale = _scale_of(camera)
         view_w = camera.screen_width / scale
         view_h = camera.screen_height / scale
@@ -179,6 +209,83 @@ class Rainfall:
         if len(alive) > wanted:
             del alive[wanted:]   # the rain easing off: those drops simply are not there any more
         self.drops = alive
+
+    def _update_figure_splashes(self, dt: float, rain: float, camera, figurines) -> None:
+        figure_end = len(_FIGURE_FRAMES) * FIGURE_FRAME_SECONDS
+        kept = []
+        for splash in self.figure_splashes:
+            splash[2] += dt
+            if splash[2] < figure_end and not splash[0].is_hidden:
+                kept.append(splash)
+        self.figure_splashes = kept
+        if rain <= 0.0:
+            return
+        scale = _scale_of(camera)
+        left, top = camera.x - SPAWN_MARGIN, camera.y - SPAWN_MARGIN
+        right = camera.x + camera.screen_width / scale + SPAWN_MARGIN
+        bottom = camera.y + camera.screen_height / scale + SPAWN_MARGIN
+        rng = self.rng
+        chance_per_px = rain * FIGURE_SPLASHES_PER_PX_S * dt
+        for figurine in figurines:
+            if getattr(figurine, 'opacity', 1.0) < 1.0:
+                continue   # fading through a door
+            if not (left <= figurine.x <= right and top <= figurine.y <= bottom):
+                continue
+            if rng.random() < chance_per_px * figurine.sprite_width:
+                self.figure_splashes.append([figurine, rng.random(), 0.0, rng.random() < 0.5])
+
+    def _top_of(self, sprite: pygame.Surface, column: int) -> int:
+        """The first row of *sprite* painted in *column*, or -1 if none is."""
+        key = (id(sprite), column)
+        row = self._tops.get(key)
+        if row is None:
+            if len(self._tops) > 8192:
+                self._tops.clear()
+                self._top_sprites.clear()
+            self._top_sprites[id(sprite)] = sprite
+            row = -1
+            get_at = sprite.get_at
+            for y in range(sprite.get_height()):
+                if get_at((column, y))[3] >= 128:
+                    row = y
+                    break
+            self._tops[key] = row
+        return row
+
+    def _figure_frames(self, scale: float) -> tuple:
+        """The splash-off-a-figure frames at *scale*: (as drawn, mirrored), each a list of (sprite, anchor)."""
+        frames = self._figure_sprites.get(scale)
+        if frames is None:
+            pixel = max(2, round(scale * FIGURE_PIXEL))
+            plain = [_make_splash(dots, None, pixel, FIGURE_COLOUR) for dots in _FIGURE_FRAMES]
+            mirrored = [_make_splash(tuple((-x, y, a) for x, y, a in dots), None, pixel, FIGURE_COLOUR)
+                        for dots in _FIGURE_FRAMES]
+            frames = self._figure_sprites[scale] = (plain, mirrored)
+        return frames
+
+    def figure_splash_entries(self, camera, placed: Dict[int, tuple]) -> List[dict]:
+        """Render-queue entries for the splashes off figures, each just over its figure.
+
+        *placed* maps id(figurine) to (sprite, draw x, draw y) as the figure is drawn this frame.
+        """
+        if not self.figure_splashes:
+            return []
+        plain, mirrored = self._figure_frames(_scale_of(camera))
+        entries = []
+        for figurine, across, age, flip in self.figure_splashes:
+            where = placed.get(id(figurine))
+            if where is None:
+                continue
+            sprite, draw_x, draw_y = where
+            column = min(sprite.get_width() - 1, int(across * sprite.get_width()))
+            row = self._top_of(sprite, column)
+            if row < 0:
+                continue
+            frames = mirrored if flip else plain
+            splash, (ax, ay) = frames[min(int(age / FIGURE_FRAME_SECONDS), len(frames) - 1)]
+            entries.append({'sprite': splash, 'pos': (draw_x + column - ax, draw_y + row - ay),
+                            'y_sort': figurine.y_sort + 0.01})
+        return entries
 
     def _sprites_for(self, scale: float, wind: float, light: float) -> tuple:
         """(streaks per drop kind, splash frames, ring frames), each sprite with its anchor, for a scene *light*."""

@@ -689,7 +689,7 @@ class Game:
                         self.game_map.update(delta_time, self.state.date)
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
                                                   self.game_map.camera, self.game_map.tmx_map,
-                                                  self.game_map.puddles)
+                                                  self.game_map.puddles, iter_figurines(self.game_map))
                         self.game_map.fog.update(delta_time, self.weather.fog, self.weather.wind, self.game_map.camera)
                         self.game_map.puddles.update_walkers(delta_time, iter_figurines(self.game_map))
                         tile_size = self.game_map.tmx_map.tile_size
