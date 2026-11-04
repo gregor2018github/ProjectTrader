@@ -125,10 +125,12 @@ class ClassState:
     """One social class of the town: a head count, a purse, a mood."""
     name: str
     count: int
-    base: int                       # its head count when the game started, which migration's min/max are measured against
+    base: int                       # its head count when the game started
     happiness: float
-    capacity: int = 0               # its share of the town's housing, which crowding is measured against (0: not saved yet)
+    capacity: int = 0               # its share of the town's housing: crowding and migration's min/max measure against it (0: not saved yet)
     employed: float = 0.0           # heads working in workshops today (earning wages instead of base income)
+    wage: float = 0.0               # what its workshops pay a worker a day, moving with the demand for hands (0: not saved yet)
+    labour_wanted: float = 0.0      # workers its workshops wanted today, before sharing out
     happiness_target: float = 0.0   # where its happiness glides to, from yesterday's fulfilment
     purse: float = 0.0
     fulfilment: Dict[str, float] = field(default_factory=dict)   # tier -> share of yesterday's wants it got (0..1)
@@ -151,6 +153,8 @@ class ClassState:
             happiness=happiness,
             capacity=int(data.get("capacity", 0)),
             employed=float(data.get("employed", 0.0)),
+            wage=float(data.get("wage", 0.0)),
+            labour_wanted=float(data.get("labour_wanted", 0.0)),
             happiness_target=data.get("happiness_target", happiness),
             purse=float(data.get("purse", -1.0)),            # -1: not saved (sim_version 1), give it a start
             fulfilment={k: float(v) for k, v in data.get("fulfilment", {}).items()},
@@ -209,9 +213,12 @@ class OwnerState:
     name: str
     cash: float
     reserve: float                  # cash it keeps; above it, surplus_to decides
-    surplus_to: str                 # "keep" or "townsfolk" (paid out per head to the classes)
+    surplus_to: str                 # "keep", "townsfolk" (paid out per head) or "treasury_with_tribute"
+    income_avg: float = 0.0         # its net income a day (profits taken less top-ups given), smoothed
     profits_today: float = 0.0      # taken from its workshops today
-    paid_out_today: float = 0.0
+    topped_up_today: float = 0.0    # given to its workshops today
+    paid_out_today: float = 0.0     # paid to the townsfolk today
+    tribute_today: float = 0.0      # paid to the lord today (gone out of town)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -234,6 +241,7 @@ class WorkshopState:
     planned: float = 0.0            # batches it means to run today
     done: float = 0.0               # batches run so far today
     workers: float = 0.0            # heads hired for today
+    wage: float = 0.0               # what it pays each of them (its class's wage when it hired)
     input_stock: Dict[str, float] = field(default_factory=dict)   # bought, not yet used
     busy_days: int = 0              # days in a row it wanted (nearly) full capacity
     unprofitable_days: int = 0      # days in a row its margin was negative
@@ -255,12 +263,13 @@ class TownMoney:
     so buyers pay merchants and sellers are paid by them. The town's money
     (purses, workshops' and owners' cash; the player's is in the game's
     Depot) therefore changes by exactly ``created − leaked − invested −
-    to_merchants + from_merchants``; whatever else appeared or vanished is the
+    tribute − to_merchants + from_merchants``; whatever else appeared or vanished is the
     ``market_balance``, which must be zero.
     """
     created: float = 0.0            # base income (all the work that is not simulated)
     leaked: float = 0.0             # savings above the cap, gone out of town
     invested: float = 0.0           # paid to builders out of town for workshops' growth
+    tribute: float = 0.0            # owners' treasuries above their cap, paid to the lord out of town
     to_merchants: float = 0.0       # paid by town buyers for goods from the market
     from_merchants: float = 0.0     # paid to town sellers for goods into the market
     market_balance: float = 0.0     # set when the day closes: what the flows above do not explain

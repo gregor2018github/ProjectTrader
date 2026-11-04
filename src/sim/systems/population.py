@@ -152,7 +152,8 @@ def update_population(pop: PopulationState) -> Tuple[int, int]:
     """A day's migration: people move in or out by the average happiness.
 
     The new total is split by the class shares again, and each class is held
-    within [base × POPULATION_MIN_FACTOR, base × POPULATION_MAX_FACTOR].
+    within [capacity × POPULATION_MIN_FACTOR, capacity × POPULATION_MAX_FACTOR],
+    its share of the town's housing.
 
     Returns:
         The head count before and after.
@@ -166,11 +167,11 @@ def update_population(pop: PopulationState) -> Tuple[int, int]:
     new_groups = split_into_classes(new_total)
 
     for cls in pop.classes.values():
-        base = cls.base
-        if base == 0:
+        housing = cls.capacity
+        if housing == 0:
             continue
-        lo = round(base * POPULATION_MIN_FACTOR)
-        hi = round(base * POPULATION_MAX_FACTOR)
+        lo = round(housing * POPULATION_MIN_FACTOR)
+        hi = round(housing * POPULATION_MAX_FACTOR)
         cls.count = max(lo, min(hi, new_groups.get(cls.name, 0)))
 
     return old_total, pop.citizens

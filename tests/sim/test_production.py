@@ -10,7 +10,8 @@ from src.sim.systems.market import price
 from tests.sim.builders import START, building, good_def, plain_needs, recipe, scenario, simulation
 
 PRICES = {"Wheat": 1.0, "Beer": 5.0, "Wood": 1.0}
-BREWERY = building("brewery", "brew", workers="Commons", wage=1.0, working_capital=100.0, growth_cost=100.0)
+WAGE = 1.0
+BREWERY = building("brewery", "brew", workers="Commons", working_capital=100.0, growth_cost=100.0)
 BREW = recipe("brew", {"Beer": 1.0}, inputs={"Wheat": 2.0, "Wood": 0.5}, labour=1.0)   # costs 3.5, sells for 5
 
 
@@ -18,7 +19,8 @@ BREW = recipe("brew", {"Beer": 1.0}, inputs={"Wheat": 2.0, "Wood": 0.5}, labour=
 def pinned(monkeypatch):
     for name, value in (("MARGIN_FLOOR", 0.0), ("MARGIN_FULL", 0.3), ("UTILISATION_GLIDE", 1.0),
                         ("GROWTH_DESIRE", 0.9), ("GROWTH_AFTER_DAYS", 3), ("GROWTH_STEP", 0.1),
-                        ("GROWTH_MIN_STEP", 0.5), ("SHRINK_AFTER_DAYS", 3), ("SHRINK_STEP", 0.5)):
+                        ("GROWTH_MIN_STEP", 0.5), ("SHRINK_AFTER_DAYS", 3), ("SHRINK_STEP", 0.5),
+                        ("WAGE_GLIDE", 0.1), ("TREASURY_CAP_DAYS", 10), ("TREASURY_INCOME_GLIDE", 1.0)):
         monkeypatch.setattr(prod, name, value)
 
 
@@ -31,9 +33,9 @@ def an_owner(cash: float = 0.0, reserve: float = 0.0, surplus_to: str = "keep") 
 
 
 def test_the_margin_counts_inputs_labour_and_byproducts():
-    assert prod.batch_margin(BREW, BREWERY, PRICES) == pytest.approx((5.0 - 3.5) / 3.5)
+    assert prod.batch_margin(BREW, WAGE, PRICES) == pytest.approx((5.0 - 3.5) / 3.5)
     butcher = recipe("cattle", {"Beer": 1.0, "Wood": 1.0}, labour=1.0)          # two outputs
-    assert prod.batch_margin(butcher, BREWERY, PRICES) == pytest.approx(5.0)
+    assert prod.batch_margin(butcher, WAGE, PRICES) == pytest.approx(5.0)
 
 
 @pytest.mark.parametrize("margin, utilisation", [(-0.1, 0.0), (0.0, 0.0), (0.15, 0.5), (0.3, 1.0), (2.0, 1.0)])
@@ -43,18 +45,29 @@ def test_the_margin_sets_the_utilisation(margin, utilisation):
 
 def test_a_workshop_plans_capacity_times_utilisation_as_far_as_its_cash_goes():
     ws = a_workshop(capacity=10.0, cash=1000.0)
-    assert prod.plan_wants(ws, BREWERY, BREW, PRICES) == pytest.approx(10.0)    # full: margin 43 %
+    assert prod.plan_wants(ws, BREW, PRICES, WAGE) == pytest.approx(10.0)       # full: margin 43 %
     poor = a_workshop(capacity=10.0, cash=7.0)                                   # two batches' worth
-    prod.plan_wants(poor, BREWERY, BREW, PRICES)
+    prod.plan_wants(poor, BREW, PRICES, WAGE)
     assert poor.planned == pytest.approx(2.0)
 
 
 def test_short_hands_are_shared_and_hiring_sets_the_workers():
     ws = a_workshop()
-    prod.plan_wants(ws, BREWERY, BREW, PRICES)
+    prod.plan_wants(ws, BREW, PRICES, WAGE)
     assert prod.labour_share_given(0.5, 100, wanted=200.0) == pytest.approx(0.25)
-    assert prod.hire(ws, BREW, 0.25) == pytest.approx(2.5)
-    assert ws.planned == pytest.approx(2.5)
+    assert prod.hire(ws, BREW, 0.25, 1.2) == pytest.approx(2.5)
+    assert ws.planned == pytest.approx(2.5) and ws.wage == 1.2
+
+
+def test_a_wage_rises_when_hands_are_short_and_falls_when_they_are_spare():
+    assert prod.move_wage(1.0, wanted=200.0, hands=100.0, floor=0.5, cap=2.0) == pytest.approx(1.1)
+    assert prod.move_wage(1.0, wanted=150.0, hands=100.0, floor=0.5, cap=2.0) == pytest.approx(1.05)
+    assert prod.move_wage(1.0, wanted=0.0, hands=100.0, floor=0.5, cap=2.0) == pytest.approx(0.95)
+    assert prod.move_wage(1.0, wanted=100.0, hands=100.0, floor=0.5, cap=2.0) == 1.0
+    wage = 1.0
+    for _ in range(500):
+        wage = prod.move_wage(wage, wanted=1000.0, hands=100.0, floor=0.5, cap=2.0)
+    assert 1.99 < wage <= 2.0                                                    # never past the cap
 
 
 def test_a_slice_buys_what_is_missing_and_runs_what_the_inputs_allow():
@@ -70,7 +83,7 @@ def test_a_slice_buys_what_is_missing_and_runs_what_the_inputs_allow():
 def test_the_owner_tops_up_to_working_capital_and_takes_the_rest():
     owner = an_owner(cash=500.0)
     ws = a_workshop(cash=20.0)
-    ws.workers = 10.0
+    ws.workers, ws.wage = 10.0, 1.0
     assert prod.settle_day(ws, BREWERY, owner) == 10.0                          # wages paid
     assert ws.cash == 100.0 and owner.cash == 410.0                            # topped up from 10 to 100
     ws.cash = 250.0
@@ -81,17 +94,26 @@ def test_the_owner_tops_up_to_working_capital_and_takes_the_rest():
 
 def test_an_owner_pays_out_above_its_reserve_only_if_its_rule_says_so():
     keeper = an_owner(cash=300.0, reserve=100.0, surplus_to="keep")
-    assert prod.owner_surplus(keeper) == 0.0 and keeper.cash == 300.0
+    assert prod.owner_day(keeper) == (0.0, 0.0) and keeper.cash == 300.0
     giver = an_owner(cash=300.0, reserve=100.0, surplus_to="townsfolk")
-    assert prod.owner_surplus(giver) == 200.0 and giver.cash == 100.0
+    assert prod.owner_day(giver) == (200.0, 0.0) and giver.cash == 100.0
+
+
+def test_a_treasury_keeps_days_of_income_and_pays_the_rest_as_tribute():
+    town = an_owner(cash=1000.0, reserve=100.0, surplus_to="treasury_with_tribute")
+    town.profits_today, town.topped_up_today = 50.0, 20.0           # 30 a day net (the glide is 1 here)
+    assert prod.owner_day(town) == (0.0, pytest.approx(700.0))       # keeps 10 days: 300
+    assert town.cash == pytest.approx(300.0) and town.income_avg == pytest.approx(30.0)
+    poor_town = an_owner(cash=150.0, reserve=100.0, surplus_to="treasury_with_tribute")
+    assert prod.owner_day(poor_town) == (0.0, pytest.approx(50.0))   # no income yet: keeps its reserve
 
 
 def test_busy_days_grow_a_workshop_and_its_owner_helps_pay():
     owner = an_owner(cash=1000.0)
     ws = a_workshop(capacity=10.0, cash=50.0)
     for _ in range(3):
-        prod.plan_wants(ws, BREWERY, BREW, PRICES)
-        prod.hire(ws, BREW, 1.0)
+        prod.plan_wants(ws, BREW, PRICES, WAGE)
+        prod.hire(ws, BREW, 1.0, WAGE)
     assert prod.change_capacity(ws, BREWERY, owner) == (pytest.approx(1.0), pytest.approx(100.0))
     assert ws.capacity == 11.0 and ws.cash == 0.0 and owner.cash == 950.0
 
@@ -99,15 +121,15 @@ def test_busy_days_grow_a_workshop_and_its_owner_helps_pay():
 def test_a_busy_workshop_without_hands_does_not_grow():
     ws = a_workshop()
     for _ in range(5):
-        prod.plan_wants(ws, BREWERY, BREW, PRICES)
-        prod.hire(ws, BREW, 0.2)                                                # nobody to work there
+        prod.plan_wants(ws, BREW, PRICES, WAGE)
+        prod.hire(ws, BREW, 0.2, WAGE)                                          # nobody to work there
     assert ws.busy_days == 0
 
 
 def test_losses_shrink_a_workshop():
     ws = a_workshop(capacity=10.0)
     for _ in range(3):
-        prod.plan_wants(ws, BREWERY, BREW, {"Wheat": 3.0, "Beer": 5.0, "Wood": 1.0})   # costs 7.5, sells for 5
+        prod.plan_wants(ws, BREW, {"Wheat": 3.0, "Beer": 5.0, "Wood": 1.0}, WAGE)   # costs 7.5, sells for 5
     assert prod.change_capacity(ws, BREWERY, an_owner()) == (pytest.approx(-5.0), 0.0)
 
 
@@ -118,8 +140,8 @@ def farm_town(**changes):
     goods = [good_def("Bread", 1.0, transport_cost=0.2, import_limit=500.0, export_limit=500.0)]
     defaults = dict(goods=goods, needs=plain_needs({"Bread": 0.5}, income=1.0), town=TownSpec([50] * 10),
                     recipes=[recipe("bake", {"Bread": 10.0}, labour=2.0)],
-                    buildings=[building("bakery", "bake", workers="Commons", wage=1.0, working_capital=50.0)],
-                    scenario=scenario(("bakery", "bakery", 30.0)))      # 300 loaves a day for ~220 wanted
+                    buildings=[building("bakery", "bake", workers="Commons", working_capital=50.0)],
+                    scenario=scenario(("bakery", "bakery", 30.0), surplus_to="townsfolk"))   # 300 loaves for ~220 wanted
     defaults.update(changes)
     return simulation(**defaults)
 
@@ -145,7 +167,7 @@ def test_the_owners_surplus_is_paid_out_to_the_townsfolk():
 
 
 def test_an_unprofitable_workshop_shrinks_while_imports_feed_the_town():
-    sim = farm_town(buildings=[building("bakery", "bake", workers="Commons", wage=6.0, working_capital=50.0)])
+    sim = farm_town(needs=plain_needs({"Bread": 0.5}, income=6.0))      # a wage of 6 a worker: 12 a batch of 10 loaves
     start = sim.state.workshops["bakery"].capacity
     sim.advance_to(START.replace(hour=0) + datetime.timedelta(days=200))
     assert sim.state.workshops["bakery"].capacity < start

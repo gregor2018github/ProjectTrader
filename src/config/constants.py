@@ -101,6 +101,11 @@ GROWTH_STEP = 0.1                   # Growth as a share of its capacity...
 GROWTH_MIN_STEP = 0.5               # ...but at least this many batches a day (so a workshop shrunk to nothing can come back)
 SHRINK_AFTER_DAYS = 56              # A workshop losing money this many days in a row shrinks (two seasons; slower than growth)...
 SHRINK_STEP = 0.05                  # ...by this share of its capacity
+WAGE_GLIDE = 0.1                    # Each day a class's wage moves this share of the way to its cap when hands are short (all
+                                    # its free hands wanted twice over), or to its base income when nobody is hired; less, the less tense
+# Owners with surplus_to "treasury_with_tribute" (the town): profits kept up to a cap, the rest paid to the lord
+TREASURY_CAP_DAYS = 56              # The treasury holds at most this many days of the owner's average net income (two seasons)...
+TREASURY_INCOME_GLIDE = 1 / 28      # ...that average following each day's net income by this share (about a year's memory)
 START_DATE = "01.01.1500"           # Where the clock starts, format: dd.mm.yyyy; the game calendar's first day (see below)
 # CALENDAR (src/sim/calendar.py): the clock runs on as an ordinary datetime, but the
 # calendar shown is compressed so a game can span generations: a year is four seasons
@@ -162,8 +167,8 @@ HAPPINESS_FROM_NEEDS_MAX = 85.0     # Target happiness of a class that got all i
 HUNGER_THRESHOLD = 0.6              # Below this basic fulfilment a class goes hungry...
 HUNGER_PENALTY = 20.0               # ...and its target happiness drops by this much more
 HAPPINESS_GLIDE = 0.05              # Share of the gap to its target a class's happiness closes each hour
-POPULATION_MIN_FACTOR = 0.4         # A group can shrink to at most 40% of its map-defined base
-POPULATION_MAX_FACTOR = 1.2         # A group can grow to at most 120% of its map-defined base
+POPULATION_MIN_FACTOR = 0.3         # A class can shrink to 30 % of its share of the town's housing at the least...
+POPULATION_MAX_FACTOR = 1.05        # ...and grow to 105 % of it at the most (crowding, not this, should set its size)
 MAX_DAILY_POPULATION_CHANGE = 0.01  # Max daily population change rate (1% per day at extreme happiness)
 OVERPOP_MALUS_PER_PERCENT = 3       # Each 1% of overpopulation reduces happiness score by this many points
 NEAR_CAPACITY_THRESHOLD = 90.0      # Fill grade (%) above which crowding penalty begins (before full overpopulation)

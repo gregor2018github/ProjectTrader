@@ -300,8 +300,15 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
 
 **Phase 2**
 - **Owners settle with their workshops daily.** An owner tops each workshop's cash up to its working capital out of its own cash, and takes whatever is above it. Without the top-up, a workshop that had spent its cash on growth planned zero batches, never earned again, and stayed dead.
-- **Surplus.** Each owner's `surplus_to` (data, in the scenario) decides its cash above its `reserve`: `keep`, or `townsfolk`, paid to the classes per head. The town pays out, as a stand-in until the council spends the treasury (P6). Without it, the town's profits piled up and the money supply grew without bound.
+- **Surplus.** Each owner's `surplus_to` (data, in the scenario) decides what it does with its cash:
+  - `keep`: it keeps all of it.
+  - `townsfolk`: cash above its `reserve` is paid to the classes per head.
+  - `treasury_with_tribute` (the town, decided in review): it keeps its profits up to `TREASURY_CAP_DAYS` of its average net income (profits less top-ups, smoothed by `TREASURY_INCOME_GLIDE`), or its reserve if that is more. Anything above leaves town as tribute to the lord, counted in the border flows (`TownMoney.tribute`, `town_daily.csv` `money_tribute`) like the households' savings leak. P6 will spend the treasury.
 - **Hiring is pro rata.** When a class has fewer free hands than its workshops want, each gets the same share, as buyers do in a short market. Hiring in id order gave the first farm every poor worker and the forester none.
+- **Wages move with the demand for hands** (decided in review). Each class has one wage (`ClassState.wage`), paid by every workshop hiring from it; buildings have no wage of their own any more.
+  - Each day the tension, how far the workers wanted overshoot the class's free hands (within ±1), moves the wage `WAGE_GLIDE` × tension of the way towards `wage_cap` (in `needs.json`) when hands are short.
+  - It moves the same of the way down towards the class's base income when hands are spare.
+  - So it stays between the two. Margins, and so how hard workshops run, follow it.
 - **A busy day** needs the workshop to *plan* near its capacity, not just to want it. Otherwise workshops without workers grew to their maximum.
 - **No output stock.** A workshop sells what it makes in the same slice. It keeps an input stock (bought, not yet used), so a recipe with several inputs can run when they arrive at different rates.
 - **Recipes** have no `days` field any more (capacity is in batches a day), and amounts may be fractions.
@@ -311,6 +318,19 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
   - Base income trimmed, because part of the "unsimulated" work is now simulated: Poor 0.45, Commons 0.9, Nobility 11.
   - Larger luxury tiers. Some of the nobility's wine moved from basic to luxury.
 
-**Open question from phase 2: the migration ceiling.**
-- **The finding.** Crowding is now measured against housing, so a town whose needs are met grows until crowding bites. That is at about 96–100 % of housing. But migration's ceiling is 1.2 × the starting head count, which is 96 % of housing, and the town reaches it during the 60-day run-ahead in every seed and stays there.
-- **Recommendation:** measure the ceiling (and floor) against housing too, e.g. 0.3–1.05 × housing. Crowding and needs, not the clamp, would then set the size, around 100 % of housing for a well-supplied town.
+**Migration's floor and ceiling** (decided in review) measure against each class's share of the housing too: 0.3–1.05 × housing. Crowding and needs, not the clamp, now set the town's size: it settles at about 100 % of its housing (597–601 of 599 places, 10 seeds × 50 years).
+
+**Calibration target** (decided in review): without the player, the town should run slightly short. The health report warns unless each class's mean comfort fulfilment lies in 0.80–0.95 and its luxury fulfilment in 0.30–0.70, and at least 3 goods are below their target stock on more than 20 % of days.
+- **Luxury:** every class lies inside the band (Poor 0.65, Commons 0.40, Middling Sort 0.34, Nobility 0.65).
+- **Comfort:** every class lies just above the band (0.99–1.00). The model cannot hold both bands at once:
+  - **A shortage of money** leaves luxury at nothing, because tiers are bought strictly in order.
+  - **A shortage of supply** (tried: comfort goods' imports capped at 85–90 % of demand) drives their prices to the volume factor's ceiling and keeps them there. Households keep paying the inflated price, as their demand answers only to their budget. The clamp check (and the design's own "no good stuck at a clamp") fails, and luxury fulfilment collapses.
+  - **What would reconcile them:** demand that answers to price, e.g. a household buying less of a good the dearer it is above its usual price. That is open question 17.
+- **The below-target check** passes trivially. Imported goods sit at the import line, about 74 % of their target, every day (11 goods qualify). A sharper measure of "running short" would count the days households did not get all they wanted of a good, for supply rather than money.
+
+## Open questions after phase 2
+
+17. **Price-sensitive demand**, to let the town run short of comfort goods while still buying luxuries (see "Calibration target" above).
+    - **Proposal:** within a tier, a household buys `wanted × min(1, (usual price / price) ^ elasticity)` of each good, the usual price being its reference times the import-line factor. Fulfilment still counts against the full want.
+    - **Effect:** a scarce good's price would stop rising where the town gives up part of its want, below the clamp; comfort would then fall below 1 when goods run short, with money left for luxuries.
+    - Elasticity per tier in `needs.json` (basic low, luxury high).

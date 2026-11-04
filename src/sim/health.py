@@ -8,6 +8,10 @@ reads the CSVs ``python -m src.sim.run`` wrote and checks them. So far:
   the town's money must change by exactly what crossed its border. The
   ``market_balance`` column is what those flows do not explain; it must be
   zero within float tolerance (``BALANCE_TOLERANCE`` of the money supply).
+- **the town runs slightly short** (warnings): without the player, each
+  class's mean comfort fulfilment lies in ``COMFORT_BAND`` and its mean luxury
+  fulfilment in ``LUXURY_BAND``, and at least ``SHORT_GOODS_MIN`` goods are
+  below their target stock on more than ``SHORT_DAYS_SHARE`` of days.
 - **tradability** (a warning only, no threshold yet): per good, the median
   over the run of ``(30-day max price − 30-day min price) / price``, and how
   often that range, over ``TRADE_UNITS`` units, beats twice what a round trip
@@ -27,11 +31,15 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence
 
 from ..config.constants import INITIAL_TRANSACTION_COST
-from .run import GOODS_FILE, TOWN_FILE
+from .run import ALL_CLASSES, GOODS_FILE, POPULATION_FILE, TOWN_FILE
 from .state import GoodState
 from .systems import market
 
 BALANCE_TOLERANCE = 1e-9        # |market_balance| may be at most this share of the money supply (float rounding)
+COMFORT_BAND = (0.80, 0.95)     # each class's mean comfort fulfilment, for a town running slightly short
+LUXURY_BAND = (0.30, 0.70)      # ...and its mean luxury fulfilment
+SHORT_GOODS_MIN = 3             # at least this many goods...
+SHORT_DAYS_SHARE = 0.20         # ...below their target stock on more than this share of days
 TRADE_WINDOW_DAYS = 30
 TRADE_UNITS = 20                # a small trader's order
 
@@ -56,6 +64,28 @@ def market_balance(town_rows: Sequence[Dict[str, str]]) -> float:
         supply = max(1.0, abs(float(row["money_supply"])))
         worst = max(worst, abs(float(row["market_balance"])) / supply)
     return worst
+
+
+def fulfilment_by_class(population_rows: Sequence[Dict[str, str]]) -> Dict[str, Dict[str, float]]:
+    """Per class, its mean fulfilment of each tier over the run."""
+    sums: Dict[str, Dict[str, List[float]]] = {}
+    for row in population_rows:
+        if row["class"] == ALL_CLASSES:
+            continue
+        tiers = sums.setdefault(row["class"], {"comfort": [], "luxury": []})
+        for tier in tiers:
+            tiers[tier].append(float(row[f"fulfilment_{tier}"]))
+    return {cls: {tier: statistics.mean(v) for tier, v in tiers.items()} for cls, tiers in sums.items()}
+
+
+def short_days(goods_rows: Sequence[Dict[str, str]]) -> Dict[str, float]:
+    """Per good, the share of days its stock was below its target stock."""
+    counts: Dict[str, List[int]] = {}
+    for row in goods_rows:
+        c = counts.setdefault(row["good"], [0, 0])
+        c[0] += float(row["stock"]) < float(row["target_stock"])
+        c[1] += 1
+    return {good: below / days for good, (below, days) in counts.items()}
 
 
 def round_trip_cost(row: Dict[str, str], units: int = TRADE_UNITS, fee: float = INITIAL_TRANSACTION_COST) -> float:
@@ -107,6 +137,19 @@ def report(run_dir: str) -> int:
     failed |= not ok
     print(f"[{'ok' if ok else 'FAIL'}] market balance: worst day {worst:.2e} of the money supply "
           f"(tolerance {BALANCE_TOLERANCE:.0e})")
+
+    pop = _read(os.path.join(run_dir, POPULATION_FILE))
+    for cls, tiers in fulfilment_by_class(pop).items():
+        for tier, (low, high) in (("comfort", COMFORT_BAND), ("luxury", LUXURY_BAND)):
+            ok = low <= tiers[tier] <= high
+            print(f"[{'ok' if ok else 'warn'}] {cls}: mean {tier} fulfilment {tiers[tier]:.2f} "
+                  f"(target {low:.2f}-{high:.2f})")
+    shares = short_days(goods)
+    short = sorted((g for g, s in shares.items() if s > SHORT_DAYS_SHARE), key=lambda g: -shares[g])
+    ok = len(short) >= SHORT_GOODS_MIN
+    print(f"[{'ok' if ok else 'warn'}] goods below their target stock on more than {SHORT_DAYS_SHARE:.0%} of days: "
+          f"{len(short)} (want at least {SHORT_GOODS_MIN}): "
+          + ", ".join(f"{g} {shares[g]:.0%}" for g in short))
 
     print(f"[info] tradability: {TRADE_WINDOW_DAYS}-day price range, and the share of days it beats "
           f"2 x a {TRADE_UNITS}-unit round trip (fees {INITIAL_TRANSACTION_COST} each, plus slippage)")

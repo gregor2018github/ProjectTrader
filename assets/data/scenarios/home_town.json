@@ -1,7 +1,7 @@
 {
-  "about": "The home town when a game starts: its owners and the workshops they own. Every workshop belongs to the town for now; P3 and P5 give some to the player and rival dynasties. surplus_to: keep (the owner's) or townsfolk (paid out per head, the town's stand-in until the council spends it in P6).",
+  "about": "The home town when a game starts: its owners and the workshops they own. Every workshop belongs to the town for now; P3 and P5 give some to the player and rival dynasties. surplus_to: keep (the owner's), townsfolk (above the reserve, paid out per head) or treasury_with_tribute (kept up to TREASURY_CAP_DAYS of its income, the rest paid to the lord; the town's, until the council spends the treasury in P6).",
   "owners": [
-    {"id": "town", "kind": "town", "name": "The town", "cash": 1000, "reserve": 1000, "surplus_to": "townsfolk"}
+    {"id": "town", "kind": "town", "name": "The town", "cash": 1000, "reserve": 1000, "surplus_to": "treasury_with_tribute"}
   ],
   "workshops": [
     {"id": "farm_north",   "owner": "town", "building": "farm",        "capacity": 5,  "cash": 125},

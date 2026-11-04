@@ -31,8 +31,8 @@ The new goods and chains (P1 phase 3) come next. The goldens in `tests/sim/golde
 | `state.py` | `GoodState` (stock, target, demand average, outside price and its walk, noise, shock, histories, the day's flows), `ClassState` (head count, base, housing share, jobs, purse, happiness and its target, fulfilment per tier, today's `PlanItem`s, the day's money flows, histories), `PopulationState`, `OwnerState`, `WorkshopState`, `TownMoney` (the town's border flows and the `market_balance`), `MerchantFlows` (the merchants' book), and `SimState` (all of it), each with `to_dict` / `from_dict`. Also `TownSpec`, the plain input a town is founded from (its houses' capacities). |
 | `systems/market.py` | The market's rules as functions on a `GoodState`: `price`, `reference`, `volume_factor`, `ratio_for_factor`, `quote`, `clear_buyers` (a slice's household purchases), `merchants` (imports and exports), `step_outside`, `step_noise`, `update_target`, `apply_well_shock` / `tick_well_shock_day`, `record_*`. |
 | `systems/households.py` | Each class's day: `start_day` (rate yesterday, earn base income, wages and payouts, cap savings, plan), `plan`, `slice_orders`, `receive`, `fulfilment`, `needs_happiness`. |
-| `systems/production.py` | Workshops and owners: `batch_margin`, `wanted_utilisation`, `plan_wants` and `hire` (planning in two halves, so a class's hands are shared pro rata), `slice_orders`, `run_slice`, `settle_day` (wages, the owner's top-up and profit), `owner_surplus`, `change_capacity` (growth and shrinking). |
-| `systems/population.py` | Head counts and mood: `create_population`, `split_into_classes`, `crowding_shift` (against the class's share of the housing), `set_target`, `glide_happiness`, `update_population` (migration), `record_*`. |
+| `systems/production.py` | Workshops and owners: `batch_margin`, `wanted_utilisation`, `plan_wants` and `hire` (planning in two halves, so a class's hands are shared pro rata), `move_wage` (a class's wage with the demand for its hands), `slice_orders`, `run_slice`, `settle_day` (wages, the owner's top-up and profit), `owner_day` / `treasury_cap` (the owner's surplus rule), `change_capacity` (growth and shrinking). |
+| `systems/population.py` | Head counts and mood: `create_population`, `split_into_classes`, `crowding_shift` (against the class's share of the housing), `set_target`, `glide_happiness`, `update_population` (migration, held within 0.3–1.05 × the class's housing), `record_*`. |
 | `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`, `CapacityChanged`) on an `EventQueue`. |
 | `data.py` | `load_definitions()` reads goods, needs, recipes and building types from `assets/data/` into a `Definitions` (`GoodDef`, `ClassNeedsDef` / `NeedDef`, `RecipeDef`, `BuildingDef`); `load_scenario()` reads `scenarios/<name>.json` into a `ScenarioDef` (`OwnerDef`, `WorkshopSeed`). Each raises `DataError` with the file, entry and field. |
 | `simulation.py` | `Simulation`: state, definitions, generator, scheduler and events together. It subscribes the systems, founds the town and establishes the scenario's workshops, runs the economy ahead (`presimulate`), takes commands (`trade_with_player`, `apply_well_shock`), keeps the books (`town_money`, `_close_books`), and saves and loads its block, migrating older ones. |
@@ -55,10 +55,10 @@ At each price tick the scheduler fires, in this order (the handlers of one kind 
 3. **day** (midnight):
    1. The books close (`_close_books`): the town's money is checked against the day's border flows (`market_balance`).
    2. For each good: `close_day`, `step_outside` (one draw), `tick_well_shock_day` (`PriceShockEnded`), `update_target` from yesterday's demand (households' wants plus workshops' input wants).
-   3. For each workshop: `settle_day` (pay yesterday's workers; the owner tops it up to working capital and takes the rest); then each owner's `owner_surplus`, paid per head to the classes.
+   3. For each workshop: `settle_day` (pay yesterday's workers at the wage they were hired at; the owner tops it up to working capital and takes the rest); then each owner's `owner_day`: its average income moves, and its `surplus_to` acts (keep, pay out per head, or treasury up to its cap and the rest as tribute, out of town).
    4. For each class: `start_day` (rate yesterday's shopping, earn base income for the heads without a job plus wages and payouts, cap savings, plan today), and its target happiness from needs and crowding.
    5. Migration (`update_population`, `PopulationChanged`).
-   6. For each workshop: `plan_wants`; each class's hands shared pro rata (`hire`); input wants; `change_capacity` (`CapacityChanged`, growth paid to builders out of town).
+   6. For each workshop: `plan_wants` at its class's wage; each class's wage moves with the tension between the workers wanted and its free hands (`move_wage`); the hands shared pro rata (`hire`); input wants; `change_capacity` (`CapacityChanged`, growth paid to builders out of town).
    7. The daily price records.
 4. **week**, **season**, **year**: nothing subscribed yet. With `DAYS_PER_SEASON` 7, a week and a season begin on the same day.
 
@@ -112,9 +112,9 @@ It starts as a new game does (the game's start moment, the town from `Map1.tmx`,
 | File | One row per | Columns |
 |---|---|---|
 | `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold` |
-| `population_daily.csv` | day × class (and `All`) | `class, count, employed, happiness, happiness_target, purse, income, wages, payouts, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
+| `population_daily.csv` | day × class (and `All`) | `class, count, employed, labour_wanted, wage, happiness, happiness_target, purse, income, wages, payouts, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
 | `workshops_daily.csv` | day × workshop | `workshop, owner, building, capacity, utilisation, margin, planned, done_yesterday, workers, cash` |
-| `town_daily.csv` | day | `citizens, money_supply, purses, workshop_cash, owner_cash, money_created, money_leaked, money_invested, paid_to_merchants, paid_by_merchants, market_balance`, and the merchants' book: `merchant_sales, merchant_purchases, merchant_import_cost, merchant_export_revenue, merchant_transport, merchant_profit` |
+| `town_daily.csv` | day | `citizens, money_supply, purses, workshop_cash, owner_cash, money_created, money_leaked, money_invested, money_tribute, paid_to_merchants, paid_by_merchants, market_balance`, and the merchants' book: `merchant_sales, merchant_purchases, merchant_import_cost, merchant_export_revenue, merchant_transport, merchant_profit` |
 | `meta.json` | – | seed, years, days, start, `sim_version`, git commit and whether the tree was dirty, Python version, the definitions, scenario and town, every relevant constant, row counts, runtime |
 
 `day` counts days since the calendar's first one. Floats are written as `repr`, so the same seed gives byte-identical CSVs. Reading them:
@@ -131,7 +131,7 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 50 years (1,400 days) take about 3 s here.
 
-**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods below their target stock on more than `SHORT_DAYS_SHARE` (20 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
 ## Data files
 
@@ -145,7 +145,8 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 |---|---|
 | `class` | Poor, Commons, Middling Sort or Nobility |
 | `base_income` | Per head per day, from the work that is not simulated |
-| `labour_share` | The share of heads that can take a job (phase 2) |
+| `labour_share` | The share of heads that can take a job |
+| `wage_cap` | The most its wage rises to when its hands are short (at least `base_income`, the least its wage falls to) |
 | `happiness_weights` | `{"basic": w, "comfort": w, "luxury": w}`, adding up to 1 |
 | `basic`, `comfort`, `luxury` | `{good: units per head per day}`. A value may be `{"units": x, "seasons": {"Winter": 1.6}}` to change with the seasons. |
 
@@ -153,10 +154,10 @@ The tiers are bought in that order. Phase 1 uses stand-ins until the new goods e
 
 **`recipes.json`**: `{"recipes": [...]}`. Each entry has `id` (unique), optional `name` and `description`, `inputs` (good → units per batch, numbers > 0, fractions allowed for wear; may be empty for a raw good), `outputs` (the same, at least one; several make byproducts) and `labour` (worker-days per batch, ≥ 0). Every good named must be in `goods.json`.
 
-**`buildings.json`**: `{"buildings": [...]}`. Each entry has `type` (unique), `name`, `recipe` (an id in `recipes.json`), `workers_class` (the class it hires from), `wage` (per worker-day), `max_capacity` (batches a day), `growth_cost` (money per batch a day of growth, paid out of town), and `working_capital` (cash it keeps before profits go to its owner).
+**`buildings.json`**: `{"buildings": [...]}`. Each entry has `type` (unique), `name`, `recipe` (an id in `recipes.json`), `workers_class` (the class it hires from, at that class's wage), `max_capacity` (batches a day), `growth_cost` (money per batch a day of growth, paid out of town), and `working_capital` (cash it keeps before profits go to its owner).
 
 **`scenarios/<name>.json`**: `{"owners": [...], "workshops": [...]}`.
-- An owner has `id`, `kind` (a label; no rule reads it), `name`, `cash`, `reserve`, and `surplus_to` (`keep`, or `townsfolk`: cash above the reserve paid out per head).
+- An owner has `id`, `kind` (a label; no rule reads it), `name`, `cash`, `reserve`, and `surplus_to`: `keep`; `townsfolk` (cash above the reserve paid out per head); or `treasury_with_tribute` (kept up to `TREASURY_CAP_DAYS` of its average net income, or its reserve, the rest paid to the lord out of town; the home town's).
 - A workshop has `id`, `owner`, `building` (a type in `buildings.json`), `capacity` (batches a day) and `cash`.
 - `home_town.json` is the game's.
 

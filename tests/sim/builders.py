@@ -24,23 +24,24 @@ def good_def(name: str = "Wood", price: float = 10.0, index: int = 0, **changes)
 
 def class_needs(name: str, income: float = 5.0, basic: Optional[Dict[str, float]] = None,
                 comfort: Optional[Dict[str, float]] = None, luxury: Optional[Dict[str, float]] = None,
-                weights: Sequence[float] = (0.6, 0.3, 0.1)) -> ClassNeedsDef:
+                weights: Sequence[float] = (0.6, 0.3, 0.1), wage_cap: Optional[float] = None) -> ClassNeedsDef:
     tiers = {"basic": basic or {}, "comfort": comfort or {}, "luxury": luxury or {}}
     return ClassNeedsDef(
-        name=name, base_income=income, labour_share=0.5,
+        name=name, base_income=income, labour_share=0.5, wage_cap=income if wage_cap is None else wage_cap,
         happiness_weights=dict(zip(TIERS, weights)),
         tiers={t: [NeedDef(g, u) for g, u in tiers[t].items()] for t in TIERS},
     )
 
 
-def plain_needs(basic: Optional[Dict[str, float]] = None, income: float = 5.0) -> List[ClassNeedsDef]:
-    """Every class wanting the same basic goods per head and nothing else."""
-    return [class_needs(c, income, basic=basic or {}) for c in CLASSES]
+def plain_needs(basic: Optional[Dict[str, float]] = None, income: float = 5.0,
+                wage_cap: Optional[float] = None) -> List[ClassNeedsDef]:
+    """Every class wanting the same basic goods per head and nothing else (its wage fixed at its income unless capped higher)."""
+    return [class_needs(c, income, basic=basic or {}, wage_cap=wage_cap) for c in CLASSES]
 
 
-def building(type_: str, recipe: str, workers: str = "Poor", wage: float = 1.0, max_capacity: float = 20.0,
+def building(type_: str, recipe: str, workers: str = "Poor", max_capacity: float = 20.0,
              growth_cost: float = 100.0, working_capital: float = 50.0) -> BuildingDef:
-    return BuildingDef(type=type_, name=type_.title(), recipe=recipe, workers_class=workers, wage=wage,
+    return BuildingDef(type=type_, name=type_.title(), recipe=recipe, workers_class=workers,
                        max_capacity=max_capacity, growth_cost=growth_cost, working_capital=working_capital)
 
 

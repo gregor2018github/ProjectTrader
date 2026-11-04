@@ -14,8 +14,9 @@ subscribed in ``_subscribe_systems()``:
     day          the books close (the town's money checked against its border
                  flows); each good: close the day's flows, the outside price's
                  walk (one draw), the well wish's countdown, the target stock;
-                 each workshop: pay yesterday's workers, the owner covers a loss
-                 or takes the profit; owners pay out their surplus; each class:
+                 each workshop: pay yesterday's workers, the owner tops it up or
+                 takes the profit; owners' surplus rules (treasury and tribute,
+                 or payouts); each class:
                  rate yesterday, earn, plan today, target happiness; migration;
                  each workshop plans and hires, and grows or shrinks;
                  daily records
@@ -219,12 +220,12 @@ class Simulation:
         now = self.town_money()
         if state.money_mark is not None:
             m = state.money_today
-            border = m.created - m.leaked - m.invested - m.to_merchants + m.from_merchants
+            border = m.created - m.leaked - m.invested - m.tribute - m.to_merchants + m.from_merchants
             m.market_balance = (now - state.money_mark) - border
         state.money_yesterday, state.money_today = state.money_today, TownMoney()
         state.merchants_yesterday, state.merchants_today = state.merchants_today, MerchantFlows()
         for owner in state.owners.values():
-            owner.profits_today = owner.paid_out_today = 0.0
+            owner.profits_today = owner.topped_up_today = owner.paid_out_today = owner.tribute_today = 0.0
         state.money_mark = now
 
     def _market_day(self, moment: datetime.datetime) -> None:
@@ -248,7 +249,8 @@ class Simulation:
         pop = state.population
         heads = pop.citizens if pop is not None else 0
         for owner in state.owners.values():
-            surplus = production.owner_surplus(owner)
+            surplus, tribute = production.owner_day(owner)
+            state.money_today.tribute += tribute
             if surplus > 0 and heads > 0:
                 for cls in pop.classes.values():
                     self._payouts[cls.name] = self._payouts.get(cls.name, 0.0) + surplus * cls.count / heads
@@ -281,27 +283,37 @@ class Simulation:
             if new_total != old_total:
                 self.events.push(PopulationChanged(moment, old_total, new_total))
 
+    def _class_wage(self, name: str) -> float:
+        pop = self.state.population
+        cls = pop.classes.get(name) if pop is not None else None
+        return cls.wage if cls is not None else self.needs[name].base_income
+
     def _workshops_plan(self, moment: datetime.datetime) -> None:
-        """Workshops plan the day: what each wants, then each class's hands shared out pro rata; then growth."""
+        """Workshops plan the day: what each wants at its class's wage, then each class's wage moves with
+        the demand for its hands and the hands are shared out pro rata; then growth."""
         state = self.state
         pop = state.population
         prices = self._prices()
         wanted: Dict[str, float] = {}
         for ws in state.workshops.values():
             building = self.buildings[ws.building]
-            workers = production.plan_wants(ws, building, self.recipes[building.recipe], prices)
+            workers = production.plan_wants(ws, self.recipes[building.recipe], prices,
+                                            self._class_wage(building.workers_class))
             wanted[building.workers_class] = wanted.get(building.workers_class, 0.0) + workers
         shares = {}
-        for name, workers in wanted.items():
-            cls = pop.classes.get(name) if pop is not None else None
-            shares[name] = (production.labour_share_given(self.needs[name].labour_share, cls.count, workers)
-                            if cls is not None else 0.0)
+        if pop is not None:
+            for cls in pop.classes.values():
+                needs = self.needs[cls.name]
+                hands = needs.labour_share * cls.count
+                cls.labour_wanted = wanted.get(cls.name, 0.0)
+                cls.wage = production.move_wage(cls.wage, cls.labour_wanted, hands, needs.base_income, needs.wage_cap)
+                shares[cls.name] = production.labour_share_given(needs.labour_share, cls.count, cls.labour_wanted)
         hired: Dict[str, float] = {}
         for ws in state.workshops.values():
             building = self.buildings[ws.building]
             recipe = self.recipes[building.recipe]
             hired[building.workers_class] = hired.get(building.workers_class, 0.0) + production.hire(
-                ws, recipe, shares[building.workers_class])
+                ws, recipe, shares.get(building.workers_class, 0.0), self._class_wage(building.workers_class))
             for good, units in production.input_wants(ws, recipe).items():
                 state.goods[good].today.input_wanted += units
             owner = state.owners[ws.owner_id]
@@ -329,6 +341,7 @@ class Simulation:
         self.state.population = pop
         for cls in pop.classes.values():
             households.give_start_purse(cls, self.needs[cls.name])
+            cls.wage = self.needs[cls.name].base_income
         self._settle_demand(stock_to_target=True)
 
     def establish(self, scenario: ScenarioDef) -> None:
@@ -476,6 +489,8 @@ class Simulation:
             for cls in pop.classes.values():
                 if cls.purse < 0:                             # sim_version 1: a starting purse
                     households.give_start_purse(cls, self.needs[cls.name])
+                if cls.wage <= 0:                             # saved before wages moved: at its base income
+                    cls.wage = self.needs[cls.name].base_income
                 cls.plan = [item for item in cls.plan if item.good in goods]   # goods no longer defined
         if version < 2 or any(g.target_stock <= 0 for g in goods.values()):
             self._settle_demand(stock_to_target=False)

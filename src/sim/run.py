@@ -11,15 +11,16 @@ systems ran (the flows are the day just ended):
   input_wanted and input_bought (workshops), produced, imported, exported,
   player_bought, player_sold;
 - ``population_daily.csv``: one row per day and class (and ``All`` for the
-  town): count, employed, happiness, happiness_target, purse, income (of which
-  wages and payouts), spent, leaked, and fulfilment_basic / _comfort / _luxury;
+  town): count, employed, labour_wanted (by its workshops), wage, happiness,
+  happiness_target, purse, income (of which wages and payouts), spent, leaked,
+  and fulfilment_basic / _comfort / _luxury;
 - ``workshops_daily.csv``: one row per day and workshop: owner, building,
   capacity, utilisation, margin, batches planned for today and run yesterday,
   workers, cash;
 - ``town_daily.csv``: one row per day: citizens, the town's money (all of it,
   and in purses, workshops and owners), the money crossing the town's border
-  (created as base income, leaked, invested in growth, paid to and by
-  merchants), the market_balance (what those flows do not explain: always
+  (created as base income, leaked, invested in growth, tribute paid to the
+  lord, paid to and by merchants), the market_balance (what those flows do not explain: always
   zero, as the market place holds no money), and the merchants' book;
 - ``meta.json``: the seed, years, git commit, the constants, definitions and
   scenario the run used, and how long it took.
@@ -63,12 +64,13 @@ STAMP_COLUMNS = ["day", "year", "season", "day_of_season"]
 GOODS_COLUMNS = STAMP_COLUMNS + ["good", "price", "outside_price", "reference", "stock", "target_stock",
                                  "wanted", "bought", "input_wanted", "input_bought", "produced",
                                  "imported", "exported", "player_bought", "player_sold"]
-POPULATION_COLUMNS = STAMP_COLUMNS + ["class", "count", "employed", "happiness", "happiness_target", "purse",
+POPULATION_COLUMNS = STAMP_COLUMNS + ["class", "count", "employed", "labour_wanted", "wage", "happiness",
+                                      "happiness_target", "purse",
                                       "income", "wages", "payouts", "spent", "leaked"] + [f"fulfilment_{t}" for t in TIERS]
 WORKSHOP_COLUMNS = STAMP_COLUMNS + ["workshop", "owner", "building", "capacity", "utilisation", "margin",
                                     "planned", "done_yesterday", "workers", "cash"]
 TOWN_COLUMNS = STAMP_COLUMNS + ["citizens", "money_supply", "purses", "workshop_cash", "owner_cash",
-                                "money_created", "money_leaked", "money_invested", "paid_to_merchants",
+                                "money_created", "money_leaked", "money_invested", "money_tribute", "paid_to_merchants",
                                 "paid_by_merchants", "market_balance", "merchant_sales", "merchant_purchases",
                                 "merchant_import_cost", "merchant_export_revenue", "merchant_transport",
                                 "merchant_profit"]
@@ -79,7 +81,7 @@ CONSTANT_PREFIXES = (
     "MARKET_", "PRICE_TICK", "PRICE_NOISE", "TARGET_STOCK", "PURSE_", "SAVINGS_", "WELL_WISH_",
     "POPULATION_", "HAPPINESS_", "HUNGER_", "UNDERPOP_", "OVERPOP_", "NEAR_CAPACITY_",
     "MAX_DAILY_POPULATION", "STARTING_OCCUPANCY", "DAYS_PER_SEASON", "CALENDAR_START_YEAR",
-    "START_DATE", "START_TIME", "MARGIN_", "UTILISATION_", "GROWTH_", "SHRINK_",
+    "START_DATE", "START_TIME", "MARGIN_", "UTILISATION_", "GROWTH_", "SHRINK_", "WAGE_", "TREASURY_",
 )
 
 
@@ -130,11 +132,12 @@ class DailyRecorder:
                 purses += c.purse
                 y = c.yesterday
                 self.population_rows.append(stamp + [c.name] + [_fmt(v) for v in (
-                    c.count, c.employed, c.happiness, c.happiness_target, c.purse,
+                    c.count, c.employed, c.labour_wanted, c.wage, c.happiness, c.happiness_target, c.purse,
                     y.income, y.wages, y.payouts, y.spent, y.leaked)]
                     + [_fmt(c.fulfilment.get(t, 1.0)) for t in TIERS])
             self.population_rows.append(stamp + [ALL_CLASSES] + [_fmt(v) for v in (
-                pop.citizens, sum(c.employed for c in classes), pop.happiness, population.average_target(pop),
+                pop.citizens, sum(c.employed for c in classes), sum(c.labour_wanted for c in classes), "",
+                pop.happiness, population.average_target(pop),
                 purses, sum(c.yesterday.income for c in classes), sum(c.yesterday.wages for c in classes),
                 sum(c.yesterday.payouts for c in classes), sum(c.yesterday.spent for c in classes),
                 sum(c.yesterday.leaked for c in classes))] + ["", "", ""])
@@ -146,7 +149,7 @@ class DailyRecorder:
         owner_cash = sum(o.cash for o in state.owners.values())
         self.town_rows.append(stamp + [_fmt(v) for v in (
             pop.citizens if pop is not None else 0, self.sim.town_money(), purses, workshop_cash, owner_cash,
-            money.created, money.leaked, money.invested, money.to_merchants, money.from_merchants,
+            money.created, money.leaked, money.invested, money.tribute, money.to_merchants, money.from_merchants,
             money.market_balance, book.sales, book.purchases, book.import_cost, book.export_revenue,
             book.transport, book.profit)])
 

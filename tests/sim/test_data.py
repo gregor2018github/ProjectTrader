@@ -15,12 +15,12 @@ WOOD = {"name": "Wood", "color": "PALE_BROWN", "chart_index": 0, "show_in_charts
         "target_stock_days": 14, "min_target_stock": 50, "noise_sigma": 0.004}
 STONE = {**WOOD, "name": "Stone", "chart_index": 1, "outside_price": 2}
 RECIPE = {"id": "cut_stone", "inputs": {"Wood": 1, "Stone": 0.05}, "outputs": {"Stone": 2}, "labour": 1.5}
-BUILDING = {"type": "mason", "name": "Mason", "recipe": "cut_stone", "workers_class": "Commons", "wage": 1.3,
+BUILDING = {"type": "mason", "name": "Mason", "recipe": "cut_stone", "workers_class": "Commons",
             "max_capacity": 10, "growth_cost": 100, "working_capital": 50}
 SCENARIO = {"owners": [{"id": "town", "kind": "town", "name": "The town", "cash": 100, "reserve": 50,
                         "surplus_to": "townsfolk"}],
             "workshops": [{"id": "mason", "owner": "town", "building": "mason", "capacity": 2, "cash": 50}]}
-POOR = {"class": "Poor", "base_income": 0.5, "labour_share": 0.6,
+POOR = {"class": "Poor", "base_income": 0.5, "labour_share": 0.6, "wage_cap": 1.0,
         "happiness_weights": {"basic": 0.75, "comfort": 0.2, "luxury": 0.05},
         "basic": {"Wood": 0.1}, "comfort": {}, "luxury": {"Stone": {"units": 0.01, "seasons": {"Winter": 2}}}}
 CLASSES = [c for c, _ in class_shares()]
@@ -89,6 +89,7 @@ def test_a_class_entry_becomes_needs_with_seasons():
     ({"happiness_weights": {"basic": 0.5, "comfort": 0.2, "luxury": 0.1}}, "happiness_weights", "must add up to 1"),
     ({"happiness_weights": {"basic": 1.0}}, "happiness_weights", "expected an object with exactly basic, comfort, luxury"),
     ({"labour_share": 2}, "labour_share", "expected a number >= 0 and <= 1"),
+    ({"wage_cap": 0.4}, "wage_cap", "expected a number >= 0.5"),             # never below its base income
 ])
 def test_a_bad_class_field_is_named(change, field, problem):
     with pytest.raises(DataError) as error:
@@ -117,7 +118,7 @@ def test_a_recipe_must_name_known_goods_and_make_something():
 
 
 def test_a_building_must_name_a_known_recipe_and_class():
-    assert parse_buildings([BUILDING], {"cut_stone"}, CLASSES)[0].wage == 1.3
+    assert parse_buildings([BUILDING], {"cut_stone"}, CLASSES)[0].max_capacity == 10.0
     with pytest.raises(DataError, match=r"buildings.json, entry 0 \('mason'\): field 'recipe': unknown recipe 'carve'"):
         parse_buildings([{**BUILDING, "recipe": "carve"}], {"cut_stone"}, CLASSES)
     with pytest.raises(DataError, match="field 'workers_class': unknown class 'Serfs'"):

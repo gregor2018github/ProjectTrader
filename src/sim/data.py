@@ -73,7 +73,8 @@ class ClassNeedsDef:
     """A social class as needs.json defines it."""
     name: str
     base_income: float                      # per head per day, from all the work that is not simulated
-    labour_share: float                     # share of its heads that can take a job (phase 2)
+    labour_share: float                     # share of its heads that can take a job
+    wage_cap: float                         # the most its wage rises to when hands are short (its least is base_income)
     happiness_weights: Dict[str, float]     # tier -> weight; they add up to 1
     tiers: Dict[str, List[NeedDef]]         # tier -> what a head wants, in TIERS order
 
@@ -99,8 +100,7 @@ class BuildingDef:
     type: str
     name: str
     recipe: str                 # the recipe its workshops run
-    workers_class: str          # the social class it hires from
-    wage: float                 # per worker-day
+    workers_class: str          # the social class it hires from, at that class's wage
     max_capacity: float         # batches a day it can grow to
     growth_cost: float          # money per batch a day of capacity added (paid out of town, to builders)
     working_capital: float      # cash a workshop keeps; profits above it go to its owner
@@ -114,7 +114,8 @@ class OwnerDef:
     name: str
     cash: float
     reserve: float              # cash it keeps; above it, surplus_to decides
-    surplus_to: str             # "keep" (it stays the owner's) or "townsfolk" (paid out per head to the classes)
+    surplus_to: str             # "keep" (all of it the owner's), "townsfolk" (above the reserve, paid out per head)
+                                # or "treasury_with_tribute" (kept up to TREASURY_CAP_DAYS of income, the rest to the lord)
 
 
 @dataclass(frozen=True)
@@ -285,7 +286,7 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
     return goods
 
 
-CLASS_FIELDS = ("class", "base_income", "labour_share", "happiness_weights") + TIERS
+CLASS_FIELDS = ("class", "base_income", "labour_share", "wage_cap", "happiness_weights") + TIERS
 
 
 def _need_items(entry: _Entry, data: Dict[str, Any], tier: str, goods: Collection[str]) -> List[NeedDef]:
@@ -335,10 +336,13 @@ def parse_needs(items: List[Any], goods: Collection[str], classes: Optional[Coll
         if abs(sum(weights.values()) - 1.0) > 1e-6:
             raise entry.fail("happiness_weights", f"the weights must add up to 1, they add up to {sum(weights.values()):g}")
         seen[name] = len(out)
+        base_income = float(_number(entry, data, "base_income", 0, strict=False))
+        wage_cap = float(_number(entry, data, "wage_cap", base_income, strict=False))
         out.append(ClassNeedsDef(
             name=name,
-            base_income=float(_number(entry, data, "base_income", 0, strict=False)),
+            base_income=base_income,
             labour_share=float(_number(entry, data, "labour_share", 0, strict=False, maximum=1)),
+            wage_cap=wage_cap,
             happiness_weights={t: float(weights[t]) for t in TIERS},
             tiers={t: _need_items(entry, data, t, goods) for t in TIERS},
         ))
@@ -391,8 +395,7 @@ def parse_recipes(items: List[Any], goods: Collection[str], file: str = RECIPES_
     return recipes
 
 
-BUILDING_FIELDS = ("type", "name", "recipe", "workers_class", "wage", "max_capacity", "growth_cost",
-                   "working_capital")
+BUILDING_FIELDS = ("type", "name", "recipe", "workers_class", "max_capacity", "growth_cost", "working_capital")
 BUILDINGS_FILE = "buildings.json"
 
 
@@ -408,7 +411,6 @@ def parse_buildings(items: List[Any], recipes: Collection[str], classes: Collect
             name=_string(entry, data, "name"),
             recipe=_string(entry, data, "recipe"),
             workers_class=_string(entry, data, "workers_class"),
-            wage=float(_number(entry, data, "wage", 0, strict=False)),
             max_capacity=float(_number(entry, data, "max_capacity", 0, strict=True)),
             growth_cost=float(_number(entry, data, "growth_cost", 0, strict=False)),
             working_capital=float(_number(entry, data, "working_capital", 0, strict=False)),
@@ -426,7 +428,7 @@ def parse_buildings(items: List[Any], recipes: Collection[str], classes: Collect
 
 OWNER_FIELDS = ("id", "kind", "name", "cash", "reserve", "surplus_to")
 WORKSHOP_FIELDS = ("id", "owner", "building", "capacity", "cash")
-SURPLUS_RULES = ("keep", "townsfolk")
+SURPLUS_RULES = ("keep", "townsfolk", "treasury_with_tribute")
 
 
 def parse_scenario(data: Any, buildings: Collection[str], file: str) -> ScenarioDef:
