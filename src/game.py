@@ -19,7 +19,7 @@ from .models.merchant_rank import MerchantRank
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
-from .sim import DataError, GoodDef, Simulation, load_goods, load_needs
+from .sim import DataError, GoodDef, Simulation, load_definitions, load_scenario
 from .sim.systems.population import class_shares
 from .sim.rng import new_seed
 from .sim.events import SimEvent
@@ -48,6 +48,7 @@ from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
 )
 
+HOME_TOWN_SCENARIO = "home_town"   # assets/data/scenarios/<name>.json: the workshops a new game starts with
 GAME_FADE_IN_SECONDS = 0.9   # the loading screen fading away over the first frames
 MIXER_FREE_CHANNELS = 16     # channels for one-off sounds (voices, doors, coins), besides the reserved ones
 
@@ -97,13 +98,12 @@ class Game:
         self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
 
-        # The economy (src/sim/): the goods from assets/data/goods.json, the classes'
-        # needs from needs.json, on a fresh seed (shown on the weather debug page, so
-        # a bug report can name it). It is run ahead once the town is founded, below.
-        good_defs = load_goods()
-        needs = load_needs([d.name for d in good_defs], [name for name, _ in class_shares()])
-        self.sim: Simulation = Simulation(good_defs, needs, now=self.state.date, seed=new_seed())
-        self.goods: List[Good] = self._initialize_goods(good_defs)
+        # The economy (src/sim/): goods, needs, recipes and building types from
+        # assets/data/, on a fresh seed (shown on the weather debug page, so a bug
+        # report can name it). It is run ahead once the town is founded, below.
+        definitions = load_definitions([name for name, _ in class_shares()])
+        self.sim: Simulation = Simulation(definitions, now=self.state.date, seed=new_seed())
+        self.goods: List[Good] = self._initialize_goods(definitions.goods)
         self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
 
         # Clear sky, cloud and rain, going on with the game's clock
@@ -139,6 +139,8 @@ class Game:
         if self.town is not None:
             self.sim.found_town(town_spec)
             self.town.attach(self.sim)
+        # The town's workshops and who owns them (assets/data/scenarios/home_town.json)
+        self.sim.establish(load_scenario(HOME_TOWN_SCENARIO, [b.type for b in definitions.buildings]))
         # The economy runs ahead, so the charts open with a history and the town on its feet
         self.sim.presimulate(MARKET_PRESIMULATION_DAYS)
 

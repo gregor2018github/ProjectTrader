@@ -1,0 +1,19 @@
+{
+  "about": "The home town when a game starts: its owners and the workshops they own. Every workshop belongs to the town for now; P3 and P5 give some to the player and rival dynasties. surplus_to: keep (the owner's) or townsfolk (paid out per head, the town's stand-in until the council spends it in P6).",
+  "owners": [
+    {"id": "town", "kind": "town", "name": "The town", "cash": 1000, "reserve": 1000, "surplus_to": "townsfolk"}
+  ],
+  "workshops": [
+    {"id": "farm_north",   "owner": "town", "building": "farm",        "capacity": 5,  "cash": 125},
+    {"id": "farm_south",   "owner": "town", "building": "farm",        "capacity": 5,  "cash": 125},
+    {"id": "forester",     "owner": "town", "building": "forester",    "capacity": 3,  "cash": 75},
+    {"id": "herb_garden",  "owner": "town", "building": "herb_garden", "capacity": 2,  "cash": 50},
+    {"id": "sheep_farm",   "owner": "town", "building": "sheep_farm",  "capacity": 1,  "cash": 50},
+    {"id": "fishery",      "owner": "town", "building": "fishery",     "capacity": 4,  "cash": 130},
+    {"id": "cattle_farm",  "owner": "town", "building": "cattle_farm", "capacity": 8,  "cash": 260},
+    {"id": "salt_works",   "owner": "town", "building": "salt_works",  "capacity": 1,  "cash": 50},
+    {"id": "quarry",       "owner": "town", "building": "quarry",      "capacity": 1,  "cash": 50},
+    {"id": "brewery",      "owner": "town", "building": "brewery",     "capacity": 10, "cash": 200},
+    {"id": "pottery",      "owner": "town", "building": "pottery",     "capacity": 4,  "cash": 50}
+  ]
+}

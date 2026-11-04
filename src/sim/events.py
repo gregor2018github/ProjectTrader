@@ -51,3 +51,11 @@ class EventQueue:
 
     def __len__(self) -> int:
         return len(self._events)
+
+
+@dataclass(frozen=True)
+class CapacityChanged(SimEvent):
+    """A workshop grew (it was busy and could pay) or shrank (it kept losing money)."""
+    workshop: str
+    old_capacity: float
+    new_capacity: float

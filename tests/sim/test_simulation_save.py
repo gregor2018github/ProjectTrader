@@ -7,7 +7,8 @@ import pytest
 
 from src.config.constants import SAVES_PATH
 from src.persistence import save_manager
-from src.sim import SIM_VERSION, Simulation, SimVersionError, load_goods, load_needs
+from src.sim import SIM_VERSION, Simulation, SimVersionError
+from src.sim.run import load_definitions
 from src.sim.systems.population import class_shares
 from tests.sim.builders import START, TOWN, good_def, plain_needs, simulation
 
@@ -104,9 +105,8 @@ def _old_saves():
 def test_a_save_in_saves_still_loads_and_runs(name):
     with open(os.path.join(SAVES_PATH, name), "rb") as f:
         data = save_manager._unpack(f.read())
-    goods = load_goods()
-    sim = Simulation(goods, load_needs([g.name for g in goods], [c for c, _ in class_shares()]),
-                     now=START, seed=1, town=TOWN)
+    definitions, scenario = load_definitions()
+    sim = Simulation(definitions, now=START, seed=1, town=TOWN, scenario=scenario)
     sim.presimulate(1)
     sim.load(data.get("sim") or save_manager._legacy_sim_block(data, sim), now=START)
     saved_goods = data["sim"]["state"]["goods"] if data.get("sim") else data["goods"]

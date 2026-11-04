@@ -1,6 +1,8 @@
 """The living market as a whole: the town gets fed through the day, the player's buying matters, wishes hold."""
 import datetime
 
+import pytest
+
 from src.sim import TownSpec
 from src.sim.systems import market
 from tests.sim.builders import START, good_def, plain_needs, simulation
@@ -29,7 +31,7 @@ def test_the_town_buys_its_bread_through_the_day_and_merchants_restock():
     sim = bread_town()
     sim.advance_to(day(20))
     bread = sim.good("Bread")
-    assert bread.yesterday.bought == bread.yesterday.wanted > 0
+    assert bread.yesterday.bought == pytest.approx(bread.yesterday.wanted) and bread.yesterday.wanted > 0
     assert all(c.fulfilment["basic"] == 1.0 for c in sim.state.population.classes.values())
     assert bread.yesterday.imported > 0
     assert market.price(bread) <= 1.1 * 1.01                  # held at the import line (the target moved at midnight)

@@ -4,9 +4,11 @@ The economy's state and rules, without pygame. The game drives it and reads it; 
 
 It holds:
 - **The market** (`pricing.md` is its spec): each good's stock against a target of days of demand, an outside price walking slowly around its mean, merchants importing and exporting between two lines, a little noise, and well wishes.
-- **The town's people**: per social class a head count, a purse, a basket of needs in three tiers bought from the market, happiness from how well the needs were met, and migration.
+- **The town's people**: per social class a head count, a purse, a basket of needs in three tiers bought from the market, happiness from how well the needs were met, jobs, and migration.
+- **Workshops and their owners**: each workshop runs its building's recipe as hard as its margin says. It hires from one class (pro rata when hands are short), sells into the market, grows after busy spells and shrinks after losses. Its owner tops it up and takes its profits. No rule reads what kind of owner it is.
+- **Money**: the market place holds none (the merchants own the stock), so the town's money changes by exactly what crosses its border, and `market_balance` checks it.
 
-Production by the town's workshops (P1 phase 2) comes next. The goldens in `tests/sim/golden/` pin the behaviour of each phase.
+The new goods and chains (P1 phase 3) come next. The goldens in `tests/sim/golden/` pin the behaviour of each phase.
 
 ---
 
@@ -26,13 +28,15 @@ Production by the town's workshops (P1 phase 2) comes next. The goldens in `test
 | `calendar.py` | The game calendar (seasons of `DAYS_PER_SEASON` days, years of four seasons, weekdays, Lent, formatting), the ticks (`TICK_ORDER`: `price_tick`, `hour`, `day`, `week`, `season`, `year`), and `tick_numbers(moment)`, a number per kind of tick that changes exactly when that tick happens. Also `season_factor()`, a per-season factor blended smoothly between the seasons' middles. It is the only calendar; the game's `GameState.update()` counts its ticks with it too. |
 | `scheduler.py` | `Scheduler`: handlers subscribe to a kind of tick. `advance_to(moment)` steps from price tick to price tick and fires every kind that changed at each, finest first, the handlers of one kind in the order they subscribed. `reset(moment)` moves the clock without firing (after loading, and for the pre-simulation). |
 | `rng.py` | `make_rng(seed)`, `new_seed()` for a new game, and the generator's state as a plain JSON list (`state_to_json` / `state_from_json`). |
-| `state.py` | `GoodState` (stock, target, demand average, outside price and its walk, noise, shock, histories, the day's flows), `ClassState` (head count, base, purse, happiness and its target, fulfilment per tier, today's `PlanItem`s, the day's money flows, histories), `PopulationState`, and `SimState` (all of it plus the market place's cash), each with `to_dict` / `from_dict`. Also `TownSpec`, the plain input a town is founded from (its houses' capacities). |
+| `state.py` | `GoodState` (stock, target, demand average, outside price and its walk, noise, shock, histories, the day's flows), `ClassState` (head count, base, housing share, jobs, purse, happiness and its target, fulfilment per tier, today's `PlanItem`s, the day's money flows, histories), `PopulationState`, `OwnerState`, `WorkshopState`, `TownMoney` (the town's border flows and the `market_balance`), `MerchantFlows` (the merchants' book), and `SimState` (all of it), each with `to_dict` / `from_dict`. Also `TownSpec`, the plain input a town is founded from (its houses' capacities). |
 | `systems/market.py` | The market's rules as functions on a `GoodState`: `price`, `reference`, `volume_factor`, `ratio_for_factor`, `quote`, `clear_buyers` (a slice's household purchases), `merchants` (imports and exports), `step_outside`, `step_noise`, `update_target`, `apply_well_shock` / `tick_well_shock_day`, `record_*`. |
-| `systems/households.py` | Each class's day: `start_day` (rate yesterday, earn, cap savings, plan), `plan`, `slice_orders`, `receive`, `fulfilment`, `needs_happiness`. |
-| `systems/population.py` | Head counts and mood: `create_population`, `split_into_classes`, `crowding_shift`, `set_target`, `glide_happiness`, `update_population` (migration), `record_*`. |
-| `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`) on an `EventQueue`. |
-| `data.py` | `load_goods()`, `load_needs()` and `load_recipes()` read `assets/data/` into `GoodDef`, `ClassNeedsDef` / `NeedDef` and `RecipeDef`, raising `DataError` with the file, entry and field. |
-| `simulation.py` | `Simulation`: state, definitions, generator, scheduler and events together. It subscribes the systems, founds the town, runs the economy ahead (`presimulate`), takes commands (`trade_with_player`, `apply_well_shock`), and saves and loads its block, migrating older ones. |
+| `systems/households.py` | Each class's day: `start_day` (rate yesterday, earn base income, wages and payouts, cap savings, plan), `plan`, `slice_orders`, `receive`, `fulfilment`, `needs_happiness`. |
+| `systems/production.py` | Workshops and owners: `batch_margin`, `wanted_utilisation`, `plan_wants` and `hire` (planning in two halves, so a class's hands are shared pro rata), `slice_orders`, `run_slice`, `settle_day` (wages, the owner's top-up and profit), `owner_surplus`, `change_capacity` (growth and shrinking). |
+| `systems/population.py` | Head counts and mood: `create_population`, `split_into_classes`, `crowding_shift` (against the class's share of the housing), `set_target`, `glide_happiness`, `update_population` (migration), `record_*`. |
+| `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`, `CapacityChanged`) on an `EventQueue`. |
+| `data.py` | `load_definitions()` reads goods, needs, recipes and building types from `assets/data/` into a `Definitions` (`GoodDef`, `ClassNeedsDef` / `NeedDef`, `RecipeDef`, `BuildingDef`); `load_scenario()` reads `scenarios/<name>.json` into a `ScenarioDef` (`OwnerDef`, `WorkshopSeed`). Each raises `DataError` with the file, entry and field. |
+| `simulation.py` | `Simulation`: state, definitions, generator, scheduler and events together. It subscribes the systems, founds the town and establishes the scenario's workshops, runs the economy ahead (`presimulate`), takes commands (`trade_with_player`, `apply_well_shock`), keeps the books (`town_money`, `_close_books`), and saves and loads its block, migrating older ones. |
+| `health.py` | The health report for a headless run (`python -m src.sim.health runs/<name> ...`): the market balance check and the tradability measure so far; P1 phase 4 adds the rest of `p1_living_market.md`'s checks. |
 | `scenario/tmx_town.py` | An adapter, used only by the runner: reads the houses' `Max_inhabitants` from `Map1.tmx` with `xml.etree` into a `TownSpec`. The core never knows about TMX. The strategic map's towns (P7) will have no map file. |
 | `run.py` | The headless runner. |
 
@@ -42,19 +46,27 @@ At each price tick the scheduler fires, in this order (the handlers of one kind 
 
 1. **price tick** (every `PRICE_TICK_MINUTES`, 30): for each good, `step_noise` (one draw), `record_tick`.
 2. **hour**:
-   - From `MARKET_OPEN_HOUR` to `MARKET_CLOSE_HOUR` (the slices ending at 07:00 … 18:00), a trading slice: every class's `slice_orders` at the current prices. Then for each good, the households' orders cleared together (`clear_buyers`, paid from the purses into the market's cash), then the merchants (`merchants`).
+   - From `MARKET_OPEN_HOUR` to `MARKET_CLOSE_HOUR` (the slices ending at 07:00 … 18:00), a trading slice:
+     1. every class's and every workshop's orders at the current prices;
+     2. each good's buyers cleared together (`clear_buyers`, one price, pro rata when short), paying the merchants;
+     3. each workshop runs its share of the day's batches as far as its inputs allow (`run_slice`), and the merchants buy the outputs, one price per good;
+     4. the merchants import and export (`merchants`), paying the outside price and transport themselves.
    - Every hour: `glide_happiness`, `record_happiness`.
 3. **day** (midnight):
-   - For each good: `close_day` (today's flows become yesterday's), `step_outside` (one draw), `tick_well_shock_day` (`PriceShockEnded` when one runs out), `update_target` from yesterday's demand.
-   - For each class: `start_day` (rate yesterday's shopping, earn, cap savings, plan today at today's prices), and its target happiness from needs and crowding.
-   - Then migration (`update_population`, `PopulationChanged` when the count moved), and the daily price records.
+   1. The books close (`_close_books`): the town's money is checked against the day's border flows (`market_balance`).
+   2. For each good: `close_day`, `step_outside` (one draw), `tick_well_shock_day` (`PriceShockEnded`), `update_target` from yesterday's demand (households' wants plus workshops' input wants).
+   3. For each workshop: `settle_day` (pay yesterday's workers; the owner tops it up to working capital and takes the rest); then each owner's `owner_surplus`, paid per head to the classes.
+   4. For each class: `start_day` (rate yesterday's shopping, earn base income for the heads without a job plus wages and payouts, cap savings, plan today), and its target happiness from needs and crowding.
+   5. Migration (`update_population`, `PopulationChanged`).
+   6. For each workshop: `plan_wants`; each class's hands shared pro rata (`hire`); input wants; `change_capacity` (`CapacityChanged`, growth paid to builders out of town).
+   7. The daily price records.
 4. **week**, **season**, **year**: nothing subscribed yet. With `DAYS_PER_SEASON` 7, a week and a season begin on the same day.
 
-The random draws follow from this order: one noise draw per good per price tick, and one outside-walk draw per good per day. The households and population draw nothing.
+The random draws follow from this order: one noise draw per good per price tick, and one outside-walk draw per good per day. Households, workshops and the population draw nothing.
 
 The game calls `sim.advance_to(game_state.date)` once per update, right after `GameState.update()`, then does its own hourly and daily work (crops, the church bell, the depot's books, licences, the merchant rank) on `GameState`'s flags. The player's trades (`Good.buy` / `Good.sell` → `Simulation.trade_with_player`) fall between the scheduler's ticks.
 
-`Simulation.presimulate(days)` puts the clock back `days` and runs the whole economy forward to now. Then it cuts the people's histories to their last entry: the game's town charts start today, while the price charts open with history. A new game (and the runner) founds the town first and then presimulates `MARKET_PRESIMULATION_DAYS`.
+`Simulation.presimulate(days)` puts the clock back `days` and runs the whole economy forward to now. Then it cuts the people's histories to their last entry: the game's town charts start today, while the price charts open with history. A new game (and the runner) founds the town, establishes the `home_town` scenario's workshops, and then presimulates `MARKET_PRESIMULATION_DAYS`.
 
 ## How to add a system
 
@@ -72,12 +84,14 @@ The save's `"sim"` block is `Simulation.to_dict()`:
 
 ```json
 {"sim_version": 2, "seed": 2973952474, "rng": [3, [625 ints], null],
- "now": "1500-02-26T08:05:28", "state": {"goods": [...], "population": {...}, "market_cash": 1234.5}}
+ "now": "1500-02-26T08:05:28", "state": {"goods": [...], "population": {...}, "owners": [...], "workshops": [...],
+           "money_today": {...}, "money_mark": 8123.4, "merchants_today": {...}, ...}}
 ```
 
 `"rng"` is `Random.getstate()` as a plain list, not a pickle. `Simulation.load()` restores the generator last, so a loaded game draws exactly what the saved one would have, and a save made mid-morning goes on with its plan half bought. Other rules on loading:
 - Goods saved but no longer defined are dropped, and so are plan items for them.
 - Goods defined but not saved get a flat history as long as the others'.
+- A block without workshops (sim_version 1, or saved before phase 2) gets the established scenario's owners and workshops, fresh.
 - A block newer than `SIM_VERSION` is refused (`SimVersionError`).
 - **sim_version 1 (P0)** blocks migrate: each good keeps its histories, and its stock as a share of its new target. Each class keeps its count and happiness and gets a starting purse. Targets and today's plan are worked out from the current demand, and the outside prices start at their means.
 
@@ -89,17 +103,19 @@ The seed is shown on the settings' weather page (debug overlay on). It reproduce
 
 ```bash
 python -m src.sim.run --years 20 --seed 1 --out runs/baseline
-python -m src.sim.run --help        # --map, --presim-days
+python -m src.sim.run --help        # --map, --scenario, --presim-days
+python -m src.sim.health runs/baseline runs/other    # the health report, one or more runs
 ```
 
 It starts as a new game does (the game's start moment, the town from `Map1.tmx`, the economy run ahead) and writes into the folder (`runs/` is git-ignored). Rows are taken at each midnight, after that day's systems ran; the flows are the day just ended. All files share `day, year, season, day_of_season`.
 
 | File | One row per | Columns |
 |---|---|---|
-| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, imported, exported, player_bought, player_sold` |
-| `population_daily.csv` | day × class (and `All`) | `class, count, happiness, happiness_target, purse, income, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
-| `town_daily.csv` | day | `citizens, purses, market_cash, money_supply` |
-| `meta.json` | – | seed, years, days, start, `sim_version`, git commit and whether the tree was dirty, Python version, the goods, needs and town, every relevant constant, row counts, runtime |
+| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold` |
+| `population_daily.csv` | day × class (and `All`) | `class, count, employed, happiness, happiness_target, purse, income, wages, payouts, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
+| `workshops_daily.csv` | day × workshop | `workshop, owner, building, capacity, utilisation, margin, planned, done_yesterday, workers, cash` |
+| `town_daily.csv` | day | `citizens, money_supply, purses, workshop_cash, owner_cash, money_created, money_leaked, money_invested, paid_to_merchants, paid_by_merchants, market_balance`, and the merchants' book: `merchant_sales, merchant_purchases, merchant_import_cost, merchant_export_revenue, merchant_transport, merchant_profit` |
+| `meta.json` | – | seed, years, days, start, `sim_version`, git commit and whether the tree was dirty, Python version, the definitions, scenario and town, every relevant constant, row counts, runtime |
 
 `day` counts days since the calendar's first one. Floats are written as `repr`, so the same seed gives byte-identical CSVs. Reading them:
 
@@ -113,7 +129,9 @@ people = pd.read_csv("runs/baseline/population_daily.csv")
 people[people["class"] != "All"].pivot(index="day", columns="class", values="fulfilment_luxury").plot()
 ```
 
-50 years (1,400 days) take about 2 s here.
+50 years (1,400 days) take about 3 s here.
+
+**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
 ## Data files
 
@@ -133,7 +151,14 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 The tiers are bought in that order. Phase 1 uses stand-ins until the new goods exist (Wheat for Bread, Fish for Salted Fish, Linen for Garments, Hide for Shoes, Salt for Spices); swapping them is a data edit.
 
-**`recipes.json`**: `{"recipes": [...]}`. Each entry has `id` (unique), optional `name` and `description`, `inputs` (good → whole units ≥ 1 per batch, may be empty for a raw good), `outputs` (the same, at least one), `labour` (worker-days per batch, ≥ 0) and `days` (how long a batch takes, > 0). Every good named must be in `goods.json`. There is one example entry. Phase 2 runs them, adds `building`, and allows fractions for tool wear.
+**`recipes.json`**: `{"recipes": [...]}`. Each entry has `id` (unique), optional `name` and `description`, `inputs` (good → units per batch, numbers > 0, fractions allowed for wear; may be empty for a raw good), `outputs` (the same, at least one; several make byproducts) and `labour` (worker-days per batch, ≥ 0). Every good named must be in `goods.json`.
+
+**`buildings.json`**: `{"buildings": [...]}`. Each entry has `type` (unique), `name`, `recipe` (an id in `recipes.json`), `workers_class` (the class it hires from), `wage` (per worker-day), `max_capacity` (batches a day), `growth_cost` (money per batch a day of growth, paid out of town), and `working_capital` (cash it keeps before profits go to its owner).
+
+**`scenarios/<name>.json`**: `{"owners": [...], "workshops": [...]}`.
+- An owner has `id`, `kind` (a label; no rule reads it), `name`, `cash`, `reserve`, and `surplus_to` (`keep`, or `townsfolk`: cash above the reserve paid out per head).
+- A workshop has `id`, `owner`, `building` (a type in `buildings.json`), `capacity` (batches a day) and `cash`.
+- `home_town.json` is the game's.
 
 ## Seams to collapse later
 
@@ -143,7 +168,7 @@ The tiers are bought in that order. Phase 1 uses stand-ins until the new goods e
 
 Not moved yet, in rough order of value:
 
-- **The depot's daily books** (cost of living, loans, overdraft, wealth history). P3 turns the player into an owner like the town (`p1_living_market.md`, "Owners"), so the player, the AI dynasties and the town share them.
+- **The depot's daily books** (cost of living, loans, overdraft, wealth history). P3 turns the player into an owner like the town (`OwnerState`, `p1_living_market.md` "Owners"), so the player, the AI dynasties and the town share them.
 - **Weather** (`src/models/weather.py`), which already runs on game time and is saved. It would need the sim's generator and a pygame-free split of `Weather` from its sounds.
 - **Crop growth** (`src/models/crop_growth.py`), already a pure function of the date. The roadmap keeps harvests cosmetic, but a farm's look could follow its workshop.
 - **The well's odds and cooldown** (`src/models/institutions/well.py`), still on the global `random`.

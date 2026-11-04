@@ -5,7 +5,7 @@ import pytest
 from src.models import depot as depot_module
 from src.models.depot import Depot
 from src.models.good import Good
-from src.sim import GoodDef, Simulation
+from src.sim import Definitions, GoodDef, Simulation
 from tests.fakes import START_DATE, FakeGameState
 
 # The storage layout the depot tests are written against, pinned so that
@@ -58,7 +58,7 @@ def make_good():
         # Each good on a simulation of its own, without a town, noise or a moving outside
         # price, holding market_quantity as its target; the Good is only a view of it
         definition = GoodDef(name, "BLACK", 0, True, outside_price=price, outside_volatility=0.0, noise_sigma=0.0)
-        sim = Simulation([definition], [], now=START_DATE, seed=0)
+        sim = Simulation(Definitions([definition], []), now=START_DATE, seed=0)
         state = sim.good(name)
         state.stock = state.target_stock = float(market_quantity)
         return Good(sim, name, (0, 0, 0), 0, True)

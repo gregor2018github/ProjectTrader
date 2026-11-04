@@ -91,6 +91,16 @@ TARGET_STOCK_GLIDE = 0.1            # Share of the gap to yesterday's demand the
 PURSE_START_DAYS = 5                # A class's purse when a game starts, in days of its income
 SAVINGS_CAP_DAYS = 10               # A class saves at most this many days of income; the rest leaves town (rents and dues)
 SAVINGS_RELEASE = 0.2               # Share of its savings a class adds to a day's budget after a day its needs went unmet
+# Workshops (src/sim/systems/production.py); per building type in assets/data/buildings.json
+MARGIN_FLOOR = 0.0                  # A workshop whose batch earns this margin (or less) on its costs wants to run at nothing...
+MARGIN_FULL = 0.3                   # ...and at full capacity from this margin up, linearly between
+UTILISATION_GLIDE = 0.2             # Share of the gap to that a workshop's utilisation closes each day
+GROWTH_DESIRE = 0.9                 # A workshop wanting at least this utilisation counts a busy day...
+GROWTH_AFTER_DAYS = 14              # ...and after this many in a row it grows, if it (or its owner) can pay
+GROWTH_STEP = 0.1                   # Growth as a share of its capacity...
+GROWTH_MIN_STEP = 0.5               # ...but at least this many batches a day (so a workshop shrunk to nothing can come back)
+SHRINK_AFTER_DAYS = 56              # A workshop losing money this many days in a row shrinks (two seasons; slower than growth)...
+SHRINK_STEP = 0.05                  # ...by this share of its capacity
 START_DATE = "01.01.1500"           # Where the clock starts, format: dd.mm.yyyy; the game calendar's first day (see below)
 # CALENDAR (src/sim/calendar.py): the clock runs on as an ordinary datetime, but the
 # calendar shown is compressed so a game can span generations: a year is four seasons

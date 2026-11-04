@@ -205,14 +205,14 @@ def clear_buyers(good: GoodState, orders: Dict[str, float]) -> Tuple[Dict[str, f
     return {buyer: units * share for buyer, units in orders.items()}, unit_price
 
 
-def merchants(good: GoodState, definition: GoodDef, slices: int) -> Tuple[float, float, float]:
+def merchants(good: GoodState, definition: GoodDef, slices: int) -> Tuple[float, float]:
     """The outside world's merchants in one slice: import above the import line, export below the export line.
 
     They go by the stock, not by the noise: the price without noise
     (``reference × volume_factor``) is what they compare with the lines and
     bring back to them, at most the slice's share of the good's daily limit.
-    The market place pays importers the import line's price and is paid the
-    export line's price by exporters.
+    They pay the outside price and the transport for what they bring in, and get
+    the outside price less the transport for what they take out.
 
     Args:
         good: The good.
@@ -220,7 +220,8 @@ def merchants(good: GoodState, definition: GoodDef, slices: int) -> Tuple[float,
         slices: Slices in a trading day.
 
     Returns:
-        Units imported, units exported, and the money the market place paid (+) or got (−).
+        Units imported and units exported. The merchants own the stock: what they
+        pay outside (the outside price and the transport) is on their own book.
     """
     ref = reference(good)
     level = ref * volume_factor(good)
@@ -231,14 +232,14 @@ def merchants(good: GoodState, definition: GoodDef, slices: int) -> Tuple[float,
         units = min(definition.import_limit / slices, max(0.0, wanted_ratio * good.target_stock - good.stock))
         if units > 0:
             good.stock += units
-            return units, 0.0, units * import_line
+            return units, 0.0
     elif level < export_line and export_line > 0 and definition.export_limit > 0:
         wanted_ratio = ratio_for_factor(export_line / ref)
         units = min(definition.export_limit / slices, good.stock, max(0.0, good.stock - wanted_ratio * good.target_stock))
         if units > 0:
             good.stock -= units
-            return 0.0, units, -units * export_line
-    return 0.0, 0.0, 0.0
+            return 0.0, units
+    return 0.0, 0.0
 
 
 # -- well wishes -----------------------------------------------------------

@@ -2,7 +2,7 @@
 
 An orientation page for anyone (human or coding agent) about to touch market prices. It explains the model at a high level, then points to where each piece lives in the code. Line numbers drift, so search for the named function or constant rather than trusting them.
 
-The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`). Its state is `GoodState` (`src/sim/state.py`), and its rules are functions in `src/sim/systems/market.py`. The game's `Good` (`src/models/good.py`) is only a view of them. The design behind it is `p1_living_market.md` (P1, the living market). Phase 1 of it is built: demand from the town's households and supply from the outside world. Phase 2 adds the town's workshops.
+The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`). Its state is `GoodState` (`src/sim/state.py`), and its rules are functions in `src/sim/systems/market.py`. The game's `Good` (`src/models/good.py`) is only a view of them. The design behind it is `p1_living_market.md` (P1, the living market). Phases 1 and 2 of it are built: demand from the town's households, supply from the town's workshops, and the outside world's merchants between them.
 
 ---
 
@@ -21,6 +21,7 @@ reference = outside price × a running well wish's shock
 
 The stock changes only through trades:
 - the households buy their daily needs in hourly slices;
+- the workshops buy their inputs and sell what they make, in the same slices;
 - the merchants import and export;
 - the player buys and sells.
 
@@ -66,10 +67,11 @@ Some values: half the target gives ×1.5, a quarter gives ×2.45, double the tar
 
 ## 4. Who trades, and at what price
 
-The market place is the town's traders taken together: they hold the stock and its cash (`SimState.market_cash`).
+The market place holds no money: the stock in it belongs to the **merchants**. Every buyer pays them and every seller is paid by them, at the price of the moment. They pay the outside price and the transport for what they bring in, and get the outside price less the transport for what they take out. The town's money therefore changes by exactly what crosses its border, which the books check every day (`market_balance`, `sim_core.md`).
 
-- **Households** (`systems/households.py`) plan their day at midnight and buy in hourly slices from `MARKET_OPEN_HOUR` to `MARKET_CLOSE_HOUR` (12 slices). In each slice every class's order for a good is added up and cleared once (`market.clear_buyers`): one price for all, the order's average with slippage. When the stock runs short, each class gets the same share. A slice that came up short is made up in later slices if stock comes back. Households pay the market place.
-- **Merchants** (`market.merchants`) act after the households in every slice. They judge by the stock, not the noise: when `reference × volume_factor` is above the **import line** (`reference + transport_cost`), they bring in enough to get back to it, at most `import_limit / 12` in the slice, and the market place pays them the import line's price. Below the **export line** (`reference − transport_cost`), they take the surplus out the same way and pay the export line's price. Between the lines nobody moves.
+- **Households** (`systems/households.py`) plan their day at midnight and buy in hourly slices from `MARKET_OPEN_HOUR` to `MARKET_CLOSE_HOUR` (12 slices). In each slice every class's order for a good is added up and cleared once (`market.clear_buyers`): one price for all, the order's average with slippage. When the stock runs short, each class gets the same share. A slice that came up short is made up in later slices if stock comes back. Households pay the merchants.
+- **Workshops** (`systems/production.py`) buy their inputs in the same clearing as the households: one price, the same share when short. They run their share of the day's batches, as far as their inputs allow, and sell the outputs to the merchants in one order per good at one price, with slippage. Byproducts are sold the same way. How many batches a workshop runs follows its margin at the day's prices. Local supply therefore undercuts imports while it pays, pushes the price down towards the export line when there is too much of it, and shrinks when it stops paying.
+- **Merchants** (`market.merchants`) act last in every slice. They judge by the stock, not the noise: when `reference × volume_factor` is above the **import line** (`reference + transport_cost`), they bring in enough to get back to it, at most `import_limit / 12` in the slice, paying the outside price and the transport. Below the **export line** (`reference − transport_cost`), they take the surplus out the same way, for the outside price less the transport. Between the lines nobody moves.
 - **The player** trades through `Depot.buy()` / `Depot.sell()` (`src/models/depot.py`). The amount comes from `Good.quote(quantity, buying)` (`market.quote()`), and the trade itself from `Simulation.trade_with_player()`:
   - **Slippage.** Each unit is priced at its own stock. A unit you buy is priced at the stock before it is taken, so the first one costs the shown price. A unit you sell is priced at the stock after it is added. So buying and then selling back the same units is zero-sum before fees, and a large order moves the price against the trader as it goes.
   - **Buy:** pays `quote + transaction_cost`. **Sell:** receives `quote − transaction_cost`. `transaction_cost` is a flat fee per trade (starts at `INITIAL_TRANSACTION_COST` = 2), stored on the depot and in the save.
@@ -91,7 +93,6 @@ Before a player's trade, several gates must pass. They block the trade but don't
 ## 5. What does *not* affect price (yet)
 
 - **Which market or booth.** There is one `GoodState` per good, shared by all booths. Booths only decide *whether* you may trade.
-- **Production.** The town's workshops come in phase 2 of P1. Until then all supply comes from imports, and prices sit at the import line.
 
 ## 6. Well wishes: the deliberate price shock
 
@@ -112,7 +113,7 @@ Both lists store the full price. They grow for the whole session and are saved i
 
 ## 8. Saving and loading
 
-The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full (stock, target, outside price and its walk, noise, shock, histories, flows), the market place's cash and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
+The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full (stock, target, outside price and its walk, noise, shock, histories, flows), the town's books and the merchants' book, the workshops and owners, and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
 
 Older blocks and saves migrate on loading:
 - **`sim_version` 1 (P0) and saves from before the `"sim"` block** (`SAVE_VERSION` < 3, through `save_manager._legacy_sim_block()`): each good keeps its histories, and its stock as a share of its new target (as scarce or glutted as it was against P0's normal volume, or at its target if the save had none). The outside price starts at its mean, so prices jump to the new model on the first load.
@@ -120,7 +121,7 @@ Older blocks and saves migrate on loading:
 
 ## 9. Where this is heading
 
-Phase 2 of P1 (`p1_living_market.md`) adds the town's workshops as real actors. They buy inputs from this market and sell their outputs into it, so local supply undercuts imports and surplus is exported. The hysteresis described there makes flooding a market a real strategy, and keeping a town well supplied work. P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
+Phase 3 of P1 (`p1_living_market.md`) grows the goods to about 30, with chains three steps deep (wheat → flour → bread, livestock → meat, hide and tallow → leather and candles, iron and charcoal → tools that wear out). A workshop's capacity grows slowly after busy spells and shrinks more slowly after losses. That hysteresis makes flooding a market to drive out its makers a real strategy, and keeping a town well supplied real work. P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
 
 ---
 
@@ -131,6 +132,7 @@ Phase 2 of P1 (`p1_living_market.md`) adds the town's workshops as real actors. 
 | Price state (stock, target, outside price, noise, shock, histories, flows) | `src/sim/state.py` (`GoodState`) |
 | The price, volume factor, quote/slippage, outside walk, noise, merchants, clearing, well shock | `src/sim/systems/market.py` |
 | What the households buy and when | `src/sim/systems/households.py` |
+| What the workshops make, buy and sell | `src/sim/systems/production.py`; recipes and building types in `assets/data/recipes.json`, `buildings.json`; the home town's workshops in `assets/data/scenarios/home_town.json` |
 | The order things happen in, player trades | `src/sim/simulation.py` (`Simulation`) |
 | The view the depot and UI use (plus colours, chart visibility) | `src/models/good.py` (`Good`) |
 | Every good's outside price, transport, limits, target days, noise | `assets/data/goods.json`, loaded by `src/sim/data.py` |

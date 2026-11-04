@@ -2,7 +2,7 @@
 
 Status: **approved**, with the decisions below. Phases 1 and 2 are built together on the branch `p1-living-market` and merged together; phase 1 alone (imports only) is a development state, not a playable one.
 
-Progress: **phase 1 built** (demand and the outside world, on today's 15 goods); phase 2 (production) next. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Progress: **phases 1 and 2 built** (demand, the outside world and production, on today's 15 goods; see "Built: what changed on the way" at the end); phase 3 (the new goods) next. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 
@@ -118,7 +118,9 @@ Merchants act in every slice, after the households and workshops:
 
 ### Money
 
-Money enters the town through base income and exports. It leaves through imports, the savings leak, capacity growth, and the player taking it away. Inside the town it moves between purses, workshops, owners and the player. The market place is the town's traders taken together: they hold the stock pool and its cash (`market_cash`). They pay importers and the player for what comes in, and are paid by households, workshops, exporters and the player for what goes out, all at the posted price. Their margin is the volume factor's spread between the lines, so `market_cash` drifts slowly. It is part of the money supply, and the health report checks it stays bounded against the turnover.
+**The market place holds no money, by construction.** The stock in it belongs to the merchants. Buyers (households, workshops, the player) pay the merchants, and sellers (workshops, the player) are paid by them, at the posted price. The merchants pay the outside price and the transport for what they import, and get the outside price less the transport for what they export. Transport is borne by the merchants out of the margin between the lines, and by buyers through the price, never by the pool.
+
+The town's money (purses, workshops' and owners' cash; the player's stays in the game's `Depot`) therefore changes each day by exactly what crosses its border: base income created, minus the savings leak, minus money paid to builders for growth, minus payments to the merchants, plus payments from them (`TownMoney`). The `market_balance` is whatever those flows don't explain, and the health report fails unless it is zero within float tolerance. The merchants' own book (sales, purchases, import cost, export revenue, transport) is recorded for analysis. It lies outside the town.
 
 ### Happiness and migration
 
@@ -224,7 +226,8 @@ The player's trades fall between ticks, when the game calls `Good.buy` / `Good.s
 | Workshop cash | any workshop with negative cash for more than N consecutive days | N = 56 (two seasons) |
 | Dead workshop | any workshop at utilisation 0 for more than a year | warning |
 | Structural shortage | any good importing at its limit on more than X % of days | X = 50 (warning) |
-| Market balance | `market_balance` drifting by more than X % of yearly turnover | X = 1 |
+| Market balance | any day's `market_balance` not zero within float tolerance (the market place holds no money) | 1e-9 of the money supply |
+| Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways) | — |
 
 The report is a short text summary per run, plus a table over the 20 seeds × 50 years. Phase 4's CSVs add daily consumption, production, imports and exports per good, purse and fulfilment per class and tier, and per workshop its cash, utilisation, capacity and output.
 
@@ -282,3 +285,32 @@ All decided: the recommendations were accepted as written, except question 5 (ch
 - **Calibration is the work.** Baskets, incomes, wages, recipe yields and transport costs must line up so that every chain is profitable somewhere between the import and export lines. Phase 4's health report is how that is judged, and the first runs will fail it.
 - **Positive feedback.** More people means more demand, which means more workshop profit and more jobs, which means more income, more happiness, and more people. The population clamps (0.4–1.2 × base) and the crowding penalty hold it, so they stay.
 - **Charts.** With the walk reduced to noise, the price charts get calmer. Their life now comes from real shortages and gluts, which phase 5 makes visible.
+
+## Built: what changed on the way
+
+Decisions taken while building phases 1 and 2, beyond the ones above.
+
+**Phase 1**
+- Merchants judge the market by its stock, not by the noise: they compare `reference × volume_factor` with the lines. Reacting to the noise made them buy on every upward wobble and sell into the next dip, a loss on every swing.
+- Saves from P0 keep each good's stock as a share of its new target (as scarce or glutted as it was), not its units. P0's "normal" volumes were thousands, so moving the units loaded every old save as a glut at the price floor.
+
+**Before phase 2 (review changes)**
+- Crowding is measured against each class's share of the housing (`ClassState.capacity`), not against the starting head count, so a town at its starting size (80 % full) is not penalised. Migration's min/max clamps still measure against the starting head count (open question below).
+- The market place holds no money (see "Money"). The `market_balance` check is exactly zero, and the tradability measure is reported (`python -m src.sim.health`).
+
+**Phase 2**
+- **Owners settle with their workshops daily.** An owner tops each workshop's cash up to its working capital out of its own cash, and takes whatever is above it. Without the top-up, a workshop that had spent its cash on growth planned zero batches, never earned again, and stayed dead.
+- **Surplus.** Each owner's `surplus_to` (data, in the scenario) decides its cash above its `reserve`: `keep`, or `townsfolk`, paid to the classes per head. The town pays out, as a stand-in until the council spends the treasury (P6). Without it, the town's profits piled up and the money supply grew without bound.
+- **Hiring is pro rata.** When a class has fewer free hands than its workshops want, each gets the same share, as buyers do in a short market. Hiring in id order gave the first farm every poor worker and the forester none.
+- **A busy day** needs the workshop to *plan* near its capacity, not just to want it. Otherwise workshops without workers grew to their maximum.
+- **No output stock.** A workshop sells what it makes in the same slice. It keeps an input stock (bought, not yet used), so a recipe with several inputs can run when they arrive at different rates.
+- **Recipes** have no `days` field any more (capacity is in batches a day), and amounts may be fractions.
+- **Scenario** (`assets/data/scenarios/home_town.json`): eleven town-owned workshops on today's 15 goods (farms, forester, herb garden, sheep farm, fishery, cattle farm with hides as a byproduct, salt works, quarry, brewery, pottery). Iron, Wine, Linen and Candle stay imported until phase 3's chains.
+- **Calibration.**
+  - Wages just above base income: Poor 0.7, Commons 1.15.
+  - Base income trimmed, because part of the "unsimulated" work is now simulated: Poor 0.45, Commons 0.9, Nobility 11.
+  - Larger luxury tiers. Some of the nobility's wine moved from basic to luxury.
+
+**Open question from phase 2: the migration ceiling.**
+- **The finding.** Crowding is now measured against housing, so a town whose needs are met grows until crowding bites. That is at about 96–100 % of housing. But migration's ceiling is 1.2 × the starting head count, which is 96 % of housing, and the town reaches it during the 60-day run-ahead in every seed and stays there.
+- **Recommendation:** measure the ceiling (and floor) against housing too, e.g. 0.3–1.05 × housing. Crowding and needs, not the clamp, would then set the size, around 100 % of housing for a well-supplied town.

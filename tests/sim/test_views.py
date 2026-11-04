@@ -44,7 +44,8 @@ def test_a_players_trade_through_the_good_changes_the_simulation():
     good.buy(10)
     assert sim.good("Wood").stock == before - 10
     assert sim.good("Wood").today.player_bought == 10
-    assert sim.state.market_cash == cost
+    assert sim.state.merchants_today.sales == cost              # the player pays the merchants
+    assert sim.state.money_today.to_merchants == 0              # ...with the Depot's money, not the town's
     good.apply_well_shock("Price goes down")
     assert sim.good("Wood").shock_days > 0 and market.reference(sim.good("Wood")) < 4.0
 

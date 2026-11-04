@@ -37,9 +37,14 @@ it is where the bugs cost most and the tests are cheapest.
      break them; they pin each phase of P1. When behaviour is meant to change,
      regenerate with `python -m tests.sim.golden_harness --write` and say so in
      the commit; otherwise a failing golden is a bug.
-   - **Rules one by one** (`test_market.py`, `test_households.py`) on small
-     definitions from `tests/sim/builders.py`, and the whole economy on a toy town
-     (`test_simulation.py`: the player buying up the bread leaves the town short).
+   - **Rules one by one** (`test_market.py`, `test_households.py`,
+     `test_production.py`) on small definitions from `tests/sim/builders.py`, and
+     the whole economy on a toy town (`test_simulation.py`: the player buying up
+     the bread leaves the town short; `test_production.py`: a bakery feeding its
+     town, paying its workers and its owner's surplus, and shrinking when it
+     cannot pay its way).
+   - **The health report** (`test_health.py`): the market balance and the
+     tradability measure on hand-made rows.
    - **Determinism** (`test_run.py`): the same seed writes byte-identical CSVs,
      another seed different ones.
    - **Save round trip** (`test_simulation_save.py`): a saved and loaded

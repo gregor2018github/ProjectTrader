@@ -18,7 +18,7 @@ import os
 import sys
 from typing import Any, Dict, List, Tuple
 
-from src.sim import Simulation, TownSpec, load_goods, load_needs
+from src.sim import Simulation, TownSpec, load_definitions, load_scenario
 from src.sim.systems.population import class_shares
 
 GOLDEN_DIR = os.path.join(os.path.dirname(__file__), "golden")
@@ -58,9 +58,9 @@ def _compact(record: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def run_scenario(seed: int) -> Dict[str, Any]:
-    goods = load_goods(DATA_DIR)
-    needs = load_needs([g.name for g in goods], [c for c, _ in class_shares()], DATA_DIR)
-    sim = Simulation(goods, needs, now=START, seed=seed, town=TownSpec(list(HOUSE_CAPACITIES)))
+    definitions = load_definitions([c for c, _ in class_shares()], DATA_DIR)
+    scenario = load_scenario("home_town", [b.type for b in definitions.buildings], DATA_DIR)
+    sim = Simulation(definitions, now=START, seed=seed, town=TownSpec(list(HOUSE_CAPACITIES)), scenario=scenario)
     sim.presimulate(PRESIM_DAYS)
     first_day = START.date()
     trades: List[float] = []
@@ -76,9 +76,11 @@ def run_scenario(seed: int) -> Dict[str, Any]:
     population = state["population"]
     return {
         "trades": trades,
-        "market_cash": state["market_cash"],
+        "money": _compact({k: v for k, v in state.items() if k.startswith(("money", "merchants"))}),
         "goods": {g["name"]: _compact(g) for g in state["goods"]},
         "classes": {c["name"]: _compact(c) for c in population["classes"]},
+        "owners": {o["id"]: o for o in state["owners"]},
+        "workshops": {w["id"]: w for w in state["workshops"]},
         "town": _compact({k: v for k, v in population.items() if k != "classes"}),
         "rng_sha256": _digest(sim.to_dict()["rng"]),
     }

@@ -76,32 +76,30 @@ def test_a_short_slice_shares_the_stock_pro_rata_at_one_price():
 def test_merchants_import_back_to_the_import_line_within_the_slice_limit():
     good, definition = a_good(10.0, stock=1000.0, transport_cost=1.0, import_limit=12_000.0)
     good.stock = 300.0                                    # well below the import line
-    imported, exported, paid = merchants(good, definition, SLICES)
+    imported, exported = merchants(good, definition, SLICES)
     assert exported == 0 and imported > 0
     assert reference(good) * volume_factor(good) == pytest.approx(11.0)    # back on the line
-    assert paid == pytest.approx(imported * 11.0)
 
 
 def test_merchants_bring_no_more_than_the_slices_share():
     good, definition = a_good(10.0, stock=1000.0, import_limit=120.0)
     good.stock = 100.0
-    imported, _, _ = merchants(good, definition, SLICES)
+    imported, _ = merchants(good, definition, SLICES)
     assert imported == pytest.approx(10.0)
 
 
 def test_merchants_export_a_glut_down_to_the_export_line():
     good, definition = a_good(10.0, stock=1000.0, export_limit=120_000.0)
     good.stock = 3000.0
-    imported, exported, paid = merchants(good, definition, SLICES)
+    imported, exported = merchants(good, definition, SLICES)
     assert imported == 0 and exported > 0
     assert reference(good) * volume_factor(good) == pytest.approx(9.0)
-    assert paid == pytest.approx(-exported * 9.0)
 
 
 def test_between_the_lines_nobody_moves_and_the_noise_is_ignored():
     good, definition = a_good(10.0, stock=1000.0, import_limit=1000.0, export_limit=1000.0)
     good.noise = 0.09                                    # the price shows 10.94, the stock is fine
-    assert merchants(good, definition, SLICES) == (0.0, 0.0, 0.0)
+    assert merchants(good, definition, SLICES) == (0.0, 0.0)
 
 
 def test_the_outside_price_walks_back_to_its_mean():

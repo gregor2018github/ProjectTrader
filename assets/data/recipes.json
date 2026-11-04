@@ -1,14 +1,17 @@
 {
-  "about": "Production recipes: one batch's goods in and out. Nothing runs them yet (P1's workshops will). Schema in docs/sim_core.md; src/sim/data.py checks this file.",
+  "about": "Production recipes: one batch's goods in and out, and the worker-days it takes. Several outputs make byproducts. Amounts may be fractions. Phase 2 uses today's 15 goods; phase 3 adds the chains (flour, bread, tallow, tools, ...). src/sim/data.py checks this file.",
   "recipes": [
-    {
-      "id": "brew_beer",
-      "name": "Brew beer",
-      "description": "An example entry: malted wheat brewed into ale.",
-      "inputs": {"Wheat": 4},
-      "outputs": {"Beer": 3},
-      "labour": 2,
-      "days": 1
-    }
+    {"id": "grow_wheat",    "name": "Grow wheat",      "inputs": {},                         "outputs": {"Wheat": 7},              "labour": 5},
+    {"id": "fell_wood",     "name": "Fell wood",       "inputs": {},                         "outputs": {"Wood": 7},               "labour": 5},
+    {"id": "grow_herbs",    "name": "Grow herbs",      "inputs": {},                         "outputs": {"Herbs": 2.3},            "labour": 5},
+    {"id": "shear_sheep",   "name": "Shear sheep",     "inputs": {},                         "outputs": {"Wool": 2.3},             "labour": 5},
+    {"id": "catch_fish",    "name": "Catch fish",      "inputs": {},                         "outputs": {"Fish": 4.5},             "labour": 5},
+    {"id": "raise_cattle",  "name": "Raise cattle",    "inputs": {},                         "outputs": {"Meat": 1.5, "Hide": 0.4}, "labour": 5,
+     "description": "Meat, and the hides as a byproduct."},
+    {"id": "boil_salt",     "name": "Boil salt",       "inputs": {},                         "outputs": {"Salt": 1.5},             "labour": 5},
+    {"id": "quarry_stone",  "name": "Quarry stone",    "inputs": {},                         "outputs": {"Stone": 4.5},            "labour": 5},
+    {"id": "brew_beer",     "name": "Brew beer",       "inputs": {"Wheat": 2, "Wood": 0.5},  "outputs": {"Beer": 1},               "labour": 1},
+    {"id": "throw_pottery", "name": "Throw pottery",   "inputs": {"Wood": 0.5},              "outputs": {"Pottery": 1},            "labour": 1.4,
+     "description": "The potter digs his own clay until there is a clay pit."}
   ]
 }

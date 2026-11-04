@@ -7,7 +7,12 @@
 - ``needs.json``: per social class, its income and what a head wants a day,
   in three tiers (basic, comfort, luxury), and how much each tier weighs on
   its happiness.
-- ``recipes.json``: production recipes, which nothing runs yet (phase 2).
+- ``recipes.json``: production recipes: a batch's goods in and out, and the
+  labour it takes.
+- ``buildings.json``: building types: the recipe a workshop of that type runs,
+  who works there and for what wage, how far it can grow and at what cost.
+- ``scenarios/<name>.json``: who owns what in a town: the owners, and the
+  workshops that stand there when a game starts.
 
 Every mistake in a file is reported as a ``DataError`` naming the file, the
 entry and the field, e.g.::
@@ -77,15 +82,66 @@ class ClassNeedsDef:
 class RecipeDef:
     """A production recipe as recipes.json defines it: one batch's goods in and out.
 
-    Nothing runs recipes yet; P1's workshops will.
+    Several outputs make byproducts (cattle: meat and hide). Amounts may be
+    fractions (a tool wearing out by 0.05 a batch).
     """
     id: str
-    inputs: Dict[str, int]      # good -> units used per batch (empty for raw goods)
-    outputs: Dict[str, int]     # good -> units made per batch
+    inputs: Dict[str, float]    # good -> units used per batch (empty for raw goods)
+    outputs: Dict[str, float]   # good -> units made per batch
     labour: float               # worker-days a batch takes
-    days: float                 # how long a batch takes
     name: str = ""
     description: str = ""
+
+
+@dataclass(frozen=True)
+class BuildingDef:
+    """A type of workshop building as buildings.json defines it."""
+    type: str
+    name: str
+    recipe: str                 # the recipe its workshops run
+    workers_class: str          # the social class it hires from
+    wage: float                 # per worker-day
+    max_capacity: float         # batches a day it can grow to
+    growth_cost: float          # money per batch a day of capacity added (paid out of town, to builders)
+    working_capital: float      # cash a workshop keeps; profits above it go to its owner
+
+
+@dataclass(frozen=True)
+class OwnerDef:
+    """Someone who owns workshops (the town now; the player and rival dynasties later)."""
+    id: str
+    kind: str                   # "town" | "player" | "dynasty": a label; no rule reads it
+    name: str
+    cash: float
+    reserve: float              # cash it keeps; above it, surplus_to decides
+    surplus_to: str             # "keep" (it stays the owner's) or "townsfolk" (paid out per head to the classes)
+
+
+@dataclass(frozen=True)
+class WorkshopSeed:
+    """A workshop standing in a town when a game starts."""
+    id: str
+    owner: str
+    building: str
+    capacity: float             # batches a day
+    cash: float
+
+
+@dataclass(frozen=True)
+class ScenarioDef:
+    """Who owns what in a town when a game starts."""
+    name: str
+    owners: List[OwnerDef]
+    workshops: List[WorkshopSeed]
+
+
+@dataclass(frozen=True)
+class Definitions:
+    """Everything the simulation is defined by, as loaded from assets/data/."""
+    goods: List[GoodDef]
+    needs: List[ClassNeedsDef]
+    recipes: List[RecipeDef] = field(default_factory=list)
+    buildings: List[BuildingDef] = field(default_factory=list)
 
 
 class _Entry:
@@ -293,20 +349,20 @@ def parse_needs(items: List[Any], goods: Collection[str], classes: Optional[Coll
     return out
 
 
-RECIPE_FIELDS = ("id", "name", "description", "inputs", "outputs", "labour", "days")
+RECIPE_FIELDS = ("id", "name", "description", "inputs", "outputs", "labour")
 
 
 def _amounts(entry: _Entry, data: Dict[str, Any], field_name: str, goods: Collection[str],
-             allow_empty: bool) -> Dict[str, int]:
+             allow_empty: bool) -> Dict[str, float]:
     value = _require(entry, data, field_name)
     if not isinstance(value, dict) or (not value and not allow_empty):
         raise entry.fail(field_name, f"expected an object of good -> units{'' if allow_empty else ' (at least one)'}, got {value!r}")
     for good, units in value.items():
         if good not in goods:
             raise entry.fail(field_name, f"unknown good {good!r} (not in {GOODS_FILE})")
-        if not isinstance(units, int) or isinstance(units, bool) or units < 1:
-            raise entry.fail(field_name, f"{good!r}: expected a whole number >= 1, got {units!r}")
-    return dict(value)
+        if not _is_number(units) or units <= 0:
+            raise entry.fail(field_name, f"{good!r}: expected a number > 0, got {units!r}")
+    return {good: float(units) for good, units in value.items()}
 
 
 def parse_recipes(items: List[Any], goods: Collection[str], file: str = RECIPES_FILE) -> List[RecipeDef]:
@@ -327,13 +383,94 @@ def parse_recipes(items: List[Any], goods: Collection[str], file: str = RECIPES_
             inputs=_amounts(entry, data, "inputs", goods, allow_empty=True),
             outputs=_amounts(entry, data, "outputs", goods, allow_empty=False),
             labour=float(_number(entry, data, "labour", 0, strict=False)),
-            days=float(_number(entry, data, "days", 0, strict=True)),
         )
         if recipe.id in ids:
             raise entry.fail("id", f"{recipe.id!r} is already entry {ids[recipe.id]}")
         ids[recipe.id] = len(recipes)
         recipes.append(recipe)
     return recipes
+
+
+BUILDING_FIELDS = ("type", "name", "recipe", "workers_class", "wage", "max_capacity", "growth_cost",
+                   "working_capital")
+BUILDINGS_FILE = "buildings.json"
+
+
+def parse_buildings(items: List[Any], recipes: Collection[str], classes: Collection[str],
+                    file: str = BUILDINGS_FILE) -> List[BuildingDef]:
+    """Check buildings.json's ``"buildings"`` list against the known recipes and classes."""
+    out: List[BuildingDef] = []
+    seen: Dict[str, int] = {}
+    for entry, data in _entries(items, file, "type"):
+        _no_unknown_fields(entry, data, BUILDING_FIELDS)
+        building = BuildingDef(
+            type=_string(entry, data, "type"),
+            name=_string(entry, data, "name"),
+            recipe=_string(entry, data, "recipe"),
+            workers_class=_string(entry, data, "workers_class"),
+            wage=float(_number(entry, data, "wage", 0, strict=False)),
+            max_capacity=float(_number(entry, data, "max_capacity", 0, strict=True)),
+            growth_cost=float(_number(entry, data, "growth_cost", 0, strict=False)),
+            working_capital=float(_number(entry, data, "working_capital", 0, strict=False)),
+        )
+        if building.recipe not in recipes:
+            raise entry.fail("recipe", f"unknown recipe {building.recipe!r} (not in {RECIPES_FILE})")
+        if building.workers_class not in classes:
+            raise entry.fail("workers_class", f"unknown class {building.workers_class!r} (known: {', '.join(classes)})")
+        if building.type in seen:
+            raise entry.fail("type", f"{building.type!r} is already entry {seen[building.type]}")
+        seen[building.type] = len(out)
+        out.append(building)
+    return out
+
+
+OWNER_FIELDS = ("id", "kind", "name", "cash", "reserve", "surplus_to")
+WORKSHOP_FIELDS = ("id", "owner", "building", "capacity", "cash")
+SURPLUS_RULES = ("keep", "townsfolk")
+
+
+def parse_scenario(data: Any, buildings: Collection[str], file: str) -> ScenarioDef:
+    """Check a scenario file: its owners, and its workshops against the owners and building types."""
+    if not isinstance(data, dict) or not isinstance(data.get("owners"), list) or not isinstance(data.get("workshops"), list):
+        raise DataError(f"{file}: expected an object with lists 'owners' and 'workshops'")
+    owners: List[OwnerDef] = []
+    owner_ids: Dict[str, int] = {}
+    for entry, item in _entries(data["owners"], f"{file} owners", "id"):
+        _no_unknown_fields(entry, item, OWNER_FIELDS)
+        owner = OwnerDef(
+            id=_string(entry, item, "id"),
+            kind=_string(entry, item, "kind"),
+            name=_string(entry, item, "name"),
+            cash=float(_number(entry, item, "cash", 0, strict=False)),
+            reserve=float(_number(entry, item, "reserve", 0, strict=False)),
+            surplus_to=_string(entry, item, "surplus_to"),
+        )
+        if owner.surplus_to not in SURPLUS_RULES:
+            raise entry.fail("surplus_to", f"expected one of {', '.join(SURPLUS_RULES)}, got {owner.surplus_to!r}")
+        if owner.id in owner_ids:
+            raise entry.fail("id", f"{owner.id!r} is already entry {owner_ids[owner.id]}")
+        owner_ids[owner.id] = len(owners)
+        owners.append(owner)
+    workshops: List[WorkshopSeed] = []
+    workshop_ids: Dict[str, int] = {}
+    for entry, item in _entries(data["workshops"], f"{file} workshops", "id"):
+        _no_unknown_fields(entry, item, WORKSHOP_FIELDS)
+        seed = WorkshopSeed(
+            id=_string(entry, item, "id"),
+            owner=_string(entry, item, "owner"),
+            building=_string(entry, item, "building"),
+            capacity=float(_number(entry, item, "capacity", 0, strict=False)),
+            cash=float(_number(entry, item, "cash", 0, strict=False)),
+        )
+        if seed.owner not in owner_ids:
+            raise entry.fail("owner", f"unknown owner {seed.owner!r}")
+        if seed.building not in buildings:
+            raise entry.fail("building", f"unknown building type {seed.building!r} (not in {BUILDINGS_FILE})")
+        if seed.id in workshop_ids:
+            raise entry.fail("id", f"{seed.id!r} is already entry {workshop_ids[seed.id]}")
+        workshop_ids[seed.id] = len(workshops)
+        workshops.append(seed)
+    return ScenarioDef(name=os.path.splitext(os.path.basename(file))[0], owners=owners, workshops=workshops)
 
 
 def load_goods(folder: Optional[str] = None) -> List[GoodDef]:
@@ -353,3 +490,37 @@ def load_recipes(goods: Collection[str], folder: Optional[str] = None) -> List[R
     """The recipes in ``recipes.json``, checked against the given good names."""
     folder = folder or DATA_PATH
     return parse_recipes(_read(os.path.join(folder, RECIPES_FILE), RECIPES_FILE, "recipes"), goods)
+
+
+def load_buildings(recipes: Collection[str], classes: Collection[str], folder: Optional[str] = None) -> List[BuildingDef]:
+    """The building types in ``buildings.json``, checked against the given recipes and classes."""
+    folder = folder or DATA_PATH
+    return parse_buildings(_read(os.path.join(folder, BUILDINGS_FILE), BUILDINGS_FILE, "buildings"), recipes, classes)
+
+
+def load_definitions(classes: Collection[str], folder: Optional[str] = None) -> Definitions:
+    """Goods, needs, recipes and building types from *folder* (``assets/data/`` by default), each checked."""
+    goods = load_goods(folder)
+    names = [g.name for g in goods]
+    recipes = load_recipes(names, folder)
+    return Definitions(
+        goods=goods,
+        needs=load_needs(names, classes, folder),
+        recipes=recipes,
+        buildings=load_buildings([r.id for r in recipes], classes, folder),
+    )
+
+
+def load_scenario(name: str, buildings: Collection[str], folder: Optional[str] = None) -> ScenarioDef:
+    """The scenario ``scenarios/<name>.json``: who owns which workshops when a game starts."""
+    folder = folder or DATA_PATH
+    file = f"scenarios/{name}.json"
+    path = os.path.join(folder, "scenarios", f"{name}.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError as error:
+        raise DataError(f"{file}: not found at {path}") from error
+    except json.JSONDecodeError as error:
+        raise DataError(f"{file}: not valid JSON: {error}") from error
+    return parse_scenario(data, buildings, file)

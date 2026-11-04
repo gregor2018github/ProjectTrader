@@ -4,7 +4,8 @@ import json
 import pytest
 
 from src.sim.data import (
-    DataError, load_goods, load_needs, load_recipes, parse_goods, parse_needs, parse_recipes,
+    DataError, load_buildings, load_goods, load_needs, load_recipes, load_scenario, parse_buildings,
+    parse_goods, parse_needs, parse_recipes, parse_scenario,
 )
 from src.sim.systems.population import class_shares
 
@@ -13,7 +14,12 @@ WOOD = {"name": "Wood", "color": "PALE_BROWN", "chart_index": 0, "show_in_charts
         "transport_cost": 0.3, "import_limit": 100, "export_limit": 100,
         "target_stock_days": 14, "min_target_stock": 50, "noise_sigma": 0.004}
 STONE = {**WOOD, "name": "Stone", "chart_index": 1, "outside_price": 2}
-RECIPE = {"id": "cut_stone", "inputs": {"Wood": 1}, "outputs": {"Stone": 2}, "labour": 1, "days": 0.5}
+RECIPE = {"id": "cut_stone", "inputs": {"Wood": 1, "Stone": 0.05}, "outputs": {"Stone": 2}, "labour": 1.5}
+BUILDING = {"type": "mason", "name": "Mason", "recipe": "cut_stone", "workers_class": "Commons", "wage": 1.3,
+            "max_capacity": 10, "growth_cost": 100, "working_capital": 50}
+SCENARIO = {"owners": [{"id": "town", "kind": "town", "name": "The town", "cash": 100, "reserve": 50,
+                        "surplus_to": "townsfolk"}],
+            "workshops": [{"id": "mason", "owner": "town", "building": "mason", "capacity": 2, "cash": 50}]}
 POOR = {"class": "Poor", "base_income": 0.5, "labour_share": 0.6,
         "happiness_weights": {"basic": 0.75, "comfort": 0.2, "luxury": 0.05},
         "basic": {"Wood": 0.1}, "comfort": {}, "luxury": {"Stone": {"units": 0.01, "seasons": {"Winter": 2}}}}
@@ -27,7 +33,10 @@ def test_the_games_files_load():
     assert len({g.chart_index for g in goods}) == len(goods)
     needs = load_needs(names, CLASSES)
     assert [n.name for n in needs] == CLASSES
-    assert load_recipes(names)
+    recipes = load_recipes(names)
+    buildings = load_buildings([r.id for r in recipes], CLASSES)
+    scenario = load_scenario("home_town", [b.type for b in buildings])
+    assert scenario.workshops and all(w.owner == "town" for w in scenario.workshops)
 
 
 def test_a_good_entry_becomes_a_definition():
@@ -96,13 +105,33 @@ def test_unknown_and_missing_classes_are_refused():
 
 
 def test_a_recipe_must_name_known_goods_and_make_something():
-    assert parse_recipes([RECIPE], {"Wood", "Stone"})[0].days == 0.5
+    assert parse_recipes([RECIPE], {"Wood", "Stone"})[0].inputs == {"Wood": 1.0, "Stone": 0.05}   # wear as a fraction
     with pytest.raises(DataError, match=r"recipes.json, entry 0 \('cut_stone'\): field 'inputs': unknown good 'Gold'"):
         parse_recipes([{**RECIPE, "inputs": {"Gold": 1}}], {"Wood", "Stone"})
     with pytest.raises(DataError, match="field 'outputs': expected an object of good -> units \\(at least one\\)"):
         parse_recipes([{**RECIPE, "outputs": {}}], {"Wood", "Stone"})
-    with pytest.raises(DataError, match="field 'days': expected a number > 0"):
-        parse_recipes([{**RECIPE, "days": 0}], {"Wood", "Stone"})
+    with pytest.raises(DataError, match="field 'inputs': 'Wood': expected a number > 0"):
+        parse_recipes([{**RECIPE, "inputs": {"Wood": 0}}], {"Wood", "Stone"})
+    with pytest.raises(DataError, match="field 'days': unknown field"):
+        parse_recipes([{**RECIPE, "days": 1}], {"Wood", "Stone"})
+
+
+def test_a_building_must_name_a_known_recipe_and_class():
+    assert parse_buildings([BUILDING], {"cut_stone"}, CLASSES)[0].wage == 1.3
+    with pytest.raises(DataError, match=r"buildings.json, entry 0 \('mason'\): field 'recipe': unknown recipe 'carve'"):
+        parse_buildings([{**BUILDING, "recipe": "carve"}], {"cut_stone"}, CLASSES)
+    with pytest.raises(DataError, match="field 'workers_class': unknown class 'Serfs'"):
+        parse_buildings([{**BUILDING, "workers_class": "Serfs"}], {"cut_stone"}, CLASSES)
+
+
+def test_a_scenario_must_name_known_owners_and_buildings():
+    assert parse_scenario(SCENARIO, {"mason"}, "scenarios/t.json").workshops[0].capacity == 2.0
+    bad_owner = {**SCENARIO, "workshops": [{**SCENARIO["workshops"][0], "owner": "guild"}]}
+    with pytest.raises(DataError, match=r"scenarios/t.json workshops, entry 0 \('mason'\): field 'owner': unknown owner 'guild'"):
+        parse_scenario(bad_owner, {"mason"}, "scenarios/t.json")
+    bad_rule = {**SCENARIO, "owners": [{**SCENARIO["owners"][0], "surplus_to": "church"}]}
+    with pytest.raises(DataError, match="field 'surplus_to': expected one of keep, townsfolk"):
+        parse_scenario(bad_rule, {"mason"}, "scenarios/t.json")
 
 
 def test_broken_and_missing_files_say_which(tmp_path):

@@ -24,8 +24,8 @@ from ..state import ClassFlows, ClassState, PlanItem
 
 
 def daily_income(cls: ClassState, needs: ClassNeedsDef) -> float:
-    """What the class earns a day: its base income for every head (jobs come in phase 2)."""
-    return cls.count * needs.base_income
+    """The class's base income: every head not working in a workshop earns it (those who do earn wages instead)."""
+    return max(0.0, cls.count - cls.employed) * needs.base_income
 
 
 def give_start_purse(cls: ClassState, needs: ClassNeedsDef) -> None:
@@ -57,7 +57,7 @@ def fulfilment(plan: List[PlanItem]) -> Dict[str, float]:
 
 
 def start_day(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float],
-              moment: datetime.datetime) -> None:
+              moment: datetime.datetime, wages: float = 0.0, payouts: float = 0.0) -> None:
     """The class's day begins: rate yesterday, earn, cap the savings, plan today's shopping.
 
     Args:
@@ -65,16 +65,20 @@ def start_day(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float]
         needs: Its definition.
         prices: Today's price of every good.
         moment: The start of the day (for the seasons).
+        wages: Paid by workshops for yesterday's work (its workers earned no base income).
+        payouts: Its share of owners' surplus paid out to the townsfolk.
     """
     if cls.plan:
         cls.fulfilment = fulfilment(cls.plan)
     cls.yesterday = cls.today
     cls.today = ClassFlows()
 
-    income = daily_income(cls, needs)
+    income = daily_income(cls, needs) + wages + payouts
     savings = cls.purse
     cls.purse += income
     cls.today.income = income
+    cls.today.wages = wages
+    cls.today.payouts = payouts
     cap = SAVINGS_CAP_DAYS * income
     if cls.purse > cap:
         cls.today.leaked = cls.purse - cap

@@ -60,9 +60,10 @@ def create_population(town: TownSpec) -> PopulationState:
     residential = [c for c in town.house_capacities if c > 0]
     citizens = sum(starting_inhabitants(c) for c in residential)
     groups = split_into_classes(citizens)
+    housing = split_into_classes(sum(residential))
     classes = {
-        name: ClassState(name=name, count=count, base=count, happiness=float(HAPPINESS_START),
-                         happiness_target=float(HAPPINESS_START),
+        name: ClassState(name=name, count=count, base=count, capacity=housing[name],
+                         happiness=float(HAPPINESS_START), happiness_target=float(HAPPINESS_START),
                          happiness_history=[float(HAPPINESS_START)], population_history=[count])
         for name, count in groups.items()
     }
@@ -94,13 +95,15 @@ def average_target(pop: PopulationState) -> float:
 
 
 def crowding_shift(cls: ClassState) -> float:
-    """How crowding moves a class's target happiness: a bonus well under its base, a penalty near and over it.
+    """How crowding moves a class's target happiness: a bonus in half-empty housing, a penalty near and over full.
 
-    Two-stage: crowding starts at NEAR_CAPACITY_THRESHOLD % of the base, the full
+    Measured against the class's share of the town's housing (``capacity``), so a
+    town at its starting size (STARTING_OCCUPANCY full) is neither. Two-stage:
+    crowding starts at NEAR_CAPACITY_THRESHOLD % of the housing, the full
     penalty above 100 %.
     """
-    if cls.base > 0:
-        fill_pct = cls.count / cls.base * 100.0
+    if cls.capacity > 0:
+        fill_pct = cls.count / cls.capacity * 100.0
         near_capacity_pct = max(0.0, min(fill_pct, 100.0) - NEAR_CAPACITY_THRESHOLD)
         overpop_pct = max(0.0, fill_pct - 100.0)
     else:
@@ -116,6 +119,14 @@ def crowding_shift(cls: ClassState) -> float:
     return (underpop_bonus
             - near_capacity_pct * NEAR_CAPACITY_MALUS_PER_PERCENT
             - overpop_pct * OVERPOP_MALUS_PER_PERCENT)
+
+
+def give_housing(pop: PopulationState) -> None:
+    """Each class's share of the town's housing, for a state saved before it was kept."""
+    housing = split_into_classes(pop.max_citizens)
+    for cls in pop.classes.values():
+        if cls.capacity <= 0:
+            cls.capacity = housing.get(cls.name, 0)
 
 
 def set_target(cls: ClassState, from_needs: float) -> None:

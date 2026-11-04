@@ -1,8 +1,11 @@
 """Small, obvious definitions for the sim tests: goods with a still outside price, a town, plain needs."""
 import datetime
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Optional, Sequence, Tuple
 
-from src.sim import ClassNeedsDef, GoodDef, NeedDef, Simulation, TownSpec
+from src.sim import (
+    BuildingDef, ClassNeedsDef, Definitions, GoodDef, NeedDef, OwnerDef, RecipeDef, ScenarioDef, Simulation,
+    TownSpec, WorkshopSeed,
+)
 from src.sim.data import TIERS
 
 START = datetime.datetime(1500, 1, 1, 8, 0)
@@ -35,8 +38,30 @@ def plain_needs(basic: Optional[Dict[str, float]] = None, income: float = 5.0) -
     return [class_needs(c, income, basic=basic or {}) for c in CLASSES]
 
 
+def building(type_: str, recipe: str, workers: str = "Poor", wage: float = 1.0, max_capacity: float = 20.0,
+             growth_cost: float = 100.0, working_capital: float = 50.0) -> BuildingDef:
+    return BuildingDef(type=type_, name=type_.title(), recipe=recipe, workers_class=workers, wage=wage,
+                       max_capacity=max_capacity, growth_cost=growth_cost, working_capital=working_capital)
+
+
+def recipe(id_: str, outputs: Dict[str, float], inputs: Optional[Dict[str, float]] = None, labour: float = 1.0) -> RecipeDef:
+    return RecipeDef(id=id_, inputs=inputs or {}, outputs=outputs, labour=labour)
+
+
+def scenario(*workshops: Tuple[str, str, float], owner_cash: float = 1000.0, reserve: float = 1000.0,
+             surplus_to: str = "townsfolk") -> ScenarioDef:
+    """The town owning workshops given as (id, building type, capacity), each starting with 50g."""
+    return ScenarioDef(
+        name="test",
+        owners=[OwnerDef("town", "town", "The town", owner_cash, reserve, surplus_to)],
+        workshops=[WorkshopSeed(id_, "town", type_, capacity, 50.0) for id_, type_, capacity in workshops],
+    )
+
+
 def simulation(goods: Optional[Sequence[GoodDef]] = None, needs: Optional[Sequence[ClassNeedsDef]] = None,
-               town: Optional[TownSpec] = TOWN, seed: int = 7) -> Simulation:
+               town: Optional[TownSpec] = TOWN, seed: int = 7, recipes: Sequence[RecipeDef] = (),
+               buildings: Sequence[BuildingDef] = (), scenario: Optional[ScenarioDef] = None) -> Simulation:
     goods = goods or [good_def("Wood", 1.0, 0), good_def("Wine", 10.0, 1)]
     needs = needs or plain_needs({"Wood": 0.5, "Wine": 0.05})
-    return Simulation(goods, needs, now=START, seed=seed, town=town)
+    definitions = Definitions(list(goods), list(needs), list(recipes), list(buildings))
+    return Simulation(definitions, now=START, seed=seed, town=town, scenario=scenario)
