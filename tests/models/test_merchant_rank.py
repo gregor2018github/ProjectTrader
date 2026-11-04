@@ -6,6 +6,8 @@ import math
 
 import pytest
 
+from tests.models.conftest import GOODS
+
 from src.models import merchant_rank as rank_module
 from src.models.depot import Depot
 from src.models.merchant_rank import MerchantRank
@@ -40,7 +42,7 @@ def pinned_ranks(monkeypatch):
 
 @pytest.fixture
 def depot():
-    return Depot(money=0, transaction_cost=0, storage_capacity=100)
+    return Depot(money=0, transaction_cost=0, storage_capacity=100, goods=GOODS)
 
 
 @pytest.fixture

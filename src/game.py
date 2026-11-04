@@ -6,7 +6,8 @@ import time
 from typing import Dict, List, Optional, Any, Tuple
 from .game_state import GameState
 from .handlers.event_handler import EventHandler
-from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover, TOP_BAR_GOODS
+from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
+from .models.institutions.market import Market
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
@@ -42,7 +43,7 @@ from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, DEFAULT_TRADE_QUANTITY, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -110,8 +111,22 @@ class Game:
         self.weather: Weather = Weather(partway=True)
 
         # Initialize depot
-        self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST, storage_capacity=INITIAL_STORAGE_CAPACITY)
-        self.depot.init_starting_licenses(self.state.date)
+        # Every list of goods comes from goods.json: the depot's accounts, the licences
+        # (a guild's, covering its chain), the booths' extra goods, the quick-trade quantities
+        names = [d.name for d in definitions.goods]
+        licenses = definitions.licenses()
+        self.state.available_goods = names
+        self.state.licenses = licenses
+        self.state.good_quantities = {name: DEFAULT_TRADE_QUANTITY for name in names}
+        Market.SOLD_AT = {}
+        for d in definitions.goods:
+            for market_name in d.sold_at:
+                Market.SOLD_AT.setdefault(market_name, []).append(d.name)
+        self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST,
+                                  storage_capacity=INITIAL_STORAGE_CAPACITY, goods=names)
+        self.depot.license_of = {d.name: d.license_name for d in definitions.goods}
+        self.depot.init_starting_licenses(self.state.date, [(l.name, l.starting_seasons) for l in licenses.values()
+                                                            if l.starting_seasons > 0])
 
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
@@ -384,7 +399,7 @@ class Game:
         images['button_sound_80'] = pygame.image.load(os.path.join(PICTURES_PATH, "button_sound_80.png"))
         
         # Load all good icons, including those only listed in the top bar so far
-        for good_name in dict.fromkeys([good.name for good in self.goods] + TOP_BAR_GOODS):
+        for good_name in [good.name for good in self.goods]:
             img_path = os.path.join(PICTURES_PATH, f"{good_name.lower()}_30.png")
             images['goods_30'][good_name] = pygame.image.load(img_path)
 
@@ -770,7 +785,8 @@ class Game:
                         self.state.image_boxes = draw_chart(self.screen, self.font, self.chart_border,
                                                           self.goods, self.images['goods_30'], self.state.date,
                                                           rect, self.depot, suppress_chart_hover,
-                                                          self.state.chart_goods_offset)
+                                                          self.state.chart_goods_offset,
+                                                          pinned=self.state.pinned_goods)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
                     elif mode == 'building':

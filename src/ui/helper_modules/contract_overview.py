@@ -7,7 +7,7 @@ goods with their contract screenshots and validity dates.
 import pygame
 import os
 import datetime
-from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING, Tuple
 from ...config.colors import (
     BLACK, WHITE, DARK_BROWN, SANDY_BROWN, BEIGE, DARK_GRAY, LIGHT_GRAY,
     GOLD, DARK_GREEN, DARK_RED, WHEAT,
@@ -16,7 +16,7 @@ from ...config.colors import (
 )
 from ...config.constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH,
-    BASE_CONTRACT_FEE, DAYS_PER_SEASON, LICENSE_SEASON_OPTIONS, SEASONAL_CONTRACT_FEES,
+    BASE_CONTRACT_FEE, DAYS_PER_SEASON, LICENSE_SEASON_OPTIONS,
 )
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
 from ...sim.calendar import describe_seasons, format_date
@@ -26,14 +26,8 @@ if TYPE_CHECKING:
     from ...models.house import House
 
 
-# All tradeable goods in display order
-ALL_GOODS = [
-    "Wood", "Stone", "Iron",
-    "Wool", "Hide", "Fish",
-    "Wheat", "Wine", "Beer",
-    "Meat", "Linen", "Pottery",
-    "Candle", "Herbs", "Salt",
-]
+# The licences shown come from goods.json (GameState.licenses): one per guild, each named
+# after a good and covering the goods traded under it
 
 COLS = 3
 VISIBLE_ROWS = 4      # rows shown at once; the rest is reached by scrolling
@@ -57,6 +51,9 @@ class ContractOverview:
         self.screen = screen
         self.game_state = game_state
         self.house = house
+        # The licences in goods.json order: name -> data.LicenseDef (fee, goods covered)
+        self.licenses: Dict[str, Any] = dict(getattr(game_state, "licenses", {}) or {})
+        self.license_names: List[str] = list(self.licenses)
 
         # Fonts --------------------------------------------------------
         try:
@@ -100,7 +97,7 @@ class ContractOverview:
         cell_area_h = self.panel_rect.height - self.header_h - 20  # bottom pad
         cell_area_w = self.panel_rect.width - 40  # side padding (20 each)
 
-        rows = (len(ALL_GOODS) + COLS - 1) // COLS
+        rows = (len(self.license_names) + COLS - 1) // COLS
         visible_rows = min(rows, VISIBLE_ROWS)
         self.cell_h = cell_area_h // visible_rows
         self.scrollable = rows > visible_rows
@@ -129,7 +126,7 @@ class ContractOverview:
         self.contract_images: Dict[str, Optional[pygame.Surface]] = {}
         self.full_images: Dict[str, Optional[pygame.Surface]] = {}
         views_dir = os.path.join(PICTURES_PATH, "contracts", "contract_views")
-        for good in ALL_GOODS:
+        for good in self.license_names:
             img = self._load_contract_image(views_dir, good)
             self.contract_images[good] = img
             self.full_images[good] = None # Lazy load on click
@@ -261,7 +258,7 @@ class ContractOverview:
         # Check for cell clicks (only where the grid is actually visible)
         depot = self.game_state.game.depot
         current_date = self.game_state.date
-        for i, good in enumerate(ALL_GOODS):
+        for i, good in enumerate(self.license_names):
             cell_rect = self._get_cell_rect(i)
             if cell_rect.collidepoint(pos) and self.view_rect.collidepoint(pos):
                 expiry = depot.trading_licenses.get(good)
@@ -305,7 +302,8 @@ class ContractOverview:
     def _open_term_selection(self, good: str) -> None:
         """Open the duration selection sub-panel for *good* (durations in seasons)."""
         self.selecting_good = good
-        seasonal_fee = SEASONAL_CONTRACT_FEES.get(good, BASE_CONTRACT_FEE)
+        license_def = self.licenses.get(good)
+        seasonal_fee = license_def.fee if license_def is not None else BASE_CONTRACT_FEE
 
         # Panel dimensions
         panel_w = 340
@@ -471,7 +469,7 @@ class ContractOverview:
 
         view_local = self.view_rect.move(-self.panel_rect.x, -self.panel_rect.y)
         surf.set_clip(view_local)
-        for i, good in enumerate(ALL_GOODS):
+        for i, good in enumerate(self.license_names):
             cell_screen = self._get_cell_rect(i)
             if not cell_screen.colliderect(self.view_rect):
                 continue  # scrolled out of sight
@@ -662,6 +660,18 @@ class ContractOverview:
         heading = self.heading_font.render(good, True, heading_color)
         heading_rect = heading.get_rect(centerx=inner.centerx, top=inner.top + 6)
         surf.blit(heading, heading_rect)
+
+        # --- The other goods the licence covers (its guild's chain) ---
+        license_def = self.licenses.get(good)
+        others = [g for g in (license_def.goods if license_def else ()) if g != good]
+        if others:
+            covers = self.body_font.render("also " + ", ".join(others), True, heading_color)
+            if covers.get_width() > inner.width - 12:
+                covers = pygame.transform.smoothscale(
+                    covers, (inner.width - 12, max(1, int(covers.get_height() * (inner.width - 12) / covers.get_width()))))
+            covers_rect = covers.get_rect(centerx=inner.centerx, top=heading_rect.bottom + 1)
+            surf.blit(covers, covers_rect)
+            heading_rect = heading_rect.union(covers_rect)
 
         # --- Contract image or placeholder ---
         img_top = heading_rect.bottom + 6

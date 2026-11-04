@@ -4,6 +4,8 @@ import datetime
 
 import pytest
 
+from tests.models.conftest import GOODS
+
 from src.models.depot import Depot
 
 DAYS_PER_SEASON = 7     # pinned in test_game_calendar.py
@@ -22,7 +24,7 @@ START = date(1450, 3, 1)
 
 @pytest.fixture
 def unlicensed():
-    return Depot(money=0, transaction_cost=2, storage_capacity=100)
+    return Depot(money=0, transaction_cost=2, storage_capacity=100, goods=GOODS + ("Flour", "Bread"))
 
 
 @pytest.mark.parametrize("seasons", [1, 2, 4, 12])
@@ -61,6 +63,14 @@ def test_get_licenses_counts_days_left_never_below_zero(unlicensed):
 
 
 def test_starting_licenses(unlicensed):
-    # STARTING_LICENSES is pinned to Wood for 2 seasons and Stone for 1 in conftest.py
-    unlicensed.init_starting_licenses(START)
+    unlicensed.init_starting_licenses(START, [("Wood", 2), ("Stone", 1)])
     assert unlicensed.trading_licenses == {"Wood": later(START, 14), "Stone": later(START, 7)}
+
+
+def test_a_guilds_licence_covers_its_whole_chain(unlicensed):
+    unlicensed.license_of = {"Flour": "Wheat", "Bread": "Wheat"}
+    unlicensed.add_license("Wheat", 1, START)
+    assert all(unlicensed.has_license(g, later(START, 1)) for g in ("Wheat", "Flour", "Bread"))
+    assert not unlicensed.has_license("Wood", later(START, 1))
+    assert unlicensed.license_name("Bread") == "Wheat" and unlicensed.license_name("Wood") == "Wood"
+    assert list(unlicensed.trading_licenses) == ["Wheat"]                   # one licence, kept by its name

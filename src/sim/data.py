@@ -58,6 +58,23 @@ class GoodDef:
     min_target_stock: float = 50.0      # ...and at least this many units, demand or not
     noise_sigma: float = 0.004          # the price noise's log step per price tick
     outside_seasons: Dict[str, float] = field(default_factory=dict)   # season -> factor on the outside price
+    license: str = ""                   # the licence (a guild's) it is traded under: a good's name; "" = its own
+    license_fee: Optional[float] = None         # per season, set on the good whose name the licence bears
+    starting_license_seasons: int = 0           # seasons of its licence a new game starts with (on the same good)
+    sold_at: Tuple[str, ...] = ()       # market booths that carry it besides those named after it
+
+    @property
+    def license_name(self) -> str:
+        return self.license or self.name
+
+
+@dataclass(frozen=True)
+class LicenseDef:
+    """A trading licence: a guild's, covering one or more goods."""
+    name: str                   # the name of the good it is named after
+    fee: float                  # per season, on top of BASE_CONTRACT_FEE
+    starting_seasons: int       # seasons a new game starts with
+    goods: Tuple[str, ...]      # the goods it covers, in goods.json order
 
 
 @dataclass(frozen=True)
@@ -149,6 +166,22 @@ class Definitions:
     needs: List[ClassNeedsDef]
     recipes: List[RecipeDef] = field(default_factory=list)
     buildings: List[BuildingDef] = field(default_factory=list)
+
+    def licenses(self) -> Dict[str, LicenseDef]:
+        """The trading licences, by name, in goods.json order of the goods they are named after."""
+        return licenses_of(self.goods)
+
+
+def licenses_of(goods: List[GoodDef]) -> Dict[str, LicenseDef]:
+    """The trading licences the goods are traded under (see ``GoodDef.license``)."""
+    by_name = {g.name: g for g in goods}
+    result: Dict[str, LicenseDef] = {}
+    for g in goods:
+        if g.license_name == g.name:
+            covered = tuple(o.name for o in goods if o.license_name == g.name)
+            result[g.name] = LicenseDef(g.name, g.license_fee or 0.0, g.starting_license_seasons, covered)
+    assert all(g.license_name in by_name for g in goods)
+    return result
 
 
 class _Entry:
@@ -250,14 +283,20 @@ def _entries(items: List[Any], file: str, label_field: str) -> List[Tuple[_Entry
 
 GOOD_FIELDS = ("name", "color", "chart_index", "show_in_charts", "outside_price", "outside_reversion",
                "outside_volatility", "outside_seasons", "transport_cost", "import_limit", "export_limit",
-               "target_stock_days", "min_target_stock", "noise_sigma")
+               "target_stock_days", "min_target_stock", "noise_sigma", "license", "license_fee",
+               "starting_license_seasons", "sold_at")
 
 
 def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
     """Check goods.json's ``"goods"`` list and turn it into definitions, in its order.
 
+    A good is traded under a licence (``license``: the name of a good; its own
+    if left out). The good a licence is named after sets its ``license_fee``
+    (per season) and ``starting_license_seasons``; no other good may.
+
     Raises:
-        DataError: On the first entry that breaks the schema, or a repeated name or chart index.
+        DataError: On the first entry that breaks the schema, a repeated name
+            or chart index, or a licence that is not one.
     """
     goods: List[GoodDef] = []
     names: Dict[str, int] = {}
@@ -279,7 +318,19 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
             min_target_stock=float(_number(entry, data, "min_target_stock", 0, strict=True)),
             noise_sigma=float(_number(entry, data, "noise_sigma", 0, strict=False)),
             outside_seasons=_seasons(entry, data.get("outside_seasons", {}), "outside_seasons"),
+            license=_string(entry, data, "license", optional=True),
+            license_fee=(float(_number(entry, data, "license_fee", 0, strict=False))
+                         if "license_fee" in data else None),
+            starting_license_seasons=(_integer(entry, data, "starting_license_seasons", 0)
+                                      if "starting_license_seasons" in data else 0),
+            sold_at=_sold_at(entry, data),
         )
+        own = good.license_name == good.name
+        if own and good.license_fee is None:
+            raise entry.fail("license_fee", "missing (a good traded under its own licence sets its fee)")
+        if not own and ("license_fee" in data or "starting_license_seasons" in data):
+            raise entry.fail("license_fee" if "license_fee" in data else "starting_license_seasons",
+                             f"only the good the licence is named after sets it ({good.license_name!r})")
         if good.name in names:
             raise entry.fail("name", f"{good.name!r} is already entry {names[good.name]}")
         if good.chart_index in indices:
@@ -289,7 +340,19 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
         goods.append(good)
     if not goods:
         raise DataError(f"{file}: no goods defined")
+    heads = {g.name for g in goods if g.license_name == g.name}
+    for index, good in enumerate(goods):
+        if good.license_name not in heads:
+            raise _Entry(file, index, good.name).fail(
+                "license", f"{good.license_name!r} is not a licence (no good of that name is traded under its own)")
     return goods
+
+
+def _sold_at(entry: _Entry, data: Dict[str, Any]) -> Tuple[str, ...]:
+    value = data.get("sold_at", [])
+    if not isinstance(value, list) or not all(isinstance(v, str) and v.strip() for v in value):
+        raise entry.fail("sold_at", f"expected a list of market names, got {value!r}")
+    return tuple(value)
 
 
 CLASS_FIELDS = ("class", "base_income", "labour_share", "wage_cap", "happiness_weights", "elasticity") + TIERS

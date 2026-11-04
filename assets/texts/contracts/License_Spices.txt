@@ -1,0 +1,14 @@
+License for the Trade of Spices
+[Placeholder text, to be written.] By the grace of the Town Council of Blackwater, the bearer is hereby granted the right to buy, weigh and sell pepper, cinnamon, cloves, saffron and every other spice brought from beyond the sea.
+
+
+• Term of Validity: [$$contract_term$$]
+• Licensing Fee: [$$contract_cost$$] Gold Coins
+
+
+Penalty for Breach: [Placeholder text, to be written.]
+
+
+
+
+Witness Thereto:

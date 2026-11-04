@@ -1,19 +1,197 @@
 {
-  "about": "The home town when a game starts: its owners and the workshops they own. Every workshop belongs to the town for now; P3 and P5 give some to the player and rival dynasties. surplus_to: keep (the owner's), townsfolk (above the reserve, paid out per head) or treasury_with_tribute (kept up to TREASURY_CAP_DAYS of its income, the rest paid to the lord; the town's, until the council spends the treasury in P6).",
-  "owners": [
-    {"id": "town", "kind": "town", "name": "The town", "cash": 1000, "reserve": 1000, "surplus_to": "treasury_with_tribute"}
-  ],
-  "workshops": [
-    {"id": "farm_north",   "owner": "town", "building": "farm",        "capacity": 5,  "cash": 125},
-    {"id": "farm_south",   "owner": "town", "building": "farm",        "capacity": 5,  "cash": 125},
-    {"id": "forester",     "owner": "town", "building": "forester",    "capacity": 3,  "cash": 75},
-    {"id": "herb_garden",  "owner": "town", "building": "herb_garden", "capacity": 2,  "cash": 50},
-    {"id": "sheep_farm",   "owner": "town", "building": "sheep_farm",  "capacity": 1,  "cash": 50},
-    {"id": "fishery",      "owner": "town", "building": "fishery",     "capacity": 4,  "cash": 130},
-    {"id": "cattle_farm",  "owner": "town", "building": "cattle_farm", "capacity": 8,  "cash": 260},
-    {"id": "salt_works",   "owner": "town", "building": "salt_works",  "capacity": 1,  "cash": 50},
-    {"id": "quarry",       "owner": "town", "building": "quarry",      "capacity": 1,  "cash": 50},
-    {"id": "brewery",      "owner": "town", "building": "brewery",     "capacity": 10, "cash": 200},
-    {"id": "pottery",      "owner": "town", "building": "pottery",     "capacity": 4,  "cash": 50}
-  ]
+ "about": "The home town when a game starts: its owners and the workshops they own. Every workshop belongs to the town for now; P3 and P5 give some to the player and rival dynasties. surplus_to: keep (the owner's), townsfolk (above the reserve, paid out per head) or treasury_with_tribute (kept up to TREASURY_CAP_DAYS of its income, the rest paid to the lord; the town's, until the council spends the treasury in P6).",
+ "owners": [
+  {
+   "id": "town",
+   "kind": "town",
+   "name": "The town",
+   "cash": 1500,
+   "reserve": 1500,
+   "surplus_to": "treasury_with_tribute"
+  }
+ ],
+ "workshops": [
+  {
+   "id": "farm_north",
+   "owner": "town",
+   "building": "farm",
+   "capacity": 6,
+   "cash": 125
+  },
+  {
+   "id": "farm_south",
+   "owner": "town",
+   "building": "farm",
+   "capacity": 6,
+   "cash": 125
+  },
+  {
+   "id": "forester",
+   "owner": "town",
+   "building": "forester",
+   "capacity": 5,
+   "cash": 75
+  },
+  {
+   "id": "herb_garden",
+   "owner": "town",
+   "building": "herb_garden",
+   "capacity": 2,
+   "cash": 50
+  },
+  {
+   "id": "sheep_farm",
+   "owner": "town",
+   "building": "sheep_farm",
+   "capacity": 2,
+   "cash": 50
+  },
+  {
+   "id": "flax_field",
+   "owner": "town",
+   "building": "flax_field",
+   "capacity": 2,
+   "cash": 50
+  },
+  {
+   "id": "clay_pit",
+   "owner": "town",
+   "building": "clay_pit",
+   "capacity": 1,
+   "cash": 30
+  },
+  {
+   "id": "fishery",
+   "owner": "town",
+   "building": "fishery",
+   "capacity": 6,
+   "cash": 130
+  },
+  {
+   "id": "pasture",
+   "owner": "town",
+   "building": "pasture",
+   "capacity": 8,
+   "cash": 200
+  },
+  {
+   "id": "butchery",
+   "owner": "town",
+   "building": "butchery",
+   "capacity": 8,
+   "cash": 200
+  },
+  {
+   "id": "salt_works",
+   "owner": "town",
+   "building": "salt_works",
+   "capacity": 2,
+   "cash": 50
+  },
+  {
+   "id": "quarry",
+   "owner": "town",
+   "building": "quarry",
+   "capacity": 1,
+   "cash": 50
+  },
+  {
+   "id": "mill",
+   "owner": "town",
+   "building": "mill",
+   "capacity": 4,
+   "cash": 150
+  },
+  {
+   "id": "bakery",
+   "owner": "town",
+   "building": "bakery",
+   "capacity": 4,
+   "cash": 80
+  },
+  {
+   "id": "brewery",
+   "owner": "town",
+   "building": "brewery",
+   "capacity": 12,
+   "cash": 200
+  },
+  {
+   "id": "charcoal_burner",
+   "owner": "town",
+   "building": "charcoal_burner",
+   "capacity": 1,
+   "cash": 60
+  },
+  {
+   "id": "smithy",
+   "owner": "town",
+   "building": "smithy",
+   "capacity": 1,
+   "cash": 100
+  },
+  {
+   "id": "tannery",
+   "owner": "town",
+   "building": "tannery",
+   "capacity": 1,
+   "cash": 60
+  },
+  {
+   "id": "cobbler",
+   "owner": "town",
+   "building": "cobbler",
+   "capacity": 1,
+   "cash": 50
+  },
+  {
+   "id": "weaver",
+   "owner": "town",
+   "building": "weaver",
+   "capacity": 1,
+   "cash": 60
+  },
+  {
+   "id": "linen_weaver",
+   "owner": "town",
+   "building": "linen_weaver",
+   "capacity": 3,
+   "cash": 60
+  },
+  {
+   "id": "tailor",
+   "owner": "town",
+   "building": "tailor",
+   "capacity": 1,
+   "cash": 80
+  },
+  {
+   "id": "chandler",
+   "owner": "town",
+   "building": "chandler",
+   "capacity": 4,
+   "cash": 50
+  },
+  {
+   "id": "pottery",
+   "owner": "town",
+   "building": "pottery",
+   "capacity": 3,
+   "cash": 50
+  },
+  {
+   "id": "salter",
+   "owner": "town",
+   "building": "salter",
+   "capacity": 1,
+   "cash": 80
+  },
+  {
+   "id": "joiner",
+   "owner": "town",
+   "building": "joiner",
+   "capacity": 1,
+   "cash": 60
+  }
+ ]
 }

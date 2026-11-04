@@ -2,7 +2,7 @@
 
 Status: **approved**, with the decisions below. Phases 1 and 2 are built together on the branch `p1-living-market` and merged together; phase 1 alone (imports only) is a development state, not a playable one.
 
-Progress: **phases 1 and 2 built** (demand, the outside world and production, on today's 15 goods; see "Built: what changed on the way" at the end); phase 3 (the new goods) next. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Progress: **phases 1, 2 and 3 built** (demand, the outside world, production, and 30 goods in chains; see "Built: what changed on the way" at the end); phase 4 (runner and health report) next. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 
@@ -335,4 +335,25 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
 ## Open questions after phase 2
 
 17. **Price-sensitive demand.** Decided and built (see "Price-sensitive demand" above).
-18. **What "running short" means in a market that rations by price.** Stock-outs (households wanting more than the market has) practically never happen, because the price rises first. **Recommendation:** count the days households got less than their basket of a good for any reason, dearness or a stock-out (`bought < wanted`), and aim at least 3 goods at more than 5 % of days. That counts every day the town did without, whether the price or an empty market caused it.
+18. **What "running short" means in a market that rations by price.** Decided: the days a class bought less than its whole basket of a good, for any reason (price or an empty market); at least 3 goods on more than 5 % of days, a warning. With price-sensitive demand this is met easily: any good priced above its outside price is bought a little short every day, so 10–15 goods count, most of them on every day. A sharper target would need a threshold on *how* short (e.g. under 90 % of the basket).
+
+**Phase 3** (the new goods; decided in review)
+- **30 goods.** Flax, Livestock, Clay, Spices, Flour, Charcoal, Tallow, Leather, Cloth, Bread, Salted Fish, Garments, Shoes, Tools and Furniture are new.
+  - The chains: wheat → flour → bread; livestock → meat, hides and tallow (byproducts) → leather → shoes, and tallow → candles; wool → cloth, and flax → linen → garments; wood → charcoal, with iron → tools, which wear out in the farms, forester, fishery, quarry, smithy, cobbler and joiner; fish and salt → salted fish; clay and wood → pottery; wood and tools → furniture.
+  - 25 recipes, 25 building types, and 26 town workshops in `home_town.json`. Spices, Wine and Iron are import-only.
+  - The baskets name the real goods now: Bread, Salted Fish, Garments, Shoes and Spices replace their stand-ins.
+- **Every list of goods comes from `goods.json`.** The depot's accounts, the quick-trade quantities, the dropdowns, the licence overview and the booths all read it, and `constants.py` keeps no per-good lists.
+- **Licences per guild.**
+  - Each good's `license` names its licence: the head good's own name, or a chain's head for the rest. Flour and Bread go under Wheat, Cloth and Garments under Wool, Leather and Shoes under Hide, Charcoal and Tools under Iron, Tallow under Candle, Salted Fish under Fish, Furniture under Wood, Clay under Pottery, Livestock under Meat and Flax under Linen. Spices has its own.
+  - The head good sets `license_fee` (per season) and `starting_license_seasons`, which used to be `SEASONAL_CONTRACT_FEES` and `STARTING_LICENSES`.
+  - Licence checks (`Depot.has_license`, through `Depot.license_of`), the overview and saves work by licence. The overview lists the licences and names the other goods each covers.
+  - Old saves keep their licences, as each existing good kept its own. Only Spices got new (placeholder) contract texts.
+- **Booths.** A good's `sold_at` lists the market booths that carry it beyond those named after it (`Market.SOLD_AT`, filled by the game): for example Flour and Bread at the Wheat Market.
+- **The top bar** shows the goods the player holds plus those pinned (right-click a good's box in the market view; a pin marks it), in `goods.json` order, with its scroll arrows. Pins are saved.
+- **The chart colours page** scrolls sideways with the wheel.
+- **Placeholder icons** for the new goods (`<good>_30.png`): a disc in the good's chart colour with its initials.
+- **The church's "Meal for the Poor"** gives Bread (45) instead of Wheat. The "Feast for the Poor" still gives Wheat.
+- **Calibration.**
+  - The poor's comfort basket holds some meat (usually dear), so their comfort can fall below 1 while their luxuries are still bought.
+  - The upper classes' comfort elasticity is higher, Commons 0.6 and Middling Sort and Nobility 1.0.
+  - Result over 10 seeds × 50 years: comfort 0.94–0.95 and luxury 0.33–0.62 per class, with 2 of 80 class-seed checks just outside their band.

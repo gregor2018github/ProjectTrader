@@ -1,6 +1,6 @@
 import pygame
 import datetime
-from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
+from typing import Any, Dict, List, Optional, Sequence, TYPE_CHECKING, Tuple
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT, PRICE_TICK_MINUTES, PRICE_TICKS_PER_DAY
 from ..paper import CHART_PAPER_EDGE, draw_paper
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from ...models.good import Good
     from ...models.depot import Depot
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False, scroll_offset: int = 0) -> List[Tuple[pygame.Rect, Any]]:
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = ()) -> List[Tuple[pygame.Rect, Any]]:
     """Draw the primary price history chart and selection UI.
     
     Args:
@@ -23,6 +23,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
         view_rect: The rectangle defining the module viewport area on screen.
         
         scroll_offset: First good shown in the selection bar, when not all fit.
+        pinned: Goods pinned to the top bar (right-click on a box), marked in their box.
 
     Returns:
         List[Tuple[pygame.Rect, Any]]: Hitboxes of the selection bar, each with the
@@ -60,7 +61,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # Calculate max price using chart history instead of bookkeeping history
     visible_goods = [good for good in goods if good.show_in_charts]
     if not visible_goods:
-        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, scroll_offset=scroll_offset)
+        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, scroll_offset=scroll_offset, pinned=pinned)
 
     max_price = max(max(good.price_history_hourly[-int(max_chart_size):]) for good in visible_goods)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
@@ -70,7 +71,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset, pinned)
 
     # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
     closest_good, hover_idx = None, None
@@ -419,8 +420,8 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0) -> List[Tuple[pygame.Rect, Any]]:
-    """Draw interactive toggles for individual goods.
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = ()) -> List[Tuple[pygame.Rect, Any]]:
+    """Draw interactive toggles for individual goods (a left click shows it in the chart, a right click pins it to the top bar).
 
     When not all goods fit into the bar, arrows either side scroll through
     them one good at a time.
@@ -480,6 +481,8 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         
         if good.name in goods_images_30:
             screen.blit(goods_images_30[good.name], (box_x + 10, box_y + 10))
+        if good.name in pinned:
+            _draw_pin(screen, (image_box.right - 9, image_box.top + 9))
         
         if is_hovered:
             no_license = depot is not None and current_date is not None and not depot.has_license(good.name, current_date)
@@ -519,6 +522,13 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
             screen.blit(name_surface, tooltip_rect)
     
     return image_boxes
+
+
+def _draw_pin(screen: pygame.Surface, center: Tuple[int, int]) -> None:
+    """A pin's head in a selection box's corner: the good stays in the top bar."""
+    pygame.draw.line(screen, DARK_BROWN, center, (center[0] - 5, center[1] + 6), 2)
+    pygame.draw.circle(screen, DARK_RED, center, 5)
+    pygame.draw.circle(screen, DARK_BROWN, center, 5, 1)
 
 
 def _draw_selection_arrows(screen: pygame.Surface, select_bar: pygame.Rect, arrow_width: int, scroll_offset: int, max_offset: int, mouse_pos: Tuple[int, int], suppress_hover: bool) -> List[Tuple[pygame.Rect, int]]:

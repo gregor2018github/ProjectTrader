@@ -57,6 +57,9 @@ class Market(House):
     closed (tarped) sprite.
     """
 
+    # Market name -> goods its booths carry besides those in its name (goods.json "sold_at"; set by Game)
+    SOLD_AT: Dict[str, List[str]] = {}
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.open_image: Optional[pygame.Surface] = self.image
@@ -132,6 +135,8 @@ class Market(House):
         # Plus whatever its traders sell that the name does not mention
         for trader in self.traders:
             goods.extend(good for good in trader.EXTRA_GOODS if good not in goods)
+        # Plus the goods goods.json says this booth carries ("sold_at")
+        goods.extend(good for good in Market.SOLD_AT.get(self.name, ()) if good not in goods)
         return goods
 
     def open_trade_menu(self, game_state: 'GameState', click_pos: Tuple[int, int], good_name: str) -> None:

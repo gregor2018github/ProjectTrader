@@ -63,7 +63,7 @@ ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked u
 # Meals for the poor, given to the church in goods from the player's stock (name, goods and how many of each).
 # They are booked as donations at the goods' market price on the day.
 CHURCH_FEASTS = [
-    ("Meal for the Poor", {"Wheat": 40, "Fish": 20, "Beer": 15}),
+    ("Meal for the Poor", {"Bread": 45, "Fish": 20, "Beer": 15}),
     ("Feast for the Poor", {"Wheat": 80, "Meat": 30, "Wine": 15, "Beer": 40}),
 ]
 CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods given for them are booked under
@@ -144,11 +144,7 @@ PACK_SLOTS = 10                     # slots of the pack the player carries goods
 PACK_SLOT_SIZE = 1                  # units of one good a pack slot holds: what the player carries by hand
 
 # TRADING LICENSE CONSTANTS
-# Each entry: (good_name, duration_in_seasons); a season is DAYS_PER_SEASON days
-STARTING_LICENSES = [
-    ("Wood", 8),
-    ("Stone", 4),
-]
+# A new game's licences (and every licence's fee per season) are in assets/data/goods.json
 LICENSE_SEASON_OPTIONS = [1, 2, 4, 8, 12]  # Durations a license can be bought for, in seasons (4 make a year)
 
 # POPULATION GROUP SHARES
@@ -178,33 +174,17 @@ UNDERPOP_THRESHOLD_HIGH = 75.0      # Fill grade (%) below which the mild underp
 UNDERPOP_BONUS_LOW = 3              # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_LOW
 UNDERPOP_BONUS_HIGH = 1             # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_HIGH
 
-# The fee every license costs once, whatever its length; SEASONAL_CONTRACT_FEES below adds the price per season
+# The fee every license costs once, whatever its length; each licence's license_fee in goods.json adds its price per season
 BASE_CONTRACT_FEE = 50
 # The goods in the bottom bar's three quick-trade slots at each market square
 # (an "Areas" rectangle named Market_Area...) when a game starts. A square not
 # listed starts with the first three goods its booths sell.
+DEFAULT_TRADE_QUANTITY = "2"         # The quick-trade quantity a good starts with
 DEFAULT_QUICKTRADE_SLOTS = {
     "Market_Area": ["Wood", "Stone", "Iron"],
     "Market_Area_Northwest": ["Herbs", "Salt", "Candle"],
 }
 
-SEASONAL_CONTRACT_FEES = {           # Fee per season of a license, on top of BASE_CONTRACT_FEE
-    "Wood": 10,
-    "Stone": 10,
-    "Iron": 25,
-    "Wool": 25,
-    "Hide": 25,
-    "Fish": 10,
-    "Wheat": 15,
-    "Wine": 115,
-    "Beer": 45,
-    "Meat": 45,
-    "Linen": 35,
-    "Pottery": 35,
-    "Candle": 35,
-    "Herbs": 30,
-    "Salt": 70,
-}
 
 # UI CONSTANTS
 CHART_TIME_MARKER_UNIT = "Season"     # Units for vertical chart lines: "Day", "Season" (one week), "Year"

@@ -4,7 +4,7 @@ import json
 import pytest
 
 from src.sim.data import (
-    DataError, load_buildings, load_goods, load_needs, load_recipes, load_scenario, parse_buildings,
+    DataError, licenses_of, load_buildings, load_goods, load_needs, load_recipes, load_scenario, parse_buildings,
     parse_goods, parse_needs, parse_recipes, parse_scenario,
 )
 from src.sim.systems.population import class_shares
@@ -12,8 +12,12 @@ from src.sim.systems.population import class_shares
 WOOD = {"name": "Wood", "color": "PALE_BROWN", "chart_index": 0, "show_in_charts": True,
         "outside_price": 1, "outside_reversion": 0.03, "outside_volatility": 0.03,
         "transport_cost": 0.3, "import_limit": 100, "export_limit": 100,
-        "target_stock_days": 14, "min_target_stock": 50, "noise_sigma": 0.004}
-STONE = {**WOOD, "name": "Stone", "chart_index": 1, "outside_price": 2}
+        "target_stock_days": 14, "min_target_stock": 50, "noise_sigma": 0.004,
+        "license_fee": 10, "starting_license_seasons": 8}
+STONE = {**WOOD, "name": "Stone", "chart_index": 1, "outside_price": 2, "starting_license_seasons": 0}
+PLANKS = {**WOOD, "name": "Planks", "chart_index": 2, "license": "Wood", "sold_at": ["Wood Market"]}
+for _field in ("license_fee", "starting_license_seasons"):
+    PLANKS.pop(_field)
 RECIPE = {"id": "cut_stone", "inputs": {"Wood": 1, "Stone": 0.05}, "outputs": {"Stone": 2}, "labour": 1.5}
 BUILDING = {"type": "mason", "name": "Mason", "recipe": "cut_stone", "workers_class": "Commons",
             "max_capacity": 10, "growth_cost": 100, "working_capital": 50}
@@ -62,6 +66,26 @@ def test_a_bad_good_field_is_named_with_its_entry(change, field, problem):
     message = str(error.value)
     assert message.startswith(f"goods.json, entry 1 ('Stone'): field '{field}': ")
     assert problem in message
+
+
+def test_a_guilds_licence_covers_the_goods_traded_under_it():
+    goods = parse_goods([WOOD, STONE, PLANKS])
+    assert goods[2].license_name == "Wood" and goods[2].sold_at == ("Wood Market",)
+    wood = licenses_of(goods)["Wood"]
+    assert (wood.fee, wood.starting_seasons, wood.goods) == (10.0, 8, ("Wood", "Planks"))
+    assert list(licenses_of(goods)) == ["Wood", "Stone"]
+
+
+@pytest.mark.parametrize("entry, field, problem", [
+    ({**PLANKS, "license": "Oak"}, "license", "'Oak' is not a licence"),
+    ({**PLANKS, "license": "Planks"}, "license_fee", "missing (a good traded under its own licence sets its fee)"),
+    ({**PLANKS, "license_fee": 5}, "license_fee", "only the good the licence is named after sets it ('Wood')"),
+    ({**PLANKS, "sold_at": "Wood Market"}, "sold_at", "expected a list of market names"),
+])
+def test_licence_mistakes_are_named(entry, field, problem):
+    with pytest.raises(DataError) as error:
+        parse_goods([WOOD, STONE, entry])
+    assert f"entry 2 ('Planks'): field '{field}': " in str(error.value) and problem in str(error.value)
 
 
 def test_a_missing_field_is_named():

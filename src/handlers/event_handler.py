@@ -1,5 +1,5 @@
 import pygame
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from .keyboard_handler import handle_keyboard_input
 from .mouse_handler import handle_mouse_click
 from ..ui.helper_modules.info_window import InfoWindow
@@ -97,6 +97,9 @@ class EventHandler:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             if hasattr(game_state.game, 'sound_control'):
                 game_state.game.sound_control.handle_right_click(event.pos)
+            # ...or pin a good to the top bar (or unpin it) from its box in the market view
+            if not game_state.info_window:
+                toggle_pin_at(game_state, event.pos)
 
         # Left mouse-down: may start a slider drag (checked before normal click routing)
         _slider_consumed = False
@@ -219,3 +222,22 @@ class EventHandler:
                     game_state.info_window = None
                     game_state._pending_load_slot = None
                     game_state.show_warning(f"Load failed: {e}")
+
+
+def toggle_pin_at(game_state: Any, pos: Tuple[int, int]) -> bool:
+    """Pin the good whose box in the market view is at *pos* to the top bar, or unpin it.
+
+    The top bar shows the goods the player holds and the pinned ones, in goods.json order.
+
+    Returns:
+        Whether a good's box was there.
+    """
+    for box, target in getattr(game_state, "image_boxes", []):
+        if box.collidepoint(pos) and not isinstance(target, int):
+            pinned = game_state.pinned_goods
+            if target.name in pinned:
+                pinned.remove(target.name)
+            else:
+                pinned.append(target.name)
+            return True
+    return False

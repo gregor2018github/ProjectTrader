@@ -11,7 +11,8 @@ reads the CSVs ``python -m src.sim.run`` wrote and checks them. So far:
 - **the town runs slightly short** (warnings): without the player, each
   class's mean comfort fulfilment lies in ``COMFORT_BAND`` and its mean luxury
   fulfilment in ``LUXURY_BAND``, and at least ``SHORT_GOODS_MIN`` goods run
-  out (some class asked for more than the market had: ``unmet``) on more than
+  short (some class bought less than its whole basket of it, because it was
+  dear or the market had run out: ``bought < wanted``) on more than
   ``SHORT_DAYS_SHARE`` of days.
 - **tradability** (a warning only, no threshold yet): per good, the median
   over the run of ``(30-day max price − 30-day min price) / price``, and how
@@ -40,8 +41,8 @@ BALANCE_TOLERANCE = 1e-9        # |market_balance| may be at most this share of 
 COMFORT_BAND = (0.80, 0.95)     # each class's mean comfort fulfilment, for a town running slightly short
 LUXURY_BAND = (0.30, 0.70)      # ...and its mean luxury fulfilment
 SHORT_GOODS_MIN = 3             # at least this many goods...
-SHORT_DAYS_SHARE = 0.05         # ...run out on more than this share of days
-UNMET_TOLERANCE = 1e-6          # units unmet in a day that count as a stock-out (float rounding below it)
+SHORT_DAYS_SHARE = 0.05         # ...run short on more than this share of days
+SHORT_TOLERANCE = 1e-6          # share of the basket a class may miss before the day counts as short (float rounding)
 TRADE_WINDOW_DAYS = 30
 TRADE_UNITS = 20                # a small trader's order
 
@@ -81,11 +82,17 @@ def fulfilment_by_class(population_rows: Sequence[Dict[str, str]]) -> Dict[str, 
 
 
 def short_days(goods_rows: Sequence[Dict[str, str]]) -> Dict[str, float]:
-    """Per good, the share of days some class asked for more than the market could supply (a stock-out)."""
+    """Per good, the share of days the town ran short of it: some class bought less than its whole basket.
+
+    No class ever buys more than its basket, so the households together bought
+    less than they wanted exactly when some class did, for whatever reason:
+    the price (it bought less of a dear good) or an empty market.
+    """
     counts: Dict[str, List[int]] = {}
     for row in goods_rows:
         c = counts.setdefault(row["good"], [0, 0])
-        c[0] += float(row["unmet"]) > UNMET_TOLERANCE
+        wanted = float(row["wanted"])
+        c[0] += wanted > 0 and float(row["bought"]) < wanted * (1 - SHORT_TOLERANCE)
         c[1] += 1
     return {good: below / days for good, (below, days) in counts.items()}
 
@@ -149,7 +156,7 @@ def report(run_dir: str) -> int:
     shares = short_days(goods)
     short = sorted((g for g, s in shares.items() if s > SHORT_DAYS_SHARE), key=lambda g: -shares[g])
     ok = len(short) >= SHORT_GOODS_MIN
-    print(f"[{'ok' if ok else 'warn'}] goods out of stock on more than {SHORT_DAYS_SHARE:.0%} of days: "
+    print(f"[{'ok' if ok else 'warn'}] goods the town ran short of on more than {SHORT_DAYS_SHARE:.0%} of days: "
           f"{len(short)} (want at least {SHORT_GOODS_MIN}): "
           + ", ".join(f"{g} {shares[g]:.0%}" for g in short))
 

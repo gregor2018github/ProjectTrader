@@ -1,7 +1,7 @@
 import datetime
-from typing import Dict, Iterable, List, Optional, Any, Tuple
+from typing import Dict, Iterable, List, Optional, Any, Sequence, Tuple
 from ..config.constants import (
-    ALMS_CATEGORY, CHURCH_FEAST_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_LICENSES, STARTING_STORAGE_SLOTS,
+    ALMS_CATEGORY, CHURCH_FEAST_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_STORAGE_SLOTS,
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
@@ -20,13 +20,15 @@ class Depot:
     property ownership and trade statistics.
     """
     
-    def __init__(self, money: float, transaction_cost: float, storage_capacity: int) -> None:
+    def __init__(self, money: float, transaction_cost: float, storage_capacity: int,
+                 goods: Sequence[str] = ()) -> None:
         """Initialize the depot with starting values.
-        
+
         Args:
             money: Initial amount of money.
             transaction_cost: Flat cost per trade transaction.
             storage_capacity: Maximum number of goods units that can be stored.
+            goods: The goods it keeps accounts for (goods.json's, in order).
         """
         # CURRENT STATE
 
@@ -37,13 +39,7 @@ class Depot:
         self.starting_slots: List[Dict[str, Any]] = self.empty_slots(STARTING_STORAGE_SLOTS)  # see STORAGE SLOTS
         self.pack_slots: List[Dict[str, Any]] = self.empty_slots(PACK_SLOTS)  # what the player carries
         self.storage_order: List[Any] = [START]  # which storage purchases go to first, see STORAGE SLOTS
-        self.good_stock: Dict[str, int] = {             # current stock of goods
-            "Wood": 0, "Stone": 0, "Iron": 0,
-            "Wool": 0, "Hide": 0, "Fish": 0,
-            "Wheat": 0, "Wine": 0, "Beer": 0,
-            "Meat": 0, "Linen": 0, "Pottery": 0,
-            "Candle": 0, "Herbs": 0, "Salt": 0,
-        }
+        self.good_stock: Dict[str, int] = {name: 0 for name in goods}   # current stock of goods
         self.properties: Dict[str, List[Any]] = {       # current properties
             "warehouses": [],
             "workshops": [],
@@ -125,26 +121,34 @@ class Depot:
         self.trade_cycle_records: List[Dict[str, Any]] = []
 
         # TRADING LICENSES
-        # Each license maps good_name -> expiry datetime
+        # Each licence (a guild's, named after a good) maps to its expiry; a good is
+        # traded under the licence in license_of (goods.json's "license"), its own if not listed
         self.trading_licenses: Dict[str, datetime.datetime] = {}
+        self.license_of: Dict[str, str] = {}
 
         # LIFETIME STATISTICS
         self.stats: Statistics = Statistics()
 
-    def init_starting_licenses(self, start_date: datetime.datetime) -> None:
-        """Initialize trading licenses from constants.
-        
+    def init_starting_licenses(self, start_date: datetime.datetime,
+                               licenses: Iterable[Tuple[str, int]]) -> None:
+        """Grant a new game's licences.
+
         Args:
             start_date: The game's starting date to calculate expiry from.
+            licenses: (licence, seasons) pairs (goods.json's starting_license_seasons).
         """
-        for good_name, seasons in STARTING_LICENSES:
-            self.add_license(good_name, seasons, start_date)
+        for license_name, seasons in licenses:
+            self.add_license(license_name, seasons, start_date)
+
+    def license_name(self, good_name: str) -> str:
+        """The licence a good is traded under."""
+        return self.license_of.get(good_name, good_name)
 
     def add_license(self, good_name: str, seasons: int, current_date: datetime.datetime) -> None:
-        """Grant a trading license for a good.
+        """Grant (or extend) a trading licence.
 
         Args:
-            good_name: Name of the good.
+            good_name: Name of the licence (the good it is named after).
             seasons: Duration in seasons of the game calendar (DAYS_PER_SEASON days each).
             current_date: Current game date.
         """
@@ -157,18 +161,19 @@ class Depot:
         self.trading_licenses[good_name] = expiry
 
     def has_license(self, good_name: str, current_date: datetime.datetime) -> bool:
-        """Check if the player has a valid trading license for a good.
-        
+        """Check if the player holds a valid licence for a good: the licence it is traded under.
+
         Args:
             good_name: Name of the good.
             current_date: Current game date.
-            
+
         Returns:
             bool: True if a valid license exists.
         """
-        if good_name not in self.trading_licenses:
+        license_name = self.license_name(good_name)
+        if license_name not in self.trading_licenses:
             return False
-        return self.trading_licenses[good_name] > current_date
+        return self.trading_licenses[license_name] > current_date
 
     def get_licenses(self, current_date: datetime.datetime) -> List[Dict[str, Any]]:
         """Get all trading licenses with remaining days.

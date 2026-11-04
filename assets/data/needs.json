@@ -1,29 +1,196 @@
 {
-  "about": "What each social class needs, in units per head per day, by tier (basic is bought first, then comfort, then luxury), its income per head per day from work that is not simulated, the most its wage rises to when hands are short (wage_cap; the least is base_income), and how much each tier weighs on its happiness (src/sim/data.py checks this file; docs/p1_living_market.md explains it). A need may be {\"units\": x, \"seasons\": {\"Winter\": f}, \"elasticity\": e} to change with the seasons or to have its own elasticity. elasticity (per tier): above a good's outside price a class buys basket × (price / outside price) ^ -elasticity of it; fulfilment still counts against the whole basket. Phase 1 stand-ins until the new goods exist: Wheat for Bread, Fish for Salted Fish, Linen for Garments, Hide for Shoes, Salt for Spices.",
-  "classes": [
-    {"class": "Poor", "base_income": 0.45, "labour_share": 0.6, "wage_cap": 1.0,
-     "happiness_weights": {"basic": 0.75, "comfort": 0.2, "luxury": 0.05},
-     "elasticity": {"basic": 0.1, "comfort": 0.8, "luxury": 1.2},
-     "basic":   {"Wheat": 0.12, "Beer": 0.02, "Wood": {"units": 0.04, "seasons": {"Summer": 0.5, "Autumn": 1.2, "Winter": 1.6}}},
-     "comfort": {"Fish": 0.03, "Linen": 0.01, "Hide": 0.005},
-     "luxury":  {"Meat": 0.05, "Candle": {"units": 0.01, "seasons": {"Summer": 0.6, "Winter": 1.5}}, "Linen": 0.02, "Wine": 0.01}},
-    {"class": "Commons", "base_income": 0.9, "labour_share": 0.6, "wage_cap": 1.8,
-     "happiness_weights": {"basic": 0.6, "comfort": 0.3, "luxury": 0.1},
-     "elasticity": {"basic": 0.1, "comfort": 0.5, "luxury": 1.2},
-     "basic":   {"Wheat": 0.15, "Beer": 0.04, "Fish": 0.05, "Wood": {"units": 0.05, "seasons": {"Summer": 0.5, "Autumn": 1.2, "Winter": 1.6}}},
-     "comfort": {"Meat": 0.03, "Linen": 0.02, "Hide": 0.008, "Pottery": 0.01, "Candle": {"units": 0.01, "seasons": {"Summer": 0.6, "Winter": 1.5}}},
-     "luxury":  {"Wine": 0.04, "Herbs": 0.02, "Meat": 0.04}},
-    {"class": "Middling Sort", "base_income": 2.5, "labour_share": 0.3, "wage_cap": 4.0,
-     "happiness_weights": {"basic": 0.45, "comfort": 0.35, "luxury": 0.2},
-     "elasticity": {"basic": 0.1, "comfort": 0.5, "luxury": 1.2},
-     "basic":   {"Wheat": 0.15, "Beer": 0.05, "Meat": 0.1, "Wood": {"units": 0.08, "seasons": {"Summer": 0.5, "Autumn": 1.2, "Winter": 1.6}}},
-     "comfort": {"Fish": 0.1, "Linen": 0.04, "Hide": 0.01, "Pottery": 0.03, "Herbs": 0.03, "Candle": {"units": 0.04, "seasons": {"Summer": 0.6, "Winter": 1.5}}},
-     "luxury":  {"Wine": 0.12, "Salt": 0.03, "Pottery": 0.03}},
-    {"class": "Nobility", "base_income": 11.0, "labour_share": 0.0, "wage_cap": 15.0,
-     "happiness_weights": {"basic": 0.3, "comfort": 0.4, "luxury": 0.3},
-     "elasticity": {"basic": 0.1, "comfort": 0.5, "luxury": 1.2},
-     "basic":   {"Wheat": 0.15, "Meat": 0.4, "Wine": 0.2, "Wood": {"units": 0.2, "seasons": {"Summer": 0.5, "Autumn": 1.2, "Winter": 1.6}}},
-     "comfort": {"Fish": 0.3, "Linen": 0.1, "Hide": 0.03, "Pottery": 0.05, "Herbs": 0.1, "Candle": {"units": 0.2, "seasons": {"Summer": 0.6, "Winter": 1.5}}},
-     "luxury":  {"Wine": 0.4, "Salt": 0.08, "Linen": 0.1}}
-  ]
+ "about": "What each social class needs, in units per head per day, by tier (basic is bought first, then comfort, then luxury), its income per head per day from work that is not simulated, the most its wage rises to when hands are short (wage_cap; the least is base_income), how much each tier weighs on its happiness, and its elasticity per tier: above a good's outside price a class buys basket x (price / outside price) ^ -elasticity of it; fulfilment still counts against the whole basket. A need may be {\"units\": x, \"seasons\": {\"Winter\": f}, \"elasticity\": e}. src/sim/data.py checks this file.",
+ "classes": [
+  {
+   "class": "Poor",
+   "base_income": 0.45,
+   "labour_share": 0.6,
+   "wage_cap": 1.0,
+   "happiness_weights": {
+    "basic": 0.75,
+    "comfort": 0.2,
+    "luxury": 0.05
+   },
+   "elasticity": {
+    "basic": 0.1,
+    "comfort": 0.8,
+    "luxury": 1.2
+   },
+   "basic": {
+    "Bread": 0.13,
+    "Beer": 0.02,
+    "Wood": {
+     "units": 0.04,
+     "seasons": {
+      "Summer": 0.5,
+      "Autumn": 1.2,
+      "Winter": 1.6
+     }
+    }
+   },
+   "comfort": {
+    "Salted Fish": 0.02,
+    "Garments": 0.005,
+    "Shoes": 0.005,
+    "Meat": 0.03
+   },
+   "luxury": {
+    "Meat": 0.02,
+    "Candle": {
+     "units": 0.01,
+     "seasons": {
+      "Summer": 0.6,
+      "Winter": 1.5
+     }
+    },
+    "Linen": 0.02,
+    "Wine": 0.01
+   }
+  },
+  {
+   "class": "Commons",
+   "base_income": 0.9,
+   "labour_share": 0.6,
+   "wage_cap": 1.8,
+   "happiness_weights": {
+    "basic": 0.6,
+    "comfort": 0.3,
+    "luxury": 0.1
+   },
+   "elasticity": {
+    "basic": 0.1,
+    "comfort": 0.6,
+    "luxury": 1.2
+   },
+   "basic": {
+    "Bread": 0.16,
+    "Beer": 0.04,
+    "Salted Fish": 0.02,
+    "Wood": {
+     "units": 0.05,
+     "seasons": {
+      "Summer": 0.5,
+      "Autumn": 1.2,
+      "Winter": 1.6
+     }
+    }
+   },
+   "comfort": {
+    "Meat": 0.03,
+    "Garments": 0.004,
+    "Shoes": 0.004,
+    "Pottery": 0.01,
+    "Candle": {
+     "units": 0.01,
+     "seasons": {
+      "Summer": 0.6,
+      "Winter": 1.5
+     }
+    }
+   },
+   "luxury": {
+    "Wine": 0.04,
+    "Linen": 0.02,
+    "Meat": 0.04
+   }
+  },
+  {
+   "class": "Middling Sort",
+   "base_income": 2.5,
+   "labour_share": 0.3,
+   "wage_cap": 4.0,
+   "happiness_weights": {
+    "basic": 0.45,
+    "comfort": 0.35,
+    "luxury": 0.2
+   },
+   "elasticity": {
+    "basic": 0.1,
+    "comfort": 1.0,
+    "luxury": 1.2
+   },
+   "basic": {
+    "Bread": 0.16,
+    "Beer": 0.05,
+    "Meat": 0.1,
+    "Wood": {
+     "units": 0.08,
+     "seasons": {
+      "Summer": 0.5,
+      "Autumn": 1.2,
+      "Winter": 1.6
+     }
+    }
+   },
+   "comfort": {
+    "Fish": 0.1,
+    "Garments": 0.008,
+    "Shoes": 0.006,
+    "Pottery": 0.03,
+    "Herbs": 0.03,
+    "Linen": 0.03,
+    "Candle": {
+     "units": 0.04,
+     "seasons": {
+      "Summer": 0.6,
+      "Winter": 1.5
+     }
+    }
+   },
+   "luxury": {
+    "Wine": 0.12,
+    "Spices": 0.008,
+    "Furniture": 0.003
+   }
+  },
+  {
+   "class": "Nobility",
+   "base_income": 11.0,
+   "labour_share": 0.0,
+   "wage_cap": 15.0,
+   "happiness_weights": {
+    "basic": 0.3,
+    "comfort": 0.4,
+    "luxury": 0.3
+   },
+   "elasticity": {
+    "basic": 0.1,
+    "comfort": 1.0,
+    "luxury": 1.2
+   },
+   "basic": {
+    "Bread": 0.15,
+    "Meat": 0.4,
+    "Wine": 0.2,
+    "Wood": {
+     "units": 0.2,
+     "seasons": {
+      "Summer": 0.5,
+      "Autumn": 1.2,
+      "Winter": 1.6
+     }
+    }
+   },
+   "comfort": {
+    "Fish": 0.3,
+    "Garments": 0.03,
+    "Shoes": 0.015,
+    "Linen": 0.08,
+    "Herbs": 0.1,
+    "Furniture": 0.01,
+    "Candle": {
+     "units": 0.2,
+     "seasons": {
+      "Summer": 0.6,
+      "Winter": 1.5
+     }
+    }
+   },
+   "luxury": {
+    "Wine": 0.4,
+    "Spices": 0.04,
+    "Furniture": 0.01
+   }
+  }
+ ]
 }

@@ -83,7 +83,7 @@ The market place holds no money: the stock in it belongs to the **merchants**. E
 Before a player's trade, several gates must pass. They block the trade but don't change the price:
 1. `GameState.is_good_sold_here()`: does the market square the player stands in have a booth for this good?
 2. `GameState.is_good_tradable()`: is one of those booths open right now? (Booths close when their trader goes home; see CLAUDE.md, Map System.)
-3. `Depot.has_license()`: the player needs a valid trading license per good.
+3. `Depot.has_license()`: the player needs a valid licence for the good, which is its guild's (a good's `license` in `goods.json`; Flour and Bread go under Wheat, Tools under Iron). One licence covers its whole chain, and its fee per season is the head good's `license_fee`.
 4. A positive quantity, the market's stock (whole units, `Good.market_quantity`), money, and storage capacity.
 
 **Profit accounting.** Each buy is pushed onto `purchase_history[good]` with its unit price. A sell consumes those entries oldest-first (FIFO), and each consumed chunk is recorded by `_record_trade_cycle()` as a trade cycle. `Depot.avg_buy_price()` gives the FIFO-weighted average cost of what is still held.
@@ -92,7 +92,7 @@ Before a player's trade, several gates must pass. They block the trade but don't
 
 ## 5. What does *not* affect price (yet)
 
-- **Which market or booth.** There is one `GoodState` per good, shared by all booths. Booths only decide *whether* you may trade.
+- **Which market or booth.** There is one `GoodState` per good, shared by all booths. Booths only decide *whether* you may trade: a booth carries the goods its name gives plus those whose `sold_at` names it.
 
 ## 6. Well wishes: the deliberate price shock
 

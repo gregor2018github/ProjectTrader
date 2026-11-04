@@ -14,7 +14,9 @@ SLOT_SIZE = 20
 STARTING_STORAGE_SLOTS = 5
 PACK_SLOTS = 10
 PACK_SLOT_SIZE = 1
-STARTING_LICENSES = [("Wood", 2), ("Stone", 1)]  # in seasons
+# The goods the depot keeps accounts for in these tests (the game takes them from goods.json)
+GOODS = ("Wood", "Stone", "Iron", "Wool", "Hide", "Fish", "Wheat", "Wine", "Beer", "Meat",
+         "Linen", "Pottery", "Candle", "Herbs", "Salt")
 
 
 @pytest.fixture(autouse=True)
@@ -24,7 +26,6 @@ def pinned_storage(monkeypatch):
         ("STARTING_STORAGE_SLOTS", STARTING_STORAGE_SLOTS),
         ("PACK_SLOTS", PACK_SLOTS),
         ("PACK_SLOT_SIZE", PACK_SLOT_SIZE),
-        ("STARTING_LICENSES", STARTING_LICENSES),
     ):
         monkeypatch.setattr(depot_module, name, value)
 
@@ -44,7 +45,7 @@ def game_state(monkeypatch):
 @pytest.fixture
 def depot(game_state):
     """10,000g, a 2g fee per trade, the starting storage, and licenses of three years (12 seasons) for every good."""
-    depot = Depot(money=10_000, transaction_cost=2, storage_capacity=SLOT_SIZE * STARTING_STORAGE_SLOTS)
+    depot = Depot(money=10_000, transaction_cost=2, storage_capacity=SLOT_SIZE * STARTING_STORAGE_SLOTS, goods=GOODS)
     for good_name in depot.good_stock:
         depot.add_license(good_name, 12, game_state.date)
     return depot

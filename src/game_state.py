@@ -90,13 +90,9 @@ class GameState:
         self.depot_view_mode: Optional[str] = None  # Deprecated
         self.mouse_clicked_on: str = "none"
         
-        # Remembered quantity per good for quick trading (persisted across sessions)
-        self.good_quantities: Dict[str, str] = {
-            "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
-            "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
-            "Meat": "2", "Pottery": "2", "Linen": "2",
-            "Candle": "2", "Herbs": "2", "Salt": "2",
-        }
+        # Remembered quantity per good for quick trading (persisted across sessions); the game fills
+        # in DEFAULT_TRADE_QUANTITY for every good of goods.json (Game.__init__)
+        self.good_quantities: Dict[str, str] = {}
 
         # Input fields for quick trading at the bottom of the screen
         # These are derived from chart_selection_order + good_quantities via sync_quicktrade_fields()
@@ -134,12 +130,11 @@ class GameState:
         self.last_input_click: tuple = ("none", 0)  # (field name, ticks) for double click detection
         self.current_day: int = 1
         
-        # List of available goods for dropdown
-        self.available_goods: List[str] = [
-            "Wood", "Stone", "Iron", "Wool", "Hide", "Fish",
-            "Wheat", "Wine", "Beer", "Meat", "Linen", "Pottery",
-            "Candle", "Herbs", "Salt"
-        ]
+        # All goods, in goods.json's order (set by Game.__init__); the licences by name (data.LicenseDef)
+        self.available_goods: List[str] = []
+        self.licenses: Dict[str, Any] = {}
+        # Goods the player keeps in the top bar whether or not they hold any (right-click in the market view)
+        self.pinned_goods: List[str] = []
         self.contract_acquisition: Optional[Any] = None
         self.minigame: Optional[Any] = None  # Active minigame overlay (e.g. woodhacking)
         

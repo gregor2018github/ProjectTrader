@@ -1,15 +1,230 @@
 {
-  "about": "Building types: the recipe a workshop of that type runs, the class it hires from (at that class's wage, needs.json), how far it can grow (batches a day) and what each batch a day of growth costs, and the cash it keeps before its profits go to its owner. src/sim/data.py checks this file.",
-  "buildings": [
-    {"type": "farm",        "name": "Farm",         "recipe": "grow_wheat",    "workers_class": "Poor",    "max_capacity": 15, "growth_cost": 150, "working_capital": 125},
-    {"type": "forester",    "name": "Forester",     "recipe": "fell_wood",     "workers_class": "Poor",    "max_capacity": 10, "growth_cost": 150, "working_capital": 75},
-    {"type": "herb_garden", "name": "Herb garden",  "recipe": "grow_herbs",    "workers_class": "Poor",    "max_capacity": 6,  "growth_cost": 150, "working_capital": 50},
-    {"type": "sheep_farm",  "name": "Sheep farm",   "recipe": "shear_sheep",   "workers_class": "Poor",    "max_capacity": 5,  "growth_cost": 150, "working_capital": 50},
-    {"type": "fishery",     "name": "Fishery",      "recipe": "catch_fish",    "workers_class": "Commons", "max_capacity": 12, "growth_cost": 180, "working_capital": 130},
-    {"type": "cattle_farm", "name": "Cattle farm",  "recipe": "raise_cattle",  "workers_class": "Commons", "max_capacity": 25, "growth_cost": 180, "working_capital": 260},
-    {"type": "salt_works",  "name": "Salt works",   "recipe": "boil_salt",     "workers_class": "Commons", "max_capacity": 4,  "growth_cost": 180, "working_capital": 50},
-    {"type": "quarry",      "name": "Quarry",       "recipe": "quarry_stone",  "workers_class": "Commons", "max_capacity": 5,  "growth_cost": 180, "working_capital": 50},
-    {"type": "brewery",     "name": "Brewery",      "recipe": "brew_beer",     "workers_class": "Commons", "max_capacity": 30, "growth_cost": 100, "working_capital": 200},
-    {"type": "pottery",     "name": "Pottery",      "recipe": "throw_pottery", "workers_class": "Commons", "max_capacity": 12, "growth_cost": 60,  "working_capital": 50}
-  ]
+ "about": "Building types: the recipe a workshop of that type runs, the class it hires from (at that class's wage, needs.json), how far it can grow (batches a day) and what each batch a day of growth costs, and the cash it keeps before its profits go to its owner. src/sim/data.py checks this file.",
+ "buildings": [
+  {
+   "type": "farm",
+   "name": "Farm",
+   "recipe": "grow_wheat",
+   "workers_class": "Poor",
+   "max_capacity": 15,
+   "growth_cost": 150,
+   "working_capital": 125
+  },
+  {
+   "type": "forester",
+   "name": "Forester",
+   "recipe": "fell_wood",
+   "workers_class": "Poor",
+   "max_capacity": 12,
+   "growth_cost": 150,
+   "working_capital": 75
+  },
+  {
+   "type": "herb_garden",
+   "name": "Herb garden",
+   "recipe": "grow_herbs",
+   "workers_class": "Poor",
+   "max_capacity": 6,
+   "growth_cost": 150,
+   "working_capital": 50
+  },
+  {
+   "type": "sheep_farm",
+   "name": "Sheep farm",
+   "recipe": "shear_sheep",
+   "workers_class": "Poor",
+   "max_capacity": 6,
+   "growth_cost": 150,
+   "working_capital": 50
+  },
+  {
+   "type": "flax_field",
+   "name": "Flax field",
+   "recipe": "grow_flax",
+   "workers_class": "Poor",
+   "max_capacity": 8,
+   "growth_cost": 150,
+   "working_capital": 50
+  },
+  {
+   "type": "clay_pit",
+   "name": "Clay pit",
+   "recipe": "dig_clay",
+   "workers_class": "Poor",
+   "max_capacity": 4,
+   "growth_cost": 100,
+   "working_capital": 30
+  },
+  {
+   "type": "fishery",
+   "name": "Fishery",
+   "recipe": "catch_fish",
+   "workers_class": "Commons",
+   "max_capacity": 14,
+   "growth_cost": 180,
+   "working_capital": 130
+  },
+  {
+   "type": "pasture",
+   "name": "Pasture",
+   "recipe": "raise_livestock",
+   "workers_class": "Commons",
+   "max_capacity": 25,
+   "growth_cost": 200,
+   "working_capital": 200
+  },
+  {
+   "type": "butchery",
+   "name": "Butchery",
+   "recipe": "butcher",
+   "workers_class": "Commons",
+   "max_capacity": 25,
+   "growth_cost": 120,
+   "working_capital": 200
+  },
+  {
+   "type": "salt_works",
+   "name": "Salt works",
+   "recipe": "boil_salt",
+   "workers_class": "Commons",
+   "max_capacity": 6,
+   "growth_cost": 180,
+   "working_capital": 50
+  },
+  {
+   "type": "quarry",
+   "name": "Quarry",
+   "recipe": "quarry_stone",
+   "workers_class": "Commons",
+   "max_capacity": 5,
+   "growth_cost": 180,
+   "working_capital": 50
+  },
+  {
+   "type": "mill",
+   "name": "Mill",
+   "recipe": "mill_flour",
+   "workers_class": "Commons",
+   "max_capacity": 12,
+   "growth_cost": 200,
+   "working_capital": 150
+  },
+  {
+   "type": "bakery",
+   "name": "Bakery",
+   "recipe": "bake_bread",
+   "workers_class": "Commons",
+   "max_capacity": 12,
+   "growth_cost": 100,
+   "working_capital": 80
+  },
+  {
+   "type": "brewery",
+   "name": "Brewery",
+   "recipe": "brew_beer",
+   "workers_class": "Commons",
+   "max_capacity": 30,
+   "growth_cost": 100,
+   "working_capital": 200
+  },
+  {
+   "type": "charcoal_burner",
+   "name": "Charcoal burner",
+   "recipe": "burn_charcoal",
+   "workers_class": "Poor",
+   "max_capacity": 8,
+   "growth_cost": 80,
+   "working_capital": 60
+  },
+  {
+   "type": "smithy",
+   "name": "Smithy",
+   "recipe": "forge_tools",
+   "workers_class": "Commons",
+   "max_capacity": 4,
+   "growth_cost": 200,
+   "working_capital": 100
+  },
+  {
+   "type": "tannery",
+   "name": "Tannery",
+   "recipe": "tan_leather",
+   "workers_class": "Commons",
+   "max_capacity": 6,
+   "growth_cost": 150,
+   "working_capital": 60
+  },
+  {
+   "type": "cobbler",
+   "name": "Cobbler",
+   "recipe": "make_shoes",
+   "workers_class": "Commons",
+   "max_capacity": 6,
+   "growth_cost": 100,
+   "working_capital": 50
+  },
+  {
+   "type": "weaver",
+   "name": "Weaver",
+   "recipe": "weave_cloth",
+   "workers_class": "Commons",
+   "max_capacity": 6,
+   "growth_cost": 120,
+   "working_capital": 60
+  },
+  {
+   "type": "linen_weaver",
+   "name": "Linen weaver",
+   "recipe": "weave_linen",
+   "workers_class": "Commons",
+   "max_capacity": 10,
+   "growth_cost": 120,
+   "working_capital": 60
+  },
+  {
+   "type": "tailor",
+   "name": "Tailor",
+   "recipe": "sew_garments",
+   "workers_class": "Commons",
+   "max_capacity": 4,
+   "growth_cost": 150,
+   "working_capital": 80
+  },
+  {
+   "type": "chandler",
+   "name": "Chandler",
+   "recipe": "make_candles",
+   "workers_class": "Commons",
+   "max_capacity": 12,
+   "growth_cost": 80,
+   "working_capital": 50
+  },
+  {
+   "type": "pottery",
+   "name": "Pottery",
+   "recipe": "throw_pottery",
+   "workers_class": "Commons",
+   "max_capacity": 10,
+   "growth_cost": 60,
+   "working_capital": 50
+  },
+  {
+   "type": "salter",
+   "name": "Salter",
+   "recipe": "salt_fish",
+   "workers_class": "Commons",
+   "max_capacity": 6,
+   "growth_cost": 100,
+   "working_capital": 80
+  },
+  {
+   "type": "joiner",
+   "name": "Joiner",
+   "recipe": "build_furniture",
+   "workers_class": "Commons",
+   "max_capacity": 3,
+   "growth_cost": 150,
+   "working_capital": 60
+  }
+ ]
 }

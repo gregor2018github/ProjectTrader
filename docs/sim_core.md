@@ -8,7 +8,7 @@ It holds:
 - **Workshops and their owners**: each workshop runs its building's recipe as hard as its margin says. It hires from one class (pro rata when hands are short), sells into the market, grows after busy spells and shrinks after losses. Its owner tops it up and takes its profits. No rule reads what kind of owner it is.
 - **Money**: the market place holds none (the merchants own the stock), so the town's money changes by exactly what crosses its border, and `market_balance` checks it.
 
-The new goods and chains (P1 phase 3) come next. The goldens in `tests/sim/golden/` pin the behaviour of each phase.
+The 30 goods and their chains (P1 phase 3) are in; the runner's and health report's full set of checks (phase 4) comes next. The goldens in `tests/sim/golden/` pin the behaviour of each phase.
 
 ---
 
@@ -131,13 +131,18 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 50 years (1,400 days) take about 3 s here.
 
-**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods out of stock (`unmet` above `UNMET_TOLERANCE`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than its whole basket of it, for any reason) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
 ## Data files
 
 `assets/data/` lives under `assets/` because the release build copies exactly the tracked files there (`build_tools/Release/build_release.py`), and `DATA_PATH` follows the game into the exe's `_internal/`. Unknown fields are refused everywhere, so a typo does not pass silently.
 
-**`goods.json`**: `{"goods": [...]}`. Each entry has `name` (unique), `color` (a colour's name in `src/config/colors.py`, checked by the game), `chart_index` (unique), `show_in_charts`, and the market's fields: `outside_price`, `outside_reversion`, `outside_volatility`, optional `outside_seasons`, `transport_cost`, `import_limit`, `export_limit`, `target_stock_days`, `min_target_stock` and `noise_sigma` (`pricing.md` §1 explains them). The list's order is the order of the random draws, so a new good goes at the end.
+**`goods.json`**: `{"goods": [...]}`, the game's one list of goods.
+- **Identity:** `name` (unique), `color` (a colour's name in `src/config/colors.py`, checked by the game), `chart_index` (unique), `show_in_charts`.
+- **Market:** `outside_price`, `outside_reversion`, `outside_volatility`, optional `outside_seasons`, `transport_cost`, `import_limit`, `export_limit`, `target_stock_days`, `min_target_stock` and `noise_sigma` (`pricing.md` §1 explains them).
+- **Licence:** `license`, the licence (a guild's) it is traded under. That is a good's name, its own if left out. The good a licence is named after sets `license_fee` (per season) and `starting_license_seasons`, and no other good may. `Definitions.licenses()` gives the licences, each with the goods it covers.
+- **Booths:** `sold_at`, the market booths that carry it besides those named after it.
+- **Order:** the list's order is the order of the random draws (so a new good goes at the end), and of the goods everywhere in the game.
 
 **`needs.json`**: `{"classes": [...]}`, one entry per class in `systems.population.class_shares()`, all of them:
 
@@ -151,7 +156,7 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 | `happiness_weights` | `{"basic": w, "comfort": w, "luxury": w}`, adding up to 1 |
 | `basic`, `comfort`, `luxury` | `{good: units per head per day}`. A value may be `{"units": x, "seasons": {"Winter": 1.6}, "elasticity": e}` to change with the seasons or have its own elasticity. |
 
-The tiers are bought in that order. Phase 1 uses stand-ins until the new goods exist (Wheat for Bread, Fish for Salted Fish, Linen for Garments, Hide for Shoes, Salt for Spices); swapping them is a data edit.
+The tiers are bought in that order.
 
 **`recipes.json`**: `{"recipes": [...]}`. Each entry has `id` (unique), optional `name` and `description`, `inputs` (good → units per batch, numbers > 0, fractions allowed for wear; may be empty for a raw good), `outputs` (the same, at least one; several make byproducts) and `labour` (worker-days per batch, ≥ 0). Every good named must be in `goods.json`.
 

@@ -27,8 +27,9 @@ def test_tradability_measures_the_window_range_against_the_price():
     assert result["Wine"].share_worth_it == 1.0                                 # 2g × 20 = 40g > 2 × 4g
 
 
-def test_a_stock_out_day_is_one_with_unmet_household_orders():
-    rows = [{"good": "Wood", "unmet": u} for u in ("0.0", "3.5", "1e-9", "0.0")]
+def test_a_short_day_is_one_the_households_bought_less_than_their_baskets():
+    rows = [{"good": "Wood", "wanted": w, "bought": b}
+            for w, b in (("10.0", "10.0"), ("10.0", "6.5"), ("10.0", "9.99999999999"), ("0.0", "0.0"))]
     assert health.short_days(rows) == {"Wood": 0.25}
 
 

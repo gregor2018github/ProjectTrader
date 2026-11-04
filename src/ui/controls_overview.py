@@ -33,6 +33,7 @@ LEFT_COLUMN: List[Section] = [
         ([["Left click"]], "Sidebar picture: whole screen"),
         ([["Left click"]], "Its side buttons: one half"),
         ([["Left click"]], "Rank in the top bar: the ladder"),
+        ([["Right click"]], "Market good: pin to the top bar"),
     ]),
 ]
 

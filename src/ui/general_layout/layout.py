@@ -1,6 +1,6 @@
 import pygame
 import datetime
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from ...models.good import Good
@@ -12,16 +12,28 @@ from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ...sim.calendar import format_long
 
-# Goods in the top bar, one column of (upper, lower) per slot; only
+# Goods in the top bar: those the player holds and those pinned (right-click in the market
+# view), in goods.json order, one column of (upper, lower) per slot; only
 # TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.
-TOP_BAR_GOOD_COLUMNS = [
-    ("Wood", "Stone"), ("Wool", "Iron"), ("Wheat", "Fish"), ("Hide", "Wine"),
-    ("Beer", "Linen"), ("Meat", "Pottery"), ("Candle", "Herbs"), ("Salt", None),
-]
 TOP_BAR_VISIBLE_COLUMNS = 5
 TOP_BAR_COLUMN_SPACING = 160
 TOP_BAR_DATE_SEPARATOR_X = 466      # The money and the date are left of it, the goods right of it
-TOP_BAR_GOODS = [name for column in TOP_BAR_GOOD_COLUMNS for name in column if name]
+
+
+def top_bar_goods(game_state: "GameState") -> List[str]:
+    """The goods the top bar shows: held or pinned, in goods.json order."""
+    game = getattr(game_state, "game", None)
+    if game is None or not hasattr(game, "goods"):
+        return []
+    held = game.depot.good_stock if hasattr(game, "depot") else {}
+    pinned = set(getattr(game_state, "pinned_goods", []))
+    return [g.name for g in game.goods if held.get(g.name, 0) > 0 or g.name in pinned]
+
+
+def top_bar_columns(game_state: "GameState") -> List[Tuple[str, Optional[str]]]:
+    """The top bar's goods two to a column."""
+    names = top_bar_goods(game_state)
+    return [(names[i], names[i + 1] if i + 1 < len(names) else None) for i in range(0, len(names), 2)]
 
 
 def _get_town_for_stats(game_state: "GameState") -> Optional[Any]:
@@ -275,7 +287,12 @@ def _draw_top_bar(
     good_slots: List[tuple] = []
 
     offset = clamp_top_bar_offset(game_state)
-    visible_columns = TOP_BAR_GOOD_COLUMNS[offset:offset + TOP_BAR_VISIBLE_COLUMNS]
+    columns = top_bar_columns(game_state)
+    visible_columns = columns[offset:offset + TOP_BAR_VISIBLE_COLUMNS]
+    if not columns:
+        hint = getattr(game_state, 'small_font', main_font).render(
+            "Goods you hold show here; right-click one in the market to pin it", True, DARK_GRAY)
+        screen.blit(hint, (start_x - 30, 22))
     for i, column in enumerate(visible_columns):
         text_x = start_x + (i * spacing)
         for row, good_name in enumerate(column):
@@ -344,7 +361,7 @@ def _draw_top_bar_rank(screen: pygame.Surface, main_font: pygame.font.Font,
 
 def clamp_top_bar_offset(game_state: "GameState") -> int:
     """Keep the top bar's scroll offset within the columns there are, and return it."""
-    max_offset = max(0, len(TOP_BAR_GOOD_COLUMNS) - TOP_BAR_VISIBLE_COLUMNS)
+    max_offset = max(0, len(top_bar_columns(game_state)) - TOP_BAR_VISIBLE_COLUMNS)
     offset = min(max(getattr(game_state, 'top_bar_goods_offset', 0), 0), max_offset)
     game_state.top_bar_goods_offset = offset
     return offset
@@ -363,10 +380,11 @@ def _draw_top_bar_arrows(
     mouse_pos: tuple,
 ) -> Dict[str, pygame.Rect]:
     """Draw the goods' scroll arrows; returns the rects of those that lead somewhere."""
-    if len(TOP_BAR_GOOD_COLUMNS) <= TOP_BAR_VISIBLE_COLUMNS:
+    column_count = len(top_bar_columns(game_state))
+    if column_count <= TOP_BAR_VISIBLE_COLUMNS:
         return {}
 
-    max_offset = len(TOP_BAR_GOOD_COLUMNS) - TOP_BAR_VISIBLE_COLUMNS
+    max_offset = column_count - TOP_BAR_VISIBLE_COLUMNS
     menu_is_open = (
         (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
         or bool(getattr(game_state, 'info_window', None))

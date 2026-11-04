@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
+from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, DEFAULT_TRADE_QUANTITY, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
 SAVE_VERSION = 3   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
                    # 3: the economy is the "sim" block (src/sim/), with its own "sim_version"; "goods" keeps only how the UI shows them
@@ -130,6 +130,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "chart_selection_order": list(getattr(game_state, "chart_selection_order", [])),
             "quicktrade_slots": {k: list(v) for k, v in getattr(game_state, "quicktrade_slots", {}).items()},
             "good_quantities": dict(getattr(game_state, "good_quantities", {})),
+            "pinned_goods": list(getattr(game_state, "pinned_goods", [])),
             "event_log": [
                 {**e, "timestamp": _dt_to_str(e["timestamp"])}
                 for e in getattr(game_state, "event_log", [])
@@ -443,15 +444,11 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     }
     game_state.quicktrade_slots.update({k: list(v) for k, v in gs.get("quicktrade_slots", {}).items()})
     game_state.event_log = _dt_list(gs.get("event_log", []), "timestamp")
-    default_qtys = {
-        "Wood": "6", "Stone": "6", "Iron": "2", "Wool": "2", "Hide": "2",
-        "Fish": "2", "Wheat": "2", "Wine": "2", "Beer": "2",
-        "Meat": "2", "Pottery": "2", "Linen": "2",
-        "Candle": "2", "Herbs": "2", "Salt": "2",
-    }
+    default_qtys = {name: DEFAULT_TRADE_QUANTITY for name in getattr(game_state, "available_goods", [])}
     saved_qtys = gs.get("good_quantities", {})
     default_qtys.update(saved_qtys)
     game_state.good_quantities = default_qtys
+    game_state.pinned_goods = [g for g in gs.get("pinned_goods", []) if g in default_qtys]
     # Sync time-tracker fields to restored date so hourly/daily events fire correctly
     game_state.sync_time_trackers()
 

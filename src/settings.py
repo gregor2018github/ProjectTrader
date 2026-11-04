@@ -11,6 +11,11 @@ if TYPE_CHECKING:
     from .game import Game
     from .models.good import Good
 
+COLOR_ROWS = 4             # swatches a column on the chart colors page
+COLOR_COLUMN_W = 150       # a column's width, swatch and name
+COLOR_MARGIN_X = 40        # space either side of the columns
+
+
 class SettingsWindow:
     """A modal window for configuring game settings, such as commodity colors.
     
@@ -65,24 +70,12 @@ class SettingsWindow:
         
         # Predefined allowed colors for goods
         self.allowed_colors: List[Tuple[int, int, int]] = [RED, GREEN, BLUE, YELLOW, ORANGE, PURPLE, PINK, DARK_GRAY, LIGHT_GRAY, BLACK]
-        # Build color entries if game and its goods exist using grid layout (max 4 per column)
-        self.color_entries: List[Tuple['Good', pygame.Rect]] = []  # List of tuples: (good, rect)
-        if self.game and hasattr(self.game, 'goods'):
-            entry_width: int = 20
-            entry_height: int = 20
-            gap_y: int = 10
-            gap_x: int = 80  # horizontal spacing between columns
-            start_y: int = self.window_rect.top + 100
-            start_x: int = self.window_rect.left + 240
-            count: int = 0
-            for good in self.game.goods:
-                row = count % 4
-                col = count // 4
-                x = start_x + col * (entry_width + gap_x)
-                y = start_y + row * (entry_height + gap_y)
-                entry_rect = pygame.Rect(x, y, entry_width, entry_height)
-                self.color_entries.append((good, entry_rect))
-                count += 1
+        # Color entries in a grid of COLOR_ROWS a column; when the columns do not all fit,
+        # the mouse wheel scrolls them sideways (color_scroll: the first column shown)
+        self.color_goods: List['Good'] = list(self.game.goods) if self.game and hasattr(self.game, 'goods') else []
+        self.color_entries: List[Tuple['Good', pygame.Rect]] = []  # the swatches shown: (good, rect)
+        self.color_scroll: int = 0
+        self._layout_color_entries()
         # New properties for color wheel overlay
         self.active_color_wheel: Optional[ColorWheel] = None  # Instance of ColorWheel if open
         self.color_wheel_target: Optional['Good'] = None    # The good whose color is being changed
@@ -110,6 +103,31 @@ class SettingsWindow:
             btn_rect = pygame.Rect(0, 0, 240, 42)
             btn_rect.midtop = (self.choose_rect.centerx, self.choose_rect.top + 95 + i * 58)
             self.choose_buttons.append((btn_rect, label))
+
+    def _color_columns(self) -> Tuple[int, int]:
+        """How many columns of swatches there are, and how many fit."""
+        total = (len(self.color_goods) + COLOR_ROWS - 1) // COLOR_ROWS
+        fit = max(1, (self.window_rect.width - 2 * COLOR_MARGIN_X) // COLOR_COLUMN_W)
+        return total, fit
+
+    def _layout_color_entries(self) -> None:
+        """Place the swatches of the columns in view."""
+        total, fit = self._color_columns()
+        self.color_scroll = max(0, min(self.color_scroll, total - fit))
+        self.color_entries = []
+        for index, good in enumerate(self.color_goods):
+            col = index // COLOR_ROWS - self.color_scroll
+            if not 0 <= col < fit:
+                continue
+            x = self.window_rect.left + COLOR_MARGIN_X + col * COLOR_COLUMN_W
+            y = self.window_rect.top + 100 + (index % COLOR_ROWS) * 30
+            self.color_entries.append((good, pygame.Rect(x, y, 20, 20)))
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        """The mouse wheel scrolls the chart colors sideways when not all goods fit."""
+        if self.mode == "colors" and not self.active_color_wheel and event.type == pygame.MOUSEWHEEL:
+            self.color_scroll -= event.y if event.y else event.x
+            self._layout_color_entries()
 
     def _draw_frame(self, rect: pygame.Rect) -> None:
         """Dim the screen and draw the window's background (the game frame if available)."""
@@ -168,6 +186,12 @@ class SettingsWindow:
             name_surface = self.font.render(good.name, True, BLACK)
             name_rect = name_surface.get_rect(midleft=(rect.right + 10, rect.centery))
             self.screen.blit(name_surface, name_rect)
+        total, fit = self._color_columns()
+        if total > fit:
+            left = "< " if self.color_scroll > 0 else "  "
+            right = " >" if self.color_scroll < total - fit else "  "
+            hint = self.font.render(f"{left}Scroll for more goods{right}", True, DARK_GRAY)
+            self.screen.blit(hint, hint.get_rect(center=(self.window_rect.centerx, self.window_rect.top + 88)))
         
         self._draw_buttons(self.buttons)
         # If a color wheel is active, draw it as an overlay.
@@ -176,7 +200,7 @@ class SettingsWindow:
 
     def _discard_colors(self) -> None:
         """Revert temporary changes: restore from saved color_current."""
-        for good, _ in self.color_entries:
+        for good in self.color_goods:
             good.color_temp = good.color_current
             good.color = good.color_temp
 
@@ -268,13 +292,13 @@ class SettingsWindow:
                     return label
                 elif label == "Default Colors":
                     # Revert all settings to original defaults from color_orig.
-                    for good, _ in self.color_entries:
+                    for good in self.color_goods:
                         good.color_temp = good.color_orig
                         good.color = good.color_temp
                     return None
                 elif label == "Save and Close":
                     # Accept changes: copy temporary color into color_current.
-                    for good, _ in self.color_entries:
+                    for good in self.color_goods:
                         good.color_current = good.color_temp
                         good.color = good.color_temp
                     return label
