@@ -862,7 +862,8 @@ class TMXMap:
     def _load_movements(self) -> None:
         """Load NPC movement zones from the 'Movements' object layer.
 
-        Sheep take a rectangle (they only wander left and right inside it).
+        Sheep take a rectangle (they only wander left and right inside it),
+        and an optional ``Wool`` property (``brown``, ``white`` or ``dark``).
         Traders take a polygon or polyline around their stall, which they walk
         along, plus an optional way home. Where several traders name the same
         shapes they are put on one rota, which sends one of them out a day.
@@ -872,8 +873,12 @@ class TMXMap:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Movements":
                 for obj in layer:
                     if obj.name == "Sheep":
+                        # A "Wool" property picks the fleece; without one every
+                        # second sheep is white, so the flock is not all alike
+                        default = "white" if len(self.sheep) % 2 else "brown"
+                        wool = str(obj.properties.get("Wool", default)).lower()
                         self.sheep.append(
-                            Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size)
+                            Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size, wool)
                         )
                     elif obj.name:
                         objects_by_name[obj.name] = obj

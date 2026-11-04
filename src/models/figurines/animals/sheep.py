@@ -11,14 +11,17 @@ SHEEP_SPEED = 40.0          # pixels per second at base tile_size=32
 STOP_CHANCE_PER_SEC = 0.15  # probability per second to stop mid-walk
 STOP_MIN_DURATION = 10.0    # seconds
 STOP_MAX_DURATION = 20.0    # seconds
-SOUND_MIN_INTERVAL = 15.0   # minimum seconds between sheep sounds
-SOUND_MAX_INTERVAL = 35.0   # maximum seconds between sheep sounds
+SOUND_MIN_INTERVAL = 22.5   # minimum seconds between one sheep's bleats
+SOUND_MAX_INTERVAL = 52.5   # maximum (a third fewer since the flock grew to three)
 EAT_CHANCE_PER_STOP = 0.35  # probability to start eating when a rest stop begins
 EAT_MIN_DURATION = 3.0      # minimum eating duration in seconds
 EAT_MAX_DURATION = 8.0      # maximum eating duration in seconds
 EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat2)
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 HEART_DURATION = 1.4        # seconds the heart floats up after petting
+
+# Wool colour -> sprite folder (and file prefix) under ANIMAL_SPRITE_ROOT
+WOOLS = {"brown": "sheep", "white": "white_sheep", "dark": "dark_sheep"}
 
 
 class Sheep(Animal):
@@ -33,36 +36,40 @@ class Sheep(Animal):
         zone_width: float,
         zone_height: float,
         tile_size: int,
+        wool: str = "brown",
     ) -> None:
         super().__init__(zone_x, zone_y, tile_size)
         self.sprite_width = int(1.5 * tile_size)  # 48 px at base zoom
 
-        sprite_dir = os.path.join(ANIMAL_SPRITE_ROOT, 'sheep')
+        # Each wool has its own sprite folder, the files named after it
+        self.wool = wool if wool in WOOLS else "brown"
+        name = WOOLS[self.wool]
+        sprite_dir = os.path.join(ANIMAL_SPRITE_ROOT, name)
         sprite_definitions: Dict = {
             "front": {
-                "static": "sheep_right_static.png",
+                "static": f"{name}_right_static.png",
                 "move": [],
             },
             "back": {
-                "static": "sheep_right_static.png",
+                "static": f"{name}_right_static.png",
                 "move": [],
             },
             "left": {
-                "static": "sheep_left_static.png",
+                "static": f"{name}_left_static.png",
                 "move": [
-                    "sheep_left_move1.png",
-                    "sheep_left_move2.png",
-                    "sheep_left_move3.png",
-                    "sheep_left_move4.png",
+                    f"{name}_left_move1.png",
+                    f"{name}_left_move2.png",
+                    f"{name}_left_move3.png",
+                    f"{name}_left_move4.png",
                 ],
             },
             "right": {
-                "static": "sheep_right_static.png",
+                "static": f"{name}_right_static.png",
                 "move": [
-                    "sheep_right_move1.png",
-                    "sheep_right_move2.png",
-                    "sheep_right_move3.png",
-                    "sheep_right_move4.png",
+                    f"{name}_right_move1.png",
+                    f"{name}_right_move2.png",
+                    f"{name}_right_move3.png",
+                    f"{name}_right_move4.png",
                 ],
             },
         }
@@ -71,7 +78,7 @@ class Sheep(Animal):
             sprite_dir=sprite_dir,
             sprite_definitions=sprite_definitions,
             target_width=self.sprite_width,
-            fallback_static="sheep_right_static.png",
+            fallback_static=f"{name}_right_static.png",
         )
         # Sheep are slower than the player — use a wider frame interval
         self.animator.frame_interval *= 1.5
@@ -84,7 +91,7 @@ class Sheep(Animal):
             sources = []
             scaled_list = []
             for i in (1, 2):
-                filename = f"sheep_{dir_name}_eat{i}.png"
+                filename = f"{name}_{dir_name}_eat{i}.png"
                 path = os.path.join(sprite_dir, filename)
                 try:
                     src = pygame.image.load(path).convert_alpha()
@@ -169,6 +176,7 @@ class Sheep(Animal):
             state = f"resting, {self.stop_timer:.1f} s left"
         return super().inspect_lines(observer) + [
             "**Behaviour**",
+            f"Wool: {self.wool}",
             f"State: {state}",
             f"Zone: X={round(self.zone_left, 1)} to {round(self.zone_right, 1)}",
             f"Next bleat in: {self.sound_timer:.1f} s",
