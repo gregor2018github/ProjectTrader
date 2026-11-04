@@ -2,41 +2,42 @@
 
 ## High Priority
 
-- [ ] fix player animation to run down (repeats too fast currently)
-- [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
-- [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
-- [ ] add two more houses with different designs
-- [x] compress the calendar for a game spanning generations: a game day is ~4 real minutes at normal speed, so a year takes ~24 real hours; decide on a shorter year (e.g. 4 seasons × 7 days, ageing once a year) before the dynasty system (see docs/roadmap.md, open questions)
+- [ ] add snow animation for winter season
+- [ ] have a big warehouse close to the market area, that one will be expensive and needs higher stage to be unlocked
+- [ ] find a skill on how to place new houses with the agent (something where I can shift the sprite and say "place here")
+- [ ] add three more houses with different designs between two marketplaces
+- [ ] have sprite manager routines for fences
+- [ ] make new sprites for the new products
 
 ## Medium Priority
 
-- [ ] have a big warehouse close to the market area, that one will be expensive and needs reputation to be unlocked
-- [ ] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
-- [ ] add sprites of oak trees or linden trees as a second type of tree
-- [ ] numerate the assets with visible numbers on the tilesets so that you don't have to count them every time - especially for trees
-- [ ] plant more trees to increase the size of the forest
+- [ ] food in the pubs must become buyable as individual plates
+- [ ] make a prototype food plate design - then set the sprite manager up for it
+- [ ] also create the player running animations with the sprite manager and gemini (currently still legacy sprites)
+- [ ] have actual images of the food plates bought by the player that you see when you bought them
+- [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
+- [ ] unify the contract text parts. it should all be stored in one file instead of two per contract type
+- [ ] make new contracts for the new products
+- [ ] add different walking sounds for different surfaces (grass, bridge, snow, etc)
+- [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] integrate reputation system with different factions (church, city, guilds, population types, etc)
-- [ ] rethink the market mechanics - supply and demand, city size influence, etc.
-- [ ] improve the water animation, actually split it into sea and river tiles
-- [ ] add a bridge to go over the river
-- [ ] try to make an alternative female player sprite by using the complete set of sprites as once and then upscaling the generation result
-- [x] implement a merchant rank system
+- [ ] improve the water animation to fit more with the rest of the game, also split it into sea and river tiles
 - [ ] decide the merchant rank perks: unlocks (kept for good, by the highest rank reached) and bonuses (by the rank held)
 - [ ] more sources of reputation (quests, guild duties, feasts), for and against
+- [ ] add linden trees as a new type of tree
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
 
 ## Planned Features
 
-- [ ] info windows that have a "OK" button at the bottom should have several alternative words at the bottom that sound more medieval (e.g., "I understand", "I will consider it", "So be it"...)
 - [ ] add a profit overview in the depot detail view, where you can see how much profit you made and where it came from (goods, contracts, interest, etc.)
 - [ ] upscale town hall sprite (it is a bit mushy right now)
 - [ ] upscale church sprite (it is a bit mushy right now)
-- [ ] Add sound effects for birds chirping during the day and crickets at night
 - [ ] Market events
-- [ ] wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free for it all round the L, a gate towards the farmhouse); needs fence sprites first
+- [ ] make an alternative female player sprite
 - [ ] Warehouse upgrades
 - [ ] Price influenced by Supply and Demand
 - [ ] add candles, salts and herbs as tradable goods
+- [ ] info windows that have a "OK" button at the bottom should have several alternative words at the bottom that sound more medieval (e.g., "I understand", "I will consider it", "So be it"...)
 - [ ] Integrate a system to swap between different maps (e.g., town, house, shop)
 - [ ] Revisite the Depot detail view window and add more statistics and graphs as soon as more game depth is implemented
 - [ ] Let the player hire an support trader, but that one will take a daily wage
@@ -51,8 +52,13 @@
 
 ## Finished Features
 
+- [x] Add sound effects for birds chirping during the day and crickets at night
+- [x] implement a merchant rank system
+- [x] add a bridge to go over the river
+- [x] increase the size of the field (also check the influence on the performance, it seems to be a hard hit)
+- [x] plant more trees to increase the size of the forest
+- [x] compress the calendar for a game spanning generations: a game day is ~4 real minutes at normal speed, so a year takes ~24 real hours; decide on a shorter year (e.g. 4 seasons × 7 days, ageing once a year) before the dynasty system (see docs/roadmap.md, open questions)
 - [x] a ploughed field (furrows up and down) south of the farm road, with the farmhouse (thatched cottage, House_25 at Scale 0.5) in its lower right corner
-
 - [x] have a second warehouse at the right side of the map which is a bit bigger than Fred's shed (the Old Barn: 600 gold, +250 storage)
 - [x] bugfix: charts for meat and wine (redish colors) flicker in the speed level fast, not on the fastest mode though, something might overlap with the background
 - [x] some walking sprites flicker due to slight color differences, especially in the faces, align all sprites of one animation through a new algorithm in the sprite processing pipeline
