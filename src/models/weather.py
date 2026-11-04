@@ -12,6 +12,11 @@ reach the spell's cover (rain_ceiling()), so out of a clear sky the clouds
 gather first and the rain follows; as it clears, the rain eases off before
 the clouds go.
 
+The seasons bend the spells (WEATHER_BY_SEASON): factors on the weights of what
+follows a spell and on how long a kind lasts, by the season of the game calendar
+at the time the spell starts, and on all fog: Summer is drier, has no fog and
+alone has thunderstorms; Autumn is wetter and foggier.
+
 A thunderstorm's `storm` level (0 to 1, the spell's "storm", 0 for every
 other kind) glides like the clouds: it darkens the sky beyond the rain
 clouds (map_view) and brings the lightning (models/lightning.py).
@@ -39,8 +44,9 @@ import random
 from typing import Any, Dict, Optional
 
 from ..config.constants import (
-    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
+    FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_BY_SEASON, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
 )
+from .game_calendar import SEASONS, game_date
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather
 
@@ -75,6 +81,7 @@ class Weather:
     def __init__(self, rng: Optional[random.Random] = None, kind: str = WEATHER_START,
                  partway: bool = False) -> None:
         self.rng = rng or random.Random()
+        self.season: str = SEASONS[0]   # of the game calendar, from update(); bends the spells (WEATHER_BY_SEASON)
         self.wind_side = 1 if self.rng.random() < 0.5 else -1
         self._start_spell(kind)
         if partway:
@@ -95,6 +102,7 @@ class Weather:
 
     def _start_spell(self, kind: str) -> None:
         self.kind = kind
+        self.forced = False   # set by force() (debug): such a spell keeps its fog whatever the season
         hours = WEATHER_SPELLS[kind]["hours"]
         if len(hours) > 2:
             # (shortest, longest, median): skewed so that half are shorter than the median and
@@ -104,18 +112,35 @@ class Weather:
             self.hours_left: float = shortest + (longest - shortest) * self.rng.random() ** power
         else:
             self.hours_left = self.rng.uniform(hours[0], hours[1])
+        self.hours_left *= self._season_factor("hours", kind)
         if self.rng.random() < WEATHER_WIND_TURN_CHANCE:
             self.wind_side = -self.wind_side
 
+    def _season_fog(self) -> float:
+        """The season's factor on all fog, the spells' and the wet ground's (1 if it names none);
+        a spell started or held from the debug page keeps its fog whatever the season."""
+        if self.held or self.forced:
+            return 1.0
+        return WEATHER_BY_SEASON.get(self.season, {}).get("fog", 1.0)
+
+    def _season_factor(self, part: str, kind: str) -> float:
+        """The season's factor on a kind's `part` ("next" weight or "hours"), 1 if it names none."""
+        return WEATHER_BY_SEASON.get(self.season, {}).get(part, {}).get(kind, 1.0)
+
     def _next_kind(self) -> str:
         weights = WEATHER_SPELLS[self.kind]["next"]
-        return self.rng.choices(list(weights), weights=list(weights.values()))[0]
+        kinds = list(weights)
+        seasonal = [weights[k] * self._season_factor("next", k) for k in kinds]
+        if sum(seasonal) <= 0:
+            # The season rules out everything that may follow (fog running into Summer): it clears up
+            return WEATHER_START
+        return self.rng.choices(kinds, weights=seasonal)[0]
 
     def fog_target(self) -> float:
         """The fog the weather is heading for now: the spell's or the wet ground's, as the hour allows."""
         ground = FOG_FROM_WETNESS * self.wetness * (1.0 - min(1.0, self.rain * 4))
         share = 1.0 if self._hour is None or self.held else fog_share_at(self._hour)
-        return max(WEATHER_SPELLS[self.kind].get("fog", 0.0), ground) * share
+        return max(WEATHER_SPELLS[self.kind].get("fog", 0.0), ground) * share * self._season_fog()
 
     @property
     def is_raining(self) -> bool:
@@ -125,6 +150,7 @@ class Weather:
         """Advance by however much game time has passed since the last call."""
         last, self._last_date = self._last_date, date
         self._hour = date.hour + date.minute / 60.0
+        self.season = game_date(date).season_name
         if last is None:
             return
         minutes = min((date - last).total_seconds() / 60.0, MAX_STEP_MINUTES)
@@ -165,6 +191,7 @@ class Weather:
         """Start a spell of *kind* now (debug). The levels develop towards it as they would anyway,
         and it lasts at least as long as that takes plus its shortest length, so it is seen in full."""
         self._start_spell(kind)
+        self.forced = True
         spell = WEATHER_SPELLS[kind]
         building = (abs(spell["clouds"] - self.clouds) + abs(spell["rain"] - self.rain)
                     + abs(spell.get("storm", 0.0) - self.storm)) / WEATHER_GLIDE_PER_HOUR

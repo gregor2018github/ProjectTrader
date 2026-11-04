@@ -6,6 +6,7 @@ import random
 import pytest
 
 from src.models import weather as weather_module
+from src.models.game_calendar import EPOCH
 from src.models.weather import Weather
 
 SPELLS = {
@@ -17,6 +18,7 @@ SPELLS = {
 @pytest.fixture
 def weather(monkeypatch):
     monkeypatch.setattr(weather_module, "WEATHER_SPELLS", SPELLS)
+    monkeypatch.setattr(weather_module, "WEATHER_BY_SEASON", {})      # the seasons have tests of their own
     monkeypatch.setattr(weather_module, "WEATHER_GLIDE_PER_HOUR", 0.5)
     monkeypatch.setattr(weather_module, "WEATHER_WIND_TURN_CHANCE", 0.0)
     w = Weather(random.Random(1), kind="clear")
@@ -207,3 +209,72 @@ def test_storm_level_glides_in_and_out(weather, monkeypatch):
     weather.force("clear")                             # a spell without a storm level calms it
     weather.advance(1.0)
     assert weather.storm == pytest.approx(0.0)
+
+
+# THE SEASONS
+
+FORK = {
+    "clear": {"rain": 0.0, "clouds": 0.0, "wind": 0.0, "hours": (2.0, 2.0), "next": {"wet": 1.0, "dry": 1.0}},
+    "wet":   {"rain": 1.0, "clouds": 1.0, "wind": 0.0, "hours": (3.0, 3.0), "next": {"clear": 1.0}},
+    "dry":   {"rain": 0.0, "clouds": 0.0, "wind": 0.0, "hours": (3.0, 3.0), "next": {"clear": 1.0}},
+}
+SEASONAL = {"Autumn": {"next": {"wet": 9.0}, "hours": {"clear": 0.5}}}
+SPRING = datetime.datetime.combine(EPOCH, datetime.time(8))                 # the 1st of Spring
+AUTUMN = SPRING + datetime.timedelta(days=14)                              # the 1st of Autumn
+
+
+@pytest.fixture
+def seasonal(monkeypatch):
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", FORK)
+    monkeypatch.setattr(weather_module, "WEATHER_BY_SEASON", SEASONAL)
+    return Weather(random.Random(2), kind="clear")
+
+
+def wet_share(weather, date, draws=2000):
+    weather.update(date)
+    weather.kind = "clear"
+    return sum(weather._next_kind() == "wet" for _ in range(draws)) / draws
+
+
+def test_the_season_weighs_what_comes_next(seasonal):
+    assert 0.45 < wet_share(seasonal, SPRING) < 0.55       # Spring is not named: even odds
+    assert 0.85 < wet_share(seasonal, AUTUMN) < 0.95       # Autumn: 9 to 1
+
+
+def test_the_season_stretches_or_shortens_a_spell(seasonal):
+    seasonal.update(SPRING)
+    seasonal._start_spell("clear")
+    assert seasonal.hours_left == 2.0
+    seasonal.update(AUTUMN)
+    seasonal._start_spell("clear")
+    assert seasonal.hours_left == 1.0
+
+
+def test_the_season_follows_the_calendar(seasonal):
+    seasonal.update(AUTUMN + datetime.timedelta(days=7))
+    assert seasonal.season == "Winter"
+
+
+def test_a_season_without_fog_keeps_every_mist_away(monkeypatch):
+    spells = {"mist": {"rain": 0.0, "clouds": 0.0, "wind": 0.0, "fog": 0.8, "hours": (5.0, 5.0),
+                       "next": {"mist": 1.0}}}
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", spells)
+    monkeypatch.setattr(weather_module, "WEATHER_BY_SEASON", {"Summer": {"fog": 0.0}})
+    monkeypatch.setattr(weather_module, "FOG_BY_HOUR", ((0.0, 1.0), (24.0, 1.0)))
+    weather = Weather(random.Random(3), kind="mist")
+    weather.wetness = 1.0                                   # wet ground would breathe some too
+    weather.update(SPRING)
+    assert weather.fog_target() == pytest.approx(0.8)
+    weather.update(SPRING + datetime.timedelta(days=7))     # the 1st of Summer
+    assert weather.fog_target() == 0.0
+    weather.force("mist")                                   # the debug page still shows it
+    assert weather.fog_target() == pytest.approx(0.8)
+
+
+def test_a_spell_with_nothing_the_season_allows_after_it_clears_up(monkeypatch):
+    spells = dict(FORK, fog={"rain": 0.0, "clouds": 0.0, "wind": 0.0, "hours": (1.0, 1.0), "next": {"wet": 1.0}})
+    monkeypatch.setattr(weather_module, "WEATHER_SPELLS", spells)
+    monkeypatch.setattr(weather_module, "WEATHER_BY_SEASON", {"Summer": {"next": {"wet": 0.0}}})
+    weather = Weather(random.Random(3), kind="fog")
+    weather.update(SPRING + datetime.timedelta(days=7))
+    assert weather._next_kind() == "clear"

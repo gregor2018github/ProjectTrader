@@ -314,6 +314,25 @@ WEATHER_SPELLS = {
     "fog":      {"rain": 0.0,  "clouds": 0.4,  "wind": 0.01, "fog": 1.0, "hours": (6.0, 12.0),
                  "next": {"mist": 1.0}},
 }
+# How the seasons (game_calendar.py) bend the weather: per season, factors on the weights of the spells
+# that may come next ("next": how often a kind follows), on how long a kind lasts ("hours") and on all fog
+# ("fog": the spells' and the wet ground's, so 0 keeps every mist away); a kind or season not named keeps
+# its WEATHER_SPELLS values. Showers start from an overcast sky (drizzle), so their weight sets how often it
+# rains, and longer or shorter clear spells space them out. A thunderstorm comes only out of rain or a
+# downpour, so its weight decides which showers turn stormy: none but in Summer, and there most of them.
+# Spring and Winter are WEATHER_SPELLS without the storms. Summer is drier, without mist or fog, and its
+# showers mostly end in thunder; Autumn is wetter and foggy. Over many years that makes about this share
+# of hours with rain / with fog, and storms a season:
+# Spring 8% / 6%, none; Summer 6% / 0%, 0.5 (one every other summer); Autumn 16% / 16%, none; Winter 9% / 8%,
+# none. A fog spell running on into Summer, with nothing allowed to follow it, clears up (WEATHER_START).
+WEATHER_BY_SEASON = {
+    "Spring": {"next": {"storm": 0.0}},
+    "Summer": {"next": {"drizzle": 0.35, "mist": 0.0, "fog": 0.0, "storm": 10.0, "rain": 0.5}, "hours": {"clear": 1.4},
+               "fog": 0.0},
+    "Autumn": {"next": {"drizzle": 4.5, "overcast": 2.0, "mist": 2.0, "fog": 2.0, "storm": 0.0},
+               "hours": {"clear": 0.5, "mist": 1.2, "fog": 1.2}},
+    "Winter": {"next": {"storm": 0.0}},
+}
 WEATHER_START = "clear"              # The weather a new game starts in, somewhere along the spell (not always at its start)
 WEATHER_GLIDE_PER_HOUR = 0.6         # How fast rain, clouds and wind change towards a new spell's, per game hour (1.0 is all of it)
 RAIN_FROM_CLOUDS = 0.4               # Rain only sets in once the sky is this overcast, and is at full strength when the spell's clouds are there
