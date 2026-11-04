@@ -19,7 +19,8 @@ from .models.merchant_rank import MerchantRank
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
-from .sim import DataError, GoodDef, Simulation, load_goods
+from .sim import DataError, GoodDef, Simulation, load_goods, load_needs
+from .sim.systems.population import class_shares
 from .sim.rng import new_seed
 from .sim.events import SimEvent
 from .config import colors
@@ -96,14 +97,14 @@ class Game:
         self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
 
-        # The economy (src/sim/): the goods from assets/data/goods.json, on a fresh seed
-        # (shown on the weather debug page, so a bug report can name it)
+        # The economy (src/sim/): the goods from assets/data/goods.json, the classes'
+        # needs from needs.json, on a fresh seed (shown on the weather debug page, so
+        # a bug report can name it). It is run ahead once the town is founded, below.
         good_defs = load_goods()
-        self.sim: Simulation = Simulation(good_defs, now=self.state.date, seed=new_seed())
+        needs = load_needs([d.name for d in good_defs], [name for name, _ in class_shares()])
+        self.sim: Simulation = Simulation(good_defs, needs, now=self.state.date, seed=new_seed())
         self.goods: List[Good] = self._initialize_goods(good_defs)
         self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
-        # Charts open with a history, and the game at an already drifted price
-        self.sim.presimulate(MARKET_PRESIMULATION_DAYS)
 
         # Clear sky, cloud and rain, going on with the game's clock
         self.weather: Weather = Weather(partway=True)
@@ -138,6 +139,8 @@ class Game:
         if self.town is not None:
             self.sim.found_town(town_spec)
             self.town.attach(self.sim)
+        # The economy runs ahead, so the charts open with a history and the town on its feet
+        self.sim.presimulate(MARKET_PRESIMULATION_DAYS)
 
         self.population_manager: Optional[PopulationManager] = (
             PopulationManager(self.sim, self.town) if self.town else None

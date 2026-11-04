@@ -1,15 +1,14 @@
-"""The town's people: hourly happiness drift and daily migration, per social class.
+"""The town's people: head counts per social class, their happiness and migration.
 
-Functions on a ``PopulationState`` (and the simulation's random generator where
-they draw), the rules ``PopulationManager`` had before the simulation core was
-split out, kept to the last bit. They are placeholders: P1 (``docs/roadmap.md``)
-replaces the random drift with needs met from the market.
+Functions on a ``PopulationState``. Happiness glides each hour towards a
+target per class: what its needs earned (``households.needs_happiness``) moved
+by crowding, as before. Migration follows the average happiness, as before.
+Nothing here draws from the random generator.
 """
-import random
 from typing import Dict, List, Tuple
 
 from ...config.constants import (
-    HAPPINESS_DRIFT_SIGMA, HAPPINESS_EQUILIBRIUM, HAPPINESS_START, HAPPINESS_THRESHOLD,
+    HAPPINESS_GLIDE, HAPPINESS_START, HAPPINESS_THRESHOLD,
     MAX_DAILY_POPULATION_CHANGE, NEAR_CAPACITY_MALUS_PER_PERCENT, NEAR_CAPACITY_THRESHOLD,
     OVERPOP_MALUS_PER_PERCENT, POPULATION_MAX_FACTOR, POPULATION_MIN_FACTOR,
     POPULATION_SHARE_COMMONS, POPULATION_SHARE_MIDDLING_SORT, POPULATION_SHARE_NOBILITY,
@@ -17,8 +16,6 @@ from ...config.constants import (
     UNDERPOP_THRESHOLD_HIGH, UNDERPOP_THRESHOLD_LOW,
 )
 from ..state import ClassState, PopulationState, TownSpec
-
-HAPPINESS_REVERSION = 0.05      # share of the gap to the equilibrium a class's happiness closes each hour
 
 
 def class_shares() -> List[Tuple[str, float]]:
@@ -65,6 +62,7 @@ def create_population(town: TownSpec) -> PopulationState:
     groups = split_into_classes(citizens)
     classes = {
         name: ClassState(name=name, count=count, base=count, happiness=float(HAPPINESS_START),
+                         happiness_target=float(HAPPINESS_START),
                          happiness_history=[float(HAPPINESS_START)], population_history=[count])
         for name, count in groups.items()
     }
@@ -82,50 +80,53 @@ def average_happiness(pop: PopulationState) -> float:
     total_pop = sum(c.count for c in pop.classes.values())
     if total_pop == 0:
         groups = [c.happiness for c in pop.classes.values()]
-        return sum(groups) / len(groups) if groups else HAPPINESS_EQUILIBRIUM
+        return sum(groups) / len(groups) if groups else float(HAPPINESS_START)
     weighted = sum(c.happiness * c.count for c in pop.classes.values())
     return weighted / total_pop
 
 
-def update_happiness(pop: PopulationState, rng: random.Random) -> None:
-    """An hour's happiness drift for each class (one draw from *rng* per class).
+def average_target(pop: PopulationState) -> float:
+    """Population-weighted average of the classes' target happiness."""
+    total = sum(c.count for c in pop.classes.values())
+    if total == 0:
+        return float(HAPPINESS_START)
+    return sum(c.happiness_target * c.count for c in pop.classes.values()) / total
 
-    Each class gets a small random nudge, a weak pull towards its equilibrium,
-    and a crowding penalty on that equilibrium (from NEAR_CAPACITY_THRESHOLD %
-    of its base, harder past 100 %) or a bonus when it is well under its base.
-    Clamped to [0, 100]; the town's happiness becomes the weighted average.
+
+def crowding_shift(cls: ClassState) -> float:
+    """How crowding moves a class's target happiness: a bonus well under its base, a penalty near and over it.
+
+    Two-stage: crowding starts at NEAR_CAPACITY_THRESHOLD % of the base, the full
+    penalty above 100 %.
     """
+    if cls.base > 0:
+        fill_pct = cls.count / cls.base * 100.0
+        near_capacity_pct = max(0.0, min(fill_pct, 100.0) - NEAR_CAPACITY_THRESHOLD)
+        overpop_pct = max(0.0, fill_pct - 100.0)
+    else:
+        fill_pct = 0.0
+        near_capacity_pct = 0.0
+        overpop_pct = 0.0
+    if fill_pct < UNDERPOP_THRESHOLD_LOW:
+        underpop_bonus = UNDERPOP_BONUS_LOW
+    elif fill_pct < UNDERPOP_THRESHOLD_HIGH:
+        underpop_bonus = UNDERPOP_BONUS_HIGH
+    else:
+        underpop_bonus = 0
+    return (underpop_bonus
+            - near_capacity_pct * NEAR_CAPACITY_MALUS_PER_PERCENT
+            - overpop_pct * OVERPOP_MALUS_PER_PERCENT)
+
+
+def set_target(cls: ClassState, from_needs: float) -> None:
+    """A class's target happiness: what its needs earned, moved by crowding, within [0, 100]."""
+    cls.happiness_target = max(0.0, min(100.0, from_needs + crowding_shift(cls)))
+
+
+def glide_happiness(pop: PopulationState) -> None:
+    """An hour's move of each class's happiness towards its target; the town's becomes the weighted average."""
     for cls in pop.classes.values():
-        current = cls.happiness
-        base_pop = cls.base
-        current_pop = cls.count
-
-        # Overpopulation penalty shifts the happiness equilibrium downward.
-        # Two-stage: crowding starts at NEAR_CAPACITY_THRESHOLD%, full penalty above 100%.
-        if base_pop > 0:
-            fill_pct = current_pop / base_pop * 100.0
-            near_capacity_pct = max(0.0, min(fill_pct, 100.0) - NEAR_CAPACITY_THRESHOLD)
-            overpop_pct = max(0.0, fill_pct - 100.0)
-        else:
-            fill_pct = 0.0
-            near_capacity_pct = 0.0
-            overpop_pct = 0.0
-        if fill_pct < UNDERPOP_THRESHOLD_LOW:
-            underpop_bonus = UNDERPOP_BONUS_LOW
-        elif fill_pct < UNDERPOP_THRESHOLD_HIGH:
-            underpop_bonus = UNDERPOP_BONUS_HIGH
-        else:
-            underpop_bonus = 0
-        effective_equilibrium = (HAPPINESS_EQUILIBRIUM
-                                 + underpop_bonus
-                                 - near_capacity_pct * NEAR_CAPACITY_MALUS_PER_PERCENT
-                                 - overpop_pct * OVERPOP_MALUS_PER_PERCENT)
-
-        noise = rng.normalvariate(0.0, HAPPINESS_DRIFT_SIGMA)
-        reversion = HAPPINESS_REVERSION * (effective_equilibrium - current)
-        new_happiness = current + noise + reversion
-        cls.happiness = max(0.0, min(100.0, new_happiness))
-
+        cls.happiness += HAPPINESS_GLIDE * (cls.happiness_target - cls.happiness)
     pop.happiness = average_happiness(pop)
 
 

@@ -55,8 +55,12 @@ def make_good():
     """Goods priced at 10g whose market holds 1,000, so orders of a few dozen
     stay inside the volume band where the price does not move."""
     def make(name: str = "Wood", price: float = 10.0, market_quantity: int = 1000) -> Good:
-        # Each good on a simulation of its own; the Good is only a view of it
-        sim = Simulation([GoodDef(name, price, market_quantity, "BLACK", 0, True)], now=START_DATE, seed=0)
+        # Each good on a simulation of its own, without a town, noise or a moving outside
+        # price, holding market_quantity as its target; the Good is only a view of it
+        definition = GoodDef(name, "BLACK", 0, True, outside_price=price, outside_volatility=0.0, noise_sigma=0.0)
+        sim = Simulation([definition], [], now=START_DATE, seed=0)
+        state = sim.good(name)
+        state.stock = state.target_stock = float(market_quantity)
         return Good(sim, name, (0, 0, 0), 0, True)
     return make
 

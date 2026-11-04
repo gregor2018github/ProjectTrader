@@ -1,17 +1,14 @@
 """Good, Town and PopulationManager hold no numbers of their own: they show the simulation's."""
-import datetime
-
 from src.models.good import Good
 from src.models.institutions.town import Town
 from src.models.population import PopulationManager
-from src.sim import GoodDef, Simulation, TownSpec
-
-START = datetime.datetime(1500, 1, 1, 8, 0)
+from src.sim import TownSpec
+from src.sim.systems import market
+from tests.sim.builders import good_def, plain_needs, simulation
 
 
 def make():
-    sim = Simulation([GoodDef("Wood", 4.0, 1000, "BLACK", 0, True)], now=START, seed=3,
-                     town=TownSpec([10, 10, 10, 10]))
+    sim = simulation(goods=[good_def("Wood", 4.0)], needs=plain_needs({"Wood": 0.5}), town=TownSpec([10, 10, 10, 10]))
     good = Good(sim, "Wood", (0, 0, 0), 0, True)
     town = Town(0, 0, "", 1, 1, 1, 1, 32)
     town.attach(sim)
@@ -21,31 +18,35 @@ def make():
 def test_a_good_shows_what_the_simulation_holds():
     sim, good, _, _ = make()
     state = sim.good("Wood")
-    state.walk_price = 7.5
-    state.market_quantity = 1000
-    state.upper_bound = 99.0
+    state.outside_price = 7.5
+    state.stock = state.target_stock = 1000.0
     state.price_history_ticks.append(1.25)
-    assert good.walk_price == 7.5 and good.price == 7.5
-    assert good.upper_bound == 99.0
+    assert good.outside_price == 7.5 and good.price == 7.5
+    assert good.market_quantity == 1000 and good.normal_quantity == 1000.0
     assert good.price_history_hourly[-1] == 1.25
-    state.market_quantity = 250        # scarce: the price shows it at once
+    state.stock = 250.4                # scarce: the price shows it at once, whole units are shown
     assert good.market_quantity == 250 and good.price > 7.5
 
 
 def test_a_good_follows_a_loaded_state():
     sim, good, _, _ = make()
-    other = Simulation([GoodDef("Wood", 4.0, 1000, "BLACK", 0, True)], now=START, seed=4)
-    other.good("Wood").walk_price = 2.0
+    other, _, _, _ = make()
+    other.good("Wood").outside_price = 2.0
+    other.good("Wood").stock = other.good("Wood").target_stock
     sim.load(other.to_dict())
-    assert good.walk_price == 2.0
+    assert good.outside_price == 2.0
 
 
-def test_a_trade_through_the_good_changes_the_simulation():
+def test_a_players_trade_through_the_good_changes_the_simulation():
     sim, good, _, _ = make()
-    good.buy(100)
-    assert sim.good("Wood").market_quantity == 900
+    before = sim.good("Wood").stock
+    cost = good.quote(10, buying=True)
+    good.buy(10)
+    assert sim.good("Wood").stock == before - 10
+    assert sim.good("Wood").today.player_bought == 10
+    assert sim.state.market_cash == cost
     good.apply_well_shock("Price goes down")
-    assert sim.good("Wood").well_shock_remaining_days > 0
+    assert sim.good("Wood").shock_days > 0 and market.reference(sim.good("Wood")) < 4.0
 
 
 def test_the_town_and_the_population_show_the_simulations_people():

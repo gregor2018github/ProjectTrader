@@ -87,3 +87,14 @@ def test_fridays_and_lent_are_fast_days():
 
 def test_the_depots_periods():
     assert cal.PERIOD_DAYS == {"Daily": 1, "Seasonal": 7, "Yearly": 28, "Total": None}
+
+
+def test_a_season_factor_holds_at_its_middle_and_blends_without_a_jump():
+    factors = {"Winter": 2.0}
+    middle_of_winter = datetime.datetime(1500, 1, 25, 12)          # day 24.5 of the year
+    assert cal.season_factor(factors, middle_of_winter) == pytest.approx(2.0)
+    assert cal.season_factor(factors, datetime.datetime(1500, 1, 11, 12)) == pytest.approx(1.0)   # Summer's middle
+    turn = datetime.datetime(1500, 1, 22)                           # Autumn turns to Winter at midnight
+    before, after = turn - datetime.timedelta(minutes=1), turn + datetime.timedelta(minutes=1)
+    assert cal.season_factor(factors, before) == pytest.approx(cal.season_factor(factors, after), abs=1e-3)
+    assert cal.season_factor({}, turn) == 1.0

@@ -1,0 +1,618 @@
+{
+ "classes": {
+  "Commons": {
+   "base": 225,
+   "count": 226,
+   "fulfilment": {
+    "basic": 1.0,
+    "comfort": 1.0,
+    "luxury": 0.28855282028340185
+   },
+   "happiness": 67.86262562868706,
+   "happiness_history_len": 673,
+   "happiness_history_sha256": "e7c930244e4b3200f92d0609e15280afc38e024732daf21aef929b6406058dc2",
+   "happiness_target": 68.33081281879218,
+   "name": "Commons",
+   "plan_len": 11,
+   "plan_sha256": "7929eafcc0f333eab13c271f157a34a23aa4be39bc336cf53eaf6d827d6a639f",
+   "population_history_len": 29,
+   "population_history_sha256": "6ecbd9c35e0db7696fec5d2f31a86b48d39bbd55bce894049abeac9b95c95a86",
+   "purse": 198.30027079591153,
+   "today": {
+    "income": 226.0,
+    "leaked": 0.0,
+    "spent": 38.211568289701894
+   },
+   "yesterday": {
+    "income": 226.0,
+    "leaked": 0.0,
+    "spent": 225.0370480141157
+   }
+  },
+  "Middling Sort": {
+   "base": 86,
+   "count": 87,
+   "fulfilment": {
+    "basic": 1.0,
+    "comfort": 1.0,
+    "luxury": 0.4085412864579466
+   },
+   "happiness": 62.45807061859884,
+   "happiness_history_len": 673,
+   "happiness_history_sha256": "99402e6096ddc7a5ceb362dc02dffb3d44963e54e35a52b46336101f931835a1",
+   "happiness_target": 62.63974720384593,
+   "name": "Middling Sort",
+   "plan_len": 12,
+   "plan_sha256": "1318f3dda69822ff9792d2c487eabb4787a02e9bf756ed8ab95d997302f47983",
+   "population_history_len": 29,
+   "population_history_sha256": "a5efdf5194b2bbeeb875ef03ab74911f2b3cb1fd35365c29920a42264df71349",
+   "purse": 187.99792119540254,
+   "today": {
+    "income": 217.5,
+    "leaked": 0.0,
+    "spent": 36.59755924534362
+   },
+   "yesterday": {
+    "income": 217.5,
+    "leaked": 0.0,
+    "spent": 215.61807062181063
+   }
+  },
+  "Nobility": {
+   "base": 13,
+   "count": 13,
+   "fulfilment": {
+    "basic": 1.0,
+    "comfort": 1.0,
+    "luxury": 0.2252325828597238
+   },
+   "happiness": 57.76713154023485,
+   "happiness_history_len": 673,
+   "happiness_history_sha256": "4a64047c7ae4386c6a8f67ddda178df6f0b1f4a347f0b1840be93f189156e99c",
+   "happiness_target": 57.56773311434378,
+   "name": "Nobility",
+   "plan_len": 12,
+   "plan_sha256": "929a0e8be6d04ee6d843d1fdd084e5d19535a8d57dc163d3fa1ddff9054c81f3",
+   "population_history_len": 29,
+   "population_history_sha256": "58d5fedee6d5ecbfde36704337b286333fae59b7187600522eeeef6f526fd893",
+   "purse": 112.92904467347121,
+   "today": {
+    "income": 130.0,
+    "leaked": 0.0,
+    "spent": 21.821339358311423
+   },
+   "yesterday": {
+    "income": 130.0,
+    "leaked": 0.0,
+    "spent": 128.76550459097433
+   }
+  },
+  "Poor": {
+   "base": 108,
+   "count": 108,
+   "fulfilment": {
+    "basic": 1.0,
+    "comfort": 1.0,
+    "luxury": 0.8806289009178199
+   },
+   "happiness": 74.68469755563234,
+   "happiness_history_len": 673,
+   "happiness_history_sha256": "25e2fa7ba86a9de58bcb700640ed5c605b6e9a685567aa03293107ed39b654ab",
+   "happiness_target": 74.55235837844182,
+   "name": "Poor",
+   "plan_len": 8,
+   "plan_sha256": "e89a98d6e720561a392a63636aaba177d6908b3c03141e68d637e2ad3ff0bc94",
+   "population_history_len": 29,
+   "population_history_sha256": "109a4710b4a5a028a6a6b15e4ee19b4200aff84dd80fa563a937142dd91995a2",
+   "purse": 138.66582391770888,
+   "today": {
+    "income": 54.0,
+    "leaked": 0.0,
+    "spent": 8.95214125174507
+   },
+   "yesterday": {
+    "income": 54.0,
+    "leaked": 0.0,
+    "spent": 53.47618822529797
+   }
+  }
+ },
+ "goods": {
+  "Beer": {
+   "demand_avg": 15.408209987586247,
+   "name": "Beer",
+   "noise": -0.005423410605263642,
+   "outside_base": 5.0,
+   "outside_dev": -0.012326788475983487,
+   "outside_price": 4.938744375827072,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "0f42574a12a27baec5c7c7210cff74cfb283f2fff85335bb8ff2540a7178a667",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "34539468417d7ef1c156b771a746f4994e8ab4e345a4317049360d80070ffea4",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 156.6676763564408,
+   "target_stock": 215.71493982620746,
+   "today": {
+    "bought": 2.591666666666667,
+    "exported": 0.0,
+    "imported": 1.5022681215585294,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 15.55
+   },
+   "yesterday": {
+    "bought": 15.55,
+    "exported": 0.0,
+    "imported": 14.274364818885942,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 15.55
+   }
+  },
+  "Candle": {
+   "demand_avg": 10.482880522384965,
+   "name": "Candle",
+   "noise": 0.021865536871222873,
+   "outside_base": 4.2,
+   "outside_dev": -0.0959317533577847,
+   "outside_price": 3.8158092747728407,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "d8ac054d4e12aa1e73b45bc78bf6b419de84b0a6c259029f2abecd9286052049",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "66cc93b304f69023fd4685cc5daf7b516162bfa8f16b2202d9a736f067108f70",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 236.51386064683751,
+   "target_stock": 314.48641567154897,
+   "today": {
+    "bought": 1.85,
+    "exported": 0.0,
+    "imported": 5.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 11.1
+   },
+   "yesterday": {
+    "bought": 11.975654329820841,
+    "exported": 0.0,
+    "imported": 18.631627946336863,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 12.06322190084098
+   }
+  },
+  "Fish": {
+   "demand_avg": 26.92568063692027,
+   "name": "Fish",
+   "noise": 0.007950725009003463,
+   "outside_base": 2.15,
+   "outside_dev": 0.05020759403329684,
+   "outside_price": 2.2607021167695267,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "1f64252545910bdef9add2d19769ccd7709afaf63f3eff4d9e1cecdff4a3da52",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "5f415b9612ea06accc629eba0d18e0de1256f172c170ac6dbdba6d536b5ab48d",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 1320.3077454835905,
+   "target_stock": 376.95952891688376,
+   "today": {
+    "bought": 4.523333333333334,
+    "exported": 16.666666666666668,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 27.14
+   },
+   "yesterday": {
+    "bought": 27.139999999999997,
+    "exported": 99.99999999999999,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 27.14
+   }
+  },
+  "Herbs": {
+   "demand_avg": 6.121754113064758,
+   "name": "Herbs",
+   "noise": 0.023296637766915047,
+   "outside_base": 3.3000000000000003,
+   "outside_dev": -0.11038089871881261,
+   "outside_price": 2.955126828058022,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "d6e8f4072af11815ce5757fafa7a38e14245e7a7e7a67bb484529cc1306fca01",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "11f4452800d63bee9fae8f292b827f91f1870fb73890484170831528037872dd",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 137.87276288065775,
+   "target_stock": 183.65262339194274,
+   "today": {
+    "bought": 0.8673401654716983,
+    "exported": 0.0,
+    "imported": 0.7712801130999196,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 6.17
+   },
+   "yesterday": {
+    "bought": 4.562129373840487,
+    "exported": 0.0,
+    "imported": 4.3237490049138785,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 6.17
+   }
+  },
+  "Hide": {
+   "demand_avg": 3.5790274777403335,
+   "name": "Hide",
+   "noise": 0.030672076356647884,
+   "outside_base": 4.0,
+   "outside_dev": -0.1385851666515387,
+   "outside_price": 3.4823564118116583,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "932d7d40ad01c5b7cf2268902f937c8d2d20af52baafcb0e7835fad32571d546",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "b8c5dae88f8dba1c37d7902357ba8dc15f73ea3b1636d9d711b71f21c9bf3782",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 79.77932497787062,
+   "target_stock": 107.37082433221,
+   "today": {
+    "bought": 0.6013333333333333,
+    "exported": 0.0,
+    "imported": 0.32653787476475316,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 3.608
+   },
+   "yesterday": {
+    "bought": 3.6079999999999988,
+    "exported": 0.0,
+    "imported": 4.039477526394279,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 3.608
+   }
+  },
+  "Iron": {
+   "demand_avg": 0.0,
+   "name": "Iron",
+   "noise": -0.010098399400398477,
+   "outside_base": 5.0,
+   "outside_dev": 0.11957805945814036,
+   "outside_price": 5.6351060764952345,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "6c6490776a36991e720813ac8a93ad373a7b7505622608e1007ffc064d6bc294",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "f7368e616e7bb9a51e9e002fc9affac4cc7c29a91782887940361e399574e9fe",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 150.0,
+   "target_stock": 150.0,
+   "today": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   },
+   "yesterday": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   }
+  },
+  "Linen": {
+   "demand_avg": 10.29550129432194,
+   "name": "Linen",
+   "noise": 0.009398555036781109,
+   "outside_base": 3.0,
+   "outside_dev": -0.12713014787256477,
+   "outside_price": 2.6418571633265655,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "eb2e5b08e9bfebd781953a109c71d88e4cd75d35d2ce1917ba326598951384b3",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "2f7d2c6387902164155686d0e7f4efe3da450cc062b3dd80ff1ffac7b3a2e20e",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 227.26919323466666,
+   "target_stock": 308.8650388296582,
+   "today": {
+    "bought": 1.73,
+    "exported": 0.0,
+    "imported": 3.9229832810038943,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 10.38
+   },
+   "yesterday": {
+    "bought": 10.379999999999997,
+    "exported": 0.0,
+    "imported": 10.532011983147413,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 10.38
+   }
+  },
+  "Meat": {
+   "demand_avg": 21.600048008444325,
+   "name": "Meat",
+   "noise": -0.014262618312319994,
+   "outside_base": 5.25,
+   "outside_dev": 0.2100343373539516,
+   "outside_price": 6.4770322151022865,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "ee27425a85ee616f85fefb32708b2e1b075d21a02499ab1e9c1ea1fb1064d4e6",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "32a1e9786a3b0d1f5b74e448c16429fc497e3420544082dc2d8859899198414b",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 230.44677375248503,
+   "target_stock": 302.40067211822054,
+   "today": {
+    "bought": 3.626666666666667,
+    "exported": 0.0,
+    "imported": 2.525051143969506,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 21.76
+   },
+   "yesterday": {
+    "bought": 21.63107921299125,
+    "exported": 0.0,
+    "imported": 22.91142399950465,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 21.76
+   }
+  },
+  "Pottery": {
+   "demand_avg": 5.471754113064758,
+   "name": "Pottery",
+   "noise": 0.0205176818085677,
+   "outside_base": 3.0,
+   "outside_dev": 0.01512379132751402,
+   "outside_price": 3.045716203763491,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "645bcc5bc04e251bb948f7611b40aa4b309f6d017d04dc92d9d1f70135bd051c",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "1985966521b4dacbdb6e33fb12b1d40cfaca019173bd72169d4ae71a545cbf4b",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 118.90054738700113,
+   "target_stock": 164.15262339194274,
+   "today": {
+    "bought": 0.9200000000000002,
+    "exported": 0.0,
+    "imported": 0.18362575213996024,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 5.5200000000000005
+   },
+   "yesterday": {
+    "bought": 5.519999999999999,
+    "exported": 0.0,
+    "imported": 5.11920190240788,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 5.5200000000000005
+   }
+  },
+  "Salt": {
+   "demand_avg": 2.3718617340384225,
+   "name": "Salt",
+   "noise": 0.02313100879042335,
+   "outside_base": 6.0,
+   "outside_dev": 0.007344332091788582,
+   "outside_price": 6.044228207068285,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "9d7a39168bacd7695f74f8d93d5452ec0522b44526a310303d604ac72782cca6",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "38f7745060b265049f2a9dc5d7ab8fe1b940c8ae72441c6954cdfa2514db0513",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 55.94143200787872,
+   "target_stock": 71.15585202115267,
+   "today": {
+    "bought": 0.19266942460229558,
+    "exported": 0.0,
+    "imported": 0.4335530964972776,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 2.39
+   },
+   "yesterday": {
+    "bought": 0.8572630172956477,
+    "exported": 0.0,
+    "imported": 0.8136940414525782,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 2.39
+   }
+  },
+  "Stone": {
+   "demand_avg": 0.0,
+   "name": "Stone",
+   "noise": -0.02148120108714642,
+   "outside_base": 2.0,
+   "outside_dev": -0.2631167340810706,
+   "outside_price": 1.537304328339514,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "2664b37d3e9cd5aecfc65595e7185b9289673dd8845794115a7a40b09d0889b7",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "1db4af8bc06d01da767c036e7436cda79681ed3caf9dbe18da9f92dff06f67c2",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 400.0,
+   "target_stock": 400.0,
+   "today": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   },
+   "yesterday": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   }
+  },
+  "Wheat": {
+   "demand_avg": 61.33464331216517,
+   "name": "Wheat",
+   "noise": 0.00895155854807221,
+   "outside_base": 1.05,
+   "outside_dev": -0.14323050261545767,
+   "outside_price": 0.9098820179818253,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "4835f4473d44c797dabee951a40745b93b7c7434e6666cc70e0462175070df18",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "186f95818f6d4250c64df0b9593afea7e976ee4abee5eca26af035c64fe3cd02",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 581.8385400883922,
+   "target_stock": 858.6850063703124,
+   "today": {
+    "bought": 10.309999999999999,
+    "exported": 0.0,
+    "imported": 13.272941694130964,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 61.86
+   },
+   "yesterday": {
+    "bought": 61.86,
+    "exported": 0.0,
+    "imported": 63.01108906745242,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 61.86
+   }
+  },
+  "Wine": {
+   "demand_avg": 15.626408448160813,
+   "name": "Wine",
+   "noise": -0.022067077028144103,
+   "outside_base": 10.25,
+   "outside_dev": 0.0012408073879037178,
+   "outside_price": 10.262726169455783,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "d7a3d83d7f581b13d4b5362dbc97c42d99e57cac04106e8446ae4030b3b4d177",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "05df011fe5bf4bb64b39eb13c9c484c297d700e58626bde91b1c7cbc046fcf34",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 369.4333530156958,
+   "target_stock": 468.7922534448244,
+   "today": {
+    "bought": 1.6363511972142137,
+    "exported": 0.0,
+    "imported": 1.6675404927819955,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 15.72
+   },
+   "yesterday": {
+    "bought": 7.981181443023079,
+    "exported": 0.0,
+    "imported": 7.460704325748395,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 15.72
+   }
+  },
+  "Wood": {
+   "demand_avg": 31.977453043157638,
+   "name": "Wood",
+   "noise": 0.01595588404612157,
+   "outside_base": 1.075,
+   "outside_dev": -0.09659221179913474,
+   "outside_price": 0.976020635151284,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "2883cd21bd87d94caef84567bedc8a1ae4239577917300092c4c4ae6aaee1722",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "9f1d3380ca1a410a7f49c9dd0b36d25df683efb447c8bd00f2817d69b3b456ae",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 274.7454828139613,
+   "target_stock": 447.6843426042069,
+   "today": {
+    "bought": 5.455666666666666,
+    "exported": 0.0,
+    "imported": 10.01639636514517,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 32.734
+   },
+   "yesterday": {
+    "bought": 36.01155776529406,
+    "exported": 0.0,
+    "imported": 36.357271453188616,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 36.011557765294036
+   }
+  },
+  "Wool": {
+   "demand_avg": 0.0,
+   "name": "Wool",
+   "noise": -0.014338377776546826,
+   "outside_base": 3.1500000000000004,
+   "outside_dev": 0.10698601508750187,
+   "outside_price": 3.505693874444977,
+   "price_history_daily_len": 89,
+   "price_history_daily_sha256": "090c94e9311ff71942af7b6850246c92d048608b2cd4eb0362f5c100257c8f4d",
+   "price_history_ticks_len": 4225,
+   "price_history_ticks_sha256": "99f5af99f65bb9fbd6f2922613a116e4fb95e10e77f99ae48d6d2afab61b013a",
+   "shock_days": 0,
+   "shock_factor": 1.0,
+   "stock": 300.0,
+   "target_stock": 300.0,
+   "today": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   },
+   "yesterday": {
+    "bought": 0.0,
+    "exported": 0.0,
+    "imported": 0.0,
+    "player_bought": 0.0,
+    "player_sold": 0.0,
+    "wanted": 0.0
+   }
+  }
+ },
+ "market_cash": 5286.203574917249,
+ "rng_sha256": "e04401bcdeb37183039e8eebaba87cdb61ffebbb7040f830f3cfb54fee0dea51",
+ "town": {
+  "average_happiness_history_len": 673,
+  "average_happiness_history_sha256": "a83bcabdc34732b24aaa9f07e7dfd738a29c2d45da78709c49c29e64e39e62c2",
+  "happiness": 68.17448290767908,
+  "max_citizens": 540,
+  "total_population_history_len": 29,
+  "total_population_history_sha256": "2014391e175590677ccf020d72f74d876064c2f80240461ca31c6968c19da5d6"
+ },
+ "trades": [
+  1289.5079319714162,
+  1274.7549528086813,
+  1082.9182278499618,
+  3398.624313932562
+ ]
+}

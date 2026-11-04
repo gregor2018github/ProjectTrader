@@ -1,61 +1,57 @@
 # Pricing: How Goods Are Priced
 
-An orientation page for anyone (human or coding agent) about to touch market prices. It explains the model at a high level, then points to where each piece lives in the code. The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`): its state is `GoodState` (`src/sim/state.py`), its rules are functions in `src/sim/systems/market.py`, and the game's `Good` (`src/models/good.py`) is only a view of them. Line numbers drift, so search for the named function or constant rather than trusting them.
+An orientation page for anyone (human or coding agent) about to touch market prices. It explains the model at a high level, then points to where each piece lives in the code. Line numbers drift, so search for the named function or constant rather than trusting them.
+
+The market is part of the headless simulation core (`src/sim/`, see `sim_core.md`). Its state is `GoodState` (`src/sim/state.py`), and its rules are functions in `src/sim/systems/market.py`. The game's `Good` (`src/models/good.py`) is only a view of them. The design behind it is `p1_living_market.md` (P1, the living market). Phase 1 of it is built: demand from the town's households and supply from the outside world. Phase 2 adds the town's workshops.
 
 ---
 
 ## The model in one paragraph
 
-Every tradeable good has **one global price**, the same at every market booth. That price is two factors multiplied:
+Every tradeable good has **one price**, the same at every market booth:
 
 ```
-price = walk_price × volume_factor(market_quantity)
+price = reference × volume_factor(stock / target_stock) × noise
+reference = outside price × a running well wish's shock
 ```
 
-- **`walk_price`** is a random walk. Once per in-game hour it takes a random multiplicative step. It is held loosely inside a randomly rolled **corridor** (`lower_bound` … `upper_bound`): inside, the walk is free and volatile; outside, it is calm and drifts back.
-- **`volume_factor`** comes from how much of the good the market holds, compared with what it considers **normal**. When the good is scarce it costs more; when the market is glutted it costs less.
+- **The outside price** is what the good costs beyond the town. It walks slowly around a long-run mean, with a season factor on top. Merchants **import** when the town's price climbs above it plus the transport cost, and **export** when the price falls below it minus the transport cost, within a daily limit. So the local price lives between those two lines.
+- **The volume factor** comes from how much the market holds against its **target stock**, which is a number of days of the town's demand. When the stock is short, the price rises; when there is a glut, it falls.
+- **The noise** is a small mean-reverting wobble of a few per cent.
 
-Trades change the volume, so **player trades move the price**. A big order is priced unit by unit as the volume moves, which is called **slippage**. Until the town has real supply and demand, the volume drifts slowly back toward normal. A **well wish** shifts the walk. The player also pays a flat **transaction fee** per trade, and profit is measured **FIFO** against what was paid.
+The stock changes only through trades:
+- the households buy their daily needs in hourly slices;
+- the merchants import and export;
+- the player buys and sells.
+
+So **everyone's trades move the price**. The player's are priced unit by unit (**slippage**), plus a flat **transaction fee**, and profit is measured **FIFO** against what was paid.
 
 ---
 
-## 1. Starting prices and volumes
+## 1. The goods and their data
 
-Each good is created with a hand-set starting price and market quantity from `assets/data/goods.json` (loaded by `src/sim/data.py`), e.g. Wood 1 / 5000, Wine 10 / 500.
+Each good is defined in `assets/data/goods.json` and loaded by `src/sim/data.py` (`GoodDef`). The fields and what they mean:
 
-At creation (`market.create_good()`, two draws from the simulation's generator per good, in the file's order):
+| Field | Meaning |
+|---|---|
+| `outside_price` | The long-run mean of the outside price |
+| `outside_reversion`, `outside_volatility` | The outside price's daily walk: the share of its log deviation undone each day, and the size of its daily step |
+| `outside_seasons` | Optional `{season: factor}` on the outside price, blended smoothly between the seasons' middles (`calendar.season_factor`) |
+| `transport_cost` | Per unit, between town and outside. It sets how far the import and export lines lie from the reference. |
+| `import_limit`, `export_limit` | Units merchants move a day at most |
+| `target_stock_days`, `min_target_stock` | The target stock: that many days of demand, but at least that many units |
+| `noise_sigma` | The noise's step per price tick |
 
-| Field | Value | Meaning |
-|---|---|---|
-| `walk_price` | starting price | Random-walk part of the price |
-| `market_quantity` | starting quantity | Units the market holds now |
-| `normal_quantity` | starting quantity | The volume the market thinks is normal |
-| `base_price` | starting price | Kept only to re-simulate history (see §8) |
-| `upper_bound` | `walk_price × U(1.5, 3.5)` | Above this, the walk drifts down |
-| `lower_bound` | `walk_price × U(0.05, 0.80)` | Below this, the walk drifts up |
+When a town is founded (`Simulation.found_town`), each good's target is set from the households' demand, and the market holds exactly its target. Before the first frame, `Simulation.presimulate()` runs the whole economy for `MARKET_PRESIMULATION_DAYS` (60) days, so the charts open with history.
 
-`market.price(good)` computes `walk_price × volume_factor()` (on `Good` it is the `price` property). `market.set_price()` (the property's setter) changes `walk_price` so that the price shown at the current volume becomes the given value.
+## 2. The outside price and the noise
 
-Before the first frame, `Simulation.presimulate()` runs the price tick forward for `MARKET_PRESIMULATION_DAYS` (60) days of `PRICE_TICKS_PER_DAY` ticks. The charts therefore open with history, and the game starts at an already-drifted price, not the hand-set one.
+- **The outside price.** `market.step_outside()` runs once a day: `x ← x·(1 − reversion) + volatility·N(0,1)` and `outside price = mean × season factor × exp(x)`, drawing from the simulation's one seeded generator. With 0.03 and 0.03 it strays about ±12 % and halves a deviation in about three weeks: trends a player can read.
+- **The noise.** `market.step_noise()` runs every price tick (`PRICE_TICK_MINUTES`, 30): `n ← n·PRICE_NOISE_PERSISTENCE + noise_sigma·N(0,1)`, clamped to ±`PRICE_NOISE_CLAMP`. The price chart gets a point after it.
 
-## 2. The random walk, once a price tick
+## 3. The volume factor and the target stock
 
-`market.step_walk()` runs once a price tick, every `PRICE_TICK_MINUTES` (30) game minutes, so `PRICE_TICKS_PER_DAY` (48) times a day, on the simulation's `price_tick` (`Simulation._market_tick`, which the game reaches through `sim.advance_to()` in `Game.run()`). The step does not depend on the tick's length, so more ticks a day make a day's swings bigger. It sets `walk_price = walk_price × rng.normalvariate(mu, sigma)`, `rng` being the simulation's one seeded generator:
-
-| Situation | `mu` | `sigma` | Effect |
-|---|---|---|---|
-| Inside the corridor | 1.00 | 0.10 | Free random walk, about ±10 % per tick |
-| Above `upper_bound` | 0.999 | 0.01 | Slow, calm decline |
-| Below `lower_bound` | 1.02 | 0.01 | Calm recovery of about 2 % per tick |
-| Walk < 1 (on top of the above) | +0.03 | – | Extra push up so cheap goods don't collapse toward 0 |
-
-The bounds are **soft**: one in-corridor step can jump well past a bound, and the drift back is gradual. The corridor bounds only the walk, never the volume factor, so a price raised by scarcity is not pulled back by the corridor.
-
-The speed level (`time_level`) only changes how fast in-game hours pass. It does not change the formula.
-
-## 3. The volume factor
-
-`market.volume_factor(good, quantity=None)` looks at `ratio = quantity / normal_quantity`:
+`market.volume_factor(good, quantity=None)` looks at `ratio = quantity / target_stock`:
 
 | Ratio | Factor |
 |---|---|
@@ -64,27 +60,29 @@ The speed level (`time_level`) only changes how fast in-game hours pass. It does
 | above the glut ratio, "too much" | `(1.1 / ratio) ^ 0.7` |
 | always clamped to | `MARKET_VOLUME_FACTOR_MIN` (0.4) … `MARKET_VOLUME_FACTOR_MAX` (3.0) |
 
-The curve is continuous at the thresholds and grows steeper the further the volume strays. Some values: half the normal volume gives ×1.5, a quarter gives ×2.45, double the normal volume gives ×0.66, and four times gives ×0.40.
+Some values: half the target gives ×1.5, a quarter gives ×2.45, double the target gives ×0.66. `market.ratio_for_factor()` is its inverse, which the merchants use.
 
-All the numbers are in `src/config/constants.py` under "MARKET VOLUME".
+**The target stock** follows demand. Each day the households' wanted units (their full baskets) feed a smoothed demand average (`TARGET_STOCK_GLIDE`), and the target is `max(min_target_stock, target_stock_days × average)`. A growing town needs more stock to feel normal. Seasonal demand (firewood in winter) moves it with the seasons.
 
-**Placeholder recovery.** Every price tick, before the walk step, `market.recover_volume()` closes part of the gap to `normal_quantity`: `MARKET_VOLUME_DAILY_RECOVERY` (10 %) per day, and at least one unit per tick while any gap remains. This stands in for traders restocking and townsfolk buying. It is meant to be replaced by real supply and demand (see §9).
+## 4. Who trades, and at what price
 
-## 4. What a trade costs
+The market place is the town's traders taken together: they hold the stock and its cash (`SimState.market_cash`).
 
-Trading goes through `Depot.buy()` / `Depot.sell()` (`src/models/depot.py`). The amount comes from `Good.quote(quantity, buying)` (`market.quote()`):
+- **Households** (`systems/households.py`) plan their day at midnight and buy in hourly slices from `MARKET_OPEN_HOUR` to `MARKET_CLOSE_HOUR` (12 slices). In each slice every class's order for a good is added up and cleared once (`market.clear_buyers`): one price for all, the order's average with slippage. When the stock runs short, each class gets the same share. A slice that came up short is made up in later slices if stock comes back. Households pay the market place.
+- **Merchants** (`market.merchants`) act after the households in every slice. They judge by the stock, not the noise: when `reference × volume_factor` is above the **import line** (`reference + transport_cost`), they bring in enough to get back to it, at most `import_limit / 12` in the slice, and the market place pays them the import line's price. Below the **export line** (`reference − transport_cost`), they take the surplus out the same way and pay the export line's price. Between the lines nobody moves.
+- **The player** trades through `Depot.buy()` / `Depot.sell()` (`src/models/depot.py`). The amount comes from `Good.quote(quantity, buying)` (`market.quote()`), and the trade itself from `Simulation.trade_with_player()`:
+  - **Slippage.** Each unit is priced at its own stock. A unit you buy is priced at the stock before it is taken, so the first one costs the shown price. A unit you sell is priced at the stock after it is added. So buying and then selling back the same units is zero-sum before fees, and a large order moves the price against the trader as it goes.
+  - **Buy:** pays `quote + transaction_cost`. **Sell:** receives `quote − transaction_cost`. `transaction_cost` is a flat fee per trade (starts at `INITIAL_TRANSACTION_COST` = 2), stored on the depot and in the save.
+  - The **unit price recorded** (purchase history, ledger, trade cycles, log) is the order's average, `quote / quantity`.
+  - After the trade the stock has changed and the **latest chart point** is overwritten with the new price, so the chart reacts at once.
+  - The player's trades fall between the slices, so a slice after a purchase sees the stock the player left. **Buying up the bread at ten leaves the poor short at eleven**, unless merchants can bring more in.
+  - `QuickTradeMenu` shows the current price per unit and, on hover, the slipped total.
 
-- **Slippage.** Each unit is priced at its own volume. A unit you buy is priced at the volume before it is taken, so the first one costs the shown price. A unit you sell is priced at the volume after it is added. As a result, buying and then selling back the same units is zero-sum before fees, and a large order moves the price against the trader as it goes.
-- **Buy:** pays `quote + transaction_cost`. **Sell:** receives `quote − transaction_cost`. `transaction_cost` is a flat fee per trade (starts at `INITIAL_TRANSACTION_COST` = 2), stored on the depot and in the save.
-- The **unit price recorded** (purchase history, ledger, trade cycles, log) is the order's average, `quote / quantity`.
-- After the trade, `Good.buy()` / `sell()` (`market.take()` / `put()`) change `market_quantity` and overwrite the **latest chart point** with the new price, so the chart reacts at once instead of waiting for the next hour.
-- `QuickTradeMenu` shows the current price per unit and, on hover, the slipped total.
-
-Before a trade, several gates must pass. They block the trade but don't change the price:
+Before a player's trade, several gates must pass. They block the trade but don't change the price:
 1. `GameState.is_good_sold_here()`: does the market square the player stands in have a booth for this good?
 2. `GameState.is_good_tradable()`: is one of those booths open right now? (Booths close when their trader goes home; see CLAUDE.md, Map System.)
 3. `Depot.has_license()`: the player needs a valid trading license per good.
-4. A positive quantity, the market's stock, money, and storage capacity.
+4. A positive quantity, the market's stock (whole units, `Good.market_quantity`), money, and storage capacity.
 
 **Profit accounting.** Each buy is pushed onto `purchase_history[good]` with its unit price. A sell consumes those entries oldest-first (FIFO), and each consumed chunk is recorded by `_record_trade_cycle()` as a trade cycle. `Depot.avg_buy_price()` gives the FIFO-weighted average cost of what is still held.
 
@@ -93,45 +91,36 @@ Before a trade, several gates must pass. They block the trade but don't change t
 ## 5. What does *not* affect price (yet)
 
 - **Which market or booth.** There is one `GoodState` per good, shared by all booths. Booths only decide *whether* you may trade.
-- **Population, happiness, production, season, time of day.** Nothing reads these for the price yet; see §9.
+- **Production.** The town's workshops come in phase 2 of P1. Until then all supply comes from imports, and prices sit at the import line.
 
 ## 6. Well wishes: the deliberate price shock
 
-Throwing a coin in the well (`Well`, `src/models/institutions/well.py`) has a `WELL_WISH_PROBABILITY` chance, when the well is not on cooldown, of opening a `WishMenu`. In that menu the player picks a good and a direction (the strings `"Price goes up"` / `"Price goes down"`). `Good.apply_well_shock()` (`market.apply_well_shock()`) then:
+Throwing a coin in the well (`Well`, `src/models/institutions/well.py`) has a `WELL_WISH_PROBABILITY` chance, when the well is not on cooldown, of opening a `WishMenu`. There the player picks a good and a direction (`"Price goes up"` / `"Price goes down"`). `Good.apply_well_shock()` (`market.apply_well_shock()`) then multiplies the good's **outside price** by `1 ± WELL_WISH_SHOCK_FACTOR` (40 %) for `WELL_WISH_DURATION_DAYS` days:
 
-- multiplies `walk_price` **and both bounds** by `1 ± WELL_WISH_SHOCK_FACTOR` (40 %), so the corridor moves with the walk and the price settles at the new level;
-- after `WELL_WISH_DURATION_DAYS` daily ticks (`market.tick_well_shock_day()`, on the simulation's `day` tick), restores the original bounds and reports a `PriceShockEnded` event. The walk then drifts back by the normal corridor rules.
+- The import and export lines move with it. Merchants follow the new level instead of undoing it, and the local price settles there as the stock adjusts.
+- A second wish while one runs multiplies in and restarts the count.
+- When the count runs out (`market.tick_well_shock_day()`, on the day tick), the reference is the outside price again, and a `PriceShockEnded` event is reported.
 
 ## 7. Price history (charts and bookkeeping)
 
 | List | Appended by | When | Used by |
 |---|---|---|---|
-| `price_history_ticks` (`Good.price_history_hourly`) | `market.record_tick()` | every price tick, right after `step_walk()` (its last entry is also overwritten after each trade) | market chart (`chart_view.py`) |
+| `price_history_ticks` (`Good.price_history_hourly`) | `market.record_tick()` | every price tick, right after the noise step (its last entry is also overwritten after each player trade) | market chart (`chart_view.py`) |
 | `price_history_daily` | `market.record_day()` | every day | depot detail / bookkeeping (`depot_view_detail.py`) |
 
-Both lists store the full price (walk × volume factor). They grow for the whole session and are saved in full.
+Both lists store the full price. They grow for the whole session and are saved in full. Each good also counts its day's flows (`GoodState.today` / `yesterday`: wanted, bought, imported, exported, player_bought, player_sold), which the headless runner writes out.
 
 ## 8. Saving and loading
 
-The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full: `base_price`, `walk_price`, `market_quantity`, `normal_quantity`, both histories, the corridor (`upper_bound`, `lower_bound`), the well-shock state (days left and the bounds to restore afterwards), and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
+The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full (stock, target, outside price and its walk, noise, shock, histories, flows), the market place's cash and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
 
-Saves from before the `"sim"` block (`SAVE_VERSION` < 3) kept the goods in `"goods"`; `save_manager._legacy_sim_block()` reads them, and saves older than a field fall back gracefully:
-- **No `walk_price`:** the walk is derived from the saved `price` at the saved volume, so the price shown is unchanged.
-- **No `normal_quantity`:** the starting stock is used as normal.
-- **No corridor:** a freshly rolled corridor is kept.
+Older blocks and saves migrate on loading:
+- **`sim_version` 1 (P0) and saves from before the `"sim"` block** (`SAVE_VERSION` < 3, through `save_manager._legacy_sim_block()`): each good keeps its histories, and its stock as a share of its new target (as scarce or glutted as it was against P0's normal volume, or at its target if the save had none). The outside price starts at its mean, so prices jump to the new model on the first load.
+- **Goods the save lacks** get a flat history as long as the saved goods'.
 
-`base_price` only matters for `market.simulate_history()`, which runs only for goods a save doesn't have.
+## 9. Where this is heading
 
-## 9. Where this is heading (planned, not implemented)
-
-The intended direction, so changes now don't block it later:
-
-- **Supply.** Town production per good responds slowly to price: low prices shrink production, high prices grow it over the long run. Production feeds `market_quantity` and should move `normal_quantity`, replacing `market.recover_volume()`.
-- **Demand.** Demand comes from the inhabitants and depends on their population type. Unmet demand makes people move out, which lowers demand. Met demand raises happiness and draws people in. Consumption takes from `market_quantity`.
-- **Randomness and the player** stay on top: the random walk and the player's trades.
-- **Hysteresis / endgame.** When supply or demand is beaten down very low, it recovers slowly; when it is high, it absorbs hits more easily. That makes flooding a market to drive out the competition a viable strategy, and keeping a city well developed harder.
-
-Hooks for this: `normal_quantity` (what the market expects) and `market_quantity` (what is there) are separate on purpose. The volume factor already turns any imbalance between them into a price.
+Phase 2 of P1 (`p1_living_market.md`) adds the town's workshops as real actors. They buy inputs from this market and sell their outputs into it, so local supply undercuts imports and surplus is exported. The hysteresis described there makes flooding a market a real strategy, and keeping a town well supplied work. P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
 
 ---
 
@@ -139,20 +128,21 @@ Hooks for this: `normal_quantity` (what the market expects) and `market_quantity
 
 | What | Where |
 |---|---|
-| Price state (walk, volumes, bounds, well shock, histories) | `src/sim/state.py` (`GoodState`) |
-| Random walk, volume factor, quote/slippage, recovery, well shock, histories | `src/sim/systems/market.py` |
+| Price state (stock, target, outside price, noise, shock, histories, flows) | `src/sim/state.py` (`GoodState`) |
+| The price, volume factor, quote/slippage, outside walk, noise, merchants, clearing, well shock | `src/sim/systems/market.py` |
+| What the households buy and when | `src/sim/systems/households.py` |
+| The order things happen in, player trades | `src/sim/simulation.py` (`Simulation`) |
 | The view the depot and UI use (plus colours, chart visibility) | `src/models/good.py` (`Good`) |
-| Starting prices and quantities of every good | `assets/data/goods.json`, loaded by `src/sim/data.py` |
-| Pre-game simulation | `src/sim/simulation.py`, `Simulation.presimulate()` |
-| Per-tick / daily calls into goods | `src/sim/simulation.py`, `_market_tick` / `_market_day`, run by the scheduler from `sim.advance_to()` in `Game.run()` |
+| Every good's outside price, transport, limits, target days, noise | `assets/data/goods.json`, loaded by `src/sim/data.py` |
+| What each class wants, by tier | `assets/data/needs.json` |
+| Global market constants (`MARKET_VOLUME_*`, `MARKET_OPEN_HOUR`, `PRICE_NOISE_*`, `TARGET_STOCK_GLIDE`, `WELL_WISH_*`, `INITIAL_TRANSACTION_COST`) | `src/config/constants.py` |
 | Decades of prices without the game | `python -m src.sim.run` (`sim_core.md`) |
-| Balance constants (`MARKET_VOLUME_*`, `MARKET_PRESIMULATION_DAYS`, `INITIAL_TRANSACTION_COST`, `STARTING_LICENSES`, `WELL_WISH_*`) | `src/config/constants.py` |
 | Buying, selling, fees, FIFO profit, wealth, licenses | `src/models/depot.py` (`Depot`) |
 | Can this good be traded here / now? | `src/game_state.py`, `is_good_sold_here()`, `is_good_tradable()` |
 | Booth opening hours | `src/models/institutions/market.py`, `src/models/figurines/humans/npcs/trader.py` |
 | Well wish trigger and menu | `src/models/institutions/well.py` |
 | Trade input (click / keyboard / quick-trade popup) | `src/handlers/mouse_handler.py`, `src/handlers/keyboard_handler.py`, `src/ui/helper_modules/quick_trade_menu.py` |
-| Price chart (also shows the market volume as `V.`) | `src/ui/layout_modules/chart_view.py` |
+| Price chart (also shows the market's stock as `V.`) | `src/ui/layout_modules/chart_view.py` |
 | Depot views (stock value, avg buy price, history) | `src/ui/layout_modules/depot_view.py`, `depot_view_detail.py`, `src/ui/general_layout/layout.py` |
 | Save / load of prices | `Simulation.to_dict()` / `load()`; older saves in `src/persistence/save_manager.py` (`_legacy_sim_block`) |
 

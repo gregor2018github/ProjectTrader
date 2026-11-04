@@ -1,67 +1,64 @@
-"""The market: each good's price walk, volume factor, slippage, recovery and well shock.
+"""The market: prices from stock against demand, the outside world's prices, and trading.
 
-Functions on a ``GoodState`` (and the simulation's random generator where they
-draw). ``docs/pricing.md`` is their specification; the formulas are the ones
-``Good`` had before the simulation core was split out, kept to the last bit.
+Functions on a ``GoodState`` (and its ``GoodDef``, and the simulation's random
+generator where they draw). ``docs/pricing.md`` and ``docs/p1_living_market.md``
+are their specification.
 
-    price = walk_price × volume_factor(market_quantity)
+    price = reference × volume_factor(stock / target_stock) × noise
+    reference = outside price × a running well wish's shock
+
+The outside price walks slowly around its mean (``step_outside``, daily); the
+noise is small and mean-reverting (``step_noise``, every price tick).
+Households and merchants trade in hourly slices (``clear_buyers``,
+``merchants``); the player trades unit by unit with slippage (``quote``).
 """
+import datetime
 import math
 import random
-from typing import Optional
+from typing import Dict, Optional, Tuple
 
 from ...config.constants import (
-    MARKET_VOLUME_DAILY_RECOVERY, MARKET_VOLUME_ELASTICITY, MARKET_VOLUME_FACTOR_MAX,
-    MARKET_VOLUME_FACTOR_MIN, MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_SCARCE_RATIO,
-    PRICE_TICKS_PER_DAY, WELL_WISH_DURATION_DAYS, WELL_WISH_SHOCK_FACTOR,
+    MARKET_VOLUME_ELASTICITY, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
+    MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_SCARCE_RATIO, PRICE_NOISE_CLAMP,
+    PRICE_NOISE_PERSISTENCE, TARGET_STOCK_GLIDE,
+    WELL_WISH_DURATION_DAYS, WELL_WISH_SHOCK_FACTOR,
 )
-from ..state import GoodState
-
-# Share of the gap to the normal volume closed per price tick, so that a day's ticks close MARKET_VOLUME_DAILY_RECOVERY
-_TICK_RECOVERY = 1.0 - (1.0 - MARKET_VOLUME_DAILY_RECOVERY) ** (1.0 / PRICE_TICKS_PER_DAY)
-
-# The corridor rolled for a new good, as factors on its starting price
-UPPER_BOUND_RANGE = (1.5, 3.5)
-LOWER_BOUND_RANGE = (0.05, 0.80)
+from ..calendar import season_factor
+from ..data import GoodDef
+from ..state import GoodFlows, GoodState
 
 
-def create_good(name: str, start_price: float, start_quantity: int, rng: random.Random) -> GoodState:
-    """A good as a new game has it: at its starting price and volume, with a rolled corridor.
-
-    Draws twice from *rng* (the upper bound, then the lower).
-    """
-    walk = float(start_price)
+def create_good(definition: GoodDef, moment: datetime.datetime) -> GoodState:
+    """A good at its outside price's mean, holding its minimum stock until a town is founded."""
+    base = definition.outside_price * season_factor(definition.outside_seasons, moment)
     good = GoodState(
-        name=name,
-        base_price=walk,
-        walk_price=walk,
-        market_quantity=int(start_quantity),
-        normal_quantity=max(1, int(start_quantity)),
-        upper_bound=0.0,
-        lower_bound=0.0,
+        name=definition.name,
+        stock=definition.min_target_stock,
+        target_stock=definition.min_target_stock,
+        outside_base=base,
+        outside_price=base,
     )
-    good.price_history_daily = [price(good)]
     good.price_history_ticks = [price(good)]
-    # The corridor bounds the walk, not the volume factor on top of it
-    good.upper_bound = walk * rng.uniform(*UPPER_BOUND_RANGE)
-    good.lower_bound = walk * rng.uniform(*LOWER_BOUND_RANGE)
+    good.price_history_daily = [price(good)]
     return good
 
 
-def volume_factor(good: GoodState, quantity: Optional[float] = None) -> float:
-    """How much dearer or cheaper the market's volume makes the good.
+# -- the price -----------------------------------------------------------
 
-    1.0 between the scarce and glut ratios of the normal volume; past them
-    the factor follows (threshold / ratio) ** elasticity, clamped, so the
-    further the volume strays the more the price moves.
+def volume_factor(good: GoodState, quantity: Optional[float] = None) -> float:
+    """How much dearer or cheaper the market's stock makes the good.
+
+    1.0 between the scarce and glut ratios of the target stock; past them the
+    factor follows (threshold / ratio) ** elasticity, clamped, so the further
+    the stock strays the more the price moves.
 
     Args:
         good: The good.
-        quantity: The volume to price at; the market's current one if omitted.
+        quantity: The stock to price at; the market's current one if omitted.
     """
     if quantity is None:
-        quantity = good.market_quantity
-    ratio = quantity / good.normal_quantity
+        quantity = good.stock
+    ratio = quantity / good.target_stock
     if ratio <= 0:
         return MARKET_VOLUME_FACTOR_MAX
     if ratio < MARKET_VOLUME_SCARCE_RATIO:
@@ -73,89 +70,97 @@ def volume_factor(good: GoodState, quantity: Optional[float] = None) -> float:
     return min(MARKET_VOLUME_FACTOR_MAX, max(MARKET_VOLUME_FACTOR_MIN, factor))
 
 
+def ratio_for_factor(factor: float) -> float:
+    """The lowest stock-to-target ratio at which the volume factor is *factor* (clamped to its range)."""
+    factor = min(MARKET_VOLUME_FACTOR_MAX, max(MARKET_VOLUME_FACTOR_MIN, factor))
+    if factor > 1.0:
+        return MARKET_VOLUME_SCARCE_RATIO / factor ** (1.0 / MARKET_VOLUME_ELASTICITY)
+    if factor < 1.0:
+        return MARKET_VOLUME_GLUT_RATIO / factor ** (1.0 / MARKET_VOLUME_ELASTICITY)
+    return MARKET_VOLUME_SCARCE_RATIO
+
+
+def reference(good: GoodState) -> float:
+    """The price the volume factor works on: the outside price, times a running well wish's shock."""
+    return good.outside_price * good.shock_factor
+
+
 def price(good: GoodState) -> float:
-    """The current market price: the random walk times the volume factor."""
-    return good.walk_price * volume_factor(good)
+    """The current market price."""
+    return reference(good) * volume_factor(good) * math.exp(good.noise)
 
 
 def set_price(good: GoodState, value: float) -> None:
-    """Set the price as it should show now, at the current volume (moves the walk)."""
-    good.walk_price = float(value) / volume_factor(good)
+    """Make the price show *value* now, by moving the outside price (its walk carries on from there)."""
+    outside = float(value) / (good.shock_factor * volume_factor(good) * math.exp(good.noise))
+    good.outside_price = outside
+    good.outside_dev = math.log(outside / good.outside_base) if good.outside_base > 0 else 0.0
 
 
-def quote(good: GoodState, quantity: int, buying: bool) -> float:
-    """What a trade of this many units comes to, before the trading fee.
+def quote(good: GoodState, quantity: float, buying: bool) -> float:
+    """What a trade of this many units comes to, with slippage.
 
-    Each unit is priced at its own volume, so a big order moves the price
-    against the trader as it goes: a bought unit at the volume before it is
-    taken (the first one at the shown price), a sold unit at the volume after
-    it is added. Buying and selling back the same units cancel out.
+    Each unit is priced at its own stock, so a big order moves the price
+    against the trader as it goes: a bought unit at the stock before it is
+    taken (the first one at the shown price), a sold unit at the stock after it
+    is added. Buying and selling back the same units cancel out. A fraction of
+    a unit is priced as the next whole one, pro rata.
 
     Args:
         good: The good.
         quantity: Units in the order.
         buying: True for a purchase from the market, False for a sale to it.
     """
-    q = good.market_quantity
+    whole = int(quantity)
+    rest = quantity - whole
+    q = good.stock
     if buying:
-        volumes = range(q, q - quantity, -1)
+        total = sum(volume_factor(good, q - k) for k in range(whole))
+        if rest > 0:
+            total += rest * volume_factor(good, q - whole)
     else:
-        volumes = range(q + 1, q + quantity + 1)
-    return good.walk_price * sum(volume_factor(good, v) for v in volumes)
+        total = sum(volume_factor(good, q + k + 1) for k in range(whole))
+        if rest > 0:
+            total += rest * volume_factor(good, q + whole + 1)
+    return reference(good) * math.exp(good.noise) * total
 
 
-def take(good: GoodState, quantity: int) -> None:
-    """Units bought from the market leave it; the chart's latest point shows the new price."""
-    good.market_quantity -= quantity
-    _show_current_price(good)
-
-
-def put(good: GoodState, quantity: int) -> None:
-    """Units sold to the market join it; the chart's latest point shows the new price."""
-    good.market_quantity += quantity
-    _show_current_price(good)
-
-
-def _show_current_price(good: GoodState) -> None:
+def show_current_price(good: GoodState) -> None:
     """Let the chart's latest point show the price a trade has just moved."""
     if good.price_history_ticks:
         good.price_history_ticks[-1] = price(good)
 
 
-def recover_volume(good: GoodState) -> None:
-    """Move the market's volume a price tick's share back towards normal.
+# -- the clock -------------------------------------------------------------
 
-    A stand-in for traders restocking and townsfolk buying, until the town
-    has a supply and demand of its own. Moves at least one unit while there
-    is a gap, so it always arrives.
+def step_noise(good: GoodState, definition: GoodDef, rng: random.Random) -> None:
+    """A price tick's step of the noise (one draw): mean-reverting, clamped."""
+    n = good.noise * PRICE_NOISE_PERSISTENCE + definition.noise_sigma * rng.gauss(0.0, 1.0)
+    good.noise = max(-PRICE_NOISE_CLAMP, min(PRICE_NOISE_CLAMP, n))
+
+
+def step_outside(good: GoodState, definition: GoodDef, moment: datetime.datetime, rng: random.Random) -> None:
+    """A day's step of the outside price's slow walk (one draw), with today's season factor."""
+    good.outside_dev = (good.outside_dev * (1.0 - definition.outside_reversion)
+                        + definition.outside_volatility * rng.gauss(0.0, 1.0))
+    good.outside_base = definition.outside_price * season_factor(definition.outside_seasons, moment)
+    good.outside_price = good.outside_base * math.exp(good.outside_dev)
+
+
+def close_day(good: GoodState) -> None:
+    """Yesterday's flows become ``yesterday``; today's start from nothing."""
+    good.yesterday = good.today
+    good.today = GoodFlows()
+
+
+def update_target(good: GoodState, definition: GoodDef, demand: float, glide: float = TARGET_STOCK_GLIDE) -> None:
+    """Move the demand average towards *demand* and the target stock with it.
+
+    Args:
+        glide: Share of the gap closed; 1 sets it outright (founding a town, loading an old save).
     """
-    gap = good.normal_quantity - good.market_quantity
-    if gap == 0:
-        return
-    step = max(1, math.floor(abs(gap) * _TICK_RECOVERY))
-    good.market_quantity += step if gap > 0 else -step
-
-
-def step_walk(good: GoodState, rng: random.Random) -> None:
-    """One price tick's step of the random walk (one draw from *rng*).
-
-    Free and volatile inside the corridor; calm and drifting back outside it;
-    pushed up a little below 1 so cheap goods do not collapse towards 0.
-    """
-    if good.walk_price > good.upper_bound:
-        mu = 0.999
-        sigma = 0.01
-    elif good.walk_price < good.lower_bound:
-        mu = 1.02
-        sigma = 0.01
-    else:
-        mu = 1.00
-        sigma = 0.1
-
-    if good.walk_price < 1:
-        mu = mu + 0.03
-
-    good.walk_price = good.walk_price * rng.normalvariate(mu, sigma)
+    good.demand_avg += glide * (demand - good.demand_avg)
+    good.target_stock = max(definition.min_target_stock, definition.target_stock_days * good.demand_avg)
 
 
 def record_tick(good: GoodState) -> None:
@@ -168,60 +173,98 @@ def record_day(good: GoodState) -> None:
     good.price_history_daily.append(price(good))
 
 
-def simulate_history(good: GoodState, ticks: int, days: int, rng: random.Random) -> None:
-    """Make up a price history of the given lengths from the starting price.
-
-    For a good added after a save was made: its history must be as long as
-    the saved goods', so the charts line its "now" up with theirs.
-    """
-    good.walk_price = good.base_price
-    good.price_history_ticks = [price(good)]
-    for _ in range(max(ticks, 1) - 1):
-        step_walk(good, rng)
-        record_tick(good)
-    # One daily entry per day's ticks, the last of them today
-    last = len(good.price_history_ticks) - 1
-    good.price_history_daily = [
-        good.price_history_ticks[max(0, last - PRICE_TICKS_PER_DAY * k)] for k in reversed(range(max(days, 1)))
-    ]
+def fill_history(good: GoodState, ticks: int, days: int) -> None:
+    """Give a good added after a save was made a flat history as long as the saved goods'."""
+    now = price(good)
+    good.price_history_ticks = [now] * max(ticks, 1)
+    good.price_history_daily = [now] * max(days, 1)
 
 
-def apply_well_shock(good: GoodState, up: bool) -> None:
-    """A well wish's price shock: the walk and both bounds move by WELL_WISH_SHOCK_FACTOR.
+# -- trading ---------------------------------------------------------------
 
-    The corridor moves with the walk so the price settles at the new level
-    instead of reverting at once. The original bounds come back after
-    WELL_WISH_DURATION_DAYS days (``tick_well_shock_day``); a second shock while
-    one runs keeps the first one's bounds to restore.
+def clear_buyers(good: GoodState, orders: Dict[str, float]) -> Tuple[Dict[str, float], float]:
+    """Settle one slice's purchases of a good: one order, one price for everyone in it.
+
+    When the stock cannot meet the orders, every buyer gets the same share.
+    The stock goes down by what is filled.
 
     Args:
         good: The good.
-        up: True to raise the price, False to lower it.
+        orders: Buyer -> units wanted in this slice.
+
+    Returns:
+        Buyer -> units filled, and the price each unit was settled at.
     """
-    factor = 1.0 + WELL_WISH_SHOCK_FACTOR if up else 1.0 - WELL_WISH_SHOCK_FACTOR
+    total = sum(orders.values())
+    if total <= 0 or good.stock <= 0:
+        return {buyer: 0.0 for buyer in orders}, price(good)
+    share = min(1.0, good.stock / total)
+    filled_total = total * share
+    unit_price = quote(good, filled_total, buying=True) / filled_total
+    good.stock = max(0.0, good.stock - filled_total)
+    return {buyer: units * share for buyer, units in orders.items()}, unit_price
 
-    # Save original bounds only when no shock is already active
-    if good.well_shock_remaining_days == 0:
-        good.well_shock_saved_upper = good.upper_bound
-        good.well_shock_saved_lower = good.lower_bound
 
-    good.walk_price *= factor
-    good.upper_bound *= factor
-    good.lower_bound *= factor
-    good.well_shock_remaining_days = WELL_WISH_DURATION_DAYS
+def merchants(good: GoodState, definition: GoodDef, slices: int) -> Tuple[float, float, float]:
+    """The outside world's merchants in one slice: import above the import line, export below the export line.
+
+    They go by the stock, not by the noise: the price without noise
+    (``reference × volume_factor``) is what they compare with the lines and
+    bring back to them, at most the slice's share of the good's daily limit.
+    The market place pays importers the import line's price and is paid the
+    export line's price by exporters.
+
+    Args:
+        good: The good.
+        definition: Its definition (limits, transport cost).
+        slices: Slices in a trading day.
+
+    Returns:
+        Units imported, units exported, and the money the market place paid (+) or got (−).
+    """
+    ref = reference(good)
+    level = ref * volume_factor(good)
+    import_line = ref + definition.transport_cost
+    export_line = ref - definition.transport_cost
+    if level > import_line and definition.import_limit > 0:
+        wanted_ratio = ratio_for_factor(import_line / ref)
+        units = min(definition.import_limit / slices, max(0.0, wanted_ratio * good.target_stock - good.stock))
+        if units > 0:
+            good.stock += units
+            return units, 0.0, units * import_line
+    elif level < export_line and export_line > 0 and definition.export_limit > 0:
+        wanted_ratio = ratio_for_factor(export_line / ref)
+        units = min(definition.export_limit / slices, good.stock, max(0.0, good.stock - wanted_ratio * good.target_stock))
+        if units > 0:
+            good.stock -= units
+            return 0.0, units, -units * export_line
+    return 0.0, 0.0, 0.0
+
+
+# -- well wishes -----------------------------------------------------------
+
+def apply_well_shock(good: GoodState, up: bool) -> None:
+    """A well wish: the good's outside price ×(1 ± WELL_WISH_SHOCK_FACTOR) for WELL_WISH_DURATION_DAYS.
+
+    The import and export lines move with it, so merchants follow the new level
+    and the local price settles there. A second wish while one runs multiplies
+    in and restarts the count.
+    """
+    good.shock_factor *= 1.0 + WELL_WISH_SHOCK_FACTOR if up else 1.0 - WELL_WISH_SHOCK_FACTOR
+    good.shock_days = WELL_WISH_DURATION_DAYS
 
 
 def tick_well_shock_day(good: GoodState) -> bool:
-    """Count a day off a running well shock; restore the bounds when it runs out.
+    """Count a day off a running well wish; the outside price is itself again when it runs out.
 
     Returns:
         True on the day the shock ended.
     """
-    if good.well_shock_remaining_days <= 0:
+    if good.shock_days <= 0:
         return False
-    good.well_shock_remaining_days -= 1
-    if good.well_shock_remaining_days == 0:
-        good.upper_bound = good.well_shock_saved_upper
-        good.lower_bound = good.well_shock_saved_lower
+    good.shock_days -= 1
+    if good.shock_days == 0:
+        good.shock_factor = 1.0
         return True
     return False
+

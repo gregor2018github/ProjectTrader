@@ -70,10 +70,10 @@ CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods giv
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
-MARKET_PRESIMULATION_DAYS = 60      # Days of price history to simulate before the game starts
+MARKET_PRESIMULATION_DAYS = 60      # Days the whole economy runs before the game starts, so the charts open with a history
 
-# MARKET VOLUME: a good's price is its random walk times a factor from how much of it the
-# market holds, measured against its normal volume (its starting stock). See docs/pricing.md.
+# MARKET VOLUME: a good's price is its reference (outside) price times a factor from how much of it the
+# market holds, measured against its target stock (days of demand), times a little noise. See docs/pricing.md.
 MARKET_VOLUME_SCARCE_RATIO = 0.9    # Below this share of the normal volume the good is scarce and dearer
 MARKET_VOLUME_GLUT_RATIO = 1.1      # Above this share of the normal volume the good is glutted and cheaper
 MARKET_VOLUME_ELASTICITY = 0.7      # How strongly the price answers a volume past those thresholds
@@ -81,9 +81,18 @@ MARKET_VOLUME_FACTOR_MIN = 0.4      # The cheapest a glut can make a good, as a 
 MARKET_VOLUME_FACTOR_MAX = 3.0      # The dearest scarcity can make a good, as a factor on its price
 PRICE_TICK_MINUTES = 30             # Prices move (and the price chart gets a point) every this many game minutes
 PRICE_TICKS_PER_DAY = 24 * 60 // PRICE_TICK_MINUTES
-MARKET_VOLUME_DAILY_RECOVERY = 0.1  # Share of the gap to the normal volume the market closes per day (stand-in for supply and demand)
+
+# THE LIVING MARKET (src/sim/, docs/p1_living_market.md); per-good and per-class values are in assets/data/
+MARKET_OPEN_HOUR = 6                # Households, workshops and merchants trade in hourly slices from this hour...
+MARKET_CLOSE_HOUR = 18              # ...to this one (12 slices a day)
+PRICE_NOISE_PERSISTENCE = 0.98      # Share of the price noise's log kept each price tick (half-life about 17 game hours)
+PRICE_NOISE_CLAMP = 0.1             # The noise never moves a price more than this far (as a log, so about ±10 %)
+TARGET_STOCK_GLIDE = 0.1            # Share of the gap to yesterday's demand the demand average closes each day (target stock follows it)
+PURSE_START_DAYS = 5                # A class's purse when a game starts, in days of its income
+SAVINGS_CAP_DAYS = 10               # A class saves at most this many days of income; the rest leaves town (rents and dues)
+SAVINGS_RELEASE = 0.2               # Share of its savings a class adds to a day's budget after a day its needs went unmet
 START_DATE = "01.01.1500"           # Where the clock starts, format: dd.mm.yyyy; the game calendar's first day (see below)
-# CALENDAR (src/models/game_calendar.py): the clock runs on as an ordinary datetime, but the
+# CALENDAR (src/sim/calendar.py): the clock runs on as an ordinary datetime, but the
 # calendar shown is compressed so a game can span generations: a year is four seasons
 # (Spring, Summer, Autumn, Winter) of one week each, START_DATE being the 1st of Spring.
 DAYS_PER_SEASON = 7                 # Days in a season, Monday to Sunday
@@ -138,10 +147,13 @@ POPULATION_SHARE_NOBILITY = 0.03
 STARTING_OCCUPANCY = 0.8            # Share of each house's Max_inhabitants living in it when a game starts (rounded per house)
 HAPPINESS_START = 80                # Every class's happiness, and the town's, when a game starts
 HAPPINESS_THRESHOLD = 70.0          # Below this average happiness, people move out; above, they move in
-HAPPINESS_EQUILIBRIUM = 70.0        # Natural happiness setpoint for mean-reversion
+HAPPINESS_FROM_NEEDS_MIN = 10.0     # Target happiness of a class that got nothing it needs
+HAPPINESS_FROM_NEEDS_MAX = 85.0     # Target happiness of a class that got all it needs, every tier
+HUNGER_THRESHOLD = 0.6              # Below this basic fulfilment a class goes hungry...
+HUNGER_PENALTY = 20.0               # ...and its target happiness drops by this much more
+HAPPINESS_GLIDE = 0.05              # Share of the gap to its target a class's happiness closes each hour
 POPULATION_MIN_FACTOR = 0.4         # A group can shrink to at most 40% of its map-defined base
 POPULATION_MAX_FACTOR = 1.2         # A group can grow to at most 120% of its map-defined base
-HAPPINESS_DRIFT_SIGMA = 1.5         # Std dev of hourly happiness noise (points)
 MAX_DAILY_POPULATION_CHANGE = 0.01  # Max daily population change rate (1% per day at extreme happiness)
 OVERPOP_MALUS_PER_PERCENT = 3       # Each 1% of overpopulation reduces happiness score by this many points
 NEAR_CAPACITY_THRESHOLD = 90.0      # Fill grade (%) above which crowding penalty begins (before full overpopulation)

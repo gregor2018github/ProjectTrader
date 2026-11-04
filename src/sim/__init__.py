@@ -5,11 +5,11 @@ models (``tests/sim/test_no_pygame.py`` holds it to that), so it runs in tests
 and in the headless runner (``python -m src.sim.run``) as it does in the game.
 ``docs/sim_core.md`` describes its structure and how to extend it.
 """
-from .data import DataError, GoodDef, RecipeDef, load_goods, load_recipes
+from .data import ClassNeedsDef, DataError, GoodDef, NeedDef, RecipeDef, load_goods, load_needs, load_recipes
 from .simulation import SIM_VERSION, Simulation, SimVersionError
 from .state import TownSpec
 
 __all__ = [
-    "DataError", "GoodDef", "RecipeDef", "SIM_VERSION", "Simulation", "SimVersionError",
-    "TownSpec", "load_goods", "load_recipes",
+    "ClassNeedsDef", "DataError", "GoodDef", "NeedDef", "RecipeDef", "SIM_VERSION", "Simulation",
+    "SimVersionError", "TownSpec", "load_goods", "load_needs", "load_recipes",
 ]

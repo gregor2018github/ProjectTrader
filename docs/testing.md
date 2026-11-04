@@ -30,11 +30,16 @@ it is where the bugs cost most and the tests are cheapest.
    `GoodState` / `PopulationState` with a `random.Random(seed)` of the test's
    own, the scheduler on hand-picked moments, the data loaders on small dicts.
    Four kinds of test guard the core as a whole:
-   - **Goldens** (`test_golden.py`): a fixed scenario (pre-simulation, a year,
-     scripted trades and well wishes) snapshotted to `tests/sim/golden/` from the
-     code *before* the extraction, matched to the last bit. When behaviour is
-     meant to change, regenerate with `python -m tests.sim.golden_harness --write`
-     and say so in the commit; otherwise a failing golden is a bug.
+   - **Goldens** (`test_golden.py`): a fixed scenario (the economy run ahead, a
+     year, scripted player trades and well wishes) snapshotted to
+     `tests/sim/golden/` and matched to the last bit. They run on their own frozen
+     copy of the data (`tests/sim/golden/data/`), so tuning `assets/data/` does not
+     break them; they pin each phase of P1. When behaviour is meant to change,
+     regenerate with `python -m tests.sim.golden_harness --write` and say so in
+     the commit; otherwise a failing golden is a bug.
+   - **Rules one by one** (`test_market.py`, `test_households.py`) on small
+     definitions from `tests/sim/builders.py`, and the whole economy on a toy town
+     (`test_simulation.py`: the player buying up the bread leaves the town short).
    - **Determinism** (`test_run.py`): the same seed writes byte-identical CSVs,
      another seed different ones.
    - **Save round trip** (`test_simulation_save.py`): a saved and loaded
@@ -86,10 +91,7 @@ it is where the bugs cost most and the tests are cheapest.
 
 ## Next areas, in order
 
-1. The market's rules one by one (`src/sim/systems/market.py`): `volume_factor`,
-   `quote`, `recover_volume`, the corridor of `step_walk`, the well shock; so
-   far only the goldens cover them as a whole.
-2. Save round trips of the depot and statistics (after the split above; the
+1. Save round trips of the depot and statistics (after the split above; the
    simulation's block has its own already).
-3. `GameState.update()`'s `TimeChanges` against the scheduler's ticks.
-4. `NavGrid.find_route` on a hand-made grid, then the real-map checks.
+2. `GameState.update()`'s `TimeChanges` against the scheduler's ticks.
+3. `NavGrid.find_route` on a hand-made grid, then the real-map checks.

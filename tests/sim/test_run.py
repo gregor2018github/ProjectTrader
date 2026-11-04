@@ -3,16 +3,19 @@ import json
 
 import pytest
 
-from src.sim import TownSpec, load_goods
-from src.sim.run import GOODS_FILE, META_FILE, POPULATION_FILE, main, write_run
+from src.sim import TownSpec
+from src.sim.run import GOODS_FILE, META_FILE, POPULATION_FILE, TOWN_FILE, load_definitions, main, write_run
 from src.sim.scenario import tmx_town
 
 TOWN = TownSpec([6, 8, 4, 12, 5, 7, 9, 3, 10])
 
 
+GOODS, NEEDS = load_definitions()
+
+
 def run(path, seed):
-    write_run(str(path), years=0.5, seed=seed, goods=load_goods(), town=TOWN, presim_days=2)
-    return {name: (path / name).read_bytes() for name in (GOODS_FILE, POPULATION_FILE)}
+    write_run(str(path), years=0.5, seed=seed, goods=GOODS, needs=NEEDS, town=TOWN, presim_days=2)
+    return {name: (path / name).read_bytes() for name in (GOODS_FILE, POPULATION_FILE, TOWN_FILE)}
 
 
 def test_the_same_seed_writes_the_same_files_and_another_seed_others(tmp_path):
@@ -25,16 +28,18 @@ def test_the_same_seed_writes_the_same_files_and_another_seed_others(tmp_path):
 
 
 def test_the_files_are_tidy_and_the_meta_complete(tmp_path):
-    write_run(str(tmp_path), years=0.25, seed=5, goods=load_goods(), town=TOWN, presim_days=0)
+    write_run(str(tmp_path), years=0.25, seed=5, goods=GOODS, needs=NEEDS, town=TOWN, presim_days=0)
     goods_lines = (tmp_path / GOODS_FILE).read_text(encoding="utf-8").splitlines()
-    assert goods_lines[0].startswith("day,year,season,day_of_season,good,price")
-    days, n_goods = 7, len(load_goods())
+    assert goods_lines[0].startswith("day,year,season,day_of_season,good,price,outside_price")
+    days, n_goods = 7, len(GOODS)
     assert len(goods_lines) == 1 + days * n_goods
     pop_lines = (tmp_path / POPULATION_FILE).read_text(encoding="utf-8").splitlines()
     assert len(pop_lines) == 1 + days * 5                         # four classes and "All"
     meta = json.loads((tmp_path / META_FILE).read_text(encoding="utf-8"))
     assert meta["seed"] == 5 and meta["days"] == days
-    assert "MARKET_VOLUME_ELASTICITY" in meta["constants"]
+    assert "MARKET_VOLUME_ELASTICITY" in meta["constants"] and "SAVINGS_CAP_DAYS" in meta["constants"]
+    assert [n["name"] for n in meta["needs"]] == ["Poor", "Commons", "Middling Sort", "Nobility"]
+    assert len((tmp_path / TOWN_FILE).read_text(encoding="utf-8").splitlines()) == 1 + days
     assert meta["runtime_seconds"]["total"] >= 0
 
 

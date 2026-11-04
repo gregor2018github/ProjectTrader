@@ -1,24 +1,35 @@
 """The simulation's definitions, read from JSON in ``assets/data/`` and checked.
 
-``goods.json`` lists the tradeable goods (their order is the order the market
-creates them in, which the random generator's draws follow); ``recipes.json``
-lists production recipes, which nothing runs yet (P1). Every mistake in a file
-is reported as a ``DataError`` naming the file, the entry and the field, e.g.::
+- ``goods.json``: the tradeable goods, their outside price and its walk, the
+  cost of bringing them in, how much merchants move a day, and how much stock
+  the market likes to hold. Their order is the order the market keeps them in,
+  which the random generator's draws follow.
+- ``needs.json``: per social class, its income and what a head wants a day,
+  in three tiers (basic, comfort, luxury), and how much each tier weighs on
+  its happiness.
+- ``recipes.json``: production recipes, which nothing runs yet (phase 2).
 
-    goods.json, entry 3 ('Iron'): field 'start_price': expected a number > 0, got 'x'
+Every mistake in a file is reported as a ``DataError`` naming the file, the
+entry and the field, e.g.::
+
+    goods.json, entry 3 ('Iron'): field 'outside_price': expected a number > 0, got 'x'
 
 The files live under ``assets/`` because the release build copies exactly the
 tracked files there (``build_tools/Release/build_release.py``).
 """
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Collection, Dict, List, Optional, Tuple
 
 from ..config.constants import DATA_PATH
+from .calendar import SEASONS
 
 GOODS_FILE = "goods.json"
+NEEDS_FILE = "needs.json"
 RECIPES_FILE = "recipes.json"
+
+TIERS = ("basic", "comfort", "luxury")      # bought in this order
 
 
 class DataError(ValueError):
@@ -29,11 +40,37 @@ class DataError(ValueError):
 class GoodDef:
     """A tradeable good as goods.json defines it."""
     name: str
-    start_price: float          # the walk's starting price
-    start_quantity: int         # the market's starting (and normal) volume
     color: str                  # a colour's name in src/config/colors.py, for the charts
     chart_index: int            # its place in the charts and lists
     show_in_charts: bool        # shown in the price chart when a game starts
+    outside_price: float        # the long-run mean of the price outside the town
+    outside_reversion: float = 0.03     # share of the outside price's log deviation undone a day
+    outside_volatility: float = 0.03    # the outside price's daily log step
+    transport_cost: float = 0.0         # per unit, between the town and outside, either way
+    import_limit: float = 0.0           # units merchants bring in a day at most (0: none)
+    export_limit: float = 0.0           # units merchants take out a day at most (0: none)
+    target_stock_days: float = 14.0     # days of the town's demand the market likes to hold
+    min_target_stock: float = 50.0      # ...and at least this many units, demand or not
+    noise_sigma: float = 0.004          # the price noise's log step per price tick
+    outside_seasons: Dict[str, float] = field(default_factory=dict)   # season -> factor on the outside price
+
+
+@dataclass(frozen=True)
+class NeedDef:
+    """One good a class wants, in units per head per day."""
+    good: str
+    units: float
+    seasons: Dict[str, float] = field(default_factory=dict)   # season -> factor on the units (e.g. firewood in Winter)
+
+
+@dataclass(frozen=True)
+class ClassNeedsDef:
+    """A social class as needs.json defines it."""
+    name: str
+    base_income: float                      # per head per day, from all the work that is not simulated
+    labour_share: float                     # share of its heads that can take a job (phase 2)
+    happiness_weights: Dict[str, float]     # tier -> weight; they add up to 1
+    tiers: Dict[str, List[NeedDef]]         # tier -> what a head wants, in TIERS order
 
 
 @dataclass(frozen=True)
@@ -80,11 +117,14 @@ def _string(entry: _Entry, data: Dict[str, Any], field: str, optional: bool = Fa
     return value
 
 
-def _number(entry: _Entry, data: Dict[str, Any], field: str, minimum: float, strict: bool) -> float:
+def _number(entry: _Entry, data: Dict[str, Any], field: str, minimum: float, strict: bool,
+            maximum: Optional[float] = None) -> float:
     value = _require(entry, data, field)
-    if not _is_number(value) or (value <= minimum if strict else value < minimum):
+    too_low = not _is_number(value) or (value <= minimum if strict else value < minimum)
+    if too_low or (maximum is not None and value > maximum):
         relation = ">" if strict else ">="
-        raise entry.fail(field, f"expected a number {relation} {minimum:g}, got {value!r}")
+        upper = f" and <= {maximum:g}" if maximum is not None else ""
+        raise entry.fail(field, f"expected a number {relation} {minimum:g}{upper}, got {value!r}")
     return value
 
 
@@ -102,10 +142,22 @@ def _boolean(entry: _Entry, data: Dict[str, Any], field: str) -> bool:
     return value
 
 
+def _seasons(entry: _Entry, value: Any, field: str) -> Dict[str, float]:
+    """A ``{season: factor}`` object; seasons left out have the factor 1."""
+    if not isinstance(value, dict):
+        raise entry.fail(field, f"expected an object of season -> factor, got {value!r}")
+    for season, factor in value.items():
+        if season not in SEASONS:
+            raise entry.fail(field, f"unknown season {season!r} (known: {', '.join(SEASONS)})")
+        if not _is_number(factor) or factor <= 0:
+            raise entry.fail(field, f"{season!r}: expected a number > 0, got {factor!r}")
+    return {s: float(f) for s, f in value.items()}
+
+
 def _no_unknown_fields(entry: _Entry, data: Dict[str, Any], known: Collection[str]) -> None:
-    for field in data:
-        if field not in known:
-            raise entry.fail(field, f"unknown field (known: {', '.join(sorted(known))})")
+    for field_name in data:
+        if field_name not in known:
+            raise entry.fail(field_name, f"unknown field (known: {', '.join(sorted(known))})")
 
 
 def _read(path: str, file: str, key: str) -> List[Any]:
@@ -133,7 +185,9 @@ def _entries(items: List[Any], file: str, label_field: str) -> List[Tuple[_Entry
     return out
 
 
-GOOD_FIELDS = ("name", "start_price", "start_quantity", "color", "chart_index", "show_in_charts")
+GOOD_FIELDS = ("name", "color", "chart_index", "show_in_charts", "outside_price", "outside_reversion",
+               "outside_volatility", "outside_seasons", "transport_cost", "import_limit", "export_limit",
+               "target_stock_days", "min_target_stock", "noise_sigma")
 
 
 def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
@@ -149,11 +203,19 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
         _no_unknown_fields(entry, data, GOOD_FIELDS)
         good = GoodDef(
             name=_string(entry, data, "name"),
-            start_price=float(_number(entry, data, "start_price", 0, strict=True)),
-            start_quantity=_integer(entry, data, "start_quantity", 1),
             color=_string(entry, data, "color"),
             chart_index=_integer(entry, data, "chart_index", 0),
             show_in_charts=_boolean(entry, data, "show_in_charts"),
+            outside_price=float(_number(entry, data, "outside_price", 0, strict=True)),
+            outside_reversion=float(_number(entry, data, "outside_reversion", 0, strict=False, maximum=1)),
+            outside_volatility=float(_number(entry, data, "outside_volatility", 0, strict=False)),
+            transport_cost=float(_number(entry, data, "transport_cost", 0, strict=False)),
+            import_limit=float(_number(entry, data, "import_limit", 0, strict=False)),
+            export_limit=float(_number(entry, data, "export_limit", 0, strict=False)),
+            target_stock_days=float(_number(entry, data, "target_stock_days", 0, strict=True)),
+            min_target_stock=float(_number(entry, data, "min_target_stock", 0, strict=True)),
+            noise_sigma=float(_number(entry, data, "noise_sigma", 0, strict=False)),
+            outside_seasons=_seasons(entry, data.get("outside_seasons", {}), "outside_seasons"),
         )
         if good.name in names:
             raise entry.fail("name", f"{good.name!r} is already entry {names[good.name]}")
@@ -167,18 +229,83 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
     return goods
 
 
+CLASS_FIELDS = ("class", "base_income", "labour_share", "happiness_weights") + TIERS
+
+
+def _need_items(entry: _Entry, data: Dict[str, Any], tier: str, goods: Collection[str]) -> List[NeedDef]:
+    value = _require(entry, data, tier)
+    if not isinstance(value, dict):
+        raise entry.fail(tier, f"expected an object of good -> units per head per day, got {value!r}")
+    items = []
+    for good, amount in value.items():
+        if good not in goods:
+            raise entry.fail(tier, f"unknown good {good!r} (not in {GOODS_FILE})")
+        seasons: Dict[str, float] = {}
+        if isinstance(amount, dict):
+            unknown = set(amount) - {"units", "seasons"}
+            if unknown:
+                raise entry.fail(tier, f"{good!r}: unknown field {sorted(unknown)[0]!r} (known: seasons, units)")
+            seasons = _seasons(entry, amount.get("seasons", {}), f"{tier}.{good}.seasons")
+            amount = amount.get("units")
+        if not _is_number(amount) or amount <= 0:
+            raise entry.fail(tier, f"{good!r}: expected a number > 0 (units per head per day), got {amount!r}")
+        items.append(NeedDef(good, float(amount), seasons))
+    return items
+
+
+def parse_needs(items: List[Any], goods: Collection[str], classes: Optional[Collection[str]] = None,
+                file: str = NEEDS_FILE) -> List[ClassNeedsDef]:
+    """Check needs.json's ``"classes"`` list against the known goods (and classes, if given).
+
+    Raises:
+        DataError: On the first entry that breaks the schema, names an unknown
+            good or class, repeats a class, or leaves out one of *classes*.
+    """
+    out: List[ClassNeedsDef] = []
+    seen: Dict[str, int] = {}
+    for entry, data in _entries(items, file, "class"):
+        _no_unknown_fields(entry, data, CLASS_FIELDS)
+        name = _string(entry, data, "class")
+        if classes is not None and name not in classes:
+            raise entry.fail("class", f"unknown class {name!r} (known: {', '.join(classes)})")
+        if name in seen:
+            raise entry.fail("class", f"{name!r} is already entry {seen[name]}")
+        weights = _require(entry, data, "happiness_weights")
+        if not isinstance(weights, dict) or set(weights) != set(TIERS):
+            raise entry.fail("happiness_weights", f"expected an object with exactly {', '.join(TIERS)}, got {weights!r}")
+        for tier, w in weights.items():
+            if not _is_number(w) or w < 0:
+                raise entry.fail("happiness_weights", f"{tier!r}: expected a number >= 0, got {w!r}")
+        if abs(sum(weights.values()) - 1.0) > 1e-6:
+            raise entry.fail("happiness_weights", f"the weights must add up to 1, they add up to {sum(weights.values()):g}")
+        seen[name] = len(out)
+        out.append(ClassNeedsDef(
+            name=name,
+            base_income=float(_number(entry, data, "base_income", 0, strict=False)),
+            labour_share=float(_number(entry, data, "labour_share", 0, strict=False, maximum=1)),
+            happiness_weights={t: float(weights[t]) for t in TIERS},
+            tiers={t: _need_items(entry, data, t, goods) for t in TIERS},
+        ))
+    if classes is not None:
+        missing = [c for c in classes if c not in seen]
+        if missing:
+            raise DataError(f"{file}: no entry for the class(es) {', '.join(missing)}")
+    return out
+
+
 RECIPE_FIELDS = ("id", "name", "description", "inputs", "outputs", "labour", "days")
 
 
-def _amounts(entry: _Entry, data: Dict[str, Any], field: str, goods: Collection[str], allow_empty: bool) -> Dict[str, int]:
-    value = _require(entry, data, field)
+def _amounts(entry: _Entry, data: Dict[str, Any], field_name: str, goods: Collection[str],
+             allow_empty: bool) -> Dict[str, int]:
+    value = _require(entry, data, field_name)
     if not isinstance(value, dict) or (not value and not allow_empty):
-        raise entry.fail(field, f"expected an object of good -> units{'' if allow_empty else ' (at least one)'}, got {value!r}")
+        raise entry.fail(field_name, f"expected an object of good -> units{'' if allow_empty else ' (at least one)'}, got {value!r}")
     for good, units in value.items():
         if good not in goods:
-            raise entry.fail(field, f"unknown good {good!r} (not in {GOODS_FILE})")
+            raise entry.fail(field_name, f"unknown good {good!r} (not in {GOODS_FILE})")
         if not isinstance(units, int) or isinstance(units, bool) or units < 1:
-            raise entry.fail(field, f"{good!r}: expected a whole number >= 1, got {units!r}")
+            raise entry.fail(field_name, f"{good!r}: expected a whole number >= 1, got {units!r}")
     return dict(value)
 
 
@@ -213,6 +340,13 @@ def load_goods(folder: Optional[str] = None) -> List[GoodDef]:
     """The goods in ``goods.json`` (in *folder*, ``assets/data/`` by default)."""
     folder = folder or DATA_PATH
     return parse_goods(_read(os.path.join(folder, GOODS_FILE), GOODS_FILE, "goods"))
+
+
+def load_needs(goods: Collection[str], classes: Optional[Collection[str]] = None,
+               folder: Optional[str] = None) -> List[ClassNeedsDef]:
+    """The classes' needs in ``needs.json``, checked against the given goods (and classes)."""
+    folder = folder or DATA_PATH
+    return parse_needs(_read(os.path.join(folder, NEEDS_FILE), NEEDS_FILE, "classes"), goods, classes)
 
 
 def load_recipes(goods: Collection[str], folder: Optional[str] = None) -> List[RecipeDef]:

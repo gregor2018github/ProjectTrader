@@ -14,8 +14,6 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
-from ..sim.state import GoodState
-from ..sim.systems import market
 
 from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
@@ -559,45 +557,32 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
 
 
 def _legacy_sim_block(data: Dict[str, Any], sim: Any) -> Dict[str, Any]:
-    """A ``"sim"`` block made from a save of before the simulation core (SAVE_VERSION < 3).
+    """A ``"sim"`` block of sim_version 1 made from a save of before the simulation core (SAVE_VERSION < 3).
 
     Those kept the market in ``"goods"`` and the people in ``"population"``.
-    What such a save lacks is taken from the freshly started *sim*, as the
-    loader always did: the corridor and the normal volume of saves older
-    still, the classes' base head counts (the map's, never saved), and the
-    random generator (left as it is; the block has no ``"rng"``).
+    Only what the living market still uses is carried over: each good's stock
+    (with its normal volume, to keep how scarce it was) and price histories,
+    and the people; ``Simulation.load`` then migrates the
+    block like any of sim_version 1 (the prices jump to the new model). What
+    the save lacks is taken from the freshly started *sim*: the classes' base
+    head counts (the map's, never saved), and the random generator (left as it
+    is; the block has no ``"rng"``).
     """
     goods_data = data.get("goods", [])
     if data.get("save_version", 1) < 2:
         # Hourly charts: fill in points between the hours, so they run at the price ticks' pace
         for gd in goods_data:
             gd["price_history_hourly"] = _hourly_to_ticks(gd["price_history_hourly"])
-    goods = []
-    for gd in goods_data:
-        current = sim.state.goods.get(gd["name"])
-        if current is None:
-            continue
-        good = GoodState(
-            name=current.name,
-            base_price=current.base_price,
-            walk_price=current.walk_price,
-            market_quantity=int(gd["market_quantity"]),
-            normal_quantity=int(gd.get("normal_quantity", current.normal_quantity)),
-            # Saves from before the corridor was saved keep the freshly rolled one
-            upper_bound=gd.get("upper_bound", current.upper_bound),
-            lower_bound=gd.get("lower_bound", current.lower_bound),
-            well_shock_remaining_days=gd.get("well_shock_remaining_days", 0),
-            well_shock_saved_upper=gd.get("well_shock_saved_upper", 0.0),
-            well_shock_saved_lower=gd.get("well_shock_saved_lower", 0.0),
-            price_history_ticks=list(gd["price_history_hourly"]),
-            price_history_daily=list(gd["price_history_daily"]),
-        )
-        if "walk_price" in gd:
-            good.walk_price = gd["walk_price"]
-        else:
-            # Saves from before the volume factor: keep the price the player last saw
-            market.set_price(good, gd["price"])
-        goods.append(good.to_dict())
+    goods = [
+        {
+            "name": gd["name"],
+            "market_quantity": gd["market_quantity"],
+            "normal_quantity": gd.get("normal_quantity"),     # missing in older saves still: stock at its target
+            "price_history_ticks": list(gd["price_history_hourly"]),
+            "price_history_daily": list(gd["price_history_daily"]),
+        }
+        for gd in goods_data if gd["name"] in sim.state.goods
+    ]
     return {
         "sim_version": 1,
         "state": {"goods": goods, "population": _legacy_population(data.get("population"), sim)},

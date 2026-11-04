@@ -1,6 +1,8 @@
 # P1 · The living market: design
 
-Status: **approved**, with the decisions below. Phases 1 and 2 are built together on the branch `p1-living-market` and merged together; phase 1 alone (imports only) is a development state, not a playable one. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Status: **approved**, with the decisions below. Phases 1 and 2 are built together on the branch `p1-living-market` and merged together; phase 1 alone (imports only) is a development state, not a playable one.
+
+Progress: **phase 1 built** (demand and the outside world, on today's 15 goods); phase 2 (production) next. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 

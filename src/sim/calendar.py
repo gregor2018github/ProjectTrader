@@ -16,7 +16,8 @@ simulation's scheduler (``scheduler.py``) and the game's ``GameState.update()``
 both count price ticks, hours, days, weeks, seasons and years from here.
 """
 import datetime
-from typing import Dict, NamedTuple, Optional, Union
+import math
+from typing import Dict, Mapping, NamedTuple, Optional, Union
 
 from ..config.constants import CALENDAR_START_YEAR, DAYS_PER_SEASON, PRICE_TICK_MINUTES, START_DATE
 
@@ -185,3 +186,20 @@ def tick_numbers(moment: datetime.datetime) -> Dict[str, int]:
         SEASON: days // DAYS_PER_SEASON,
         YEAR: days // DAYS_PER_YEAR,
     }
+
+
+def season_factor(factors: Mapping[str, float], moment: datetime.datetime) -> float:
+    """A per-season factor (``{"Winter": 1.5}``; seasons left out are 1) at *moment*.
+
+    Each season's factor holds at its middle and blends smoothly (a cosine)
+    into the next one's, so a season's turn shows no jump.
+    """
+    if not factors:
+        return 1.0
+    days = day_number(moment) % DAYS_PER_YEAR + (moment.hour + moment.minute / 60) / 24
+    position = (days - DAYS_PER_SEASON / 2) / DAYS_PER_SEASON     # 0 at Spring's middle, 1 at Summer's, ...
+    index = math.floor(position)
+    blend = (1 - math.cos(math.pi * (position - index))) / 2
+    a = factors.get(SEASONS[index % len(SEASONS)], 1.0)
+    b = factors.get(SEASONS[(index + 1) % len(SEASONS)], 1.0)
+    return a + (b - a) * blend

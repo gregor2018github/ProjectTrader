@@ -56,40 +56,22 @@ class Good:
     # -- the simulation's numbers, passed through --------------------------
 
     @property
-    def walk_price(self) -> float:
-        return self.state.walk_price
-
-    @walk_price.setter
-    def walk_price(self, value: float) -> None:
-        self.state.walk_price = value
-
-    @property
     def market_quantity(self) -> int:
-        return self.state.market_quantity
+        """Whole units the market holds (its stock is kept in fractions)."""
+        return int(self.state.stock)
 
     @market_quantity.setter
     def market_quantity(self, value: int) -> None:
-        self.state.market_quantity = int(value)
+        self.state.stock = float(value)
 
     @property
-    def normal_quantity(self) -> int:
-        return self.state.normal_quantity
+    def normal_quantity(self) -> float:
+        """The stock the market likes to hold: its target, in days of demand."""
+        return self.state.target_stock
 
     @property
-    def upper_bound(self) -> float:
-        return self.state.upper_bound
-
-    @property
-    def lower_bound(self) -> float:
-        return self.state.lower_bound
-
-    @property
-    def base_price(self) -> float:
-        return self.state.base_price
-
-    @property
-    def well_shock_remaining_days(self) -> int:
-        return self.state.well_shock_remaining_days
+    def outside_price(self) -> float:
+        return self.state.outside_price
 
     @property
     def price_history_daily(self) -> List[float]:
@@ -103,16 +85,16 @@ class Good:
 
     @property
     def price(self) -> float:
-        """The current market price: the random walk times the volume factor."""
+        """The current market price (``market.price``)."""
         return market.price(self.state)
 
     @price.setter
     def price(self, value: float) -> None:
-        """Set the price as it should show now, at the current volume."""
+        """Make the price show *value* now (``market.set_price``: it moves the outside price)."""
         market.set_price(self.state, value)
 
     def volume_factor(self, quantity: Optional[float] = None) -> float:
-        """How much dearer or cheaper the market's volume makes the good (``market.volume_factor``)."""
+        """How much dearer or cheaper the market's stock makes the good (``market.volume_factor``)."""
         return market.volume_factor(self.state, quantity)
 
     def quote(self, quantity: int, buying: bool) -> float:
@@ -120,12 +102,12 @@ class Good:
         return market.quote(self.state, quantity, buying)
 
     def buy(self, quantity: int) -> None:
-        """Units bought by the player leave the market."""
-        market.take(self.state, quantity)
+        """The player buys units from the market (``Simulation.trade_with_player``)."""
+        self._sim.trade_with_player(self.name, quantity, buying=True)
 
     def sell(self, quantity: int) -> None:
-        """Units sold by the player join the market."""
-        market.put(self.state, quantity)
+        """The player sells units to the market (``Simulation.trade_with_player``)."""
+        self._sim.trade_with_player(self.name, quantity, buying=False)
 
     def apply_well_shock(self, direction: str) -> None:
         """A well wish's price shock (``market.apply_well_shock``).
