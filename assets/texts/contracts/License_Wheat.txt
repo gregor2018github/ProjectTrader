@@ -1,7 +1,7 @@
 License for the Trade of Wheat and Grains
 By the grace of the Town Council of Blackwater and the flour-dusted, hawk-eyed oversight of the Most Worshipful Guild of Bakers and Millers, the bearer is hereby granted the legal right to procure, winnow, and distribute the golden lifeblood of our fields. While we pray for a bountiful harvest, the bearer is strictly forbidden from "extending" their bushels with sawdust, fine sand, or "unusually heavy" gravel to cheat the scales. Furthermore, the merchant shall not pass off damp, sprouting grain as "pre-malted specialty grist". Go forth and fill the granaries of our land, provided you do not attract a plague of locusts through sheer negligence.
 
-• Term of Validity: [$$contract_months$$] Months
+• Term of Validity: [$$contract_term$$]
 • Licensing Fee: [$$contract_cost$$] Gold Coins
 
 

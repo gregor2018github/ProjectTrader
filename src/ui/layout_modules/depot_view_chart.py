@@ -4,6 +4,7 @@ import datetime
 from typing import TYPE_CHECKING, Optional, List
 from ...config.colors import *
 from ..paper import CHART_PAPER_EDGE, draw_paper
+from ...models.game_calendar import format_date
 
 if TYPE_CHECKING:
     from ...models.depot import Depot
@@ -275,7 +276,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                 pygame.draw.circle(screen, DARK_BROWN, second_dot, 4, 1)
 
             if active_chart == "Wealth":
-                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                bar_date = format_date(game_state.date - datetime.timedelta(days=entries_ago))
                 total_w = depot.wealth[actual_idx] if actual_idx < len(depot.wealth) else 0
                 money   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
                 prop_v  = depot.property_value_history[actual_idx] if actual_idx < len(depot.property_value_history) else 0
@@ -292,7 +293,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                 _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
 
             elif active_chart == "Money":
-                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                bar_date = format_date(game_state.date - datetime.timedelta(days=entries_ago))
                 cash   = depot.money_history[actual_idx] if actual_idx < len(depot.money_history) else 0
                 loan_v = visible_second_data[vis_idx] if has_second and vis_idx < len(visible_second_data) else 0
                 lines = [
@@ -303,7 +304,7 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                 _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
 
             elif active_chart == "Houses":
-                bar_date = (game_state.date - datetime.timedelta(days=entries_ago)).strftime("%d.%m.%Y")
+                bar_date = format_date(game_state.date - datetime.timedelta(days=entries_ago))
                 prop_v  = depot.property_value_history[actual_idx] if actual_idx < len(depot.property_value_history) else 0
                 storage = depot.storage_capacity_history[actual_idx] if actual_idx < len(depot.storage_capacity_history) else 0
                 owned   = depot.house_history[actual_idx] if actual_idx < len(depot.house_history) else 0
@@ -316,7 +317,8 @@ def draw_depot_chart(screen: pygame.Surface, rect: pygame.Rect, font: pygame.fon
                 _draw_wealth_tooltip(screen, font, mouse_pos, chart_rect, lines)
 
             elif active_chart == "Happiness" and population_manager is not None:
-                bar_date = (game_state.date - datetime.timedelta(hours=entries_ago)).strftime("%d.%m.%Y %H:00")
+                bar_moment = game_state.date - datetime.timedelta(hours=entries_ago)
+                bar_date = f"{format_date(bar_moment)} {bar_moment.hour:02d}:00"
                 h_hist = population_manager.happiness_history
                 total_h = population_manager.average_happiness_history[actual_idx] if actual_idx < len(population_manager.average_happiness_history) else 0
                 poor_h  = h_hist["Poor"][actual_idx]   if "Poor"          in h_hist and actual_idx < len(h_hist["Poor"])          else 0
@@ -490,7 +492,7 @@ def _draw_population_stacked_bars(
     if hover_info:
         group_name, val, bar_total, data_idx = hover_info
         days_ago = min_len - 1 - data_idx
-        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        bar_date = format_date(current_date - datetime.timedelta(days=days_ago))
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Group", group_name, val, pct, bar_total)
@@ -589,7 +591,7 @@ def _draw_stock_stacked_bars(
     if hover_info:
         good_name, val, bar_total, data_idx = hover_info
         days_ago = min_len - 1 - data_idx
-        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        bar_date = format_date(current_date - datetime.timedelta(days=days_ago))
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Good", good_name, val, pct, bar_total)
@@ -784,7 +786,7 @@ def _draw_expenses_stacked_bars(
     if hover_info:
         cat_name, val, bar_total, data_idx = hover_info
         days_ago = min_len - 1 - data_idx
-        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        bar_date = format_date(current_date - datetime.timedelta(days=days_ago))
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Category", cat_name, int(round(val)), pct, int(round(bar_total)))
@@ -973,7 +975,7 @@ def _draw_income_stacked_bars(
     if hover_info:
         cat_name, val, bar_total, data_idx = hover_info
         days_ago = min_len - 1 - data_idx
-        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        bar_date = format_date(current_date - datetime.timedelta(days=days_ago))
         pct = val / bar_total * 100 if bar_total else 0
         _draw_stacked_bar_tooltip(screen, font, mouse_pos, chart_rect,
                                   bar_date, "Source", cat_name, int(round(val)), pct, int(round(bar_total)))
@@ -1211,7 +1213,7 @@ def _draw_profit_bars(
         # Bar i spans wealth[i] -> wealth[i+1], and the newest of those snapshots
         # was taken at the start of today, so the last bar is yesterday's day.
         days_ago = total_len - hover_idx
-        bar_date = (current_date - datetime.timedelta(days=days_ago)).strftime("%d.%m.%Y")
+        bar_date = format_date(current_date - datetime.timedelta(days=days_ago))
         lines = [
             ("Date:",       bar_date),
             ("Cash Flow:",  f"{cash_flow[hover_idx]:,.0f}"),

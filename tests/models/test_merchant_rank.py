@@ -1,5 +1,5 @@
 """The merchant rank: rising, the grace period before a fall, unlocks kept for good,
-reputation from gifts and its monthly fading, and the save."""
+reputation from gifts and its seasonal fading, and the save."""
 
 import datetime
 import math
@@ -33,7 +33,7 @@ def pinned_ranks(monkeypatch):
         ("RANK_UNLOCKS", {"buy_buildings": "Second"}),
         ("DONATION_REPUTATION_SCALE", SCALE),
         ("DONATION_REPUTATION_WEALTH_FLOOR", FLOOR),
-        ("REPUTATION_MONTHLY_DECAY", DECAY),
+        ("REPUTATION_SEASONAL_DECAY", DECAY),
     ):
         monkeypatch.setattr(rank_module, name, value)
 
@@ -193,14 +193,14 @@ def test_a_small_purse_is_measured_against_the_floor(rank, depot):
     assert rank.reputation_for_gift(10) == pytest.approx(SCALE * math.log1p(10 / FLOOR))
 
 
-def test_each_coin_given_in_a_month_is_worth_less(rank, depot):
+def test_each_coin_given_in_a_season_is_worth_less(rank, depot):
     depot.money = 10_000
     depot.book_donation(100)
     first = rank.record_gift(100)
     depot.book_donation(100)
     second = rank.record_gift(100)
     assert second < first
-    # both measured against the 10,000 held before the month's giving
+    # both measured against the 10,000 held before the season's giving
     assert first + second == pytest.approx(SCALE * math.log1p(200 / 10_000))
 
 
@@ -211,14 +211,14 @@ def test_the_rich_must_give_more_for_the_same_reputation(rank, depot):
     assert rank.reputation_for_gift(100) < poor / 50
 
 
-def test_a_new_month_fades_reputation_and_resets_the_gifts(rank, depot, player):
+def test_a_new_season_fades_reputation_and_resets_the_gifts(rank, depot, player):
     depot.money = 10_000
     depot.book_donation(100)
     rank.record_gift(100)
     player.reputation = 50
-    rank.new_month()
+    rank.new_season()
     assert player.reputation == pytest.approx(50 * (1 - DECAY))
-    assert rank.given_this_month == 0
+    assert rank.given_this_season == 0
     assert rank.reputation_for_gift(100) == pytest.approx(SCALE * math.log1p(100 / depot.money))
 
 
@@ -229,12 +229,17 @@ def test_save_round_trip(rank, depot, player):
     rank.daily_check(DAY)
     depot.money = 0
     rank.daily_check(later(3))
-    rank.given_this_month = 42
+    rank.given_this_season = 42
 
     restored = MerchantRank(depot, player, goods=[])
     restored.load(rank.to_save())
-    assert (restored.level, restored.highest, restored.grace_since, restored.given_this_month) == \
+    assert (restored.level, restored.highest, restored.grace_since, restored.given_this_season) == \
            (1, 1, later(3), 42)
+
+
+def test_an_older_save_keeps_its_gifts_of_the_month(rank):
+    rank.load({"level": 0, "given_this_month": 42})
+    assert rank.given_this_season == 42
 
 
 def test_a_save_without_a_rank_starts_at_the_first(rank):

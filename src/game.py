@@ -515,7 +515,7 @@ class Game:
                 
                 if current_time - self.last_update >= self.update_delay:
                     self.last_update = current_time
-                    minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed = self.state.update()
+                    minute_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
                     self.game_map.tmx_map.street_life.raining = self.weather.rain >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.wetness)
@@ -622,8 +622,8 @@ class Game:
                             )
                             self._pending_notices.append(msg)
 
-                        if month_changed:
-                            self.merchant_rank.new_month()
+                        if season_changed:
+                            self.merchant_rank.new_season()
                         rank_change = self.merchant_rank.daily_check(self.state.date.date())
                         if rank_change:
                             ledger_line, message = rank_change

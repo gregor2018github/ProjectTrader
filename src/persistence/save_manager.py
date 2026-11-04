@@ -444,7 +444,9 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.left_side_mode = gs["left_side_mode"]
     game_state.right_side_mode = gs["right_side_mode"]
     game_state.input_fields = gs["input_fields"]
-    game_state.depot_time_frame = gs["depot_time_frame"]
+    # Older saves may name a period the calendar no longer has ("Weekly", "Monthly")
+    frame = gs["depot_time_frame"]
+    game_state.depot_time_frame = frame if frame in game_state.depot_time_frames else "Daily"
     game_state.chart_selection_order = gs.get("chart_selection_order", [])
     # Saves from before each market square had its own slots start with the defaults
     game_state.quicktrade_slots = {
@@ -462,12 +464,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     default_qtys.update(saved_qtys)
     game_state.good_quantities = default_qtys
     # Sync time-tracker fields to restored date so hourly/daily events fire correctly
-    game_state.last_minute = game_state.date.minute
-    game_state.last_hour = game_state.date.hour
-    game_state.last_day = game_state.date.day
-    game_state.last_week = game_state.date.isocalendar()[1]
-    game_state.last_month = game_state.date.month
-    game_state.last_year = game_state.date.year
+    game_state.sync_time_trackers()
 
     p = data["player"]
     player.name = p["name"]

@@ -3,6 +3,7 @@ import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Set, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
+from .models import game_calendar
 from .config.constants import (
     DEFAULT_QUICKTRADE_SLOTS,
     START_DATE, 
@@ -23,7 +24,8 @@ if TYPE_CHECKING:
     from .models.institutions.market import Market
 
 # Named tuple for tracking which time units have changed in a tick
-TimeChanges = namedtuple('TimeChanges', ['minute', 'hour', 'day', 'week', 'month', 'year'])
+# (day, season and year by the game calendar, src/models/game_calendar.py; a season is also a week)
+TimeChanges = namedtuple('TimeChanges', ['minute', 'hour', 'day', 'season', 'year'])
 
 class GameState:
     """Central repository for game session data and transient UI states.
@@ -141,15 +143,10 @@ class GameState:
         self.minigame: Optional[Any] = None  # Active minigame overlay (e.g. woodhacking)
         
         # Initialize the time trackers from the start date
-        self.last_minute: int = self.date.minute
-        self.last_hour: int = self.date.hour
-        self.last_day: int = self.date.day
-        self.last_week: int = self.date.isocalendar()[1]
-        self.last_month: int = self.date.month
-        self.last_year: int = self.date.year
+        self.sync_time_trackers()
         
         self.depot_time_frame: str = "Daily"
-        self.depot_time_frames: List[str] = ["Daily", "Weekly", "Monthly", "Yearly", "Total"]
+        self.depot_time_frames: List[str] = list(game_calendar.PERIOD_DAYS)
         
         # Money glow effect and button click animations
         self.money_effect_timer: int = 0
@@ -235,6 +232,14 @@ class GameState:
         return (f"The {booth} {verb} closed. {their} traders have gone home for the night "
                 f"and will be back in the morning.")
 
+    def sync_time_trackers(self) -> None:
+        """Take the current date as already seen, so no day, season or year begins on the next update."""
+        self.last_minute = self.date.minute
+        self.last_hour = self.date.hour
+        self.last_day = game_calendar.day_number(self.date)
+        self.last_season = game_calendar.season_number(self.date)
+        self.last_year = game_calendar.year_of(self.date)
+
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""
         # Enforce map view time restriction: only paused (1) or normal (3) allowed
@@ -319,23 +324,20 @@ class GameState:
         self.update_time()
         current_minute = self.date.minute
         current_hour = self.date.hour
-        current_day = self.date.day
-        current_week = self.date.isocalendar()[1]
-        current_month = self.date.month
-        current_year = self.date.year
+        current_day = game_calendar.day_number(self.date)
+        current_season = game_calendar.season_number(self.date)
+        current_year = game_calendar.year_of(self.date)
 
         minute_changed = current_minute != self.last_minute
         hour_changed = current_hour != self.last_hour
         day_changed = current_day != self.last_day
-        week_changed = current_week != self.last_week
-        month_changed = current_month != self.last_month
+        season_changed = current_season != self.last_season
         year_changed = current_year != self.last_year
 
         self.last_minute = current_minute
         self.last_hour = current_hour
         self.last_day = current_day
-        self.last_week = current_week
-        self.last_month = current_month
+        self.last_season = current_season
         self.last_year = current_year
         
         if self.message_timer > 0:
@@ -364,4 +366,4 @@ class GameState:
         for key in remove_keys:
             del self.button_click_effects[key]
                 
-        return TimeChanges(minute_changed, hour_changed, day_changed, week_changed, month_changed, year_changed)
+        return TimeChanges(minute_changed, hour_changed, day_changed, season_changed, year_changed)

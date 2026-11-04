@@ -13,7 +13,7 @@ SLOT_SIZE = 20
 STARTING_STORAGE_SLOTS = 5
 PACK_SLOTS = 10
 PACK_SLOT_SIZE = 1
-STARTING_LICENSES = [("Wood", 2), ("Stone", 1)]
+STARTING_LICENSES = [("Wood", 2), ("Stone", 1)]  # in seasons
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,7 @@ def game_state(monkeypatch):
 
 @pytest.fixture
 def depot(game_state):
-    """10,000g, a 2g fee per trade, the starting storage, and year-long licenses for every good."""
+    """10,000g, a 2g fee per trade, the starting storage, and licenses of three years (12 seasons) for every good."""
     depot = Depot(money=10_000, transaction_cost=2, storage_capacity=SLOT_SIZE * STARTING_STORAGE_SLOTS)
     for good_name in depot.good_stock:
         depot.add_license(good_name, 12, game_state.date)

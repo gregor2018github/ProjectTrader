@@ -2,6 +2,7 @@ import pygame
 from ...config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT, DARK_GREEN, DARK_RED
 import datetime
 from typing import Dict, List, Optional, Any
+from ...models.game_calendar import PERIOD_DAYS
 
 class DepotViewDetail:
     """Handles the detailed statistics panel shown alongside the depot view.
@@ -248,16 +249,7 @@ class DepotViewDetail:
         self.cached_stats["Wealth Start"] = []
         
         # Determine period days based on the selected time frame
-        if time_frame == "Daily":
-            period_days = 1
-        elif time_frame == "Weekly":
-            period_days = 7
-        elif time_frame == "Monthly":
-            period_days = 30
-        elif time_frame == "Yearly":
-            period_days = 365
-        else:  # "Total"
-            period_days = None
+        period_days = PERIOD_DAYS.get(time_frame)  # None: since the start
             
         # Get historical wealth and money values directly from records. The
         # daily snapshot is taken at the turn of the day, so entry -period_days
@@ -358,16 +350,7 @@ class DepotViewDetail:
         Aggregates trade volumes and units by good for the chosen period.
         """
         # Determine period days
-        if time_frame == "Daily":
-            period_days = 1
-        elif time_frame == "Weekly":
-            period_days = 7
-        elif time_frame == "Monthly":
-            period_days = 30
-        elif time_frame == "Yearly":
-            period_days = 365
-        else:  # "Total"
-            period_days = None
+        period_days = PERIOD_DAYS.get(time_frame)  # None: since the start
 
         # Filter trades by time frame
         if period_days is not None:
@@ -460,16 +443,7 @@ class DepotViewDetail:
         Stock Value Change is derived from the identity rather than reconstructed
         from historical prices, so it stays consistent with the overview figure.
         """
-        if time_frame == "Daily":
-            period_days = 1
-        elif time_frame == "Weekly":
-            period_days = 7
-        elif time_frame == "Monthly":
-            period_days = 30
-        elif time_frame == "Yearly":
-            period_days = 365
-        else:
-            period_days = None
+        period_days = PERIOD_DAYS.get(time_frame)  # None: since the start
 
         # Current wealth
         goods_value_now = sum(depot.good_stock.get(g.name, 0) * g.price for g in goods)
@@ -574,16 +548,7 @@ class DepotViewDetail:
         Breaks down income by source category. Currently only Sold Goods exists;
         future categories (property rent, contracts, etc.) slot in alongside it.
         """
-        if time_frame == "Daily":
-            period_days = 1
-        elif time_frame == "Weekly":
-            period_days = 7
-        elif time_frame == "Monthly":
-            period_days = 30
-        elif time_frame == "Yearly":
-            period_days = 365
-        else:  # "Total"
-            period_days = None
+        period_days = PERIOD_DAYS.get(time_frame)  # None: since the start
 
         breakdown = depot.get_income_breakdown(period_days)
 
@@ -618,16 +583,7 @@ class DepotViewDetail:
         Breaks down expenses into Cost of Living, Trading Expenses, Licenses, and Donations.
         """
         # Determine period days
-        if time_frame == "Daily":
-            period_days = 1
-        elif time_frame == "Weekly":
-            period_days = 7
-        elif time_frame == "Monthly":
-            period_days = 30
-        elif time_frame == "Yearly":
-            period_days = 365
-        else:  # "Total"
-            period_days = None
+        period_days = PERIOD_DAYS.get(time_frame)  # None: since the start
         
         breakdown = depot.get_expense_breakdown(period_days)
         

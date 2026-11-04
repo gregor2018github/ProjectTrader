@@ -2,7 +2,7 @@ License for the Trade of Cured Meats
 By the grace of the Town Council of Blackwater and the heavy-handed, cleaver-sharp oversight of the Most Worshipful Company of Butchers and Sausage-Makers, the bearer is hereby licensed to slaughter, cure, and vend the marbled sinews and savory cuts of our livestock. While we crave a hearty stew, the bearer is strictly forbidden from "rejuvenating" grey, weeping mutton with a splash of ox-blood or "stretching" the sausage-fill with sawdust, floor-sweepings, or the meat of "unspecified roof-rabbits." Furthermore, the merchant shall not hide the scent of decay with excessive peppercorns and brine. Go forth and provide for the tables of our town, provided you do not let your offal-pits overflow.
 
 
-• Term of Validity: [$$contract_months$$] Months
+• Term of Validity: [$$contract_term$$]
 • Licensing Fee: [$$contract_cost$$] Gold Coins
 
 

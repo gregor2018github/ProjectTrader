@@ -12,6 +12,7 @@ from typing import Optional, List, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from .warning_message import WarningMessage
+from ...models.game_calendar import describe_seasons
 
 if TYPE_CHECKING:
     from ...game import Game
@@ -23,14 +24,14 @@ class ContractView:
     and then either confirm (stamp) or deny (rip up) the agreement.
     """
 
-    def __init__(self, screen: pygame.Surface, game: 'Game', contract_type: str, contract_months: int, contract_cost: int) -> None:
+    def __init__(self, screen: pygame.Surface, game: 'Game', contract_type: str, contract_seasons: int, contract_cost: int) -> None:
         """Initialize the contract view with specific terms.
         
         Args:
             screen: The main Pygame display surface.
             game: Reference to the main Game object.
             contract_type: The type of contract (e.g., 'Stone', 'Iron') which determines image and text files.
-            contract_months: Duration of the contract in game months.
+            contract_seasons: Duration of the contract in seasons of the game calendar.
             contract_cost: Cost to acquire the license.
         """
         self.screen = screen
@@ -38,7 +39,7 @@ class ContractView:
         self.active = True
         self.finalized = False  # To prevent double-charging/logging
         self.contract_type = contract_type
-        self.contract_months = contract_months
+        self.contract_seasons = contract_seasons
         self.contract_cost = contract_cost
         
         # Determine file names based on contract type
@@ -69,7 +70,7 @@ class ContractView:
             
             # Replace placeholders in the loaded text
             placeholders = {
-                "contract_months": contract_months,
+                "contract_term": describe_seasons(contract_seasons),
                 "contract_cost": contract_cost
             }
             for i, line in enumerate(self.raw_text):
@@ -271,10 +272,10 @@ class ContractView:
 
         # Grant the trading license
         depot.stats.licenses_acquired += 1
-        depot.add_license(self.contract_type, self.contract_months, state.date)
+        depot.add_license(self.contract_type, self.contract_seasons, state.date)
         state.log_event(
             "LICENSE",
-            f"License acquired: {self.contract_type} ({self.contract_months} months)"
+            f"License acquired: {self.contract_type} ({describe_seasons(self.contract_seasons)})"
         )
 
         # Save a screenshot of the signed contract

@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT
 from ..paper import CHART_PAPER_EDGE, draw_paper
+from ...models.game_calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
 
 if TYPE_CHECKING:
     from ...models.good import Good
@@ -170,7 +171,7 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
             price_history_len = len(visible_goods[0].price_history_hourly[-int(max_chart_size):])
             hours_ago = price_history_len - 1 - idx
             hover_date = current_date - datetime.timedelta(hours=hours_ago)
-            date_text = hover_date.strftime("%d.%m.%Y")
+            date_text = format_date(hover_date)
 
             no_license = depot is not None and not depot.has_license(closest_good.name, current_date)
             license_text = "No License" if no_license else None
@@ -267,49 +268,27 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
                 screen.blit(unr_surface, unr_rect)
 
 def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, current_date: datetime.datetime, history_len: int) -> None:
-    """Draw vertical lines representing time boundaries (Day, Week, or Month).
-    
+    """Draw vertical lines where a day, season or year of the game calendar begins.
+
     Args:
         screen: Target surface.
         chart_border: Base coordinates.
         max_chart_size: Chart width.
         max_chart_height: Chart height.
         current_date: Current game time.
-        history_len: Length of the displayed history.
+        history_len: Length of the displayed history (one point per hour).
     """
+    period_days = {"Day": 1, "Season": DAYS_PER_SEASON, "Year": DAYS_PER_YEAR}.get(CHART_TIME_MARKER_UNIT)
+    if not period_days:
+        return
     current_idx = history_len - 1
-    
-    if CHART_TIME_MARKER_UNIT == "Day":
-        # First marker is at the start of the current day
-        first_marker_offset = current_date.hour
-        step = 24
-        for i in range(current_idx - first_marker_offset, -1, -step):
-            if i < max_chart_size:
-                x = chart_border[0] + i
-                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
-                
-    elif CHART_TIME_MARKER_UNIT == "Week":
-        # First marker is at the start of the current week (Monday 00:00)
-        first_marker_offset = (current_date.weekday() * 24) + current_date.hour
-        step = 24 * 7
-        for i in range(current_idx - first_marker_offset, -1, -step):
-            if i < max_chart_size:
-                x = chart_border[0] + i
-                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
-                
-    elif CHART_TIME_MARKER_UNIT == "Month":
-        # Month lengths vary, so we iterate backwards index by index to check for day 1 at hour 0
-        # Given the chart width (~600-800 pixels), this is only hundreds of iterations.
-        for i in range(current_idx, -1, -1):
-            if i >= max_chart_size:
-                continue
-            
-            hours_ago = current_idx - i
-            check_date = current_date - datetime.timedelta(hours=hours_ago)
-            
-            if check_date.day == 1 and check_date.hour == 0:
-                x = chart_border[0] + i
-                pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
+    # Hours since the current period began; a marker every period before that
+    first_marker_offset = (day_number(current_date) % period_days) * 24 + current_date.hour
+    step = 24 * period_days
+    for i in range(current_idx - first_marker_offset, -1, -step):
+        if i < max_chart_size:
+            x = chart_border[0] + i
+            pygame.draw.line(screen, CHART_BROWN, (x, chart_border[1]), (x, chart_border[1] + max_chart_height), 1)
 
 def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float) -> None:
     """Draw grid lines and price level labels.

@@ -10,9 +10,9 @@ What a rank opens (RANK_UNLOCKS) follows the highest rank ever reached, so it is
 never taken away; bonuses that follow the rank held can be added on `level`.
 
 Reputation is the player's (`Player.reputation`). For now only gifts raise it:
-a gift is measured against the giver's wealth, and the more given in a month
+a gift is measured against the giver's wealth, and the more given in a season
 the less each coin adds, so a rich man has to give a great deal to be thought
-well of. It fades by REPUTATION_MONTHLY_DECAY at the start of every month.
+well of. It fades by REPUTATION_SEASONAL_DECAY at the start of every season.
 """
 
 import datetime
@@ -22,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..config.constants import (
     DONATION_REPUTATION_SCALE, DONATION_REPUTATION_WEALTH_FLOOR, MERCHANT_RANKS,
-    RANK_GRACE_DAYS, RANK_UNLOCKS, REPUTATION_MONTHLY_DECAY,
+    RANK_GRACE_DAYS, RANK_UNLOCKS, REPUTATION_SEASONAL_DECAY,
 )
 
 CONDITIONS = ("wealth", "property_value", "volume", "reputation")
@@ -75,7 +75,7 @@ class MerchantRank:
         self.level: int = 0                                  # index of the rank held
         self.highest: int = 0                                # index of the highest rank ever held
         self.grace_since: Optional[datetime.date] = None     # when the rank held stopped being met
-        self.given_this_month: float = 0.0                   # gifts so far this month, for their falling worth
+        self.given_this_season: float = 0.0                   # gifts so far this season, for their falling worth
 
     @property
     def rank(self) -> Rank:
@@ -109,7 +109,7 @@ class MerchantRank:
             return None
         return max(0, RANK_GRACE_DAYS - (today - self.grace_since).days)
 
-    # DAILY AND MONTHLY
+    # DAILY AND SEASONAL
 
     def daily_check(self, today: datetime.date) -> Optional[Tuple[str, str]]:
         """Promote, warn or demote; returns (ledger line, message to show) when something happened."""
@@ -160,25 +160,25 @@ class MerchantRank:
                 f"Put it right within {RANK_GRACE_DAYS} days, or you will fall back "
                 f"to {self.ranks[self.level - 1].name}.")
 
-    def new_month(self) -> None:
-        """Let the reputation fade, and start counting this month's gifts afresh."""
-        self.player.reputation *= 1.0 - REPUTATION_MONTHLY_DECAY
-        self.given_this_month = 0.0
+    def new_season(self) -> None:
+        """Let the reputation fade, and start counting this season's gifts afresh."""
+        self.player.reputation *= 1.0 - REPUTATION_SEASONAL_DECAY
+        self.given_this_season = 0.0
 
     # REPUTATION
 
     def reputation_for_gift(self, amount: float, paid: bool = False) -> float:
         """The reputation a gift of this size earns; `paid` if it has already left the purse.
 
-        All of a month's gifts are measured together against what the giver was
+        All of a season's gifts are measured together against what the giver was
         worth before them, W (net wealth or money, whichever is more, plus this
-        month's gifts; at least DONATION_REPUTATION_WEALTH_FLOOR), and earn
+        season's gifts; at least DONATION_REPUTATION_WEALTH_FLOOR), and earn
         SCALE * ln(1 + given / W): each coin is worth less than the one before
         it, and giving away as much as one had earns SCALE * ln 2.
         """
         if amount <= 0:
             return 0.0
-        before = self.given_this_month
+        before = self.given_this_season
         wealth = max(self.depot.net_wealth(self.goods), self.depot.money) + before + (amount if paid else 0.0)
         wealth = max(DONATION_REPUTATION_WEALTH_FLOOR, wealth)
         return DONATION_REPUTATION_SCALE * (math.log1p((before + amount) / wealth) - math.log1p(before / wealth))
@@ -186,7 +186,7 @@ class MerchantRank:
     def record_gift(self, amount: float) -> float:
         """Credit the reputation of a gift that has just been paid; returns what it earned."""
         gain = self.reputation_for_gift(amount, paid=True)
-        self.given_this_month += amount
+        self.given_this_season += amount
         self.player.change_reputation(gain)
         return gain
 
@@ -197,7 +197,7 @@ class MerchantRank:
             "level": self.level,
             "highest": self.highest,
             "grace_since": self.grace_since.isoformat() if self.grace_since else None,
-            "given_this_month": self.given_this_month,
+            "given_this_season": self.given_this_season,
         }
 
     def load(self, saved: Optional[Dict[str, Any]]) -> None:
@@ -208,4 +208,4 @@ class MerchantRank:
         self.highest = min(max(int(saved.get("highest", self.level)), self.level), top)
         grace = saved.get("grace_since")
         self.grace_since = datetime.date.fromisoformat(grace) if grace else None
-        self.given_this_month = float(saved.get("given_this_month", 0.0))
+        self.given_this_season = float(saved.get("given_this_season", saved.get("given_this_month", 0.0)))

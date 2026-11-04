@@ -2,7 +2,7 @@ License for the Trade of Stone
 By the grace of the Town Council of Blackwater and the heavy-handed oversight of the Order of Masons and Quarry-Masters, the bearer is hereby granted the legal right to hew, haul, and barter the very foundations of our realm. While we appreciate a sturdy wall, the bearer is strictly forbidden from passing off sun-dried river mud as "Everlasting Granite" or selling "pre-weathered" limestone that dissolves at the first hint of a summer drizzle. Go forth and profit, provided you do not drop your inventory on the Mayor’s gouty foot or cause a localized landslide within the city walls.
 
 
-• Term of Validity: [$$contract_months$$] Months
+• Term of Validity: [$$contract_term$$]
 
 • Licensing Fee: [$$contract_cost$$] Gold Coins
 

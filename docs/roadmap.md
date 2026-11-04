@@ -22,6 +22,7 @@ Inspirations: Anno 1503, Der Patrizier IV, Die Gilde 2, Banished, Songs of Syx, 
 | World | One walkable home town (the diorama) plus an abstract strategic map of other towns |
 | Simulation model | Citizens aggregated per class with needs (Anno). **Businesses are real actors**: every workshop has an owner, cash, stock and workers |
 | Time span | Generations: characters age, die and are succeeded by heirs |
+| Calendar | A year is 4 seasons of 7 days (28 days, one to two real hours at normal speed), so a 40–80 hour playthrough spans a few decades. Characters age once a year. Built: `src/models/game_calendar.py` |
 | Building | Pre-made plots on the hand-made map; buy a plot, choose what stands on it |
 | Workers | A named key person per business (master, foreman, factor) plus an abstract crowd of labourers |
 | Goods | Grow from 15 to about 40–60, in chains up to three tiers deep |
@@ -168,7 +169,6 @@ Threaded through all the others rather than built at once.
 
 ## Open questions
 
-- **Calendar.** At normal speed a game day takes about 4 real minutes, so a year takes about 24 real hours: far too long for a game spanning generations. The calendar needs compressing (for example a year of 4 seasons × 7 days, characters ageing once a year, aiming at a 40–80 hour playthrough). Decide before P4. See `TODO.md`.
 - **Engine.** Python and pygame stay until a real limit is hit. Rendering is the likelier limit than the sim. Watch it as the town grows.
 - **Goods list.** Which 15 goods are added in P1, and which chains they form.
 - **Early-game safety.** With bankruptcy as game over, the rise from nothing needs a floor in the first hours (for example woodhacking always pays enough to live on).

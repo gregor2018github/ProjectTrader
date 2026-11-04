@@ -17,7 +17,7 @@ class Player:
         """
         self.name: str = name
         self.score: int = 0
-        self.reputation: float = 0.0   # raised by gifts, fading monthly; one of the merchant rank's conditions
+        self.reputation: float = 0.0   # raised by gifts, fading each season; one of the merchant rank's conditions
         self.daily_cost_of_living: float = cost_of_living
         self.position: Tuple[int, int] = (START_X_POSITION, START_Y_POSITION)  # Starting position from constants
         self.in_market_area: bool = False

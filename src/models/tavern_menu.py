@@ -4,8 +4,8 @@ Each dish there has a class (low, middle or high: which kind of tavern serves
 it), a course, whether it has meat and its price in coins. A tavern's class is the `Tavern`
 property on its building in Tiled. Its menu is drawn anew each day from the
 dishes of its class, `MENU_COURSES` of each course, the same all day and
-different from tavern to tavern. On fast days, every Friday and the forty days
-of Lent, no meat is served.
+different from tavern to tavern. On fast days, every Friday and Lent (both by the
+game calendar, `game_calendar.is_fast_day`), no meat is served.
 """
 
 import csv
@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from ..config.constants import MAIN_PATH
+from .game_calendar import is_fast_day
 
 DISHES_PATH = os.path.join(MAIN_PATH, "assets", "texts", "taverns", "dishes.csv")
 
@@ -79,32 +80,6 @@ def all_dishes() -> List[Dish]:
     if _dishes is None:
         _dishes = load_dishes()
     return _dishes
-
-
-def easter(year: int) -> datetime.date:
-    """Easter Sunday by the Gregorian reckoning, so that it falls on a Sunday of the game's calendar."""
-    a = year % 19
-    b, c = divmod(year, 100)
-    d, e = divmod(b, 4)
-    f = (b + 8) // 25
-    g = (b - f + 1) // 3
-    h = (19 * a + b - d - g + 15) % 30
-    i, k = divmod(c, 4)
-    l = (32 + 2 * e + 2 * i - h - k) % 7
-    m = (a + 11 * h + 22 * l) // 451
-    month, day = divmod(h + l - 7 * m + 114, 31)
-    return datetime.date(year, month, day + 1)
-
-
-def is_lent(day: datetime.date) -> bool:
-    """From Ash Wednesday to the Saturday before Easter."""
-    easter_sunday = easter(day.year)
-    return easter_sunday - datetime.timedelta(days=46) <= day < easter_sunday
-
-
-def is_fast_day(day: datetime.date) -> bool:
-    """A day on which no meat may be eaten: every Friday, and all of Lent."""
-    return day.weekday() == 4 or is_lent(day)
 
 
 def daily_menu(day: datetime.date, tavern_class: str, tavern_key: str,

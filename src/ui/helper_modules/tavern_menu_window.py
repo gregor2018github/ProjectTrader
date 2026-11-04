@@ -12,7 +12,8 @@ from typing import TYPE_CHECKING, List, Tuple
 from .loan_dialog import _BaseDialog, _close_dialog, _load_fonts
 from ...config.colors import BLACK, DARK_BROWN, DARK_RED
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT
-from ...models.tavern_menu import COURSES, daily_menu, is_fast_day, is_lent
+from ...models.game_calendar import format_long, is_fast_day, is_lent
+from ...models.tavern_menu import COURSES, daily_menu
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -82,7 +83,7 @@ class TavernMenuWindow(_BaseDialog):
                 y += surface.get_height()
             y += gap_after
 
-        add(f"Bill of fare for {self.day.strftime('%A')}, {self.day.day} {self.day.strftime('%B')} {self.day.year}",
+        add(f"Bill of fare for {format_long(self.day)}",
             self.body_font, DARK_BROWN, 2)
         add("All prices in coins", self.small_font, DESCRIPTION_COLOR, 2)
         if is_fast_day(self.day):

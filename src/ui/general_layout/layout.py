@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 from ...config.colors import *
 from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
+from ...models.game_calendar import format_long
 
 # Goods in the top bar, one column of (upper, lower) per slot; only
 # TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.
@@ -17,7 +18,9 @@ TOP_BAR_GOOD_COLUMNS = [
     ("Wood", "Stone"), ("Wool", "Iron"), ("Wheat", "Fish"), ("Hide", "Wine"),
     ("Beer", "Linen"), ("Meat", "Pottery"), ("Candle", "Herbs"), ("Salt", None),
 ]
-TOP_BAR_VISIBLE_COLUMNS = 6
+TOP_BAR_VISIBLE_COLUMNS = 5
+TOP_BAR_COLUMN_SPACING = 160
+TOP_BAR_DATE_SEPARATOR_X = 466      # The money and the date are left of it, the goods right of it
 TOP_BAR_GOODS = [name for column in TOP_BAR_GOOD_COLUMNS for name in column if name]
 
 
@@ -254,15 +257,15 @@ def _draw_top_bar(
     screen.blit(money_50, (10, 5))
 
     # Date display
-    date_text = main_font.render(date.strftime("%d.%m.%Y | %H o'clock"), True, DARK_BROWN)
+    date_text = main_font.render(f"{format_long(date)} | {date.hour} o'clock", True, DARK_BROWN)
     screen.blit(date_text, (70, 35))
 
     # Separator bar
-    pygame.draw.line(screen, DARK_GRAY, (306, 5), (306, 55), 2)
+    pygame.draw.line(screen, DARK_GRAY, (TOP_BAR_DATE_SEPARATOR_X, 5), (TOP_BAR_DATE_SEPARATOR_X, 55), 2)
 
     # Goods inventory display
-    start_x = 368
-    spacing = 160
+    start_x = TOP_BAR_DATE_SEPARATOR_X + 62
+    spacing = TOP_BAR_COLUMN_SPACING
     mouse_pos = pygame.mouse.get_pos()
 
     # Build a name->Good lookup for price queries
@@ -369,7 +372,7 @@ def _draw_top_bar_arrows(
         or bool(getattr(game_state, 'info_window', None))
     )
     arrows = [
-        ('top_bar_left', pygame.Rect(312, 8, 18, 44), -1, offset > 0),
+        ('top_bar_left', pygame.Rect(TOP_BAR_DATE_SEPARATOR_X + 6, 8, 18, 44), -1, offset > 0),
         ('top_bar_right', pygame.Rect(1288, 8, 18, 44), 1, offset < max_offset),
     ]
     buttons = {}

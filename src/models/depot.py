@@ -5,6 +5,7 @@ from ..config.constants import (
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
+from .game_calendar import seasons_to_days
 
 START = "start"  # the starting storage's key in Depot.storage_order; a warehouse's is its Tiled id
 
@@ -136,41 +137,22 @@ class Depot:
         Args:
             start_date: The game's starting date to calculate expiry from.
         """
-        for good_name, months in STARTING_LICENSES:
-            self.add_license(good_name, months, start_date)
+        for good_name, seasons in STARTING_LICENSES:
+            self.add_license(good_name, seasons, start_date)
 
-    def add_license(self, good_name: str, months: int, current_date: datetime.datetime) -> None:
+    def add_license(self, good_name: str, seasons: int, current_date: datetime.datetime) -> None:
         """Grant a trading license for a good.
-        
+
         Args:
             good_name: Name of the good.
-            months: Duration in months.
+            seasons: Duration in seasons of the game calendar (DAYS_PER_SEASON days each).
             current_date: Current game date.
         """
-        # Calculate expiry: advance by the given number of months
-        new_month = current_date.month + months
-        new_year = current_date.year + (new_month - 1) // 12
-        new_month = (new_month - 1) % 12 + 1
-        try:
-            expiry = current_date.replace(year=new_year, month=new_month)
-        except ValueError:
-            # Handle end-of-month edge cases (e.g., Jan 31 + 1 month)
-            import calendar
-            last_day = calendar.monthrange(new_year, new_month)[1]
-            expiry = current_date.replace(year=new_year, month=new_month, day=last_day)
-
         # If already licensed, extend from the later of current expiry or now
+        base = current_date
         if good_name in self.trading_licenses and self.trading_licenses[good_name] > current_date:
             base = self.trading_licenses[good_name]
-            ext_month = base.month + months
-            ext_year = base.year + (ext_month - 1) // 12
-            ext_month = (ext_month - 1) % 12 + 1
-            try:
-                expiry = base.replace(year=ext_year, month=ext_month)
-            except ValueError:
-                import calendar
-                last_day = calendar.monthrange(ext_year, ext_month)[1]
-                expiry = base.replace(year=ext_year, month=ext_month, day=last_day)
+        expiry = base + datetime.timedelta(days=seasons_to_days(seasons))
 
         self.trading_licenses[good_name] = expiry
 

@@ -2,7 +2,7 @@ License for Iron Trading
 By the grace of the Town Council of Blackwater and the iron-fisted oversight of the Blacksmiths’ Guild, the bearer is hereby granted the legal right to procure, barter, and haul the heavy fruits of the forge across our sovereign markets. While we acknowledge that iron is a stubborn master, the bearer is strictly forbidden from passing off rusted scrap as "master-worked steel" or selling "ever-sharp blades" that lose their edge at the mere sight of a turnip. Go forth and strike while the metal is hot, provided you do not obstruct the thoroughfares with your heavy ingots or accidentally magnetize the Captain of the Guard’s plate armor.
 
 
-• Term of Validity: [$$contract_months$$] Months
+• Term of Validity: [$$contract_term$$]
 • Licensing Fee: [$$contract_cost$$] Gold Coins
 
 

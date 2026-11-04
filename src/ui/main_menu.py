@@ -14,6 +14,7 @@ from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
 from .controls_overview import ControlsOverview
 from . import cursor
+from ..models.game_calendar import format_with_time
 from .slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
     delete_cross_rect, draw_delete_cross, rows_height,
@@ -412,8 +413,8 @@ class MainMenu:
 
             if readable:
                 try:
-                    gd =datetime.datetime.fromisoformat(slot_info["game_date"])
-                    game_date_str = gd.strftime("%d %b %Y  %H:%M")
+                    gd = datetime.datetime.fromisoformat(slot_info["game_date"])
+                    game_date_str = format_with_time(gd)
                 except Exception:
                     game_date_str = slot_info["game_date"]
                 try:

@@ -2,7 +2,8 @@ import pygame
 import datetime
 from typing import TYPE_CHECKING, Tuple, Optional, Any
 from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, START_DATE
+from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
+from ...models.game_calendar import EPOCH, PERIOD_DAYS, format_date
 
 if TYPE_CHECKING:
     from ...models.depot import Depot
@@ -35,26 +36,18 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     pygame.draw.rect(screen, DARK_BROWN, depot_rect, 2)
     
     # Draw heading with time frame
-    current_day = game_state.date.strftime("%d.%m.%Y")
-    
-    # Calculate start date based on time frame
-    if game_state.depot_time_frame == "Daily":
-        start_date = game_state.date.strftime("%d.%m.%Y")
-    elif game_state.depot_time_frame == "Weekly":
-        start_date = (game_state.date - datetime.timedelta(days=6)).strftime("%d.%m.%Y")
-    elif game_state.depot_time_frame == "Monthly":
-        start_date = (game_state.date - datetime.timedelta(days=29)).strftime("%d.%m.%Y")
-    elif game_state.depot_time_frame == "Yearly":
-        start_date = (game_state.date - datetime.timedelta(days=364)).strftime("%d.%m.%Y")
-    else:  # "Total"
-        start_date = START_DATE  # Game start date
-    
-    # Create heading text with date range
-    if game_state.depot_time_frame == "Total":
-        heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
+    current_day = format_date(game_state.date)
+
+    # Calculate start date based on time frame (the period includes today)
+    frame_days = PERIOD_DAYS.get(game_state.depot_time_frame)
+    if frame_days is None:  # "Total"
+        start_date = format_date(EPOCH)  # Game start date
     else:
-        heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
-    
+        start_date = format_date(game_state.date - datetime.timedelta(days=frame_days - 1))
+
+    # Create heading text with date range
+    heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
+
     title = font.render(heading_text, True, DARK_BROWN)
     title_rect = title.get_rect(center=(x + width//2, y + 30))
     screen.blit(title, title_rect)
@@ -114,17 +107,8 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     content_surface.fill((0,0,0,0))
     content_y = 0
     
-    # Determine time frame period in days based on depot_time_frame
-    if game_state.depot_time_frame == "Daily":
-        period_days = 1
-    elif game_state.depot_time_frame == "Weekly":
-        period_days = 7
-    elif game_state.depot_time_frame == "Monthly":
-        period_days = 30
-    elif game_state.depot_time_frame == "Yearly":
-        period_days = 365
-    else:  # "Total"
-        period_days = None
+    # Determine time frame period in days based on depot_time_frame (None: since the start)
+    period_days = PERIOD_DAYS.get(game_state.depot_time_frame)
 
     # Calculate live wealth and start wealth based on time frame
     live_goods_value = sum(depot.good_stock.get(g.name, 0) * g.price for g in game_state.game.goods)

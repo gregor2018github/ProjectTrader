@@ -78,7 +78,12 @@ MARKET_VOLUME_ELASTICITY = 0.7      # How strongly the price answers a volume pa
 MARKET_VOLUME_FACTOR_MIN = 0.4      # The cheapest a glut can make a good, as a factor on its price
 MARKET_VOLUME_FACTOR_MAX = 3.0      # The dearest scarcity can make a good, as a factor on its price
 MARKET_VOLUME_DAILY_RECOVERY = 0.1  # Share of the gap to the normal volume the market closes per day (stand-in for supply and demand)
-START_DATE = "01.01.1500"           # When the simulation time starts, format: dd.mm.yyyy
+START_DATE = "01.01.1500"           # Where the clock starts, format: dd.mm.yyyy; the game calendar's first day (see below)
+# CALENDAR (src/models/game_calendar.py): the clock runs on as an ordinary datetime, but the
+# calendar shown is compressed so a game can span generations: a year is four seasons
+# (Spring, Summer, Autumn, Winter) of one week each, START_DATE being the 1st of Spring.
+DAYS_PER_SEASON = 7                 # Days in a season, Monday to Sunday
+CALENDAR_START_YEAR = 1500          # The year of START_DATE in the game calendar
 START_TIME = "08:00"                # When the simulation time starts, format: HH:MM
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
 STARTING_MONEY = 100                # Starting money for the player
@@ -101,7 +106,7 @@ RANK_GRACE_DAYS = 14                # Days a rank's conditions may stay unmet be
 RANK_UNLOCKS = {                    # What a rank opens, by the rank first reaching it; never taken away again
     "buy_buildings": "Hawker",
 }
-REPUTATION_MONTHLY_DECAY = 0.10     # Share of the reputation that fades at the start of each month
+REPUTATION_SEASONAL_DECAY = 0.025   # Share of the reputation that fades at the start of each season (about 10% a 30 days, as before)
 DONATION_REPUTATION_SCALE = 100.0   # Reputation for giving away as much as one's wealth (ln 2 of it, see MerchantRank)
 DONATION_REPUTATION_WEALTH_FLOOR = 200.0  # The least wealth a gift is measured against, so a poor man's coin counts but not endlessly
 SLOT_SIZE = 20                      # units of one good a storage slot holds, unless a warehouse's Buy_slot_size says otherwise
@@ -111,11 +116,12 @@ PACK_SLOTS = 10                     # slots of the pack the player carries goods
 PACK_SLOT_SIZE = 1                  # units of one good a pack slot holds: what the player carries by hand
 
 # TRADING LICENSE CONSTANTS
-# Each entry: (good_name, duration_in_months)
+# Each entry: (good_name, duration_in_seasons); a season is DAYS_PER_SEASON days
 STARTING_LICENSES = [
-    ("Wood", 2),
-    ("Stone", 1),
+    ("Wood", 8),
+    ("Stone", 4),
 ]
+LICENSE_SEASON_OPTIONS = [1, 2, 4, 8, 12]  # Durations a license can be bought for, in seasons (4 make a year)
 
 # POPULATION GROUP SHARES
 # The values represent the target share of total population per social group.
@@ -139,7 +145,7 @@ UNDERPOP_THRESHOLD_HIGH = 75.0      # Fill grade (%) below which the mild underp
 UNDERPOP_BONUS_LOW = 3              # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_LOW
 UNDERPOP_BONUS_HIGH = 1             # Happiness equilibrium bonus when fill grade is below UNDERPOP_THRESHOLD_HIGH
 
-# monthly base contract fees for each good, used in contract overview and license acquisition
+# The fee every license costs once, whatever its length; SEASONAL_CONTRACT_FEES below adds the price per season
 BASE_CONTRACT_FEE = 50
 # The goods in the bottom bar's three quick-trade slots at each market square
 # (an "Areas" rectangle named Market_Area...) when a game starts. A square not
@@ -149,26 +155,26 @@ DEFAULT_QUICKTRADE_SLOTS = {
     "Market_Area_Northwest": ["Herbs", "Salt", "Candle"],
 }
 
-MONTHLY_CONTRACT_FEES = {
-    "Wood": 50,
-    "Stone": 50,
-    "Iron": 100,
-    "Wool": 100,
-    "Hide": 100,
-    "Fish": 50,
-    "Wheat": 70,
-    "Wine": 500,
-    "Beer": 200,
-    "Meat": 200,
-    "Linen": 150,
-    "Pottery": 150,
-    "Candle": 150,
-    "Herbs": 120,
-    "Salt": 300,
+SEASONAL_CONTRACT_FEES = {           # Fee per season of a license, on top of BASE_CONTRACT_FEE
+    "Wood": 10,
+    "Stone": 10,
+    "Iron": 25,
+    "Wool": 25,
+    "Hide": 25,
+    "Fish": 10,
+    "Wheat": 15,
+    "Wine": 115,
+    "Beer": 45,
+    "Meat": 45,
+    "Linen": 35,
+    "Pottery": 35,
+    "Candle": 35,
+    "Herbs": 30,
+    "Salt": 70,
 }
 
 # UI CONSTANTS
-CHART_TIME_MARKER_UNIT = "Month"      # Units for vertical chart lines: "Day", "Week", "Month"
+CHART_TIME_MARKER_UNIT = "Season"     # Units for vertical chart lines: "Day", "Season" (one week), "Year"
 
 # MAP AND SOUND CONSTANTS
 
@@ -360,7 +366,7 @@ RAIN_HUSHES_OWLS = 0.9
 # LOAN SYSTEM CONSTANTS
 
 OVERDRAFT_DAILY_RATE = 0.02          # 2% of negative balance charged per day as penalty
-LOAN_BASE_RATES = [                  # (wealth_threshold, annual_rate) — lower wealth = higher rate
+LOAN_BASE_RATES = [                  # (wealth_threshold, rate per LOAN_RATE_DAYS) — lower wealth = higher rate
     (200,  0.54),
     (500,  0.42),
     (2000, 0.30),
@@ -378,6 +384,7 @@ LOAN_EQUITY_RATIOS = [               # (wealth_threshold, equity_ratio) — dete
     (2000, 0.70),
     (float('inf'), 0.80),
 ]
+LOAN_RATE_DAYS = 365                # The days LOAN_BASE_RATES are a rate for; the loan dialog shows them per game year
 LOAN_MAX_DURATION_DAYS = 90         # Maximum loan term in days
 LOAN_MIN_AMOUNT = 50                # Minimum loan amount
 LOAN_MIN_DAILY_PCT = 5              # Minimum % of principal repaid through daily installments

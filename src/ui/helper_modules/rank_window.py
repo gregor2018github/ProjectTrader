@@ -8,7 +8,7 @@ import pygame
 from typing import TYPE_CHECKING, Tuple
 from .loan_dialog import _BaseDialog, _close_dialog
 from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED, GRAY, GOLD
-from ...config.constants import RANK_GRACE_DAYS, REPUTATION_MONTHLY_DECAY
+from ...config.constants import RANK_GRACE_DAYS, REPUTATION_SEASONAL_DECAY
 from ...models.merchant_rank import CONDITIONS, CONDITION_LABELS, format_amount
 
 if TYPE_CHECKING:
@@ -98,7 +98,7 @@ class RankWindow(_BaseDialog):
         notes = [
             "A rank needs all four at once. The town judges you each midnight.",
             f"A rank no longer met is lost after {RANK_GRACE_DAYS} days, one rank at a time.",
-            f"Reputation comes from gifts, and fades by {REPUTATION_MONTHLY_DECAY:.0%} each month.",
+            f"Reputation comes from gifts, and fades by {REPUTATION_SEASONAL_DECAY:.1%} each season.",
         ]
         for note in notes:
             y = self._text(surf, note, p.centerx, y, BLACK, center=True) + 2

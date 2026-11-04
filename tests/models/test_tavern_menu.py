@@ -5,9 +5,8 @@ import datetime
 import pytest
 
 from src.models import tavern_menu
-from src.models.tavern_menu import (
-    COURSES, TAVERN_CLASSES, Dish, daily_menu, easter, is_fast_day, is_lent, load_dishes,
-)
+from src.models.game_calendar import EPOCH
+from src.models.tavern_menu import COURSES, TAVERN_CLASSES, Dish, daily_menu, load_dishes
 
 # Pinned so that changing how much a tavern serves does not break the tests
 MENU = {
@@ -48,25 +47,11 @@ def test_the_dish_file_reads_and_serves_every_class_every_course():
     assert all(dish.price > 0 for dish in dishes)
 
 
-def test_easter_on_known_dates():
-    assert easter(2024) == datetime.date(2024, 3, 31)
-    assert easter(2025) == datetime.date(2025, 4, 20)
-    assert easter(1500).weekday() == 6
-
-
-def test_lent_runs_from_ash_wednesday_to_holy_saturday():
-    sunday = easter(1500)
-    ash_wednesday = sunday - datetime.timedelta(days=46)
-    assert ash_wednesday.weekday() == 2
-    assert not is_lent(ash_wednesday - datetime.timedelta(days=1))
-    assert is_lent(ash_wednesday)
-    assert is_lent(sunday - datetime.timedelta(days=1))
-    assert not is_lent(sunday)
-
-
-def test_fridays_are_fast_days():
-    assert is_fast_day(FRIDAY)
-    assert not is_fast_day(MONDAY)
+def test_no_meat_in_lent_even_midweek():
+    lent_thursday = EPOCH + datetime.timedelta(days=24)     # the 4th of Winter
+    assert lent_thursday.weekday() == 3
+    menu = daily_menu(lent_thursday, "middle", "inn", DISHES)
+    assert names(menu) == {"pottage": ["Funges"], "main": ["Eels in Green Sauce"], "drink": ["Ale"]}
 
 
 def test_a_tavern_serves_its_class_in_menu_order():

@@ -11,6 +11,7 @@ from ...config.colors import (
 )
 from ...config.constants import FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice
+from ...models.game_calendar import format_date
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -38,7 +39,7 @@ _BADGE_COLOR: Dict[str, Tuple[int, int, int]] = {
 }
 
 _BADGE_W = 70   # badge pill width
-_TS_W = 128     # timestamp column width
+_TS_W = 160     # timestamp column width
 
 
 def _load_fonts():
@@ -202,7 +203,7 @@ class LedgerWindow:
 
             # timestamp
             dt = entry["timestamp"]
-            ts_str = f"{dt.hour:02d}:{dt.minute:02d} {dt.day:02d}.{dt.month:02d}.{dt.year}"
+            ts_str = f"{dt.hour:02d}:{dt.minute:02d}  {format_date(dt)}"
             ts_surf = self.body_font.render(ts_str, True, DARK_GRAY)
             clip_surf.blit(ts_surf, ts_surf.get_rect(left=0, centery=row_y + _ROW_H // 2))
 

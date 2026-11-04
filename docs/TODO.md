@@ -6,7 +6,7 @@
 - [ ] fix animation to walk to the sides (legs are off, also bag and scroll are wrong for one side)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
 - [ ] add two more houses with different designs
-- [ ] compress the calendar for a game spanning generations: a game day is ~4 real minutes at normal speed, so a year takes ~24 real hours; decide on a shorter year (e.g. 4 seasons × 7 days, ageing once a year) before the dynasty system (see docs/roadmap.md, open questions)
+- [x] compress the calendar for a game spanning generations: a game day is ~4 real minutes at normal speed, so a year takes ~24 real hours; decide on a shorter year (e.g. 4 seasons × 7 days, ageing once a year) before the dynasty system (see docs/roadmap.md, open questions)
 
 ## Medium Priority
 

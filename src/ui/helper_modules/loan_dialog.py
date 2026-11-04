@@ -5,16 +5,19 @@ Two dialogs:
   LoanManagementDialog  — overview of active loans with inline repay buttons
 """
 
+import datetime
 import pygame
 import os
 from typing import Optional, Tuple, List, TYPE_CHECKING
 from ..transaction_feedback import on_money_received
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, DARK_ORANGE, WHEAT
 from ..ui_utils import draw_9slice
+from ...models.game_calendar import DAYS_PER_YEAR, format_date
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
     LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,
     FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH,
+    LOAN_RATE_DAYS,
 )
 
 if TYPE_CHECKING:
@@ -34,6 +37,14 @@ def _calc_max_loan(wealth: float) -> int:
             ratio = r
             break
     return max(500, int(wealth * ratio))
+
+
+def _loan_start(start: str) -> str:
+    """A loan's start date for display; older saves kept it as dd.mm.yyyy off the clock."""
+    try:
+        return format_date(datetime.datetime.strptime(start, "%d.%m.%Y"))
+    except (TypeError, ValueError):
+        return start
 
 
 def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct: float, wealth: float):
@@ -71,12 +82,13 @@ def _calc_loan_params(original_amount: float, duration_days: int, repayment_pct:
     settlement_factor = 1.0 + settlement_ratio * LOAN_SETTLEMENT_RATE_PENALTY
 
     # Fixed daily interest on the original amount (simple interest with duration and settlement factors)
-    raw_daily_interest = original_amount * base_rate / 365 * dur_factor * settlement_factor
+    raw_daily_interest = original_amount * base_rate / LOAN_RATE_DAYS * dur_factor * settlement_factor
     daily_interest = max(0.01, round(raw_daily_interest, 2))
 
     total_interest = round(daily_interest * duration_days, 2)
     total_payback = round(original_amount + total_interest, 2)
-    yearly_rate_pct = round(base_rate * dur_factor * settlement_factor * 100, 1)
+    # The rate over a year of the game calendar (DAYS_PER_YEAR days), not over LOAN_RATE_DAYS
+    yearly_rate_pct = round(base_rate * dur_factor * settlement_factor * DAYS_PER_YEAR / LOAN_RATE_DAYS * 100, 1)
 
     return daily_principal, daily_interest, settlement_principal, total_interest, total_payback, yearly_rate_pct
 
@@ -333,7 +345,7 @@ class LoanDialog(_BaseDialog):
             daily_principal, daily_interest, settlement_principal, _, _, _ = _calc_loan_params(
                 self.amount, duration, self.repayment_pct, self.wealth
             )
-            start_str = self.game_state.date.strftime("%d.%m.%Y")
+            start_str = format_date(self.game_state.date)
             self.game_state.game.depot.take_loan(
                 self.amount, daily_principal, daily_interest, settlement_principal, duration, start_str
             )
@@ -604,7 +616,7 @@ class LoanManagementDialog(_BaseDialog):
                 # -- Header --
                 progress = f"{loan['days_elapsed']}/{loan['duration_days']} days"
                 self._text(surf,
-                           f"Loan {i+1}  ·  {original:.0f} gold  ·  since {loan['start_date']}  ·  {progress}",
+                           f"Loan {i+1}  ·  {original:.0f} gold  ·  since {_loan_start(loan['start_date'])}  ·  {progress}",
                            lx, y, color=DARK_BROWN)
 
                 # -- Decisive numbers --
