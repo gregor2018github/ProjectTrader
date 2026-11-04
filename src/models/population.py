@@ -1,148 +1,60 @@
-import random
+"""The town's population as the depot charts read it: a thin view over the simulation.
+
+The happiness drift and migration rules, and every number they work on, live
+in the simulation (``src/sim/systems/population.py``, ``PopulationState``).
+This view only passes the histories through under the names the charts use.
+It is a seam kept for P0 (see ``docs/sim_core.md``).
+"""
 from typing import TYPE_CHECKING, Dict, List
 
-from ..config.constants import (
-    HAPPINESS_THRESHOLD,
-    POPULATION_MIN_FACTOR,
-    POPULATION_MAX_FACTOR,
-    HAPPINESS_EQUILIBRIUM,
-    HAPPINESS_DRIFT_SIGMA,
-    MAX_DAILY_POPULATION_CHANGE,
-    OVERPOP_MALUS_PER_PERCENT,
-    NEAR_CAPACITY_THRESHOLD,
-    NEAR_CAPACITY_MALUS_PER_PERCENT,
-    UNDERPOP_THRESHOLD_LOW,
-    UNDERPOP_THRESHOLD_HIGH,
-    UNDERPOP_BONUS_LOW,
-    UNDERPOP_BONUS_HIGH,
-)
+from ..sim.systems import population
 
 if TYPE_CHECKING:
+    from ..sim import Simulation
+    from ..sim.state import PopulationState
     from .institutions.town import Town
 
 
 class PopulationManager:
-    """Drives hourly happiness drift and daily population changes for a town.
+    """The simulation's population histories, per class and for the whole town.
 
-    Writes all results back into the Town's existing attributes so that the UI
-    (population_stats.py, layout.py) requires no changes.
-
-    History follows the same pattern as Good.price_history_*:
-    - happiness_history / average_happiness_history: per-group and aggregate, hourly
-    - population_history / total_population_history: per-group and aggregate, daily
+    - happiness_history / average_happiness_history: per class and aggregate, hourly
+    - population_history / total_population_history: per class and aggregate, daily
     """
 
-    def __init__(self, town: "Town") -> None:
+    def __init__(self, sim: "Simulation", town: "Town") -> None:
+        """Args:
+            sim: The simulation whose town this shows; it must have one.
+            town: The town hall on the map, shown alongside.
+        """
+        self._sim = sim
         self.town = town
 
-        # Store the map-defined 100% baseline so min/max clamping is always relative to it.
-        self.base_groups: Dict[str, int] = dict(town.population_groups)
+    @property
+    def _pop(self) -> "PopulationState":
+        return self._sim.state.population
 
-        # Per-group histories (same granularity as Good.price_history_*)
-        self.happiness_history: Dict[str, List[float]] = {
-            group: [happiness]
-            for group, happiness in town.happiness_groups.items()
-        }
-        self.population_history: Dict[str, List[int]] = {
-            group: [count]
-            for group, count in town.population_groups.items()
-        }
+    @property
+    def base_groups(self) -> Dict[str, int]:
+        return {c.name: c.base for c in self._pop.classes.values()}
 
-        # Aggregate histories for charting (single series each)
-        self.average_happiness_history: List[float] = [town.happiness]
-        self.total_population_history: List[int] = [town.citizens]
+    @property
+    def happiness_history(self) -> Dict[str, List[float]]:
+        return {c.name: c.happiness_history for c in self._pop.classes.values()}
+
+    @property
+    def population_history(self) -> Dict[str, List[int]]:
+        return {c.name: c.population_history for c in self._pop.classes.values()}
+
+    @property
+    def average_happiness_history(self) -> List[float]:
+        return self._pop.average_happiness_history
+
+    @property
+    def total_population_history(self) -> List[int]:
+        return self._pop.total_population_history
 
     @property
     def average_happiness(self) -> float:
-        """Population-weighted average happiness across all groups."""
-        total_pop = sum(self.town.population_groups.values())
-        if total_pop == 0:
-            groups = list(self.town.happiness_groups.values())
-            return sum(groups) / len(groups) if groups else HAPPINESS_EQUILIBRIUM
-        weighted = sum(
-            self.town.happiness_groups[g] * self.town.population_groups[g]
-            for g in self.town.happiness_groups
-        )
-        return weighted / total_pop
-
-    def update_happiness(self) -> None:
-        """Apply hourly happiness drift to each population group.
-
-        Each group receives:
-        - A small random nudge (normal distribution)
-        - A weak pull toward the effective equilibrium
-        - An overpopulation penalty: each 1% above the map-defined base
-          shifts the equilibrium down by 1.5 points (per-group)
-
-        Results are clamped to [0, 100] and written to Town so the UI
-        reflects current values immediately.
-        """
-        for group in self.town.happiness_groups:
-            current = self.town.happiness_groups[group]
-            base_pop = self.base_groups.get(group, 0)
-            current_pop = self.town.population_groups.get(group, 0)
-
-            # Overpopulation penalty shifts the happiness equilibrium downward.
-            # Two-stage: crowding starts at NEAR_CAPACITY_THRESHOLD%, full penalty above 100%.
-            if base_pop > 0:
-                fill_pct = current_pop / base_pop * 100.0
-                near_capacity_pct = max(0.0, min(fill_pct, 100.0) - NEAR_CAPACITY_THRESHOLD)
-                overpop_pct = max(0.0, fill_pct - 100.0)
-            else:
-                fill_pct = 0.0
-                near_capacity_pct = 0.0
-                overpop_pct = 0.0
-            if fill_pct < UNDERPOP_THRESHOLD_LOW:
-                underpop_bonus = UNDERPOP_BONUS_LOW
-            elif fill_pct < UNDERPOP_THRESHOLD_HIGH:
-                underpop_bonus = UNDERPOP_BONUS_HIGH
-            else:
-                underpop_bonus = 0
-            effective_equilibrium = (HAPPINESS_EQUILIBRIUM
-                                     + underpop_bonus
-                                     - near_capacity_pct * NEAR_CAPACITY_MALUS_PER_PERCENT
-                                     - overpop_pct * OVERPOP_MALUS_PER_PERCENT)
-
-            noise = random.normalvariate(0.0, HAPPINESS_DRIFT_SIGMA)
-            reversion = 0.05 * (effective_equilibrium - current)
-            new_happiness = current + noise + reversion
-            self.town.happiness_groups[group] = max(0.0, min(100.0, new_happiness))
-
-        self.town.happiness = self.average_happiness
-
-    def record_happiness_history(self) -> None:
-        """Append current per-group and aggregate happiness to the hourly history lists."""
-        for group, happiness in self.town.happiness_groups.items():
-            self.happiness_history[group].append(happiness)
-        self.average_happiness_history.append(self.town.happiness)
-
-    def update_population(self) -> None:
-        """Adjust population based on average happiness (called daily).
-
-        Computes the new total first, then redistributes it proportionally
-        across groups using the configured shares so no single group absorbs
-        all the rounding error.  Each group is hard-clamped to
-        [base * MIN_FACTOR, base * MAX_FACTOR].
-        """
-        avg = self.average_happiness
-        # Scale: threshold maps to 0, extremes map to ±MAX_DAILY_POPULATION_CHANGE.
-        delta_rate = (avg - HAPPINESS_THRESHOLD) / (100.0 - HAPPINESS_THRESHOLD) * MAX_DAILY_POPULATION_CHANGE
-
-        new_total = round(self.town.citizens * (1.0 + delta_rate))
-        new_groups = self.town._split_population_into_groups(new_total)
-
-        for group in self.town.population_groups:
-            base = self.base_groups.get(group, 0)
-            if base == 0:
-                continue
-            lo = round(base * POPULATION_MIN_FACTOR)
-            hi = round(base * POPULATION_MAX_FACTOR)
-            self.town.population_groups[group] = max(lo, min(hi, new_groups.get(group, 0)))
-
-        self.town.citizens = sum(self.town.population_groups.values())
-
-    def record_population_history(self) -> None:
-        """Append current per-group and aggregate population counts to the daily history lists."""
-        for group, count in self.town.population_groups.items():
-            self.population_history[group].append(count)
-        self.total_population_history.append(self.town.citizens)
+        """Population-weighted average happiness across all classes."""
+        return population.average_happiness(self._pop)

@@ -30,7 +30,7 @@ import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..config.constants import FIELD_HARVEST_DAY, FIELD_SEASON_JITTER_DAYS, FIELD_SOW_DAY
-from .game_calendar import DAYS_PER_YEAR, EPOCH
+from ..sim.calendar import DAYS_PER_YEAR, EPOCH
 
 MIN_GROWING_DAYS = 1.0   # the growing season is never shorter, whatever a Tiled property says
 _EPOCH = datetime.datetime.combine(EPOCH, datetime.time())

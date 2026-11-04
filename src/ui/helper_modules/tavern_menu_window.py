@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, List, Tuple
 from .loan_dialog import _BaseDialog, _close_dialog, _load_fonts
 from ...config.colors import BLACK, DARK_BROWN, DARK_RED
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT
-from ...models.game_calendar import format_long, is_fast_day, is_lent
+from ...sim.calendar import format_long, is_fast_day, is_lent
 from ...models.tavern_menu import COURSES, daily_menu
 
 if TYPE_CHECKING:

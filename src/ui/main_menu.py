@@ -14,7 +14,7 @@ from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
 from .controls_overview import ControlsOverview
 from . import cursor
-from ..models.game_calendar import format_with_time
+from ..sim.calendar import format_with_time
 from .slot_list import (
     CROSS_COLUMN_W, DELETE_TOOLTIP, DeleteConfirm, SlotList,
     delete_cross_rect, draw_delete_cross, rows_height,

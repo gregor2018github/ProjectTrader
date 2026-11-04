@@ -3,7 +3,7 @@ import datetime
 from typing import TYPE_CHECKING, Tuple, Optional, Any
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
-from ...models.game_calendar import EPOCH, PERIOD_DAYS, format_date
+from ...sim.calendar import EPOCH, PERIOD_DAYS, format_date
 
 if TYPE_CHECKING:
     from ...models.depot import Depot

@@ -9,7 +9,8 @@ spell from running out and its fog from thinning with the hour
 ground can be soaked or dried at once, for the puddles and the wet ground.
 "Strike lightning" flashes and thunders at once, storm or not
 (Lightning.strike, models/lightning.py).
-A line at the top shows where the weather stands, live.
+A line at the top shows where the weather stands, live; one above "Back"
+the simulation's seed (src/sim/), so a bug report can name the run.
 """
 
 from typing import List, Optional, Tuple
@@ -29,8 +30,9 @@ class WeatherDebugPage:
     """The page's buttons inside *rect*, working on *weather* (models/weather.py)."""
 
     def __init__(self, rect: pygame.Rect, weather, font: pygame.font.Font, small_font: pygame.font.Font,
-                 lightning=None) -> None:
+                 lightning=None, sim=None) -> None:
         self.rect = rect
+        self.sim = sim
         self.weather = weather
         self.lightning = lightning
         self.font = font
@@ -87,6 +89,9 @@ class WeatherDebugPage:
             self._button(screen, rect, kind.capitalize(), kind == weather.kind, mouse)
         for rect, action in self.option_buttons:
             self._button(screen, rect, *self._label(action), mouse)
+        if self.sim is not None:
+            seed = self.small_font.render(f"Simulation seed {self.sim.seed}", True, DARK_GRAY)
+            screen.blit(seed, seed.get_rect(midbottom=(self.rect.centerx, self.back_button.top - 10)))
         self._button(screen, self.back_button, "Back", False, mouse)
 
     def handle_click(self, pos: Tuple[int, int]) -> Optional[str]:

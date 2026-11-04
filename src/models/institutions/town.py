@@ -1,92 +1,79 @@
 from ..house import House
-from typing import TYPE_CHECKING, Tuple, List, Dict
+from typing import TYPE_CHECKING, Optional, Tuple, List, Dict
 from ...ui.transaction_feedback import on_money_donated
-from ...config.constants import (
-    POPULATION_SHARE_POOR,
-    POPULATION_SHARE_COMMONS,
-    POPULATION_SHARE_MIDDLING_SORT,
-    POPULATION_SHARE_NOBILITY,
-)
+from ...sim.state import TownSpec
+from ...sim.systems.population import starting_inhabitants
 
 if TYPE_CHECKING:
     from ...game_state import GameState
+    from ...sim import Simulation
+    from ...sim.state import PopulationState
 
 class Town(House):
-    """Represents a town hall institution in the game with donation functionality."""
+    """The town hall on the map, with its menus (donations, licenses, statistics).
+
+    Its people live in the simulation (``PopulationState``); ``citizens``,
+    ``happiness``, ``population_groups`` and the rest are read from there on
+    every access, so the town hall keeps none of those numbers itself. This
+    view is a seam kept for P0 (see ``docs/sim_core.md``).
+    """
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.treasury = 0
-        self.happiness = 80
-        self.max_citizens = 0
-        self.citizens = 0
-        self.base_groups: Dict[str, int] = {}  # map-defined 100% baseline, set by initialize_population
-        self.population_groups: Dict[str, int] = {
-            "Poor": 0,
-            "Commons": 0,
-            "Middling Sort": 0,
-            "Nobility": 0,
-        }
-        self.happiness_groups: Dict[str, float] = {
-            "Poor": 80.0,
-            "Commons": 80.0,
-            "Middling Sort": 80.0,
-            "Nobility": 80.0,
-        }
+        self._sim: Optional["Simulation"] = None
 
-    def initialize_population(self, houses: List[House]) -> None:
-        """Initialize town population statistics from already loaded houses.
+    def initialize_population(self, houses: List[House]) -> TownSpec:
+        """Move people into the map's houses, STARTING_OCCUPANCY full, and describe the town for the simulation.
 
-        Population capacity is the sum of all residential house capacities.
         Houses without a positive ``max_inhabitants`` are treated as non-residential.
-        For now, all residential houses are initialized at 100% occupancy.
 
         Args:
             houses: All loaded house objects from the map.
+
+        Returns:
+            The town as the simulation founds it (``Simulation.found_town``).
         """
-        max_citizens = 0
-        citizens = 0
-
         for house in houses:
-            if house.max_inhabitants <= 0:
-                continue
+            if house.max_inhabitants > 0:
+                house.inhabitants = starting_inhabitants(house.max_inhabitants)
+        return TownSpec(house_capacities=[h.max_inhabitants for h in houses if h.max_inhabitants > 0],
+                        name=self.name or "Town")
 
-            house.inhabitants = round(house.max_inhabitants * 0.8)
-            max_citizens += house.max_inhabitants
-            citizens += house.inhabitants
+    def attach(self, sim: "Simulation") -> None:
+        """Show the people of *sim*'s town."""
+        self._sim = sim
 
-        self.max_citizens = max_citizens
-        self.citizens = citizens
-        self.population_groups = self._split_population_into_groups(citizens)
-        self.base_groups = dict(self.population_groups)
+    @property
+    def _population(self) -> Optional["PopulationState"]:
+        return self._sim.state.population if self._sim is not None else None
 
-    @staticmethod
-    def _split_population_into_groups(total_population: int) -> Dict[str, int]:
-        """Split a total population into social groups using configured shares."""
-        group_shares = [
-            ("Poor", POPULATION_SHARE_POOR),
-            ("Commons", POPULATION_SHARE_COMMONS),
-            ("Middling Sort", POPULATION_SHARE_MIDDLING_SORT),
-            ("Nobility", POPULATION_SHARE_NOBILITY),
-        ]
+    @property
+    def citizens(self) -> int:
+        pop = self._population
+        return pop.citizens if pop is not None else 0
 
-        exact_values = [(name, total_population * share) for name, share in group_shares]
-        population_groups = {name: int(value) for name, value in exact_values}
+    @property
+    def max_citizens(self) -> int:
+        pop = self._population
+        return pop.max_citizens if pop is not None else 0
 
-        assigned = sum(population_groups.values())
-        remainder = total_population - assigned
+    @property
+    def happiness(self) -> float:
+        pop = self._population
+        return pop.happiness if pop is not None else 0.0
 
-        if remainder > 0:
-            fractions_sorted = sorted(
-                exact_values,
-                key=lambda item: item[1] - int(item[1]),
-                reverse=True
-            )
-            for idx in range(remainder):
-                group_name = fractions_sorted[idx % len(fractions_sorted)][0]
-                population_groups[group_name] += 1
+    @property
+    def population_groups(self) -> Dict[str, int]:
+        """Heads per class (a fresh dict; change the simulation, not this)."""
+        pop = self._population
+        return {c.name: c.count for c in pop.classes.values()} if pop is not None else {}
 
-        return population_groups
+    @property
+    def happiness_groups(self) -> Dict[str, float]:
+        """Happiness per class (a fresh dict; change the simulation, not this)."""
+        pop = self._population
+        return {c.name: c.happiness for c in pop.classes.values()} if pop is not None else {}
 
     def open_donation_menu(self, game_state: 'GameState', click_pos) -> None:
         """Opens the donation menu replacing the current menu.

@@ -4,7 +4,7 @@ import datetime
 from typing import TYPE_CHECKING, Optional, List
 from ...config.colors import *
 from ..paper import CHART_PAPER_EDGE, draw_paper
-from ...models.game_calendar import format_date
+from ...sim.calendar import format_date
 
 if TYPE_CHECKING:
     from ...models.depot import Depot

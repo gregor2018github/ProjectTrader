@@ -1,0 +1,20 @@
+{
+  "about": "The tradeable goods, in the order the market creates them (src/sim/data.py checks this file). color names a constant in src/config/colors.py.",
+  "goods": [
+    {"name": "Wood",    "start_price": 1,  "start_quantity": 5000, "color": "PALE_BROWN",  "chart_index": 0,  "show_in_charts": true},
+    {"name": "Stone",   "start_price": 2,  "start_quantity": 2000, "color": "GRAY",        "chart_index": 1,  "show_in_charts": true},
+    {"name": "Iron",    "start_price": 5,  "start_quantity": 900,  "color": "STEELE_BLUE", "chart_index": 2,  "show_in_charts": false},
+    {"name": "Wool",    "start_price": 3,  "start_quantity": 2500, "color": "WHITE",       "chart_index": 3,  "show_in_charts": false},
+    {"name": "Hide",    "start_price": 4,  "start_quantity": 1000, "color": "DARK_GRAY",   "chart_index": 4,  "show_in_charts": false},
+    {"name": "Fish",    "start_price": 2,  "start_quantity": 5000, "color": "LIGHT_BLUE",  "chart_index": 5,  "show_in_charts": false},
+    {"name": "Wheat",   "start_price": 1,  "start_quantity": 5000, "color": "YELLOW",      "chart_index": 6,  "show_in_charts": false},
+    {"name": "Wine",    "start_price": 10, "start_quantity": 500,  "color": "RED",         "chart_index": 7,  "show_in_charts": false},
+    {"name": "Beer",    "start_price": 5,  "start_quantity": 500,  "color": "PALE_BROWN",  "chart_index": 8,  "show_in_charts": false},
+    {"name": "Meat",    "start_price": 5,  "start_quantity": 800,  "color": "ROSE",        "chart_index": 9,  "show_in_charts": false},
+    {"name": "Pottery", "start_price": 3,  "start_quantity": 3500, "color": "DARK_ORANGE", "chart_index": 10, "show_in_charts": false},
+    {"name": "Linen",   "start_price": 3,  "start_quantity": 2000, "color": "WHITE",       "chart_index": 11, "show_in_charts": false},
+    {"name": "Candle",  "start_price": 4,  "start_quantity": 1500, "color": "GOLD",        "chart_index": 12, "show_in_charts": false},
+    {"name": "Herbs",   "start_price": 3,  "start_quantity": 1200, "color": "MUTED_GREEN", "chart_index": 13, "show_in_charts": false},
+    {"name": "Salt",    "start_price": 6,  "start_quantity": 1500, "color": "LIGHT_GRAY",  "chart_index": 14, "show_in_charts": false}
+  ]
+}

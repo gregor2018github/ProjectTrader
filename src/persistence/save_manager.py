@@ -14,10 +14,13 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
+from ..sim.state import GoodState
+from ..sim.systems import market
 
 from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
-SAVE_VERSION = 2   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
+SAVE_VERSION = 3   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
+                   # 3: the economy is the "sim" block (src/sim/), with its own "sim_version"; "goods" keeps only how the UI shows them
 
 # Slot number of the single autosave.  Manual slots start at 1, so 0 never
 # collides; the autosave is stored as autosave.sav instead of slot_0.sav.
@@ -113,7 +116,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -204,26 +207,17 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             },
             "statistics": depot.stats.to_dict(),
         },
+        # How the UI shows each good; its market numbers are in "sim"
         "goods": [
             {
                 "name": g.name,
-                "price": g.price,
-                "walk_price": g.walk_price,
-                "market_quantity": g.market_quantity,
-                "normal_quantity": g.normal_quantity,
-                "price_history_daily": list(g.price_history_daily),
-                "price_history_hourly": list(g.price_history_hourly),
-                "upper_bound": g.upper_bound,
-                "lower_bound": g.lower_bound,
-                "well_shock_remaining_days": g.well_shock_remaining_days,
-                "well_shock_saved_upper": g._well_shock_saved_upper,
-                "well_shock_saved_lower": g._well_shock_saved_lower,
                 "show_in_charts": g.show_in_charts,
                 "color_current": list(g.color_current),
             }
             for g in goods
         ],
-        "population": _serialize_population(population_manager),
+        # The economy (Simulation.to_dict): prices, volumes, people, the random generator
+        "sim": sim.to_dict() if sim is not None else None,
         # Explored land; loaded by GameMap.restore_map_fog, missing means none
         "fog": fog.to_save() if fog is not None else None,
         # Loaded by Weather.load, missing means the weather goes on as it is
@@ -233,33 +227,15 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
     }
 
 
-def _serialize_population(pm: Any) -> Optional[Dict[str, Any]]:
-    """Return a serializable dict for the population manager, or None if absent."""
-    if pm is None:
-        return None
-    return {
-        "happiness_history":         {k: list(v) for k, v in pm.happiness_history.items()},
-        "average_happiness_history": list(pm.average_happiness_history),
-        "population_history":        {k: list(v) for k, v in pm.population_history.items()},
-        "total_population_history":  list(pm.total_population_history),
-        "town": {
-            "citizens":          pm.town.citizens,
-            "happiness":         pm.town.happiness,
-            "population_groups": dict(pm.town.population_groups),
-            "happiness_groups":  dict(pm.town.happiness_groups),
-        },
-    }
-
-
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", population_manager: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods, save_name, population_manager, fog, weather, merchant_rank)
+    data = _serialize_game(game_state, player, depot, goods, save_name, sim, fog, weather, merchant_rank)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)
@@ -443,8 +419,13 @@ def _migrate_property_expenses(depot: Any) -> None:
             depot.wealth[i] += value
 
 
-def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], population_manager: Any = None) -> None:
-    """Apply a loaded save dict to the live game objects in-place."""
+def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: Any, goods: List[Any], sim: Any = None) -> None:
+    """Apply a loaded save dict to the live game objects in-place.
+
+    The economy goes into *sim* (``Simulation.load``), from the save's ``"sim"``
+    block or, for a save from before it (SAVE_VERSION < 3), from its old
+    ``"goods"`` and ``"population"`` entries (``_legacy_sim_block``).
+    """
     game_state.playtime_seconds = data.get("playtime_seconds", 0.0)
 
     gs = data["game_state"]
@@ -557,18 +538,10 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     if depot.stats.ledger_entries < len(depot.trades):
         depot.stats.ledger_entries = len(depot.trades)
 
-    # Goods added to the game after this save was made get a made-up price
-    # history as long as the saved goods', and empty depot entries.
-    saved_goods = {gd["name"] for gd in data["goods"]}
-    if data.get("save_version", 1) < 2:
-        # Hourly charts: fill in points between the hours, so they run at the price ticks' pace
-        for gd in data["goods"]:
-            gd["price_history_hourly"] = _hourly_to_ticks(gd["price_history_hourly"])
-    ticks = max((len(gd["price_history_hourly"]) for gd in data["goods"]), default=1)
-    days = max((len(gd["price_history_daily"]) for gd in data["goods"]), default=1)
-    for g in goods:
-        if g.name not in saved_goods:
-            g.simulate_history(ticks, days)
+    # The economy. Goods added to the game after this save was made get a
+    # made-up price history as long as the saved goods' (Simulation.load).
+    if sim is not None:
+        sim.load(data.get("sim") or _legacy_sim_block(data, sim), now=game_state.date)
     depot.add_missing_goods([g.name for g in goods])
 
     good_by_name = {g.name: g for g in goods}
@@ -576,21 +549,6 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
         g = good_by_name.get(gd["name"])
         if g is None:
             continue
-        g.market_quantity = gd["market_quantity"]
-        g.normal_quantity = gd.get("normal_quantity", g.normal_quantity)
-        if "walk_price" in gd:
-            g.walk_price = gd["walk_price"]
-        else:
-            # Saves from before the volume factor: keep the price the player last saw
-            g.price = gd["price"]
-        g.price_history_daily = gd["price_history_daily"]
-        g.price_history_hourly = gd["price_history_hourly"]
-        # Saves from before the corridor was saved keep the freshly rolled one
-        g.upper_bound = gd.get("upper_bound", g.upper_bound)
-        g.lower_bound = gd.get("lower_bound", g.lower_bound)
-        g.well_shock_remaining_days = gd.get("well_shock_remaining_days", 0)
-        g._well_shock_saved_upper = gd.get("well_shock_saved_upper", 0.0)
-        g._well_shock_saved_lower = gd.get("well_shock_saved_lower", 0.0)
         g.show_in_charts = gd["show_in_charts"]
         g.color_current = tuple(gd["color_current"])
         g.color_temp = g.color_current
@@ -599,14 +557,75 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     # Enforce max-3 chart selection and sync the order list
     _enforce_chart_limit(goods, game_state)
 
-    pop_data = data.get("population")
-    if pop_data and population_manager is not None:
-        population_manager.happiness_history         = {k: list(v) for k, v in pop_data["happiness_history"].items()}
-        population_manager.average_happiness_history = list(pop_data["average_happiness_history"])
-        population_manager.population_history        = {k: list(v) for k, v in pop_data["population_history"].items()}
-        population_manager.total_population_history  = list(pop_data["total_population_history"])
-        td = pop_data["town"]
-        population_manager.town.citizens          = td["citizens"]
-        population_manager.town.happiness         = td["happiness"]
-        population_manager.town.population_groups = dict(td["population_groups"])
-        population_manager.town.happiness_groups  = dict(td["happiness_groups"])
+
+def _legacy_sim_block(data: Dict[str, Any], sim: Any) -> Dict[str, Any]:
+    """A ``"sim"`` block made from a save of before the simulation core (SAVE_VERSION < 3).
+
+    Those kept the market in ``"goods"`` and the people in ``"population"``.
+    What such a save lacks is taken from the freshly started *sim*, as the
+    loader always did: the corridor and the normal volume of saves older
+    still, the classes' base head counts (the map's, never saved), and the
+    random generator (left as it is; the block has no ``"rng"``).
+    """
+    goods_data = data.get("goods", [])
+    if data.get("save_version", 1) < 2:
+        # Hourly charts: fill in points between the hours, so they run at the price ticks' pace
+        for gd in goods_data:
+            gd["price_history_hourly"] = _hourly_to_ticks(gd["price_history_hourly"])
+    goods = []
+    for gd in goods_data:
+        current = sim.state.goods.get(gd["name"])
+        if current is None:
+            continue
+        good = GoodState(
+            name=current.name,
+            base_price=current.base_price,
+            walk_price=current.walk_price,
+            market_quantity=int(gd["market_quantity"]),
+            normal_quantity=int(gd.get("normal_quantity", current.normal_quantity)),
+            # Saves from before the corridor was saved keep the freshly rolled one
+            upper_bound=gd.get("upper_bound", current.upper_bound),
+            lower_bound=gd.get("lower_bound", current.lower_bound),
+            well_shock_remaining_days=gd.get("well_shock_remaining_days", 0),
+            well_shock_saved_upper=gd.get("well_shock_saved_upper", 0.0),
+            well_shock_saved_lower=gd.get("well_shock_saved_lower", 0.0),
+            price_history_ticks=list(gd["price_history_hourly"]),
+            price_history_daily=list(gd["price_history_daily"]),
+        )
+        if "walk_price" in gd:
+            good.walk_price = gd["walk_price"]
+        else:
+            # Saves from before the volume factor: keep the price the player last saw
+            market.set_price(good, gd["price"])
+        goods.append(good.to_dict())
+    return {
+        "sim_version": 1,
+        "state": {"goods": goods, "population": _legacy_population(data.get("population"), sim)},
+    }
+
+
+def _legacy_population(pop_data: Optional[Dict[str, Any]], sim: Any) -> Optional[Dict[str, Any]]:
+    """The ``"population"`` of a save of before the simulation core, as the sim's state has it."""
+    current = sim.state.population
+    if current is None:
+        return None
+    if not pop_data:
+        return current.to_dict()
+    town = pop_data["town"]
+    classes = []
+    for c in current.classes.values():
+        classes.append({
+            "name": c.name,
+            "count": int(town["population_groups"].get(c.name, c.count)),
+            "base": c.base,
+            "happiness": town["happiness_groups"].get(c.name, c.happiness),
+            "happiness_history": list(pop_data["happiness_history"].get(c.name, [])),
+            "population_history": list(pop_data["population_history"].get(c.name, [])),
+        })
+    return {
+        "classes": classes,
+        "max_citizens": current.max_citizens,
+        "happiness": town["happiness"],
+        "average_happiness_history": list(pop_data["average_happiness_history"]),
+        "total_population_history": list(pop_data["total_population_history"]),
+    }

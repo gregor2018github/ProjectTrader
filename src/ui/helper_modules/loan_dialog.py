@@ -12,7 +12,7 @@ from typing import Optional, Tuple, List, TYPE_CHECKING
 from ..transaction_feedback import on_money_received
 from ...config.colors import SANDY_BROWN, DARK_BROWN, BLACK, WHITE, DARK_GREEN, DARK_RED, DARK_GRAY, DARK_ORANGE, WHEAT
 from ..ui_utils import draw_9slice
-from ...models.game_calendar import DAYS_PER_YEAR, format_date
+from ...sim.calendar import DAYS_PER_YEAR, format_date
 from ...config.constants import (
     LOAN_BASE_RATES, LOAN_DURATION_FACTORS, LOAN_EQUITY_RATIOS,
     LOAN_MIN_AMOUNT, LOAN_MIN_DAILY_PCT, LOAN_SETTLEMENT_RATE_PENALTY,

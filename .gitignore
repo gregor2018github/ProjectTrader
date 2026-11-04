@@ -69,3 +69,6 @@ build_tools/output/
 # Release builds (build_tools/Release)
 /release/
 build_tools/Release/.venv/
+
+# Headless simulation runs (python -m src.sim.run)
+/runs/

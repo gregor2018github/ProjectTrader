@@ -4,8 +4,8 @@ import datetime
 
 import pytest
 
-from src.models import game_calendar as cal
-from src.models.game_calendar import EPOCH
+from src.sim import calendar as cal
+from src.sim.calendar import EPOCH
 
 # Pinned so that changing the calendar's constants shows up here rather than in odd places
 DAYS_PER_SEASON = 7

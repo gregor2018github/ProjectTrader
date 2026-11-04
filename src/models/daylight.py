@@ -29,7 +29,7 @@ import math
 from typing import List, Tuple
 
 from ..config.constants import DAYLIGHT_DAWN_SHIFT_HOURS, DAYLIGHT_DUSK_SHIFT_HOURS, DAYLIGHT_TWILIGHT_STRETCH, SEASON_LIGHT_TINT
-from .game_calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, SEASONS, day_number
+from ..sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, SEASONS, day_number
 
 #: The middle of Summer, in days from the 1st of Spring
 MIDSUMMER = (SEASONS.index("Summer") + 0.5) * DAYS_PER_SEASON

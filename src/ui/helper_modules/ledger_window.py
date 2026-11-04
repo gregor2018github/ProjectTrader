@@ -11,7 +11,7 @@ from ...config.colors import (
 )
 from ...config.constants import FONTS_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..ui_utils import draw_9slice
-from ...models.game_calendar import format_date
+from ...sim.calendar import format_date
 
 if TYPE_CHECKING:
     from ...game_state import GameState

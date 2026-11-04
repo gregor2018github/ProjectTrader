@@ -12,6 +12,8 @@ MAIN_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__f
 PICTURES_PATH = os.path.join(MAIN_PATH, "assets", "pictures")
 FONTS_PATH = os.path.join(MAIN_PATH, "assets", "fonts")
 SAVES_PATH = os.path.join(MAIN_PATH, "saves")
+DATA_PATH = os.path.join(MAIN_PATH, "assets", "data")     # goods.json, recipes.json (src/sim/data.py)
+MAP_PATH = os.path.join(MAIN_PATH, "assets", "tiles", "Map1.tmx")
 SAVE_SECRET_KEY = "MerchantsRise_sv1_k9xP"
 
 # SIMULATION CONSTANTS
@@ -133,6 +135,8 @@ POPULATION_SHARE_MIDDLING_SORT = 0.20
 POPULATION_SHARE_NOBILITY = 0.03
 
 # POPULATION SIMULATION CONSTANTS
+STARTING_OCCUPANCY = 0.8            # Share of each house's Max_inhabitants living in it when a game starts (rounded per house)
+HAPPINESS_START = 80                # Every class's happiness, and the town's, when a game starts
 HAPPINESS_THRESHOLD = 70.0          # Below this average happiness, people move out; above, they move in
 HAPPINESS_EQUILIBRIUM = 70.0        # Natural happiness setpoint for mean-reversion
 POPULATION_MIN_FACTOR = 0.4         # A group can shrink to at most 40% of its map-defined base

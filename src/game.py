@@ -19,6 +19,10 @@ from .models.merchant_rank import MerchantRank
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
+from .sim import DataError, GoodDef, Simulation, load_goods
+from .sim.rng import new_seed
+from .sim.events import SimEvent
+from .config import colors
 from .models.ambience import AMBIENCE_FIRST_CHANNEL, Ambience
 from .models.lightning import Lightning
 from .models.coughs import Coughs
@@ -26,7 +30,7 @@ from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
-from .config.constants import PRICE_TICKS_PER_DAY, STROLL_RAIN_FROM
+from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
 from .ui.helper_modules.menu import Menu
@@ -92,10 +96,14 @@ class Game:
         self.state.small_font = self.small_font  # Set small font reference in GameState
         self.chart_border: Tuple[int, int] = (50, self.screen.get_size()[1]-150)
 
-        # Initialize goods
-        self.goods: List[Good] = self._initialize_goods()
+        # The economy (src/sim/): the goods from assets/data/goods.json, on a fresh seed
+        # (shown on the weather debug page, so a bug report can name it)
+        good_defs = load_goods()
+        self.sim: Simulation = Simulation(good_defs, now=self.state.date, seed=new_seed())
+        self.goods: List[Good] = self._initialize_goods(good_defs)
         self.state.chart_selection_order = [g.name for g in self.goods if g.show_in_charts]
-        self._presimulate_market_history(days=MARKET_PRESIMULATION_DAYS)
+        # Charts open with a history, and the game at an already drifted price
+        self.sim.presimulate(MARKET_PRESIMULATION_DAYS)
 
         # Clear sky, cloud and rain, going on with the game's clock
         self.weather: Weather = Weather(partway=True)
@@ -121,14 +129,18 @@ class Game:
         self.game_map.puddles.set_trodden(self.town_plan.trodden_tiles())   # puddles gather on roads and paving
         self.game_map.wet_ground.set_ground(self.town_plan.ground_masks(self.game_map.wet_ground.size))
 
+        # The town's people live in the simulation; the town hall and the charts show them
         self.town: Optional[Town] = None
         for house in self.game_map.tmx_map.houses:
             if isinstance(house, Town):
-                house.initialize_population(self.game_map.tmx_map.houses)
+                town_spec = house.initialize_population(self.game_map.tmx_map.houses)
                 self.town = house
+        if self.town is not None:
+            self.sim.found_town(town_spec)
+            self.town.attach(self.sim)
 
         self.population_manager: Optional[PopulationManager] = (
-            PopulationManager(self.town) if self.town else None
+            PopulationManager(self.sim, self.town) if self.town else None
         )
         
         # Initial check for area
@@ -228,8 +240,7 @@ class Game:
         """Put a loaded save into the running game: the saved state, and everything
         on the map that follows from it. Used both when the game starts from a
         save and when one is loaded while playing."""
-        apply_save_data(save_data, self.state, self.player, self.depot, self.goods,
-                        population_manager=self.population_manager)
+        apply_save_data(save_data, self.state, self.player, self.depot, self.goods, sim=self.sim)
         self.game_map.map_player.x = self.player.position[0]
         self.game_map.map_player.y = self.player.position[1]
         self.game_map.restore_map_fog(save_data.get("fog"))
@@ -313,48 +324,34 @@ class Game:
         )
         self.state.sync_quicktrade_fields()
 
-    def _initialize_goods(self) -> List[Good]:
-        """Create and initialize the default list of goods for the market.
-        
-        Returns:
-            List[Good]: A list of initialized Good objects.
-        """
-        goods = []
-        goods_data = [
-            ("Wood", 1, 5000, PALE_BROWN, 0, True),
-            ("Stone", 2, 2000, GRAY, 1, True),
-            ("Iron", 5, 900, STEELE_BLUE, 2, False),
-            ("Wool", 3, 2500, WHITE, 3, False),
-            ("Hide", 4, 1000, DARK_GRAY, 4, False),
-            ("Fish", 2, 5000, LIGHT_BLUE, 5, False),
-            ("Wheat", 1, 5000, YELLOW, 6, False),
-            ("Wine", 10, 500, RED, 7, False),
-            ("Beer", 5, 500, PALE_BROWN, 8, False),
-            ("Meat", 5, 800, ROSE, 9, False),
-            ("Pottery", 3, 3500, DARK_ORANGE, 10, False),
-            ("Linen", 3, 2000, WHITE, 11, False),
-            ("Candle", 4, 1500, GOLD, 12, False),
-            ("Herbs", 3, 1200, MUTED_GREEN, 13, False),
-            ("Salt", 6, 1500, LIGHT_GRAY, 14, False)
-        ]
-        for name, price, quantity, color, index, show in goods_data:
-            goods.append(Good(name=name, price=price, market_quantity=quantity,
-                            color=color, index=index, show_in_charts=show))
-        return goods
+    def _handle_sim_events(self, events: List[SimEvent]) -> None:
+        """What the simulation reported since the last update (src/sim/events.py).
 
-    def _presimulate_market_history(self, days: int) -> None:
-        """Run the price simulation forward before the game starts so charts are pre-filled.
+        Nothing is shown for them yet, so the game looks as it did before the
+        simulation core; this is where a notice or a ledger line would go.
+        """
+        del events
+
+    def _initialize_goods(self, definitions: List[GoodDef]) -> List[Good]:
+        """The goods as the UI shows them, one view per good of the simulation.
 
         Args:
-            days: Number of in-game days to simulate.
+            definitions: The goods from goods.json, in their order.
+
+        Returns:
+            List[Good]: A view per good, with its chart colour from colors.py.
+
+        Raises:
+            DataError: If a good names a colour colors.py does not have.
         """
-        for _ in range(days):
-            for _ in range(PRICE_TICKS_PER_DAY):
-                for good in self.goods:
-                    good.update_price()
-                    good.update_price_history_chart()
-            for good in self.goods:
-                good.update_price_history()
+        goods = []
+        for d in definitions:
+            color = getattr(colors, d.color, None)
+            if not (isinstance(color, tuple) and len(color) == 3):
+                raise DataError(f"goods.json, good {d.name!r}: field 'color': "
+                                f"{d.color!r} is not a colour in src/config/colors.py")
+            goods.append(Good(self.sim, d.name, color, d.chart_index, d.show_in_charts))
+        return goods
 
     def _load_images(self) -> Dict[str, Any]:
         """Load and scale all visual assets for the game.
@@ -515,25 +512,19 @@ class Game:
                 
                 if current_time - self.last_update >= self.update_delay:
                     self.last_update = current_time
-                    minute_changed, price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
+                    minute_changed, _price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
                     self.game_map.tmx_map.street_life.raining = self.weather.rain >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.wetness)
 
-                    # Prices move every PRICE_TICK_MINUTES, each move a point on the price chart
-                    if price_tick_changed:
-                        for good in self.goods:
-                            good.recover_volume()
-                            good.update_price()
-                            good.update_price_history_chart()
+                    # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
+                    # happiness every hour, migration and the well shock every day (src/sim/)
+                    self.sim.advance_to(self.state.date)
+                    self._handle_sim_events(self.sim.events.drain())
 
                     if hour_changed:
                         self.game_map.tmx_map.update_crops(self.state.date)
 
-                        if self.population_manager:
-                            self.population_manager.update_happiness()
-                            self.population_manager.record_happiness_history()
-                            
                         # Check if church bell should ring (midday or midnight)
                         if self.state.date.hour in (0, 12):
                             self.church_bell_channel = self.play_sound("church_bell_12_rings")
@@ -598,14 +589,6 @@ class Game:
                             penalty = max(0.01, round(abs(self.depot.money) * OVERDRAFT_DAILY_RATE, 2))
                             self.depot.book_overdraft_penalty(penalty)
                             self.state.log_event("LOAN", f"Overdraft penalty: {penalty:.2f}g")
-
-                        for good in self.goods:
-                            good.update_price_history()  # Bookkeeping price history, actual prices recorded hourly
-                            good.tick_well_shock_day()
-
-                        if self.population_manager:
-                            self.population_manager.update_population()
-                            self.population_manager.record_population_history()
 
                         # Warn about trading licenses that expire tomorrow
                         tomorrow = self.state.date.date() + datetime.timedelta(days=1)
@@ -954,7 +937,7 @@ class Game:
         mp = self.game_map.map_player
         self.player.position = (int(mp.x), int(mp.y))
         save_game(slot, self.state, self.player, self.depot, self.goods,
-                  save_name=save_name, population_manager=self.population_manager,
+                  save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank)
 

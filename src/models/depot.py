@@ -5,7 +5,7 @@ from ..config.constants import (
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
-from .game_calendar import seasons_to_days
+from ..sim.calendar import seasons_to_days
 
 START = "start"  # the starting storage's key in Depot.storage_order; a warehouse's is its Tiled id
 

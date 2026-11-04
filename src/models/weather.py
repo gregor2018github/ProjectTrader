@@ -46,7 +46,7 @@ from typing import Any, Dict, Optional
 from ..config.constants import (
     FOG_BY_HOUR, FOG_FROM_WETNESS, FOG_GLIDE_PER_HOUR, PUDDLE_DRY_PER_HOUR, RAIN_FROM_CLOUDS, PUDDLE_FILL_PER_HOUR, WEATHER_BY_SEASON, WEATHER_GLIDE_PER_HOUR, WEATHER_SPELLS, WEATHER_START, WEATHER_WIND_TURN_CHANCE,
 )
-from .game_calendar import SEASONS, game_date
+from ..sim.calendar import SEASONS, game_date
 from .daylight import sun_hour
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather

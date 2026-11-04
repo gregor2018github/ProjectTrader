@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 from ...config.colors import *
 from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
-from ...models.game_calendar import format_long
+from ...sim.calendar import format_long
 
 # Goods in the top bar, one column of (upper, lower) per slot; only
 # TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.

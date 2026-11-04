@@ -3,12 +3,11 @@ import pygame
 from collections import namedtuple
 from typing import Dict, List, Optional, Any, Set, Tuple, TYPE_CHECKING
 from .ui.helper_modules.warning_message import WarningMessage
-from .models import game_calendar
+from .sim import calendar as game_calendar
 from .config.constants import (
     DEFAULT_QUICKTRADE_SLOTS,
     START_DATE, 
     START_TIME,
-    PRICE_TICK_MINUTES,
     TIME_STEP_LEVEL_1, 
     TIME_STEP_LEVEL_2, 
     TIME_STEP_LEVEL_3, 
@@ -245,8 +244,7 @@ class GameState:
 
     def price_tick_number(self) -> int:
         """How many PRICE_TICK_MINUTES have passed since the calendar's first day, for telling when prices move."""
-        minutes = game_calendar.day_number(self.date) * 24 * 60 + self.date.hour * 60 + self.date.minute
-        return minutes // PRICE_TICK_MINUTES
+        return game_calendar.price_tick_number(self.date)
 
     def update_time(self) -> None:
         """Advance the game simulation time based on current speed level."""

@@ -6,7 +6,7 @@ import pytest
 
 from src.models import crop_growth as crop_growth_module
 from src.models.crop_growth import CropGrowth, field_season
-from src.models.game_calendar import EPOCH
+from src.sim.calendar import EPOCH
 
 # Pinned: a 28-day year (game_calendar.py), five stages, sown on the 1st of Spring and
 # harvested at the end of Autumn, so each of the four growing stages lasts 21 / 4 days

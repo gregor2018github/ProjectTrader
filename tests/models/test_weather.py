@@ -6,7 +6,7 @@ import random
 import pytest
 
 from src.models import weather as weather_module
-from src.models.game_calendar import EPOCH
+from src.sim.calendar import EPOCH
 from src.models.weather import Weather
 
 SPELLS = {

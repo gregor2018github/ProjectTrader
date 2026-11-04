@@ -6,7 +6,7 @@ import pytest
 
 from src.models import daylight
 from src.models.daylight import sun_hour, summer_share, twilight_stretch
-from src.models.game_calendar import EPOCH
+from src.sim.calendar import EPOCH
 
 # Pinned: a dawn an hour earlier and a dusk an hour and a half later at midsummer, and the
 # dawns and dusks half again as long where Autumn turns to Winter

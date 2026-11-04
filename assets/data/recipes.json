@@ -1,0 +1,14 @@
+{
+  "about": "Production recipes: one batch's goods in and out. Nothing runs them yet (P1's workshops will). Schema in docs/sim_core.md; src/sim/data.py checks this file.",
+  "recipes": [
+    {
+      "id": "brew_beer",
+      "name": "Brew beer",
+      "description": "An example entry: malted wheat brewed into ale.",
+      "inputs": {"Wheat": 4},
+      "outputs": {"Beer": 3},
+      "labour": 2,
+      "days": 1
+    }
+  ]
+}

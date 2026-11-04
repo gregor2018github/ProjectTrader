@@ -12,7 +12,7 @@ from typing import Optional, List, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import FONTS_PATH, PICTURES_PATH, MAIN_PATH, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from .warning_message import WarningMessage
-from ...models.game_calendar import describe_seasons
+from ...sim.calendar import describe_seasons
 
 if TYPE_CHECKING:
     from ...game import Game

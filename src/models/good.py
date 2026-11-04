@@ -1,256 +1,153 @@
-import math
-import random
-from typing import List, Optional, Tuple
-from ..config.constants import (
-    WELL_WISH_SHOCK_FACTOR, WELL_WISH_DURATION_DAYS,
-    MARKET_VOLUME_SCARCE_RATIO, MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_ELASTICITY,
-    MARKET_VOLUME_FACTOR_MIN, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_DAILY_RECOVERY, PRICE_TICKS_PER_DAY,
-)
+"""A tradeable good as the game's UI and depot see it: a thin view over the simulation.
 
-# Share of the gap to the normal volume closed per price tick, so that a day's ticks close MARKET_VOLUME_DAILY_RECOVERY
-_TICK_RECOVERY = 1.0 - (1.0 - MARKET_VOLUME_DAILY_RECOVERY) ** (1.0 / PRICE_TICKS_PER_DAY)
+Every number of the good (price walk, volumes, corridor, well shock,
+histories) lives once, in the simulation's ``GoodState``
+(``src/sim/state.py``); a ``Good`` looks it up there on every access and keeps
+none of it. What the ``Good`` itself keeps is only how the UI shows it: its
+colours, its place in the lists, whether it is in the chart, whether it is
+hovered.
+
+This wrapper is a seam kept for P0 so the depot and the views did not have to
+change; see ``docs/sim_core.md`` before building on it.
+"""
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+from ..sim.systems import market
+
+if TYPE_CHECKING:
+    from ..sim import Simulation
+    from ..sim.state import GoodState
+
 
 class Good:
-    """Represents a tradeable commodity in the game world.
-    
-    A Good tracks its current market price, historical data, availability, 
-    and visual properties for rendering in charts.
+    """A tradeable commodity: the simulation's market numbers, plus how the UI shows them.
 
     Its price is two parts multiplied: ``walk_price``, a random walk kept inside
     a soft corridor, and ``volume_factor()``, from how much of the good the
-    market holds against its ``normal_quantity``.
+    market holds against its ``normal_quantity`` (``docs/pricing.md``).
     """
-    
-    def __init__(self, name: str, price: float, market_quantity: int, color: Tuple[int, int, int], index: int, show_in_charts: bool) -> None:
-        """Initialize a new good.
-        
+
+    def __init__(self, sim: "Simulation", name: str, color: Tuple[int, int, int], index: int,
+                 show_in_charts: bool) -> None:
+        """Show the simulation's good *name*.
+
         Args:
-            name: The display name of the good.
-            price: Starting market price.
-            market_quantity: Initial available units in the market.
-            color: RGB color tuple for chart rendering.
-            index: Unique positional index.
-            show_in_charts: Whether the good is initially visible in price charts.
+            sim: The simulation holding the good.
+            name: The good's name, as the simulation knows it.
+            color: RGB colour for the charts.
+            index: Its place in the charts and lists.
+            show_in_charts: Whether it is shown in the price chart.
         """
+        self._sim = sim
         self.name: str = name
-        self.market_quantity: int = int(market_quantity)
-        self.normal_quantity: int = max(1, int(market_quantity))  # The volume the market thinks is normal
-        self.walk_price: float = float(price)                     # The random walk part of the price
-        self.price_history_daily: List[float] = [self.price]    # store price history for bookkeeping, updated daily
-        self.price_history_hourly: List[float] = [self.price]   # the price chart: one point per price tick (PRICE_TICK_MINUTES; named for the save format)
         self.color_orig: Tuple[int, int, int] = color           # Original color when game started
         self.color_current: Tuple[int, int, int] = color        # Currently saved color
         self.color_temp: Tuple[int, int, int] = color           # Temporary color changes from settings
         self.color: Tuple[int, int, int] = self.color_temp      # Used for drawing; always synced to color_temp
         self.index: int = index
-        self.base_price: float = self.walk_price
         self.show_in_charts: bool = show_in_charts
-        # The corridor bounds the walk, not the volume factor on top of it
-        self.upper_bound: float = self.walk_price * random.uniform(1.5, 3.5)
-        self.lower_bound: float = self.walk_price * random.uniform(0.05, 0.80)
         self.hovered: bool = False
-        self.well_shock_remaining_days: int = 0
-        self._well_shock_saved_upper: float = 0.0
-        self._well_shock_saved_lower: float = 0.0
-    
+
+    @property
+    def state(self) -> "GoodState":
+        """The simulation's state of this good (looked up anew, so a loaded save shows at once)."""
+        return self._sim.state.goods[self.name]
+
+    # -- the simulation's numbers, passed through --------------------------
+
+    @property
+    def walk_price(self) -> float:
+        return self.state.walk_price
+
+    @walk_price.setter
+    def walk_price(self, value: float) -> None:
+        self.state.walk_price = value
+
+    @property
+    def market_quantity(self) -> int:
+        return self.state.market_quantity
+
+    @market_quantity.setter
+    def market_quantity(self, value: int) -> None:
+        self.state.market_quantity = int(value)
+
+    @property
+    def normal_quantity(self) -> int:
+        return self.state.normal_quantity
+
+    @property
+    def upper_bound(self) -> float:
+        return self.state.upper_bound
+
+    @property
+    def lower_bound(self) -> float:
+        return self.state.lower_bound
+
+    @property
+    def base_price(self) -> float:
+        return self.state.base_price
+
+    @property
+    def well_shock_remaining_days(self) -> int:
+        return self.state.well_shock_remaining_days
+
+    @property
+    def price_history_daily(self) -> List[float]:
+        """One price a day, for bookkeeping."""
+        return self.state.price_history_daily
+
+    @property
+    def price_history_hourly(self) -> List[float]:
+        """The price chart: one price per price tick (named for the old save format)."""
+        return self.state.price_history_ticks
+
     @property
     def price(self) -> float:
         """The current market price: the random walk times the volume factor."""
-        return self.walk_price * self.volume_factor()
+        return market.price(self.state)
 
     @price.setter
     def price(self, value: float) -> None:
         """Set the price as it should show now, at the current volume."""
-        self.walk_price = float(value) / self.volume_factor()
+        market.set_price(self.state, value)
 
     def volume_factor(self, quantity: Optional[float] = None) -> float:
-        """How much dearer or cheaper the market's volume makes the good.
-
-        1.0 between the scarce and glut ratios of the normal volume; past them
-        the factor follows (threshold / ratio) ** elasticity, clamped, so the
-        further the volume strays the more the price moves.
-
-        Args:
-            quantity: The volume to price at; the market's current one if omitted.
-        """
-        if quantity is None:
-            quantity = self.market_quantity
-        ratio = quantity / self.normal_quantity
-        if ratio <= 0:
-            return MARKET_VOLUME_FACTOR_MAX
-        if ratio < MARKET_VOLUME_SCARCE_RATIO:
-            factor = (MARKET_VOLUME_SCARCE_RATIO / ratio) ** MARKET_VOLUME_ELASTICITY
-        elif ratio > MARKET_VOLUME_GLUT_RATIO:
-            factor = (MARKET_VOLUME_GLUT_RATIO / ratio) ** MARKET_VOLUME_ELASTICITY
-        else:
-            return 1.0
-        return min(MARKET_VOLUME_FACTOR_MAX, max(MARKET_VOLUME_FACTOR_MIN, factor))
+        """How much dearer or cheaper the market's volume makes the good (``market.volume_factor``)."""
+        return market.volume_factor(self.state, quantity)
 
     def quote(self, quantity: int, buying: bool) -> float:
-        """What a trade of this many units comes to, before the trading fee.
-
-        Each unit is priced at its own volume, so a big order moves the price
-        against the trader as it goes: a bought unit at the volume before it
-        is taken (the first one at the shown price), a sold unit at the volume
-        after it is added. Buying and selling back the same units cancel out.
-
-        Args:
-            quantity: Units in the order.
-            buying: True for a purchase from the market, False for a sale to it.
-        """
-        q = self.market_quantity
-        if buying:
-            volumes = range(q, q - quantity, -1)
-        else:
-            volumes = range(q + 1, q + quantity + 1)
-        return self.walk_price * sum(self.volume_factor(v) for v in volumes)
+        """What a trade of this many units comes to, before the trading fee, with slippage (``market.quote``)."""
+        return market.quote(self.state, quantity, buying)
 
     def buy(self, quantity: int) -> None:
-        """Decrease market quantity when units are bought.
-
-        Args:
-            quantity: Units being removed from the market.
-        """
-        self.market_quantity -= quantity
-        self._show_current_price()
+        """Units bought by the player leave the market."""
+        market.take(self.state, quantity)
 
     def sell(self, quantity: int) -> None:
-        """Increase market quantity when units are sold.
+        """Units sold by the player join the market."""
+        market.put(self.state, quantity)
 
-        Args:
-            quantity: Units being returned to the market.
-        """
-        self.market_quantity += quantity
-        self._show_current_price()
-
-    def _show_current_price(self) -> None:
-        """Let the chart's latest point show the price a trade has just moved."""
-        if self.price_history_hourly:
-            self.price_history_hourly[-1] = self.price
-
-    def recover_volume(self) -> None:
-        """Move the market's volume a price tick's share back towards normal.
-
-        A stand-in for traders restocking and townsfolk buying, until the town
-        has a supply and demand of its own. Moves at least one unit while there
-        is a gap, so it always arrives.
-        """
-        gap = self.normal_quantity - self.market_quantity
-        if gap == 0:
-            return
-        step = max(1, math.floor(abs(gap) * _TICK_RECOVERY))
-        self.market_quantity += step if gap > 0 else -step
-
-    def update_price(self) -> None:
-        """Simulate market price fluctuations using a normal distribution (once a price tick,
-        every PRICE_TICK_MINUTES; a day's swing grows with the number of ticks in it).
-        
-        Moves the random walk part of the price, which tends to revert if it
-        exceeds the upper bound or drops below the lower bound.
-        """
-        if self.walk_price > self.upper_bound:
-            mu = 0.999
-            sigma = 0.01
-        elif self.walk_price < self.lower_bound:
-            mu = 1.02
-            sigma = 0.01
-        else:
-            mu = 1.00
-            sigma = 0.1
-            
-        if self.walk_price < 1:
-            mu = mu + 0.03
-
-        self.walk_price = self.walk_price * random.normalvariate(mu, sigma)
-
-    def update_price_history(self) -> None:
-        """Update the price history for bookkeeping (daily)."""
-        self.price_history_daily.append(self.price)
-    
-    def update_price_history_chart(self) -> None:
-        """Update the price history for charts (once a price tick, every PRICE_TICK_MINUTES)."""
-        self.price_history_hourly.append(self.price)
-    
-    def simulate_history(self, ticks: int, days: int) -> None:
-        """Make up a price history of the given lengths from the starting price.
-
-        For a good added after a save was made: its history must be as long as
-        the saved goods', so the charts line its "now" up with theirs.
-        """
-        self.walk_price = self.base_price
-        self.price_history_hourly = [self.price]
-        for _ in range(max(ticks, 1) - 1):
-            self.update_price()
-            self.update_price_history_chart()
-        # One daily entry per day's ticks, the last of them today
-        last = len(self.price_history_hourly) - 1
-        self.price_history_daily = [
-            self.price_history_hourly[max(0, last - PRICE_TICKS_PER_DAY * k)] for k in reversed(range(max(days, 1)))
-        ]
-
-    def get_price(self) -> float:
-        """Get the current market price.
-        
-        Returns:
-            float: Current price.
-        """
-        return self.price
-    
-    def set_price(self, price: float) -> None:
-        """Set a new market price.
-        
-        Args:
-            price: The new price value.
-        """
-        self.price = float(price)
-    
-    def get_quantity(self) -> int:
-        """Get the current market quantity.
-        
-        Returns:
-            int: Available units.
-        """
-        return self.market_quantity
-    
-    def set_quantity(self, quantity: int) -> None:
-        """Set the available market quantity.
-        
-        Args:
-            quantity: New number of units.
-        """
-        self.market_quantity = int(quantity)
-    
     def apply_well_shock(self, direction: str) -> None:
-        """Apply a temporary price shock from a well wish.
-
-        Shifts the current price and both bounds by WELL_WISH_SHOCK_FACTOR in the
-        given direction so the price stabilises near the new level instead of
-        immediately reverting.  The original bounds are restored after
-        WELL_WISH_DURATION_DAYS daily ticks.
+        """A well wish's price shock (``market.apply_well_shock``).
 
         Args:
             direction: "Price goes up" to raise the price, anything else lowers it.
         """
-        factor = 1.0 + WELL_WISH_SHOCK_FACTOR if direction == "Price goes up" else 1.0 - WELL_WISH_SHOCK_FACTOR
+        self._sim.apply_well_shock(self.name, direction == "Price goes up")
 
-        # Save original bounds only when no shock is already active
-        if self.well_shock_remaining_days == 0:
-            self._well_shock_saved_upper = self.upper_bound
-            self._well_shock_saved_lower = self.lower_bound
+    def get_price(self) -> float:
+        return self.price
 
-        self.walk_price *= factor
-        self.upper_bound *= factor
-        self.lower_bound *= factor
-        self.well_shock_remaining_days = WELL_WISH_DURATION_DAYS
+    def set_price(self, price: float) -> None:
+        self.price = float(price)
 
-    def tick_well_shock_day(self) -> None:
-        """Decrement the well shock counter and restore bounds when it expires."""
-        if self.well_shock_remaining_days <= 0:
-            return
-        self.well_shock_remaining_days -= 1
-        if self.well_shock_remaining_days == 0:
-            self.upper_bound = self._well_shock_saved_upper
-            self.lower_bound = self._well_shock_saved_lower
+    def get_quantity(self) -> int:
+        return self.market_quantity
+
+    def set_quantity(self, quantity: int) -> None:
+        self.market_quantity = int(quantity)
+
+    # -- how the UI shows it -------------------------------------------------
 
     def toggle_display(self) -> None:
         """Toggle visibility of this good in charts."""

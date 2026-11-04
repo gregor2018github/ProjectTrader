@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Any, TYPE_CHECKING, Optional
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT, PRICE_TICK_MINUTES, PRICE_TICKS_PER_DAY
 from ..paper import CHART_PAPER_EDGE, draw_paper
-from ...models.game_calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
+from ...sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
 
 if TYPE_CHECKING:
     from ...models.good import Good

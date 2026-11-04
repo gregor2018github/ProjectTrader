@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 from ..config.constants import MAIN_PATH
-from .game_calendar import is_fast_day
+from ..sim.calendar import is_fast_day
 
 DISHES_PATH = os.path.join(MAIN_PATH, "assets", "texts", "taverns", "dishes.csv")
 

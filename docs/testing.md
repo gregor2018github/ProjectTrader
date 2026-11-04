@@ -4,6 +4,7 @@
 pip install -r requirements-dev.txt   # the game's requirements plus pytest
 python -m pytest                      # everything, from the repo root
 python -m pytest tests/models/test_depot_storage.py -k pack   # a part
+python -m pytest -m "not slow"        # without the tests that load the real map
 ```
 
 `pytest.ini` puts the repo root on the path, so tests import the game as `src.…`.
@@ -16,15 +17,35 @@ is imported: no window opens and nothing plays.
 `tests/models/`, split by concern (`test_depot_trading.py`, `_storage`,
 `_filters`, `_licenses`, `_bookkeeping`). Fixtures shared by a folder live in its
 `conftest.py`; stand-ins for the game's big objects live in `tests/fakes.py`.
+Tests that load the real map or the whole game are marked `@pytest.mark.slow`
+(registered in `pytest.ini`); they run by default.
 
 ## How the code splits up for testing
 
 The code falls into layers that are tested differently. Start from the top:
 it is where the bugs cost most and the tests are cheapest.
 
-1. **Pure models**: the depot, `Good` pricing (`docs/pricing.md` is its spec),
-   `Statistics`, license dates, polygon insets, A* on a small grid. Plain unit
-   tests, no pygame display, no map.
+0. **The simulation core** (`src/sim/`, `tests/sim/`, see `docs/sim_core.md`):
+   plain state and functions, no pygame at all. Test the systems on hand-made
+   `GoodState` / `PopulationState` with a `random.Random(seed)` of the test's
+   own, the scheduler on hand-picked moments, the data loaders on small dicts.
+   Four kinds of test guard the core as a whole:
+   - **Goldens** (`test_golden.py`): a fixed scenario (pre-simulation, a year,
+     scripted trades and well wishes) snapshotted to `tests/sim/golden/` from the
+     code *before* the extraction, matched to the last bit. When behaviour is
+     meant to change, regenerate with `python -m tests.sim.golden_harness --write`
+     and say so in the commit; otherwise a failing golden is a bug.
+   - **Determinism** (`test_run.py`): the same seed writes byte-identical CSVs,
+     another seed different ones.
+   - **Save round trip** (`test_simulation_save.py`): a saved and loaded
+     simulation goes on exactly like the unsaved one; the saves in `saves/`
+     still load.
+   - **Headless** (`test_no_pygame.py`): every module imports with
+     `sys.modules["pygame"] = None` and none of the game; no global `random` calls.
+1. **Pure models**: the depot, `Statistics`, license dates, polygon insets, A*
+   on a small grid. Plain unit tests, no pygame display, no map. The depot's
+   goods are `Good` views of a one-good `Simulation` each (`make_good` in
+   `tests/models/conftest.py`).
 2. **Models that talk to `GameState`**: give them a `FakeGameState`
    (`tests/fakes.py`). It has only the members the code under test uses and
    records warnings and ledger entries so tests can check them. When the code
@@ -47,7 +68,8 @@ it is where the bugs cost most and the tests are cheapest.
   module's own copy (`monkeypatch.setattr(depot_module, "SLOT_SIZE", 20)`, see
   `tests/models/conftest.py`). Rebalancing the game then does not break tests.
 - **No randomness.** Set the values that matter (`good.set_price()`,
-  `market_quantity`) or seed `random`.
+  `market_quantity`) or seed it: in the sim, pass a `random.Random(seed)`;
+  elsewhere, seed `random`.
 - **Pick numbers that make the expected result obvious.** The goods in the
   fixtures cost 10g with 1,000 on the market, so small orders keep the price flat
   and `10 units = 100g`.
@@ -64,7 +86,10 @@ it is where the bugs cost most and the tests are cheapest.
 
 ## Next areas, in order
 
-1. `Good`: `volume_factor`, `quote`, `recover_volume`, the corridor of `update_price`.
-2. Save round trips of the depot, goods and statistics (after the split above).
-3. `GameState` time: `update()`'s `TimeChanges` across hours, days and month ends.
+1. The market's rules one by one (`src/sim/systems/market.py`): `volume_factor`,
+   `quote`, `recover_volume`, the corridor of `step_walk`, the well shock; so
+   far only the goldens cover them as a whole.
+2. Save round trips of the depot and statistics (after the split above; the
+   simulation's block has its own already).
+3. `GameState.update()`'s `TimeChanges` against the scheduler's ticks.
 4. `NavGrid.find_route` on a hand-made grid, then the real-map checks.

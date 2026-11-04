@@ -10,11 +10,15 @@ clock's own calendar date runs about thirteen times slower than this one.
 
 At normal speed a game day takes 8 real minutes, so a game year (28 days)
 takes almost four real hours, which lets a playthrough span generations.
+
+It is also the one place that says when a tick happens (``tick_numbers``): the
+simulation's scheduler (``scheduler.py``) and the game's ``GameState.update()``
+both count price ticks, hours, days, weeks, seasons and years from here.
 """
 import datetime
 from typing import Dict, NamedTuple, Optional, Union
 
-from ..config.constants import CALENDAR_START_YEAR, DAYS_PER_SEASON, START_DATE
+from ..config.constants import CALENDAR_START_YEAR, DAYS_PER_SEASON, PRICE_TICK_MINUTES, START_DATE
 
 SEASONS = ("Spring", "Summer", "Autumn", "Winter")
 SEASON_ABBREVIATIONS = ("Spr", "Sum", "Aut", "Win")
@@ -136,3 +140,48 @@ def is_lent(moment: Moment) -> bool:
 def is_fast_day(moment: Moment) -> bool:
     """A day without meat: every Friday, and all of Lent."""
     return game_date(moment).weekday == WEEKDAYS.index("Friday") or is_lent(moment)
+
+
+# ---------------------------------------------------------------------------
+# Ticks: the moments the simulation (and the game) act on
+# ---------------------------------------------------------------------------
+
+PRICE_TICK = "price_tick"           # every PRICE_TICK_MINUTES
+HOUR = "hour"
+DAY = "day"
+WEEK = "week"                       # Monday to Sunday; with DAYS_PER_SEASON 7 it falls on the season's first day
+SEASON = "season"
+YEAR = "year"
+# The order the ticks of one moment fire in, finest first
+TICK_ORDER = (PRICE_TICK, HOUR, DAY, WEEK, SEASON, YEAR)
+
+# The scheduler steps from price tick to price tick, so every coarser tick must fall on one
+assert 60 % PRICE_TICK_MINUTES == 0, "PRICE_TICK_MINUTES must divide the hour"
+
+
+def minute_number(moment: datetime.datetime) -> int:
+    """Whole minutes from the calendar's first midnight to *moment*."""
+    return day_number(moment) * 24 * 60 + moment.hour * 60 + moment.minute
+
+
+def price_tick_number(moment: datetime.datetime) -> int:
+    """How many PRICE_TICK_MINUTES have passed since the calendar's first day."""
+    return minute_number(moment) // PRICE_TICK_MINUTES
+
+
+def week_number(moment: Moment) -> int:
+    """Weeks from the calendar's first one (it begins on a Monday)."""
+    return day_number(moment) // len(WEEKDAYS)
+
+
+def tick_numbers(moment: datetime.datetime) -> Dict[str, int]:
+    """For each kind of tick, a number that changes exactly when that tick happens."""
+    days = day_number(moment)
+    return {
+        PRICE_TICK: price_tick_number(moment),
+        HOUR: days * 24 + moment.hour,
+        DAY: days,
+        WEEK: days // len(WEEKDAYS),
+        SEASON: days // DAYS_PER_SEASON,
+        YEAR: days // DAYS_PER_YEAR,
+    }

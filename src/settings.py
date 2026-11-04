@@ -97,7 +97,8 @@ class SettingsWindow:
             page_rect.center = self.window_rect.center
             self.weather_page = WeatherDebugPage(page_rect, weather, font,
                                                  getattr(self.game, "small_font", font),
-                                                 getattr(self.game, "lightning", None))
+                                                 getattr(self.game, "lightning", None),
+                                                 getattr(self.game, "sim", None))
 
         # The chooser shown first: one button per page, and Close
         self.mode: str = "choose"

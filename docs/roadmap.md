@@ -22,7 +22,7 @@ Inspirations: Anno 1503, Der Patrizier IV, Die Gilde 2, Banished, Songs of Syx, 
 | World | One walkable home town (the diorama) plus an abstract strategic map of other towns |
 | Simulation model | Citizens aggregated per class with needs (Anno). **Businesses are real actors**: every workshop has an owner, cash, stock and workers |
 | Time span | Generations: characters age, die and are succeeded by heirs |
-| Calendar | A year is 4 seasons of 7 days (28 days; a day takes 8 real minutes at normal speed, so a year almost four real hours), so a 40–80 hour playthrough spans 10–20 game years at normal speed, more on the faster speeds. Characters age once a year. Built: `src/models/game_calendar.py` |
+| Calendar | A year is 4 seasons of 7 days (28 days; a day takes 8 real minutes at normal speed, so a year almost four real hours), so a 40–80 hour playthrough spans 10–20 game years at normal speed, more on the faster speeds. Characters age once a year. Built: `src/sim/calendar.py` |
 | Building | Pre-made plots on the hand-made map; buy a plot, choose what stands on it |
 | Workers | A named key person per business (master, foreman, factor) plus an abstract crowd of labourers |
 | Goods | Grow from 15 to about 40–60, in chains up to three tiers deep |
@@ -71,7 +71,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 
 ### P0 · Sim core
 
-The foundation every later project builds on.
+The foundation every later project builds on. Built for the market and the population (design: `sim_core.md`); recipes are defined but not run, needs and buildings come with P1 and P3.
 
 - A `src/sim/` package that imports nothing from pygame. The game drives it; the sim never draws.
 - A scheduler with day, week, season and year ticks. Prices, production and consumption run per day, not per hour.

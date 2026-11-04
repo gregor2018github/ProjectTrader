@@ -5,7 +5,8 @@ import pytest
 from src.models import depot as depot_module
 from src.models.depot import Depot
 from src.models.good import Good
-from tests.fakes import FakeGameState
+from src.sim import GoodDef, Simulation
+from tests.fakes import START_DATE, FakeGameState
 
 # The storage layout the depot tests are written against, pinned so that
 # rebalancing constants.py does not break them
@@ -54,7 +55,9 @@ def make_good():
     """Goods priced at 10g whose market holds 1,000, so orders of a few dozen
     stay inside the volume band where the price does not move."""
     def make(name: str = "Wood", price: float = 10.0, market_quantity: int = 1000) -> Good:
-        return Good(name, price, market_quantity, (0, 0, 0), 0, True)
+        # Each good on a simulation of its own; the Good is only a view of it
+        sim = Simulation([GoodDef(name, price, market_quantity, "BLACK", 0, True)], now=START_DATE, seed=0)
+        return Good(sim, name, (0, 0, 0), 0, True)
     return make
 
 

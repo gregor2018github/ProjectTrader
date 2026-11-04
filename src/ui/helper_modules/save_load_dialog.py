@@ -20,7 +20,7 @@ from ..slot_list import (
     delete_cross_rect, draw_delete_cross, rows_height,
 )
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
-from ...models.game_calendar import format_with_time
+from ...sim.calendar import format_with_time
 
 if TYPE_CHECKING:
     from ...game import Game

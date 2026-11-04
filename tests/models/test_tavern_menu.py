@@ -5,7 +5,7 @@ import datetime
 import pytest
 
 from src.models import tavern_menu
-from src.models.game_calendar import EPOCH
+from src.sim.calendar import EPOCH
 from src.models.tavern_menu import COURSES, TAVERN_CLASSES, Dish, daily_menu, load_dishes
 
 # Pinned so that changing how much a tavern serves does not break the tests

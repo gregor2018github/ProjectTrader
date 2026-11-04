@@ -19,7 +19,7 @@ from ...config.constants import (
     BASE_CONTRACT_FEE, DAYS_PER_SEASON, LICENSE_SEASON_OPTIONS, SEASONAL_CONTRACT_FEES,
 )
 from ..ui_utils import draw_9slice, draw_mouse_tooltip
-from ...models.game_calendar import describe_seasons, format_date
+from ...sim.calendar import describe_seasons, format_date
 
 if TYPE_CHECKING:
     from ...game_state import GameState

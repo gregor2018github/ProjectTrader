@@ -2,7 +2,7 @@ import pygame
 from ...config.colors import YELLOW, BLACK, DARK_BROWN, TAN, BEIGE, PALE_BROWN, LIGHT_BROWN, WHEAT, DARK_GREEN, DARK_RED
 import datetime
 from typing import Dict, List, Optional, Any
-from ...models.game_calendar import PERIOD_DAYS
+from ...sim.calendar import PERIOD_DAYS
 
 class DepotViewDetail:
     """Handles the detailed statistics panel shown alongside the depot view.
