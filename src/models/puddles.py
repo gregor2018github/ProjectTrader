@@ -31,12 +31,15 @@ people, animals: the render queue's sprites, flipped about their base line,
 cooled and see-through; what stands over each is worked out once, in world
 space, so a building scrolled half out of view still shows in a puddle in
 it), and over that go a faint reflection of the sky, a thin pale rim and a
-glint. Each is
+glint. The lit windows of the buildings mirrored in it (each light filed
+once under the building it is on) are mirrored too, as a glow added to the
+screen and handed to the lighting overlay, so they shine in it at night. Each is
 drawn once per zoom and size step (GROWTH_STEPS) and kept; it lies flat on
 the ground, under every walker, and the day/night lighting darkens it with
 the rest.
 """
 
+import datetime
 import math
 import random
 import time
@@ -79,6 +82,7 @@ SPLASH_COLOUR = (230, 240, 250, 210)
 RIPPLE_FLAT = 0.42                   # its height for its width, as the puddles are seen
 REFLECTION_TINT = (222, 234, 248)    # what stands over a puddle, mirrored in it: cooled by this...
 REFLECTION_ALPHA = 115               # ...and this see-through (255 is a perfect mirror)
+LIGHT_REFLECTION = 0.55              # how bright a lit window is in a puddle, for its own brightness
 
 
 class Puddle:
@@ -225,7 +229,11 @@ def _render(puddle: Puddle, growth: float, scale: float) -> Tuple[pygame.Surface
     mirror.fill((255, 255, 255, 0))
     lobes((255, 255, 255, REFLECTION_ALPHA), target=mirror)
     water = lobes((255, 255, 255, 255))
-    return multiply, sky, over, mirror, water
+    # The lit windows' glow is added, not blended, so it is cut by multiplying: black outside
+    glow_cut = pygame.Surface((w, h))
+    glow_cut.fill((0, 0, 0))
+    lobes(tuple(round(c * LIGHT_REFLECTION) for c in REFLECTION_TINT), target=glow_cut)
+    return multiply, sky, over, mirror, water, glow_cut
 
 
 class Puddles:
@@ -245,6 +253,8 @@ class Puddles:
         self._mirrorable = [thing for thing in list(tmx_map.houses) + list(tmx_map.trees)
                             if getattr(thing, 'image', None) is not None]
         self._over: Dict[Puddle, list] = {}
+        self._houses = set(tmx_map.houses)
+        self._lights: Optional[Dict[object, list]] = None   # see _lights_by_house
         self._walked: Dict[int, Tuple[float, float, float]] = {}   # per figurine: feet, distance since its last ring
         self.ripples: List[list] = []   # each [puddle, x, y, age]: rings round the feet of who walks through
         self._clock = 0.0               # seconds the walkers have been updated for, to move the wobble
@@ -414,6 +424,32 @@ class Puddles:
             entry = self._flips[id(sprite)] = (sprite, pygame.transform.flip(sprite, False, True))
         return entry[1]
 
+    def _lights_by_house(self) -> Dict[object, List[Tuple[object, Tuple[float, float]]]]:
+        """Every window light filed under the building it is on, with its top left in the world, once.
+
+        A light is on the building whose painted pixels its middle falls on,
+        the frontmost of them if several overlap there (the one it shows on).
+        """
+        if self._lights is None:
+            self._lights = {}
+            houses = [(house, house.image, pygame.mask.from_surface(house.image))
+                      for house in self._mirrorable if house in self._houses]
+            tmx_map = self.tmx_map
+            every = [(light, (light.x, light.y)) for light in getattr(tmx_map, 'lights', ())]
+            for group in getattr(tmx_map, 'building_light_groups', {}).values():
+                every += [(light, (light.bbox_x, light.bbox_y)) for light in group.lights]
+            for light, (lx, ly) in every:
+                mx, my = lx + light.width / 2, ly + light.height / 2
+                best = None
+                for house, image, mask in houses:
+                    px, py = int(mx - house.x), int(my - (house.y - image.get_height()))
+                    if (0 <= px < image.get_width() and 0 <= py < image.get_height() and mask.get_at((px, py))
+                            and (best is None or house.y_sort > best.y_sort)):
+                        best = house
+                if best is not None:
+                    self._lights.setdefault(best, []).append((light, (lx, ly)))
+        return self._lights
+
     def _standing_over(self, puddle: Puddle) -> list:
         """The buildings and trees whose mirror image reaches the puddle, worked out once per puddle.
 
@@ -438,7 +474,8 @@ class Puddles:
         return found
 
     def draw(self, screen: pygame.Surface, camera, offset_x: int, offset_y: int,
-             figurines: Sequence[Tuple[pygame.Surface, int, int, float]] = ()) -> None:
+             figurines: Sequence[Tuple[pygame.Surface, int, int, float]] = (),
+             now: Optional[datetime.datetime] = None) -> List[Tuple[pygame.Surface, Tuple[int, int]]]:
         """Lay the puddles in view on the ground, with what stands over them mirrored in them.
 
         Call it before the render queue is drawn. What a puddle mirrors is
@@ -447,9 +484,15 @@ class Puddles:
         y_sort), each flipped about its base line (the bottom of its sprite,
         where it meets the ground) and drawn in depth order, so only what
         stands behind or in a puddle shows in it.
+
+        The windows of those buildings lit at *now* are mirrored too, as a
+        glow added to the screen. That glow is returned, [(surface, screen
+        position)]: the lighting overlay must let it through as it lets the
+        windows themselves through, or the night would darken it away.
         """
+        glows: List[Tuple[pygame.Surface, Tuple[int, int]]] = []
         if self.wetness <= 0 or not self.puddles:
-            return
+            return glows
         scale = round(TILE_SIZE * camera.zoom) / float(TILE_SIZE)
         cam_x, cam_y = round(camera.x * scale), round(camera.y * scale)
         view_w, view_h = camera.screen_width, camera.screen_height
@@ -479,7 +522,7 @@ class Puddles:
             shown.append((pygame.Rect(round(sx - w / 2) + offset_x, round(sy - h / 2) + offset_y, w, h), sprites))
             rects[puddle] = shown[-1]
         if not shown:
-            return
+            return glows
         screen.blits([(multiply, rect, None, pygame.BLEND_MULT) for rect, (multiply, *_rest) in shown],
                      doreturn=False)
         screen.blits([(sky, rect) for rect, (_m, sky, *_rest) in shown], doreturn=False)
@@ -490,14 +533,32 @@ class Puddles:
         for puddle, _x, _y, age in self.ripples:
             stirred[puddle] = max(stirred.get(puddle, 0.0), 1 - age / RIPPLE_SECONDS)
         pixel = max(1, round(scale))
-        for puddle, (rect, (_m, _s, _o, mirror, _w)) in rects.items():
+        lights_of = self._lights_by_house() if now is not None else {}
+        for puddle, (rect, (_m, _s, _o, mirror, _w, glow_cut)) in rects.items():
             # (depth, left, base line on screen, sprite) of all that may show in it, nearest drawn last
             standing = []
+            glow = None
             for thing in self._standing_over(puddle):
                 sprite = thing.get_scaled_sprite(camera.zoom)
                 if sprite is not None:
                     sx, sy = camera.apply(thing.x, thing.y)
-                    standing.append((thing.y_sort, round(sx + offset_x), round(sy + offset_y), sprite))
+                    base = round(sy + offset_y)
+                    standing.append((thing.y_sort, round(sx + offset_x), base, sprite))
+                    # Its lit windows, flipped about the same base line
+                    for light, (lx, ly) in lights_of.get(thing, ()):
+                        if not light.is_on(now):
+                            continue
+                        light_sprite = light.get_render_data(camera.zoom)[0]
+                        wx, wy = camera.apply(lx, ly)
+                        left = round(wx + offset_x) - rect.x
+                        top = 2 * base - (round(wy + offset_y) + light_sprite.get_height()) - rect.y
+                        lw, lh = light_sprite.get_size()
+                        if left >= rect.width or top >= rect.height or left + lw <= 0 or top + lh <= 0:
+                            continue
+                        if glow is None:
+                            glow = pygame.Surface(rect.size)
+                            glow.fill((0, 0, 0))
+                        glow.blit(self._flipped(light_sprite), (left, top))
             standing += walkers
             standing.sort(key=lambda entry: entry[0])
             layer = None
@@ -514,6 +575,12 @@ class Puddles:
                 if puddle in stirred:
                     layer = self._wobble(layer, WOBBLE_PX * pixel * stirred[puddle] ** 1.5, pixel)
                 screen.blit(layer, rect)
+            if glow is not None:
+                glow.blit(glow_cut, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+                if puddle in stirred:
+                    glow = self._wobble(glow, WOBBLE_PX * pixel * stirred[puddle] ** 1.5, pixel)
+                screen.blit(glow, rect, special_flags=pygame.BLEND_RGB_ADD)
+                glows.append((glow, rect.topleft))
 
         # Rings round the feet of who wades through, spreading and fading, cut to the water
         rings: Dict[Puddle, pygame.Surface] = {}
@@ -539,7 +606,7 @@ class Puddles:
             if age < SPLASH_SECONDS:
                 drops.append((rect.x + centre[0], rect.y + centre[1], age / SPLASH_SECONDS))
         for puddle, layer in rings.items():
-            rect, (*_layers, water) = rects[puddle]
+            rect, (_m, _s, _o, _mi, water, _g) = rects[puddle]
             layer.blit(water, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
             screen.blit(layer, rect)
         # The droplets a step throws up: out to the sides and up, falling back, not cut to the water
@@ -551,3 +618,4 @@ class Puddles:
                 screen.fill(SPLASH_COLOUR, (round(px), round(py), pixel, pixel))
 
         screen.blits([(over, rect) for rect, (_m, _s, over, *_rest) in shown], doreturn=False)
+        return glows

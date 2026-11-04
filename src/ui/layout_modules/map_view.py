@@ -8,7 +8,7 @@ import math
 import pygame
 import pytmx
 import datetime
-from typing import List, Dict, Any, Tuple, TYPE_CHECKING
+from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is_player_near
@@ -132,8 +132,9 @@ def draw_map_view(
     # The puddles go on the ground under everything, mirroring what stands over them
     walkers = [(figurine._get_scaled_sprite(game_map.camera.zoom), *figurine_screen_pos(figurine, game_map.camera),
                 figurine.y_sort) for figurine in iter_figurines(game_map)]
-    game_map.puddles.draw(screen, game_map.camera, offset_x, offset_y,
-                          [(sprite, x + offset_x, y + offset_y, depth) for sprite, x, y, depth in walkers])
+    puddle_glows = game_map.puddles.draw(
+        screen, game_map.camera, offset_x, offset_y,
+        [(sprite, x + offset_x, y + offset_y, depth) for sprite, x, y, depth in walkers], game_state.date)
     for obj in render_queue:
         # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)
@@ -143,7 +144,8 @@ def draw_map_view(
     # darkened further under cloud
     clouds = weather.clouds if weather else 0.0
     storm = weather.storm if weather else 0.0
-    ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds, storm)
+    ambient = _apply_lighting(screen, map_content_rect, game_state.date, render_queue, clouds, storm,
+                              puddle_glows)
 
     # The fog over everything but the rain, lit by the light rather than darkened by the overlay
     if weather:
@@ -230,7 +232,8 @@ def _apply_lighting(
     current_time: datetime.datetime,
     render_queue: List[Dict[str, Any]],
     clouds: float = 0.0,
-    storm: float = 0.0
+    storm: float = 0.0,
+    glows: Sequence[Tuple[pygame.Surface, Tuple[int, int]]] = ()
 ) -> Tuple[int, int, int]:
     """Apply a colored overlay to the map based on the time of day and the clouds.
     
@@ -241,6 +244,8 @@ def _apply_lighting(
         render_queue: The list of rendered objects (to find/apply active lights to the mask).
         clouds: How overcast it is (0 to 1), dimming towards CLOUD_TINT.
         storm: How much of a thunderstorm there is (0 to 1), dimming further towards STORM_TINT.
+        glows: Other light let through like the lights in the queue, (surface, screen position):
+            the lit windows mirrored in the puddles.
 
     Returns:
         The ambient color multiplied in, (255, 255, 255) in clear daylight.
@@ -297,6 +302,8 @@ def _apply_lighting(
              local_pos = (pos[0] - rect.x, pos[1] - rect.y)
              
              lighting_surf.blit(obj['sprite'], local_pos, special_flags=pygame.BLEND_ADD)
+    for glow, (x, y) in glows:
+        lighting_surf.blit(glow, (x - rect.x, y - rect.y), special_flags=pygame.BLEND_RGB_ADD)
 
     # Apply using multiply blend mode for a lighting effect
     screen.blit(lighting_surf, rect, special_flags=pygame.BLEND_MULT)
