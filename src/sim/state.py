@@ -27,6 +27,7 @@ class GoodFlows:
     """How much of a good moved in a day, and through whom."""
     wanted: float = 0.0             # what households wanted (their full baskets)
     bought: float = 0.0             # what households got
+    unmet: float = 0.0              # what households asked for in a slice and the market had not got (a stock-out)
     input_wanted: float = 0.0       # what workshops planned to use
     input_bought: float = 0.0       # what workshops got
     produced: float = 0.0           # what workshops made and sold into the market

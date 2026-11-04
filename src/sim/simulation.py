@@ -116,6 +116,9 @@ class Simulation:
     def _prices(self) -> Dict[str, float]:
         return {name: market.price(g) for name, g in self.state.goods.items()}
 
+    def _outside_prices(self) -> Dict[str, float]:
+        return {name: g.outside_price for name, g in self.state.goods.items()}
+
     def _recipe(self, ws: WorkshopState) -> RecipeDef:
         return self.recipes[self.buildings[ws.building].recipe]
 
@@ -174,6 +177,7 @@ class Simulation:
     def _sell_to_buyers(self, good: GoodState, buyers: Dict[Hashable, float]) -> None:
         """One slice's purchases of a good by households and workshops, cleared together at one price."""
         filled, unit_price = market.clear_buyers(good, buyers)
+        good.today.unmet += sum(buyers[who] - filled[who] for who in buyers if who[0] == "class")
         for (kind, key), units in filled.items():
             holder = self.state.population.classes[key] if kind == "class" else self.state.workshops[key]
             money = holder.purse if kind == "class" else holder.cash
@@ -263,11 +267,13 @@ class Simulation:
         if pop is None:
             return
         prices = self._prices()
+        outside = self._outside_prices()
         wages, payouts = self._wages, self._payouts
         for cls in pop.classes.values():
             needs = self.needs[cls.name]
             base_before = households.daily_income(cls, needs)
-            households.start_day(cls, needs, prices, moment, wages.get(cls.name, 0.0), payouts.get(cls.name, 0.0))
+            households.start_day(cls, needs, prices, moment, wages.get(cls.name, 0.0), payouts.get(cls.name, 0.0),
+                                 outside)
             self.state.money_today.created += base_before
             self.state.money_today.leaked += cls.today.leaked
             population.set_target(cls, households.needs_happiness(cls, needs))
@@ -363,9 +369,11 @@ class Simulation:
         pop = self.state.population
         if pop is not None:
             prices = self._prices()
+            outside = self._outside_prices()
             for cls in pop.classes.values():
                 needs = self.needs[cls.name]
-                households.plan(cls, needs, prices, self.now, min(cls.purse, households.daily_income(cls, needs)))
+                households.plan(cls, needs, prices, self.now, min(cls.purse, households.daily_income(cls, needs)),
+                                outside)
                 for item in cls.plan:
                     demand[item.good] += item.wanted
         for name, good in self.state.goods.items():

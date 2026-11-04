@@ -320,17 +320,19 @@ Decisions taken while building phases 1 and 2, beyond the ones above.
 
 **Migration's floor and ceiling** (decided in review) measure against each class's share of the housing too: 0.3–1.05 × housing. Crowding and needs, not the clamp, now set the town's size: it settles at about 100 % of its housing (597–601 of 599 places, 10 seeds × 50 years).
 
-**Calibration target** (decided in review): without the player, the town should run slightly short. The health report warns unless each class's mean comfort fulfilment lies in 0.80–0.95 and its luxury fulfilment in 0.30–0.70, and at least 3 goods are below their target stock on more than 20 % of days.
-- **Luxury:** every class lies inside the band (Poor 0.65, Commons 0.40, Middling Sort 0.34, Nobility 0.65).
-- **Comfort:** every class lies just above the band (0.99–1.00). The model cannot hold both bands at once:
-  - **A shortage of money** leaves luxury at nothing, because tiers are bought strictly in order.
-  - **A shortage of supply** (tried: comfort goods' imports capped at 85–90 % of demand) drives their prices to the volume factor's ceiling and keeps them there. Households keep paying the inflated price, as their demand answers only to their budget. The clamp check (and the design's own "no good stuck at a clamp") fails, and luxury fulfilment collapses.
-  - **What would reconcile them:** demand that answers to price, e.g. a household buying less of a good the dearer it is above its usual price. That is open question 17.
-- **The below-target check** passes trivially. Imported goods sit at the import line, about 74 % of their target, every day (11 goods qualify). A sharper measure of "running short" would count the days households did not get all they wanted of a good, for supply rather than money.
+**Calibration target** (decided in review): without the player, the town should run slightly short. The health report warns unless each class's mean comfort fulfilment lies in 0.80–0.95 and its luxury fulfilment in 0.30–0.70, and at least 3 goods run out of stock on more than 5 % of days.
+
+**Price-sensitive demand** (decided in review, built; open question 17):
+- **The rule.** Above a good's outside price, a class buys `basket × (price / outside price) ^ −elasticity` of it, and never more than its basket when the good is cheap. The elasticity is per tier and class in `needs.json` (basic 0.1, comfort 0.5, luxury 1.2; the poor's comfort 0.8), with an optional per-good override.
+- **Spending.** Money not spent because a class bought less stays in the day's budget for the next tier.
+- **Fulfilment** still counts against the whole basket, so dearness lowers happiness.
+
+**Calibration result, with price-sensitive demand** (10 seeds × 50 years):
+- **Bands:** every class lies inside both. Comfort is 0.93–0.94 and luxury 0.36–0.67 (Poor 0.66, Commons 0.42, Middling Sort 0.34–0.36, Nobility 0.67); basic is 0.98–0.99, never below 0.95 on any day.
+- **What did it:** price-sensitive demand, the poor's comfort elasticity of 0.8, and import limits near the average imports for wood (30 a day), wine (24), linen (18) and candles (14). Their winter peaks now raise their prices, and the town buys less.
+- **Stock-outs: none.** In a market that rations by price, a good runs out only when its stock falls below one slice's orders, and the rising price stops that from happening. Wood falls to 4 % of its target at 3× its outside price and still does not run out. Tightening supply further (shorter target stocks, imports of wood, fish, beer and meat capped at their average) only added days at the price ceiling (runs of up to 10 days, 330–400 days per run beyond 2× the outside price) and still no stock-outs, so it was reverted. Open question 18.
 
 ## Open questions after phase 2
 
-17. **Price-sensitive demand**, to let the town run short of comfort goods while still buying luxuries (see "Calibration target" above).
-    - **Proposal:** within a tier, a household buys `wanted × min(1, (usual price / price) ^ elasticity)` of each good, the usual price being its reference times the import-line factor. Fulfilment still counts against the full want.
-    - **Effect:** a scarce good's price would stop rising where the town gives up part of its want, below the clamp; comfort would then fall below 1 when goods run short, with money left for luxuries.
-    - Elasticity per tier in `needs.json` (basic low, luxury high).
+17. **Price-sensitive demand.** Decided and built (see "Price-sensitive demand" above).
+18. **What "running short" means in a market that rations by price.** Stock-outs (households wanting more than the market has) practically never happen, because the price rises first. **Recommendation:** count the days households got less than their basket of a good for any reason, dearness or a stock-out (`bought < wanted`), and aim at least 3 goods at more than 5 % of days. That counts every day the town did without, whether the price or an empty market caused it.

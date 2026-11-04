@@ -22,7 +22,9 @@ SCENARIO = {"owners": [{"id": "town", "kind": "town", "name": "The town", "cash"
             "workshops": [{"id": "mason", "owner": "town", "building": "mason", "capacity": 2, "cash": 50}]}
 POOR = {"class": "Poor", "base_income": 0.5, "labour_share": 0.6, "wage_cap": 1.0,
         "happiness_weights": {"basic": 0.75, "comfort": 0.2, "luxury": 0.05},
-        "basic": {"Wood": 0.1}, "comfort": {}, "luxury": {"Stone": {"units": 0.01, "seasons": {"Winter": 2}}}}
+        "elasticity": {"basic": 0.1, "comfort": 0.5, "luxury": 1.2},
+        "basic": {"Wood": 0.1}, "comfort": {},
+        "luxury": {"Stone": {"units": 0.01, "seasons": {"Winter": 2}, "elasticity": 2.0}}}
 CLASSES = [c for c, _ in class_shares()]
 
 
@@ -80,6 +82,8 @@ def test_a_class_entry_becomes_needs_with_seasons():
     poor = parse_needs([POOR], {"Wood", "Stone"})[0]
     assert poor.tiers["basic"][0].units == 0.1
     assert poor.tiers["luxury"][0].seasons == {"Winter": 2.0}
+    assert poor.elasticity_of("luxury", poor.tiers["luxury"][0]) == 2.0        # its own
+    assert poor.elasticity_of("basic", poor.tiers["basic"][0]) == 0.1          # its tier's
 
 
 @pytest.mark.parametrize("change, field, problem", [
@@ -90,6 +94,9 @@ def test_a_class_entry_becomes_needs_with_seasons():
     ({"happiness_weights": {"basic": 1.0}}, "happiness_weights", "expected an object with exactly basic, comfort, luxury"),
     ({"labour_share": 2}, "labour_share", "expected a number >= 0 and <= 1"),
     ({"wage_cap": 0.4}, "wage_cap", "expected a number >= 0.5"),             # never below its base income
+    ({"elasticity": {"basic": 0.1}}, "elasticity", "expected an object with exactly basic, comfort, luxury"),
+    ({"elasticity": {"basic": -1, "comfort": 0.5, "luxury": 1}}, "elasticity", "'basic': expected a number >= 0"),
+    ({"basic": {"Wood": {"units": 0.1, "elasticity": "x"}}}, "basic", "'Wood': elasticity: expected a number >= 0"),
 ])
 def test_a_bad_class_field_is_named(change, field, problem):
     with pytest.raises(DataError) as error:

@@ -4,7 +4,7 @@ import pytest
 from src.sim.state import ClassState, PlanItem
 from src.sim.systems import households as hh
 from src.sim.systems.households import (
-    daily_income, fulfilment, needs_happiness, plan, receive, slice_orders, start_day,
+    daily_income, dearness_factor, fulfilment, needs_happiness, plan, receive, slice_orders, start_day,
 )
 from tests.sim.builders import START, class_needs
 
@@ -46,6 +46,26 @@ def test_the_basic_tier_is_shared_when_even_it_is_too_dear():
     cls = commons(100)
     plan(cls, NEEDS, PRICES, START, budget=25.0)
     assert cls.plan[0].planned == pytest.approx(25.0)
+
+
+def test_a_dear_good_is_bought_less_by_its_elasticity_and_a_cheap_one_no_more():
+    assert dearness_factor(2.0, 1.0, 1.0) == pytest.approx(0.5)
+    assert dearness_factor(4.0, 1.0, 0.5) == pytest.approx(0.5)
+    assert dearness_factor(0.5, 1.0, 1.0) == 1.0                    # below its outside price: the basket, no more
+    assert dearness_factor(2.0, 1.0, 0.0) == 1.0
+
+
+def test_what_a_dear_tier_does_not_cost_is_left_for_the_next():
+    elastic = class_needs("Commons", income=1.0, basic={"Bread": 0.5}, comfort={"Cloth": 0.1},
+                          luxury={"Wine": 0.02}, elasticity=(0.0, 1.0, 0.0))
+    cls = commons(100)
+    outside = {"Bread": 1.0, "Cloth": 2.0, "Wine": 10.0}             # cloth at twice its outside price
+    plan(cls, elastic, PRICES, START, budget=80.0, outside=outside)
+    planned = {i.good: i.planned for i in cls.plan}
+    assert planned["Cloth"] == pytest.approx(5.0)                    # half its 10, for 20g
+    assert planned["Wine"] == pytest.approx(1.0)                     # the 10g left buys half the wine
+    cls.plan[1].bought = 5.0
+    assert fulfilment(cls.plan)["comfort"] == pytest.approx(0.5)     # still measured against the whole basket
 
 
 def test_savings_above_the_cap_leave_town():

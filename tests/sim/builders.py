@@ -24,10 +24,13 @@ def good_def(name: str = "Wood", price: float = 10.0, index: int = 0, **changes)
 
 def class_needs(name: str, income: float = 5.0, basic: Optional[Dict[str, float]] = None,
                 comfort: Optional[Dict[str, float]] = None, luxury: Optional[Dict[str, float]] = None,
-                weights: Sequence[float] = (0.6, 0.3, 0.1), wage_cap: Optional[float] = None) -> ClassNeedsDef:
+                weights: Sequence[float] = (0.6, 0.3, 0.1), wage_cap: Optional[float] = None,
+                elasticity: Sequence[float] = (0.0, 0.0, 0.0)) -> ClassNeedsDef:
+    """A class's needs; by default it buys its whole basket whatever the price (elasticity 0)."""
     tiers = {"basic": basic or {}, "comfort": comfort or {}, "luxury": luxury or {}}
     return ClassNeedsDef(
         name=name, base_income=income, labour_share=0.5, wage_cap=income if wage_cap is None else wage_cap,
+        elasticity=dict(zip(TIERS, elasticity)),
         happiness_weights=dict(zip(TIERS, weights)),
         tiers={t: [NeedDef(g, u) for g, u in tiers[t].items()] for t in TIERS},
     )

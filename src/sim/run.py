@@ -7,7 +7,8 @@ systems ran (the flows are the day just ended):
 
 - ``goods_daily.csv``: one row per day and good: price, outside_price,
   reference (the outside price times a well wish's shock), stock,
-  target_stock, and the day's flows: wanted and bought (households),
+  target_stock, and the day's flows: wanted (households' whole baskets),
+  bought, unmet (asked for in a slice when the market had run out),
   input_wanted and input_bought (workshops), produced, imported, exported,
   player_bought, player_sold;
 - ``population_daily.csv``: one row per day and class (and ``All`` for the
@@ -62,7 +63,7 @@ SCENARIO = "home_town"
 
 STAMP_COLUMNS = ["day", "year", "season", "day_of_season"]
 GOODS_COLUMNS = STAMP_COLUMNS + ["good", "price", "outside_price", "reference", "stock", "target_stock",
-                                 "wanted", "bought", "input_wanted", "input_bought", "produced",
+                                 "wanted", "bought", "unmet", "input_wanted", "input_bought", "produced",
                                  "imported", "exported", "player_bought", "player_sold"]
 POPULATION_COLUMNS = STAMP_COLUMNS + ["class", "count", "employed", "labour_wanted", "wage", "happiness",
                                       "happiness_target", "purse",
@@ -122,7 +123,7 @@ class DailyRecorder:
             f = g.yesterday
             self.goods_rows.append(stamp + [g.name] + [_fmt(v) for v in (
                 market.price(g), g.outside_price, market.reference(g), g.stock, g.target_stock,
-                f.wanted, f.bought, f.input_wanted, f.input_bought, f.produced,
+                f.wanted, f.bought, f.unmet, f.input_wanted, f.input_bought, f.produced,
                 f.imported, f.exported, f.player_bought, f.player_sold)])
         pop = state.population
         purses = 0.0

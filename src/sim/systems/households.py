@@ -12,7 +12,7 @@ reaches at today's prices. During market hours the plan is bought in slices
 still missing, so a short slice is made up later in the day if stock returns.
 """
 import datetime
-from typing import Dict, List, Mapping
+from typing import Dict, List, Mapping, Optional
 
 from ...config.constants import (
     HAPPINESS_FROM_NEEDS_MAX, HAPPINESS_FROM_NEEDS_MIN, HUNGER_PENALTY, HUNGER_THRESHOLD,
@@ -57,7 +57,8 @@ def fulfilment(plan: List[PlanItem]) -> Dict[str, float]:
 
 
 def start_day(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float],
-              moment: datetime.datetime, wages: float = 0.0, payouts: float = 0.0) -> None:
+              moment: datetime.datetime, wages: float = 0.0, payouts: float = 0.0,
+              outside: Optional[Mapping[str, float]] = None) -> None:
     """The class's day begins: rate yesterday, earn, cap the savings, plan today's shopping.
 
     Args:
@@ -67,6 +68,7 @@ def start_day(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float]
         moment: The start of the day (for the seasons).
         wages: Paid by workshops for yesterday's work (its workers earned no base income).
         payouts: Its share of owners' surplus paid out to the townsfolk.
+        outside: Each good's outside price, which dearness is measured against (none: nothing is dear).
     """
     if cls.plan:
         cls.fulfilment = fulfilment(cls.plan)
@@ -87,22 +89,40 @@ def start_day(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float]
 
     unmet = any(f < 1.0 for f in cls.fulfilment.values())
     budget = min(cls.purse, income + (SAVINGS_RELEASE * savings if unmet else 0.0))
-    plan(cls, needs, prices, moment, budget)
+    plan(cls, needs, prices, moment, budget, outside)
+
+
+def dearness_factor(price: float, outside: float, elasticity: float) -> float:
+    """How much of its basket amount a class buys at *price*: (price / outside) ^ −elasticity above the outside price, all below it."""
+    if outside <= 0 or price <= outside or elasticity <= 0:
+        return 1.0
+    return (price / outside) ** -elasticity
 
 
 def plan(cls: ClassState, needs: ClassNeedsDef, prices: Mapping[str, float],
-         moment: datetime.datetime, budget: float) -> None:
-    """Plan the day's shopping: each tier in turn, all of it if the budget reaches, else the same share of each good."""
+         moment: datetime.datetime, budget: float, outside: Optional[Mapping[str, float]] = None) -> None:
+    """Plan the day's shopping, tier by tier.
+
+    Of each good it means to buy the basket amount, less the dearer the good is
+    above its outside price (``dearness_factor``, the tier's elasticity or the
+    need's own); then all of that if the budget reaches, else the same share of
+    each good. What a tier did not cost, because it bought less or it was
+    cheap, is left for the next tier. Fulfilment still counts against the whole
+    basket (``PlanItem.wanted``).
+    """
     items = wanted_units(cls, needs, moment)
-    for item in items:
+    elasticities = [needs.elasticity_of(tier, need) for tier in TIERS for need in needs.tiers[tier]]
+    for item, elasticity in zip(items, elasticities):
         item.price = prices[item.good]
+        item.planned = item.wanted * dearness_factor(item.price, outside.get(item.good, 0.0) if outside else 0.0,
+                                                     elasticity)
     remaining = budget
     for tier in TIERS:
         tier_items = [i for i in items if i.tier == tier]
-        cost = sum(i.wanted * i.price for i in tier_items)
+        cost = sum(i.planned * i.price for i in tier_items)
         share = min(1.0, remaining / cost) if cost > 0 else 1.0
         for i in tier_items:
-            i.planned = i.wanted * share
+            i.planned *= share
         remaining = max(0.0, remaining - cost * share)
     cls.plan = items
 

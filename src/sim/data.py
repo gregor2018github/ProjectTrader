@@ -66,6 +66,7 @@ class NeedDef:
     good: str
     units: float
     seasons: Dict[str, float] = field(default_factory=dict)   # season -> factor on the units (e.g. firewood in Winter)
+    elasticity: Optional[float] = None                        # how much less it buys when dear; None: its tier's
 
 
 @dataclass(frozen=True)
@@ -77,6 +78,11 @@ class ClassNeedsDef:
     wage_cap: float                         # the most its wage rises to when hands are short (its least is base_income)
     happiness_weights: Dict[str, float]     # tier -> weight; they add up to 1
     tiers: Dict[str, List[NeedDef]]         # tier -> what a head wants, in TIERS order
+    elasticity: Dict[str, float] = field(default_factory=dict)   # tier -> how much less it buys of a good above its outside price
+
+    def elasticity_of(self, tier: str, need: NeedDef) -> float:
+        """The elasticity a need is bought with: its own, or its tier's."""
+        return need.elasticity if need.elasticity is not None else self.elasticity.get(tier, 0.0)
 
 
 @dataclass(frozen=True)
@@ -286,7 +292,7 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
     return goods
 
 
-CLASS_FIELDS = ("class", "base_income", "labour_share", "wage_cap", "happiness_weights") + TIERS
+CLASS_FIELDS = ("class", "base_income", "labour_share", "wage_cap", "happiness_weights", "elasticity") + TIERS
 
 
 def _need_items(entry: _Entry, data: Dict[str, Any], tier: str, goods: Collection[str]) -> List[NeedDef]:
@@ -298,15 +304,21 @@ def _need_items(entry: _Entry, data: Dict[str, Any], tier: str, goods: Collectio
         if good not in goods:
             raise entry.fail(tier, f"unknown good {good!r} (not in {GOODS_FILE})")
         seasons: Dict[str, float] = {}
+        elasticity: Optional[float] = None
         if isinstance(amount, dict):
-            unknown = set(amount) - {"units", "seasons"}
+            unknown = set(amount) - {"units", "seasons", "elasticity"}
             if unknown:
-                raise entry.fail(tier, f"{good!r}: unknown field {sorted(unknown)[0]!r} (known: seasons, units)")
+                raise entry.fail(tier, f"{good!r}: unknown field {sorted(unknown)[0]!r} (known: elasticity, seasons, units)")
             seasons = _seasons(entry, amount.get("seasons", {}), f"{tier}.{good}.seasons")
+            if "elasticity" in amount:
+                elasticity = amount["elasticity"]
+                if not _is_number(elasticity) or elasticity < 0:
+                    raise entry.fail(tier, f"{good!r}: elasticity: expected a number >= 0, got {elasticity!r}")
+                elasticity = float(elasticity)
             amount = amount.get("units")
         if not _is_number(amount) or amount <= 0:
             raise entry.fail(tier, f"{good!r}: expected a number > 0 (units per head per day), got {amount!r}")
-        items.append(NeedDef(good, float(amount), seasons))
+        items.append(NeedDef(good, float(amount), seasons, elasticity))
     return items
 
 
@@ -335,6 +347,12 @@ def parse_needs(items: List[Any], goods: Collection[str], classes: Optional[Coll
                 raise entry.fail("happiness_weights", f"{tier!r}: expected a number >= 0, got {w!r}")
         if abs(sum(weights.values()) - 1.0) > 1e-6:
             raise entry.fail("happiness_weights", f"the weights must add up to 1, they add up to {sum(weights.values()):g}")
+        elasticity = _require(entry, data, "elasticity")
+        if not isinstance(elasticity, dict) or set(elasticity) != set(TIERS):
+            raise entry.fail("elasticity", f"expected an object with exactly {', '.join(TIERS)}, got {elasticity!r}")
+        for tier, e in elasticity.items():
+            if not _is_number(e) or e < 0:
+                raise entry.fail("elasticity", f"{tier!r}: expected a number >= 0, got {e!r}")
         seen[name] = len(out)
         base_income = float(_number(entry, data, "base_income", 0, strict=False))
         wage_cap = float(_number(entry, data, "wage_cap", base_income, strict=False))
@@ -345,6 +363,7 @@ def parse_needs(items: List[Any], goods: Collection[str], classes: Optional[Coll
             wage_cap=wage_cap,
             happiness_weights={t: float(weights[t]) for t in TIERS},
             tiers={t: _need_items(entry, data, t, goods) for t in TIERS},
+            elasticity={t: float(elasticity[t]) for t in TIERS},
         ))
     if classes is not None:
         missing = [c for c in classes if c not in seen]

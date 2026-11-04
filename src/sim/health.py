@@ -10,8 +10,9 @@ reads the CSVs ``python -m src.sim.run`` wrote and checks them. So far:
   zero within float tolerance (``BALANCE_TOLERANCE`` of the money supply).
 - **the town runs slightly short** (warnings): without the player, each
   class's mean comfort fulfilment lies in ``COMFORT_BAND`` and its mean luxury
-  fulfilment in ``LUXURY_BAND``, and at least ``SHORT_GOODS_MIN`` goods are
-  below their target stock on more than ``SHORT_DAYS_SHARE`` of days.
+  fulfilment in ``LUXURY_BAND``, and at least ``SHORT_GOODS_MIN`` goods run
+  out (some class asked for more than the market had: ``unmet``) on more than
+  ``SHORT_DAYS_SHARE`` of days.
 - **tradability** (a warning only, no threshold yet): per good, the median
   over the run of ``(30-day max price − 30-day min price) / price``, and how
   often that range, over ``TRADE_UNITS`` units, beats twice what a round trip
@@ -39,7 +40,8 @@ BALANCE_TOLERANCE = 1e-9        # |market_balance| may be at most this share of 
 COMFORT_BAND = (0.80, 0.95)     # each class's mean comfort fulfilment, for a town running slightly short
 LUXURY_BAND = (0.30, 0.70)      # ...and its mean luxury fulfilment
 SHORT_GOODS_MIN = 3             # at least this many goods...
-SHORT_DAYS_SHARE = 0.20         # ...below their target stock on more than this share of days
+SHORT_DAYS_SHARE = 0.05         # ...run out on more than this share of days
+UNMET_TOLERANCE = 1e-6          # units unmet in a day that count as a stock-out (float rounding below it)
 TRADE_WINDOW_DAYS = 30
 TRADE_UNITS = 20                # a small trader's order
 
@@ -79,11 +81,11 @@ def fulfilment_by_class(population_rows: Sequence[Dict[str, str]]) -> Dict[str, 
 
 
 def short_days(goods_rows: Sequence[Dict[str, str]]) -> Dict[str, float]:
-    """Per good, the share of days its stock was below its target stock."""
+    """Per good, the share of days some class asked for more than the market could supply (a stock-out)."""
     counts: Dict[str, List[int]] = {}
     for row in goods_rows:
         c = counts.setdefault(row["good"], [0, 0])
-        c[0] += float(row["stock"]) < float(row["target_stock"])
+        c[0] += float(row["unmet"]) > UNMET_TOLERANCE
         c[1] += 1
     return {good: below / days for good, (below, days) in counts.items()}
 
@@ -147,7 +149,7 @@ def report(run_dir: str) -> int:
     shares = short_days(goods)
     short = sorted((g for g, s in shares.items() if s > SHORT_DAYS_SHARE), key=lambda g: -shares[g])
     ok = len(short) >= SHORT_GOODS_MIN
-    print(f"[{'ok' if ok else 'warn'}] goods below their target stock on more than {SHORT_DAYS_SHARE:.0%} of days: "
+    print(f"[{'ok' if ok else 'warn'}] goods out of stock on more than {SHORT_DAYS_SHARE:.0%} of days: "
           f"{len(short)} (want at least {SHORT_GOODS_MIN}): "
           + ", ".join(f"{g} {shares[g]:.0%}" for g in short))
 

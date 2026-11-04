@@ -30,7 +30,7 @@ The new goods and chains (P1 phase 3) come next. The goldens in `tests/sim/golde
 | `rng.py` | `make_rng(seed)`, `new_seed()` for a new game, and the generator's state as a plain JSON list (`state_to_json` / `state_from_json`). |
 | `state.py` | `GoodState` (stock, target, demand average, outside price and its walk, noise, shock, histories, the day's flows), `ClassState` (head count, base, housing share, jobs, purse, happiness and its target, fulfilment per tier, today's `PlanItem`s, the day's money flows, histories), `PopulationState`, `OwnerState`, `WorkshopState`, `TownMoney` (the town's border flows and the `market_balance`), `MerchantFlows` (the merchants' book), and `SimState` (all of it), each with `to_dict` / `from_dict`. Also `TownSpec`, the plain input a town is founded from (its houses' capacities). |
 | `systems/market.py` | The market's rules as functions on a `GoodState`: `price`, `reference`, `volume_factor`, `ratio_for_factor`, `quote`, `clear_buyers` (a slice's household purchases), `merchants` (imports and exports), `step_outside`, `step_noise`, `update_target`, `apply_well_shock` / `tick_well_shock_day`, `record_*`. |
-| `systems/households.py` | Each class's day: `start_day` (rate yesterday, earn base income, wages and payouts, cap savings, plan), `plan`, `slice_orders`, `receive`, `fulfilment`, `needs_happiness`. |
+| `systems/households.py` | Each class's day: `start_day` (rate yesterday, earn base income, wages and payouts, cap savings, plan), `plan` (tier by tier, buying less of a good the dearer it is above its outside price: `dearness_factor`), `slice_orders`, `receive`, `fulfilment` (against the whole basket), `needs_happiness`. |
 | `systems/production.py` | Workshops and owners: `batch_margin`, `wanted_utilisation`, `plan_wants` and `hire` (planning in two halves, so a class's hands are shared pro rata), `move_wage` (a class's wage with the demand for its hands), `slice_orders`, `run_slice`, `settle_day` (wages, the owner's top-up and profit), `owner_day` / `treasury_cap` (the owner's surplus rule), `change_capacity` (growth and shrinking). |
 | `systems/population.py` | Head counts and mood: `create_population`, `split_into_classes`, `crowding_shift` (against the class's share of the housing), `set_target`, `glide_happiness`, `update_population` (migration, held within 0.3–1.05 × the class's housing), `record_*`. |
 | `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`, `CapacityChanged`) on an `EventQueue`. |
@@ -111,7 +111,7 @@ It starts as a new game does (the game's start moment, the town from `Map1.tmx`,
 
 | File | One row per | Columns |
 |---|---|---|
-| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold` |
+| `goods_daily.csv` | day × good | `good, price, outside_price, reference, stock, target_stock, wanted, bought, unmet, input_wanted, input_bought, produced, imported, exported, player_bought, player_sold` (`unmet`: what households asked for in a slice that the market had run out of) |
 | `population_daily.csv` | day × class (and `All`) | `class, count, employed, labour_wanted, wage, happiness, happiness_target, purse, income, wages, payouts, spent, leaked, fulfilment_basic, fulfilment_comfort, fulfilment_luxury` |
 | `workshops_daily.csv` | day × workshop | `workshop, owner, building, capacity, utilisation, margin, planned, done_yesterday, workers, cash` |
 | `town_daily.csv` | day | `citizens, money_supply, purses, workshop_cash, owner_cash, money_created, money_leaked, money_invested, money_tribute, paid_to_merchants, paid_by_merchants, market_balance`, and the merchants' book: `merchant_sales, merchant_purchases, merchant_import_cost, merchant_export_revenue, merchant_transport, merchant_profit` |
@@ -131,7 +131,7 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 50 years (1,400 days) take about 3 s here.
 
-**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods below their target stock on more than `SHORT_DAYS_SHARE` (20 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods out of stock (`unmet` above `UNMET_TOLERANCE`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on 20 units beats twice a 20-unit round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
 
 ## Data files
 
@@ -147,8 +147,9 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 | `base_income` | Per head per day, from the work that is not simulated |
 | `labour_share` | The share of heads that can take a job |
 | `wage_cap` | The most its wage rises to when its hands are short (at least `base_income`, the least its wage falls to) |
+| `elasticity` | `{"basic": e, "comfort": e, "luxury": e}`: above a good's outside price the class buys `basket × (price / outside price) ^ −e` of it (no more than its basket below it); a need may set its own `"elasticity"` |
 | `happiness_weights` | `{"basic": w, "comfort": w, "luxury": w}`, adding up to 1 |
-| `basic`, `comfort`, `luxury` | `{good: units per head per day}`. A value may be `{"units": x, "seasons": {"Winter": 1.6}}` to change with the seasons. |
+| `basic`, `comfort`, `luxury` | `{good: units per head per day}`. A value may be `{"units": x, "seasons": {"Winter": 1.6}, "elasticity": e}` to change with the seasons or have its own elasticity. |
 
 The tiers are bought in that order. Phase 1 uses stand-ins until the new goods exist (Wheat for Bread, Fish for Salted Fish, Linen for Garments, Hide for Shoes, Salt for Spices); swapping them is a data edit.
 
