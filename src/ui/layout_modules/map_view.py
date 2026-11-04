@@ -15,7 +15,7 @@ from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
-from ...models.daylight import sun_hour
+from ...models.daylight import season_tint, sun_hour
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -312,7 +312,8 @@ def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
     """Calculate the ambient light color based on current time.
 
     The keyframes are a day of Spring or Autumn; the sun hour (models/daylight.py)
-    makes the day longer in Summer and shorter, with longer dawns and dusks, in Winter.
+    makes the day longer in Summer and shorter, with longer dawns and dusks, in Winter,
+    and the season tints it (season_tint): warm in Autumn, cold in Winter.
 
     Returns:
         RGB tuple representing the ambient light.
@@ -344,10 +345,12 @@ def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
         if start_hour <= hour <= end_hour:
             # Interpolate
             t = (hour - start_hour) / (end_hour - start_hour)
-            r = int(start_color[0] + (end_color[0] - start_color[0]) * t)
-            g = int(start_color[1] + (end_color[1] - start_color[1]) * t)
-            b = int(start_color[2] + (end_color[2] - start_color[2]) * t)
-            return (r, g, b)
+            r = start_color[0] + (end_color[0] - start_color[0]) * t
+            g = start_color[1] + (end_color[1] - start_color[1]) * t
+            b = start_color[2] + (end_color[2] - start_color[2]) * t
+            # The season's mood: warm in Autumn, cold in Winter
+            tint = season_tint(date)
+            return (int(r * tint[0] / 255), int(g * tint[1] / 255), int(b * tint[2] / 255))
             
     # Fallback (shouldn't be reached if keyframes cover 0-24)
     return (255, 255, 255)

@@ -14,6 +14,9 @@ season turns. In Autumn and Winter the dawns and dusks also last longer, up to
 DAYLIGHT_TWILIGHT_STRETCH more where Autumn turns to Winter, growing through
 Autumn and fading through Winter (twilight_stretch()), each about its middle.
 
+The light also has a mood by season (season_tint(), SEASON_LIGHT_TINT): clear in
+Spring and Summer, warm and reddish in Autumn, cold and bluish in Winter.
+
 Midnight to 2:00, noon and the half hour before midnight stay where they are;
 between them the hours are stretched or squeezed in straight lines, so the
 dawn's and the dusk's colours keep their order and only move. What goes by
@@ -25,7 +28,7 @@ import datetime
 import math
 from typing import List, Tuple
 
-from ..config.constants import DAYLIGHT_DAWN_SHIFT_HOURS, DAYLIGHT_DUSK_SHIFT_HOURS, DAYLIGHT_TWILIGHT_STRETCH
+from ..config.constants import DAYLIGHT_DAWN_SHIFT_HOURS, DAYLIGHT_DUSK_SHIFT_HOURS, DAYLIGHT_TWILIGHT_STRETCH, SEASON_LIGHT_TINT
 from .game_calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, SEASONS, day_number
 
 #: The middle of Summer, in days from the 1st of Spring
@@ -52,6 +55,18 @@ def twilight_stretch(moment: datetime.datetime) -> float:
     1 + DAYLIGHT_TWILIGHT_STRETCH where it turns to Winter, and falling back through Winter."""
     towards = math.cos(2.0 * math.pi * (_day_of_year(moment) - LONGEST_TWILIGHT) / DAYS_PER_YEAR)
     return 1.0 + DAYLIGHT_TWILIGHT_STRETCH * max(0.0, towards)
+
+
+def season_tint(moment: datetime.datetime) -> Tuple[int, int, int]:
+    """The season's mood of the light (SEASON_LIGHT_TINT), to multiply into the map's light: each season's
+    own in its middle, blended smoothly between one season's middle and the next's."""
+    position = (_day_of_year(moment) / DAYS_PER_SEASON - 0.5) % len(SEASONS)   # 0 = mid Spring, 1 = mid Summer, ...
+    first = int(position)
+    t = position - first
+    t = t * t * (3 - 2 * t)
+    a = SEASON_LIGHT_TINT[SEASONS[first]]
+    b = SEASON_LIGHT_TINT[SEASONS[(first + 1) % len(SEASONS)]]
+    return tuple(round(x + (y - x) * t) for x, y in zip(a, b))
 
 
 def _anchors(moment: datetime.datetime) -> List[Tuple[float, float]]:

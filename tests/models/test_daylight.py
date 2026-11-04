@@ -69,3 +69,19 @@ def test_the_sun_hour_never_runs_backwards(day):
     hours = [sun_hour(at(day, m / 60)) for m in range(0, 24 * 60, 5)]
     assert all(b >= a for a, b in zip(hours, hours[1:]))
     assert hours[0] == 0.0
+
+
+TINTS = {"Spring": (255, 255, 255), "Summer": (255, 255, 255), "Autumn": (255, 220, 190), "Winter": (210, 220, 255)}
+
+
+def test_each_season_has_its_mood_in_its_middle_and_blends_between(monkeypatch):
+    monkeypatch.setattr(daylight, "SEASON_LIGHT_TINT", TINTS)
+    assert daylight.season_tint(at(MIDSUMMER, 12)) == (255, 255, 255)
+    assert daylight.season_tint(at(MID_AUTUMN, 12)) == (255, 220, 190)
+    assert daylight.season_tint(at(MIDWINTER, 12)) == (210, 220, 255)
+    # Where Autumn turns to Winter, half of each
+    assert daylight.season_tint(at(WINTER_STARTS, 0)) == (232, 220, 222)
+    # and no jump when a season turns
+    before = daylight.season_tint(at(14, 0) - datetime.timedelta(minutes=1))
+    after = daylight.season_tint(at(14, 0))
+    assert max(abs(x - y) for x, y in zip(before, after)) <= 1

@@ -264,6 +264,14 @@ FOG_CELLS_PER_TILE = 4                # Fog of war: explored cells per tile each
 # round, and in between by degrees
 DAYLIGHT_DAWN_SHIFT_HOURS = 1.0      # Midsummer: full daylight from 7:00; midwinter: from 9:00
 DAYLIGHT_DUSK_SHIFT_HOURS = 1.5      # Midsummer: night from 22:30; midwinter: from 19:30 (the sun setting from 15:30)
+# The light's mood by season, multiplied into the map's light at every hour (255 leaves a colour as it is);
+# full in the middle of each season and blended between them, so a season's turn shows no jump
+SEASON_LIGHT_TINT = {
+    "Spring": (255, 255, 255),       # clear
+    "Summer": (255, 255, 255),       # clear
+    "Autumn": (255, 218, 182),       # warm, reddish
+    "Winter": (184, 208, 255),       # cold, bluish
+}
 DAYLIGHT_TWILIGHT_STRETCH = 0.5      # In Autumn and Winter the dawns and dusks last up to this much longer (0.5: 6 hours, not 4),
                                      # the most where Autumn turns to Winter, none in Spring and Summer
 
