@@ -44,6 +44,7 @@ CROPS_DIR = os.path.join('assets', 'map_sprites', 'fields')
 _FURROW_VARIANTS = 3          # tiles of each kind, their grain and clods drawn differently
 _FURROW_SEED = 7
 _FURROW_ZOOMS_KEPT = 2        # scaled furrow overlays kept per field
+_FURROW_ALPHA_STEP = 16       # the furrows fade in steps this big (of 255), each one baking a faded copy
 _FURROW_LIGHT = (255, 226, 190)
 _FURROW_LIGHT_ALPHA = 0.8     # how strongly the lit wall and ridges brighten the soil, for the shade above 1
 _FURROW_DROP = TILE_SIZE / 2 - 2   # world px the furrows lie lower than their tiles, onto the plants' feet
@@ -124,6 +125,8 @@ class Field:
         # The furrows: how strongly they show now (0..1), and the overlay at each zoom level drawn lately
         self.furrow_alpha: float = 0.0
         self._furrow_cache: Dict[float, Tuple[pygame.Surface, float, float]] = {}
+        # The overlay drawn last while faded: (zoom key, alpha, surface)
+        self._furrow_faded: Tuple[Optional[float], int, Optional[pygame.Surface]] = (None, 255, None)
 
         stages = self._load_images()
         # The sprites of the first stages that have any, too low to sway
@@ -239,8 +242,16 @@ class Field:
             while len(self._furrow_cache) > _FURROW_ZOOMS_KEPT:
                 self._furrow_cache.pop(next(iter(self._furrow_cache)))
         overlay, world_x, world_y = self._furrow_cache[zoom_key]
-        if overlay.get_alpha() != alpha:   # set only when it changes: it re-encodes the RLE
-            overlay.set_alpha(alpha, pygame.RLEACCEL)
+        # Faded, the fade is baked into a copy's pixels: a surface alpha below 255 on top of the
+        # per-pixel alpha throws SDL off its fast blit (8x slower, the whole field each frame)
+        alpha = min(255, -(-alpha // _FURROW_ALPHA_STEP) * _FURROW_ALPHA_STEP)
+        if alpha < 255:
+            if self._furrow_faded[:2] != (zoom_key, alpha):
+                faded = overlay.copy()
+                faded.fill((255, 255, 255, alpha), special_flags=pygame.BLEND_RGBA_MULT)
+                faded.set_alpha(255, pygame.RLEACCEL)
+                self._furrow_faded = (zoom_key, alpha, faded)
+            overlay = self._furrow_faded[2]
         return overlay, world_x, world_y
 
     def _make_furrows(self, zoom: float) -> Tuple[pygame.Surface, float, float]:

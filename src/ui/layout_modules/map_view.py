@@ -395,6 +395,11 @@ def _render_map_layers(
     tmx_map.ground_chunks.draw_above(screen, camera, offset_x, offset_y)
     # The furrows of the fields lying bare, flat on the ground
     for field in tmx_map.fields:
+        # A field out of view is not drawn, nor its faded furrows baked; a tile spare for their drop
+        left, top = camera.apply(field.x, field.y)
+        if (left + field.width * camera.zoom < 0 or left > camera.screen_width
+                or top + (field.height + tmx_map.tile_size) * camera.zoom < 0 or top > camera.screen_height):
+            continue
         furrows = field.furrow_overlay(camera.zoom)
         if furrows:
             overlay, world_x, world_y = furrows
