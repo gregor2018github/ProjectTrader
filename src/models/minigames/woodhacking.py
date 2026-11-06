@@ -607,13 +607,13 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, _CANVAS_H - 46, _CANVAS_W, 46))
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, _CANVAS_H - 46), (_CANVAS_W, _CANVAS_H - 46), 1)
 
-        left = self.font.render(f"Score: {score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, SANDY_BROWN)
+        left = self.font.render(f"Score: {score_to_display(self.score, MAX_SCORE)}", True, SANDY_BROWN)
         self.canvas.blit(left, (20, _CANVAS_H - 32))
 
         mid = self.font.render(f"Swing  {self.attempt} / {MAX_SWINGS}", True, SANDY_BROWN)
         self.canvas.blit(mid, mid.get_rect(centerx=_CANVAS_W // 2, y=_CANVAS_H - 32))
 
-        right = self.font.render(f"Coins: {coins:.2f} / 20", True, SANDY_BROWN)
+        right = self.font.render(f"Coins: {coins:.2f}", True, SANDY_BROWN)
         self.canvas.blit(right, right.get_rect(right=_CANVAS_W - 20, y=_CANVAS_H - 32))
 
     def _draw_result_overlay(self, coins: float) -> None:
@@ -628,11 +628,11 @@ class WoodhackingMinigame(MinigameOverlay):
         title = self.font_large.render("Session Complete!", True, DARK_BROWN)
         self.canvas.blit(title, title.get_rect(center=(_CX, 205)))
 
-        score_txt = self.font.render(f"Score:  {score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, BLACK)
+        score_txt = self.font.render(f"Score:  {score_to_display(self.score, MAX_SCORE)}", True, BLACK)
         self.canvas.blit(score_txt, score_txt.get_rect(center=(_CX, 250)))
 
         hs_color = GOLD if self.new_highscore else DARK_BROWN
-        hs_txt = self.font.render(f"Highscore:  {score_to_display(self.highscore, MAX_SCORE)} / {MAX_SCORE}", True, hs_color)
+        hs_txt = self.font.render(f"Highscore:  {score_to_display(self.highscore, MAX_SCORE)}", True, hs_color)
         self.canvas.blit(hs_txt, hs_txt.get_rect(center=(_CX, 276)))
 
         streak_txt = self.font.render(f"Best streak:  {self.best_streak} in a row", True, DARK_BROWN)
@@ -665,7 +665,7 @@ class WoodhackingMinigame(MinigameOverlay):
         title = self.font_large.render("New Highscore!", True, GOLD)
         self.canvas.blit(title, title.get_rect(center=(_CX, 240)))
 
-        score_txt = self.font_hit.render(f"{score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, DARK_BROWN)
+        score_txt = self.font_hit.render(f"{score_to_display(self.score, MAX_SCORE)}", True, DARK_BROWN)
         self.canvas.blit(score_txt, score_txt.get_rect(center=(_CX, 285)))
 
         sub = self.font.render("Well hacked, woodcutter!", True, PALE_BROWN)
