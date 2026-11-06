@@ -67,6 +67,15 @@ class TownPlan:
         self._fog_switch: Optional[pygame.Rect] = None
         self._fog_switch_rows: List[pygame.Rect] = []
 
+        # The legend: which corner it keeps (LEGEND_SPOTS), or where the
+        # player dragged it (offset from the inner frame's top left), the
+        # latter forgotten whenever the plan is opened again
+        self._legend = pygame.Rect((0, 0), ornaments.legend_size())
+        self._legend_spot: int = 0
+        self._legend_offset: Optional[Tuple[int, int]] = None
+        self._dragging_legend: bool = False
+        self._drawn_last_frame: bool = False
+
         # Built by prepare() while the game loads, or else on first sight
         self._ground: Optional[Ground] = None
         self._marks: Optional[Landmarks] = None
@@ -79,6 +88,7 @@ class TownPlan:
 
     def begin_frame(self) -> None:
         """Forget last frame's place; ``draw`` sets it again if still shown."""
+        self._drawn_last_frame = self.view_rect is not None
         self.view_rect = None
         self._inner = None
 
@@ -125,7 +135,19 @@ class TownPlan:
         """Zoom and drag the plan. Returns True when the event was used."""
         if self._inner is None:
             self._dragging = False
+            self._dragging_legend = False
             return False
+
+        if self._dragging_legend:
+            if event.type == pygame.MOUSEMOTION:
+                if not event.buttons[0]:
+                    self._dragging_legend = False
+                    return False
+                self._move_legend(event.rel)
+                return True
+            if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self._dragging_legend = False
+                return True
 
         if event.type == pygame.MOUSEWHEEL:
             pos = pygame.mouse.get_pos()
@@ -137,6 +159,11 @@ class TownPlan:
                 for (_, value), row in zip(ornaments.FOG_SWITCH_OPTIONS, self._fog_switch_rows):
                     if row.collidepoint(event.pos):
                         self.reveal_all = value
+                return True
+            if self._legend.collidepoint(event.pos):
+                # Picked up where it is now, wherever it was put
+                self._legend_offset = (self._legend.x - self._inner.x, self._legend.y - self._inner.y)
+                self._dragging_legend = True
                 return True
             if self._inner.collidepoint(event.pos):
                 self._dragging = True
@@ -218,6 +245,11 @@ class TownPlan:
         """Draw the plan into ``rect``."""
         self._ensure_built()
         self._debug = bool(settings_store.get("show_map_debug"))
+        if not self._drawn_last_frame:
+            # Opened again: the legend goes back to its own corner
+            self._legend_offset = None
+            self._legend_spot = 0
+            self._dragging_legend = False
         self.view_rect = rect
         self._inner = inner = ornaments.frame_inner(rect)
         self._clamp()
@@ -336,18 +368,70 @@ class TownPlan:
         compass_box.center = (self._compass_center[0], self._compass_center[1] - 14)
         self._scale_bar = ornaments.scale_bar_rect((inner.left + 18, inner.bottom - 14), self.px_per_tile)
 
-        # The legend always has its corner, whatever lies under it
-        self._legend = pygame.Rect((0, 0), ornaments.legend_size())
-        self._legend.bottomright = (inner.right - 16, inner.bottom - 16)
-
-        taken = [self._cartouche.inflate(8, 8), compass_box, self._scale_bar, self._legend.inflate(8, 8)]
+        taken = [self._cartouche.inflate(8, 8), compass_box, self._scale_bar]
         if self._debug:
             self._fog_switch, self._fog_switch_rows = ornaments.fog_switch_layout(
                 (self._cartouche.left, self._cartouche.bottom + 14))
             taken.append(self._fog_switch.inflate(8, 8))
         else:
             self._fog_switch, self._fog_switch_rows = None, []
+
+        self._place_legend(inner, compass_box, self._fog_switch or self._cartouche)
+        taken.append(self._legend.inflate(8, 8))
         return taken
+
+    #: How far (screen pixels) the player's mark must keep from the legend's
+    #: edge before it moves away, and how much room it wants where it goes;
+    #: the gap between the two keeps it from hopping back and forth.
+    LEGEND_STAY_CLEAR = 24
+    LEGEND_MOVE_CLEAR = 60
+
+    def _legend_spots(self, inner: pygame.Rect, compass_box: pygame.Rect,
+                      top_left_box: pygame.Rect) -> List[pygame.Rect]:
+        """Where the legend may sit, the first preferred: bottom right, bottom left, under the compass, under the title."""
+        size = self._legend.size
+        spots = [
+            pygame.Rect((0, 0), size), pygame.Rect((0, 0), size),
+            pygame.Rect((0, 0), size), pygame.Rect((0, 0), size),
+        ]
+        spots[0].bottomright = (inner.right - 16, inner.bottom - 16)
+        spots[1].bottomleft = (inner.left + 16, self._scale_bar.top - 8)
+        spots[2].topright = (inner.right - 16, compass_box.bottom + 8)
+        spots[3].topleft = (inner.left + 16, top_left_box.bottom + 8)
+        for spot in spots:
+            spot.clamp_ip(inner)
+        return spots
+
+    def _place_legend(self, inner: pygame.Rect, compass_box: pygame.Rect, top_left_box: pygame.Rect) -> None:
+        """Put the legend where the player dragged it, or else in a corner clear of the player's mark."""
+        if self._legend_offset is not None:
+            self._legend.topleft = (inner.x + self._legend_offset[0], inner.y + self._legend_offset[1])
+            self._legend.clamp_ip(inner)
+            return
+
+        spots = self._legend_spots(inner, compass_box, top_left_box)
+        player = self.game_map.map_player
+        mark = self.world_to_screen(player.x + player.width / 2, player.y + player.height)
+
+        def clear(spot: pygame.Rect, margin: int) -> bool:
+            return not spot.inflate(2 * margin, 2 * margin).collidepoint(mark)
+
+        if not clear(spots[self._legend_spot], self.LEGEND_STAY_CLEAR):
+            for i, spot in enumerate(spots):
+                if clear(spot, self.LEGEND_MOVE_CLEAR):
+                    self._legend_spot = i
+                    break
+        elif self._legend_spot != 0 and clear(spots[0], self.LEGEND_MOVE_CLEAR):
+            # Back to its own corner once the player has left it well alone
+            self._legend_spot = 0
+        self._legend.topleft = spots[self._legend_spot].topleft
+
+    def _move_legend(self, rel: Tuple[int, int]) -> None:
+        """Drag the legend by ``rel``, keeping it inside the sheet."""
+        moved = self._legend.move(rel)
+        moved.clamp_ip(self._inner)
+        self._legend = moved
+        self._legend_offset = (moved.x - self._inner.x, moved.y - self._inner.y)
 
     def _draw_ornaments(self, screen: pygame.Surface, inner: pygame.Rect, taken: List[pygame.Rect]) -> None:
         ornaments.cartouche(screen, self._cartouche)
