@@ -15,6 +15,12 @@ Hold the left mouse button to charge power, release to swing. Both gauges
 are graded independently at the moment of release, and the payout (booked
 straight to the player's cash via ``Depot.book_labor_income``) follows a
 steep curve that rewards near-perfect play far more than mediocre play.
+
+Beside the gauges the player swings an axe at a log (``ChoppingScene`` in
+``woodhacking_scene.py``): lifted while power gathers, and by the grade a clean
+split, a bite that cracks the log, a swish past it or a swing that falls
+short. A new swing can be gathered once the last one has landed, and the
+result shows once the last swing's chips have settled.
 """
 
 import os
@@ -25,6 +31,7 @@ from typing import Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
+from .woodhacking_scene import ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H
 from ...config.colors import (
     BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN,
     MUTED_GREEN as GREEN, MUTED_DARK_GREEN as DARK_GREEN,
@@ -39,12 +46,17 @@ _TOTAL_W = SCREEN_WIDTH + SIDEBAR_WIDTH
 
 # The minigame is drawn onto a fixed-size canvas and centered on screen —
 # keeps all gauge geometry below in simple, self-contained pixel coordinates.
-_CANVAS_W, _CANVAS_H = 800, 600
+# The gauges take the left 600 pixels, the chopping scene the rest.
+_CANVAS_W, _CANVAS_H = 1180, 600
+_CX = _CANVAS_W // 2
+_SCENE_RECT = pygame.Rect(600, 58, SCENE_W, SCENE_H)
+_RESULT_DELAY_S = 0.4      # after the last swing has settled, before the result shows
+_THUD_VOLUME = 0.3         # a new log dropping onto the block
 
 MINIGAME_NAME = "Woodhacking"
 
 # ── gauge constants ─────────────────────────────────────────────────────────
-_AIM_CX, _AIM_CY = _CANVAS_W // 2, 305
+_AIM_CX, _AIM_CY = 345, 305
 _AIM_R = 148
 
 # Left-side zone boundaries (negative angles, more forgiving)
@@ -85,6 +97,16 @@ _MAX_SPEED_BONUS = _BASE_AIM_SPEED * 2.0
 
 MAX_SWINGS = 30
 MAX_SCORE = MAX_SWINGS * 5
+
+
+def swing_outcome(points: int, power: float, opt_lo: float) -> str:
+    """What the axe does: a good swing splits the log, a fair one bites into it,
+    one that scores nothing falls short (too little power) or swishes past."""
+    if points >= 3:
+        return SPLIT
+    if points > 0:
+        return BITE
+    return SHORT if power < opt_lo else WHIFF
 
 
 def _power_zone_bounds(opt_lo: float, opt_hi: float) -> Tuple[float, float, float, float]:
@@ -213,6 +235,7 @@ class WoodhackingMinigame(MinigameOverlay):
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
+        self.scene = ChoppingScene(self.font_hit)
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)
         self._payout_booked = False
@@ -235,6 +258,8 @@ class WoodhackingMinigame(MinigameOverlay):
         self.score = 0
         self.attempt = 0
         self.done = False
+        self._ending = False       # all swings made, waiting for the last to settle
+        self._end_timer = 0.0
         self.aim_hit_text = ""
         self.aim_hit_color = WHITE
         self.pow_hit_text = ""
@@ -295,7 +320,7 @@ class WoodhackingMinigame(MinigameOverlay):
                 if self.close_rect.collidepoint(self._to_canvas(event.pos)):
                     self.active = False
                 return
-            if not self.charging:
+            if not self.charging and not self._ending and self.scene.can_charge:
                 self.charging = True
 
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -303,12 +328,17 @@ class WoodhackingMinigame(MinigameOverlay):
                 self.charging = False
                 self._resolve_swing()
 
-    def _play_swing_sound(self, hit: bool) -> None:
-        """Play a random chop sound on a hit, or a random swoosh sound on a miss."""
-        prefix = "chop_" if hit else "swoosh_"
-        candidates = [name for name in self.game.sounds if name.startswith(prefix)]
-        if candidates:
-            self.game.play_sound(random.choice(candidates))
+    def _play_scene_sounds(self, kinds) -> None:
+        """Play what the scene asks for: "chop" as the axe bites, "swoosh" as it
+        swings past or short, "thud" (a soft chop) as a new log lands."""
+        for kind in kinds:
+            prefix = "swoosh_" if kind == "swoosh" else "chop_"
+            candidates = [name for name in self.game.sounds if name.startswith(prefix)]
+            if not candidates:
+                continue
+            channel = self.game.play_sound(random.choice(candidates))
+            if kind == "thud" and channel is not None:
+                channel.set_volume(_THUD_VOLUME)
 
     def _resolve_swing(self) -> None:
         self.attempt += 1
@@ -321,7 +351,9 @@ class WoodhackingMinigame(MinigameOverlay):
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
         self.pow_hit_text, self.pow_hit_color = pow_label, pow_color
         self.hit_alpha = 255
-        self._play_swing_sound(hit=pts > 0)
+        outcome = swing_outcome(pts, self.power, self.opt_lo)
+        popup_color = DARK_GREEN if pts >= 4 else (GREEN if pts >= 3 else (ORANGE if pts > 0 else DARK_RED))
+        self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color))
         self.power = 0.0
         if pts >= 3:
             self.aim_speed_bonus = min(
@@ -329,8 +361,7 @@ class WoodhackingMinigame(MinigameOverlay):
             )
             self.opt_lo, self.opt_hi = _new_opt_zone()
         if self.attempt >= MAX_SWINGS:
-            self.done = True
-            self._book_payout()
+            self._ending = True
 
     # ------------------------------------------------------------------
     # Update
@@ -346,6 +377,14 @@ class WoodhackingMinigame(MinigameOverlay):
 
             if self.charging:
                 self.power = min(1.0, self.power + _POWER_RATE * delta_time)
+                self.scene.charge(self.power)
+
+        self._play_scene_sounds(self.scene.update(delta_time))
+        if self._ending and not self.done and self.scene.settled:
+            self._end_timer += delta_time
+            if self._end_timer >= _RESULT_DELAY_S:
+                self.done = True
+                self._book_payout()
 
         if self.hit_alpha > 0:
             self.hit_alpha = max(0, self.hit_alpha - 6)
@@ -441,28 +480,28 @@ class WoodhackingMinigame(MinigameOverlay):
         overlay.fill((0, 0, 0, 160))
         self.canvas.blit(overlay, (0, 0))
 
-        panel = pygame.Rect(200, 145, 400, 300)
+        panel = pygame.Rect(_CX - 200, 145, 400, 300)
         pygame.draw.rect(self.canvas, BEIGE, panel, border_radius=8)
         pygame.draw.rect(self.canvas, DARK_BROWN, panel, 3, border_radius=8)
 
         title = self.font_large.render("Session Complete!", True, DARK_BROWN)
-        self.canvas.blit(title, title.get_rect(center=(400, 205)))
+        self.canvas.blit(title, title.get_rect(center=(_CX, 205)))
 
         score_txt = self.font.render(f"Score:  {score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, BLACK)
-        self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 250)))
+        self.canvas.blit(score_txt, score_txt.get_rect(center=(_CX, 250)))
 
         hs_color = GOLD if self.new_highscore else DARK_BROWN
         hs_txt = self.font.render(f"Highscore:  {score_to_display(self.highscore, MAX_SCORE)} / {MAX_SCORE}", True, hs_color)
-        self.canvas.blit(hs_txt, hs_txt.get_rect(center=(400, 276)))
+        self.canvas.blit(hs_txt, hs_txt.get_rect(center=(_CX, 276)))
 
         coin_color = DARK_GREEN if coins >= 15 else (ORANGE if coins >= 8 else RED)
         coin_txt = self.font_large.render(f"+{coins:.2f}g earned today", True, coin_color)
-        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(400, 316)))
+        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(_CX, 316)))
 
         hint = self.font.render("Come back tomorrow for another swing", True, PALE_BROWN)
-        self.canvas.blit(hint, hint.get_rect(center=(400, 358)))
+        self.canvas.blit(hint, hint.get_rect(center=(_CX, 358)))
 
-        self.close_rect.center = (400, 405)
+        self.close_rect.center = (_CX, 405)
         mouse_pos = self._to_canvas(pygame.mouse.get_pos())
         hovered = self.close_rect.collidepoint(mouse_pos)
         pygame.draw.rect(self.canvas, PALE_BROWN if hovered else SANDY_BROWN, self.close_rect, border_radius=4)
@@ -475,26 +514,36 @@ class WoodhackingMinigame(MinigameOverlay):
         overlay.fill((0, 0, 0, 190))
         self.canvas.blit(overlay, (0, 0))
 
-        panel = pygame.Rect(220, 190, 360, 220)
+        panel = pygame.Rect(_CX - 180, 190, 360, 220)
         pygame.draw.rect(self.canvas, BEIGE, panel, border_radius=8)
         pygame.draw.rect(self.canvas, GOLD, panel, 4, border_radius=8)
 
         title = self.font_large.render("New Highscore!", True, GOLD)
-        self.canvas.blit(title, title.get_rect(center=(400, 240)))
+        self.canvas.blit(title, title.get_rect(center=(_CX, 240)))
 
         score_txt = self.font_hit.render(f"{score_to_display(self.score, MAX_SCORE)} / {MAX_SCORE}", True, DARK_BROWN)
-        self.canvas.blit(score_txt, score_txt.get_rect(center=(400, 285)))
+        self.canvas.blit(score_txt, score_txt.get_rect(center=(_CX, 285)))
 
         sub = self.font.render("Well hacked, woodcutter!", True, PALE_BROWN)
-        self.canvas.blit(sub, sub.get_rect(center=(400, 325)))
+        self.canvas.blit(sub, sub.get_rect(center=(_CX, 325)))
 
-        self.congrats_close_rect.center = (400, 370)
+        self.congrats_close_rect.center = (_CX, 370)
         mouse_pos = self._to_canvas(pygame.mouse.get_pos())
         hovered = self.congrats_close_rect.collidepoint(mouse_pos)
         pygame.draw.rect(self.canvas, PALE_BROWN if hovered else SANDY_BROWN, self.congrats_close_rect, border_radius=4)
         pygame.draw.rect(self.canvas, DARK_BROWN, self.congrats_close_rect, 2, border_radius=4)
         close_txt = self.font.render("Nice!", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.congrats_close_rect.center))
+
+    def _draw_scene(self) -> None:
+        """The chopping scene in its frame, shaken a little by a clean split."""
+        dx, dy = self.scene.shake_offset
+        self.canvas.set_clip(_SCENE_RECT)
+        self.canvas.blit(self.scene.draw(), (_SCENE_RECT.x + dx, _SCENE_RECT.y + dy))
+        self.canvas.set_clip(None)
+        pygame.draw.rect(self.canvas, DARK_BROWN, _SCENE_RECT.inflate(4, 4), 3, border_radius=4)
+        split = self.font.render(f"Logs split: {self.scene.pile}", True, DARK_BROWN)
+        self.canvas.blit(split, (_SCENE_RECT.x + 12, _SCENE_RECT.y + 10))
 
     def draw(self) -> None:
         # Darken the game behind the overlay
@@ -519,7 +568,9 @@ class WoodhackingMinigame(MinigameOverlay):
             hint = self.font.render("CHARGING — release to swing!", True, DARK_BROWN)
         else:
             hint = self.font.render("Hold LMB to charge power - release to swing", True, PALE_BROWN)
-        self.canvas.blit(hint, hint.get_rect(center=(_CANVAS_W // 2, _CANVAS_H - 60)))
+        self.canvas.blit(hint, hint.get_rect(center=(_AIM_CX - 20, _CANVAS_H - 60)))
+
+        self._draw_scene()
 
         coins = score_to_coins(self.score, MAX_SCORE)
         self._draw_status_bar(coins)
