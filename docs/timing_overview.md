@@ -198,7 +198,7 @@ No caching: text surfaces are re-rendered every frame even when values haven't c
 | Load the definitions (`assets/data/`) and create the `Simulation` with a fresh seed | game.py, src/sim/data.py | Trivial |
 | Load TMX map + parse houses, markets, trees, fields, doors, bridges, roofs; build `NavGrid`, `Cover`, spatial indexes | map.py | Expensive — file I/O and rasterising |
 | `TownPlan.prepare()`: the plan engraved at every zoom level | town_plan/ | Expensive |
-| Found the town, establish the scenario's workshops, `Simulation.presimulate(MARKET_PRESIMULATION_DAYS)` (60 days of the whole economy) | game.py, simulation.py | Moderate — about 0.3 s |
+| Found the town, establish the scenario's workshops, `Simulation.presimulate(MARKET_PRESIMULATION_DAYS)` (224 days of the whole economy, 4 ms a day) | game.py, simulation.py | Moderate — about 0.9 s |
 | Load all PNG assets and sounds | game.py | Expensive — disk reads |
 | `MapWarmup.prepare()`: the starting zoom and the ground around the player | map_warmup.py | Moderate |
 

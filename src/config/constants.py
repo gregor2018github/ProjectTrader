@@ -70,7 +70,9 @@ CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods giv
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME
 
-MARKET_PRESIMULATION_DAYS = 60      # Days the whole economy runs before the game starts, so the charts open with a history
+MARKET_PRESIMULATION_DAYS = 224     # Days the whole economy runs before the game starts (two years, about 0.9 s of loading at
+                                    # 4 ms a day), so the charts open with a history and wages, purses and workshops have
+                                    # nearly settled (after 60 the commons' wage was still climbing and they bought no luxuries)
 
 # MARKET VOLUME: a good's price is its reference (outside) price times a factor from how much of it the
 # market holds, measured against its target stock (days of demand), times a little noise. See docs/pricing.md.

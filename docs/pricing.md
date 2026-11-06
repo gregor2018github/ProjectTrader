@@ -43,7 +43,7 @@ Each good is defined in `assets/data/goods.json` and loaded by `src/sim/data.py`
 | `target_stock_days`, `min_target_stock` | The target stock: that many days of demand, but at least that many units |
 | `noise_sigma` | The noise's step per price tick |
 
-When a town is founded (`Simulation.found_town`), each good's target is set from the households' demand, and the market holds exactly its target. Before the first frame, `Simulation.presimulate()` runs the whole economy for `MARKET_PRESIMULATION_DAYS` (60) days, so the charts open with history.
+When a town is founded (`Simulation.found_town`), each good's target is set from the households' demand, and the market holds exactly its target. Before the first frame, `Simulation.presimulate()` runs the whole economy for `MARKET_PRESIMULATION_DAYS` (224, two years) days, so the charts open with history and wages, purses and workshops have nearly settled.
 
 ## 2. The outside price and the noise
 
