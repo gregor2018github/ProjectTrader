@@ -44,6 +44,8 @@ def fit_text(font, text, width):
 def wrap_text(font, text, width, max_lines):
     """Break `text` into at most `max_lines` lines of `width` pixels; the last
     line takes the rest, shortened with an ellipsis if it still does not fit."""
+    if max_lines <= 1:
+        return [fit_text(font, text, width)]
     lines, line = [], ''
     words = text.split(' ')
     for i, word in enumerate(words):

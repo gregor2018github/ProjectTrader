@@ -1,4 +1,4 @@
-"""The start page: all sprites at a glance, and a big card into each of humans, plants, buildings, crops and animals.
+"""The start page: all sprites at a glance, and a big card into each area, three to a row.
 
 Along the top, over everything:
 
@@ -6,16 +6,19 @@ Along the top, over everything:
     Today         sprites new and redone today, by their file dates
     Work          answers waiting for review, and unfinished new plants and buildings
 
-Under it one card per area; clicking it (or 1 to 5; Tab is the humans)
-opens it, and Escape there comes back here.
+Under it one card per area, three to a row (humans, plants, buildings; crops,
+animals, menu sprites); clicking it (or 1 to 6; Tab is the humans) opens it,
+and Escape there comes back here.
 
     Humans        the share of their sprites done, a bar per kind, and the figures
     Plants        how many, one bar split by kind with the biggest kinds, and the newest
     Buildings     the same
     Crops         the share of their stage sprites done, a bar per stage, and the ripe crops
     Animals       the share of their frames done, a bar for standing, walk and grazing, and the animals
+    Menu          the share of the goods' menu pictures there, a bar per kind, and the goods' icons
 
-The pictures fill whatever room the card has left, so a taller window shows more.
+On a wide card the bars take the left and the pictures the right; the pictures fill whatever room is
+left, so a bigger window shows more.
 """
 
 from dataclasses import dataclass, field
@@ -27,6 +30,7 @@ import pose_review
 from animals import GROUPS, find_animals
 from crops import find_crops
 from daily_progress import Today, made_today
+from goods import KINDS as GOOD_KINDS, find_goods, tally
 from figures import TRADER_CATEGORY
 from images import pixel_fit
 from library_summary import Stats, gather, mini
@@ -45,7 +49,9 @@ LABEL_W = 116
 COUNT_W = 70
 PICTURE = 58             # the small pictures along an area's card
 PICTURE_GAP = 8
-WORK_H = 52              # the work line and the hint along a card's foot
+PER_ROW = 3              # area cards to a row
+SIDE_BY_SIDE_W = 380     # from this inner width a card puts its pictures beside its bars
+WORK_H = 30              # the work line and the hint along a card's foot
 NEW_COLOR = STATUS_COLORS[pose_review.ACCEPTED]
 WAIT_COLOR = STATUS_COLORS[pose_review.PENDING]
 
@@ -94,6 +100,7 @@ class Crops:
     waiting: int = 0
     today: Optional[Today] = None
     pictures: list = field(default_factory=list)  # the crops' pictures
+    placeholders: int = 0                         # the menu: pictures there only as placeholders
 
 
 def gather_crops():
@@ -141,8 +148,30 @@ def gather_animals():
     return stats
 
 
+def gather_menu():
+    """The numbers of the menu sprites' card: the goods' pictures by kind (crops counts the goods)."""
+    stats = Crops()
+    goods = find_goods()
+    stats.crops = len(goods)
+    totals = tally(goods)
+    kinds = [kind for kind in GOOD_KINDS if kind.counted]
+    stats.stages = [(kind.title, *totals[kind.key][:2]) for kind in kinds]
+    stats.done = sum(done for _, done, _ in stats.stages)
+    stats.needed = sum(needed for _, _, needed in stats.stages)
+    stats.placeholders = sum(totals[kind.key][2] for kind in kinds)
+    stats.today = made_today([p for p in (g.path(k.key) for g in goods for k in kinds if g.needs(k.key))
+                              if p.is_file()])
+    for good in goods:
+        try:
+            icon = pygame.image.load(str(good.path('small'))).convert_alpha()
+        except (pygame.error, OSError):
+            continue
+        stats.pictures.append(HomeView.face(icon))
+    return stats
+
+
 class Area:
-    """One of the three cards: which screen it opens, and its rect as last drawn."""
+    """One of the cards: which screen it opens, and its rect as last drawn."""
 
     def __init__(self, key, title, shortcut):
         self.key = key
@@ -161,6 +190,7 @@ class HomeView(View):
         self.faces = []      # small pictures of the figures, for the humans' card
         self.crops = Crops()
         self.animals = Crops()
+        self.menu = Crops()
 
     def refresh(self):
         app = self.app
@@ -172,10 +202,11 @@ class HomeView(View):
         self.faces = [self.face(app.npc_thumbs[n.name]) for n in app.npcs]
         self.crops = gather_crops()
         self.animals = gather_animals()
+        self.menu = gather_menu()
 
     def grown(self, key):
-        """The crops' or the animals' numbers, for a card of theirs; None for the other areas."""
-        return {'crops': self.crops, 'animals': self.animals}.get(key)
+        """The crops', the animals' or the menu's numbers, for a card of theirs; None for the other areas."""
+        return {'crops': self.crops, 'animals': self.animals, 'menu': self.menu}.get(key)
 
     @staticmethod
     def face(thumb):
@@ -187,7 +218,7 @@ class HomeView(View):
 
     def header(self):
         return ('Sprite Manager',
-                'Every sprite of the game at a glance. Click an area, or press 1 to 5, to work on it; '
+                'Every sprite of the game at a glance. Click an area, or press 1 to 6, to work on it; '
                 'Escape there comes back here, and here closes the tool.')
 
     def footer(self):
@@ -202,10 +233,13 @@ class HomeView(View):
         area = self.app.card_area()
         self.draw_summary(screen, pygame.Rect(area.x, area.y, area.w, SUMMARY_H))
         top = area.y + SUMMARY_H + PANEL_GAP + 8
-        height = area.bottom - top
-        width = (area.w - (len(self.areas) - 1) * PANEL_GAP) // len(self.areas)
+        rows = (len(self.areas) + PER_ROW - 1) // PER_ROW
+        height = (area.bottom - top - (rows - 1) * PANEL_GAP) // rows
+        width = (area.w - (PER_ROW - 1) * PANEL_GAP) // PER_ROW
         for index, card in enumerate(self.areas):
-            card.rect = pygame.Rect(area.x + index * (width + PANEL_GAP), top, width, height)
+            row, col = divmod(index, PER_ROW)
+            card.rect = pygame.Rect(area.x + col * (width + PANEL_GAP), top + row * (height + PANEL_GAP),
+                                    width, height)
             self.draw_area(screen, card, mouse)
 
     def draw_summary(self, screen, rect):
@@ -214,11 +248,12 @@ class HomeView(View):
         panels = [pygame.Rect(rect.x + i * (third + PANEL_GAP), rect.y, third, rect.h) for i in range(3)]
         domains = {key: self.stats(key).total for key in self.domains}
         counts = [('humans', self.humans.done)] + list(domains.items()) + [('crops', self.crops.done),
-                                                                          ('animals', self.animals.done)]
+                                                                          ('animals', self.animals.done),
+                                                                          ('menu', self.menu.done)]
         self.draw_numbers(screen, panels[0], 'All sprites', [(sum(n for _, n in counts), 'sprites', TEXT)],
                           ', '.join(f'{n} {key}' for key, n in counts))
         today = [self.humans.today, *self.today.values(), self.crops.today or Today(0, 0),
-                 self.animals.today or Today(0, 0)]
+                 self.animals.today or Today(0, 0), self.menu.today or Today(0, 0)]
         new = sum(t.new for t in today)
         redone = sum(t.redone for t in today)
         self.draw_numbers(screen, panels[1], 'Today', [(new, 'new', NEW_COLOR), (redone, 'redone', DONE_COLOR)])
@@ -273,6 +308,9 @@ class HomeView(View):
             if card.key == 'crops':
                 subtitle = (f'{crops.crops} crop{"" if crops.crops == 1 else "s"}, '
                             f'{crops.done} of {crops.needed} stage sprites')
+            elif card.key == 'menu':
+                subtitle = (f'{crops.crops} goods, {crops.done} of {crops.needed} pictures, '
+                            f'{crops.placeholders} placeholders')
             else:
                 subtitle = (f'{crops.crops} animal{"" if crops.crops == 1 else "s"}, '
                             f'{crops.done} of {crops.needed} frames')
@@ -291,16 +329,27 @@ class HomeView(View):
         y = inner.y + title.get_height()
         line = fonts.small.render(fit_text(fonts.small, subtitle, inner.w), True, TEXT_DIM)
         screen.blit(line, (inner.x, y))
-        y += line.get_height() + 16
+        y += line.get_height() + 12
 
+        # The bars, and beside them on a wide card (else under them) the pictures, above the work line;
+        # only whole rows of bars, on a short card
+        side = inner.w >= SIDE_BY_SIDE_W
+        rows_h = (inner.bottom - WORK_H - y) // ROW_H * ROW_H
+        bars = pygame.Rect(inner.x, y, inner.w * 58 // 100 if side else inner.w, max(0, rows_h))
+        screen.set_clip(bars.clip(rect))
         if card.key == 'humans':
-            y = self.draw_kind_rows(screen, inner, y)
+            bottom = self.draw_kind_rows(screen, bars, y)
         elif self.grown(card.key):
-            y = self.draw_stage_rows(screen, inner, y, self.grown(card.key))
+            bottom = self.draw_stage_rows(screen, bars, y, self.grown(card.key))
         else:
-            y = self.draw_kinds(screen, inner, y, self.stats(card.key))
-        self.draw_pictures(screen, pygame.Rect(inner.x, y + 12, inner.w, inner.bottom - WORK_H - 12 - y - 12),
-                           pictures)
+            bottom = self.draw_kinds(screen, bars, y, self.stats(card.key))
+        screen.set_clip(rect)
+        if side:
+            left = bars.right + PAD
+            room = pygame.Rect(left, y + 4, inner.right - left, inner.bottom - WORK_H - y - 16)
+        else:
+            room = pygame.Rect(inner.x, bottom + 12, inner.w, inner.bottom - WORK_H - 12 - bottom - 12)
+        self.draw_pictures(screen, room, pictures)
         self.draw_work(screen, card, inner)
         screen.set_clip(clip)
 
@@ -374,6 +423,11 @@ class HomeView(View):
             humans = self.humans
             work = [(humans.waiting, 'to review', WAIT_COLOR), (humans.today.new, 'new today', NEW_COLOR),
                     (humans.today.redone, 'redone today', DONE_COLOR)]
+        elif card.key == 'menu':
+            stats = self.menu
+            today = stats.today or Today(0, 0)
+            work = [(stats.needed - stats.done - stats.placeholders, 'missing', WAIT_COLOR),
+                    (stats.placeholders, 'placeholders', DONE_COLOR), (today.new, 'new today', NEW_COLOR)]
         elif self.grown(card.key):
             stats = self.grown(card.key)
             today = stats.today or Today(0, 0)
@@ -387,10 +441,11 @@ class HomeView(View):
         bottom = inner.bottom
         for number, label, color in work:
             text = small.render(f'{number} {label}', True, color if number else TEXT_DIM)
-            screen.blit(text, text.get_rect(bottomleft=(x, bottom - 26)))
+            screen.blit(text, text.get_rect(bottomleft=(x, bottom)))
             x += text.get_width() + 18
         hint = small.render(f'Open ({card.shortcut})', True, TEXT_DIM)
-        screen.blit(hint, hint.get_rect(bottomleft=(inner.x, bottom)))
+        if hint.get_width() <= inner.right - x:
+            screen.blit(hint, hint.get_rect(bottomright=(inner.right, bottom)))
         pygame.draw.line(screen, BAR_BG, (inner.x, bottom - WORK_H), (inner.right, bottom - WORK_H), 2)
 
     # --- input ------------------------------------------------------------

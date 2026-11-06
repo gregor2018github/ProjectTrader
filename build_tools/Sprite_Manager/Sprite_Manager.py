@@ -1,6 +1,6 @@
 """Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
-the plant and building sprites of the map, the growth stages of the crops on the fields, and the
-frames of the animals.
+the plant and building sprites of the map, the growth stages of the crops on the fields, the
+frames of the animals, and the goods' pictures for the menus.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -19,8 +19,9 @@ switches to full screen.
 
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
-   card each for the humans, the plants, the buildings, the crops and the
-   animals with how far they are. Click one (or 1 to 5) to go there; "Start page" or
+   card each for the humans, the plants and the buildings, and under them the
+   crops, the animals and the menu sprites, with how far they are. Click one
+   (or 1 to 6) to go there; "Start page" or
    Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
@@ -203,6 +204,16 @@ beside the sheep's pose and the walk and grazing playing in the middle, and
 the sheet on the right, sent as for the walk frames; its answers open in
 view_animal_answers.py (the crops' answers screen with an animal's frame).
 
+Menu sprites: "Menu" on the start page (6) collects the goods' pictures for
+the game's menus (goods.py, view_goods.py): for every good of goods.json its
+30px icon, its 1024px painting, the cut-out icon made from it, the picture on
+its licence (only a licence's head good has one) and the snapshot of the
+signed licence the game writes itself. Each shows as the picture, as
+"placeholder" (the disc in the chart colour with the initials that the goods
+added in P1.3 got) or as "missing"; the good chosen on the right shows them
+large with their files, sizes and uses. M shows only the goods with something
+missing, O opens assets/pictures. Nothing is made here yet.
+
 The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
@@ -264,6 +275,8 @@ The code, for whoever works on it next:
     web_bridge.py      sending a sheet to the Gemini tab in the browser, with gemini_bridge.user.js
     chime.py           the chimes of answers from the browser, made from sine waves
     win_window.py      snapping the window into the left half of the screen
+    goods.py           the goods' menu pictures: which each good needs, where they are, placeholders
+    view_goods.py      the menu sprites: a row per good with its pictures, and the chosen one large
 """
 
 import io
@@ -304,6 +317,7 @@ from view_crop import CropView  # noqa: E402
 from view_crops import CropsView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
+from view_goods import GoodsView  # noqa: E402
 from view_home import HomeView  # noqa: E402
 from sprite_job import SpriteJob, find_jobs  # noqa: E402
 from sprite_library import Catalog, find_sprites, restamp  # noqa: E402
@@ -319,7 +333,7 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'),
-           ('animals', 'Animals'))   # Tab goes round them
+           ('animals', 'Animals'), ('menu', 'Menu'))   # Tab goes round them; the start page shows them 3 a row
 FPS = 30
 
 
@@ -566,7 +580,7 @@ class SpriteManager:
 
     @staticmethod
     def screens():
-        """(key, title) of humans, plants, buildings, crops and animals."""
+        """(key, title) of humans, plants, buildings, crops, animals and the menu sprites."""
         return SCREENS
 
     @staticmethod
@@ -592,7 +606,7 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants, the buildings, the crops or the animals."""
+        """Show the start page, the humans, the plants, the buildings, the crops, the animals or the menu sprites."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
         if screen == 'home':
@@ -603,6 +617,8 @@ class SpriteManager:
             self.show(CropsView(self))
         elif screen == 'animals':
             self.show(AnimalsView(self))
+        elif screen == 'menu':
+            self.show(GoodsView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
 
@@ -612,6 +628,8 @@ class SpriteManager:
             current = self.view.domain.key
         elif isinstance(self.view, CropsView):
             current = 'crops'
+        elif isinstance(self.view, GoodsView):
+            current = 'menu'
         else:
             current = 'animals' if isinstance(self.view, AnimalsView) else 'humans'
         self.switch_to(keys[(keys.index(current) + 1) % len(keys)])
