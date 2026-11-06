@@ -71,7 +71,7 @@ class GoodAnswersView(CropAnswersView):
 
     def header(self):
         return (f'Answers for {self.subject.title}',
-                'Ctrl+V or drop a file = answer, Enter = accept into the game (painting, cut-out and 30px icon), '
+                'Ctrl+V or drop a file = answer, Enter = accept into the game (painting, cut-out, 30px icon, licence), '
                 'Del = not good enough, click white gaps in the cut-out to see through them.')
 
     def draw_result(self, screen, area):

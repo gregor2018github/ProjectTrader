@@ -2,14 +2,15 @@
 
 On the left, one row per good of goods.json, in its order: its name and licence, and a cell per kind
 of picture (goods.py): the picture if there is one, PLACEHOLDER (the 30px stand-ins of the goods added
-in P1.3), MISSING, or a dash where the good needs none (only a licence's head has a licence picture).
+in P1.3), MISSING, or a dash where the good needs none (only a licence's head has a signed licence).
 Over it, how far each kind is. On the right, the chosen good: every picture large, with its file,
 size and where the game shows it, and what is left to make.
 
 Click a row (or Up / Down) to choose a good, M shows only the goods with something missing, O opens
-assets/pictures. "GIMP" beside a picture opens it in GIMP (read again once saved back), and "Cut-out + 30px
-from painting" (P) makes those two again from the painting, e.g. after fixing it there. "Make its picture" (Enter) sketches the chosen good beside three other goods for the model
-(view_good_design.py, goods_sheets.py); accepting an answer writes its painting, cut-out and 30px icon.
+assets/pictures. "GIMP" beside a picture opens it in GIMP (read again once saved back), and "Remake from painting"
+(P) makes the cut-out, 30px icon and licence picture again from the painting, e.g. after fixing it there. "Make its picture" (Enter) sketches the chosen good beside three other goods for the model
+(view_good_design.py, goods_sheets.py); accepting an answer writes its painting, cut-out, 30px icon
+and its licence picture (the good toned sepia).
 """
 
 import os
@@ -61,7 +62,7 @@ class GoodsView(View):
         self.missing_button = Button('Only missing (M)', w=160)
         self.make_button = Button('Make its picture (Enter)', w=240, h=40)
         self.waiting = {}        # {good name: answers waiting for review}
-        self.remake_button = Button('Cut-out + 30px from painting (P)', w=290, h=40)
+        self.remake_button = Button('Remake from painting (P)', w=290, h=40)
         self.gimp_buttons = []   # [(Button, path)] beside the chosen good's pictures, as last drawn
         self.goods = []
         self.totals = {}
@@ -335,7 +336,8 @@ class GoodsView(View):
             self.app.open_good(self, good)
 
     def remake(self):
-        """The chosen good's cut-out and 30px icon made again from its painting, e.g. after fixing it in GIMP."""
+        """The chosen good's cut-out, 30px icon and licence picture made again from its painting, e.g. after
+        fixing it in GIMP."""
         good = next((g for g in self.goods if g.name == self.chosen), None)
         if good is None or self.statuses[good.name]['painting'] != OK:
             return
@@ -346,7 +348,7 @@ class GoodsView(View):
             return
         self.refresh()
         self.app.set_status(f'Made {", ".join(written)} from the painting; the old ones are in replaced/')
-        self.app.toast.show(f'{good.name}: cut-out and 30px made')
+        self.app.toast.show(f'{good.name}: made again from the painting')
 
     def toggle_missing(self):
         self.only_missing = not self.only_missing

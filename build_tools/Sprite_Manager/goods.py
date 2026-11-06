@@ -11,8 +11,9 @@ assets/pictures:
     Cut-out icon  <good>_icon.png      bigger UI: warehouse inventory, the pack, the feast menu (else
                                        the 30px icon blown up); cut out of the painting by
                                        build_tools/Good_Icons/cut_good_icons.py (its GOODS list too)
-    Licence       contracts/<lic>.png  the picture on the licence document; only a licence's head
-                                       good has one (Flour and Bread are traded under Wheat's)
+    Licence       contracts/<good>.png the picture on the licence document, the good toned sepia
+                                       (goods_sheets.licence_picture); every good has one, though the
+                                       game shows only a licence's head's (Bread is traded under Wheat's)
     Signed        contracts/contract_views/contract_<good>.jpg
                                        a snapshot of the signed licence, which the game writes itself
                                        when a licence is bought: not art to make, shown as information
@@ -62,7 +63,8 @@ KINDS = (
     Kind('icon', 'Cut-out', '128 on the long side',
          'warehouse inventory, the pack, the feast menu; else the 30px icon blown up. '
          'Made from the painting by cut_good_icons.py'),
-    Kind('licence', 'Licence', 'about 100 wide', "the picture on the guild licence's document; only a licence's head"),
+    Kind('licence', 'Licence', "as the painting's figure",
+         "the picture on the guild licence's document: the good toned sepia, made from its painting"),
     Kind('signed', 'Signed', 'a screenshot', 'the signed licence in the overview; the game writes it when bought',
          counted=False),
 )
@@ -100,7 +102,7 @@ class Good:
         raise KeyError(kind)
 
     def needs(self, kind):
-        return self.is_head if kind in ('licence', 'signed') else True
+        return self.is_head if kind == 'signed' else True   # a licence is bought for its head only
 
     def status(self, kind):
         if not self.needs(kind):

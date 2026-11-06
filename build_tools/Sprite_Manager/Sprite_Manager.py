@@ -207,8 +207,8 @@ view_animal_answers.py (the crops' answers screen with an animal's frame).
 Menu sprites: "Menu" on the start page (6) collects the goods' pictures for
 the game's menus (goods.py, view_goods.py): for every good of goods.json its
 30px icon, its 1024px painting, the cut-out icon made from it, the picture on
-its licence (only a licence's head good has one) and the snapshot of the
-signed licence the game writes itself. Each shows as the picture, as
+its licence (the good toned sepia) and the snapshot of the signed licence
+the game writes itself (a licence's head only). Each shows as the picture, as
 "placeholder" (the disc in the chart colour with the initials that the goods
 added in P1.3 got) or as "missing"; the good chosen on the right shows them
 large with their files, sizes and uses. M shows only the goods with something
@@ -219,7 +219,8 @@ cut out onto white for the style, and bottom right the red frame to sketch the
 new good in. Its description.txt in build_tools/output/goods/<good>/ says what
 it is in the prompt (E edits it). It is sent as the other sketches are; its
 answers open in view_good_answers.py, and accepting one cuts the good out of
-the red frame and writes its painting, cut-out and 30px icon, keeping what they
+the red frame and writes its painting, cut-out, 30px icon and licence
+picture, the good toned sepia, keeping what they
 replace in replaced/ (goods_sheets.py).
 
 The code, for whoever works on it next:
@@ -567,8 +568,8 @@ class SpriteManager:
             self.reload_library(domain)
 
     def good_picture_saved(self, path):
-        """A good's picture saved back from GIMP. A painting makes the cut-out and the 30px icon again, which
-        come from it; a cut-out or 30px icon fixed by hand is only read again."""
+        """A good's picture saved back from GIMP. A painting makes the cut-out, the 30px icon and the licence
+        picture again, which come from it; any of those fixed by hand is only read again."""
         good = next((g for g in find_goods() if g.path('painting') == path), None)
         if good is None:
             self.set_status(f'{path.name} saved back from GIMP')
@@ -576,7 +577,7 @@ class SpriteManager:
             try:
                 written = remake_from_painting(GoodSubject(good))
             except (pygame.error, OSError, ValueError) as exc:
-                self.set_status(f'{path.name} saved, but the cut-out and 30px icon could not be made from it: {exc}',
+                self.set_status(f'{path.name} saved, but the pictures made from it could not be made: {exc}',
                                 error=True)
             else:
                 self.set_status(f'{path.name} saved back from GIMP - made {", ".join(written)} from it')

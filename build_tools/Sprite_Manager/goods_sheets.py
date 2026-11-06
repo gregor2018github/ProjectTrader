@@ -417,8 +417,40 @@ class GoodResult:
         return int(point[0] + self.target.bbox.x), int(point[1] + self.target.bbox.y)
 
 
-def pictures_of(figure):
-    """{kind: Surface} of the three pictures the game loads, made from the good cut out of an answer."""
+# The licence's picture is the good toned sepia: each pixel's brightness (0.299 R + 0.587 G + 0.114 B) becomes
+# a brown, alpha kept. Measured off the licence pictures made by hand for the first fifteen goods, which this
+# gives back to within one step per channel.
+LICENCE_TONE = ((0, (1, 0, 0)), (16, (14, 9, 6)), (32, (36, 27, 21)), (48, (50, 38, 30)), (64, (71, 55, 44)),
+                (80, (85, 67, 54)), (96, (100, 79, 65)), (112, (119, 94, 77)), (128, (133, 106, 87)),
+                (144, (148, 118, 97)), (160, (164, 130, 108)), (176, (180, 143, 119)), (192, (197, 157, 131)),
+                (208, (216, 173, 145)), (224, (223, 186, 162)), (240, (230, 202, 186)), (255, (236, 215, 203)))
+
+
+def licence_picture(figure):
+    """The good on its licence: `figure` (see-through around it) toned by LICENCE_TONE.
+
+    Raises:
+        ValueError: If numpy, which pygame.surfarray needs, is not installed.
+    """
+    try:
+        import numpy
+    except ImportError as exc:
+        raise ValueError('the licence picture needs numpy (pip install -r build_tools/requirements.txt)') from exc
+    figure = figure.convert_alpha()
+    rgb = pygame.surfarray.array3d(figure).astype(numpy.float32)
+    brightness = rgb[..., 0] * 0.299 + rgb[..., 1] * 0.587 + rgb[..., 2] * 0.114
+    levels = [level for level, _ in LICENCE_TONE]
+    toned = figure.copy()
+    pixels = pygame.surfarray.pixels3d(toned)
+    for channel in range(3):
+        pixels[..., channel] = numpy.interp(brightness, levels, [c[channel] for _, c in LICENCE_TONE]).round()
+    del pixels   # unlock the surface
+    return toned
+
+
+def pictures_of(figure, kinds=('painting', 'icon', 'small', 'licence')):
+    """{kind: Surface} of the pictures the game loads (those of `kinds`), made from the good cut out of an
+    answer or of its painting."""
     w, h = figure.get_size()
     painting = pygame.Surface((PAINTING_SIZE, PAINTING_SIZE))
     painting.fill(WHITE)
@@ -429,15 +461,18 @@ def pictures_of(figure):
     small.fill(CLEAR)
     tiny = smooth_fit(figure, (int(SMALL_SIZE * SMALL_FILL),) * 2)
     small.blit(tiny, tiny.get_rect(center=small.get_rect().center))
-    return {'painting': painting, 'icon': icon, 'small': small}
+    pictures = {'painting': painting, 'icon': icon, 'small': small}
+    if 'licence' in kinds:
+        pictures['licence'] = licence_picture(figure)
+    return {kind: picture for kind, picture in pictures.items() if kind in kinds}
 
 
 GOODS_PICTURES = 'goods pictures'   # what the app's GIMP watch files a good's picture under
 
 
 def remake_from_painting(subject):
-    """The good's cut-out and 30px icon made again from its painting, cut out of its plain background as
-    cut_good_icons.py does; what they replace goes to replaced/ first.
+    """The good's cut-out, 30px icon and licence picture made again from its painting,
+    cut out of its plain background as cut_good_icons.py does; what they replace goes to replaced/ first.
 
     Returns:
         The file names written.
@@ -446,12 +481,12 @@ def remake_from_painting(subject):
         pygame.error, OSError, ValueError: If the painting cannot be read or cut.
     """
     figure = figure_of(subject.good)
-    return save_pictures(subject, figure, kinds=('icon', 'small'))
+    return save_pictures(subject, figure, kinds=('icon', 'small', 'licence'))
 
 
-def save_pictures(subject, figure, kinds=('painting', 'icon', 'small')):
-    """Write the good's painting, cut-out and 30px icon (those of `kinds`); what they replace goes to
-    replaced/ first.
+def save_pictures(subject, figure, kinds=('painting', 'icon', 'small', 'licence')):
+    """Write the good's painting, cut-out, 30px icon and licence picture (those of `kinds`); what they replace
+    goes to replaced/ first.
 
     Returns:
         The file names written.
@@ -461,9 +496,8 @@ def save_pictures(subject, figure, kinds=('painting', 'icon', 'small')):
     """
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     written = []
-    for kind, surface in pictures_of(figure).items():
-        if kind not in kinds:
-            continue
+    kinds = [kind for kind in kinds if subject.good.needs(kind)]
+    for kind, surface in pictures_of(figure, kinds).items():
         path = subject.good.path(kind)
         if path.is_file():
             backup = subject.out_dir / REPLACED_DIR / f'{stamp}_{path.name}'
