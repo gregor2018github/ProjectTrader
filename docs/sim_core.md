@@ -8,7 +8,7 @@ It holds:
 - **Workshops and their owners**: each workshop runs its building's recipe as hard as its margin says. It hires from one class (pro rata when hands are short), sells into the market, grows after busy spells and shrinks after losses. Its owner tops it up and takes its profits. No rule reads what kind of owner it is.
 - **Money**: the market place holds none (the merchants own the stock), so the town's money changes by exactly what crosses its border, and `market_balance` checks it.
 
-The 30 goods and their chains (P1.3) are in; the health report's full set of checks (P1.4) and a minimal UI (P1.5) come next. The goldens in `tests/sim/golden/` pin the living market as it stands, and are regenerated whenever its behaviour is meant to change.
+The 30 goods and their chains (P1.3) are in; so is the health report's full set of checks over 20 seeds × 50 years (P1.4); a minimal UI (P1.5) comes next. The goldens in `tests/sim/golden/` pin the living market as it stands, and are regenerated whenever its behaviour is meant to change.
 
 ---
 
@@ -36,7 +36,8 @@ The 30 goods and their chains (P1.3) are in; the health report's full set of che
 | `events.py` | `SimEvent`s (`PriceShockEnded`, `PopulationChanged`, `CapacityChanged`) on an `EventQueue`. |
 | `data.py` | `load_definitions()` reads goods, needs, recipes and building types from `assets/data/` into a `Definitions` (`GoodDef`, `ClassNeedsDef` / `NeedDef`, `RecipeDef`, `BuildingDef`); `load_scenario()` reads `scenarios/<name>.json` into a `ScenarioDef` (`OwnerDef`, `WorkshopSeed`). Each raises `DataError` with the file, entry and field. |
 | `simulation.py` | `Simulation`: state, definitions, generator, scheduler and events together. It subscribes the systems, founds the town and establishes the scenario's workshops, runs the economy ahead (`presimulate`), takes commands (`trade_with_player`, `apply_well_shock`), keeps the books (`town_money`, `_close_books`), and saves and loads its block, migrating older ones. |
-| `health.py` | The health report for a headless run (`python -m src.sim.health runs/<name> ...`): the market balance check, the warnings for a town that should run slightly short, and the tradability measure so far; P1.4 adds the rest of `p1_living_market.md`'s checks. |
+| `health.py` | The health report for a headless run (`python -m src.sim.health runs/<name> ...`): every check of `p1_living_market.md` ("Health metrics"), each a `Finding` in `CHECKS`, and the tradability measure. |
+| `sweep.py` | Many seeds at once (`python -m src.sim.sweep`, default 20 seeds × 50 years into `runs/sweep/`): runs them in parallel, checks each, and writes the table over them (`summary.md`, `summary.csv`). |
 | `scenario/tmx_town.py` | An adapter, used only by the runner: reads the houses' `Max_inhabitants` from `Map1.tmx` with `xml.etree` into a `TownSpec`. The core never knows about TMX. The strategic map's towns (P7) will have no map file. |
 | `run.py` | The headless runner. |
 
@@ -105,6 +106,7 @@ The seed is shown on the settings' weather page (debug overlay on). It reproduce
 python -m src.sim.run --years 20 --seed 1 --out runs/baseline
 python -m src.sim.run --help        # --map, --scenario, --presim-days
 python -m src.sim.health runs/baseline runs/other    # the health report, one or more runs
+python -m src.sim.sweep                               # 20 seeds x 50 years, checked, into runs/sweep (about 25 s)
 ```
 
 It starts as a new game does (the game's start moment, the town from `Map1.tmx`, the economy run ahead) and writes into the folder (`runs/` is git-ignored). Rows are taken at each midnight, after that day's systems ran; the flows are the day just ended. All files share `day, year, season, day_of_season`.
@@ -131,7 +133,9 @@ people[people["class"] != "All"].pivot(index="day", columns="class", values="ful
 
 50 years (1,400 days) take about 6 s here.
 
-**The health report** (`src/sim/health.py`) fails a run whose `market_balance` is not zero (within `BALANCE_TOLERANCE` of the money supply) on any day. It warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than `SHORT_BELOW`, 90 %, of its whole basket of it, for any reason: `least_share`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on a lot worth `TRADE_LOT_VALUE` (100) at the day's price (whole units, at least 1) beats twice that lot's round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+**The health report** (`src/sim/health.py`) prints one line per check: `ok`, `warn` or `FAIL`, and the worst offender with its days. The checks and their thresholds are in `p1_living_market.md` ("Health metrics") and the module's docstring; the thresholds are its constants. It fails a run for broken books (`market_balance` not zero within `BALANCE_TOLERANCE` of the money supply on any day), NaNs or negative stocks, purses or counts, a price pinned at a volume factor clamp, hunger, a runaway money supply or population, or a workshop long in debt. It warns about prices far from outside, poorly supplied or unhappy classes, dead workshops and structural shortages. It also warns unless the town runs slightly short: each class's mean comfort fulfilment in `COMFORT_BAND` (0.80–0.95) and luxury in `LUXURY_BAND` (0.30–0.70), and at least `SHORT_GOODS_MIN` (3) goods the town ran short of (some class bought less than `SHORT_BELOW`, 90 %, of its whole basket of it, for any reason: `least_share`) on more than `SHORT_DAYS_SHARE` (5 %) of days. It also prints the tradability measure: per good, the median 30-day price range against the price, and how often that range on a lot worth `TRADE_LOT_VALUE` (100) at the day's price (whole units, at least 1) beats twice that lot's round trip (two fees plus slippage both ways). The range is an upper bound on what a trader could catch, since it ignores whether the high came before the low.
+
+**The sweep** (`src/sim/sweep.py`) is the health report over many seeds: `python -m src.sim.sweep [--seeds 20] [--years 50] [--out runs/sweep] [--jobs N] [--reuse]`. It writes each run to `<out>/seed<N>/`, prints its progress, then the table: per check, the counts of ok, warn and fail, the median and the worst seed's number; a grid of every check per seed; the worst case of every check that missed; and the tradability per good, its median over the seeds. It writes the same as `summary.md`, and one row per seed and check to `summary.csv`, to compare a calibration change before and after. It exits with 1 when any seed fails.
 
 ## Data files
 

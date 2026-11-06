@@ -51,8 +51,10 @@ it is where the bugs cost most and the tests are cheapest.
      cannot pay its way).
    - **The parts the rest stands on**: the calendar (`test_calendar.py`), the
      scheduler (`test_scheduler.py`) and the data loaders (`test_data.py`).
-   - **The health report** (`test_health.py`): the market balance, the
-     "runs slightly short" warnings and the tradability measure on hand-made rows.
+   - **The health report** (`test_health.py`): every check on hand-made rows
+     (each threshold pinned, the edge on both sides), the tradability measure,
+     and the checks and the sweep's table on two real half-year runs of a
+     small town (no map).
    - **The views** (`test_views.py`): `Good`, `Town` and `PopulationManager`
      show what the simulation holds, after a change to its state or a load.
    - **Determinism** (`test_run.py`): the same seed writes byte-identical CSVs,

@@ -74,7 +74,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 | Project | Status |
 |---|---|
 | P0 · Sim core | **Done** |
-| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.3 built, P1.4 (health report) and P1.5 (minimal UI) open, then a playtest and the merge to `master` |
+| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.4 built, P1.5 (minimal UI) open, then a playtest and the merge to `master` |
 | P2 · Prestige & household | **Next** |
 | P3 · Plots & workshops | Later, after P2 |
 | P4 · The dynasty, P5 · Rival dynasties | Later |
@@ -90,7 +90,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 - A scheduler with price-tick (every 30 game minutes), hour, day, week, season and year ticks. Plans are made per day; the market trades in hourly slices during market hours (P1).
 - One seeded random generator per run, so a simulation can be repeated exactly (tests, bug reports, balancing).
 - Goods, needs, recipes, buildings and scenarios defined in JSON data files (`assets/data/`), not in code.
-- A headless runner: `python -m src.sim.run --years 20 --seed 1 --out runs/<name>` writes daily CSVs of the goods, the classes, the workshops and the town's money for analysis with pandas; `python -m src.sim.health runs/<name>` checks a run.
+- A headless runner: `python -m src.sim.run --years 20 --seed 1 --out runs/<name>` writes daily CSVs of the goods, the classes, the workshops and the town's money for analysis with pandas; `python -m src.sim.health runs/<name>` checks a run, and `python -m src.sim.sweep` checks 20 seeds × 50 years at once.
 - Tests in `tests/sim/` following `docs/testing.md`: goldens pinning the economy to the last bit, determinism, the scheduler, the data files, the save block, and that it imports without pygame.
 
 Plugs into: `Good`, `Town` and `PopulationManager` (now pass-through views of the sim's state), and `Game.run()`, which calls `sim.advance_to()` each update.
@@ -102,7 +102,7 @@ Plugs into: `Good`, `Town` and `PopulationManager` (now pass-through views of th
 - **P1.1 Demand and the outside world**: built.
 - **P1.2 Production**: built.
 - **P1.3 Goods to 30**: built.
-- **P1.4 Runner and health**: open. The market balance and tradability checks and the "town runs slightly short" warnings exist; the full report over 20 seeds × 50 years does not.
+- **P1.4 Runner and health**: built. Every check of the design's health table is in, and 20 seeds × 50 years run clean (no seed fails). The warnings point at Wood (see "Known issues").
 - **P1.5 Minimal UI**: open. Need fulfilment per class and tier in the town hall, daily demand and supply per good in the market view.
 
 Then a playtest and the merge to `master`.
@@ -194,7 +194,7 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 | Wave | Projects | Why together |
 |---|---|---|
 | done | P0 | The foundation |
-| now | P1 | The economy comes alive: finish P1.4 and P1.5, playtest, merge to `master` |
+| now | P1 | The economy comes alive: finish P1.5, playtest, merge to `master` |
 | next | P2 | Something worth spending money on, built on hooks that already exist (donations, feasts, merchant rank) |
 | then | P3 | The player gets things to own in the economy, as an owner like the town |
 | then | P4 + P5 | The Gilde layer: families, heirs, rivals |
@@ -221,6 +221,7 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 
 - **Cheap goods aren't worth trading.** The transaction fee is flat (`INITIAL_TRANSACTION_COST`, 2 per trade), so on a cheap good (Bread, Clay, Charcoal, Flax, Pottery) a small lot's swings never pay for its round trip (`python -m src.sim.health`, tradability). Later: a percentage fee with a minimum.
 - **Labour.** The poor's wage sits at its cap (`wage_cap` in `needs.json`) nearly all the time, since their workshops always want more hands than there are. No building hires from the middling sort, so its labour share is never used and it lives on base income alone.
+- **Wood is the bottleneck.** The health sweep (P1.4) finds Wood imported at its limit on about 80 % of days, at about 1.8× its outside price, on every seed. So the charcoal burner runs at a loss and idles for months, Charcoal is imported instead, and the smithy downstream slumps now and then. A larger `import_limit` or more foresters would move it; not decided. (The quarry is idle by design until P3 gives Stone a use.)
 - **The town is always full.** Migration settles at about 100 % of the housing, so the town can't grow: that needs new housing, from plots (P3) or public building (P6).
 - **Shortages aren't visible on the map** (pillar 4). Empty or overflowing stalls and townsfolk remarks are still to come; P1.5 only shows numbers.
 - **Next candidates for the sim** (`sim_core.md`): the depot's daily books (cost of living, loans, overdraft, wealth history), the weather, and the crops' growth.

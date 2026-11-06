@@ -2,7 +2,7 @@
 
 Status: **approved**, with the decisions below. P1.1 and P1.2 are built together on the branch `p1-living-market` and merged together; P1.1 alone (imports only) is a development state, not a playable one.
 
-Progress: **P1.1, P1.2 and P1.3 built** (demand, the outside world, production, and 30 goods in chains; see "Built: what changed on the way" at the end). Open: P1.4 (the full health report over 20 seeds × 50 years; the runner's CSVs and some checks exist) and P1.5 (minimal UI), then a playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Progress: **P1.1 to P1.4 built** (demand, the outside world, production, 30 goods in chains, and the full health report over 20 seeds × 50 years; see "Built: what changed on the way" at the end). Open: P1.5 (minimal UI), then a playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 
@@ -229,9 +229,9 @@ The player's trades fall between ticks, when the game calls `Good.buy` / `Good.s
 | Market balance | any day's `market_balance` not zero within float tolerance (the market place holds no money) | 1e-9 of the money supply |
 | Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on a 100g lot (whole units at the day's price, at least 1) beats twice its round trip (two fees plus slippage both ways) | — |
 
-**Built so far** (`src/sim/health.py`): the market balance (a check), the tradability measure, and the warnings for a town that should run slightly short (comfort and luxury bands, goods run short; see "Calibration target" below). The other rows of the table are still to come in P1.4.
+**Built** (`src/sim/health.py`): every row of the table, plus the warnings for a town that should run slightly short (comfort and luxury bands, goods run short; see "Calibration target" below). How the rows were read where the table left room is under "P1.4" in "Built: what changed on the way".
 
-The report is a short text summary per run, plus a table over the 20 seeds × 50 years (not built yet). The CSVs P1.4 needed are written already: daily consumption, production, imports and exports per good, purse and fulfilment per class and tier, and per workshop its cash, utilisation, capacity and output (`sim_core.md`, "The headless runner").
+The report is a line per check for a run (`python -m src.sim.health runs/<name>`), and `python -m src.sim.sweep` runs 20 seeds × 50 years in parallel and writes the table over them (`runs/sweep/summary.md` and `summary.csv`). The result is under "P1.4" below.
 
 **Speed target:** 50 years (1,400 days, 16,800 slices) under 30 s. Met: about 6 s with the 30 goods. Clearing nets one order per good per slice (about 30 goods × 12 slices a day) instead of summing units, so the cost does not grow with volume.
 
@@ -258,7 +258,7 @@ Numbered P1.1–P1.5 so they don't clash with the roadmap's projects (P3 is plot
 - **P1.1 Demand and the outside world** (built; developed together with P1.2 on `p1-living-market`), on today's 15 goods with stand-in baskets: needs, purses, base income, consumption, imports and exports, the new price rule, happiness from fulfilment. `recover_volume` and the drift go. With no production yet, all supply comes from imports, so prices sit at the import line. That is expected, and P1.2 brings local supply below it.
 - **P1.2 Production** (built): owners, workshops, recipes with byproducts, wages, employment, margin-driven output, capacity hysteresis, and the home-town scenario.
 - **P1.3 Goods to 30** (built): data, chart colours, placeholder icons (`<good>_30.png`), `sold_at` booths, licences per guild, placeholder contract texts, and baskets swapped from stand-ins to the real goods.
-- **P1.4 Runner and health** (open): the CSVs above (written already), `src.sim.health` with the rest of its checks, and 20 seeds × 50 years, reported.
+- **P1.4 Runner and health** (built): the CSVs above, `src.sim.health` with all its checks, and 20 seeds × 50 years with `src.sim.sweep`, reported (see "P1.4" in "Built: what changed on the way").
 - **P1.5 Minimal UI** (open):
   - The town hall's population stats show fulfilment per class and tier.
   - The market view shows daily demand and supply per good.
@@ -338,6 +338,45 @@ Decisions taken while building P1.1 to P1.3, beyond the ones above.
 - **What did it:** price-sensitive demand, the poor's comfort elasticity of 0.8, and import limits near the average imports for wood (30 a day), wine (24), linen (18) and candles (14). Their winter peaks now raise their prices, and the town buys less.
 - **Stock-outs: none.** In a market that rations by price, a good runs out only when its stock falls below one slice's orders, and the rising price stops that from happening. Wood falls to 4 % of its target at 3× its outside price and still does not run out. Tightening supply further (shorter target stocks, imports of wood, fish, beer and meat capped at their average) only added days at the price ceiling (runs of up to 10 days, 330–400 days per run beyond 2× the outside price) and still no stock-outs, so it was reverted. Open question 18.
 
+**P1.4** (the health report)
+- **Every check is one `Finding`**: ok, or its severity (fail or warn), a headline number and a line naming the worst offender and its days. The checks register themselves in `health.CHECKS`, in report order, so the run's report and the sweep's table share them.
+- **How the table's rows are read** where it left room:
+  - **Price far from outside:** "for more than N days" means N days *running*, as for the clamp, hunger and workshop cash. The report adds the share of all days beside it.
+  - **Money supply:** the last 10 years against the median of the *whole* run, so both a slow drift and a late collapse show.
+  - **Population:** against the first recorded day (after the 60 days run ahead), and the trend as a least-squares slope over the last 10 years, as a share of their mean a year, either way.
+  - **Dead workshop:** a day it ran under 1 % of its capacity (`done_yesterday`), not "utilisation 0", which the glide never reaches. A workshop that plans but never gets its hands or inputs is as dead as one its margin gave up on. "A year" is the game's, 28 days.
+  - **Structural shortage:** a day counts when the merchants brought at least 95 % of the good's `import_limit`, read from the run's `meta.json`. Only goods with a limit count.
+  - **Bad numbers** also catch a negative head count. A negative stock, purse or count must be below −1e-9 (float dust is not a bad number). Workshop debt is not a bad number: it has its own check.
+- **`python -m src.sim.sweep`** (`src/sim/sweep.py`) runs the seeds in parallel processes (one per CPU), applies every check to each, and prints and writes the table: per check, ok / warn / fail counts, the median and the worst seed's number; a grid of every check per seed; the worst case of every check that missed; and the tradability per good over the seeds. It exits with 1 if any seed fails a check. With `--reuse` it checks runs already written, without simulating them again.
+
+**P1.4 result: 20 seeds × 50 years** (1,000 game years in 23 s on 16 cores; `python -m src.sim.sweep`)
+
+| Check | Kind | ok | warn | fail | Median | Worst |
+|---|---|---:|---:|---:|---:|---:|
+| Market balance | fail | 20 | | | 7e-16 | 9e-16 of money |
+| Bad numbers | fail | 20 | | | 0 | 0 |
+| Price at clamp | fail | 20 | | | 0 days | 0 days |
+| Price far from outside | warn | 20 | | | 7 days | 11 days (Wood at 2×) |
+| Hunger | fail | 20 | | | 0 days | 0 days |
+| Poorly supplied | warn | 20 | | | 0.976 | 0.975 (Poor) |
+| Money supply | fail | 20 | | | 1.10× | 1.14× |
+| Population | fail | 20 | | | 1.11× | 1.12× (of 533; about 590 of 599 places) |
+| Population trend | fail | 20 | | | 0 %/year | 0.05 %/year |
+| Happiness | warn | 20 | | | | (class means 66–73) |
+| Workshop cash | fail | 20 | | | 0 days | 0 days |
+| Dead workshop | warn | | 20 | | 1,259 days | 1,365 days (quarry) |
+| Structural shortage | warn | | 20 | | 81 % | 83 % of days (Wood) |
+| Comfort band | warn | 17 | 3 | | | Nobility 0.95+ |
+| Luxury band | warn | 17 | 3 | | | Poor 0.29 |
+| Goods run short | warn | 20 | | | 9 goods | |
+
+**No seed fails a check.** The books balance to the last float, nothing is ever pinned at a clamp, nobody goes hungry, and money and population hold steady for 50 years. Two warnings come on every seed, and they have one cause:
+- **Wood is the bottleneck.** The merchants bring in their whole limit (30 a day) on 81 % of days, and Wood trades at about 1.8× its outside price.
+- **That kills the charcoal burner** (idle 35–132 days running on every seed, median margin −7 %). Charcoal is imported instead, and the smithy downstream slumps for a month now and then (7 seeds).
+- **The quarry** is idle for most of every run (600–1,365 days), as decided: Stone has no local demand until P3.
+- Short slumps of about a month, just over the line, also hit the salt works (4 seeds), the joiner (3, wood again), the weaver and the tannery (1 each).
+- The comfort and luxury bands are missed by a hair on 3 seeds each (Nobility's comfort 0.95+, the poor's luxury 0.29).
+
 ## Open questions after P1.2
 
 17. **Price-sensitive demand.** Decided and built (see "Price-sensitive demand" above).
@@ -372,3 +411,4 @@ Seen in the runs, not decided yet (also in `roadmap.md`, "Known issues and loose
 - **Tradability of cheap goods.** The flat transaction fee eats a small lot's swing on a cheap good (Bread, Clay, Charcoal, Flax, Pottery never beat the round trip in the tradability measure). Later: a percentage fee with a minimum.
 - **Labour.** The poor's wage sits at its `wage_cap` nearly all the time; no building hires from the middling sort.
 - **The town is always full.** Migration settles at its housing; growth needs new housing (roadmap P3, P6).
+- **Wood is the bottleneck** (seen by P1.4's sweep). It is imported at its limit on about 80 % of days at about 1.8× its outside price, so the charcoal burner runs at a loss and sits idle for months, and Charcoal is imported instead. A larger `import_limit` for Wood, or more foresters, would move it; not decided.
