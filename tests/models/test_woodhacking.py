@@ -198,3 +198,8 @@ def test_a_bite_ends_the_streak_and_the_second_bite_splits_and_starts_one(miniga
     _fair_swing(minigame)                              # the cracked log splits
     assert minigame.scene.pile == 2
     assert minigame.streak == 1
+
+
+def test_the_woodpile_has_room_for_a_split_from_every_swing():
+    from src.models.minigames import woodhacking_scene as ws
+    assert ws._PILE_ROWS * (ws._PILE_ROWS + 1) // 2 >= wh.MAX_SWINGS

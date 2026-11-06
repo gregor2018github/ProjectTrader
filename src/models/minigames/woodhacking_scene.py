@@ -103,8 +103,8 @@ _RECOVER_RATE = 9.0                 # and goes back to rest after a swing
 _BITES_TO_SPLIT = 2
 
 _GRAVITY = 1500.0
-_PILE_ROWS = 6                      # the pile: 6 + 5 + ... + 1 split logs at most
-_PILE_LEFT, _PILE_R = 664, 11
+_PILE_ROWS = 8                      # the pile: 8 + 7 + ... + 1 = 36 split logs, room for every swing
+_PILE_LEFT, _PILE_R = 648, 10
 
 # Colours
 _SKY_TOP, _SKY_LOW = (214, 205, 176), (236, 226, 194)
@@ -437,7 +437,7 @@ class ChoppingScene:
         c = (_PILE_R + 1, _PILE_R + 1)
         pygame.draw.circle(end, _BARK, c, _PILE_R)
         pygame.draw.circle(end, _WOOD, c, _PILE_R - 3)
-        pygame.draw.circle(end, _WOOD_RING, c, _PILE_R - 7, 1)
+        pygame.draw.circle(end, _WOOD_RING, c, _PILE_R - 6, 1)
         pygame.draw.circle(end, _OUTLINE, c, _PILE_R, 1)
         return end
 
@@ -737,15 +737,15 @@ class ChoppingScene:
         pygame.draw.polygon(surf, _OUTLINE, head, 1)
 
     def _draw_pile(self, surf: pygame.Surface) -> None:
+        """The split logs stacked behind the block, bottom row first."""
         shown = self.pile
-        row, placed = 0, 0
+        row = 0
         while shown > 0 and row < _PILE_ROWS:
             in_row = _PILE_ROWS - row
             for i in range(min(in_row, shown)):
                 x = _PILE_LEFT + i * (_PILE_R * 2 - 1) + row * _PILE_R
                 y = _FEET_Y - 26 - _PILE_R * 2 - row * (_PILE_R * 2 - 3)
                 surf.blit(self._pile_end, (x, y))
-                placed += 1
             shown -= in_row
             row += 1
 
