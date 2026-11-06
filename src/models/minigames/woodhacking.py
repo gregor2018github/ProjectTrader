@@ -16,8 +16,11 @@ are graded independently at the moment of release, and the payout (booked
 straight to the player's cash via ``Depot.book_labor_income``) follows a
 steep curve that rewards near-perfect play far more than mediocre play.
 
-Beside the gauges the player swings an axe at a log (``ChoppingScene`` in
-``woodhacking_scene.py``): lifted while power gathers, and by the grade a clean
+The gauges are part of the chopping scene (``ChoppingScene`` in
+``woodhacking_scene.py``): power is a gauge post at its left, the aim a plumb
+bob swinging over a scale board that hangs from a beam above the log, its
+sweet spot right over where the blade comes down. The player swings an axe
+at the log: lifted while power gathers, and by the grade a clean
 split, a bite that cracks the log, a swish past it or a swing that falls
 short. A new swing can be gathered once the last one has landed, and the
 result shows once the last swing's chips have settled.
@@ -31,7 +34,9 @@ from typing import Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
-from .woodhacking_scene import ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H
+from .woodhacking_scene import (
+    ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H, POWER_RECT, AIM_PIVOT, AIM_RADIUS,
+)
 from ...config.colors import (
     BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN,
     MUTED_GREEN as GREEN, MUTED_DARK_GREEN as DARK_GREEN,
@@ -46,18 +51,21 @@ _TOTAL_W = SCREEN_WIDTH + SIDEBAR_WIDTH
 
 # The minigame is drawn onto a fixed-size canvas and centered on screen —
 # keeps all gauge geometry below in simple, self-contained pixel coordinates.
-# The gauges take the left 600 pixels, the chopping scene the rest.
-_CANVAS_W, _CANVAS_H = 1180, 600
+# The chopping scene fills it between the title and the status bar; the
+# gauges are drawn into the scene, in its pixels.
+_TOP_BAR, _BOTTOM_BAR, _MARGIN = 44, 46, 6
+_CANVAS_W = SCENE_W + 2 * _MARGIN
+_CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _CX = _CANVAS_W // 2
-_SCENE_RECT = pygame.Rect(600, 58, SCENE_W, SCENE_H)
+_SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
 _RESULT_DELAY_S = 0.4      # after the last swing has settled, before the result shows
 _THUD_VOLUME = 0.3         # a new log dropping onto the block
 
 MINIGAME_NAME = "Woodhacking"
 
 # ── gauge constants ─────────────────────────────────────────────────────────
-_AIM_CX, _AIM_CY = 345, 305
-_AIM_R = 148
+_AIM_CX, _AIM_CY = AIM_PIVOT       # in the scene: the plumb line's pivot under the beam
+_AIM_R = AIM_RADIUS
 
 # Left-side zone boundaries (negative angles, more forgiving)
 # PERFECT is the tight inner sliver; VERY GOOD covers the rest of what used
@@ -80,7 +88,7 @@ _AIM_MISS_MARGIN = math.radians(14)  # last stretch before AIM_MAX is dark red �
 _BASE_AIM_SPEED = math.radians(58)  # radians / second when idle
 _CHARGE_SPEED_K = 1.8  # aim speed multiplier per full-power unit
 
-_POWER_RECT = pygame.Rect(82, 200, 44, 200)
+_POWER_RECT = POWER_RECT           # in the scene: the channel in the gauge post
 _OPT_WIDTH = 0.14  # green zone width (perfect power should be rare)
 _OPT_CENTER_0 = 0.64  # starting center (gives lo=0.57, hi=0.71)
 _POWER_RATE = 0.72  # fills from 0->1 in ~1.4 seconds
@@ -94,6 +102,14 @@ _MISS_EDGE = 0.06  # dark red always reaches this close to 0/1, whatever the zon
 
 _SPEED_BONUS_PER_HIT = math.radians(6)  # added to base needle speed each good/perfect
 _MAX_SPEED_BONUS = _BASE_AIM_SPEED * 2.0
+
+# The look shared by both gauges: dark wood, brass fittings, inked text
+_WOOD, _WOOD_DARK, _WOOD_LIGHT = (122, 86, 54), (86, 58, 36), (150, 112, 72)
+_BRASS, _BRASS_LIGHT, _BRASS_DARK = (196, 154, 64), (236, 204, 120), (120, 86, 30)
+_IRON = (64, 62, 60)
+_INK = (44, 32, 22)
+_CORD = (70, 56, 40)
+_PAPER = (236, 222, 186)
 
 MAX_SWINGS = 30
 MAX_SCORE = MAX_SWINGS * 5
@@ -228,10 +244,14 @@ class WoodhackingMinigame(MinigameOverlay):
 
         try:
             self.font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 18)
+            self.font_small = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 15)
+            self.font_grade = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 26)
             self.font_large = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 28)
             self.font_hit = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 34)
         except Exception:
             self.font = pygame.font.SysFont("georgia", 18)
+            self.font_small = pygame.font.SysFont("georgia", 15)
+            self.font_grade = pygame.font.SysFont("georgia", 26, bold=True)
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
@@ -393,74 +413,149 @@ class WoodhackingMinigame(MinigameOverlay):
     # Drawing
     # ------------------------------------------------------------------
 
-    def _draw_aim_gauge(self) -> None:
+    def _draw_gauges(self, surf: pygame.Surface) -> None:
+        self._draw_power_bar(surf)
+        self._draw_aim_gauge(surf)
+
+    def _draw_aim_gauge(self, surf: pygame.Surface) -> None:
+        """The zones painted on the scale board, and the plumb bob swinging over them."""
         cx, cy, r = _AIM_CX, _AIM_CY, _AIM_R
         dark_lo = _AIM_MAX - _AIM_MISS_MARGIN
         zones = [
-            (-_AIM_MAX, -dark_lo, DARK_RED, 16),
-            (dark_lo, _AIM_MAX, DARK_RED, 16),
-            (-dark_lo, -_AIM_OK_L, RED, 16),
-            (_AIM_OK_R, dark_lo, RED, 16),
-            (-_AIM_OK_L, -_AIM_GOOD_L, YELLOW, 17),
-            (_AIM_GOOD_R, _AIM_OK_R, YELLOW, 17),
-            (-_AIM_GOOD_L, -_AIM_VERYGOOD_L, GREEN, 18),
-            (_AIM_VERYGOOD_R, _AIM_GOOD_R, GREEN, 18),
-            (-_AIM_VERYGOOD_L, 0, DARK_GREEN, 22),
-            (0, _AIM_VERYGOOD_R, DARK_GREEN, 22),
+            (-_AIM_MAX, -dark_lo, DARK_RED), (dark_lo, _AIM_MAX, DARK_RED),
+            (-dark_lo, -_AIM_OK_L, RED), (_AIM_OK_R, dark_lo, RED),
+            (-_AIM_OK_L, -_AIM_GOOD_L, YELLOW), (_AIM_GOOD_R, _AIM_OK_R, YELLOW),
+            (-_AIM_GOOD_L, -_AIM_VERYGOOD_L, GREEN), (_AIM_VERYGOOD_R, _AIM_GOOD_R, GREEN),
+            (-_AIM_VERYGOOD_L, _AIM_VERYGOOD_R, DARK_GREEN),
         ]
-        for a0, a1, col, w in zones:
+        for a0, a1, col in zones:
             if a1 > a0:
-                poly = _arc_ring_poly(cx, cy, r, w, a0, a1)
-                pygame.draw.polygon(self.canvas, col, poly)
+                pygame.draw.polygon(surf, col, _arc_ring_poly(cx, cy, r, 18, a0, a1))
+        pygame.draw.polygon(surf, _INK, _arc_ring_poly(cx, cy, r, 18, -_AIM_MAX, _AIM_MAX), 2)
+        # Ticks cut into the board's outer edge every 10 degrees, the centre one long
+        for deg in range(-80, 81, 10):
+            a = math.radians(deg)
+            r0 = r + 12 if deg else r + 4
+            pygame.draw.line(surf, _INK, (cx + r0 * math.sin(a), cy + r0 * math.cos(a)),
+                             (cx + (r + 16) * math.sin(a), cy + (r + 16) * math.cos(a)), 2 if deg == 0 else 1)
+        self._plaque(surf, "AIM", (cx - 96, cy - 9))
 
-        outline = _arc_pts(cx, cy, r, -_AIM_MAX, _AIM_MAX)
-        if len(outline) > 1:
-            pygame.draw.lines(self.canvas, DARK_BROWN, False, outline, 2)
+        # The cord and the brass bob at its end, pointing along it
+        a = self.aim
+        along = pygame.Vector2(math.sin(a), math.cos(a))
+        side = pygame.Vector2(along.y, -along.x)
+        pivot = pygame.Vector2(cx, cy)
+        bob = pivot + along * (r - 4)
+        pygame.draw.line(surf, _CORD, pivot, bob - along * 13, 2)
+        tip = bob + along * 19
+        body = [bob - along * 13 + side * 4, bob + side * 11, tip, bob - side * 11, bob - along * 13 - side * 4]
+        pygame.draw.polygon(surf, _BRASS, body)
+        pygame.draw.line(surf, _BRASS_LIGHT, bob - along * 8 + side * 3, tip - along * 4 + side * 1, 2)
+        pygame.draw.polygon(surf, _INK, body, 2)
+        pygame.draw.circle(surf, _IRON, pivot, 4)
 
-        nx = cx + r * math.sin(self.aim)
-        ny = cy + r * math.cos(self.aim)
-        pygame.draw.line(self.canvas, DARK_BROWN, (cx, cy), (int(nx), int(ny)), 5)
-        pygame.draw.circle(self.canvas, SANDY_BROWN, (cx, cy), 10)
-        pygame.draw.circle(self.canvas, DARK_BROWN, (cx, cy), 10, 2)
-
-        lbl = self.font.render("AIM", True, DARK_BROWN)
-        self.canvas.blit(lbl, lbl.get_rect(center=(cx, cy + r + 20)))
-
-    def _draw_power_bar(self) -> None:
+    def _draw_power_bar(self, surf: pygame.Surface) -> None:
+        """The gauge post: the zones inlaid in its channel, the power rising in it,
+        and a brass pointer on its side at the level."""
         r = _POWER_RECT
-        ylo, yhi, rlo, rhi = _power_zone_bounds(self.opt_lo, self.opt_hi)
+        ground = SCENE_H - 70
+        # The post, pointed at the top, planted in the ground
+        post = pygame.Rect(r.left - 16, r.top - 36, r.width + 32, ground - r.top + 36)
+        shadow = pygame.Surface((post.width + 30, 14), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (0, 0, 0, 60), shadow.get_rect())
+        surf.blit(shadow, (post.left - 6, ground - 6))
+        top = [(post.left, post.top + 14), (post.centerx, post.top - 4), (post.right, post.top + 14),
+               (post.right, post.bottom), (post.left, post.bottom)]
+        pygame.draw.polygon(surf, _WOOD, top)
+        for i, x in enumerate(range(post.left + 5, post.right - 3, 9)):
+            pygame.draw.line(surf, _WOOD_DARK, (x, post.top + 16 + 30 * (i % 2)), (x, post.bottom - 10 - 40 * (i % 3)), 1)
+        pygame.draw.line(surf, _WOOD_LIGHT, (post.left + 2, post.top + 15), (post.left + 2, post.bottom - 2), 2)
+        pygame.draw.polygon(surf, _INK, top, 2)
+        for y in (r.top - 12, r.bottom + 8):              # iron bands
+            band = pygame.Rect(post.left - 2, y, post.width + 4, 7)
+            pygame.draw.rect(surf, _IRON, band)
+            pygame.draw.rect(surf, _INK, band, 1)
+            for x in (band.left + 5, band.right - 5):
+                pygame.draw.circle(surf, (120, 116, 110), (x, band.centery), 1)
 
+        # The channel and its zones
+        ylo, yhi, rlo, rhi = _power_zone_bounds(self.opt_lo, self.opt_hi)
         zone_defs = [
-            (0.0, rlo, DARK_RED),
-            (rlo, ylo, RED),
-            (ylo, self.opt_lo, YELLOW),
+            (0.0, rlo, DARK_RED), (rlo, ylo, RED), (ylo, self.opt_lo, YELLOW),
             (self.opt_lo, self.opt_hi, DARK_GREEN),
-            (self.opt_hi, yhi, YELLOW),
-            (yhi, rhi, RED),
-            (rhi, 1.0, DARK_RED),
+            (self.opt_hi, yhi, YELLOW), (yhi, rhi, RED), (rhi, 1.0, DARK_RED),
         ]
+        pygame.draw.rect(surf, _INK, r.inflate(6, 6))
         for lo, hi, col in zone_defs:
             yb = r.bottom - int(lo * r.height)
             yt = r.bottom - int(hi * r.height)
-            pygame.draw.rect(self.canvas, col, pygame.Rect(r.left, yt, r.width, yb - yt))
-
+            pygame.draw.rect(surf, col, pygame.Rect(r.left, yt, r.width, yb - yt))
+        for i in range(1, 10):                             # notches every tenth
+            y = r.bottom - r.height * i // 10
+            pygame.draw.line(surf, _INK, (r.left, y), (r.left + (8 if i == 5 else 5), y), 1)
         fill_h = int(self.power * r.height)
         if fill_h > 0:
-            ov = pygame.Surface((r.width, fill_h), pygame.SRCALPHA)
-            ov.fill((255, 255, 255, 55))
-            self.canvas.blit(ov, (r.left, r.bottom - fill_h))
+            sap = pygame.Surface((r.width, fill_h), pygame.SRCALPHA)
+            sap.fill((255, 255, 240, 70))
+            surf.blit(sap, (r.left, r.bottom - fill_h))
 
-        my = r.bottom - int(self.power * r.height)
-        pygame.draw.line(self.canvas, WHITE, (r.left, my), (r.right, my), 2)
+        # The pointer: a brass wedge on the post's side, bright while in the sweet spot
+        y = r.bottom - self.power * r.height
+        pygame.draw.line(surf, WHITE, (r.left, y), (r.right - 1, y), 2)
+        sweet = self.opt_lo <= self.power <= self.opt_hi
+        x = post.right + 2
+        wedge = [(r.right + 2, y), (x + 14, y - 9), (x + 14, y + 9)]
+        pygame.draw.polygon(surf, _BRASS_LIGHT if sweet and self.charging else _BRASS, wedge)
+        pygame.draw.polygon(surf, _INK, wedge, 2)
+        self._plaque(surf, "POWER", (post.centerx, post.top + 30))
 
-        pygame.draw.rect(self.canvas, DARK_BROWN, r, 2, border_radius=3)
-        lbl = self.font.render("POWER", True, DARK_BROWN)
-        self.canvas.blit(lbl, lbl.get_rect(center=(r.centerx, r.top - 16)))
+    def _plaque(self, surf: pygame.Surface, text: str, center: Tuple[float, float]) -> None:
+        """A small brass plate with engraved text, nailed on."""
+        label = self.font_small.render(text, True, _INK)
+        rect = label.get_rect(center=center).inflate(14, 6)
+        pygame.draw.rect(surf, _BRASS, rect, border_radius=3)
+        pygame.draw.line(surf, _BRASS_LIGHT, (rect.left + 3, rect.top + 2), (rect.right - 4, rect.top + 2), 1)
+        pygame.draw.rect(surf, _BRASS_DARK, rect, 2, border_radius=3)
+        surf.blit(label, label.get_rect(center=rect.center))
+
+    def _inked(self, text: str, font: pygame.font.Font, colour) -> pygame.Surface:
+        """Text with a dark rim, so it reads on sky, grass and wood alike."""
+        face = font.render(text, True, colour)
+        rim = font.render(text, True, _INK)
+        out = pygame.Surface((face.get_width() + 2, face.get_height() + 2), pygame.SRCALPHA)
+        for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+            out.blit(rim, (dx, dy))
+        out.blit(face, (1, 1))
+        return out
+
+    def _draw_scene_overlay(self, surf: pygame.Surface) -> None:
+        """Over the scene: the grades of the last swing, the woodpile's count and the hint."""
+        if self.hit_alpha > 0:
+            aim_txt = self._inked(self.aim_hit_text, self.font_hit, self.aim_hit_color)
+            aim_txt.set_alpha(self.hit_alpha)
+            surf.blit(aim_txt, aim_txt.get_rect(center=(_AIM_CX, _AIM_CY + 62)))
+            pow_txt = self._inked(self.pow_hit_text, self.font_grade, self.pow_hit_color)
+            pow_txt.set_alpha(self.hit_alpha)
+            surf.blit(pow_txt, pow_txt.get_rect(midleft=(_POWER_RECT.right + 40, _POWER_RECT.bottom - 40)))
+
+        self._plaque(surf, f"Logs split: {self.scene.pile}", (SCENE_W - 90, 26))
+
+        if self.charging:
+            hint, colour = "Release to swing!", _INK
+        elif self._ending:
+            hint, colour = "That was the last swing", PALE_BROWN
+        else:
+            hint, colour = "Hold the left mouse button to gather power, release to swing", PALE_BROWN
+        label = self.font.render(hint, True, colour)
+        ribbon = label.get_rect(center=(SCENE_W // 2, SCENE_H - 26)).inflate(28, 10)
+        pygame.draw.rect(surf, _PAPER, ribbon, border_radius=4)
+        pygame.draw.rect(surf, _WOOD_DARK, ribbon, 2, border_radius=4)
+        surf.blit(label, label.get_rect(center=ribbon.center))
 
     def _draw_status_bar(self, coins: float) -> None:
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, 0, _CANVAS_W, 44))
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, 44), (_CANVAS_W, 44), 1)
-        title = self.font.render(f"WOODHACKING  —  {MINIGAME_NAME}", True, SANDY_BROWN)
+        title = self.font.render("WOODHACKING", True, SANDY_BROWN)
         self.canvas.blit(title, title.get_rect(center=(_CANVAS_W // 2, 22)))
 
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, _CANVAS_H - 46, _CANVAS_W, 46))
@@ -535,42 +630,20 @@ class WoodhackingMinigame(MinigameOverlay):
         close_txt = self.font.render("Nice!", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.congrats_close_rect.center))
 
-    def _draw_scene(self) -> None:
-        """The chopping scene in its frame, shaken a little by a clean split."""
-        dx, dy = self.scene.shake_offset
-        self.canvas.set_clip(_SCENE_RECT)
-        self.canvas.blit(self.scene.draw(), (_SCENE_RECT.x + dx, _SCENE_RECT.y + dy))
-        self.canvas.set_clip(None)
-        pygame.draw.rect(self.canvas, DARK_BROWN, _SCENE_RECT.inflate(4, 4), 3, border_radius=4)
-        split = self.font.render(f"Logs split: {self.scene.pile}", True, DARK_BROWN)
-        self.canvas.blit(split, (_SCENE_RECT.x + 12, _SCENE_RECT.y + 10))
-
     def draw(self) -> None:
         # Darken the game behind the overlay
         backdrop = pygame.Surface((_TOTAL_W, SCREEN_HEIGHT), pygame.SRCALPHA)
         backdrop.fill((0, 0, 0, 160))
         self.screen.blit(backdrop, (0, 0))
 
-        self.canvas.fill(BEIGE)
-        self._draw_aim_gauge()
-        self._draw_power_bar()
-
-        if self.hit_alpha > 0:
-            aim_txt = self.font_hit.render(self.aim_hit_text, True, self.aim_hit_color)
-            aim_txt.set_alpha(self.hit_alpha)
-            self.canvas.blit(aim_txt, aim_txt.get_rect(center=(_AIM_CX, _AIM_CY + 36)))
-
-            pow_txt = self.font_hit.render(self.pow_hit_text, True, self.pow_hit_color)
-            pow_txt.set_alpha(self.hit_alpha)
-            self.canvas.blit(pow_txt, pow_txt.get_rect(center=(_POWER_RECT.centerx, _POWER_RECT.bottom + 24)))
-
-        if self.charging:
-            hint = self.font.render("CHARGING — release to swing!", True, DARK_BROWN)
-        else:
-            hint = self.font.render("Hold LMB to charge power - release to swing", True, PALE_BROWN)
-        self.canvas.blit(hint, hint.get_rect(center=(_AIM_CX - 20, _CANVAS_H - 60)))
-
-        self._draw_scene()
+        self.canvas.fill(DARK_BROWN)
+        # The scene with its gauges, shaken a little by a clean split
+        dx, dy = self.scene.shake_offset
+        picture = self.scene.draw(underlay=self._draw_gauges, overlay=self._draw_scene_overlay)
+        self.canvas.set_clip(_SCENE_RECT)
+        self.canvas.blit(picture, (_SCENE_RECT.x + dx, _SCENE_RECT.y + dy))
+        self.canvas.set_clip(None)
+        pygame.draw.rect(self.canvas, SANDY_BROWN, _SCENE_RECT.inflate(2, 2), 1)
 
         coins = score_to_coins(self.score, MAX_SCORE)
         self._draw_status_bar(coins)

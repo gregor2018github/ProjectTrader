@@ -11,6 +11,12 @@ graded,
   WHIFF  the axe swishes down past the log into the dirt, raising dust,
   SHORT  too little power: the swing dies above the log.
 
+The scene is the whole minigame: the gauges are part of it. The power gauge is
+a post at the left (``POWER_RECT``), the aim a plumb line swinging from a beam
+over the block (``AIM_PIVOT``) above a scale board; the minigame draws both
+through ``draw``'s ``underlay`` (behind the player and the block) and
+``overlay`` (over everything), and the scene draws the beam and the board.
+
 The player's sprite is cut into head, torso and two legs (``_HEAD`` and so
 on), each turned about its joint every frame. Its painted arms (and the scroll
 in the front hand) are taken out and the arms drawn anew each frame instead,
@@ -34,16 +40,16 @@ from ..figurines.humans.human import HUMAN_SPRITE_ROOT
 
 SPLIT, BITE, WHIFF, SHORT = "split", "bite", "whiff", "short"
 
-SCENE_W, SCENE_H = 560, 484
-_FEET_Y = 410                       # where the player, block and pile stand
-_HORIZON_Y = 330
+SCENE_W, SCENE_H = 1000, 520
+_FEET_Y = 430                       # where the player, block and pile stand
+_HORIZON_Y = 344
 
 # The player: the right-facing standing sprite, scaled to this height and cut
 # into parts that move on their own. Rects and joints are in the sprite's own
 # pixels (208 x 336); each part turns about its joint.
 _PLAYER_FILE = os.path.join(HUMAN_SPRITE_ROOT, "player", "player_right_static.png")
 _PLAYER_H = 230
-_PLAYER_LEFT = 92
+_PLAYER_LEFT = 302
 _HEAD = pygame.Rect(0, 0, 208, 172)
 _HEAD_CLEAR = pygame.Rect(0, 0, 208, 168)        # the torso keeps the chin's last rows under the head
 _NECK = (108, 170)
@@ -73,7 +79,7 @@ _FRONT_HIP = (130, 290)
 _HIP = (105, 290)                                # the torso leans about this
 
 # The chopping block and the log standing on it
-_BLOCK_CX = 352
+_BLOCK_CX = 560
 _BLOCK_W, _BLOCK_H = 118, 36
 _LOG_W, _LOG_H = 62, 60
 _LOG_TOP = _FEET_Y - _BLOCK_H - _LOG_H
@@ -98,7 +104,7 @@ _BITES_TO_SPLIT = 2
 
 _GRAVITY = 1500.0
 _PILE_ROWS = 6                      # the pile: 6 + 5 + ... + 1 split logs at most
-_PILE_LEFT, _PILE_R = 436, 11
+_PILE_LEFT, _PILE_R = 664, 11
 
 # Colours
 _SKY_TOP, _SKY_LOW = (214, 205, 176), (236, 226, 194)
@@ -112,6 +118,18 @@ _STEEL, _STEEL_EDGE, _STEEL_DARK = (148, 150, 156), (214, 216, 222), (92, 94, 10
 _HANDLE, _HANDLE_DARK = (160, 112, 62), (96, 64, 34)
 _OUTLINE = (44, 32, 22)
 _SHADOW = (0, 0, 0, 60)
+
+# The gauges, in the scene's pixels: the power post at the left, and the plumb
+# line's pivot under the beam, right over the log, with its scale board's radius
+POWER_RECT = pygame.Rect(54, 104, 34, 290)
+AIM_PIVOT = (_BLOCK_CX, 92)
+AIM_RADIUS = 148
+_BEAM_Y = 72                        # the beam's top
+_BEAM_LEFT, _POST_X = 384, 806      # the beam's left end, the post holding it
+_BOARD_WIDTH = 34                   # the scale board under the beam, a half ring
+_WOOD_DARK, _WOOD_MID, _WOOD_LIGHT = (86, 58, 36), (122, 86, 54), (150, 112, 72)
+_BRASS, _BRASS_LIGHT, _BRASS_DARK = (196, 154, 64), (236, 204, 120), (120, 86, 30)
+_IRON = (64, 62, 60)
 
 
 def _ease_out(t: float) -> float:
@@ -282,7 +300,8 @@ class ChoppingScene:
 
         # Two trees from the map, a little hazy with distance
         trees = os.path.join(os.path.dirname(os.path.dirname(HUMAN_SPRITE_ROOT)), "trees")
-        for name, height, x in (("Tree_02.png", 190, -30), ("Tree_05.png", 160, 70), ("Tree_01.png", 230, 430)):
+        for name, height, x in (("Tree_02.png", 190, 110), ("Tree_05.png", 160, 196), ("Tree_03.png", 120, 880),
+                                ("Tree_01.png", 236, 852)):
             path = os.path.join(trees, name)
             if not os.path.exists(path):
                 continue
@@ -295,17 +314,77 @@ class ChoppingScene:
         # The ground, with a trodden patch of dirt round the block
         bg.fill(_GRASS, (0, _HORIZON_Y + 10, SCENE_W, SCENE_H))
         rng = random.Random(7)
-        for _ in range(260):
+        for _ in range(520):
             x = rng.randrange(SCENE_W)
             y = rng.randrange(_HORIZON_Y + 14, SCENE_H)
             pygame.draw.line(bg, _GRASS_DARK, (x, y), (x + rng.choice((-1, 0, 1)), y - 3))
-        pygame.draw.ellipse(bg, _DIRT, (120, _FEET_Y - 34, 330, 70))
-        pygame.draw.ellipse(bg, _DIRT_DARK, (140, _FEET_Y - 26, 290, 54), 2)
-        for _ in range(40):
-            x = rng.randrange(150, 420)
+        pygame.draw.ellipse(bg, _DIRT, (_BLOCK_CX - 240, _FEET_Y - 34, 360, 70))
+        pygame.draw.ellipse(bg, _DIRT_DARK, (_BLOCK_CX - 220, _FEET_Y - 26, 320, 54), 2)
+        for _ in range(50):
+            x = rng.randrange(_BLOCK_CX - 210, _BLOCK_CX + 100)
             y = rng.randrange(_FEET_Y - 22, _FEET_Y + 26)
             pygame.draw.circle(bg, _DIRT_DARK, (x, y), 1)
+        self._draw_rig(bg)
         return bg
+
+    def _plank(self, surf: pygame.Surface, rect: pygame.Rect, grain_seed: int) -> None:
+        """A rough-hewn plank: dark outline, lit top edge, a few grain strokes."""
+        pygame.draw.rect(surf, _WOOD_MID, rect)
+        rng = random.Random(grain_seed)
+        horizontal = rect.w >= rect.h
+        for _ in range(max(rect.w, rect.h) // 14):
+            if horizontal:
+                x = rng.randrange(rect.left + 4, rect.right - 20)
+                y = rng.randrange(rect.top + 3, rect.bottom - 2)
+                pygame.draw.line(surf, _WOOD_DARK, (x, y), (x + rng.randrange(10, 30), y), 1)
+            else:
+                x = rng.randrange(rect.left + 3, rect.right - 2)
+                y = rng.randrange(rect.top + 4, rect.bottom - 20)
+                pygame.draw.line(surf, _WOOD_DARK, (x, y), (x, y + rng.randrange(10, 30)), 1)
+        if horizontal:
+            pygame.draw.line(surf, _WOOD_LIGHT, (rect.left + 1, rect.top + 1), (rect.right - 2, rect.top + 1), 2)
+        else:
+            pygame.draw.line(surf, _WOOD_LIGHT, (rect.left + 1, rect.top + 1), (rect.left + 1, rect.bottom - 2), 2)
+        pygame.draw.rect(surf, _OUTLINE, rect, 2)
+
+    def _nail(self, surf: pygame.Surface, x: float, y: float) -> None:
+        pygame.draw.circle(surf, _IRON, (x, y), 3)
+        pygame.draw.circle(surf, (120, 116, 110), (x - 1, y - 1), 1)
+
+    def _draw_rig(self, surf: pygame.Surface) -> None:
+        """The post and beam behind the block, with the plumb line's scale board nailed under it."""
+        # Its shadow on the ground, the post and a brace
+        self._overlay.fill((0, 0, 0, 0))
+        pygame.draw.ellipse(self._overlay, _SHADOW, (_POST_X - 20, _HORIZON_Y + 30, 46, 10))
+        surf.blit(self._overlay, (0, 0))
+        self._plank(surf, pygame.Rect(_POST_X - 10, _BEAM_Y - 6, 20, _HORIZON_Y + 38 - _BEAM_Y), 11)
+        brace = [(_POST_X - 8, _BEAM_Y + 74), (_POST_X - 74, _BEAM_Y + 22), (_POST_X - 62, _BEAM_Y + 18),
+                 (_POST_X - 8, _BEAM_Y + 60)]
+        pygame.draw.polygon(surf, _WOOD_MID, brace)
+        pygame.draw.polygon(surf, _OUTLINE, brace, 2)
+        # The board: a half ring of planks hanging under the beam
+        cx, cy = AIM_PIVOT
+        outer, inner = AIM_RADIUS + _BOARD_WIDTH / 2, AIM_RADIUS - _BOARD_WIDTH / 2
+        ring = []
+        for i in range(61):
+            a = math.radians(-90 + 180 * i / 60)
+            ring.append((cx + outer * math.sin(a), cy + outer * math.cos(a)))
+        for i in range(60, -1, -1):
+            a = math.radians(-90 + 180 * i / 60)
+            ring.append((cx + inner * math.sin(a), cy + inner * math.cos(a)))
+        pygame.draw.polygon(surf, _WOOD_MID, ring)
+        for k in range(1, 6):            # the joints between its planks
+            a = math.radians(-90 + 180 * k / 6)
+            pygame.draw.line(surf, _WOOD_DARK, (cx + inner * math.sin(a), cy + inner * math.cos(a)),
+                             (cx + outer * math.sin(a), cy + outer * math.cos(a)), 2)
+        pygame.draw.polygon(surf, _OUTLINE, ring, 2)
+        # The beam over it all, nailed to the post
+        self._plank(surf, pygame.Rect(_BEAM_LEFT, _BEAM_Y, _POST_X + 26 - _BEAM_LEFT, 22), 5)
+        for x in (_BEAM_LEFT + 12, cx - outer + 8, cx + outer - 8, _POST_X):
+            self._nail(surf, x, _BEAM_Y + 11)
+        # The pivot: an iron eye the cord hangs from
+        pygame.draw.circle(surf, _IRON, AIM_PIVOT, 7)
+        pygame.draw.circle(surf, _OUTLINE, AIM_PIVOT, 7, 2)
 
     def _cylinder(self, w: int, h: int, top: Tuple, ring: Tuple, rings: int) -> pygame.Surface:
         """An upright log seen from the side and a little above: bark, and its cut top."""
@@ -683,9 +762,13 @@ class ChoppingScene:
             pygame.draw.lines(surf, _OUTLINE, False,
                               [(cx - 2, top - 3), (cx + 1, top + 1), (cx - 1, top + 10), (cx + 2, top + 22)], 2)
 
-    def draw(self) -> pygame.Surface:
+    def draw(self, underlay=None, overlay=None) -> pygame.Surface:
+        """Draw the scene; underlay(surface) is called behind the block and the
+        player (the aim's zones and plumb line), overlay(surface) over all of it."""
         surf = self.surface
         surf.blit(self._background, (0, 0))
+        if underlay is not None:
+            underlay(surf)
         self._draw_pile(surf)
         self._draw_shadow(surf, _BLOCK_CX, _BLOCK_W + 10)
         self._draw_shadow(surf, _PLAYER_LEFT + self._body_w / 2, self._body_w * 0.75)
@@ -708,7 +791,9 @@ class ChoppingScene:
             text, color, age = self._popup
             label = self.font.render(text, True, color)
             label.set_alpha(max(0, int(255 * (1 - max(0.0, age - 0.4) / 0.5))))
-            surf.blit(label, label.get_rect(center=(_BLOCK_CX + 50, _LOG_TOP - 30 - 50 * _ease_out(min(1.0, age / 0.9)))))
+            surf.blit(label, label.get_rect(center=(_BLOCK_CX + 120, _LOG_TOP - 50 * _ease_out(min(1.0, age / 0.9)))))
+        if overlay is not None:
+            overlay(surf)
         return surf
 
     def _draw_player(self, surf: pygame.Surface, axe_drawn: bool) -> None:
