@@ -7,7 +7,8 @@ Over it, how far each kind is. On the right, the chosen good: every picture larg
 size and where the game shows it, and what is left to make.
 
 Click a row (or Up / Down) to choose a good, M shows only the goods with something missing, O opens
-assets/pictures. "Make its picture" (Enter) sketches the chosen good beside three other goods for the model
+assets/pictures. "GIMP" beside a picture opens it in GIMP (read again once saved back), and "Cut-out + 30px
+from painting" (P) makes those two again from the painting, e.g. after fixing it there. "Make its picture" (Enter) sketches the chosen good beside three other goods for the model
 (view_good_design.py, goods_sheets.py); accepting an answer writes its painting, cut-out and 30px icon.
 """
 
@@ -17,7 +18,7 @@ import sys
 import pygame
 
 from goods import (KINDS, MISSING, NOT_NEEDED, OK, PICTURES_DIR, PLACEHOLDER, find_goods, tally)
-from goods_sheets import GoodSubject
+from goods_sheets import GOODS_PICTURES, GoodSubject, remake_from_painting
 from images import pixel_fit, smooth_fit
 from pose_review import ReviewStore
 from theme import BAR_BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, TEXT, \
@@ -60,6 +61,8 @@ class GoodsView(View):
         self.missing_button = Button('Only missing (M)', w=160)
         self.make_button = Button('Make its picture (Enter)', w=240, h=40)
         self.waiting = {}        # {good name: answers waiting for review}
+        self.remake_button = Button('Cut-out + 30px from painting (P)', w=290, h=40)
+        self.gimp_buttons = []   # [(Button, path)] beside the chosen good's pictures, as last drawn
         self.goods = []
         self.totals = {}
         self.statuses = {}       # {good name: {kind key: status}}
@@ -248,11 +251,14 @@ class GoodsView(View):
         waiting = self.waiting.get(good.name, 0)
         self.make_button.label = (f'Its picture: {waiting} to review (Enter)' if waiting else
                                   'Make its picture (Enter)' if work else 'Redo its picture (Enter)')
-        self.make_button.draw(screen, fonts.font, pygame.mouse.get_pos())
-        note = small.render(fit_text(small, 'sketch it beside three other goods, for Gemini',
-                                     inner.right - self.make_button.rect.right - 14), True, TEXT_DIM)
-        screen.blit(note, note.get_rect(midleft=(self.make_button.rect.right + 14, self.make_button.rect.centery)))
+        mouse = pygame.mouse.get_pos()
+        self.make_button.draw(screen, fonts.font, mouse)
+        self.remake_button.rect.bottomleft = (self.make_button.rect.right + 12, inner.bottom)
+        self.remake_button.rect.w = min(290, inner.right - self.remake_button.rect.x)
+        self.remake_button.enabled = self.statuses[good.name]['painting'] == OK
+        self.remake_button.draw(screen, small, mouse)
         bottom = self.make_button.rect.y - 12
+        self.gimp_buttons = []
         row_h = max(48, min(150, (bottom - y) // len(KINDS) - 8))
         size = max(40, min(row_h, inner.w - 220))
         for kind in KINDS:
@@ -272,8 +278,14 @@ class GoodsView(View):
                 screen.blit(label, label.get_rect(center=box.center))
             x = box.right + 14
             width = inner.right - x
-            screen.blit(fonts.font.render(kind.title, True, TEXT), (x, y))
+            heading = fonts.font.render(kind.title, True, TEXT)
+            screen.blit(heading, (x, y))
             path = good.path(kind.key)
+            if image is not None and kind.counted:
+                gimp = Button('GIMP', h=22, w=56)
+                gimp.rect.midleft = (x + heading.get_width() + 12, y + heading.get_height() // 2)
+                gimp.draw(screen, small, mouse)
+                self.gimp_buttons.append((gimp, path))
             if status == NOT_NEEDED:
                 facts = f'none: traded under the {good.licence} licence'
             elif image is not None:
@@ -305,6 +317,11 @@ class GoodsView(View):
             self.toggle_missing()
         elif self.make_button.hit(pos):
             self.make()
+        elif self.remake_button.hit(pos):
+            self.remake()
+        elif any(button.hit(pos) for button, _ in self.gimp_buttons):
+            path = next(path for button, path in self.gimp_buttons if button.hit(pos))
+            self.app.edit_in_gimp(GOODS_PICTURES, path)
         elif self.table.collidepoint(pos):
             for line, good in self.rows:
                 if line.collidepoint(pos):
@@ -316,6 +333,20 @@ class GoodsView(View):
         good = next((g for g in self.goods if g.name == self.chosen), None)
         if good is not None:
             self.app.open_good(self, good)
+
+    def remake(self):
+        """The chosen good's cut-out and 30px icon made again from its painting, e.g. after fixing it in GIMP."""
+        good = next((g for g in self.goods if g.name == self.chosen), None)
+        if good is None or self.statuses[good.name]['painting'] != OK:
+            return
+        try:
+            written = remake_from_painting(GoodSubject(good))
+        except (pygame.error, OSError, ValueError) as exc:
+            self.app.set_status(f'Cannot cut {good.name} out of its painting: {exc}', error=True)
+            return
+        self.refresh()
+        self.app.set_status(f'Made {", ".join(written)} from the painting; the old ones are in replaced/')
+        self.app.toast.show(f'{good.name}: cut-out and 30px made')
 
     def toggle_missing(self):
         self.only_missing = not self.only_missing
@@ -349,6 +380,8 @@ class GoodsView(View):
             self.app.switch_to_next()
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             self.make()
+        elif event.key == pygame.K_p:
+            self.remake()
         elif event.key == pygame.K_m:
             self.toggle_missing()
         elif event.key == pygame.K_o:

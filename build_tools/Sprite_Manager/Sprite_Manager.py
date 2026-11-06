@@ -330,7 +330,8 @@ from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_goods import GoodsView  # noqa: E402
 from view_good_design import GoodDesignView  # noqa: E402
-from goods_sheets import GoodSketch, GoodSubject  # noqa: E402
+from goods import find_goods  # noqa: E402
+from goods_sheets import GOODS_PICTURES, GoodSketch, GoodSubject, remake_from_painting  # noqa: E402
 from view_home import HomeView  # noqa: E402
 from sprite_job import SpriteJob, find_jobs  # noqa: E402
 from sprite_library import Catalog, find_sprites, restamp  # noqa: E402
@@ -534,7 +535,8 @@ class SpriteManager:
             self.view.refresh()
 
     def edit_in_gimp(self, domain, path):
-        """Open a plant or building sprite in GIMP; watch_gimp_edits() takes it back when saved."""
+        """Open a plant or building sprite (or, with GOODS_PICTURES, a good's picture) in GIMP;
+        watch_gimp_edits() takes it back when saved."""
         if self._gimp is None:
             self._gimp = find_gimp() or False
         if not self._gimp:
@@ -553,6 +555,9 @@ class SpriteManager:
         """A sprite saved back from GIMP: into its collection again, and shown anew."""
         for path in self.gimp_watcher.changed(list(self.gimp_edits)):
             domain = self.gimp_edits[path]
+            if domain == GOODS_PICTURES:
+                self.good_picture_saved(path)
+                continue
             try:
                 message, updated = restamp(domain, path, self.catalog(domain))
             except (pygame.error, OSError) as exc:
@@ -560,6 +565,23 @@ class SpriteManager:
             else:
                 self.set_status(message, error=not updated)
             self.reload_library(domain)
+
+    def good_picture_saved(self, path):
+        """A good's picture saved back from GIMP. A painting makes the cut-out and the 30px icon again, which
+        come from it; a cut-out or 30px icon fixed by hand is only read again."""
+        good = next((g for g in find_goods() if g.path('painting') == path), None)
+        if good is None:
+            self.set_status(f'{path.name} saved back from GIMP')
+        else:
+            try:
+                written = remake_from_painting(GoodSubject(good))
+            except (pygame.error, OSError, ValueError) as exc:
+                self.set_status(f'{path.name} saved, but the cut-out and 30px icon could not be made from it: {exc}',
+                                error=True)
+            else:
+                self.set_status(f'{path.name} saved back from GIMP - made {", ".join(written)} from it')
+        if isinstance(self.view, GoodsView):
+            self.view.refresh()
 
     # --- crops --------------------------------------------------------------
 

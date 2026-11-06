@@ -86,7 +86,7 @@ DESCRIPTIONS = {
     'Herbs': 'healing herbs',
     'Salt': 'salt',
     'Flax': 'a bundle of harvested flax stalks, dried and tied with a cord, a few seed heads at the top',
-    'Livestock': 'livestock for the butcher: a live pig, standing',
+    'Livestock': 'livestock for the butcher: the head of a brown cow in profile, facing left, with its neck',
     'Clay': 'a lump of freshly dug, wet potter\'s clay, reddish brown, on a board',
     'Spices': 'spices from beyond the sea: small open sacks and a wooden bowl of pepper, cinnamon sticks and '
               'saffron',
@@ -99,22 +99,25 @@ DESCRIPTIONS = {
     'Salted Fish': 'salted fish: split, dried cod in a small barrel, with salt crystals',
     'Garments': 'garments: a folded medieval tunic with a hood or cloak on top',
     'Shoes': 'a pair of medieval leather shoes',
-    'Tools': 'tools: a smith\'s hammer, a pair of tongs and a saw',
+    'Tools': 'tools: a smith\'s hammer and a saw',
     'Furniture': 'furniture: a wooden stool beside a small wooden chest',
 }
 
 PROMPT_TEMPLATE = """\
-The attached picture is a 2x2 split image for my medieval trading game "Merchant's Rise". In the game's menus - the market, the depot, the warehouses - every good that can be traded is shown as a picture like the ones in three of the cells: one good, painted as pixel art, on a plain white background.
+The attached picture is a 2x2 split image for my medieval trading game "Merchant's Rise". In the game's menus - the market, the depot, the warehouses - every good that can be traded is shown as a picture like the ones in three of the cells: one good as rough, chunky, low-resolution pixel art with black outlines, on a plain white background.
 
 The other three cells show goods already in the game: {references}. They are only there to show the style. Do not change them.
 
 Inside the red frame in the bottom right cell is a rough sketch in flat colours of a new good: {good}. Turn the sketch into that good's finished picture, drawn over it so that nothing of the sketch is left:
-- Follow the sketch: the good takes its outline, size and place in the frame. Its edges may be more detailed than the brush strokes of the sketch.
+- Follow the sketch: the good takes its outline, size and place in the frame. Where the sketch is drawn in square blocks with black outlines, those blocks are exactly the pixel size to keep: refine its shapes and add shading on that same coarse grid, never on a finer one.
 - {colour_rule}
-- It has to be clearly recognisable as {name} at a glance, even when the game shows it only 30 pixels tall: one clear object or a small group of objects with a clear silhouette.
+- It has to be clearly recognisable as {name} at a glance, even when the game shows it only 30 pixels tall: one clear object or a small group of objects with a bold, simple silhouette.
 
-The most important thing is that it looks like it belongs to the exact same set as the other three pictures:
-- Copy their art style exactly: the same size of pixels, the same outline, the same way of shading with few shades per colour, the same amount of detail, the same viewing angle and the same light from the same side.
+The most important thing is that it looks like it belongs to the exact same set as the other three pictures, which are rough, chunky, low-resolution pixel art:
+- Big, blocky pixels on a coarse grid, exactly as large as the pixels in the other three cells. Draw it as if on a canvas only 32 pixels wide and 36 pixels tall, then blown up without smoothing so that every pixel is a clearly visible square block, about 1/32 of the cell's width. Never use finer pixels than that, not even for small parts, edges or highlights.
+- A thick black outline, one of those big pixels wide, around the whole good, and black lines between its main parts, as in the other cells.
+- Flat colours with only 2 or 3 shades each, in hard-edged blocks. No smooth gradients, no soft or blurred edges, no anti-aliasing, no fine texture, no small highlights or tiny details: simplify, as the other pictures do. When in doubt, leave detail out.
+- The same viewing angle and the same light from the same side as the other three.
 - About as big in its cell as they are in theirs.
 - Plain white background. No shadow on the ground, no table or surface under it, no text or labels.
 
@@ -429,8 +432,26 @@ def pictures_of(figure):
     return {'painting': painting, 'icon': icon, 'small': small}
 
 
-def save_pictures(subject, figure):
-    """Write the good's painting, cut-out and 30px icon; what they replace goes to replaced/ first.
+GOODS_PICTURES = 'goods pictures'   # what the app's GIMP watch files a good's picture under
+
+
+def remake_from_painting(subject):
+    """The good's cut-out and 30px icon made again from its painting, cut out of its plain background as
+    cut_good_icons.py does; what they replace goes to replaced/ first.
+
+    Returns:
+        The file names written.
+
+    Raises:
+        pygame.error, OSError, ValueError: If the painting cannot be read or cut.
+    """
+    figure = figure_of(subject.good)
+    return save_pictures(subject, figure, kinds=('icon', 'small'))
+
+
+def save_pictures(subject, figure, kinds=('painting', 'icon', 'small')):
+    """Write the good's painting, cut-out and 30px icon (those of `kinds`); what they replace goes to
+    replaced/ first.
 
     Returns:
         The file names written.
@@ -441,6 +462,8 @@ def save_pictures(subject, figure):
     stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
     written = []
     for kind, surface in pictures_of(figure).items():
+        if kind not in kinds:
+            continue
         path = subject.good.path(kind)
         if path.is_file():
             backup = subject.out_dir / REPLACED_DIR / f'{stamp}_{path.name}'
