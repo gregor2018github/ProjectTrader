@@ -134,3 +134,67 @@ def test_the_result_waits_for_the_last_swing_to_settle(monkeypatch):
     assert minigame.done
     assert game.depot.stats.minigames_played == 1
     assert len(booked) <= 1
+
+
+# ── The streak ────────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def minigame(monkeypatch):
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    monkeypatch.setattr(wh, "STREAK_BONUS", 0.05)
+    game, _ = _game()
+    return wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+
+
+def _swing(minigame, perfect: bool):
+    """One swing: dead centre and in the power's sweet spot (5 points, a split),
+    or far too weak (nothing). Waits for the scene to take the next one."""
+    while not minigame.scene.can_charge or not minigame.scene.log_ready:
+        minigame.update(DT)
+    minigame.aim = 0.0
+    minigame.power = (minigame.opt_lo + minigame.opt_hi) / 2 if perfect else 0.01
+    minigame._resolve_swing()
+    for _ in range(round(1.5 / DT)):
+        minigame.update(DT)
+
+
+def test_each_split_in_a_row_adds_five_percent_to_the_next_swing(minigame):
+    _swing(minigame, True)
+    assert minigame.last_gain == 5 and minigame.streak == 1
+    _swing(minigame, True)
+    assert minigame.last_gain == pytest.approx(5.25) and minigame.streak == 2
+    _swing(minigame, True)
+    assert minigame.last_gain == pytest.approx(5.5) and minigame.streak == 3
+    assert minigame.score == pytest.approx(15.75)
+
+
+def test_a_swing_that_splits_nothing_ends_the_streak(minigame):
+    for _ in range(3):
+        _swing(minigame, True)
+    _swing(minigame, False)
+    assert minigame.streak == 0 and minigame.last_gain == 0
+    _swing(minigame, True)
+    assert minigame.last_gain == 5                # no bonus left
+    assert minigame.best_streak == 3
+
+
+def _fair_swing(minigame):
+    """Fair aim (1 point) and power just under the sweet spot (1 point): the axe bites."""
+    while not minigame.scene.can_charge or not minigame.scene.log_ready:
+        minigame.update(DT)
+    minigame.aim = math.radians(30)
+    minigame.power = minigame.opt_lo - 0.05
+    minigame._resolve_swing()
+    for _ in range(round(1.5 / DT)):
+        minigame.update(DT)
+
+
+def test_a_bite_ends_the_streak_and_the_second_bite_splits_and_starts_one(minigame):
+    _swing(minigame, True)
+    _fair_swing(minigame)
+    assert minigame.scene.log_damage == 1
+    assert minigame.streak == 0
+    assert minigame.last_gain == pytest.approx(2.1)   # the bite still had the split's 5%
+    _fair_swing(minigame)                              # the cracked log splits
+    assert minigame.scene.pile == 2
+    assert minigame.streak == 1

@@ -522,8 +522,10 @@ class ChoppingScene:
         self.state = "charge"
         self.charge_t = _ease_out(max(0.0, min(1.0, power)))
 
-    def swing(self, outcome: str, points: int = 0, color: Tuple[int, int, int] = (255, 255, 255)) -> List[str]:
-        """Bring the axe down. Returns the sounds to play at once (a miss's swish)."""
+    def swing(self, outcome: str, points: int = 0, color: Tuple[int, int, int] = (255, 255, 255),
+              label: Optional[str] = None) -> List[str]:
+        """Bring the axe down; label is the popup over the log (by default the points).
+        Returns the sounds to play at once (a miss's swish)."""
         if outcome == BITE and self.log_damage + 1 >= _BITES_TO_SPLIT:
             outcome = SPLIT
         if outcome in (SPLIT, BITE) and not self.log_ready:
@@ -541,7 +543,9 @@ class ChoppingScene:
             self._swing_to = self._strike_angle - (2.0 if outcome == BITE else 0.0)
         self._swing_s = _SHORT_SWING_S if outcome == SHORT else _SWING_S
         self.charge_t = 0.0
-        self._popup = (f"+{points}" if points > 0 else "miss", color, 0.0)
+        if label is None:
+            label = f"+{points}" if points > 0 else "miss"
+        self._popup = (label, color, 0.0)
         return ["swoosh"] if outcome in (WHIFF, SHORT) else []
 
     # ------------------------------------------------------------------

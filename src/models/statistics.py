@@ -36,7 +36,7 @@ class Statistics:
         # Minigames
         self.minigames_played: int = 0          # completed minigame sessions (all types)
         self.minigame_income_total: float = 0.0 # cumulative gold earned from minigames
-        self.woodhacking_highscore: int = 0     # best score achieved in the woodhacking minigame
+        self.woodhacking_highscore: float = 0   # best score achieved in the woodhacking minigame (streak bonuses make it fractional)
         self.last_woodhacking_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last played, gates to once/day
 
         # Time

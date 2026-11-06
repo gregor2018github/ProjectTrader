@@ -22,7 +22,10 @@ bob swinging over a scale board that hangs from a beam above the log, its
 sweet spot right over where the blade comes down. The player swings an axe
 at the log: lifted while power gathers, and by the grade a clean
 split, a bite that cracks the log, a swish past it or a swing that falls
-short. A new swing can be gathered once the last one has landed, and the
+short. Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
+the next swing's points, so the third split in a row scores 10% more and so
+on, until a swing fails to split its log and the streak starts again from
+nothing. A new swing can be gathered once the last one has landed, and the
 result shows once the last swing's chips have settled.
 """
 
@@ -110,6 +113,8 @@ _IRON = (64, 62, 60)
 _INK = (44, 32, 22)
 _CORD = (70, 56, 40)
 _PAPER = (236, 222, 186)
+
+STREAK_BONUS = 0.05        # extra points on a swing for each split in a row before it
 
 MAX_SWINGS = 30
 MAX_SCORE = MAX_SWINGS * 5
@@ -275,8 +280,12 @@ class WoodhackingMinigame(MinigameOverlay):
         self.opt_lo = lo
         self.opt_hi = hi
         self.charging = False
-        self.score = 0
+        self.score = 0.0
         self.attempt = 0
+        self.streak = 0            # logs split in a row
+        self.best_streak = 0
+        self.last_gain = 0.0       # points the last swing earned, its streak bonus included
+        self._streak_lost_alpha = 0
         self.done = False
         self._ending = False       # all swings made, waiting for the last to settle
         self._end_timer = 0.0
@@ -367,13 +376,26 @@ class WoodhackingMinigame(MinigameOverlay):
             self.power, self.opt_lo, self.opt_hi
         )
         pts = 0 if (aim_miss or pow_miss) else aim_pts + pow_pts
-        self.score += pts
+        bonus = self.streak_bonus
+        self.last_gain = round(pts * (1.0 + bonus), 2)
+        self.score = round(self.score + self.last_gain, 2)
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
         self.pow_hit_text, self.pow_hit_color = pow_label, pow_color
         self.hit_alpha = 255
         outcome = swing_outcome(pts, self.power, self.opt_lo)
         popup_color = DARK_GREEN if pts >= 4 else (GREEN if pts >= 3 else (ORANGE if pts > 0 else DARK_RED))
-        self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color))
+        label = f"+{self.last_gain:g}" if pts > 0 else "miss"
+        if pts > 0 and bonus > 0:
+            label += f"  (+{round(bonus * 100)}%)"
+        self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color, label=label))
+        # The scene has the last word on what happened to the log (a second bite splits it)
+        if self.scene.outcome == SPLIT:
+            self.streak += 1
+            self.best_streak = max(self.best_streak, self.streak)
+        else:
+            if self.streak > 0:
+                self._streak_lost_alpha = 255
+            self.streak = 0
         self.power = 0.0
         if pts >= 3:
             self.aim_speed_bonus = min(
@@ -382,6 +404,11 @@ class WoodhackingMinigame(MinigameOverlay):
             self.opt_lo, self.opt_hi = _new_opt_zone()
         if self.attempt >= MAX_SWINGS:
             self._ending = True
+
+    @property
+    def streak_bonus(self) -> float:
+        """The share of extra points the next swing earns for the splits in a row before it."""
+        return self.streak * STREAK_BONUS
 
     # ------------------------------------------------------------------
     # Update
@@ -408,6 +435,8 @@ class WoodhackingMinigame(MinigameOverlay):
 
         if self.hit_alpha > 0:
             self.hit_alpha = max(0, self.hit_alpha - 6)
+        if self._streak_lost_alpha > 0:
+            self._streak_lost_alpha = max(0, self._streak_lost_alpha - 4)
 
     # ------------------------------------------------------------------
     # Drawing
@@ -509,6 +538,22 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.polygon(surf, _INK, wedge, 2)
         self._plaque(surf, "POWER", (post.centerx, post.top + 30))
 
+    def _draw_streak(self, surf: pygame.Surface, center: Tuple[int, int]) -> None:
+        """The streak under the woodpile's count: how many in a row and what the next swing gains,
+        one brass notch per split; and for a moment "Streak lost" when it breaks."""
+        if self.streak > 0:
+            self._plaque(surf, f"Streak {self.streak}:  next +{round(self.streak_bonus * 100)}%", center)
+            notches = min(self.streak, 12)
+            x0 = center[0] - (notches - 1) * 6
+            for i in range(notches):
+                x, y = x0 + i * 12, center[1] + 22
+                pygame.draw.polygon(surf, _BRASS_LIGHT, [(x, y - 6), (x + 5, y), (x, y + 6), (x - 5, y)])
+                pygame.draw.polygon(surf, _INK, [(x, y - 6), (x + 5, y), (x, y + 6), (x - 5, y)], 1)
+        elif self._streak_lost_alpha > 0:
+            lost = self._inked("Streak lost", self.font_grade, RED)
+            lost.set_alpha(self._streak_lost_alpha)
+            surf.blit(lost, lost.get_rect(center=center))
+
     def _plaque(self, surf: pygame.Surface, text: str, center: Tuple[float, float]) -> None:
         """A small brass plate with engraved text, nailed on."""
         label = self.font_small.render(text, True, _INK)
@@ -539,6 +584,7 @@ class WoodhackingMinigame(MinigameOverlay):
             surf.blit(pow_txt, pow_txt.get_rect(midleft=(_POWER_RECT.right + 40, _POWER_RECT.bottom - 40)))
 
         self._plaque(surf, f"Logs split: {self.scene.pile}", (SCENE_W - 90, 26))
+        self._draw_streak(surf, (SCENE_W - 90, 56))
 
         if self.charging:
             hint, colour = "Release to swing!", _INK
@@ -589,14 +635,17 @@ class WoodhackingMinigame(MinigameOverlay):
         hs_txt = self.font.render(f"Highscore:  {score_to_display(self.highscore, MAX_SCORE)} / {MAX_SCORE}", True, hs_color)
         self.canvas.blit(hs_txt, hs_txt.get_rect(center=(_CX, 276)))
 
+        streak_txt = self.font.render(f"Best streak:  {self.best_streak} in a row", True, DARK_BROWN)
+        self.canvas.blit(streak_txt, streak_txt.get_rect(center=(_CX, 302)))
+
         coin_color = DARK_GREEN if coins >= 15 else (ORANGE if coins >= 8 else RED)
         coin_txt = self.font_large.render(f"+{coins:.2f}g earned today", True, coin_color)
-        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(_CX, 316)))
+        self.canvas.blit(coin_txt, coin_txt.get_rect(center=(_CX, 338)))
 
         hint = self.font.render("Come back tomorrow for another swing", True, PALE_BROWN)
-        self.canvas.blit(hint, hint.get_rect(center=(_CX, 358)))
+        self.canvas.blit(hint, hint.get_rect(center=(_CX, 374)))
 
-        self.close_rect.center = (_CX, 405)
+        self.close_rect.center = (_CX, 413)
         mouse_pos = self._to_canvas(pygame.mouse.get_pos())
         hovered = self.close_rect.collidepoint(mouse_pos)
         pygame.draw.rect(self.canvas, PALE_BROWN if hovered else SANDY_BROWN, self.close_rect, border_radius=4)
