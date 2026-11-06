@@ -133,6 +133,29 @@ _HANDLE, _HANDLE_DARK = (160, 112, 62), (96, 64, 34)
 _OUTLINE = (44, 32, 22)
 _SHADOW = (0, 0, 0, 60)
 
+# The wood round the clearing, trees of the map in three depths: (sprite,
+# height, left edge, how much paler with distance, how far below the horizon
+# its foot stands). The far row stands in clusters with gaps, so the hills
+# show between them; the near one is drawn over everything, cut by the frame.
+_FAR_TREES = (
+    ("Tree_12.png", 150, -30, 52, 16), ("Tree_19.png", 132, 28, 52, 14), ("Tree_22.png", 146, 70, 50, 16),
+    ("Tree_04.png", 126, 230, 54, 14), ("Tree_44.png", 104, 270, 50, 16), ("Tree_08.png", 120, 300, 54, 14),
+    ("Tree_17.png", 112, 628, 54, 14), ("Tree_06.png", 128, 662, 52, 15), ("Tree_15.png", 118, 760, 54, 14),
+    ("Tree_46.png", 100, 940, 50, 16), ("Tree_12.png", 140, 968, 52, 15),
+)
+_MID_TREES = (
+    ("Tree_39.png", 214, -120, 30, 34), ("Tree_02.png", 190, 110, 30, 30), ("Tree_05.png", 160, 196, 30, 30),
+    ("Tree_24.png", 196, 700, 28, 30), ("Tree_03.png", 120, 880, 30, 30), ("Tree_01.png", 236, 852, 30, 30),
+)
+_NEAR_TREE = ("Tree_40.png", 430, 776, SCENE_H - 14)   # sprite, height, left edge, foot
+# A big pine on the left, nearer than the wood but not as near as the oak: in
+# the background picture, so behind the power post, and so standing a little
+# further back than the post (its foot higher), its trunk beside it
+POWER_POST_FOOT = SCENE_H - 70                 # where the power post stands in the grass
+_LEFT_TREE = ("Tree_38.png", 330, 70, POWER_POST_FOOT - 14)
+_LEFT_SHADE = (230, 230, 220)
+_NEAR_SHADE = (214, 214, 204)                           # a touch darker, being nearer and in its own shade
+
 # The gauges, in the scene's pixels: the power post at the left, and the plumb
 # line's pivot under the beam, right over the log, with its scale board's radius
 POWER_RECT = pygame.Rect(54, 104, 34, 290)
@@ -231,6 +254,7 @@ class ChoppingScene:
 
         self._build_player()
         self._background = self._build_background()
+        self._near_tree = self._build_near_tree()
         self._block = self._build_block()
         self._log = self._build_log()
         self._halves = self._build_halves()
@@ -317,18 +341,13 @@ class ChoppingScene:
         hills.append((0, _HORIZON_Y + 10))
         pygame.draw.polygon(bg, _HILLS, hills)
 
-        # Two trees from the map, a little hazy with distance
-        trees = os.path.join(os.path.dirname(os.path.dirname(HUMAN_SPRITE_ROOT)), "trees")
-        for name, height, x in (("Tree_02.png", 190, 110), ("Tree_05.png", 160, 196), ("Tree_03.png", 120, 880),
-                                ("Tree_01.png", 236, 852)):
-            path = os.path.join(trees, name)
-            if not os.path.exists(path):
+        # The wood: the far row on the hills, then the nearer one at the clearing's edge
+        for name, height, x, haze, foot in _FAR_TREES + _MID_TREES:
+            tree = self._tree(name, height)
+            if tree is None:
                 continue
-            tree = _load_alpha(path)
-            w = round(tree.get_width() * height / tree.get_height())
-            tree = pygame.transform.smoothscale(tree, (w, height))
-            tree.fill((34, 34, 26, 0), special_flags=pygame.BLEND_RGBA_ADD)   # paler with distance
-            bg.blit(tree, (x, _HORIZON_Y + 30 - height))
+            tree.fill((haze, haze, round(haze * 0.8), 0), special_flags=pygame.BLEND_RGBA_ADD)
+            bg.blit(tree, (x, _HORIZON_Y + foot - height))
 
         # The ground, with a trodden patch of dirt round the block
         bg.fill(_GRASS, (0, _HORIZON_Y + 10, SCENE_W, SCENE_H))
@@ -343,8 +362,34 @@ class ChoppingScene:
             x = rng.randrange(_BLOCK_CX - 210, _BLOCK_CX + 100)
             y = rng.randrange(_FEET_Y - 22, _FEET_Y + 26)
             pygame.draw.circle(bg, _DIRT_DARK, (x, y), 1)
+        name, height, x, foot = _LEFT_TREE
+        tree = self._tree(name, height)
+        if tree is not None:
+            tree.fill(_LEFT_SHADE, special_flags=pygame.BLEND_RGB_MULT)
+            self._overlay.fill((0, 0, 0, 0))
+            pygame.draw.ellipse(self._overlay, _SHADOW, (x + tree.get_width() * 0.2, foot - 8, tree.get_width() * 0.6, 14))
+            bg.blit(self._overlay, (0, 0))
+            bg.blit(tree, (x, foot - height))
         self._draw_rig(bg)
         return bg
+
+    @staticmethod
+    def _tree(name: str, height: int) -> Optional[pygame.Surface]:
+        """A tree of the map, scaled to that height; None if the sprite is missing."""
+        path = os.path.join(os.path.dirname(os.path.dirname(HUMAN_SPRITE_ROOT)), "trees", name)
+        if not os.path.exists(path):
+            return None
+        tree = _load_alpha(path)
+        return pygame.transform.smoothscale(tree, (round(tree.get_width() * height / tree.get_height()), height))
+
+    def _build_near_tree(self) -> Optional[Tuple[pygame.Surface, Tuple[int, int]]]:
+        """The tree in the foreground, a little darker, with where it is drawn."""
+        name, height, x, foot = _NEAR_TREE
+        tree = self._tree(name, height)
+        if tree is None:
+            return None
+        tree.fill(_NEAR_SHADE, special_flags=pygame.BLEND_RGB_MULT)
+        return tree, (x, foot - height)
 
     def _plank(self, surf: pygame.Surface, rect: pygame.Rect, grain_seed: int) -> None:
         """A rough-hewn plank: dark outline, lit top edge, a few grain strokes."""
@@ -857,9 +902,17 @@ class ChoppingScene:
         self._draw_player(surf, axe_drawn=behind_log)
 
         self._draw_particles(surf)
+        if self._near_tree is not None:
+            tree, at = self._near_tree
+            surf.blit(tree, at)
         if self._popup is not None:
             text, color, age = self._popup
-            label = self.font.render(text, True, color)
+            face = self.font.render(text, True, color)
+            rim = self.font.render(text, True, _OUTLINE)
+            label = pygame.Surface((face.get_width() + 2, face.get_height() + 2), pygame.SRCALPHA)
+            for offset in ((0, 1), (2, 1), (1, 0), (1, 2)):   # a thin dark rim, to read on trees and sky
+                label.blit(rim, offset)
+            label.blit(face, (1, 1))
             label.set_alpha(max(0, int(255 * (1 - max(0.0, age - 0.4) / 0.5))))
             surf.blit(label, label.get_rect(center=(_BLOCK_CX + 120, _LOG_TOP - 50 * _ease_out(min(1.0, age / 0.9)))))
         if overlay is not None:

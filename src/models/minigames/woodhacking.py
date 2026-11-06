@@ -42,7 +42,7 @@ import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
 from .woodhacking_scene import (
-    ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H, POWER_RECT, AIM_PIVOT, AIM_RADIUS,
+    ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H, POWER_RECT, POWER_POST_FOOT, AIM_PIVOT, AIM_RADIUS,
 )
 from ...config.colors import (
     BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN,
@@ -546,7 +546,7 @@ class WoodhackingMinigame(MinigameOverlay):
         """The gauge post: the zones inlaid in its channel, the power rising in it,
         and a brass pointer on its side at the level."""
         r = _POWER_RECT
-        ground = SCENE_H - 70
+        ground = POWER_POST_FOOT
         # The post, pointed at the top, planted in the ground
         post = pygame.Rect(r.left - 16, r.top - 36, r.width + 32, ground - r.top + 36)
         shadow = pygame.Surface((post.width + 30, 14), pygame.SRCALPHA)
