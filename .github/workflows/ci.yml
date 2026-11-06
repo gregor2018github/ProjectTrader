@@ -1,0 +1,64 @@
+# On every push and pull request: the fast test suite, and a small health sweep
+# of the economy (5 seeds x 20 years) that fails on any hard health check
+# (python -m src.sim.sweep exits with 1; warnings never fail). The sweep's
+# table is shown on the run's summary page and kept as an artifact.
+# Releases are release.yml's business, not this one's.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: Fast tests
+    # The home PC's OS and Python, so the sim goldens are checked to the last bit.
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: pytest (without the tests that load the real map)
+        run: python -m pytest -m "not slow" -q
+
+  health:
+    name: Health sweep (5 seeds x 20 years)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Sweep and check
+        run: python -m src.sim.sweep --seeds 5 --years 20 --out runs/ci_sweep
+      - name: Table on the summary page
+        if: always()
+        run: if [ -f runs/ci_sweep/summary.md ]; then cat runs/ci_sweep/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: health-sweep
+          path: |
+            runs/ci_sweep/summary.md
+            runs/ci_sweep/summary.csv
+          if-no-files-found: ignore
