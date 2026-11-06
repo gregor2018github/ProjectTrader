@@ -212,7 +212,15 @@ signed licence the game writes itself. Each shows as the picture, as
 "placeholder" (the disc in the chart colour with the initials that the goods
 added in P1.3 got) or as "missing"; the good chosen on the right shows them
 large with their files, sizes and uses. M shows only the goods with something
-missing, O opens assets/pictures. Nothing is made here yet.
+missing, O opens assets/pictures. "Make its picture" (Enter) opens the chosen
+good's sketch screen (view_good_design.py): a 2x2 split image with three other
+goods that have paintings, picked at random ("Other goods", R, picks again),
+cut out onto white for the style, and bottom right the red frame to sketch the
+new good in. Its description.txt in build_tools/output/goods/<good>/ says what
+it is in the prompt (E edits it). It is sent as the other sketches are; its
+answers open in view_good_answers.py, and accepting one cuts the good out of
+the red frame and writes its painting, cut-out and 30px icon, keeping what they
+replace in replaced/ (goods_sheets.py).
 
 The code, for whoever works on it next:
 
@@ -277,6 +285,9 @@ The code, for whoever works on it next:
     win_window.py      snapping the window into the left half of the screen
     goods.py           the goods' menu pictures: which each good needs, where they are, placeholders
     view_goods.py      the menu sprites: a row per good with its pictures, and the chosen one large
+    goods_sheets.py    a good's sketch beside three other goods, its prompt, and the pictures an answer makes
+    view_good_design.py  sketching a good's picture; its description and the goods shown for the style
+    view_good_answers.py  the answers for a good's picture, and writing the three files from one
 """
 
 import io
@@ -318,6 +329,8 @@ from view_crops import CropsView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_goods import GoodsView  # noqa: E402
+from view_good_design import GoodDesignView  # noqa: E402
+from goods_sheets import GoodSketch, GoodSubject  # noqa: E402
 from view_home import HomeView  # noqa: E402
 from sprite_job import SpriteJob, find_jobs  # noqa: E402
 from sprite_library import Catalog, find_sprites, restamp  # noqa: E402
@@ -577,6 +590,27 @@ class SpriteManager:
         self.npc = self.store = self.worker = None
         self.set_status('')
         self.show(AnimalsView(self))
+
+    # --- goods' pictures ----------------------------------------------------
+
+    def open_good(self, goods_view, good):
+        """Make a good's picture for the menus: its sketch beside three other goods."""
+        subject = GoodSubject(good)
+        try:
+            sketch = GoodSketch(subject, goods_view.goods)
+        except (pygame.error, OSError) as exc:
+            self.set_status(f'Cannot start {good.name}: {exc}', error=True)
+            return
+        self.npc = subject
+        self.store = ReviewStore(subject.out_dir)
+        self.worker = None
+        self.set_status('')
+        self.show(GoodDesignView(self, goods_view, sketch))
+
+    def close_good(self, goods_view):
+        """Back to the menu sprites, read again; the status line keeps what was last said."""
+        self.npc = self.store = self.worker = None
+        self.show(goods_view)
 
     @staticmethod
     def screens():

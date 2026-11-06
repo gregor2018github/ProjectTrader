@@ -150,6 +150,11 @@ class SketchCanvas:
     def draw_guides(self, sheet):
         """Help lines over the sketch cell of `sheet`, for the design screen only; never sent."""
 
+    def sketch_cell(self):
+        """The red-framed cell of the sheet the sketch is painted in: the second of cells(), unless a
+        subclass lays its sheet out otherwise (goods_sheets.py: the bottom right of four)."""
+        return self.cells()[1]
+
     def has_sketch(self):
         if self._painted is None:
             self._painted = pygame.mask.from_surface(self.sketch, 0).count() > 0

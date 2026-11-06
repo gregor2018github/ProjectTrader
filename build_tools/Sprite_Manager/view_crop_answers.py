@@ -88,6 +88,9 @@ class CropAnswersView(View):
         pygame.image.save(trim(output), str(path))
         return f'{"Replaced" if replaced else "Saved"} {path.name}'
 
+    def result_title(self):
+        return 'Drawn from, the new one and the one now, same scale  (click white gaps)'
+
     # --- state ------------------------------------------------------------
 
     def refresh(self):
@@ -251,7 +254,7 @@ class CropAnswersView(View):
         self.grid.layout(answers_rect)
         self.grid.draw(screen, fonts, mouse, selected_key=self.entry)
 
-        draw_panel(screen, fonts, result_rect, 'Drawn from, the new one and the one now, same scale  (click white gaps)')
+        draw_panel(screen, fonts, result_rect, self.result_title())
         self.draw_result(screen, result_rect.inflate(-20, -20))
 
     def draw_result(self, screen, area):

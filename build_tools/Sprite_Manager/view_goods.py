@@ -7,7 +7,8 @@ Over it, how far each kind is. On the right, the chosen good: every picture larg
 size and where the game shows it, and what is left to make.
 
 Click a row (or Up / Down) to choose a good, M shows only the goods with something missing, O opens
-assets/pictures. Making the pictures is not here yet: this area only collects them.
+assets/pictures. "Make its picture" (Enter) sketches the chosen good beside three other goods for the model
+(view_good_design.py, goods_sheets.py); accepting an answer writes its painting, cut-out and 30px icon.
 """
 
 import os
@@ -15,8 +16,10 @@ import sys
 
 import pygame
 
-from goods import (KINDS, KIND_BY_KEY, MISSING, NOT_NEEDED, OK, PICTURES_DIR, PLACEHOLDER, find_goods, tally)
+from goods import (KINDS, MISSING, NOT_NEEDED, OK, PICTURES_DIR, PLACEHOLDER, find_goods, tally)
+from goods_sheets import GoodSubject
 from images import pixel_fit, smooth_fit
+from pose_review import ReviewStore
 from theme import BAR_BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, TEXT, \
     TEXT_DIM, THUMB_BG
 from view import View
@@ -55,6 +58,8 @@ class GoodsView(View):
         self.switch_buttons = app.switch_buttons('menu')
         self.only_missing = False
         self.missing_button = Button('Only missing (M)', w=160)
+        self.make_button = Button('Make its picture (Enter)', w=240, h=40)
+        self.waiting = {}        # {good name: answers waiting for review}
         self.goods = []
         self.totals = {}
         self.statuses = {}       # {good name: {kind key: status}}
@@ -78,6 +83,7 @@ class GoodsView(View):
                     if image is not None:
                         self.images[good.name, kind.key] = image
                         self.thumbs[good.name, kind.key] = fit(image, (THUMB, THUMB))
+        self.waiting = {g.name: len(ReviewStore(GoodSubject(g).out_dir).pending()) for g in self.goods}
         names = [g.name for g in self.goods]
         if self.chosen not in names:
             self.chosen = next((g.name for g in self.goods if self.open_work(g)), names[0] if names else None)
@@ -170,8 +176,10 @@ class GoodsView(View):
                 pygame.draw.rect(screen, color, line, border_radius=6)
             name = small.render(fit_text(small, good.name, NAME_W - 14), True, TEXT)
             screen.blit(name, (line.x + 8, line.y + 10))
-            sub = 'own licence' if good.is_head else f'under {good.licence}'
-            text = small.render(fit_text(small, sub, NAME_W - 14), True, TEXT_DIM)
+            waiting = self.waiting.get(good.name, 0)
+            sub = (f'{waiting} to review' if waiting else
+                   'own licence' if good.is_head else f'under {good.licence}')
+            text = small.render(fit_text(small, sub, NAME_W - 14), True, DONE_COLOR if waiting else TEXT_DIM)
             screen.blit(text, (line.x + 8, line.y + 30))
             for index, kind in enumerate(KINDS):
                 cell = pygame.Rect(rect.x + NAME_W + index * CELL_W, line.y, CELL_W, line.h)
@@ -234,8 +242,18 @@ class GoodsView(View):
             y += 18
         y += 10
 
-        # The kinds share the height left: each a picture and its title, file and as much of its use as fits
-        row_h = max(48, min(150, (inner.bottom - y) // len(KINDS) - 8))
+        # At the foot the way to make its picture; the kinds share the height left above it, each a picture
+        # and its title, file and as much of its use as fits
+        self.make_button.rect.bottomleft = inner.bottomleft
+        waiting = self.waiting.get(good.name, 0)
+        self.make_button.label = (f'Its picture: {waiting} to review (Enter)' if waiting else
+                                  'Make its picture (Enter)' if work else 'Redo its picture (Enter)')
+        self.make_button.draw(screen, fonts.font, pygame.mouse.get_pos())
+        note = small.render(fit_text(small, 'sketch it beside three other goods, for Gemini',
+                                     inner.right - self.make_button.rect.right - 14), True, TEXT_DIM)
+        screen.blit(note, note.get_rect(midleft=(self.make_button.rect.right + 14, self.make_button.rect.centery)))
+        bottom = self.make_button.rect.y - 12
+        row_h = max(48, min(150, (bottom - y) // len(KINDS) - 8))
         size = max(40, min(row_h, inner.w - 220))
         for kind in KINDS:
             status = self.statuses[good.name][kind.key]
@@ -285,11 +303,19 @@ class GoodsView(View):
                 return
         if self.missing_button.hit(pos):
             self.toggle_missing()
+        elif self.make_button.hit(pos):
+            self.make()
         elif self.table.collidepoint(pos):
             for line, good in self.rows:
                 if line.collidepoint(pos):
                     self.chosen = good.name
                     return
+
+    def make(self):
+        """Sketch the chosen good's picture for the model."""
+        good = next((g for g in self.goods if g.name == self.chosen), None)
+        if good is not None:
+            self.app.open_good(self, good)
 
     def toggle_missing(self):
         self.only_missing = not self.only_missing
@@ -321,6 +347,8 @@ class GoodsView(View):
     def key(self, event):
         if event.key == pygame.K_TAB:
             self.app.switch_to_next()
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.make()
         elif event.key == pygame.K_m:
             self.toggle_missing()
         elif event.key == pygame.K_o:

@@ -53,7 +53,7 @@ CURSOR_SWATCH = 12          # the colour in hand, beside the mouse over the cell
 
 class SketchView(View):
     """Sketching in the red frame of a split image and sending it. The job is a sprite_job.SketchCanvas
-    with cells(), build_sheet() and write_sheet(); answers are booked for the app's npc and store."""
+    with cells(), sketch_cell(), build_sheet() and write_sheet(); answers are booked for the app's npc and store."""
 
     def __init__(self, app, job):
         super().__init__(app)
@@ -273,7 +273,7 @@ class SketchView(View):
         if self.dirty or self.display is None or not self.display_rect or \
                 not area.contains(self.display_rect) or self.display_rect.size != self._fit(area):
             sheet = job.build_sheet(with_sketch=False)
-            sheet.blit(job.sketch_surface(), job.cells()[1])
+            sheet.blit(job.sketch_surface(), job.sketch_cell())
             job.draw_guides(sheet)
             self.display = pygame.transform.smoothscale(sheet, self._fit(area))
             self.dirty = False
@@ -324,7 +324,7 @@ class SketchView(View):
         if not self.display_rect:
             return pygame.Rect(0, 0, 0, 0)
         factor = self.display_rect.w / self.job.build_sheet_size()[0]
-        cell = self.job.cells()[1]
+        cell = self.job.sketch_cell()
         return pygame.Rect(self.display_rect.x + cell.x * factor, self.display_rect.y + cell.y * factor,
                            cell.w * factor, cell.h * factor)
 
