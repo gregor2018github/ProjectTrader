@@ -2,7 +2,9 @@
 
 This module provides the PopulationStats class which shows an overview
 of the town's population, including total population, average happiness,
-and detailed stats for each population class.
+and for each population class its people, its happiness and how well its
+needs were met yesterday, tier by tier (basic, comfort, luxury: the share of
+its whole basket it got, from the simulation's ``ClassState.fulfilment``).
 """
 
 import pygame
@@ -13,7 +15,7 @@ from ...config.colors import (
     GOLD, DARK_GREEN, DARK_RED, WHEAT
 )
 from ...config.constants import (
-    SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH
+    SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, PICTURES_PATH, FONTS_PATH, HUNGER_THRESHOLD
 )
 from ..ui_utils import draw_9slice
 
@@ -24,6 +26,10 @@ if TYPE_CHECKING:
 
 POP_TYPES = ["Poor", "Commons", "Middling Sort", "Nobility"]
 COLS = 2
+TIERS = (("basic", "Basic needs"), ("comfort", "Comforts"), ("luxury", "Luxuries"))
+PICTOGRAM_MAX = 110             # a class's pictogram, at most this square
+BAR_HEIGHT = 9
+BAR_TRACK = (225, 210, 180)     # the empty part of a needs bar
 
 
 class PopulationStats:
@@ -45,10 +51,14 @@ class PopulationStats:
             self.body_font = pygame.font.Font(
                 os.path.join(FONTS_PATH, "Augusta.ttf"), 22
             )
+            self.small_font = pygame.font.Font(
+                os.path.join(FONTS_PATH, "Augusta.ttf"), 18
+            )
         except Exception:
             self.title_font = pygame.font.SysFont("arial", 30)
             self.heading_font = pygame.font.SysFont("arial", 24)
             self.body_font = pygame.font.SysFont("arial", 18)
+            self.small_font = pygame.font.SysFont("arial", 15)
 
         # Panel dimensions ---------------------------------------------
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -90,8 +100,8 @@ class PopulationStats:
             if os.path.isfile(path):
                 try:
                     img = pygame.image.load(path).convert_alpha()
-                    # Scale image to fit nicely in the cell
-                    target_size = min(self.cell_w - 60, self.cell_h - 120)
+                    # Scale image to fit beside the needs bars
+                    target_size = min(PICTOGRAM_MAX, self.cell_h - 120)
                     if target_size > 0:
                         img = pygame.transform.smoothscale(img, (target_size, target_size))
                     self.pictograms[pop_type] = img
@@ -188,62 +198,15 @@ class PopulationStats:
         pygame.draw.line(surf, WHITE, (local_close.left + margin, local_close.bottom - margin), (local_close.right - margin, local_close.top + margin), 2)
 
         # Draw cells
-        absolute_mouse_pos = pygame.mouse.get_pos()
-
+        fulfilment = getattr(self.town, 'fulfilment_groups', {})
+        groups = self.town.population_groups
+        happiness_groups = getattr(self.town, 'happiness_groups', {})
         for i, pop_type in enumerate(POP_TYPES):
             col = i % COLS
             row = i // COLS
-            
-            # Local coordinates for the cell
-            cell_x = 20 + col * self.cell_w
-            cell_y = self.header_h + row * self.cell_h
-            
-            cell_rect = pygame.Rect(cell_x, cell_y, self.cell_w, self.cell_h)
-            
-            # Global coordinates for mouse check
-            global_cell_rect = cell_rect.move(self.panel_rect.x, self.panel_rect.y)
-            is_hovered = global_cell_rect.collidepoint(absolute_mouse_pos)
-
-            # Cell background and border
-            inner_rect = cell_rect.inflate(-20, -20)
-            pygame.draw.rect(surf, BEIGE, inner_rect)
-            pygame.draw.rect(surf, DARK_BROWN, inner_rect, 2)
-            
-            # Population Type Name
-            name_surf = self.heading_font.render(pop_type, True, DARK_BROWN)
-            name_rect = name_surf.get_rect(centerx=inner_rect.centerx, top=inner_rect.top + 10)
-            surf.blit(name_surf, name_rect)
-            
-            # Pictogram
-            pic = self.pictograms.get(pop_type)
-            if pic:
-                pic_rect = pic.get_rect(centerx=inner_rect.centerx, centery=inner_rect.centery + 15)
-                
-                if is_hovered:
-                    # Make pictogram very bright/faint by setting low alpha
-                    pic_faint = pic.copy()
-                    pic_faint.set_alpha(40) # Nearly merging with background
-                    surf.blit(pic_faint, pic_rect)
-                    
-                    # Draw stats on top
-                    count = self.town.population_groups.get(pop_type, 0)
-                    happiness = getattr(self.town, 'happiness_groups', {}).get(pop_type, 80)
-                    share = (count / total_pop * 100) if total_pop > 0 else 0
-                    
-                    count_surf = self.body_font.render(f"Citizens: {count}", True, BLACK)
-                    count_rect = count_surf.get_rect(centerx=inner_rect.centerx, centery=inner_rect.centery - 10)
-                    surf.blit(count_surf, count_rect)
-                    
-                    hap_surf = self.body_font.render(f"Happiness: {happiness:.0f}%", True, BLACK)
-                    hap_rect = hap_surf.get_rect(centerx=inner_rect.centerx, top=count_rect.bottom + 5)
-                    surf.blit(hap_surf, hap_rect)
-
-                    share_surf = self.body_font.render(f"{share:.1f}% of population", True, BLACK)
-                    share_rect = share_surf.get_rect(centerx=inner_rect.centerx, top=hap_rect.bottom + 5)
-                    surf.blit(share_surf, share_rect)
-                else:
-                    # Regular pictogram
-                    surf.blit(pic, pic_rect)
+            cell_rect = pygame.Rect(20 + col * self.cell_w, self.header_h + row * self.cell_h, self.cell_w, self.cell_h)
+            self._draw_cell(surf, cell_rect.inflate(-20, -20), pop_type, groups.get(pop_type, 0), total_pop,
+                            happiness_groups.get(pop_type, 80), fulfilment.get(pop_type, {}))
 
         # Darken background behind panel
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -255,3 +218,48 @@ class PopulationStats:
         if alpha_scale < 1.0:
             surf.set_alpha(int(255 * alpha_scale))
         self.screen.blit(surf, self.panel_rect)
+
+    def _draw_cell(self, surf: pygame.Surface, inner_rect: pygame.Rect, pop_type: str, count: int, total_pop: int,
+                   happiness: float, fulfilment: Dict[str, float]) -> None:
+        """One class: its name, people and happiness, its pictogram, and how well each tier of its needs was met."""
+        pygame.draw.rect(surf, BEIGE, inner_rect)
+        pygame.draw.rect(surf, DARK_BROWN, inner_rect, 2)
+
+        name_surf = self.heading_font.render(pop_type, True, DARK_BROWN)
+        name_rect = name_surf.get_rect(centerx=inner_rect.centerx, top=inner_rect.top + 8)
+        surf.blit(name_surf, name_rect)
+        share = (count / total_pop * 100) if total_pop > 0 else 0
+        line = self.small_font.render(f"{count} citizens ({share:.0f}%),  happiness {happiness:.0f}%", True, BLACK)
+        line_rect = line.get_rect(centerx=inner_rect.centerx, top=name_rect.bottom + 2)
+        surf.blit(line, line_rect)
+
+        body = pygame.Rect(inner_rect.left + 14, line_rect.bottom + 8, inner_rect.width - 28,
+                           inner_rect.bottom - line_rect.bottom - 16)
+        pic = self.pictograms.get(pop_type)
+        bars_left = body.left
+        if pic:
+            surf.blit(pic, pic.get_rect(left=body.left, centery=body.centery))
+            bars_left = body.left + pic.get_width() + 16
+        self._draw_needs(surf, pygame.Rect(bars_left, body.top, body.right - bars_left, body.height), fulfilment)
+
+    def _draw_needs(self, surf: pygame.Surface, area: pygame.Rect, fulfilment: Dict[str, float]) -> None:
+        """A bar per tier of needs, the share of the whole basket the class got yesterday (basic red when it went hungry)."""
+        heading = self.small_font.render("Needs met yesterday", True, DARK_BROWN)
+        rows_h = len(TIERS) * (self.small_font.get_height() + BAR_HEIGHT + 8)
+        y = area.top + max(0, (area.height - heading.get_height() - 6 - rows_h) // 2)
+        surf.blit(heading, (area.left, y))
+        y += heading.get_height() + 6
+        for tier, label in TIERS:
+            share = max(0.0, min(1.0, fulfilment.get(tier, 1.0)))
+            hungry = tier == "basic" and share < HUNGER_THRESHOLD
+            color = DARK_RED if hungry else DARK_GREEN
+            surf.blit(self.small_font.render(label, True, BLACK), (area.left, y))
+            pct = self.small_font.render(f"{share * 100:.0f}%", True, BLACK)      # only the bar carries colour
+            surf.blit(pct, pct.get_rect(right=area.right, top=y))
+            y += self.small_font.get_height() + 1
+            track = pygame.Rect(area.left, y, area.width, BAR_HEIGHT)
+            pygame.draw.rect(surf, BAR_TRACK, track)
+            if share > 0:
+                pygame.draw.rect(surf, color, (track.left, track.top, max(1, round(track.width * share)), BAR_HEIGHT))
+            pygame.draw.rect(surf, DARK_BROWN, track, 1)
+            y += BAR_HEIGHT + 7

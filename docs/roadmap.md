@@ -74,7 +74,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 | Project | Status |
 |---|---|
 | P0 · Sim core | **Done** |
-| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.4 built, P1.5 (minimal UI) open, then a playtest and the merge to `master` |
+| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.5 built, then a playtest and the merge to `master` |
 | P2 · Prestige & household | **Next** |
 | P3 · Plots & workshops | Later, after P2 |
 | P4 · The dynasty, P5 · Rival dynasties | Later |
@@ -103,7 +103,7 @@ Plugs into: `Good`, `Town` and `PopulationManager` (now pass-through views of th
 - **P1.2 Production**: built.
 - **P1.3 Goods to 30**: built.
 - **P1.4 Runner and health**: built. Every check of the design's health table is in, plus a check that every recipe can run flat out at outside prices, and 20 seeds × 50 years run clean (no seed fails). Its sweep found Wood held back by labour; hands of a short class are now shared by workers wanted × margin (a stand-in for P3's wage offers), growth and shrinking count days in a window, and the charcoal, mill and bakery recipes were fixed.
-- **P1.5 Minimal UI**: open. Need fulfilment per class and tier in the town hall, daily demand and supply per good in the market view.
+- **P1.5 Minimal UI**: built. Need fulfilment per class and tier in the town hall's population stats, yesterday's demand and supply per good when its box in the market view is hovered.
 
 Then a playtest and the merge to `master`.
 
@@ -195,7 +195,7 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 | Wave | Projects | Why together |
 |---|---|---|
 | done | P0 | The foundation |
-| now | P1 | The economy comes alive: finish P1.5, playtest, merge to `master` |
+| now | P1 | The economy comes alive: playtest, merge to `master` |
 | next | P2 | Something worth spending money on, built on hooks that already exist (donations, feasts, merchant rank) |
 | then | P3 | The player gets things to own in the economy, as an owner like the town |
 | then | P4 + P5 | The Gilde layer: families, heirs, rivals |

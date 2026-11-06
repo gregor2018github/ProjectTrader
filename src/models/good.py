@@ -10,13 +10,14 @@ hovered.
 This wrapper is a seam kept for P0 so the depot and the views did not have to
 change; see ``docs/sim_core.md`` before building on it.
 """
+import dataclasses
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from ..sim.systems import market
 
 if TYPE_CHECKING:
     from ..sim import Simulation
-    from ..sim.state import GoodState
+    from ..sim.state import GoodFlows, GoodState
 
 
 class Good:
@@ -54,6 +55,11 @@ class Good:
         return self._sim.state.goods[self.name]
 
     # -- the simulation's numbers, passed through --------------------------
+
+    @property
+    def flows_yesterday(self) -> "GoodFlows":
+        """What moved yesterday: wanted by households and workshops, made, imported, exported (a copy)."""
+        return dataclasses.replace(self.state.yesterday)
 
     @property
     def market_quantity(self) -> int:

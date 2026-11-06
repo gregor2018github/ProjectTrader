@@ -5,6 +5,7 @@ from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART_TIME_MARKER_UNIT, PRICE_TICK_MINUTES, PRICE_TICKS_PER_DAY
 from ..paper import CHART_PAPER_EDGE, draw_paper
 from ..pin_marker import draw_pin_corner
+from ..market_flows import daily_flows, draw_flows_tooltip
 from ...sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
 
 if TYPE_CHECKING:
@@ -424,6 +425,9 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
 def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = ()) -> List[Tuple[pygame.Rect, Any]]:
     """Draw interactive toggles for individual goods (a left click shows it in the chart, a right click pins it to the top bar).
 
+    Hovering one shows its name and yesterday's demand and supply in the town's
+    market (``market_flows``).
+
     When not all goods fit into the bar, arrows either side scroll through
     them one good at a time.
 
@@ -455,7 +459,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
     total_width = slot_width * len(shown_goods)
     start_x = (select_bar.width - total_width) // 2
     image_boxes: List[Tuple[pygame.Rect, Any]] = []
-    tooltips: List[Tuple[str, Tuple[int, int]]] = []  # Collect tooltip info for later rendering
+    tooltips: List[Tuple['Good', Tuple[int, int], bool]] = []  # Collect tooltip info for later rendering
 
     if max_offset > 0:
         image_boxes += _draw_selection_arrows(screen, select_bar, arrow_width, scroll_offset, max_offset, mouse_pos, suppress_hover)
@@ -487,41 +491,13 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         
         if is_hovered:
             no_license = depot is not None and current_date is not None and not depot.has_license(good.name, current_date)
-            tooltips.append((good.name, mouse_pos, no_license))
-    # Render tooltips after all buttons are drawn.
+            tooltips.append((good, mouse_pos, no_license))
+    # Render tooltips after all buttons are drawn: the good's name and yesterday's demand and supply
     safe_bottom = screen.get_height() - 60  # stay above the bottom bar
-    for name, pos, no_license in tooltips:
-        name_surface = main_font.render(name, True, BLACK)
-        tooltip_y = pos[1] + 10
-        if no_license:
-            license_surface = main_font.render("No License", True, DARK_RED)
-            combined_width = max(name_surface.get_width(), license_surface.get_width())
-            combined_height = name_surface.get_height() + 2 + license_surface.get_height()
-            # Flip to left of cursor if it would overflow the right sidebar
-            if pos[0] + 35 + combined_width + 4 > safe_right:
-                tooltip_x = pos[0] - combined_width - 15
-            else:
-                tooltip_x = pos[0] + 35
-            bg_rect = pygame.Rect(tooltip_x - 2, tooltip_y - 2, combined_width + 4, combined_height + 4)
-            if bg_rect.bottom > safe_bottom:
-                bg_rect.bottom = safe_bottom
-            pygame.draw.rect(screen, WHITE, bg_rect)
-            pygame.draw.rect(screen, DARK_BROWN, bg_rect, 1)
-            screen.blit(name_surface, (bg_rect.x + 2, bg_rect.y + 2))
-            screen.blit(license_surface, (bg_rect.x + 2, bg_rect.y + 2 + name_surface.get_height() + 2))
-        else:
-            # Flip to left of cursor if it would overflow the right sidebar
-            if pos[0] + 35 + name_surface.get_width() + 4 > safe_right:
-                tooltip_x = pos[0] - name_surface.get_width() - 15
-            else:
-                tooltip_x = pos[0] + 35
-            tooltip_rect = name_surface.get_rect(topleft=(tooltip_x, tooltip_y))
-            if tooltip_rect.inflate(4, 4).bottom > safe_bottom:
-                tooltip_rect.bottom = safe_bottom - 4
-            pygame.draw.rect(screen, WHITE, tooltip_rect.inflate(4, 4))
-            pygame.draw.rect(screen, DARK_BROWN, tooltip_rect.inflate(4, 4), 1)
-            screen.blit(name_surface, tooltip_rect)
-    
+    for good, pos, no_license in tooltips:
+        draw_flows_tooltip(screen, main_font, good.name, daily_flows(good.flows_yesterday), pos, safe_right,
+                           safe_bottom, warning="No License" if no_license else None)
+
     return image_boxes
 
 

@@ -121,7 +121,6 @@ Older blocks and saves migrate on loading:
 
 ## 9. Where this is heading
 
-- **P1.5** (`p1_living_market.md`): a minimal UI showing each good's daily demand and supply in the market view.
 - **The fee.** The flat transaction fee makes cheap goods (Bread, Clay, Charcoal, Flax, Pottery) not worth trading in small lots: their swings never pay for a round trip (`python -m src.sim.health`, tradability). A percentage fee with a minimum is the likely fix (`roadmap.md`, "Known issues and loose ends").
 - **Hysteresis.** A workshop's capacity already grows slowly after busy spells and shrinks more slowly after losses (`production.change_capacity`). That makes flooding a market to drive out its makers a strategy once the player can own workshops (P3).
 - **Other towns.** P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.

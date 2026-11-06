@@ -8,7 +8,7 @@ It holds:
 - **Workshops and their owners**: each workshop runs its building's recipe as hard as its margin says. It hires from one class (by workers wanted × margin when hands are short), sells into the market, grows after busy spells and shrinks after losses. Its owner tops it up and takes its profits. No rule reads what kind of owner it is.
 - **Money**: the market place holds none (the merchants own the stock), so the town's money changes by exactly what crosses its border, and `market_balance` checks it.
 
-The 30 goods and their chains (P1.3) are in; so is the health report's full set of checks over 20 seeds × 50 years (P1.4); a minimal UI (P1.5) comes next. The goldens in `tests/sim/golden/` pin the living market as it stands, and are regenerated whenever its behaviour is meant to change.
+The 30 goods and their chains (P1.3) are in; so are the health report's full set of checks over 20 seeds × 50 years (P1.4) and a minimal UI for it (P1.5: needs met per class and tier in the town hall, demand and supply per good in the market view). The goldens in `tests/sim/golden/` pin the living market as it stands, and are regenerated whenever its behaviour is meant to change.
 
 ---
 

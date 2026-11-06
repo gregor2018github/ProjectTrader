@@ -75,6 +75,12 @@ class Town(House):
         pop = self._population
         return {c.name: c.happiness for c in pop.classes.values()} if pop is not None else {}
 
+    @property
+    def fulfilment_groups(self) -> Dict[str, Dict[str, float]]:
+        """Per class, the share of yesterday's needs it got, per tier (basic, comfort, luxury; a fresh dict)."""
+        pop = self._population
+        return {c.name: dict(c.fulfilment) for c in pop.classes.values()} if pop is not None else {}
+
     def open_donation_menu(self, game_state: 'GameState', click_pos) -> None:
         """Opens the donation menu replacing the current menu.
         

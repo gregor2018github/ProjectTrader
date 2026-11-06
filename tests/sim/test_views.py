@@ -64,3 +64,24 @@ def test_the_town_and_the_population_show_the_simulations_people():
     assert town.happiness == 33.0
     assert manager.total_population_history[-1] == 4242
     assert manager.population_history["Poor"] is pop.classes["Poor"].population_history
+
+
+def test_a_good_shows_yesterdays_flows_and_they_cannot_be_changed_through_it():
+    sim, good, _, _ = make()
+    state = sim.good("Wood")
+    state.yesterday.wanted, state.yesterday.imported = 12.5, 4.0
+    flows = good.flows_yesterday
+    assert flows.wanted == 12.5 and flows.imported == 4.0
+    flows.wanted = 0.0
+    assert state.yesterday.wanted == 12.5
+
+
+def test_the_town_shows_each_class_fulfilment_per_tier():
+    sim, _, town, _ = make()
+    poor = sim.state.population.classes["Poor"]
+    poor.fulfilment = {"basic": 0.5, "comfort": 0.25, "luxury": 0.0}
+    groups = town.fulfilment_groups
+    assert groups["Poor"] == {"basic": 0.5, "comfort": 0.25, "luxury": 0.0}
+    groups["Poor"]["basic"] = 1.0
+    assert poor.fulfilment["basic"] == 0.5
+    assert set(groups) == set(sim.state.population.classes)

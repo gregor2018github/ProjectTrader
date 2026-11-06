@@ -2,7 +2,7 @@
 
 Status: **approved**, with the decisions below. P1.1 and P1.2 are built together on the branch `p1-living-market` and merged together; P1.1 alone (imports only) is a development state, not a playable one.
 
-Progress: **P1.1 to P1.4 built** (demand, the outside world, production, 30 goods in chains, and the full health report over 20 seeds × 50 years; see "Built: what changed on the way" at the end). Open: P1.5 (minimal UI), then a playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Progress: **P1.1 to P1.5 built** (demand, the outside world, production, 30 goods in chains, the full health report over 20 seeds × 50 years, and a minimal UI; see "Built: what changed on the way" at the end). Next: a playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 
@@ -259,7 +259,7 @@ Numbered P1.1–P1.5 so they don't clash with the roadmap's projects (P3 is plot
 - **P1.2 Production** (built): owners, workshops, recipes with byproducts, wages, employment, margin-driven output, capacity hysteresis, and the home-town scenario.
 - **P1.3 Goods to 30** (built): data, chart colours, placeholder icons (`<good>_30.png`), `sold_at` booths, licences per guild, placeholder contract texts, and baskets swapped from stand-ins to the real goods.
 - **P1.4 Runner and health** (built): the CSVs above, `src.sim.health` with all its checks, and 20 seeds × 50 years with `src.sim.sweep`, reported (see "P1.4" in "Built: what changed on the way").
-- **P1.5 Minimal UI** (open):
+- **P1.5 Minimal UI** (built; see "P1.5" in "Built: what changed on the way"):
   - The town hall's population stats show fulfilment per class and tier.
   - The market view shows daily demand and supply per good.
 
@@ -343,7 +343,7 @@ Decisions taken while building P1.1 to P1.3, beyond the ones above.
 - **How the table's rows are read** where it left room:
   - **Price far from outside:** "for more than N days" means N days *running*, as for the clamp, hunger and workshop cash. The report adds the share of all days beside it.
   - **Money supply:** the last 10 years against the median of the *whole* run, so both a slow drift and a late collapse show.
-  - **Population:** against the first recorded day (after the 60 days run ahead), and the trend as a least-squares slope over the last 10 years, as a share of their mean a year, either way.
+  - **Population:** against the first recorded day (after the days run ahead, `MARKET_PRESIMULATION_DAYS`), and the trend as a least-squares slope over the last 10 years, as a share of their mean a year, either way.
   - **Dead workshop:** a day it ran under 1 % of its capacity (`done_yesterday`), not "utilisation 0", which the glide never reaches. A workshop that plans but never gets its hands or inputs is as dead as one its margin gave up on. "A year" is the game's, 28 days.
   - **Structural shortage:** a day counts when the merchants brought at least 95 % of the good's `import_limit`, read from the run's `meta.json`. Only goods with a limit count.
   - **Bad numbers** also catch a negative head count. A negative stock, purse or count must be below −1e-9 (float dust is not a bad number). Workshop debt is not a bad number: it has its own check.
@@ -431,6 +431,12 @@ What-ifs (10 seeds × 50 years, in memory): a higher poor wage cap moved Wood on
   - The poor's comfort basket holds some meat (usually dear), so their comfort can fall below 1 while their luxuries are still bought.
   - The upper classes' comfort elasticity is higher, Commons 0.6 and Middling Sort and Nobility 1.0.
   - Result over 10 seeds × 50 years: comfort 0.94–0.95 and luxury 0.33–0.62 per class, with 2 of 80 class-seed checks just outside their band.
+
+**P1.5** (the minimal UI)
+- **The town hall's population stats** (`src/ui/helper_modules/population_stats.py`) show, for each class, its citizens, its share of the town and its happiness (always, no longer only while hovered), its pictogram, and three bars: basic needs, comforts and luxuries met yesterday, the share of its whole basket it got (`ClassState.fulfilment`, through `Town.fulfilment_groups`). The percentages are in plain text; only the bars carry colour, and the basic bar turns red under `HUNGER_THRESHOLD`.
+- **The market view** (`src/ui/market_flows.py`, drawn by `chart_view` when a good's box is hovered) shows the good's name, "No License" if so, and yesterday in the market: demand (the townsfolk's whole baskets plus the workshops' inputs) against supply (made in town plus imported), a bar each in two parchment tones (umber and ochre), the larger filling the width, with what each was made of and what the merchants sent out (`GoodState.yesterday`, through `Good.flows_yesterday`). A last line reconciles them: the stock taken or added, what buyers went without (too dear, or sold out) and the player's own trades, so that demand − went without = supply − sent out − added to stock + you sold − you bought, which is exactly how the market's stock moved (checked day by day to 1e-12). Amounts are whole units, "<1" for a little. The panel opens above the pointer, as the goods bar is at the bottom.
+- Both views stay pass-through: `Town.fulfilment_groups` and `Good.flows_yesterday` return copies and keep no numbers.
+- **Seen on the screens, and fixed:** the game opened before the economy had settled. After 60 days run ahead the commons' wage was still climbing (1.16 on the first day, about 1.70 settled), so they bought no luxuries on 7 of the first 28 days of play (0.05 on average, against 0.66 over 50 years). `MARKET_PRESIMULATION_DAYS` is now 224 (two years; 4 ms a day, about 0.9 s of loading here): the commons' wage starts at 1.61 and their luxuries at 0.58 over the first 28 days, none at 0. Decided in review, over writing settled starting values into the scenario.
 
 ## Loose ends after P1.3
 
