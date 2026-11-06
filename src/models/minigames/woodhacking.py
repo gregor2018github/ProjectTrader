@@ -22,7 +22,10 @@ bob swinging over a scale board that hangs from a beam above the log, its
 sweet spot right over where the blade comes down. The player swings an axe
 at the log: lifted while power gathers, and by the grade a clean
 split, a bite that cracks the log, a swish past it or a swing that falls
-short. Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
+short. A gauge read PERFECT glints for a moment (a sparkle on the plumb bob or
+the power pointer and a thin ring spreading from it; the aim's sweet spot lights up); both
+PERFECT at once also make the blow itself land with weight (see the scene).
+Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
 the next swing's points, so the third split in a row scores 10% more and so
 on, until a swing fails to split its log and the streak starts again from
 nothing. A new swing can be gathered once the last one has landed, and the
@@ -32,7 +35,8 @@ result shows once the last swing's chips have settled.
 import os
 import math
 import random
-from typing import Optional, Tuple
+from array import array
+from typing import List, Optional, Tuple
 
 import pygame
 
@@ -114,10 +118,38 @@ _INK = (44, 32, 22)
 _CORD = (70, 56, 40)
 _PAPER = (236, 222, 186)
 
+_GLINT_S = 0.8             # a perfect gauge's glint lasts this long
+_GLINT_COLOUR = (255, 240, 190)
+_RING_VOLUME = 0.22        # the axe's steel ringing after a swing perfect on both gauges
+
 STREAK_BONUS = 0.05        # extra points on a swing for each split in a row before it
 
 MAX_SWINGS = 30
 MAX_SCORE = MAX_SWINGS * 5
+
+
+def _steel_ring() -> Optional[pygame.mixer.Sound]:
+    """A short ring of struck steel, made from sine waves: a few inharmonic
+    partials, as a struck blade has, fading fast. None without a mixer."""
+    init = pygame.mixer.get_init()
+    if not init:
+        return None
+    rate, size, channels = init
+    if abs(size) != 16:
+        return None
+    seconds = 0.9
+    partials = ((1046.5, 1.0, 0.30), (2885.0, 0.35, 0.16), (5650.0, 0.12, 0.08))  # Hz, loudness, decay s
+    samples = array("h")
+    for i in range(int(rate * seconds)):
+        t = i / rate
+        attack = min(1.0, t / 0.004)
+        v = sum(a * math.exp(-t / d) * math.sin(math.tau * f * t) for f, a, d in partials)
+        sample = int(max(-1.0, min(1.0, 0.45 * attack * v)) * 32767)
+        samples.extend([sample] * channels)
+    try:
+        return pygame.mixer.Sound(buffer=samples.tobytes())
+    except pygame.error:
+        return None
 
 
 def swing_outcome(points: int, power: float, opt_lo: float) -> str:
@@ -261,6 +293,7 @@ class WoodhackingMinigame(MinigameOverlay):
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
         self.scene = ChoppingScene(self.font_hit)
+        self._ring = _steel_ring()
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)
         self._payout_booked = False
@@ -285,6 +318,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self.streak = 0            # logs split in a row
         self.best_streak = 0
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
+        self.glints: List[dict] = []   # perfect gauges glinting: "kind", "age", "at" (where the marker stood)
         self._streak_lost_alpha = 0
         self.done = False
         self._ending = False       # all swings made, waiting for the last to settle
@@ -359,8 +393,15 @@ class WoodhackingMinigame(MinigameOverlay):
 
     def _play_scene_sounds(self, kinds) -> None:
         """Play what the scene asks for: "chop" as the axe bites, "swoosh" as it
-        swings past or short, "thud" (a soft chop) as a new log lands."""
+        swings past or short, "thud" (a soft chop) as a new log lands, "ring" the
+        steel after a swing perfect on both gauges."""
         for kind in kinds:
+            if kind == "ring":
+                if self._ring is not None:
+                    channel = self._ring.play()
+                    if channel is not None:
+                        channel.set_volume(_RING_VOLUME)
+                continue
             prefix = "swoosh_" if kind == "swoosh" else "chop_"
             candidates = [name for name in self.game.sounds if name.startswith(prefix)]
             if not candidates:
@@ -382,12 +423,16 @@ class WoodhackingMinigame(MinigameOverlay):
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
         self.pow_hit_text, self.pow_hit_color = pow_label, pow_color
         self.hit_alpha = 255
+        aim_perfect = aim_label == "PERFECT"
+        pow_perfect = pow_label == "PERFECT"
+        self._glint(aim_perfect, pow_perfect)
         outcome = swing_outcome(pts, self.power, self.opt_lo)
         popup_color = DARK_GREEN if pts >= 4 else (GREEN if pts >= 3 else (ORANGE if pts > 0 else DARK_RED))
         label = f"+{self.last_gain:g}" if pts > 0 else "miss"
         if pts > 0 and bonus > 0:
             label += f"  (+{round(bonus * 100)}%)"
-        self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color, label=label))
+        flourish = 2 if (aim_perfect and pow_perfect and pts > 0) else 0
+        self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color, label=label, flourish=flourish))
         # The scene has the last word on what happened to the log (a second bite splits it)
         if self.scene.outcome == SPLIT:
             self.streak += 1
@@ -404,6 +449,17 @@ class WoodhackingMinigame(MinigameOverlay):
             self.opt_lo, self.opt_hi = _new_opt_zone()
         if self.attempt >= MAX_SWINGS:
             self._ending = True
+
+    def _glint(self, aim: bool, power: bool) -> None:
+        """Start the glint of each gauge that read PERFECT, where its marker stood."""
+        if aim:
+            along = pygame.Vector2(math.sin(self.aim), math.cos(self.aim))
+            self.glints.append({"kind": "aim", "age": 0.0,
+                                "at": pygame.Vector2(_AIM_CX, _AIM_CY) + along * (_AIM_R + 6)})
+        if power:
+            r = _POWER_RECT
+            self.glints.append({"kind": "power", "age": 0.0,
+                                "at": pygame.Vector2(r.right + 8, r.bottom - self.power * r.height)})
 
     @property
     def streak_bonus(self) -> float:
@@ -435,6 +491,9 @@ class WoodhackingMinigame(MinigameOverlay):
 
         if self.hit_alpha > 0:
             self.hit_alpha = max(0, self.hit_alpha - 6)
+        for glint in self.glints:
+            glint["age"] += delta_time
+        self.glints = [g for g in self.glints if g["age"] < _GLINT_S]
         if self._streak_lost_alpha > 0:
             self._streak_lost_alpha = max(0, self._streak_lost_alpha - 4)
 
@@ -573,7 +632,35 @@ class WoodhackingMinigame(MinigameOverlay):
         out.blit(face, (1, 1))
         return out
 
+    def _draw_glints(self, surf: pygame.Surface) -> None:
+        """A perfect gauge catches the light: its zone lights up, a thin ring
+        spreads from the marker and a small four-pointed sparkle flashes on it."""
+        if not self.glints:
+            return
+        layer = pygame.Surface(surf.get_size(), pygame.SRCALPHA)
+        for g in self.glints:
+            t = g["age"] / _GLINT_S
+            fade = 1 - t
+            # The aim's sweet spot lights up (the power's moves on at once after a good swing)
+            if g["kind"] == "aim":
+                poly = _arc_ring_poly(_AIM_CX, _AIM_CY, _AIM_R, 18, -_AIM_VERYGOOD_L, _AIM_VERYGOOD_R)
+                pygame.draw.polygon(layer, (*_GLINT_COLOUR, int(130 * fade)), poly)
+            # A thin ring spreading out
+            radius = 6 + 34 * (1 - (1 - t) ** 2)
+            pygame.draw.circle(layer, (*_GLINT_COLOUR, int(170 * fade)), g["at"], radius, 2)
+            # The sparkle: up, then gone
+            size = 15 * math.sin(math.pi * min(1.0, g["age"] / 0.45))
+            if size > 0.5:
+                x, y = g["at"]
+                alpha = int(255 * min(1.0, 1.4 * fade))
+                for dx, dy, k in ((1, 0, 1.0), (0, 1, 1.0), (0.7, 0.7, 0.45), (0.7, -0.7, 0.45)):
+                    pygame.draw.line(layer, (*_GLINT_COLOUR, alpha), (x - dx * size * k, y - dy * size * k),
+                                     (x + dx * size * k, y + dy * size * k), 2 if k == 1.0 else 1)
+                pygame.draw.circle(layer, (255, 255, 240, alpha), (x, y), 2.5)
+        surf.blit(layer, (0, 0))
+
     def _draw_scene_overlay(self, surf: pygame.Surface) -> None:
+        self._draw_glints(surf)
         """Over the scene: the grades of the last swing, the woodpile's count and the hint."""
         if self.hit_alpha > 0:
             aim_txt = self._inked(self.aim_hit_text, self.font_hit, self.aim_hit_color)

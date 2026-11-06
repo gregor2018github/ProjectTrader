@@ -203,3 +203,44 @@ def test_a_bite_ends_the_streak_and_the_second_bite_splits_and_starts_one(miniga
 def test_the_woodpile_has_room_for_a_split_from_every_swing():
     from src.models.minigames import woodhacking_scene as ws
     assert ws._PILE_ROWS * (ws._PILE_ROWS + 1) // 2 >= wh.MAX_SWINGS
+
+
+# ── Perfect swings ────────────────────────────────────────────────────────────
+
+def test_a_swing_perfect_on_both_gauges_rings_and_holds_still(scene):
+    scene.charge(0.6)
+    run(scene, 0.3)
+    scene.swing(SPLIT, 5, flourish=2)
+    sounds = []
+    while scene.state == "swing":
+        sounds += scene.update(DT)
+    assert sounds == ["chop", "ring"]
+    angle = scene.angle
+    scene.update(DT)                           # the heartbeat: nothing moves
+    assert scene.angle == angle and scene.motes
+    run(scene, 3.0)
+    assert scene.settled                       # the motes and the glow are gone again
+
+
+def test_an_ordinary_split_does_not_ring(scene):
+    swing(scene, SPLIT)
+    assert "ring" not in run(scene, 2.0)
+    assert not scene.motes
+
+
+def test_each_perfect_gauge_glints(minigame):
+    minigame.aim = 0.0                         # dead centre and the sweet spot's middle
+    minigame.power = (minigame.opt_lo + minigame.opt_hi) / 2
+    minigame._resolve_swing()
+    assert sorted(g["kind"] for g in minigame.glints) == ["aim", "power"]
+    assert minigame.scene.flourish == 2
+    while not minigame.scene.can_charge or not minigame.scene.log_ready:
+        minigame.update(DT)
+    minigame.aim = 0.0
+    minigame.power = minigame.opt_lo - 0.05    # aim perfect, power only good
+    minigame._resolve_swing()
+    assert [g["kind"] for g in minigame.glints] == ["aim"]
+    assert minigame.scene.flourish == 0
+    for _ in range(round(wh._GLINT_S / DT) + 1):
+        minigame.update(DT)
+    assert minigame.glints == []

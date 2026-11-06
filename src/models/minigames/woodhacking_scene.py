@@ -17,6 +17,12 @@ over the block (``AIM_PIVOT``) above a scale board; the minigame draws both
 through ``draw``'s ``underlay`` (behind the player and the block) and
 ``overlay`` (over everything), and the scene draws the beam and the board.
 
+A swing perfect on both gauges (``swing(..., flourish=2)``) lands with a
+little more weight: the blow stops for a heartbeat (``_HITSTOP_S``), the
+log splits in a warm glow, a few motes of sawdust drift up as if caught in
+the sun, and the axe's steel rings ("ring" among the sounds ``update`` asks
+for).
+
 The player's sprite is cut into head, torso and two legs (``_HEAD`` and so
 on), each turned about its joint every frame. Its painted arms (and the scroll
 in the front hand) are taken out and the arms drawn anew each frame instead,
@@ -103,6 +109,14 @@ _RECOVER_RATE = 9.0                 # and goes back to rest after a swing
 _BITES_TO_SPLIT = 2
 
 _GRAVITY = 1500.0
+
+# A swing perfect on both gauges
+_HITSTOP_S = 0.08                   # the blow holds still this long on impact
+_GLOW_S = 0.8                       # the warm glow round the split log fades over this
+_GLOW_RADIUS = 96
+_GLOW_COLOUR = (70, 52, 22)         # added to what is under it, at its brightest
+_MOTES = 18
+_MOTE_COLOUR = (250, 224, 150)
 _PILE_ROWS = 8                      # the pile: 8 + 7 + ... + 1 = 36 split logs, room for every swing
 _PILE_LEFT, _PILE_R = 648, 10
 
@@ -243,6 +257,11 @@ class ChoppingScene:
         self.pieces: List[_Piece] = []
         self.particles: List[_Particle] = []
         self._popup: Optional[Tuple[str, Tuple[int, int, int], float]] = None  # text, colour, age
+        self.flourish = 0               # 2 for a swing perfect on both gauges
+        self._hitstop = 0.0
+        self._glow_age: Optional[float] = None
+        self.motes: List[List[float]] = []   # x, y, vx, vy, age, life, phase
+        self._glow = self._build_glow()
 
         # Where the axe lands on the log, worked out from the fist at the strike
         self._strike_angle, self._axe_len = self._aim_at_log()
@@ -430,6 +449,16 @@ class ChoppingScene:
         pygame.draw.rect(right, _WOOD_CUT, (0, _END_H // 2, 6, _LOG_H))
         return left, right
 
+    def _build_glow(self) -> pygame.Surface:
+        """A soft round glow, brightest in the middle, to be added over the scene."""
+        size = _GLOW_RADIUS * 2
+        glow = pygame.Surface((size, size))
+        glow.fill((0, 0, 0))
+        for r in range(_GLOW_RADIUS, 0, -2):
+            k = (1 - r / _GLOW_RADIUS) ** 1.6
+            pygame.draw.circle(glow, tuple(round(c * k) for c in _GLOW_COLOUR), (_GLOW_RADIUS, _GLOW_RADIUS), r)
+        return glow
+
     def _build_log_end(self) -> pygame.Surface:
         """A split log's end in the pile: a half disc of wood in bark."""
         d = _PILE_R * 2
@@ -515,7 +544,7 @@ class ChoppingScene:
     def settled(self) -> bool:
         """Nothing left moving: the swing is over and every chip has landed."""
         return (self.state == "idle" and not self.pieces and not self.particles
-                and self.log_ready and self._popup is None)
+                and self.log_ready and self._popup is None and not self.motes)
 
     def charge(self, power: float) -> None:
         """Lift the axe for the power gathered so far (0..1)."""
@@ -523,9 +552,11 @@ class ChoppingScene:
         self.charge_t = _ease_out(max(0.0, min(1.0, power)))
 
     def swing(self, outcome: str, points: int = 0, color: Tuple[int, int, int] = (255, 255, 255),
-              label: Optional[str] = None) -> List[str]:
-        """Bring the axe down; label is the popup over the log (by default the points).
-        Returns the sounds to play at once (a miss's swish)."""
+              label: Optional[str] = None, flourish: int = 0) -> List[str]:
+        """Bring the axe down; label is the popup over the log (by default the points),
+        flourish 2 for a swing perfect on both gauges. Returns the sounds to play at
+        once (a miss's swish)."""
+        self.flourish = flourish
         if outcome == BITE and self.log_damage + 1 >= _BITES_TO_SPLIT:
             outcome = SPLIT
         if outcome in (SPLIT, BITE) and not self.log_ready:
@@ -553,7 +584,10 @@ class ChoppingScene:
     # ------------------------------------------------------------------
 
     def update(self, dt: float) -> List[str]:
-        """Advance the animation; returns the sounds to play now ("chop", "thud")."""
+        """Advance the animation; returns the sounds to play now ("chop", "thud", "ring")."""
+        if self._hitstop > 0:            # the perfect blow holds still for a heartbeat
+            self._hitstop -= dt
+            return []
         sounds: List[str] = []
         if self.state == "charge":
             target = _REST_ANGLE + _WINDUP_EXTRA * self.charge_t
@@ -587,6 +621,11 @@ class ChoppingScene:
         sounds += self._update_log(dt)
         self._update_pieces(dt)
         self._update_particles(dt)
+        self._update_motes(dt)
+        if self._glow_age is not None:
+            self._glow_age += dt
+            if self._glow_age >= _GLOW_S:
+                self._glow_age = None
         if self._popup is not None:
             text, color, age = self._popup
             age += dt
@@ -599,6 +638,12 @@ class ChoppingScene:
             self._squat = 4.0
             self._shake = 0.16
             self._split_log()
+            if self.flourish >= 2:
+                self._hitstop = _HITSTOP_S
+                self._shake = 0.22
+                self._glow_age = 0.0
+                self._release_motes()
+                return ["chop", "ring"]
             return ["chop"]
         if self.outcome == BITE:
             self._squat = 3.0
@@ -631,6 +676,22 @@ class ChoppingScene:
             self.particles.append(_Particle(
                 x + self.rng.uniform(-8, 8), y, math.cos(angle) * speed, -math.sin(angle) * speed,
                 self.rng.uniform(0.6, 1.0), self.rng.choice((2, 3, 3, 4)), color))
+
+    def _release_motes(self) -> None:
+        """Fine sawdust from the split, drifting up slowly and swaying, as if caught in the sun."""
+        for _ in range(_MOTES):
+            self.motes.append([
+                _BLOCK_CX + self.rng.uniform(-30, 30), _LOG_TOP + self.rng.uniform(-6, 24),
+                self.rng.uniform(-14, 14), -self.rng.uniform(16, 42),
+                0.0, self.rng.uniform(1.2, 2.0), self.rng.uniform(0, math.tau)])
+
+    def _update_motes(self, dt: float) -> None:
+        for m in self.motes:
+            m[4] += dt
+            m[0] += (m[2] + 10 * math.sin(m[4] * 3 + m[6])) * dt
+            m[1] += m[3] * dt
+            m[3] *= 1 - min(1.0, 0.6 * dt)
+        self.motes = [m for m in self.motes if m[4] < m[5]]
 
     def _dust(self, x: float, y: float) -> None:
         for _ in range(9):
@@ -788,6 +849,11 @@ class ChoppingScene:
             img.set_alpha(alpha)
             w, h = piece.surface.get_size()
             surf.blit(img, img.get_rect(center=(piece.x + w / 2, piece.y + h / 2)))
+        if self._glow_age is not None:
+            k = (1 - self._glow_age / _GLOW_S) ** 1.5
+            glow = self._glow.copy()
+            glow.fill((round(255 * k),) * 3, special_flags=pygame.BLEND_RGB_MULT)
+            surf.blit(glow, glow.get_rect(center=(_BLOCK_CX, _LOG_TOP + 20)), special_flags=pygame.BLEND_RGB_ADD)
         self._draw_player(surf, axe_drawn=behind_log)
 
         self._draw_particles(surf)
@@ -864,6 +930,13 @@ class ChoppingScene:
         surf.blit(pygame.transform.scale(layer, (layer.get_width() * px, layer.get_height() * px)), (0, 0))
 
     def _draw_particles(self, surf: pygame.Surface) -> None:
+        if self.motes:
+            self._overlay.fill((0, 0, 0, 0))
+            for x, y, _, _, age, life, phase in self.motes:
+                fade = min(1.0, age / 0.2) * (1 - age / life)
+                twinkle = 0.7 + 0.3 * math.sin(age * 9 + phase)
+                pygame.draw.circle(self._overlay, (*_MOTE_COLOUR, int(235 * fade * twinkle)), (x, y), 2.2)
+            surf.blit(self._overlay, (0, 0))
         dust = [p for p in self.particles if p.ground is None]
         if dust:
             self._overlay.fill((0, 0, 0, 0))
