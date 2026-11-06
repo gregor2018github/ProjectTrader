@@ -1,7 +1,8 @@
 """The splash screen shown while the Sprite Manager reads its sprites.
 
-Three random sprites - a person, a plant and a building, one for each area of
-the tool - are held fanned out like cards in a hand, under the tool's name,
+Three random sprites, each from one of three areas of the tool picked at
+random (humans, plants, buildings, crops, animals, the goods' pictures), are
+held fanned out like cards in a hand, under the tool's name,
 with a spinner turning below them. The reading runs on a worker thread
 (Splash.run_while()) so the window keeps drawing; when it is done the splash
 fades softly into the start page (Splash.fade_out()).
@@ -35,10 +36,14 @@ SPINNER_RADIUS = 16
 SPINNER_TURNS_PER_SECOND = 0.9
 
 SPRITES = ROOT / 'assets' / 'map_sprites'
-CARDS = (                # (label, folder, file pattern), left to right
+SHOWN = 3                # cards in the hand, from that many areas picked at random
+CARDS = (                # (label, folder, file pattern), in the order they are held
     ('Humans', HUMANS_DIR, '*/*/*_front_static.png'),
     ('Plants', SPRITES / 'trees', 'Tree_*.png'),
     ('Buildings', SPRITES / 'houses', 'House_*.png'),
+    ('Crops', SPRITES / 'fields', '*/*_ripe_*.png'),
+    ('Animals', SPRITES / 'figurines' / 'animals', '*/*_left_static.png'),
+    ('Menu', ROOT / 'assets' / 'pictures', '*_icon.png'),     # the goods' cut-out pictures
 )
 
 
@@ -53,7 +58,8 @@ class Splash:
         self.over_font = pygame.font.SysFont('georgia', 17, bold=True)
         self.label_font = pygame.font.SysFont('georgia', 17, bold=True)
         self.small_font = pygame.font.SysFont('segoeui', 16)
-        self.cards = [self._card(label, folder, pattern) for label, folder, pattern in CARDS]
+        picked = sorted(random.sample(range(len(CARDS)), SHOWN))
+        self.cards = [self._card(*CARDS[index]) for index in picked]
         self.started = time.monotonic()
         self._glow = None    # (size, surface), remade when the window is resized
 
