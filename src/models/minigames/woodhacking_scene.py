@@ -124,6 +124,14 @@ _PILE_LEFT, _PILE_R = 648, 10
 _SKY_TOP, _SKY_LOW = (214, 205, 176), (236, 226, 194)
 _HILLS = (176, 172, 128)
 _GRASS, _GRASS_DARK = (128, 140, 82), (104, 118, 66)
+# The forest floor: shaded grass at the tree line, lighter in front, a band of
+# moss and needles under the trees, and the blades of the tufts, dark to light
+_GRASS_FAR, _GRASS_NEAR = (98, 114, 64), (134, 148, 84)
+_MOSS, _NEEDLES = (84, 98, 54), (118, 98, 62)
+_BLADES = ((62, 86, 44), (84, 110, 54), (108, 134, 64), (138, 160, 82), (164, 172, 96))
+_CHIP, _CHIP_DARK = (214, 182, 128), (170, 136, 88)
+_STONE, _STONE_LIGHT = (128, 124, 114), (164, 160, 148)
+_FLOWERS = ((236, 232, 214), (232, 206, 96), (200, 170, 214))
 _DIRT, _DIRT_DARK = (150, 118, 80), (122, 94, 62)
 _BARK, _BARK_DARK, _BARK_LIGHT = (108, 76, 48), (78, 54, 34), (134, 98, 64)
 _WOOD, _WOOD_RING, _WOOD_CUT = (222, 186, 128), (184, 140, 86), (238, 210, 160)
@@ -255,6 +263,7 @@ class ChoppingScene:
         self._build_player()
         self._background = self._build_background()
         self._near_tree = self._build_near_tree()
+        self._foot_tufts = self._build_foot_tufts()
         self._block = self._build_block()
         self._log = self._build_log()
         self._halves = self._build_halves()
@@ -341,27 +350,21 @@ class ChoppingScene:
         hills.append((0, _HORIZON_Y + 10))
         pygame.draw.polygon(bg, _HILLS, hills)
 
-        # The wood: the far row on the hills, then the nearer one at the clearing's edge
+        rng = random.Random(7)
+        self._draw_ground(bg, rng)
+
+        # The wood: the far row on the hills, then the nearer one at the clearing's edge,
+        # standing in the grass
         for name, height, x, haze, foot in _FAR_TREES + _MID_TREES:
             tree = self._tree(name, height)
             if tree is None:
                 continue
             tree.fill((haze, haze, round(haze * 0.8), 0), special_flags=pygame.BLEND_RGBA_ADD)
             bg.blit(tree, (x, _HORIZON_Y + foot - height))
-
-        # The ground, with a trodden patch of dirt round the block
-        bg.fill(_GRASS, (0, _HORIZON_Y + 10, SCENE_W, SCENE_H))
-        rng = random.Random(7)
-        for _ in range(520):
-            x = rng.randrange(SCENE_W)
-            y = rng.randrange(_HORIZON_Y + 14, SCENE_H)
-            pygame.draw.line(bg, _GRASS_DARK, (x, y), (x + rng.choice((-1, 0, 1)), y - 3))
-        pygame.draw.ellipse(bg, _DIRT, (_BLOCK_CX - 240, _FEET_Y - 34, 360, 70))
-        pygame.draw.ellipse(bg, _DIRT_DARK, (_BLOCK_CX - 220, _FEET_Y - 26, 320, 54), 2)
-        for _ in range(50):
-            x = rng.randrange(_BLOCK_CX - 210, _BLOCK_CX + 100)
-            y = rng.randrange(_FEET_Y - 22, _FEET_Y + 26)
-            pygame.draw.circle(bg, _DIRT_DARK, (x, y), 1)
+            if foot >= 28:
+                self._tufts_along(bg, rng, x + tree.get_width() / 2, tree.get_width() * 0.35,
+                                  _HORIZON_Y + foot - 2, scale=0.55, density=0.7)
+        self._draw_clearing(bg, rng)
         name, height, x, foot = _LEFT_TREE
         tree = self._tree(name, height)
         if tree is not None:
@@ -370,8 +373,133 @@ class ChoppingScene:
             pygame.draw.ellipse(self._overlay, _SHADOW, (x + tree.get_width() * 0.2, foot - 8, tree.get_width() * 0.6, 14))
             bg.blit(self._overlay, (0, 0))
             bg.blit(tree, (x, foot - height))
+            self._tufts_along(bg, rng, x + tree.get_width() / 2, 40, foot - 2, scale=0.9)
         self._draw_rig(bg)
+        self._tufts_along(bg, rng, _POST_X, 22, _HORIZON_Y + 34, scale=0.7)        # the beam's post
         return bg
+
+    # ------------------------------------------------------------------
+    # The forest floor
+    # ------------------------------------------------------------------
+
+    def _draw_ground(self, bg: pygame.Surface, rng: random.Random) -> None:
+        """Grass shaded at the tree line and lighter in front, mottled, with a band
+        of moss and needles under the trees and scattered tufts and flowers."""
+        top = _HORIZON_Y + 10
+        for y in range(top, SCENE_H):
+            t = ((y - top) / (SCENE_H - top)) ** 0.8
+            bg.fill(tuple(round(_lerp(a, b, t)) for a, b in zip(_GRASS_FAR, _GRASS_NEAR)), (0, y, SCENE_W, 1))
+        mottle = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
+        for _ in range(140):             # soft patches, lighter and darker, flatter further back
+            y = rng.uniform(top, SCENE_H)
+            depth = (y - top) / (SCENE_H - top)
+            w = rng.uniform(40, 150) * (0.5 + depth)
+            colour = (*(_GRASS_DARK if rng.random() < 0.5 else (150, 162, 96)), rng.randrange(18, 40))
+            pygame.draw.ellipse(mottle, colour, (rng.uniform(-40, SCENE_W), y, w, w * (0.12 + 0.12 * depth)))
+        for _ in range(60):              # moss and fallen needles under the trees, along the tree line
+            x = rng.uniform(-30, SCENE_W)
+            if 330 < x < 600:            # not in the open middle, where the hills show
+                continue
+            w = rng.uniform(50, 120)
+            colour = (*(_MOSS if rng.random() < 0.6 else _NEEDLES), rng.randrange(60, 110))
+            pygame.draw.ellipse(mottle, colour, (x, top - 4 + rng.uniform(0, 22), w, rng.uniform(6, 12)))
+        bg.blit(mottle, (0, 0))
+        for _ in range(900):             # short blades everywhere, longer in front
+            x = rng.uniform(0, SCENE_W)
+            y = rng.uniform(top + 4, SCENE_H)
+            depth = (y - top) / (SCENE_H - top)
+            h = 2 + 5 * depth * rng.random()
+            pygame.draw.line(bg, rng.choice(_BLADES[:3]), (x, y), (x + rng.uniform(-1.5, 1.5), y - h), 1)
+        for _ in range(70):              # tufts dotted over the grass
+            y = rng.uniform(top + 14, SCENE_H)
+            depth = (y - top) / (SCENE_H - top)
+            self._tuft(bg, rng, rng.uniform(0, SCENE_W), y, 6 + 10 * depth, 4 + 10 * depth)
+        for _ in range(26):              # a few small flowers in front
+            x, y = rng.uniform(0, SCENE_W), rng.uniform(_FEET_Y + 20, SCENE_H - 4)
+            if abs(x - _BLOCK_CX) < 240:
+                continue
+            colour = rng.choice(_FLOWERS)
+            pygame.draw.line(bg, _BLADES[1], (x, y), (x, y - 5), 1)
+            pygame.draw.circle(bg, colour, (x, y - 6), 2)
+
+    def _draw_clearing(self, bg: pygame.Surface, rng: random.Random) -> None:
+        """The trodden dirt round the block: a soft edge with the grass creeping in,
+        chips of wood from earlier work and a few stones."""
+        rect = pygame.Rect(_BLOCK_CX - 240, _FEET_Y - 34, 360, 70)
+        dirt = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
+        for i, inset in enumerate((0, 10, 20)):   # three steps darker to the middle: a soft edge
+            pygame.draw.ellipse(dirt, (*_DIRT, 90 + 70 * i), rect.inflate(-inset * 2, -inset * 0.6))
+        bg.blit(dirt, (0, 0))
+        for _ in range(60):
+            x = rng.uniform(rect.left + 30, rect.right - 30)
+            y = rng.uniform(rect.top + 10, rect.bottom - 8)
+            pygame.draw.circle(bg, _DIRT_DARK, (x, y), 1)
+        for _ in range(26):              # chips of wood, most near the block
+            x = _BLOCK_CX + rng.gauss(0, 70)
+            y = _FEET_Y + rng.uniform(-14, 22)
+            if not rect.inflate(-40, -16).collidepoint(x, y):
+                continue
+            w = rng.choice((3, 4, 5))
+            pygame.draw.rect(bg, rng.choice((_CHIP, _CHIP_DARK)), (x, y, w, 2))
+        for x, y, r in ((_BLOCK_CX - 190, _FEET_Y + 12, 4), (_BLOCK_CX + 92, _FEET_Y + 20, 3), (_BLOCK_CX - 60, _FEET_Y + 26, 2)):
+            pygame.draw.ellipse(bg, _STONE, (x - r, y - r * 0.6, r * 2, r * 1.3))
+            pygame.draw.line(bg, _STONE_LIGHT, (x - r * 0.5, y - r * 0.3), (x + r * 0.2, y - r * 0.4), 1)
+        # The grass creeping in at the rim, more on the near side
+        for i in range(48):
+            a = math.tau * i / 48 + rng.uniform(-0.05, 0.05)
+            x = rect.centerx + rect.w / 2 * math.cos(a)
+            y = rect.centery + rect.h / 2 * math.sin(a)
+            near = math.sin(a) > 0
+            if rng.random() < (0.85 if near else 0.5):
+                self._tuft(bg, rng, x, y + 2, 8 if near else 6, 8 if near else 5)
+
+    def _tuft(self, surf: pygame.Surface, rng: random.Random, x: float, y: float,
+              width: float, height: float) -> None:
+        """A tuft of grass, blades fanning up from (x, y), dark ones behind and light in front."""
+        blades = max(3, int(width / 2.2))
+        for i in range(blades):
+            shade = _BLADES[min(len(_BLADES) - 1, int(i / blades * len(_BLADES) + rng.uniform(0, 1.2)))]
+            bx = x + rng.uniform(-width / 2, width / 2)
+            h = height * rng.uniform(0.55, 1.0) * (1 - 0.5 * abs(bx - x) / max(1.0, width / 2))
+            lean = (bx - x) / max(1.0, width / 2) * h * 0.45 + rng.uniform(-0.2, 0.2) * h
+            pygame.draw.line(surf, shade, (bx, y), (bx + lean, y - h), 2 if h > 7 else 1)
+
+    def _tufts_along(self, surf: pygame.Surface, rng: random.Random, cx: float, half_width: float,
+                     y: float, scale: float = 1.0, density: float = 1.0) -> None:
+        """Tufts along the foot of something standing in the grass, over its foot."""
+        n = max(2, int(half_width * 2 / 9 * density))
+        for i in range(n):
+            x = cx - half_width + (2 * half_width) * (i + rng.uniform(0.1, 0.9)) / n
+            self._tuft(surf, rng, x, y + rng.uniform(0, 4), rng.uniform(9, 15) * scale, rng.uniform(8, 15) * scale)
+
+    def _build_foot_tufts(self) -> dict:
+        """The tufts in front of what is drawn over the background: the power post
+        (drawn by the minigame), the block and the woodpile, and the oak."""
+        rng = random.Random(11)
+        layers = {}
+        for key in ("post", "block", "near"):
+            layers[key] = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
+        post = POWER_RECT
+        self._tufts_along(layers["post"], rng, post.centerx, post.width / 2 + 22, POWER_POST_FOOT + 2, scale=1.0, density=1.4)
+        # The block stands on the trodden dirt: only a few blades, and chips at its foot
+        block_foot = _FEET_Y + _END_H / 2 - 1
+        for dx in (-62, -50, 50, 60):
+            self._tuft(layers["block"], rng, _BLOCK_CX + dx, block_foot + rng.uniform(0, 3), 7, 7)
+        for _ in range(8):
+            x = _BLOCK_CX + rng.uniform(-60, 60)
+            pygame.draw.rect(layers["block"], rng.choice((_CHIP, _CHIP_DARK)),
+                             (x, block_foot + rng.uniform(-1, 4), rng.choice((3, 4)), 2))
+        # The woodpile sits in the grass
+        pile_foot = _FEET_Y - 24
+        pile_w = _PILE_ROWS * (_PILE_R * 2 - 1)
+        self._tufts_along(layers["block"], rng, _PILE_LEFT + pile_w / 2, pile_w / 2 + 8, pile_foot + 2,
+                          scale=1.0, density=1.8)
+        # The oak's roots
+        if self._near_tree is not None:
+            tree, (x, y) = self._near_tree
+            self._tufts_along(layers["near"], rng, x + tree.get_width() * 0.52, 70, y + tree.get_height() - 4,
+                              scale=1.5, density=1.2)
+        return layers
 
     @staticmethod
     def _tree(name: str, height: int) -> Optional[pygame.Surface]:
@@ -843,8 +971,13 @@ class ChoppingScene:
         pygame.draw.polygon(surf, _OUTLINE, head, 1)
 
     def _draw_pile(self, surf: pygame.Surface) -> None:
-        """The split logs stacked behind the block, bottom row first."""
+        """The split logs stacked behind the block, bottom row first, with a shadow under them."""
         shown = self.pile
+        if shown:
+            width = min(shown, _PILE_ROWS) * (_PILE_R * 2 - 1) + 10
+            self._overlay.fill((0, 0, 0, 0))
+            pygame.draw.ellipse(self._overlay, _SHADOW, (_PILE_LEFT - 5, _FEET_Y - 30, width, 12))
+            surf.blit(self._overlay, (0, 0))
         row = 0
         while shown > 0 and row < _PILE_ROWS:
             in_row = _PILE_ROWS - row
@@ -879,6 +1012,7 @@ class ChoppingScene:
         surf.blit(self._background, (0, 0))
         if underlay is not None:
             underlay(surf)
+        surf.blit(self._foot_tufts["post"], (0, 0))
         self._draw_pile(surf)
         self._draw_shadow(surf, _BLOCK_CX, _BLOCK_W + 10)
         self._draw_shadow(surf, _PLAYER_LEFT + self._body_w / 2, self._body_w * 0.75)
@@ -887,6 +1021,7 @@ class ChoppingScene:
         if behind_log:
             self._draw_axe(surf)
         surf.blit(self._block, (_BLOCK_CX - _BLOCK_W / 2, _FEET_Y - _BLOCK_H - _END_H / 2))
+        surf.blit(self._foot_tufts["block"], (0, 0))
         self._draw_log(surf)
         for piece in self.pieces:
             img = pygame.transform.rotate(piece.surface, piece.angle)
@@ -905,6 +1040,7 @@ class ChoppingScene:
         if self._near_tree is not None:
             tree, at = self._near_tree
             surf.blit(tree, at)
+            surf.blit(self._foot_tufts["near"], (0, 0))
         if self._popup is not None:
             text, color, age = self._popup
             face = self.font.render(text, True, color)
