@@ -85,7 +85,11 @@ python -m pytest -m "not slow"        # skip the tests that load the real map
 
 - **Buildings & Institutions** — Church (with proximity bell sounds, donations and meals for the poor), Town Hall (population stats, licenses), Market, Bank (loans), Guildhall (merchant rank), the Grey Griffin Inn (a daily menu of period dishes), warehouses to buy, and the Mill, each with their own interactions and visual details including night lighting effects.
 
-The screenshots above were taken before the 30 goods, the new calendar and the weather; they still show the old top bar with 12 goods.
+- **Minigames** — Early on, a day's work can earn you a little coin. At the woodcutter's you chop logs: hold the mouse button to gather power on the gauge post, and let go while the plumb bob swings over the sweet spot of the scale above the block. A clean blow splits the log, a fair one bites into it, a miss swishes past; splits in a row build a streak bonus, and a swing perfect on both gauges lands with a little extra weight. Once a day.
+
+  ![Woodhacking minigame](assets/pictures/readme_woodhacking.png)
+
+The screenshots above, all but the minigame's, were taken before the 30 goods, the new calendar and the weather; they still show the old top bar with 12 goods.
 
 ## Headless Simulation
 
