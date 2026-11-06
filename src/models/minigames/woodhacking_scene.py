@@ -11,10 +11,14 @@ graded,
   WHIFF  the axe swishes down past the log into the dirt, raising dust,
   SHORT  too little power: the swing dies above the log.
 
-The player's sprite is cut into head, torso, two arms and two legs (``_HEAD``,
-``_FRONT_ARM`` and so on), each turned about its joint every frame: the whole
-pose follows the axe's angle (``_pose``), leaning back to lift it, throwing
-the weight forward into the blow, the back hand reaching for the handle. Nothing here touches the game: the
+The player's sprite is cut into head, torso and two legs (``_HEAD`` and so
+on), each turned about its joint every frame. Its painted arms (and the scroll
+in the front hand) are taken out and the arms drawn anew each frame instead,
+upper arm, elbow, forearm and hand, as pixel art on a coarse layer
+(``_ARM_PX``) so they match the sprite: the far arm, always behind the body,
+holds the axe at the fist; the near arm, always in front of it, grips the
+handle further down. The whole pose follows the axe's angle
+(``_pose``), leaning back to lift it and throwing the weight into the blow. Nothing here touches the game: the
 minigame tells the scene what happened and plays the sounds the scene's
 ``update`` asks for, at the moment of impact.
 """
@@ -43,12 +47,24 @@ _PLAYER_LEFT = 92
 _HEAD = pygame.Rect(0, 0, 208, 172)
 _HEAD_CLEAR = pygame.Rect(0, 0, 208, 168)        # the torso keeps the chin's last rows under the head
 _NECK = (108, 170)
-_BACK_ARM = pygame.Rect(26, 172, 38, 92)
-_BACK_SHOULDER = (58, 188)
-_BACK_HAND = (48, 246)
-_FRONT_ARM = pygame.Rect(147, 176, 61, 112)
-_FRONT_SHOULDER = (154, 190)
-_FIST = (186, 266)
+# The painted arms, taken out of the torso: the back sleeve and hand, and the
+# front sleeve with the scrolled-up hand
+_ARMS_CLEAR = (pygame.Rect(24, 172, 42, 78), pygame.Rect(24, 250, 30, 16), pygame.Rect(147, 176, 61, 112))
+# Where the drawn arms join the body: the far arm's inside it, so the torso
+# covers the joint; the near arm's at the back of the torso under the head,
+# where the near shoulder sits (it is drawn over the body and under the head)
+_FRONT_SHOULDER = (138, 196)
+_NEAR_SHOULDER = (76, 190)
+
+# The drawn arms, in screen pixels at the scene's scale, and their pixel art
+_ARM_PX = 4                          # one art pixel of the arms, like the sprite's
+_UPPER_ARM, _FOREARM = 21.0, 20.0
+_NEAR_UPPER_ARM, _NEAR_FOREARM = 30.0, 28.0   # the near arm reaches across the body
+_ARM_REACH = 0.9                     # the front hand's distance from the shoulder, of the arm's full length
+_SLEEVE, _SLEEVE_LIGHT, _SLEEVE_DARK = (92, 116, 152), (132, 152, 178), (46, 62, 86)
+_ARM_OUTLINE = (26, 30, 46)
+_CUFF = (62, 44, 28)
+_SKIN, _SKIN_LIGHT = (232, 180, 140), (246, 214, 182)
 _BACK_LEG = pygame.Rect(40, 286, 66, 50)
 _FRONT_LEG = pygame.Rect(106, 286, 54, 50)
 _LEGS_CLEAR = pygame.Rect(40, 290, 108, 46)      # the torso keeps the legs' top rows as an overlap
@@ -68,7 +84,8 @@ _REST_ANGLE = 32.0
 _WINDUP_EXTRA = 138.0               # how far back full power lifts it
 _WHIFF_ANGLE = -24.0
 _SHORT_ANGLE = 50.0
-_AXE_TAIL = 14                      # handle sticking out behind the fist
+_AXE_TAIL = 26                      # handle behind the fist, room for the near hand
+_NEAR_GRIP = (8.0, 24.0)            # how far behind the fist the near hand may hold it
 _BITE_DEPTH = 7                     # how far a biting blade sinks into the log
 
 # Timings, seconds
@@ -163,8 +180,8 @@ class _Part:
 
 
 class _Pose:
-    __slots__ = ("lean", "origin", "hip", "neck", "head_angle", "shoulder", "front_arm", "fist",
-                 "back_shoulder", "back_arm", "back_leg", "front_leg")
+    __slots__ = ("lean", "origin", "hip", "neck", "head_angle", "shoulder", "fist",
+                 "near_shoulder", "near_hand", "back_leg", "front_leg")
 
     def __init__(self, **values) -> None:
         for name, value in values.items():
@@ -235,24 +252,18 @@ class ChoppingScene:
             return _Part(image, pivot - pygame.Vector2(r.center), pivot)
 
         self._head = part(_HEAD, _NECK)
-        self._back_arm = part(_BACK_ARM, _BACK_SHOULDER)
-        self._front_arm = part(_FRONT_ARM, _FRONT_SHOULDER)
         self._back_leg = part(_BACK_LEG, _BACK_HIP)
         self._front_leg = part(_FRONT_LEG, _FRONT_HIP)
 
         torso = full.copy()
-        for rect in (_HEAD_CLEAR, _BACK_ARM, _FRONT_ARM, _LEGS_CLEAR):
+        for rect in (_HEAD_CLEAR, _LEGS_CLEAR) + _ARMS_CLEAR:
             torso.fill((0, 0, 0, 0), sc(rect))
         hip = pygame.Vector2(_HIP[0] * scale, _HIP[1] * scale)
         self._torso = _Part(torso, hip - pygame.Vector2(torso.get_rect().center), hip)
 
-        # The arms' rest directions, shoulder to hand, in screen degrees (0 forward, 90 up)
-        def direction(a, b):
-            return math.degrees(math.atan2(-(b[1] - a[1]), b[0] - a[0]))
-
-        self._front_rest_dir = direction(_FRONT_SHOULDER, _FIST)
-        self._back_rest_dir = direction(_BACK_SHOULDER, _BACK_HAND)
-        self._front_arm_len = math.dist(_FRONT_SHOULDER, _FIST) * scale
+        self._front_shoulder = pygame.Vector2(_FRONT_SHOULDER) * scale
+        self._near_shoulder = pygame.Vector2(_NEAR_SHOULDER) * scale
+        self._arm_layer = pygame.Surface((math.ceil(SCENE_W / _ARM_PX), math.ceil(SCENE_H / _ARM_PX)), pygame.SRCALPHA)
         self._body_top = _FEET_Y - _PLAYER_H
 
     def _build_background(self) -> pygame.Surface:
@@ -363,7 +374,7 @@ class ChoppingScene:
         lean = _interp(axe, [(_WHIFF_ANGLE, -15.0), (strike, -9.0), (_REST_ANGLE, -2.0), (top, 8.0)])
         # The front arm, shoulder to fist, in screen degrees
         arm = _interp(axe, [(_WHIFF_ANGLE, -78.0), (strike, -32.0), (_REST_ANGLE, -46.0),
-                            (90.0, 40.0), (top, 96.0)])
+                            (90.0, 50.0), (top, 128.0)])
         dy = self._player_dy()
         origin = pygame.Vector2(_PLAYER_LEFT, self._body_top + dy)
         hip = origin + self._torso.joint
@@ -371,18 +382,21 @@ class ChoppingScene:
         def lean_about_hip(joint: pygame.Vector2) -> pygame.Vector2:
             return hip + (origin + joint - hip).rotate(-lean)
 
-        shoulder = lean_about_hip(self._front_arm.joint)
+        shoulder = lean_about_hip(self._front_shoulder)
         a = math.radians(arm)
-        fist = shoulder + pygame.Vector2(math.cos(a), -math.sin(a)) * self._front_arm_len
+        fist = shoulder + pygame.Vector2(math.cos(a), -math.sin(a)) * (_UPPER_ARM + _FOREARM) * _ARM_REACH
         if self.state == "charge" and self.charge_t > 0.85:          # straining at the top
             fist += pygame.Vector2(self.rng.uniform(-1, 1), self.rng.uniform(-1, 1)) * (self.charge_t - 0.85) * 8
 
         # The back hand reaches for the handle just behind the fist
-        back_shoulder = lean_about_hip(self._back_arm.joint)
+        # The near hand takes the handle behind the fist, as far down it as it can reach
+        near_shoulder = lean_about_hip(self._near_shoulder)
         u = pygame.Vector2(math.cos(math.radians(axe)), -math.sin(math.radians(axe)))
-        grip = fist - u * 9
-        to_grip = grip - back_shoulder
-        back_arm = math.degrees(math.atan2(-to_grip.y, to_grip.x)) if to_grip.length() > 1 else self._back_rest_dir
+        reach = _NEAR_UPPER_ARM + _NEAR_FOREARM
+        lo, hi = _NEAR_GRIP
+        grips = [fist - u * (lo + (hi - lo) * i / 7) for i in range(8)]
+        near_hand = next((g for g in reversed(grips) if g.distance_to(near_shoulder) <= reach),
+                         min(grips, key=lambda g: g.distance_to(near_shoulder)))
 
         # Feet apart; wider as he throws his weight into the blow
         stance = _interp(axe, [(_WHIFF_ANGLE, 1.6), (strike, 1.3), (_REST_ANGLE, 1.0), (top, 0.7)])
@@ -390,8 +404,7 @@ class ChoppingScene:
         return _Pose(
             lean=lean, origin=origin, hip=hip,
             neck=lean_about_hip(self._head.joint), head_angle=lean * 0.6 + nod,
-            shoulder=shoulder, front_arm=arm - self._front_rest_dir, fist=fist,
-            back_shoulder=back_shoulder, back_arm=back_arm - self._back_rest_dir,
+            shoulder=shoulder, fist=fist, near_shoulder=near_shoulder, near_hand=near_hand,
             back_leg=-7.0 * stance, front_leg=6.0 * stance,
         )
 
@@ -699,24 +712,67 @@ class ChoppingScene:
         return surf
 
     def _draw_player(self, surf: pygame.Surface, axe_drawn: bool) -> None:
-        """Legs, back arm, torso, head and front arm, each turned about its joint.
+        """Legs, axe and far arm behind the body, then the torso, the near arm and the head.
 
-        Lifted back past the vertical, the axe goes behind the torso and head;
-        the front fist is always drawn last, so it holds the handle.
+        The far arm (holding the axe at the fist) and the axe are always behind
+        the body; the near arm (gripping the handle) always over the body and
+        under the head.
         """
         pose = self._pose(self.angle)
         o = pose.origin
         self._back_leg.blit(surf, o + self._back_leg.joint, pose.back_leg)
         self._front_leg.blit(surf, o + self._front_leg.joint, pose.front_leg)
-        self._back_arm.blit(surf, pose.back_shoulder, pose.back_arm)
-        axe_behind = not axe_drawn and self.angle > 95.0
-        if axe_behind:
+        if not axe_drawn:
             self._draw_axe(surf)
+        self._draw_arm(surf, pose.shoulder, pose.fist, shade=0.86)   # over the axe, so its fist holds it
         self._torso.blit(surf, pose.hip, pose.lean)
+        self._draw_arm(surf, pose.near_shoulder, pose.near_hand, _NEAR_UPPER_ARM, _NEAR_FOREARM)
         self._head.blit(surf, pose.neck, pose.head_angle)
-        if not axe_drawn and not axe_behind:
-            self._draw_axe(surf)
-        self._front_arm.blit(surf, pose.shoulder, pose.front_arm)
+
+    def _draw_arm(self, surf: pygame.Surface, shoulder: pygame.Vector2, hand: pygame.Vector2,
+                  upper: float = _UPPER_ARM, forearm: float = _FOREARM,
+                  shade: float = 1.0) -> None:
+        """An arm from shoulder to hand, bent at the elbow, drawn as pixel art.
+
+        The elbow is found by the two segments' lengths (it bends downwards); a
+        hand beyond reach stretches the arm straight, which only the back arm,
+        mostly hidden behind the body, ever needs. Drawn on the coarse layer and
+        blown up without smoothing, so its pixels are the size of the sprite's.
+        """
+        px = _ARM_PX
+        s, h = shoulder / px, hand / px
+        a, b = upper / px, forearm / px
+        d = h - s
+        dist = d.length()
+        if dist < 1e-6:
+            elbow = s + pygame.Vector2(0, a)
+        elif dist >= a + b:
+            elbow = s + d * (a / (a + b))
+        else:
+            turn = math.degrees(math.acos(max(-1.0, min(1.0, (a * a + dist * dist - b * b) / (2 * a * dist)))))
+            one = s + d.normalize().rotate(turn) * a
+            two = s + d.normalize().rotate(-turn) * a
+            elbow = one if one.y > two.y else two
+
+        def col(c):
+            return tuple(round(v * shade) for v in c)
+
+        layer = self._arm_layer
+        layer.fill((0, 0, 0, 0))
+        cuff = h + (elbow - h) * min(1.0, 1.6 / max(1e-6, (elbow - h).length()))
+        # Outline, then sleeve, a light seam along it, the cuff and the hand
+        for width, colour in ((6, _ARM_OUTLINE), (4, _SLEEVE)):
+            pygame.draw.line(layer, col(colour), s, elbow, width)
+            pygame.draw.line(layer, col(colour), elbow, h, width - 1)
+            pygame.draw.circle(layer, col(colour), elbow, width / 2)
+            pygame.draw.circle(layer, col(colour), s, width / 2)
+        pygame.draw.line(layer, col(_SLEEVE_DARK), elbow + pygame.Vector2(0, 1), h + pygame.Vector2(0, 1), 1)
+        pygame.draw.line(layer, col(_SLEEVE_LIGHT), s + pygame.Vector2(0, -1), elbow + pygame.Vector2(0, -1), 1)
+        pygame.draw.line(layer, col(_CUFF), cuff, h, 3)
+        pygame.draw.circle(layer, col(_ARM_OUTLINE), h, 2.6)
+        pygame.draw.circle(layer, col(_SKIN), h, 1.7)
+        pygame.draw.circle(layer, col(_SKIN_LIGHT), h + pygame.Vector2(-0.5, -0.6), 0.7)
+        surf.blit(pygame.transform.scale(layer, (layer.get_width() * px, layer.get_height() * px)), (0, 0))
 
     def _draw_particles(self, surf: pygame.Surface) -> None:
         dust = [p for p in self.particles if p.ground is None]
