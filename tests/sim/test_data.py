@@ -1,4 +1,5 @@
 """goods.json, needs.json and recipes.json load, and every mistake names its file, entry and field."""
+import dataclasses
 import json
 
 import pytest
@@ -7,6 +8,9 @@ from src.sim.data import (
     DataError, licenses_of, load_buildings, load_goods, load_needs, load_recipes, load_scenario, parse_buildings,
     parse_goods, parse_needs, parse_recipes, parse_scenario,
 )
+from src.config.constants import MARGIN_FULL
+from src.sim.health import recipe_margins
+from src.sim.run import load_definitions
 from src.sim.systems.population import class_shares
 
 WOOD = {"name": "Wood", "color": "PALE_BROWN", "chart_index": 0, "show_in_charts": True,
@@ -43,6 +47,19 @@ def test_the_games_files_load():
     buildings = load_buildings([r.id for r in recipes], CLASSES)
     scenario = load_scenario("home_town", [b.type for b in buildings])
     assert scenario.workshops and all(w.owner == "town" for w in scenario.workshops)
+
+
+def test_every_recipe_can_run_flat_out_at_outside_prices_on_the_cheapest_labour():
+    """At the goods' outside prices and its class's base income, each building's recipe earns MARGIN_FULL or more.
+
+    One that does not can never run at full capacity, whatever the town's
+    prices do (``python -m src.sim.health`` warns of it too). At the wage cap it
+    may earn less: wages climb only while hands are short.
+    """
+    margins = recipe_margins(dataclasses.asdict(load_definitions()[0]))
+    assert margins
+    too_thin = {m.building: round(m.at_base, 3) for m in margins if m.at_base < MARGIN_FULL}
+    assert not too_thin, f"under MARGIN_FULL ({MARGIN_FULL}) at outside prices and base income: {too_thin}"
 
 
 def test_a_good_entry_becomes_a_definition():

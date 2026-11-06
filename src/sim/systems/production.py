@@ -9,16 +9,18 @@ player's or a rival's will (``docs/roadmap.md``, pillar 1).
 A day: the workshop pays yesterday's workers, its owner covers a loss or takes
 the profit above the working capital, and it plans: the margin of a batch at
 today's prices sets the utilisation it glides to, which (with the workers it
-can hire and the cash it has) sets today's batches. Capacity grows after a run
-of busy days and shrinks, more slowly, after a run of losses. During market
+can hire and the cash it has) sets today's batches. Capacity grows after
+enough busy days within a recent window and shrinks, more slowly, after enough
+days of losses within a longer one. During market
 hours each slice buys the inputs for its share of the batches, runs what the
 inputs allow, and sells the outputs into the market.
 """
-from typing import Dict, Mapping, Optional, Tuple
+from typing import Dict, List, Mapping, Optional, Tuple
 
 from ...config.constants import (
-    GROWTH_AFTER_DAYS, GROWTH_DESIRE, GROWTH_MIN_STEP, GROWTH_STEP, MARGIN_FLOOR, MARGIN_FULL,
-    SHRINK_AFTER_DAYS, SHRINK_STEP, TREASURY_CAP_DAYS, TREASURY_INCOME_GLIDE, UTILISATION_GLIDE, WAGE_GLIDE,
+    GROWTH_BUSY_DAYS, GROWTH_DESIRE, GROWTH_MIN_STEP, GROWTH_STEP, GROWTH_WINDOW_DAYS, HIRING_MARGIN_FLOOR,
+    MARGIN_FLOOR, MARGIN_FULL, SHRINK_LOSS_DAYS, SHRINK_STEP, SHRINK_WINDOW_DAYS, TREASURY_CAP_DAYS,
+    TREASURY_INCOME_GLIDE, UTILISATION_GLIDE, WAGE_GLIDE,
 )
 from ..data import BuildingDef, RecipeDef
 from ..state import OwnerState, WorkshopState
@@ -112,7 +114,7 @@ def plan_wants(ws: WorkshopState, recipe: RecipeDef, prices: Mapping[str, float]
     """
     ws.margin = batch_margin(recipe, wage, prices)
     ws.utilisation += UTILISATION_GLIDE * (wanted_utilisation(ws.margin) - ws.utilisation)
-    ws.unprofitable_days = ws.unprofitable_days + 1 if ws.margin < 0 else 0
+    remember(ws.loss_log, ws.margin < 0, SHRINK_WINDOW_DAYS)
     batches = ws.capacity * ws.utilisation
     cost = batch_cost(recipe, wage, prices)
     if cost > 0:
@@ -124,8 +126,7 @@ def plan_wants(ws: WorkshopState, recipe: RecipeDef, prices: Mapping[str, float]
 def hire(ws: WorkshopState, recipe: RecipeDef, share: float, wage: float) -> float:
     """The second half: the workshop gets *share* of the workers it wanted (all of them unless its class runs short).
 
-    Every workshop hiring from a class gets the same share, as buyers in a short
-    market do; nobody is first in line. It pays them *wage* each, at the end of
+    The share comes from ``share_hands``. It pays them *wage* each, at the end of
     the day.
 
     Returns:
@@ -138,12 +139,23 @@ def hire(ws: WorkshopState, recipe: RecipeDef, share: float, wage: float) -> flo
     ws.wage = wage
     # Busy: it wants (nearly) full capacity and could plan it, workers and cash allowing
     busy = wanted >= GROWTH_DESIRE and ws.planned >= GROWTH_DESIRE * ws.capacity
-    ws.busy_days = ws.busy_days + 1 if busy else 0
+    remember(ws.busy_log, busy, GROWTH_WINDOW_DAYS)
     return ws.workers
 
 
+def remember(log: List[bool], today: bool, window: int) -> None:
+    """Adds today to a workshop's log of recent days, keeping only the last *window*."""
+    log.append(today)
+    del log[:-window]
+
+
 def change_capacity(ws: WorkshopState, building: BuildingDef, owner: OwnerState) -> Tuple[float, float]:
-    """Grow after GROWTH_AFTER_DAYS busy days, if the workshop and its owner can pay; shrink after SHRINK_AFTER_DAYS of losses.
+    """Grow after GROWTH_BUSY_DAYS busy days within the last GROWTH_WINDOW_DAYS, if the workshop and its owner
+    can pay; shrink after SHRINK_LOSS_DAYS days of losses within the last SHRINK_WINDOW_DAYS.
+
+    A window, not an unbroken run: with prices that swing with the seasons, a
+    single slack day would otherwise start the count again. Each change clears
+    its log, so the next one needs a window of its own.
 
     Growth is paid to builders out of town (``building.growth_cost`` per batch a
     day), first from the workshop's cash, the rest from its owner's.
@@ -151,7 +163,7 @@ def change_capacity(ws: WorkshopState, building: BuildingDef, owner: OwnerState)
     Returns:
         The capacity change, and what the growth cost (0 when it shrank or stayed).
     """
-    if ws.busy_days >= GROWTH_AFTER_DAYS and ws.capacity < building.max_capacity:
+    if sum(ws.busy_log) >= GROWTH_BUSY_DAYS and ws.capacity < building.max_capacity:
         step = min(max(GROWTH_STEP * ws.capacity, GROWTH_MIN_STEP), building.max_capacity - ws.capacity)
         cost = step * building.growth_cost
         if ws.cash + max(0.0, owner.cash) >= cost:
@@ -159,12 +171,12 @@ def change_capacity(ws: WorkshopState, building: BuildingDef, owner: OwnerState)
             ws.cash -= from_workshop
             owner.cash -= cost - from_workshop
             ws.capacity += step
-            ws.busy_days = 0
+            ws.busy_log.clear()
             return step, cost
-    if ws.unprofitable_days >= SHRINK_AFTER_DAYS and ws.capacity > 0:
+    if sum(ws.loss_log) >= SHRINK_LOSS_DAYS and ws.capacity > 0:
         step = ws.capacity * SHRINK_STEP
         ws.capacity -= step
-        ws.unprofitable_days = 0
+        ws.loss_log.clear()
         return -step, 0.0
     return 0.0, 0.0
 
@@ -224,10 +236,40 @@ def move_wage(wage: float, wanted: float, hands: float, floor: float, cap: float
     return max(floor, min(cap, wage))
 
 
-def labour_share_given(labour_share: float, count: int, wanted: float) -> float:
-    """The share of the workers wanted that a class can give: all of them, or as many as it has hands for."""
-    hands = labour_share * count
-    return 1.0 if wanted <= hands else (hands / wanted if wanted > 0 else 1.0)
+def share_hands(hands: float, wants: Mapping[str, Tuple[float, float]]) -> Dict[str, float]:
+    """Each workshop's share of the workers it wanted, when its class has *hands* to give.
+
+    *wants* maps each workshop hiring from the class to (workers wanted,
+    margin). Enough hands: everyone gets all it wanted. Too few: the hands are
+    shared in proportion to workers wanted × margin (at least
+    ``HIRING_MARGIN_FLOOR``), and what a workshop cannot use (it got all it
+    wanted) goes round again to the rest. Nobody is first in line, but the
+    work that pays best draws the most hands.
+
+    A stand-in, read off the margin rather than the pay (docs/p1_living_market.md,
+    "Hiring"): P3 replaces it with explicit wage offers per workshop, so an owner
+    can outbid others for hands. It reads the margin, never the owner.
+    """
+    if sum(w for w, _ in wants.values()) <= hands:
+        return {ws: 1.0 for ws in wants}
+    weight = {ws: w * max(m, HIRING_MARGIN_FLOOR) for ws, (w, m) in wants.items()}
+    given = {ws: 0.0 for ws in wants}
+    open_ = [ws for ws, (w, _) in wants.items() if w > 0]
+    left = hands
+    while open_ and left > 0:
+        total = sum(weight[ws] for ws in open_)
+        filled = []
+        for ws in open_:
+            give = left * weight[ws] / total
+            if given[ws] + give >= wants[ws][0]:
+                give = wants[ws][0] - given[ws]
+                filled.append(ws)
+            given[ws] += give
+        if not filled:
+            break                       # the hands are all given
+        left = hands - sum(given.values())
+        open_ = [ws for ws in open_ if ws not in filled]
+    return {ws: (given[ws] / w if w > 0 else 1.0) for ws, (w, _) in wants.items()}
 
 
 def owner_of(ws: WorkshopState, owners: Mapping[str, OwnerState]) -> Optional[OwnerState]:

@@ -74,17 +74,17 @@ class WorkshopState:
     input_stock: Dict[str, float]
     output_stock: Dict[str, float]
     workers: int
-    unprofitable_days: int  # hysteresis counters
-    busy_days: int
+    busy_log: List[bool]    # hysteresis: the last GROWTH_WINDOW_DAYS, busy or not
+    loss_log: List[bool]    # ...and the last SHRINK_WINDOW_DAYS, at a loss or not
 ```
 
 - **Planning (daily).** The margin of one batch at today's prices is `(outputs × price − inputs × price − labour × wage) / costs`, counting byproducts as revenue. `utilisation` glides towards `clamp((margin − MARGIN_FLOOR) / (MARGIN_FULL − MARGIN_FLOOR), 0, 1)` at `UTILISATION_GLIDE` a day. The day's batches are `capacity × utilisation`, limited by the workers available, by cash for inputs and wages, and by inputs on the market.
 - **Running (hourly, in market hours).** Each hour runs its share of the day's batches: it buys inputs from the market, makes outputs, and sells them into the market. Wages are paid at the end of the day, out of the workshop's cash, into the workers' class purse.
 - **Capacity, with hysteresis** (`pricing.md` §9):
-  - **Growth:** after `GROWTH_AFTER_DAYS` busy days (utilisation ≥ 0.9) and with enough cash, capacity grows by `GROWTH_STEP`, paid in money to the outside. P3 makes this materials.
-  - **Shrinking:** after `SHRINK_AFTER_DAYS` unprofitable days, capacity shrinks by `SHRINK_STEP`, slower than growth, down to 0. The building stays, so the workshop can come back. A trade beaten down to nothing therefore takes long to return.
+  - **Growth:** after `GROWTH_BUSY_DAYS` (14) busy days within the last `GROWTH_WINDOW_DAYS` (21) (wanting utilisation ≥ 0.9 and able to plan it) and with enough cash, capacity grows by `GROWTH_STEP`, paid in money to the outside. P3 makes this materials. (As built since P1.4: a window, not an unbroken run; see "P1.4".)
+  - **Shrinking:** after `SHRINK_LOSS_DAYS` (42) unprofitable days within the last `SHRINK_WINDOW_DAYS` (56), capacity shrinks by `SHRINK_STEP`, slower than growth, down to 0. The building stays, so the workshop can come back. A trade beaten down to nothing therefore takes long to return.
 - **Profits.** Cash above `working_capital` goes to the owner each day. A workshop short of cash runs less. It never borrows in P1.
-- **Workers** come from the class in `workers_class` (Poor or Commons), as far as that class has heads free for work. They are filled in workshop id order, so the result is deterministic.
+- **Workers** come from the class in `workers_class` (Poor or Commons), as far as that class has heads free for work. (As built: shared by workers wanted × margin when short; see "Hiring" under "P1.4".)
 
 ### The market
 
@@ -310,7 +310,7 @@ Decisions taken while building P1.1 to P1.3, beyond the ones above.
   - `keep`: it keeps all of it.
   - `townsfolk`: cash above its `reserve` is paid to the classes per head.
   - `treasury_with_tribute` (the town, decided in review): it keeps its profits up to `TREASURY_CAP_DAYS` of its average net income (profits less top-ups, smoothed by `TREASURY_INCOME_GLIDE`), or its reserve if that is more. Anything above leaves town as tribute to the lord, counted in the border flows (`TownMoney.tribute`, `town_daily.csv` `money_tribute`) like the households' savings leak. P6 will spend the treasury.
-- **Hiring is pro rata.** When a class has fewer free hands than its workshops want, each gets the same share, as buyers do in a short market. Hiring in id order gave the first farm every poor worker and the forester none.
+- **Hiring is pro rata.** When a class has fewer free hands than its workshops want, each gets the same share, as buyers do in a short market. Hiring in id order gave the first farm every poor worker and the forester none. (Replaced in P1.4 by hands shared by workers wanted × margin; see there.)
 - **Wages move with the demand for hands** (decided in review). Each class has one wage (`ClassState.wage`), paid by every workshop hiring from it; buildings have no wage of their own any more.
   - Each day the tension, how far the workers wanted overshoot the class's free hands (within ±1), moves the wage `WAGE_GLIDE` × tension of the way towards `wage_cap` (in `needs.json`) when hands are short.
   - It moves the same of the way down towards the class's base income when hands are spare.
@@ -349,7 +349,7 @@ Decisions taken while building P1.1 to P1.3, beyond the ones above.
   - **Bad numbers** also catch a negative head count. A negative stock, purse or count must be below −1e-9 (float dust is not a bad number). Workshop debt is not a bad number: it has its own check.
 - **`python -m src.sim.sweep`** (`src/sim/sweep.py`) runs the seeds in parallel processes (one per CPU), applies every check to each, and prints and writes the table: per check, ok / warn / fail counts, the median and the worst seed's number; a grid of every check per seed; the worst case of every check that missed; and the tradability per good over the seeds. It exits with 1 if any seed fails a check. With `--reuse` it checks runs already written, without simulating them again.
 
-**P1.4 result: 20 seeds × 50 years** (1,000 game years in 23 s on 16 cores; `python -m src.sim.sweep`)
+**P1.4 result: 20 seeds × 50 years** (1,000 game years in 23 s on 16 cores; `python -m src.sim.sweep`). The first sweep, before the changes below:
 
 | Check | Kind | ok | warn | fail | Median | Worst |
 |---|---|---:|---:|---:|---:|---:|
@@ -370,12 +370,40 @@ Decisions taken while building P1.1 to P1.3, beyond the ones above.
 | Luxury band | warn | 17 | 3 | | | Poor 0.29 |
 | Goods run short | warn | 20 | | | 9 goods | |
 
-**No seed fails a check.** The books balance to the last float, nothing is ever pinned at a clamp, nobody goes hungry, and money and population hold steady for 50 years. Two warnings come on every seed, and they have one cause:
-- **Wood is the bottleneck.** The merchants bring in their whole limit (30 a day) on 81 % of days, and Wood trades at about 1.8× its outside price.
-- **That kills the charcoal burner** (idle 35–132 days running on every seed, median margin −7 %). Charcoal is imported instead, and the smithy downstream slumps for a month now and then (7 seeds).
-- **The quarry** is idle for most of every run (600–1,365 days), as decided: Stone has no local demand until P3.
-- Short slumps of about a month, just over the line, also hit the salt works (4 seeds), the joiner (3, wood again), the weaver and the tannery (1 each).
-- The comfort and luxury bands are missed by a hair on 3 seeds each (Nobility's comfort 0.95+, the poor's luxury 0.29).
+No seed failed a check, but two warnings came on every seed: Wood imported at its limit (81 % of days, 1.47× its outside price) and the charcoal burner idle. The diagnosis, from `workshops_daily.csv`:
+- **Not capacity, cash or inputs.** The forester stayed at 5 of its `max_capacity` 12 for 50 years on every seed; its working capital paid for 14 batches a day; a batch takes 0.02 Tools.
+- **Labour.** Its margin was 1.05 (it wanted full utilisation on 99.9 % of days), but the poor's 88 hands were all employed: eight workshops wanted about 30 % more than there were, so pro rata hiring gave each 77 %.
+- **So it was never busy.** A busy day needs it to *plan* 0.9 of its capacity after the hiring cut; at 0.77 it was busy on 6 % of days, never 14 in a row, and never grew.
+- **The wage could not move hands.** The poor's wage sat at its cap (1.00 of 1.0); at that wage every poor workshop still cleared `MARGIN_FULL` (the farms at 0.39), so none gave hands up, and pro rata ignored that the forester earned 2.7 times the farms' margin.
+- **Charcoal was thin by its recipe.** 6 Wood into 2 Charcoal earned +0.20 at outside prices (the wage at its cap) and −0.03 with Wood at its import line.
+
+What-ifs (10 seeds × 50 years, in memory): a higher poor wage cap moved Wood only to 1.32× and pushed the poor's luxury out of its band; staffing the best-paying work first brought Wood to 1.17× but starved the farms, sheep, herbs and mill for over a year; sharing hands by workers wanted × margin brought Wood to 1.27× and starved nobody. Decided in review:
+
+- **Hiring by workers wanted × margin, a stand-in** (`production.share_hands`). When a class has fewer hands than its workshops want, they are shared in proportion to workers wanted × margin (at least `HIRING_MARGIN_FLOOR`, so a workshop at a loss still gets a few), and what one cannot use goes round again to the rest. Nobody is first in line, but the work that pays best draws the most hands. It stands for what really moves workers, pay: a profitable workshop can offer more. **P3 replaces it with explicit wage offers per workshop**, so a player's workshop can outbid the town's farms for hands (`roadmap.md`, P3). It reads the margin, never the owner, so it keeps "same rules for everyone".
+- **Growth and shrinking count days in a window**, not an unbroken run: growth after `GROWTH_BUSY_DAYS` (14) busy days within the last `GROWTH_WINDOW_DAYS` (21), shrinking after `SHRINK_LOSS_DAYS` (42) days at a loss within the last `SHRINK_WINDOW_DAYS` (56). With prices swinging with the seasons, one slack day reset the old count. Each change clears its log (`WorkshopState.busy_log`, `loss_log`), so the next needs a window of its own. Saves from before keep their workshops and start with empty logs.
+- **Every recipe can run flat out at outside prices on the cheapest labour.** At the goods' outside prices and its class's base income, each building's recipe earns at least `MARGIN_FULL`; else it can never run at full capacity, whatever the town's prices do, which is a bug in the data. The health report warns of it (`recipe margins`), and `tests/sim/test_data.py` holds the game's data to it. The rule takes base income, not the wage cap: at the cap (where the poor's and commons' wages sit) 20 of 25 recipes earn less, and most commons workshops still run at 60–90 %, because a town's prices are not the outside ones (local inputs come cheaper, imported outputs dearer). It flagged the mill (+0.24) and the bakery (+0.29).
+- **Recipes.** Charcoal is burnt from 4 Wood instead of 6 (+0.93 at base income, +0.64 at the cap), the mill makes 10 Flour of 10 Wheat instead of 9 (+0.38), and the bakery 13 Bread instead of 12 (+0.40).
+
+**After them** (20 seeds × 50 years; `python -m src.sim.sweep`): no seed fails a check.
+
+| | Before | After |
+|---|---|---|
+| Wood against its outside price | 1.47× | 1.27× |
+| Wood imported at its limit | 81 % of days | 22 % |
+| Forester capacity after 50 years (of 12) | 5.0 | 9.7 (8.9–10.7) |
+| Charcoal burner utilisation (median) | 0.05 | 0.95 |
+| Charcoal against its outside price | 1.12× | 0.98× |
+| Workshops idle over a year (seeds of 20) | charcoal burner 20, quarry 20, smithy 7, salt works 4, joiner 3, weaver 1, tannery 1 | quarry 20, smithy 8, joiner 6, salt works 6, weaver 5, cobbler 1, tannery 1 |
+| Poor: wage, share of the workers wanted given | 1.00, 77 % | 1.00, 59 % |
+| Commons: wage, share given | 1.65, 95 % | 1.70, 91 % |
+| Basic fulfilment per class | 0.98 | 0.98–0.99 |
+| Comfort | 0.94–0.95 | 0.94–0.95 (band missed by a hair on 3 seeds) |
+| Luxury (Poor, Commons, Middling Sort, Nobility) | 0.32, 0.57, 0.35, 0.61 | 0.40, 0.66, 0.37, 0.62 (all in band on every seed) |
+| Wine imported at its limit | 44 % of days | 64 % |
+
+- The structural shortage warning now names **Wine** (import-only; at its limit on 64 % of days, more since the town is richer), not Wood.
+- The **smithy** is the thinnest recipe (+0.30 at base income, +0.20 at the cap) and is idle for over a year on 8 seeds; the joiner, salt works and weaver have month-long slumps on 5–6.
+- The **poor** are still short of hands (59 % of the workers wanted, as the forester grew), so their wage stays at its cap.
 
 ## Open questions after P1.2
 
@@ -411,4 +439,5 @@ Seen in the runs, not decided yet (also in `roadmap.md`, "Known issues and loose
 - **Tradability of cheap goods.** The flat transaction fee eats a small lot's swing on a cheap good (Bread, Clay, Charcoal, Flax, Pottery never beat the round trip in the tradability measure). Later: a percentage fee with a minimum.
 - **Labour.** The poor's wage sits at its `wage_cap` nearly all the time; no building hires from the middling sort.
 - **The town is always full.** Migration settles at its housing; growth needs new housing (roadmap P3, P6).
-- **Wood is the bottleneck** (seen by P1.4's sweep). It is imported at its limit on about 80 % of days at about 1.8× its outside price, so the charcoal burner runs at a loss and sits idle for months, and Charcoal is imported instead. A larger `import_limit` for Wood, or more foresters, would move it; not decided.
+- **Wine at its import limit** (seen by P1.4's sweep, after the Wood fix): imported at its limit on about 64 % of days. It is import-only, so only its `import_limit` or the baskets move it; not decided.
+- **The smithy** is the thinnest recipe at outside prices (+0.30 at base income) and idles for over a year on 8 of 20 seeds.

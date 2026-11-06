@@ -244,8 +244,8 @@ class WorkshopState:
     workers: float = 0.0            # heads hired for today
     wage: float = 0.0               # what it pays each of them (its class's wage when it hired)
     input_stock: Dict[str, float] = field(default_factory=dict)   # bought, not yet used
-    busy_days: int = 0              # days in a row it wanted (nearly) full capacity
-    unprofitable_days: int = 0      # days in a row its margin was negative
+    busy_log: List[bool] = field(default_factory=list)   # the last GROWTH_WINDOW_DAYS: was it busy (wanted and planned near capacity)?
+    loss_log: List[bool] = field(default_factory=list)   # the last SHRINK_WINDOW_DAYS: was its margin negative?
     done_yesterday: float = 0.0     # batches run yesterday
 
     def to_dict(self) -> Dict[str, Any]:

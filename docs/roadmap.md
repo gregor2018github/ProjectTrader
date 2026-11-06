@@ -102,7 +102,7 @@ Plugs into: `Good`, `Town` and `PopulationManager` (now pass-through views of th
 - **P1.1 Demand and the outside world**: built.
 - **P1.2 Production**: built.
 - **P1.3 Goods to 30**: built.
-- **P1.4 Runner and health**: built. Every check of the design's health table is in, and 20 seeds × 50 years run clean (no seed fails). The warnings point at Wood (see "Known issues").
+- **P1.4 Runner and health**: built. Every check of the design's health table is in, plus a check that every recipe can run flat out at outside prices, and 20 seeds × 50 years run clean (no seed fails). Its sweep found Wood held back by labour; hands of a short class are now shared by workers wanted × margin (a stand-in for P3's wage offers), growth and shrinking count days in a window, and the charcoal, mill and bakery recipes were fixed.
 - **P1.5 Minimal UI**: open. Need fulfilment per class and tier in the town hall, daily demand and supply per good in the market view.
 
 Then a playtest and the merge to `master`.
@@ -134,6 +134,7 @@ Real supply and demand in place of the placeholder random walk and `recover_volu
 - Each workshop has a named master with skill, loyalty and wage, plus labourers drawn from the Commons and Poor.
 - Upkeep consumes materials. A neglected building decays, loses capacity and finally falls into ruin.
 - One `Workshop` class serves the player, the AI dynasties and the town.
+- **Wage offers per workshop**, replacing P1's stand-in. Since P1.4 a class short of hands shares them by workers wanted × margin (`production.share_hands`), a shortcut for "a profitable workshop can pay more". P3 lets each workshop offer its own wage, so the player can say "I'll pay more" and win hands from the town's farms; the hands then go to the best offers, and the class's one wage (`ClassState.wage`) gives way to the offers made (`p1_living_market.md`, "P1.4").
 
 ### P4 · The dynasty
 
@@ -221,7 +222,8 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 
 - **Cheap goods aren't worth trading.** The transaction fee is flat (`INITIAL_TRANSACTION_COST`, 2 per trade), so on a cheap good (Bread, Clay, Charcoal, Flax, Pottery) a small lot's swings never pay for its round trip (`python -m src.sim.health`, tradability). Later: a percentage fee with a minimum.
 - **Labour.** The poor's wage sits at its cap (`wage_cap` in `needs.json`) nearly all the time, since their workshops always want more hands than there are. No building hires from the middling sort, so its labour share is never used and it lives on base income alone.
-- **Wood is the bottleneck.** The health sweep (P1.4) finds Wood imported at its limit on about 80 % of days, at about 1.8× its outside price, on every seed. So the charcoal burner runs at a loss and idles for months, Charcoal is imported instead, and the smithy downstream slumps now and then. A larger `import_limit` or more foresters would move it; not decided. (The quarry is idle by design until P3 gives Stone a use.)
+- **Wine at its import limit.** Wine is import-only and, since the Wood fix (P1.4) left the town richer, is imported at its limit on about 64 % of days (the health sweep's structural shortage warning). Its `import_limit` or the baskets would move it; not decided.
+- **The smithy** is the thinnest recipe at outside prices (+0.30 at base income) and idles for over a year on 8 of 20 seeds of the sweep.
 - **The town is always full.** Migration settles at about 100 % of the housing, so the town can't grow: that needs new housing, from plots (P3) or public building (P6).
 - **Shortages aren't visible on the map** (pillar 4). Empty or overflowing stalls and townsfolk remarks are still to come; P1.5 only shows numbers.
 - **Next candidates for the sim** (`sim_core.md`): the depot's daily books (cost of living, loans, overdraft, wealth history), the weather, and the crops' growth.

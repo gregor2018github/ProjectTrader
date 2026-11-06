@@ -46,6 +46,11 @@ The checks, in report order (thresholds are the module's constants):
 - **structural shortage** (warn): a good the merchants import at its limit
   (at least ``AT_LIMIT_SHARE`` of its ``import_limit``) on more than
   ``SHORTAGE_DAYS_SHARE`` of days.
+- **recipe margins** (warn): every building's recipe, at the goods' outside
+  prices and its class's base income (the cheapest labour there is), earns at
+  least ``MARGIN_FULL``; one that does not can never run flat out, whatever
+  the town's prices do: a bug in the data. Read from the run's ``meta.json``;
+  ``tests/sim/test_data.py`` holds the game's data to it too.
 - **comfort band**, **luxury band**, **goods run short** (warn): the town should
   run slightly short (the calibration target): each class's mean comfort
   fulfilment in ``COMFORT_BAND`` and luxury in ``LUXURY_BAND``, and at least
@@ -77,12 +82,14 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..config.constants import (
-    HUNGER_THRESHOLD, INITIAL_TRANSACTION_COST, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
+    HUNGER_THRESHOLD, INITIAL_TRANSACTION_COST, MARGIN_FULL, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
 )
 from .calendar import DAYS_PER_YEAR
+from .data import RecipeDef
 from .run import ALL_CLASSES, GOODS_FILE, META_FILE, POPULATION_FILE, TOWN_FILE, WORKSHOPS_FILE
 from .state import GoodState
 from .systems import market
+from .systems.production import batch_margin
 
 BALANCE_TOLERANCE = 1e-9        # |market_balance| may be at most this share of the money supply (float rounding)
 NEGATIVE_TOLERANCE = 1e-9       # a stock, purse or count counts as negative below minus this (float dust)
@@ -498,6 +505,52 @@ def check_structural_shortage(data: RunData):
     top = sorted((g for g in shares if shares[g] > 0), key=lambda g: -shares[g])[:4]
     text = "at the limit on: " + ", ".join(f"{g} {shares[g]:.0%}" for g in (over or top))
     return not over, max(shares.values()), text
+
+
+@dataclass
+class RecipeMargin:
+    building: str
+    recipe: str
+    workers_class: str
+    at_base: float              # its margin at outside prices, paying its class's base income (the cheapest labour)
+    at_cap: float               # ...and paying its class's wage cap (where the wage sits when hands are short)
+
+
+def recipe_margins(definitions: Dict) -> List[RecipeMargin]:
+    """Every building's recipe's margin at the goods' outside prices, at its class's base income and wage cap.
+
+    *definitions* is ``dataclasses.asdict(Definitions)``, as meta.json keeps it.
+    A recipe under ``MARGIN_FULL`` even at base income can never run flat out,
+    whatever the town's prices do to it: a bug in the data.
+    """
+    outside = {g["name"]: g["outside_price"] for g in definitions.get("goods", [])}
+    needs = {n["name"]: n for n in definitions.get("needs", [])}
+    recipes = {r["id"]: r for r in definitions.get("recipes", [])}
+    result = []
+    for b in definitions.get("buildings", []):
+        r = recipes[b["recipe"]]
+        recipe = RecipeDef(id=r["id"], name=r.get("name", r["id"]), inputs=r["inputs"], outputs=r["outputs"],
+                           labour=r["labour"])
+        cls = needs[b["workers_class"]]
+        result.append(RecipeMargin(b["type"], r["id"], b["workers_class"],
+                                   batch_margin(recipe, cls["base_income"], outside),
+                                   batch_margin(recipe, cls["wage_cap"], outside)))
+    return result
+
+
+@check("recipe margins", WARN, f">= {MARGIN_FULL:g} at outside prices, base income", "lowest margin",
+       higher_is_worse=False)
+def check_recipe_margins(data: RunData):
+    margins = recipe_margins(data.meta.get("definitions", {}))
+    if not margins:
+        return True, MARGIN_FULL, "no recipes known (meta.json missing)"
+    low = sorted((m for m in margins if m.at_base < MARGIN_FULL), key=lambda m: m.at_base)
+    worst = min(margins, key=lambda m: m.at_base)
+    if not low:
+        return True, worst.at_base, (f"every recipe can run flat out at outside prices; the thinnest: {worst.building} "
+                                     f"{worst.at_base:+.2f} at base income, {worst.at_cap:+.2f} at the wage cap")
+    return False, worst.at_base, "under MARGIN_FULL even at base income: " + ", ".join(
+        f"{m.building} ({m.recipe}) {m.at_base:+.2f}" for m in low)
 
 
 def fulfilment_by_class(population_rows: Sequence[Row]) -> Dict[str, Dict[str, float]]:

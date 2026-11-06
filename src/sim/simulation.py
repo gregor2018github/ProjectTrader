@@ -24,7 +24,7 @@ subscribed in ``_subscribe_systems()``:
 ``docs/sim_core.md`` has the structure, ``docs/p1_living_market.md`` the model.
 """
 import datetime
-from typing import Any, Dict, Hashable, Optional
+from typing import Any, Dict, Hashable, Optional, Tuple
 
 from ..config.constants import MARKET_CLOSE_HOUR, MARKET_OPEN_HOUR
 from . import calendar
@@ -296,30 +296,32 @@ class Simulation:
 
     def _workshops_plan(self, moment: datetime.datetime) -> None:
         """Workshops plan the day: what each wants at its class's wage, then each class's wage moves with
-        the demand for its hands and the hands are shared out pro rata; then growth."""
+        the demand for its hands and the hands are shared out (by workers wanted x margin when short,
+        ``production.share_hands``); then growth."""
         state = self.state
         pop = state.population
         prices = self._prices()
-        wanted: Dict[str, float] = {}
+        wants: Dict[str, Dict[str, Tuple[float, float]]] = {}       # per class, per workshop: (workers, margin)
         for ws in state.workshops.values():
             building = self.buildings[ws.building]
             workers = production.plan_wants(ws, self.recipes[building.recipe], prices,
                                             self._class_wage(building.workers_class))
-            wanted[building.workers_class] = wanted.get(building.workers_class, 0.0) + workers
-        shares = {}
+            wants.setdefault(building.workers_class, {})[ws.id] = (workers, ws.margin)
+        shares: Dict[str, float] = {}
         if pop is not None:
             for cls in pop.classes.values():
                 needs = self.needs[cls.name]
                 hands = needs.labour_share * cls.count
-                cls.labour_wanted = wanted.get(cls.name, 0.0)
+                mine = wants.get(cls.name, {})
+                cls.labour_wanted = sum(w for w, _ in mine.values())
                 cls.wage = production.move_wage(cls.wage, cls.labour_wanted, hands, needs.base_income, needs.wage_cap)
-                shares[cls.name] = production.labour_share_given(needs.labour_share, cls.count, cls.labour_wanted)
+                shares.update(production.share_hands(hands, mine))
         hired: Dict[str, float] = {}
         for ws in state.workshops.values():
             building = self.buildings[ws.building]
             recipe = self.recipes[building.recipe]
             hired[building.workers_class] = hired.get(building.workers_class, 0.0) + production.hire(
-                ws, recipe, shares.get(building.workers_class, 0.0), self._class_wage(building.workers_class))
+                ws, recipe, shares.get(ws.id, 0.0), self._class_wage(building.workers_class))
             for good, units in production.input_wants(ws, recipe).items():
                 state.goods[good].today.input_wanted += units
             owner = state.owners[ws.owner_id]

@@ -1,4 +1,4 @@
-"""Workshops: margin → utilisation, hiring pro rata, slices, the owner settling up, growth and shrinking."""
+"""Workshops: margin → utilisation, hiring by workers wanted × margin, slices, the owner settling up, growth and shrinking."""
 import datetime
 
 import pytest
@@ -18,8 +18,9 @@ BREW = recipe("brew", {"Beer": 1.0}, inputs={"Wheat": 2.0, "Wood": 0.5}, labour=
 @pytest.fixture(autouse=True)
 def pinned(monkeypatch):
     for name, value in (("MARGIN_FLOOR", 0.0), ("MARGIN_FULL", 0.3), ("UTILISATION_GLIDE", 1.0),
-                        ("GROWTH_DESIRE", 0.9), ("GROWTH_AFTER_DAYS", 3), ("GROWTH_STEP", 0.1),
-                        ("GROWTH_MIN_STEP", 0.5), ("SHRINK_AFTER_DAYS", 3), ("SHRINK_STEP", 0.5),
+                        ("GROWTH_DESIRE", 0.9), ("GROWTH_BUSY_DAYS", 3), ("GROWTH_WINDOW_DAYS", 4),
+                        ("GROWTH_STEP", 0.1), ("GROWTH_MIN_STEP", 0.5), ("SHRINK_LOSS_DAYS", 3),
+                        ("SHRINK_WINDOW_DAYS", 4), ("SHRINK_STEP", 0.5), ("HIRING_MARGIN_FLOOR", 0.01),
                         ("WAGE_GLIDE", 0.1), ("TREASURY_CAP_DAYS", 10), ("TREASURY_INCOME_GLIDE", 1.0)):
         monkeypatch.setattr(prod, name, value)
 
@@ -54,9 +55,31 @@ def test_a_workshop_plans_capacity_times_utilisation_as_far_as_its_cash_goes():
 def test_short_hands_are_shared_and_hiring_sets_the_workers():
     ws = a_workshop()
     prod.plan_wants(ws, BREW, PRICES, WAGE)
-    assert prod.labour_share_given(0.5, 100, wanted=200.0) == pytest.approx(0.25)
     assert prod.hire(ws, BREW, 0.25, 1.2) == pytest.approx(2.5)
     assert ws.planned == pytest.approx(2.5) and ws.wage == 1.2
+
+
+def test_enough_hands_give_everyone_all_it_wanted():
+    assert prod.share_hands(100.0, {"farm": (60.0, 0.2), "mill": (40.0, 0.9)}) == {"farm": 1.0, "mill": 1.0}
+
+
+def test_short_hands_go_by_workers_wanted_times_margin():
+    shares = prod.share_hands(30.0, {"farm": (40.0, 0.25), "forester": (20.0, 1.0)})
+    # weights 10 and 20: the farm gets 10 of its 40 workers, the forester 20 of its 20
+    assert shares["farm"] == pytest.approx(0.25) and shares["forester"] == pytest.approx(1.0)
+
+
+def test_what_a_workshop_cannot_use_goes_round_again():
+    shares = prod.share_hands(50.0, {"farm": (40.0, 0.25), "forester": (20.0, 1.0)})
+    # first round: 50 by weight 10:20 gives 16.7 and 33.3; the forester only wants 20, so the farm gets the other 30
+    assert shares["forester"] == pytest.approx(1.0) and shares["farm"] == pytest.approx(30.0 / 40.0)
+    assert sum(s * w for s, (w, _) in zip(shares.values(), [(40.0, 0), (20.0, 0)])) == pytest.approx(50.0)
+
+
+def test_a_workshop_at_a_loss_still_gets_a_few_hands_and_one_wanting_none_its_whole_nothing():
+    shares = prod.share_hands(10.0, {"farm": (20.0, 0.5), "quarry": (10.0, -0.4), "idle": (0.0, 0.3)})
+    assert 0.0 < shares["quarry"] < 0.02 and shares["idle"] == 1.0
+    assert shares["farm"] * 20.0 + shares["quarry"] * 10.0 == pytest.approx(10.0)
 
 
 def test_a_wage_rises_when_hands_are_short_and_falls_when_they_are_spare():
@@ -108,6 +131,13 @@ def test_a_treasury_keeps_days_of_income_and_pays_the_rest_as_tribute():
     assert prod.owner_day(poor_town) == (0.0, pytest.approx(50.0))   # no income yet: keeps its reserve
 
 
+def test_a_window_keeps_only_its_last_days():
+    log = []
+    for day in (True, False, True, True, True):
+        prod.remember(log, day, 4)
+    assert log == [False, True, True, True]
+
+
 def test_busy_days_grow_a_workshop_and_its_owner_helps_pay():
     owner = an_owner(cash=1000.0)
     ws = a_workshop(capacity=10.0, cash=50.0)
@@ -123,7 +153,27 @@ def test_a_busy_workshop_without_hands_does_not_grow():
     for _ in range(5):
         prod.plan_wants(ws, BREW, PRICES, WAGE)
         prod.hire(ws, BREW, 0.2, WAGE)                                          # nobody to work there
-    assert ws.busy_days == 0
+    assert not any(ws.busy_log)
+
+
+def test_a_slack_day_in_the_window_does_not_stop_growth():
+    ws, owner = a_workshop(capacity=10.0), an_owner(cash=1000.0)
+    for share in (1.0, 0.2, 1.0, 1.0):                                         # 3 busy days of the last 4
+        prod.plan_wants(ws, BREW, PRICES, WAGE)
+        prod.hire(ws, BREW, share, WAGE)
+    assert prod.change_capacity(ws, BREWERY, owner)[0] == pytest.approx(1.0)
+    assert ws.busy_log == []                                                     # the next growth needs a window of its own
+    prod.plan_wants(ws, BREW, PRICES, WAGE)
+    prod.hire(ws, BREW, 1.0, WAGE)
+    assert prod.change_capacity(ws, BREWERY, owner) == (0.0, 0.0)
+
+
+def test_too_many_slack_days_in_the_window_stop_growth():
+    ws = a_workshop(capacity=10.0)
+    for share in (1.0, 0.2, 1.0, 0.2, 1.0):                                    # never 3 of the last 4
+        prod.plan_wants(ws, BREW, PRICES, WAGE)
+        prod.hire(ws, BREW, share, WAGE)
+    assert prod.change_capacity(ws, BREWERY, an_owner(cash=1000.0)) == (0.0, 0.0)
 
 
 def test_losses_shrink_a_workshop():
@@ -172,3 +222,20 @@ def test_an_unprofitable_workshop_shrinks_while_imports_feed_the_town():
     sim.advance_to(START.replace(hour=0) + datetime.timedelta(days=200))
     assert sim.state.workshops["bakery"].capacity < start
     assert all(c.fulfilment["basic"] == 1.0 for c in sim.state.population.classes.values())
+
+
+def test_losses_with_a_good_day_among_them_still_shrink_a_workshop():
+    ws = a_workshop(capacity=10.0)
+    losing, earning = {"Wheat": 3.0, "Beer": 5.0, "Wood": 1.0}, PRICES
+    for prices in (losing, earning, losing, losing):                         # 3 losses in the last 4 days
+        prod.plan_wants(ws, BREW, prices, WAGE)
+    assert prod.change_capacity(ws, BREWERY, an_owner()) == (pytest.approx(-5.0), 0.0)
+    assert ws.loss_log == []
+
+
+def test_a_saved_workshop_from_before_the_windows_loads_with_empty_logs():
+    old = {"id": "mill", "owner_id": "town", "building": "mill", "capacity": 4.0, "cash": 50.0,
+           "busy_days": 9, "unprofitable_days": 2}
+    ws = WorkshopState.from_dict(old)
+    assert ws.busy_log == [] and ws.loss_log == [] and ws.capacity == 4.0
+    assert WorkshopState.from_dict(ws.to_dict()) == ws

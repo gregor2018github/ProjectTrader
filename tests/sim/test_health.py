@@ -50,7 +50,7 @@ def test_every_check_of_the_design_is_registered_once_and_in_order():
     names = [c.name for c in health.CHECKS]
     assert names == ["market balance", "bad numbers", "price at clamp", "price far from outside", "hunger",
                      "poorly supplied", "money supply", "population", "population trend", "happiness",
-                     "workshop cash", "dead workshop", "structural shortage", "comfort band", "luxury band",
+                     "workshop cash", "dead workshop", "structural shortage", "recipe margins", "comfort band", "luxury band",
                      "goods run short"]
     assert all(c.severity in (health.FAIL, health.WARN) for c in health.CHECKS)
 
@@ -197,6 +197,27 @@ def test_a_good_imported_at_its_limit_on_most_days_is_a_structural_shortage(monk
     assert health.at_limit_shares(data) == {"Wood": 0.6}
     f = finding("structural shortage", data)
     assert f.status == health.WARN and f.value == 0.6 and "Wood 60%" in f.text
+
+
+def recipe_defs(flour_out: float) -> dict:
+    """A mill (10 wheat at 1 into flour at 1.5, one worker) and the class working it, as meta.json keeps them."""
+    return {"goods": [{"name": "Wheat", "outside_price": 1.0}, {"name": "Flour", "outside_price": 1.5}],
+            "needs": [{"name": "Commons", "base_income": 1.0, "wage_cap": 2.0}],
+            "recipes": [{"id": "mill_flour", "inputs": {"Wheat": 10}, "outputs": {"Flour": flour_out}, "labour": 1}],
+            "buildings": [{"type": "mill", "recipe": "mill_flour", "workers_class": "Commons"}]}
+
+
+def test_a_recipes_margin_is_taken_at_outside_prices_at_base_income_and_at_the_cap():
+    (m,) = health.recipe_margins(recipe_defs(10.0))
+    assert m.at_base == pytest.approx((15.0 - 11.0) / 11.0) and m.at_cap == pytest.approx((15.0 - 12.0) / 12.0)
+
+
+def test_a_recipe_that_cannot_run_flat_out_even_on_the_cheapest_labour_is_a_warning(monkeypatch):
+    monkeypatch.setattr(health, "MARGIN_FULL", 0.3)
+    thin = finding("recipe margins", health.RunData(meta={"definitions": recipe_defs(9.0)}))     # 13.5 on 11: +0.23
+    assert thin.status == health.WARN and "mill (mill_flour) +0.23" in thin.text
+    fine = finding("recipe margins", health.RunData(meta={"definitions": recipe_defs(10.0)}))    # 15 on 11: +0.36
+    assert fine.ok and fine.value == pytest.approx(4.0 / 11.0)
 
 
 def test_the_calibration_bands_name_the_classes_outside():
