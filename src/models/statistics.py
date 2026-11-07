@@ -5,7 +5,7 @@ rather than crashing. Increment calls are intentionally fire-and-forget at the
 call site (no listeners, no callbacks).
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 class Statistics:
@@ -38,6 +38,7 @@ class Statistics:
         self.minigame_income_total: float = 0.0 # cumulative gold earned from minigames
         self.woodhacking_highscore: float = 0   # best score achieved in the woodhacking minigame (streak bonuses make it fractional)
         self.last_woodhacking_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last played, gates to once/day
+        self.minigame_tips_seen: List[str] = []  # the minigames' one-time explanations already shown
 
         # Time
         self.days_played: int = 0               # in-game days elapsed this session
@@ -66,6 +67,7 @@ class Statistics:
             "minigame_income_total": self.minigame_income_total,
             "woodhacking_highscore": self.woodhacking_highscore,
             "last_woodhacking_day": self.last_woodhacking_day,
+            "minigame_tips_seen": list(self.minigame_tips_seen),
         }
 
     @classmethod
@@ -90,4 +92,5 @@ class Statistics:
         obj.minigame_income_total = d.get("minigame_income_total", 0.0)
         obj.woodhacking_highscore = d.get("woodhacking_highscore", 0)
         obj.last_woodhacking_day = d.get("last_woodhacking_day", None)
+        obj.minigame_tips_seen = list(d.get("minigame_tips_seen", []))
         return obj

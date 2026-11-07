@@ -24,7 +24,9 @@ at the log: lifted while power gathers, and by the grade a clean
 split, a bite that cracks the log, a swish past it or a swing that falls
 short. A gauge read PERFECT glints for a moment (a sparkle on the plumb bob or
 the power pointer and a thin ring spreading from it; the aim's sweet spot lights up); both
-PERFECT at once also make the blow itself land with weight (see the scene).
+PERFECT at once also make the blow itself land with weight (see the scene)
+and earn an extra swing; the first time it happens, a small box explains it
+(``TIP_DOUBLE_PERFECT``, remembered in ``Statistics.minigame_tips_seen``).
 Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
 the next swing's points, so the third split in a row scores 10% more and so
 on, until a swing fails to split its log and the streak starts again from
@@ -126,8 +128,15 @@ _RING_VOLUME = 0.22        # the axe's steel ringing after a swing perfect on bo
 
 STREAK_BONUS = 0.05        # extra points on a swing for each split in a row before it
 
-MAX_SWINGS = 30
+MAX_SWINGS = 30            # the swings of a session, before the extra ones earned
 MAX_SCORE = MAX_SWINGS * 5
+
+# The one-time explanation of a swing perfect on both gauges, shown this long after it
+TIP_DOUBLE_PERFECT = "woodhacking_double_perfect"
+_TIP_DELAY_S = 0.9
+_TIP_TITLE = "A perfect blow"
+_TIP_TEXT = "Aim and power both perfect: the axe rings true, and you earn an extra swing."
+_EXTRA_SWING_S = 1.8       # how long "Extra swing!" shows
 
 
 def _steel_ring() -> Optional[pygame.mixer.Sound]:
@@ -322,6 +331,11 @@ class WoodhackingMinigame(MinigameOverlay):
         self.streak = 0            # logs split in a row
         self.best_streak = 0
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
+        self.extra_swings = 0      # earned by swings perfect on both gauges
+        self._extra_shown = 0.0    # seconds "Extra swing!" has left to show
+        self._tip_in: Optional[float] = None   # seconds until the explanation opens
+        self.tip_open = False
+        self.tip_ok_rect = pygame.Rect(0, 0, 120, 40)
         self.glints: List[dict] = []   # perfect gauges glinting: "kind", "age", "at" (where the marker stood)
         self._streak_lost_alpha = 0
         self.done = False
@@ -374,6 +388,14 @@ class WoodhackingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.tip_open:
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
+                                                              pygame.K_SPACE, pygame.K_ESCAPE):
+                self.tip_open = False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 \
+                    and self.tip_ok_rect.collidepoint(self._to_canvas(event.pos)):
+                self.tip_open = False
+            return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.active = False
@@ -458,7 +480,12 @@ class WoodhackingMinigame(MinigameOverlay):
                 self.aim_speed_bonus + _SPEED_BONUS_PER_HIT, _MAX_SPEED_BONUS
             )
             self.opt_lo, self.opt_hi = _new_opt_zone()
-        if self.attempt >= MAX_SWINGS:
+        if flourish == 2:
+            self.extra_swings += 1
+            self._extra_shown = _EXTRA_SWING_S
+            if TIP_DOUBLE_PERFECT not in self.game.depot.stats.minigame_tips_seen:
+                self._tip_in = _TIP_DELAY_S
+        if self.attempt >= self.total_swings:
             self._ending = True
 
     def _glint(self, aim: bool, power: bool) -> None:
@@ -473,6 +500,21 @@ class WoodhackingMinigame(MinigameOverlay):
                                 "at": pygame.Vector2(r.right + 8, r.bottom - self.power * r.height)})
 
     @property
+    def total_swings(self) -> int:
+        """The session's swings, the extra ones earned so far included."""
+        return MAX_SWINGS + self.extra_swings
+
+    def _open_tip(self) -> None:
+        """Open the explanation of a perfect blow (once a game: it is remembered as seen)."""
+        self._tip_in = None
+        self.tip_open = True
+        self.game.depot.stats.minigame_tips_seen.append(TIP_DOUBLE_PERFECT)
+        if self.charging:              # a swing being gathered is let go of, not swung
+            self.charging = False
+            self.power = 0.0
+            self.scene.state = "recover"
+
+    @property
     def streak_bonus(self) -> float:
         """The share of extra points the next swing earns for the splits in a row before it."""
         return self.streak * STREAK_BONUS
@@ -482,6 +524,15 @@ class WoodhackingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def update(self, delta_time: float) -> None:
+        if self.tip_open:              # the gauges wait for the OK; the scene settles meanwhile
+            self._play_scene_sounds(self.scene.update(delta_time))
+            return
+        if self._tip_in is not None:
+            self._tip_in -= delta_time
+            if self._tip_in <= 0:
+                self._open_tip()
+                return
+        self._extra_shown = max(0.0, self._extra_shown - delta_time)
         if not self.done:
             spd = (_BASE_AIM_SPEED + self.aim_speed_bonus) * (1.0 + self.power * _CHARGE_SPEED_K)
             self.aim += self.aim_dir * spd * delta_time
@@ -494,7 +545,7 @@ class WoodhackingMinigame(MinigameOverlay):
                 self.scene.charge(self.power)
 
         self._play_scene_sounds(self.scene.update(delta_time))
-        if self._ending and not self.done and self.scene.settled:
+        if self._ending and not self.done and self.scene.settled and self._tip_in is None:
             self._end_timer += delta_time
             if self._end_timer >= _RESULT_DELAY_S:
                 self.done = True
@@ -682,6 +733,12 @@ class WoodhackingMinigame(MinigameOverlay):
             # In the open sky beside the post's top, clear of the trees
             surf.blit(pow_txt, pow_txt.get_rect(center=(_POWER_RECT.right + 95, _POWER_RECT.top - 30)))
 
+        if self._extra_shown > 0:
+            extra = self._inked("Extra swing!", self.font_grade, _BRASS_LIGHT)
+            extra.set_alpha(round(255 * min(1.0, self._extra_shown / 0.5)))
+            rise = 14 * (1 - self._extra_shown / _EXTRA_SWING_S)
+            surf.blit(extra, extra.get_rect(center=(SCENE_W // 2, SCENE_H - 66 - rise)))
+
         self._plaque(surf, f"Logs split: {self.scene.pile}", (SCENE_W - 90, 26))
         self._draw_streak(surf, (SCENE_W - 90, 56))
 
@@ -709,7 +766,7 @@ class WoodhackingMinigame(MinigameOverlay):
         left = self.font.render(f"Score: {score_to_display(self.score, MAX_SCORE)}", True, SANDY_BROWN)
         self.canvas.blit(left, (20, _CANVAS_H - 32))
 
-        mid = self.font.render(f"Swing  {self.attempt} / {MAX_SWINGS}", True, SANDY_BROWN)
+        mid = self.font.render(f"Swing  {self.attempt} / {self.total_swings}", True, SANDY_BROWN)
         self.canvas.blit(mid, mid.get_rect(centerx=_CANVAS_W // 2, y=_CANVAS_H - 32))
 
         right = self.font.render(f"Coins: {coins:.2f}", True, SANDY_BROWN)
@@ -751,6 +808,42 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, DARK_BROWN, self.close_rect, 2, border_radius=4)
         close_txt = self.font.render("Close", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.close_rect.center))
+
+    def _draw_tip(self) -> None:
+        """A small box explaining a perfect blow, over the scene, closed with OK."""
+        shade = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 110))
+        self.canvas.blit(shade, (0, 0))
+        lines = self._wrap(_TIP_TEXT, self.font, 360)
+        panel = pygame.Rect(0, 0, 420, 112 + 24 * len(lines))
+        panel.center = _SCENE_RECT.center
+        pygame.draw.rect(self.canvas, _PAPER, panel, border_radius=6)
+        pygame.draw.rect(self.canvas, _BRASS, panel, 3, border_radius=6)
+        pygame.draw.rect(self.canvas, _BRASS_DARK, panel.inflate(-8, -8), 1, border_radius=4)
+        title = self.font_grade.render(_TIP_TITLE, True, _INK)
+        self.canvas.blit(title, title.get_rect(center=(panel.centerx, panel.top + 30)))
+        for i, line in enumerate(lines):
+            text = self.font.render(line, True, _INK)
+            self.canvas.blit(text, text.get_rect(center=(panel.centerx, panel.top + 64 + 24 * i)))
+        self.tip_ok_rect.center = (panel.centerx, panel.bottom - 32)
+        hovered = self.tip_ok_rect.collidepoint(self._to_canvas(pygame.mouse.get_pos()))
+        pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, self.tip_ok_rect, border_radius=4)
+        pygame.draw.rect(self.canvas, _BRASS_DARK, self.tip_ok_rect, 2, border_radius=4)
+        ok = self.font.render("OK", True, _INK)
+        self.canvas.blit(ok, ok.get_rect(center=self.tip_ok_rect.center))
+
+    @staticmethod
+    def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
+        """The text broken into lines no wider than width."""
+        lines, line = [], ""
+        for word in text.split():
+            trial = f"{line} {word}".strip()
+            if line and font.size(trial)[0] > width:
+                lines.append(line)
+                line = word
+            else:
+                line = trial
+        return lines + [line] if line else lines
 
     def _draw_congrats_overlay(self) -> None:
         overlay = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
@@ -796,6 +889,8 @@ class WoodhackingMinigame(MinigameOverlay):
         coins = score_to_coins(self.score, MAX_SCORE)
         self._draw_status_bar(coins)
 
+        if self.tip_open:
+            self._draw_tip()
         if self.done:
             self._draw_result_overlay(coins)
             if self._show_congrats:

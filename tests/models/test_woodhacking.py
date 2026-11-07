@@ -100,8 +100,10 @@ def test_the_scene_draws_every_moment(scene):
             scene.draw()
 
 
-def _game():
-    stats = SimpleNamespace(woodhacking_highscore=0, minigames_played=0, minigame_income_total=0.0)
+def _game(tips_seen=(wh.TIP_DOUBLE_PERFECT,)):
+    """A stand-in game; the explanation of a perfect blow counts as seen unless the test says not."""
+    stats = SimpleNamespace(woodhacking_highscore=0, minigames_played=0, minigame_income_total=0.0,
+                            minigame_tips_seen=list(tips_seen))
     booked = []
     depot = SimpleNamespace(stats=stats, book_labor_income=lambda coins, name: booked.append(coins))
     game = SimpleNamespace(depot=depot, state=SimpleNamespace(log_event=lambda *a: None),
@@ -115,7 +117,7 @@ def test_the_result_waits_for_the_last_swing_to_settle(monkeypatch):
     minigame = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
     down = pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0))
     up = pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(0, 0))
-    for _ in range(wh.MAX_SWINGS):
+    while minigame.attempt < minigame.total_swings:   # extra swings earned included
         while not minigame.scene.can_charge:
             minigame.update(DT)
         minigame.handle_event(down)
@@ -123,10 +125,10 @@ def test_the_result_waits_for_the_last_swing_to_settle(monkeypatch):
             minigame.update(DT)
         minigame.aim = 0.0                       # dead centre
         minigame.handle_event(up)
-    assert minigame.attempt == wh.MAX_SWINGS
+    assert minigame.attempt == minigame.total_swings >= wh.MAX_SWINGS
     assert not minigame.done                     # the last log is still flying
     minigame.handle_event(down)
-    assert not minigame.charging                 # no 31st swing
+    assert not minigame.charging                 # no swing beyond the last
     for _ in range(round(5 / DT)):
         minigame.update(DT)
         if minigame.done:
@@ -269,3 +271,49 @@ def test_the_night_is_darker_than_the_day_but_the_gauges_still_get_light():
     x, y = 71, 380                      # low on the power post, away from its lantern
     assert sum(night._lightmap.get_at((x, y))[:3]) < sum(day._lightmap.get_at((x, y))[:3])
     assert min(night._lightmap.get_at((x, y))[:3]) > 60
+
+
+# ── Chips, the extra swing and the explanation ────────────────────────────────
+
+def test_the_chips_of_each_blow_stay_round_the_stump(scene):
+    swing(scene, SPLIT)
+    run(scene, 2.0)
+    first = scene.chips_lying
+    assert first > 0
+    swing(scene, SPLIT)
+    run(scene, 2.0)
+    assert scene.chips_lying > first
+
+
+def test_a_swing_perfect_on_both_gauges_earns_an_extra_swing(minigame):
+    _swing(minigame, True)
+    assert minigame.extra_swings == 1 and minigame.total_swings == wh.MAX_SWINGS + 1
+    _fair_swing(minigame)
+    assert minigame.extra_swings == 1
+
+
+def test_the_first_perfect_blow_is_explained_once_and_waits_for_ok(monkeypatch):
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    game, _ = _game(tips_seen=())
+    m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+    m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2
+    m._resolve_swing()
+    for _ in range(round(1.2 / DT)):
+        m.update(DT)
+    assert m.tip_open
+    assert game.depot.stats.minigame_tips_seen == [wh.TIP_DOUBLE_PERFECT]
+    aim = m.aim
+    m.update(DT)
+    assert m.aim == aim                          # the game waits
+    m.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert m.tip_open and not m.charging         # a click beside OK does nothing
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN))
+    assert not m.tip_open
+    # The next perfect blow is not explained again
+    while not m.scene.can_charge or not m.scene.log_ready:
+        m.update(DT)
+    m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2
+    m._resolve_swing()
+    for _ in range(round(1.2 / DT)):
+        m.update(DT)
+    assert not m.tip_open
