@@ -361,3 +361,57 @@ def test_a_notice_warns_when_three_swings_are_left(monkeypatch):
     m.aim, m.power = math.radians(40), 0.01
     m._resolve_swing()
     assert m.notice is None                                    # 2 left: no notice again
+
+
+# ── Time passes at work ───────────────────────────────────────────────────────
+
+def _timed_minigame(monkeypatch, swings=4):
+    import datetime
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    monkeypatch.setattr(wh, "MAX_SWINGS", swings)
+    monkeypatch.setattr(wh, "HOURS_OF_WORK", 4.0)
+    game, booked = _game()
+    game.state.date = datetime.datetime(1500, 1, 4, 10, 0)
+    return wh.WoodhackingMinigame(pygame.Surface((10, 10)), game), game, booked
+
+
+def _miss(m):
+    m.aim, m.power = math.radians(40), 0.01
+    m._resolve_swing()
+
+
+def test_back_on_the_map_after_a_whole_session_four_hours_have_passed(monkeypatch):
+    m, game, _ = _timed_minigame(monkeypatch)
+    for _ in range(4):
+        _miss(m)
+    for _ in range(round(6 / DT)):
+        m.update(DT)
+        if m.done:
+            break
+    m.close_rect.center = (50, 50)
+    m.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(50 + m.canvas_rect.left, 50 + m.canvas_rect.top)))
+    assert not m.active
+    assert game.state.date.hour == 14 and game.state.date.minute == 0
+
+
+def test_leaving_early_takes_the_share_of_the_hours_worked(monkeypatch):
+    m, game, _ = _timed_minigame(monkeypatch)
+    _miss(m)                                   # one of four swings
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    assert not m.active and game.state.date.hour == 11
+
+
+def test_leaving_before_the_first_swing_takes_no_time(monkeypatch):
+    m, game, _ = _timed_minigame(monkeypatch)
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    assert game.state.date.hour == 10 and game.state.date.minute == 0
+
+
+def test_leaving_right_after_the_last_swing_still_pays_and_takes_the_hours(monkeypatch):
+    m, game, booked = _timed_minigame(monkeypatch, swings=1)
+    m.aim, m.power = math.radians(-5), (m.opt_lo + m.opt_hi) / 2   # very good aim: a split, no extra swing
+    m._resolve_swing()
+    assert m._ending and not m.done
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    assert game.depot.stats.minigames_played == 1
+    assert game.state.date.hour == 14

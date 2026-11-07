@@ -132,6 +132,8 @@ _GLINT_COLOUR = (255, 240, 190)
 _THUNDER_VOLUME = 0.6      # a storm's thunder over the clearing
 _RING_VOLUME = 0.22        # the axe's steel ringing after a swing perfect on both gauges
 
+HOURS_OF_WORK = 4.0        # a whole session of chopping takes this long: the clock has moved on when you leave
+
 STREAK_BONUS = 0.05        # extra points on a swing for each split in a row before it
 
 MAX_SWINGS = 30            # the swings of a session, before the extra ones earned
@@ -415,7 +417,7 @@ class WoodhackingMinigame(MinigameOverlay):
             return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                self.active = False
+                self._leave()
                 return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.done:
@@ -424,7 +426,7 @@ class WoodhackingMinigame(MinigameOverlay):
                         self._show_congrats = False
                     return
                 if self.close_rect.collidepoint(self._to_canvas(event.pos)):
-                    self.active = False
+                    self._leave()
                 return
             if not self.charging and not self._ending and self.scene.can_charge:
                 self.charging = True
@@ -433,6 +435,18 @@ class WoodhackingMinigame(MinigameOverlay):
             if self.charging and not self.done:
                 self.charging = False
                 self._resolve_swing()
+
+    def _leave(self) -> None:
+        """Back to the map, the hours of work passed: all of HOURS_OF_WORK after a whole
+        session, its share of them after leaving early (nothing before the first swing)."""
+        if self._ending and not self.done:     # left in the moment after the last swing: it still pays
+            self.done = True
+            self._book_payout()
+        done = 1.0 if self.done else min(1.0, self.attempt / self.total_swings)
+        state = getattr(self.game, "state", None)
+        if state is not None and hasattr(state, "date"):
+            self.pass_time(state, HOURS_OF_WORK * done)
+        self.active = False
 
     def _play_scene_sounds(self, kinds) -> None:
         """Play what the scene asks for: "chop" as the axe bites, "swoosh" as it

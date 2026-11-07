@@ -10,13 +10,16 @@ the same lifecycle already used by ``game_state.contract_acquisition``:
 - ``EventHandler`` routes every input event to ``handle_event()`` first and
   swallows it, so the minigame has exclusive input focus.
 - Setting ``self.active = False`` tells the main loop to drop the reference and
-  restore the previous simulation speed.
+  restore the previous simulation speed. The game stands still while it is open;
+  a minigame that is work moves the clock on by the hours it took as the player
+  leaves (``pass_time``).
 
 Additional minigames (2-4 are planned) should subclass ``MinigameOverlay`` and
 book their payout through ``Depot.book_labor_income`` using ``score_to_coins``
 for a consistent risk/reward curve across all of them.
 """
 
+import datetime
 import math
 from typing import Any
 
@@ -34,6 +37,14 @@ class MinigameOverlay:
 
     def draw(self) -> None:
         raise NotImplementedError
+
+    def pass_time(self, game_state: Any, hours: float) -> None:
+        """Move the game's clock on by the hours the work took (whole minutes), as the player
+        goes back to the map. The game finds out on its next update, as after any jump of
+        its clock: the hours and a day passed get their work done, the simulation catches up."""
+        minutes = round(hours * 60)
+        if minutes > 0:
+            game_state.date += datetime.timedelta(minutes=minutes)
 
 
 #: What a perfect session (the score its minigame calls its max) pays
