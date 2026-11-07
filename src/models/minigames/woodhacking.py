@@ -58,6 +58,7 @@ from ...config.colors import (
     WHITE, BLACK, GOLD,
 )
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONTS_PATH
+from ...ui.paper import draw_paper
 from ...ui.transaction_feedback import on_money_received
 
 _TOTAL_W = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -145,6 +146,7 @@ _NOTICE_S = 1.8            # how long a notice ("Extra swing!", "3 swings left")
 WARN_SWINGS_LEFT = 3       # a notice says so when a swing leaves this many
 _EXTRA_COLOUR = (236, 204, 120)   # brass: a reward
 _WARN_COLOUR = (232, 150, 70)     # warm orange: a warning
+_GOLD_DARK = (150, 108, 30)       # the shadowed gold of frames and ornaments
 
 
 def _steel_ring() -> Optional[pygame.mixer.Sound]:
@@ -303,12 +305,16 @@ class WoodhackingMinigame(MinigameOverlay):
             self.font_small = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 15)
             self.font_grade = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 26)
             self.font_large = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 28)
+            self.font_title = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 44)
+            self.font_record = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 64)
             self.font_hit = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 34)
         except Exception:
             self.font = pygame.font.SysFont("georgia", 18)
             self.font_small = pygame.font.SysFont("georgia", 15)
             self.font_grade = pygame.font.SysFont("georgia", 26, bold=True)
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
+            self.font_title = pygame.font.SysFont("georgia", 44, bold=True)
+            self.font_record = pygame.font.SysFont("georgia", 64, bold=True)
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
         # The scene is played at the hour and in the weather of the game (which stands still meanwhile)
@@ -380,6 +386,7 @@ class WoodhackingMinigame(MinigameOverlay):
         # counts as "played" and can set a new highscore, even if the round
         # itself scored no payout.
         depot.stats.minigames_played += 1
+        self.previous_highscore = depot.stats.woodhacking_highscore
         if self.score > depot.stats.woodhacking_highscore:
             depot.stats.woodhacking_highscore = self.score
             self.new_highscore = True
@@ -882,30 +889,109 @@ class WoodhackingMinigame(MinigameOverlay):
         return lines + [line] if line else lines
 
     def _draw_congrats_overlay(self) -> None:
+        """A new highscore: a parchment certificate over the result, framed in gold, with
+        flourishes in its corners and the score in a laurel wreath."""
         overlay = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 190))
         self.canvas.blit(overlay, (0, 0))
 
-        panel = pygame.Rect(_CX - 180, 190, 360, 220)
-        pygame.draw.rect(self.canvas, BEIGE, panel, border_radius=8)
-        pygame.draw.rect(self.canvas, GOLD, panel, 4, border_radius=8)
+        panel = pygame.Rect(0, 0, 520, 400)            # larger than the result, which it hides
+        panel.center = (_CX, 300)
+        draw_paper(self.canvas, panel, panel.topleft)
+        pygame.draw.rect(self.canvas, _GOLD_DARK, panel, 6, border_radius=6)
+        pygame.draw.rect(self.canvas, GOLD, panel.inflate(-4, -4), 3, border_radius=5)
+        inner = panel.inflate(-26, -26)
+        pygame.draw.rect(self.canvas, _GOLD_DARK, inner, 1)
+        for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
+                               (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
+            self._flourish(corner, sx, sy)
 
-        title = self.font_large.render("New Highscore!", True, GOLD)
-        self.canvas.blit(title, title.get_rect(center=(_CX, 240)))
+        title = self._inked("New Highscore!", self.font_title, GOLD)
+        self.canvas.blit(title, title.get_rect(center=(_CX, panel.top + 58)))
+        self._divider((_CX, panel.top + 92), 150)
 
-        score_txt = self.font_hit.render(f"{score_to_display(self.score, MAX_SCORE)}", True, DARK_BROWN)
-        self.canvas.blit(score_txt, score_txt.get_rect(center=(_CX, 285)))
+        centre = (_CX, panel.top + 186)
+        self._laurel(centre, 70)
+        score_txt = self.font_record.render(f"{score_to_display(self.score, MAX_SCORE)}", True, DARK_BROWN)
+        self.canvas.blit(score_txt, score_txt.get_rect(center=(centre[0], centre[1] - 4)))
 
-        sub = self.font.render("Well hacked, woodcutter!", True, PALE_BROWN)
-        self.canvas.blit(sub, sub.get_rect(center=(_CX, 325)))
+        sub = self.font.render("Well hacked, woodcutter!", True, DARK_BROWN)
+        self.canvas.blit(sub, sub.get_rect(center=(_CX, panel.top + 286)))
+        before = getattr(self, "previous_highscore", 0)
+        if before:
+            was = self.font.render(f"The best before:  {score_to_display(before, MAX_SCORE)}", True, PALE_BROWN)
+            self.canvas.blit(was, was.get_rect(center=(_CX, panel.top + 312)))
 
-        self.congrats_close_rect.center = (_CX, 370)
+        self.congrats_close_rect.center = (_CX, panel.bottom - 46)
         mouse_pos = self._to_canvas(pygame.mouse.get_pos())
         hovered = self.congrats_close_rect.collidepoint(mouse_pos)
-        pygame.draw.rect(self.canvas, PALE_BROWN if hovered else SANDY_BROWN, self.congrats_close_rect, border_radius=4)
-        pygame.draw.rect(self.canvas, DARK_BROWN, self.congrats_close_rect, 2, border_radius=4)
+        pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, self.congrats_close_rect, border_radius=4)
+        pygame.draw.rect(self.canvas, _GOLD_DARK, self.congrats_close_rect, 2, border_radius=4)
         close_txt = self.font.render("Nice!", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.congrats_close_rect.center))
+
+    def _flourish(self, corner: Tuple[int, int], sx: int, sy: int) -> None:
+        """A scrolled flourish in a corner of the frame: a curl turning in, a stem along each
+        side and a small diamond; sx, sy point into the panel."""
+        x0, y0 = corner
+        points = []
+        for i in range(40):                         # a spiral curling in towards the corner
+            t = i / 39
+            angle = math.pi * (0.25 + 2.6 * t)
+            r = 18 * (1 - 0.82 * t)
+            points.append((x0 + sx * (22 + r * math.cos(angle)), y0 + sy * (22 + r * math.sin(angle))))
+        pygame.draw.lines(self.canvas, GOLD, False, points, 2)
+        pygame.draw.circle(self.canvas, GOLD, points[-1], 2)
+        for length, (dx, dy) in ((70, (1, 0)), (54, (0, 1))):   # stems along the two sides
+            start = (x0 + sx * (6 + 34 * dx), y0 + sy * (6 + 34 * dy))
+            end = (start[0] + sx * dx * length, start[1] + sy * dy * length)
+            pygame.draw.line(self.canvas, _GOLD_DARK, start, end, 1)
+            leaf = (end[0] + sx * dx * 6, end[1] + sy * dy * 6)
+            pygame.draw.polygon(self.canvas, GOLD, [end, (leaf[0] - dy * 3, leaf[1] - dx * 3),
+                                                     (leaf[0] + sx * dx * 6, leaf[1] + sy * dy * 6),
+                                                     (leaf[0] + dy * 3, leaf[1] + dx * 3)])
+        d = (x0 + sx * 7, y0 + sy * 7)
+        pygame.draw.polygon(self.canvas, GOLD, [(d[0], d[1] - 4), (d[0] + 4, d[1]), (d[0], d[1] + 4), (d[0] - 4, d[1])])
+
+    def _divider(self, centre: Tuple[int, int], half: int) -> None:
+        """A line with a diamond in its middle and a dot near each end, under a title."""
+        x, y = centre
+        pygame.draw.line(self.canvas, _GOLD_DARK, (x - half, y), (x - 12, y), 1)
+        pygame.draw.line(self.canvas, _GOLD_DARK, (x + 12, y), (x + half, y), 1)
+        pygame.draw.polygon(self.canvas, GOLD, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)])
+        pygame.draw.polygon(self.canvas, _GOLD_DARK, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)], 1)
+        for dx in (-half - 5, half + 5):
+            pygame.draw.circle(self.canvas, GOLD, (x + dx, y), 3)
+
+    def _laurel(self, centre: Tuple[int, int], radius: int) -> None:
+        """A laurel wreath round a point: two leafy branches rising from a bow at the bottom."""
+        cx, cy = centre
+        for side in (-1, 1):
+            stem = []
+            for i in range(15):
+                a = math.radians(16 + 124 * i / 14)     # from below the middle, round the side, towards the top
+                stem.append((cx + side * radius * math.sin(a), cy + radius * math.cos(a)))
+            pygame.draw.lines(self.canvas, _GOLD_DARK, False, stem, 2)
+            for i, (px, py) in enumerate(stem[1:], 1):
+                tx, ty = px - stem[i - 1][0], py - stem[i - 1][1]
+                n = math.hypot(tx, ty) or 1
+                tx, ty = tx / n, ty / n
+                for flip in (-1, 1):                    # a leaf to each side of the stem, pointing along it
+                    nx, ny = -ty * flip, tx * flip
+                    base = (px + nx * 2, py + ny * 2)
+                    tip = (base[0] + tx * 9 + nx * 6, base[1] + ty * 9 + ny * 6)
+                    mid = ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2)
+                    leaf = [base, (mid[0] - ny * 3 * flip, mid[1] + nx * 3 * flip), tip,
+                            (mid[0] + ny * 3 * flip, mid[1] - nx * 3 * flip)]
+                    pygame.draw.polygon(self.canvas, GOLD, leaf)
+                    pygame.draw.polygon(self.canvas, _GOLD_DARK, leaf, 1)
+        # The bow where the branches meet
+        bx, by = cx, cy + radius
+        for side in (-1, 1):
+            pygame.draw.polygon(self.canvas, DARK_RED, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)])
+            pygame.draw.polygon(self.canvas, _GOLD_DARK, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)], 1)
+            pygame.draw.line(self.canvas, DARK_RED, (bx, by), (bx + side * 10, by + 16), 3)
+        pygame.draw.circle(self.canvas, _GOLD_DARK, (bx, by), 4)
 
     def draw(self) -> None:
         # Darken the game behind the overlay
