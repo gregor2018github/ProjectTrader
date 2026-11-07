@@ -35,6 +35,10 @@ import pygame
 
 from .fishing_pond import LOW_W, LOW_H, WATER_Y, BANK_EDGE, SNAGS, Fish, Species, bottom_y
 from .outdoors import Conditions
+from .woodhacking_scene import (
+    _PLAYER_FILE, _ARMS_CLEAR, _FRONT_SHOULDER, _NEAR_SHOULDER,
+    _SLEEVE, _SLEEVE_LIGHT, _ARM_OUTLINE, _CUFF, _SKIN,
+)
 from ..daylight import ambient_light, overcast, sun_hour
 from ...sim.calendar import game_date
 
@@ -42,7 +46,7 @@ Colour = Tuple[int, int, int]
 
 PX = 4                                   # each low pixel is this many screen pixels
 SCENE_W, SCENE_H = LOW_W * PX, LOW_H * PX
-GRIP = (39.0, 51.0)                      # the player's hands on the rod
+GRIP = (38.0, 46.0)                      # the player's hands on the rod
 ROD_LEN = 40.0
 BANK_TOP = 60                            # the player's bank, where his feet stand
 NIGHT_LIFT = 0.32                        # the night lifted this far towards daylight, to keep it playable
@@ -80,31 +84,21 @@ _SNOW = (232, 236, 242)
 _WATER_TOP, _WATER_LOW = (76, 130, 134), (20, 44, 58)
 _DARK = (6, 14, 22)                      # the murk the deep water fades into
 
-_PLAYER = (
-    "...hhhh....",
-    "..hhhhhh...",
-    ".HHHHHHHHH.",
-    "...ssss....",
-    "...ssse....",
-    "...sssS....",
-    "...rrrr....",
-    "..tttttt...",
-    ".ttttttTt..",
-    ".tTttttTt..",
-    ".tTttttt...",
-    ".tTttttt...",
-    "..bbbbbb...",
-    "..tttttT...",
-    "..pp..pP...",
-    "..pp..pP...",
-    "..pp..pP...",
-    ".BBB..BBB..",
-)
-_PLAYER_PAL = {"h": (104, 72, 42), "H": (70, 48, 28), "s": (224, 178, 138), "S": (182, 134, 102),
-               "e": (36, 28, 22), "r": (126, 88, 52), "t": (92, 112, 66), "T": (62, 80, 46),
-               "b": (74, 50, 30), "p": (100, 76, 54), "P": (74, 56, 40), "B": (54, 40, 30)}
-_PLAYER_POS = (28, BANK_TOP - len(_PLAYER))
-_SHOULDER = (34.0, 50.0)
+# The player: the game's own right-facing standing sprite (the woodhacking's), scaled
+# down to the pond's pixels, its painted arms taken out and drawn again holding the rod
+_PLAYER_H = 44                           # low pixels tall
+_PLAYER_LEFT = 10
+_PLAYER_SCALE = _PLAYER_H / 336          # the sprite is 208 x 336
+_PLAYER_TOP = BANK_TOP - _PLAYER_H
+
+
+def _on_player(point: Tuple[float, float]) -> Tuple[float, float]:
+    """A point in the sprite's own pixels, in the scene's."""
+    return _PLAYER_LEFT + point[0] * _PLAYER_SCALE, _PLAYER_TOP + point[1] * _PLAYER_SCALE
+
+
+_FAR_SHOULDER = _on_player(_FRONT_SHOULDER)      # the arm behind the body
+_NEAR_SHOULDER_AT = _on_player(_NEAR_SHOULDER)   # the arm over it
 
 _DUCK = (
     ".......gg..",
@@ -244,7 +238,7 @@ def fish_sprite(species: Species, length: int, frame: int = 0) -> pygame.Surface
     for c in range(0, tail):
         u = 1 - c / max(1, tail)              # 1 at its end, 0 at its root
         spread = H * (0.18 + 0.36 * u) if shape != "eel" else H * 0.3 * (1 - u * 0.6)
-        notch = spread * 0.5 * u if shape not in ("eel", "pike") and not species.minnow else 0
+        notch = spread * 0.5 * u if shape != "eel" and not species.minnow else 0
         shift = flick * u * 1.2
         for row in range(int(cy - spread), int(cy + spread) + 1):
             if abs(row - cy) < notch:
@@ -346,13 +340,13 @@ class PondScene:
         self.sky = self._build_sky(scenery)
         self.backdrop = self._build_backdrop(scenery)
         self.under = self._build_under(scenery)
-        self.player = _pixmap(_PLAYER, _PLAYER_PAL)
+        self.player = self._build_player()
         self.duck_img = _pixmap(_DUCK, _DUCK_PAL)
         self.heron_img = _pixmap(_HERON, _HERON_PAL)
         # Murky: a little light in the first feet under the surface, then dark
-        a_top = _lerp(135, 210, self.night)
-        a_mid = _lerp(214, 240, self.night)
-        a_low = _lerp(244, 252, self.night)
+        a_top = _lerp(192, 220, self.night)
+        a_mid = _lerp(232, 244, self.night)
+        a_low = _lerp(248, 252, self.night)
         self.darkness = pygame.Surface((LOW_W, LOW_H - WATER_Y - 1), pygame.SRCALPHA)
         for y in range(self.darkness.get_height()):
             t = y / self.darkness.get_height()
@@ -614,6 +608,29 @@ class PondScene:
                 s.set_at((x, y), (104, 100, 78) if y == int(bottom_y(x)) + 1 else (58, 60, 50))
         return s
 
+    @staticmethod
+    def _build_player() -> pygame.Surface:
+        """The player's sprite without its painted arms, at the pond's pixel size, its edge kept crisp."""
+        try:
+            sprite = pygame.image.load(_PLAYER_FILE)
+            sprite = sprite.convert_alpha() if pygame.display.get_surface() else sprite
+        except (pygame.error, FileNotFoundError):
+            return pygame.Surface((1, 1), pygame.SRCALPHA)
+        sprite = sprite.copy()
+        for rect in _ARMS_CLEAR:
+            sprite.fill((0, 0, 0, 0), rect)
+        size = (round(sprite.get_width() * _PLAYER_SCALE), _PLAYER_H)
+        small = pygame.transform.smoothscale(sprite, size)
+        for y in range(size[1]):
+            for x in range(size[0]):
+                r, g, b, a = small.get_at((x, y))
+                if a < 110:
+                    small.set_at((x, y), (0, 0, 0, 0))
+                else:
+                    k = 255 / a          # undo the edge's blending with the see-through
+                    small.set_at((x, y), (min(255, round(r * k)), min(255, round(g * k)), min(255, round(b * k)), 255))
+        return small
+
     def _hole(self, r: int) -> pygame.Surface:
         """What the light round the bait takes off the dark: full in the middle, dithered at the edge."""
         hole = self._holes.get(r)
@@ -795,20 +812,41 @@ class PondScene:
                 sway = math.sin(self.t * 1.3 + ph + k * 0.3) * f * 1.6
                 _px(s, x + sway, base - k, col if k % 4 else _shade(col, 1.2))
 
+    @staticmethod
+    def _draw_arm(s: pygame.Surface, shoulder: Tuple[float, float], hand: Tuple[float, float], shade: float) -> None:
+        """An arm from the shoulder to a hand on the rod, bent a little at the elbow, in the pond's pixels."""
+        sx, sy = shoulder
+        hx, hy = hand
+        dist = math.hypot(hx - sx, hy - sy)
+        sag = max(0.0, 7.5 - dist) * 0.5 + 1.0          # the nearer the hand, the more the elbow drops
+        ex, ey = (sx + hx) / 2 - 0.5, (sy + hy) / 2 + sag
+
+        def col(c):
+            return tuple(round(v * shade) for v in c)
+
+        # A sleeve two pixels thick, lit along its top and dark along its underside
+        for (ax, ay), (bx, by) in (((sx, sy), (ex, ey)), ((ex, ey), (hx, hy))):
+            pygame.draw.line(s, col(_ARM_OUTLINE), (ax, ay + 1.5), (bx, by + 1.5), 1)
+            pygame.draw.line(s, col(_SLEEVE), (ax, ay + 0.5), (bx, by + 0.5), 1)
+            pygame.draw.line(s, col(_SLEEVE_LIGHT), (ax, ay - 0.5), (bx, by - 0.5), 1)
+        _px(s, hx - 1, hy, col(_CUFF))
+        _px(s, hx, hy, col(_SKIN))
+
     def _draw_player(self, s: pygame.Surface, v: PondView) -> List[Tuple[float, float]]:
-        s.blit(self.player, _PLAYER_POS)
+        """The far arm, the body, the rod held in both hands, then the near arm over the body."""
         pts = rod_points(v.rod_theta, v.rod_bend)
-        # The butt behind the hands, then the rod, thick then thin
         a = math.radians(v.rod_theta)
-        butt = (GRIP[0] - math.sin(a) * 5, GRIP[1] + math.cos(a) * 5)
-        pygame.draw.line(s, (92, 64, 40), butt, GRIP, 1)
+        along = (math.sin(a), -math.cos(a))
+        far_hand = (GRIP[0] + along[0] * 2, GRIP[1] + along[1] * 2)
+        near_hand = (GRIP[0] - along[0] * 3, GRIP[1] - along[1] * 3)
+        self._draw_arm(s, _FAR_SHOULDER, far_hand, 0.8)
+        s.blit(self.player, (_PLAYER_LEFT, _PLAYER_TOP))
+        # The butt behind the hands, then the rod, thick then thin
+        butt = (GRIP[0] - along[0] * 7, GRIP[1] - along[1] * 7)
+        pygame.draw.line(s, (92, 64, 40), butt, GRIP, 2)
         for i, (p, q) in enumerate(zip(pts, pts[1:])):
             pygame.draw.line(s, (120, 86, 52) if i < 4 else (164, 134, 88), p, q, 1)
-        # The arms: shoulder to hands
-        for off in (0, 1):
-            pygame.draw.line(s, (92, 112, 66), (_SHOULDER[0], _SHOULDER[1] + off), (GRIP[0] - 1, GRIP[1] + off), 1)
-        _px(s, GRIP[0], GRIP[1], (224, 178, 138))
-        _px(s, GRIP[0] - 1, GRIP[1] + 1, (182, 134, 102))
+        self._draw_arm(s, _NEAR_SHOULDER_AT, near_hand, 1.0)
         return pts
 
     def _draw_fish(self, s: pygame.Surface, fish: Fish) -> None:

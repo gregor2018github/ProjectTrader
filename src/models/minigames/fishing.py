@@ -107,6 +107,7 @@ LAND_ZONE = (BANK_EDGE + 26, WATER_Y + 22)
 NET_S = 0.8
 LIFT_S = 0.5
 CARD_S = 6.0
+CARD_FISH_W, CARD_FISH_H = 300, 130   # the landed fish is shown at most this big on its card
 
 _TOTAL_W = SCREEN_WIDTH + SIDEBAR_WIDTH
 _TOP_BAR, _BOTTOM_BAR, _MARGIN = 44, 46, 6
@@ -1117,47 +1118,42 @@ class FishingMinigame(MinigameOverlay):
             self._draw_card(surf)
 
     def _draw_card(self, surf: pygame.Surface) -> None:
+        """The landed fish on a sheet of paper, the sheet sized to the fish and the lines under it."""
         card = self.card
         fish = card["fish"]
         sp = fish.species
-        rect = pygame.Rect(0, 0, 480, 300)
-        rect.center = (SCENE_W // 2, SCENE_H // 2 - 40)
-        rise = round(20 * (1 - _clamp(self.card_t / 0.25)) ** 2)
-        rect.y += rise
+        img = fish_sprite(sp, fish.length, (0, 1, 0, 2)[int(self.t * 5) % 4])
+        k = max(2, min(12, CARD_FISH_W // img.get_width(), CARD_FISH_H // img.get_height()))
+        big = pygame.transform.scale(img, (img.get_width() * k, img.get_height() * k))
+        label, mult, colour = card["cast"]
+        lines = [(self.font.render(f"{fish.cm:.0f} cm   |   size ×{card['size']:.2f}", True, DARK_BROWN), 26),
+                 (self.font.render(f"{label.title()}   ×{mult:g}", True, _shade_text(colour)), 30),
+                 (self.font_large.render(f"+{card['coins']:.2f} coins", True, (60, 110, 40)), 42)]
+        if card["record"]:
+            lines.append((self.font_small.render(f"Your biggest {sp.name.lower()} yet!", True, (150, 108, 30)), 20))
+        if card["extra"]:
+            lines.append((self.font_small.render("Perfect cast and strike: an extra worm!", True, (150, 108, 30)), 20))
+        title = self.font_large.render(sp.name, True, DARK_BROWN)
+        width = max(400, big.get_width() + 80, max(t.get_width() for t, _ in lines) + 60)
+        height = 18 + title.get_height() + 10 + big.get_height() + 14 + sum(h for _, h in lines) + 18
+        rect = pygame.Rect(0, 0, width, height)
+        rect.center = (SCENE_W // 2, SCENE_H // 2 - 30)
+        rect.clamp_ip(pygame.Rect(0, 0, SCENE_W, SCENE_H - 52))
+        rect.y += round(20 * (1 - _clamp(self.card_t / 0.25)) ** 2)
         shadow = pygame.Surface(rect.size, pygame.SRCALPHA)
         shadow.fill((0, 0, 0, 90))
         surf.blit(shadow, rect.move(6, 8))
         draw_paper(surf, rect, rect.topleft)
         pygame.draw.rect(surf, DARK_BROWN, rect, 3, border_radius=2)
         pygame.draw.rect(surf, _BRASS_DARK, rect.inflate(-12, -12), 1)
-        title = self.font_large.render(sp.name, True, DARK_BROWN)
-        surf.blit(title, title.get_rect(midtop=(rect.centerx, rect.top + 14)))
-        img = fish_sprite(sp, fish.length, (0, 1, 0, 2)[int(self.t * 5) % 4])
-        k = max(2, min(12, 230 // max(1, img.get_width())))
-        big = pygame.transform.scale(img, (img.get_width() * k, img.get_height() * k))
-        surf.blit(big, big.get_rect(center=(rect.centerx, rect.top + 92)))
-        label, mult, colour = card["cast"]
-        lines = [
-            (f"{fish.cm:.0f} cm   |   size ×{card['size']:.2f}", DARK_BROWN),
-            (f"{label.title()}   ×{mult:g}", _shade_text(colour)),
-        ]
-        y = rect.top + 140
-        for text, col in lines:
-            t = self.font.render(text, True, col)
-            surf.blit(t, t.get_rect(midtop=(rect.centerx, y)))
-            y += 26
-        coins = self.font_large.render(f"+{card['coins']:.2f} coins", True, (60, 110, 40))
-        surf.blit(coins, coins.get_rect(midtop=(rect.centerx, y + 4)))
-        notes = []
-        if card["record"]:
-            notes.append("Your biggest " + sp.name.lower() + " yet!")
-        if card["extra"]:
-            notes.append("Perfect cast and strike: an extra worm!")
-        y += 44
-        for note in notes:
-            t = self.font_small.render(note, True, (150, 108, 30))
-            surf.blit(t, t.get_rect(midtop=(rect.centerx, y)))
-            y += 18
+        y = rect.top + 18
+        surf.blit(title, title.get_rect(midtop=(rect.centerx, y)))
+        y += title.get_height() + 10
+        surf.blit(big, big.get_rect(midtop=(rect.centerx, y)))
+        y += big.get_height() + 14
+        for text, h in lines:
+            surf.blit(text, text.get_rect(midtop=(rect.centerx, y)))
+            y += h
 
     def _draw_bars(self) -> None:
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, 0, _CANVAS_W, _TOP_BAR))
