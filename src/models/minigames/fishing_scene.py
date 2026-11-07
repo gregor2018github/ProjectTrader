@@ -36,7 +36,7 @@ import pygame
 from .fishing_pond import LOW_W, LOW_H, WATER_Y, BANK_EDGE, SNAGS, Fish, Species, bottom_y
 from .outdoors import Conditions
 from .woodhacking_scene import (
-    _PLAYER_FILE, _ARMS_CLEAR, _FRONT_SHOULDER, _NEAR_SHOULDER,
+    _PLAYER_FILE, _ARMS_CLEAR, _FRONT_SHOULDER, _NEAR_SHOULDER, _HIP,
     _SLEEVE, _SLEEVE_LIGHT, _ARM_OUTLINE, _CUFF, _SKIN,
 )
 from ..daylight import ambient_light, overcast, sun_hour
@@ -46,7 +46,6 @@ Colour = Tuple[int, int, int]
 
 PX = 4                                   # each low pixel is this many screen pixels
 SCENE_W, SCENE_H = LOW_W * PX, LOW_H * PX
-GRIP = (38.0, 46.0)                      # the player's hands on the rod
 ROD_LEN = 40.0
 BANK_TOP = 60                            # the player's bank, where his feet stand
 NIGHT_LIFT = 0.32                        # the night lifted this far towards daylight, to keep it playable
@@ -85,11 +84,25 @@ _WATER_TOP, _WATER_LOW = (76, 130, 134), (20, 44, 58)
 _DARK = (6, 14, 22)                      # the murk the deep water fades into
 
 # The player: the game's own right-facing standing sprite (the woodhacking's), scaled
-# down to the pond's pixels, its painted arms taken out and drawn again holding the rod
-_PLAYER_H = 44                           # low pixels tall
-_PLAYER_LEFT = 10
+# down to the pond's pixels, its painted arms taken out and drawn again holding the rod.
+# As in the woodhacking, one angle poses him: there the axe's, here the rod's. It turns
+# the far arm about its shoulder (``_ARM_BY_THETA``), its fist holds the rod (so the rod
+# starts where the fist is, ``grip_at``), the near hand takes the handle behind it, and
+# the upper body leans back to cast and forward after it (``_LEAN_BY_THETA``).
+_PLAYER_H = 34                           # low pixels tall
+_PLAYER_LEFT = 17
 _PLAYER_SCALE = _PLAYER_H / 336          # the sprite is 208 x 336
 _PLAYER_TOP = BANK_TOP - _PLAYER_H
+_HIP_ROW = round(_HIP[1] * _PLAYER_SCALE)   # the upper body leans over the legs from here
+_ART = _PLAYER_H / 230                   # the woodhacking's arm lengths are for a player 230 pixels tall
+_UPPER, _FORE = 21.0 * _ART, 20.0 * _ART
+_NEAR_UPPER, _NEAR_FORE = 30.0 * _ART, 28.0 * _ART
+_ARM_REACH = 0.9                         # the fist's distance from the shoulder, of the arm's full length
+_NEAR_GRIP = (8.0 * _ART, 24.0 * _ART)  # how far behind the fist the near hand may hold the handle
+# The far arm's direction (screen degrees: 0 forward, 90 up) by the rod's angle from upright
+_ARM_BY_THETA = ((-90.0, 118.0), (-45.0, 78.0), (0.0, 30.0), (26.0, -8.0), (75.0, -42.0))
+# How far the upper body leans, in pixels (back is negative)
+_LEAN_BY_THETA = ((-90.0, -1.6), (-30.0, -0.6), (10.0, 0.0), (45.0, 0.9), (75.0, 1.5))
 
 
 def _on_player(point: Tuple[float, float]) -> Tuple[float, float]:
@@ -97,8 +110,32 @@ def _on_player(point: Tuple[float, float]) -> Tuple[float, float]:
     return _PLAYER_LEFT + point[0] * _PLAYER_SCALE, _PLAYER_TOP + point[1] * _PLAYER_SCALE
 
 
-_FAR_SHOULDER = _on_player(_FRONT_SHOULDER)      # the arm behind the body
-_NEAR_SHOULDER_AT = _on_player(_NEAR_SHOULDER)   # the arm over it
+def _interp(x: float, points: Sequence[Tuple[float, float]]) -> float:
+    if x <= points[0][0]:
+        return points[0][1]
+    for (x0, y0), (x1, y1) in zip(points, points[1:]):
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    return points[-1][1]
+
+
+def player_lean(theta: float) -> int:
+    return round(_interp(theta, _LEAN_BY_THETA))
+
+
+def _shoulders(theta: float) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    """The far and the near shoulder, moved with the upper body's lean."""
+    lean = player_lean(theta)
+    far, near = _on_player(_FRONT_SHOULDER), _on_player(_NEAR_SHOULDER)
+    return (far[0] + lean, far[1]), (near[0] + lean, near[1])
+
+
+def grip_at(theta: float) -> Tuple[float, float]:
+    """Where the fist holds the rod with the rod at that angle."""
+    far, _ = _shoulders(theta)
+    a = math.radians(_interp(theta, _ARM_BY_THETA))
+    reach = (_UPPER + _FORE) * _ARM_REACH
+    return far[0] + math.cos(a) * reach, far[1] - math.sin(a) * reach
 
 _DUCK = (
     ".......gg..",
@@ -290,8 +327,9 @@ class PondView:
 
 def rod_points(theta: float, bend: float, steps: int = 10) -> List[Tuple[float, float]]:
     """The rod from the grip to the tip: theta degrees from upright towards the water, its tip curving by bend."""
-    pts = [GRIP]
-    x, y = GRIP
+    grip = grip_at(theta)
+    pts = [grip]
+    x, y = grip
     seg = ROD_LEN / steps
     for i in range(1, steps + 1):
         s = i / steps
@@ -813,40 +851,60 @@ class PondScene:
                 _px(s, x + sway, base - k, col if k % 4 else _shade(col, 1.2))
 
     @staticmethod
-    def _draw_arm(s: pygame.Surface, shoulder: Tuple[float, float], hand: Tuple[float, float], shade: float) -> None:
-        """An arm from the shoulder to a hand on the rod, bent a little at the elbow, in the pond's pixels."""
-        sx, sy = shoulder
-        hx, hy = hand
-        dist = math.hypot(hx - sx, hy - sy)
-        sag = max(0.0, 7.5 - dist) * 0.5 + 1.0          # the nearer the hand, the more the elbow drops
-        ex, ey = (sx + hx) / 2 - 0.5, (sy + hy) / 2 + sag
+    def _draw_arm(s: pygame.Surface, shoulder: Tuple[float, float], hand: Tuple[float, float],
+                  upper: float, fore: float, shade: float) -> None:
+        """An arm from the shoulder to a hand on the rod, its elbow bent downwards (as the
+        woodhacking's: found from the two lengths; a hand beyond reach stretches it straight)."""
+        sh = pygame.Vector2(shoulder)
+        h = pygame.Vector2(hand)
+        d = h - sh
+        dist = d.length()
+        if dist < 1e-6:
+            elbow = sh + pygame.Vector2(0, upper)
+        elif dist >= upper + fore:
+            elbow = sh + d * (upper / (upper + fore))
+        else:
+            cos_turn = (upper * upper + dist * dist - fore * fore) / (2 * upper * dist)
+            turn = math.degrees(math.acos(max(-1.0, min(1.0, cos_turn))))
+            one = sh + d.normalize().rotate(turn) * upper
+            two = sh + d.normalize().rotate(-turn) * upper
+            elbow = one if one.y > two.y else two
 
         def col(c):
             return tuple(round(v * shade) for v in c)
 
-        # A sleeve two pixels thick, lit along its top and dark along its underside
-        for (ax, ay), (bx, by) in (((sx, sy), (ex, ey)), ((ex, ey), (hx, hy))):
-            pygame.draw.line(s, col(_ARM_OUTLINE), (ax, ay + 1.5), (bx, by + 1.5), 1)
-            pygame.draw.line(s, col(_SLEEVE), (ax, ay + 0.5), (bx, by + 0.5), 1)
-            pygame.draw.line(s, col(_SLEEVE_LIGHT), (ax, ay - 0.5), (bx, by - 0.5), 1)
-        _px(s, hx - 1, hy, col(_CUFF))
-        _px(s, hx, hy, col(_SKIN))
+        # A sleeve two pixels thick, dark along its underside, then the hand
+        for a, b in ((sh, elbow), (elbow, h)):
+            pygame.draw.line(s, col(_ARM_OUTLINE), a + (0, 1), b + (0, 1), 1)
+            pygame.draw.line(s, col(_SLEEVE), a, b, 1)
+        _px(s, sh.x, sh.y - 1, col(_SLEEVE_LIGHT))
+        _px(s, h.x, h.y, col(_SKIN))
 
     def _draw_player(self, s: pygame.Surface, v: PondView) -> List[Tuple[float, float]]:
-        """The far arm, the body, the rod held in both hands, then the near arm over the body."""
-        pts = rod_points(v.rod_theta, v.rod_bend)
-        a = math.radians(v.rod_theta)
-        along = (math.sin(a), -math.cos(a))
-        far_hand = (GRIP[0] + along[0] * 2, GRIP[1] + along[1] * 2)
-        near_hand = (GRIP[0] - along[0] * 3, GRIP[1] - along[1] * 3)
-        self._draw_arm(s, _FAR_SHOULDER, far_hand, 0.8)
-        s.blit(self.player, (_PLAYER_LEFT, _PLAYER_TOP))
-        # The butt behind the hands, then the rod, thick then thin
-        butt = (GRIP[0] - along[0] * 7, GRIP[1] - along[1] * 7)
-        pygame.draw.line(s, (92, 64, 40), butt, GRIP, 2)
+        """The far arm, the legs, the leaning upper body, the rod in the fist, then the near arm."""
+        theta = v.rod_theta
+        pts = rod_points(theta, v.rod_bend)
+        fist = pygame.Vector2(pts[0])
+        far, near = _shoulders(theta)
+        a = math.radians(theta)
+        along = pygame.Vector2(math.sin(a), -math.cos(a))
+        # The near hand takes the handle behind the fist, as far down it as it can reach
+        lo, hi = _NEAR_GRIP
+        grips = [fist - along * (lo + (hi - lo) * i / 6) for i in range(7)]
+        reach = _NEAR_UPPER + _NEAR_FORE
+        near_hand = next((g for g in reversed(grips) if g.distance_to(near) <= reach),
+                         min(grips, key=lambda g: g.distance_to(near)))
+        # As the woodhacking's axe: the rod and the far arm behind the body, the near arm over it
+        butt = fist - along * (hi + 2)
+        pygame.draw.line(s, (92, 64, 40), butt, fist, 1)
         for i, (p, q) in enumerate(zip(pts, pts[1:])):
             pygame.draw.line(s, (120, 86, 52) if i < 4 else (164, 134, 88), p, q, 1)
-        self._draw_arm(s, _NEAR_SHOULDER_AT, near_hand, 1.0)
+        self._draw_arm(s, far, fist, _UPPER, _FORE, 0.82)
+        lean = player_lean(theta)
+        w = self.player.get_width()
+        s.blit(self.player, (_PLAYER_LEFT, _PLAYER_TOP + _HIP_ROW), (0, _HIP_ROW, w, _PLAYER_H - _HIP_ROW))
+        s.blit(self.player, (_PLAYER_LEFT + lean, _PLAYER_TOP), (0, 0, w, _HIP_ROW))
+        self._draw_arm(s, near, near_hand, _NEAR_UPPER, _NEAR_FORE, 1.0)
         return pts
 
     def _draw_fish(self, s: pygame.Surface, fish: Fish) -> None:
@@ -961,10 +1019,10 @@ class PondScene:
         if v.sweet_theta is not None:
             # The rod tip's path, dotted, and where to let go on it, bright
             for deg in range(-84, 72, 6):
-                a = math.radians(deg)
-                _px(world, GRIP[0] + math.sin(a) * (ROD_LEN + 2), GRIP[1] - math.cos(a) * (ROD_LEN + 2), (232, 220, 180))
-            a = math.radians(v.sweet_theta)
-            mx, my = GRIP[0] + math.sin(a) * (ROD_LEN + 2), GRIP[1] - math.cos(a) * (ROD_LEN + 2)
+                tx, ty = rod_points(deg, 0.0, 4)[-1]
+                _px(world, tx, ty - 2, (232, 220, 180))
+            mx, my = rod_points(v.sweet_theta, 0.0, 4)[-1]
+            my -= 2
             glow = 0.5 + 0.5 * math.sin(self.t * 8)
             for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1), (2, 0), (-2, 0), (0, 2), (0, -2)):
                 _px(world, mx + dx, my + dy, _mix((236, 176, 60), (255, 246, 190), glow if (dx, dy) == (0, 0) else 0.3))
@@ -973,7 +1031,8 @@ class PondScene:
                 self._draw_fish(world, fish)
         if v.net is not None:
             nx, ny = v.net
-            pygame.draw.line(world, (110, 80, 50), (GRIP[0] - 2, GRIP[1] + 2), (nx, ny), 1)
+            gx, gy = grip_at(v.rod_theta)
+            pygame.draw.line(world, (110, 80, 50), (gx - 2, gy + 2), (nx, ny), 1)
             pygame.draw.ellipse(world, (130, 104, 70), (nx - 4, ny - 1, 8, 4), 1)
             for k in range(-3, 4, 2):
                 _px(world, nx + k, ny + 3, (170, 160, 130))

@@ -60,8 +60,8 @@ from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONT
 from ...ui.paper import draw_paper
 
 MINIGAME_NAME = "Fishing"
-WORMS = 8                       # a session's worms
-MAX_EXTRA_WORMS = 3             # at most this many earned back in a session
+WORMS = 4                       # a session's worms
+MAX_EXTRA_WORMS = 1             # at most this many earned back in a session
 HOURS_OF_WORK = 3.0             # a whole session takes this long: the clock has moved on when you leave
 
 # The cast
