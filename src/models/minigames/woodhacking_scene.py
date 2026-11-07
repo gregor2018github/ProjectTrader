@@ -153,8 +153,13 @@ _DIRT, _DIRT_DARK = (150, 118, 80), (122, 94, 62)
 _BARK, _BARK_DARK, _BARK_LIGHT = (108, 76, 48), (78, 54, 34), (134, 98, 64)
 _WOOD, _WOOD_RING, _WOOD_CUT = (222, 186, 128), (184, 140, 86), (238, 210, 160)
 _OLD_WOOD, _OLD_RING = (176, 150, 112), (140, 114, 80)
-_STEEL, _STEEL_EDGE, _STEEL_DARK = (148, 150, 156), (214, 216, 222), (92, 94, 100)
-_HANDLE, _HANDLE_DARK = (160, 112, 62), (96, 64, 34)
+# The axe, pixel art like the arms: an ash handle with a leather grip, a bearded iron head
+_AXE_PX = 3                          # one art pixel of the axe
+_ASH, _ASH_LIGHT, _ASH_GRAIN = (164, 116, 64), (204, 156, 96), (128, 86, 46)
+_LEATHER, _LEATHER_LIGHT = (90, 56, 34), (124, 82, 50)
+_IRON_DARK, _IRON_MID, _IRON_LIGHT = (78, 80, 90), (124, 128, 138), (170, 174, 184)
+_EDGE, _EDGE_BRIGHT = (214, 218, 226), (246, 248, 252)
+_IRON_LINE = (34, 34, 40)
 _OUTLINE = (44, 32, 22)
 _SHADOW = (0, 0, 0, 60)
 
@@ -321,6 +326,7 @@ class ChoppingScene:
 
         # Where the axe lands on the log, worked out from the fist at the strike
         self._strike_angle, self._axe_len = self._aim_at_log()
+        self._axe = self._build_axe()
 
         self._lantern_glow = radial(1.0, 46, (255, 200, 130))
         self.set_time(when, weather)
@@ -1042,39 +1048,86 @@ class ChoppingScene:
         a = math.radians(self.angle)
         return self._pose(self.angle).fist + pygame.Vector2(math.cos(a), -math.sin(a)) * self._axe_len
 
-    def _axe_polys(self, angle: float):
-        """The handle's and the head's polygons, and the blade's edge, for the axe at that angle."""
+    def _build_axe(self) -> "_Part":
+        """The axe as pixel art, pointing right with its edge down, turned about the fist.
+
+        Drawn pixel by pixel on a small canvas and blown up without smoothing: an ash
+        handle with a lit top and a little grain, flaring at its end, a leather grip
+        where the hands hold it, and a bearded iron head, dark at the socket, lighter
+        on its cheek, with a bright honed edge and a rivet."""
+        px = _AXE_PX
+        tail = round(_AXE_TAIL / px)                 # handle behind the fist
+        reach = round(self._axe_len / px)            # fist to the head
+        hy = 5                                       # the handle's top row
+        width, height = tail + reach + 9, hy + 16
+        art = pygame.Surface((width, height), pygame.SRCALPHA)
+
+        def dot(x, y, colour):
+            if 0 <= x < width and 0 <= y < height:
+                art.set_at((x, y), (*colour, 255))
+
+        # The handle: outline, lit top row, the wood below with a little grain
+        end = tail + reach + 2
+        for x in range(1, end):
+            dot(x, hy - 1, _OUTLINE)
+            dot(x, hy, _ASH_LIGHT)
+            dot(x, hy + 1, _ASH_GRAIN if x % 6 == 3 else _ASH)
+            dot(x, hy + 2, _OUTLINE)
+        # Its end flares, to stop the hands slipping off
+        for y in range(hy - 2, hy + 4):
+            dot(0, y, _OUTLINE)
+        for y in range(hy - 1, hy + 3):
+            dot(1, y, _ASH if y > hy else _ASH_LIGHT)
+            dot(2, y, _ASH)
+        dot(1, hy - 2, _OUTLINE), dot(2, hy - 2, _OUTLINE), dot(1, hy + 3, _OUTLINE), dot(2, hy + 3, _OUTLINE)
+        # The leather grip, wound round, where the hands hold it
+        for x in range(4, tail + 3):
+            for y in (hy, hy + 1):
+                dot(x, y, _LEATHER_LIGHT if (x + y) % 3 == 0 else _LEATHER)
+
+        # The head: socket round the handle, a small poll above, and below it a narrow
+        # neck flaring into the blade, its edge curved, its beard reaching back along it
+        hx = tail + reach - 3
+        edge_curve = [(hx - 4, hy + 12), (hx - 2, hy + 13), (hx + 1, hy + 14), (hx + 5, hy + 14),
+                      (hx + 8, hy + 13), (hx + 10, hy + 11)]
+        blade = [(hx + 1, hy + 2), (hx + 4, hy + 2), (hx + 5, hy + 5), (hx + 8, hy + 8)] + edge_curve[::-1] +                 [(hx - 3, hy + 10), (hx - 1, hy + 8), (hx, hy + 5)]
+        pygame.draw.polygon(art, (*_IRON_MID, 255), blade)
+        # Shade: dark down the back of the neck and the beard, light on the cheek
+        pygame.draw.polygon(art, (*_IRON_DARK, 255), [(hx + 1, hy + 3), (hx + 2, hy + 3), (hx + 1, hy + 9),
+                                                      (hx - 2, hy + 11), (hx - 3, hy + 11), (hx - 1, hy + 8), (hx, hy + 5)])
+        pygame.draw.polygon(art, (*_IRON_LIGHT, 255), [(hx + 4, hy + 5), (hx + 7, hy + 9), (hx + 6, hy + 11), (hx + 4, hy + 9)])
+        pygame.draw.rect(art, (*_IRON_MID, 255), (hx, hy - 3, 5, 6))                  # socket and poll
+        pygame.draw.rect(art, (*_IRON_DARK, 255), (hx, hy - 3, 2, 6))
+        # The honed edge: a bright band just inside the curve
+        inner = [(x, y - 1) for x, y in edge_curve]
+        pygame.draw.lines(art, (*_EDGE, 255), False, inner, 1)
+        pygame.draw.lines(art, (*_EDGE_BRIGHT, 255), False, inner[2:5], 1)
+        pygame.draw.polygon(art, (*_IRON_LINE, 255), blade, 1)
+        pygame.draw.rect(art, (*_IRON_LINE, 255), (hx, hy - 3, 5, 6), 1)
+        dot(hx + 2, hy - 1, _IRON_LIGHT)                                               # the rivet
+        dot(hx + 2, hy, _IRON_LINE)
+
+        image = pygame.transform.scale(art, (width * px, height * px))
+        pivot = pygame.Vector2(tail * px, (hy + 1) * px)                               # where the fist holds it
+        return _Part(image, pivot - pygame.Vector2(image.get_rect().center), pivot)
+
+    def _axe_grip(self, angle: float) -> pygame.Vector2:
+        """Where the fist holds the axe at that angle (a biting blade pulls it a little into the log)."""
         fist = self._pose(angle).fist
-        a = math.radians(angle)
-        u = pygame.Vector2(math.cos(a), -math.sin(a))      # along the handle
-        v = pygame.Vector2(math.sin(a), math.cos(a))       # towards the blade's edge
         if self.state == "hold" and self.outcome == BITE:
-            fist = fist + v * _BITE_DEPTH * 0.5
-        length = self._axe_len
-
-        def p(du, dv):
-            return fist + u * du + v * dv
-
-        handle = [p(-_AXE_TAIL, -3), p(length + 6, -3), p(length + 6, 3), p(-_AXE_TAIL, 3)]
-        edge = [p(length + 15 - 30 * i / 8, 25 + 5 * math.sin(math.pi * i / 8)) for i in range(9)]
-        head = [p(length - 7, -9), p(length + 7, -9), p(length + 7, 5)] + edge + [p(length - 7, 5)]
-        return handle, head, edge
+            a = math.radians(angle)
+            fist = fist + pygame.Vector2(math.sin(a), math.cos(a)) * _BITE_DEPTH * 0.5
+        return fist
 
     def _draw_axe(self, surf: pygame.Surface) -> None:
-        if self._trail:
-            self._overlay.fill((0, 0, 0, 0))
-            for i, angle in enumerate(self._trail[-3:]):
-                handle, head, _ = self._axe_polys(angle)
-                pygame.draw.polygon(self._overlay, (*_HANDLE, 30 + 25 * i), handle)
-                pygame.draw.polygon(self._overlay, (*_STEEL_EDGE, 45 + 30 * i), head)
-            surf.blit(self._overlay, (0, 0))
-        handle, head, edge = self._axe_polys(self.angle)
-        pygame.draw.polygon(surf, _HANDLE, handle)
-        pygame.draw.polygon(surf, _HANDLE_DARK, handle, 1)
-        pygame.draw.polygon(surf, _STEEL, head)
-        pygame.draw.lines(surf, _STEEL_EDGE, False, edge, 3)
-        pygame.draw.polygon(surf, _STEEL_DARK, head[:3] + [head[-1]])
-        pygame.draw.polygon(surf, _OUTLINE, head, 1)
+        """The axe, with faint copies of it just behind while it swings down."""
+        image = self._axe.image
+        for i, angle in enumerate(self._trail[-3:]):
+            ghost = pygame.transform.rotate(image, angle)
+            ghost.set_alpha(40 + 25 * i)
+            centre = self._axe_grip(angle) - self._axe.pivot_from_centre.rotate(-angle)
+            surf.blit(ghost, ghost.get_rect(center=(round(centre.x), round(centre.y))))
+        self._axe.blit(surf, self._axe_grip(self.angle), self.angle)
 
     def _draw_pile(self, surf: pygame.Surface) -> None:
         """The split logs stacked behind the block, bottom row first, with a shadow under them."""
