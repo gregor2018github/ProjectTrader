@@ -317,3 +317,47 @@ def test_the_first_perfect_blow_is_explained_once_and_waits_for_ok(monkeypatch):
     for _ in range(round(1.2 / DT)):
         m.update(DT)
     assert not m.tip_open
+
+
+def test_after_the_last_swing_the_bob_comes_to_rest_before_the_result(monkeypatch):
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    monkeypatch.setattr(wh, "MAX_SWINGS", 1)
+    game, _ = _game()
+    m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+    assert m.attempt == m.total_swings - 1                     # the hint says: last swing
+    m.aim, m.power = math.radians(40), 0.01                    # far off, too weak: a miss, no extra swing
+    m._resolve_swing()
+    assert m._ending
+    m.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert not m.charging                                      # the axe is not taken up again
+    swings, last_side = 0, None
+    while not m._pendulum_still:
+        m.update(DT)
+        side = m.aim > 0
+        if last_side is not None and side != last_side:
+            swings += 1
+        last_side = side
+        assert not m.done                                      # no result while the bob still swings
+    assert m.aim == 0.0 and swings >= 1                        # it swung out before hanging still
+    for _ in range(round(1.0 / DT)):
+        m.update(DT)
+    assert m.done
+
+
+def test_a_notice_warns_when_three_swings_are_left(monkeypatch):
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    monkeypatch.setattr(wh, "MAX_SWINGS", 5)
+    game, _ = _game()
+    m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+    m.aim, m.power = math.radians(40), 0.01                    # misses: no extra swings
+    m._resolve_swing()
+    assert m.notice is None                                    # 4 left
+    m.aim, m.power = math.radians(40), 0.01
+    m._resolve_swing()
+    assert m.notice is not None and m.notice[0] == "3 swings left"
+    for _ in range(round((wh._NOTICE_S + 0.1) / DT)):
+        m.update(DT)
+    assert m.notice is None
+    m.aim, m.power = math.radians(40), 0.01
+    m._resolve_swing()
+    assert m.notice is None                                    # 2 left: no notice again

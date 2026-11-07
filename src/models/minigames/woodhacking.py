@@ -31,7 +31,10 @@ Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
 the next swing's points, so the third split in a row scores 10% more and so
 on, until a swing fails to split its log and the streak starts again from
 nothing. A new swing can be gathered once the last one has landed, and the
-result shows once the last swing's chips have settled.
+result shows once the last swing's chips have settled and the plumb bob,
+left to itself after the last swing, has swung out and hangs still
+(``_settle_pendulum``); a notice warns when ``WARN_SWINGS_LEFT`` are left, and
+the hint of the last swing before it.
 """
 
 import os
@@ -68,6 +71,8 @@ _CANVAS_W = SCENE_W + 2 * _MARGIN
 _CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _CX = _CANVAS_W // 2
 _SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
+_PENDULUM_PULL = 15.0      # after the last swing the bob swings freely: its pull back to the middle (1/s²)
+_PENDULUM_DAMPING = 3.6    # and how fast its swing dies away (1/s): it hangs still in two to three seconds
 _RESULT_DELAY_S = 0.4      # after the last swing has settled, before the result shows
 _THUD_VOLUME = 0.3         # a new log dropping onto the block
 
@@ -136,7 +141,10 @@ TIP_DOUBLE_PERFECT = "woodhacking_double_perfect"
 _TIP_DELAY_S = 0.9
 _TIP_TITLE = "A perfect blow"
 _TIP_TEXT = "Aim and power both perfect: the axe rings true, and you earn an extra swing."
-_EXTRA_SWING_S = 1.8       # how long "Extra swing!" shows
+_NOTICE_S = 1.8            # how long a notice ("Extra swing!", "3 swings left") shows
+WARN_SWINGS_LEFT = 3       # a notice says so when a swing leaves this many
+_EXTRA_COLOUR = (236, 204, 120)   # brass: a reward
+_WARN_COLOUR = (232, 150, 70)     # warm orange: a warning
 
 
 def _steel_ring() -> Optional[pygame.mixer.Sound]:
@@ -332,7 +340,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self.best_streak = 0
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
         self.extra_swings = 0      # earned by swings perfect on both gauges
-        self._extra_shown = 0.0    # seconds "Extra swing!" has left to show
+        self.notice: Optional[Tuple[str, Tuple[int, int, int], float]] = None   # text, colour, seconds left
         self._tip_in: Optional[float] = None   # seconds until the explanation opens
         self.tip_open = False
         self.tip_ok_rect = pygame.Rect(0, 0, 120, 40)
@@ -340,6 +348,8 @@ class WoodhackingMinigame(MinigameOverlay):
         self._streak_lost_alpha = 0
         self.done = False
         self._ending = False       # all swings made, waiting for the last to settle
+        self._aim_speed = 0.0      # the bob's speed (radians/s) while it swings out after the last swing
+        self._pendulum_still = False
         self._end_timer = 0.0
         self.aim_hit_text = ""
         self.aim_hit_color = WHITE
@@ -444,6 +454,7 @@ class WoodhackingMinigame(MinigameOverlay):
                 channel.set_volume(_THUD_VOLUME)
 
     def _resolve_swing(self) -> None:
+        left_before = self.total_swings - self.attempt
         self.attempt += 1
         aim_pts, aim_label, aim_color, aim_miss = _grade_aim(self.aim)
         pow_pts, pow_label, pow_color, pow_miss = _grade_power(
@@ -482,11 +493,17 @@ class WoodhackingMinigame(MinigameOverlay):
             self.opt_lo, self.opt_hi = _new_opt_zone()
         if flourish == 2:
             self.extra_swings += 1
-            self._extra_shown = _EXTRA_SWING_S
+            self.notice = ("Extra swing!", _EXTRA_COLOUR, _NOTICE_S)
             if TIP_DOUBLE_PERFECT not in self.game.depot.stats.minigame_tips_seen:
                 self._tip_in = _TIP_DELAY_S
+        left = self.total_swings - self.attempt
+        if left == WARN_SWINGS_LEFT and left_before != WARN_SWINGS_LEFT:
+            self.notice = (f"{WARN_SWINGS_LEFT} swings left", _WARN_COLOUR, _NOTICE_S)
         if self.attempt >= self.total_swings:
             self._ending = True
+            # The bob goes on as a free pendulum from where it is, at its ordinary speed (no power now)
+            spd = (_BASE_AIM_SPEED + self.aim_speed_bonus) * (1.0 + self.power * _CHARGE_SPEED_K)
+            self._aim_speed = self.aim_dir * spd
 
     def _glint(self, aim: bool, power: bool) -> None:
         """Start the glint of each gauge that read PERFECT, where its marker stood."""
@@ -498,6 +515,18 @@ class WoodhackingMinigame(MinigameOverlay):
             r = _POWER_RECT
             self.glints.append({"kind": "power", "age": 0.0,
                                 "at": pygame.Vector2(r.right + 8, r.bottom - self.power * r.height)})
+
+    def _settle_pendulum(self, dt: float) -> None:
+        """After the last swing the bob swings out freely, each swing smaller, and comes to hang still."""
+        if self._pendulum_still:
+            return
+        for _ in range(4):                       # small steps, so it swings smoothly whatever the frame rate
+            step = dt / 4
+            self._aim_speed += (-_PENDULUM_PULL * math.sin(self.aim) - _PENDULUM_DAMPING * self._aim_speed) * step
+            self.aim += self._aim_speed * step
+        if abs(self.aim) < 0.004 and abs(self._aim_speed) < 0.02:
+            self.aim, self._aim_speed = 0.0, 0.0
+            self._pendulum_still = True
 
     @property
     def total_swings(self) -> int:
@@ -532,8 +561,12 @@ class WoodhackingMinigame(MinigameOverlay):
             if self._tip_in <= 0:
                 self._open_tip()
                 return
-        self._extra_shown = max(0.0, self._extra_shown - delta_time)
-        if not self.done:
+        if self.notice is not None:
+            text, colour, left = self.notice
+            self.notice = (text, colour, left - delta_time) if left > delta_time else None
+        if self._ending:
+            self._settle_pendulum(delta_time)
+        elif not self.done:
             spd = (_BASE_AIM_SPEED + self.aim_speed_bonus) * (1.0 + self.power * _CHARGE_SPEED_K)
             self.aim += self.aim_dir * spd * delta_time
             if abs(self.aim) >= _AIM_MAX:
@@ -545,7 +578,7 @@ class WoodhackingMinigame(MinigameOverlay):
                 self.scene.charge(self.power)
 
         self._play_scene_sounds(self.scene.update(delta_time))
-        if self._ending and not self.done and self.scene.settled and self._tip_in is None:
+        if self._ending and not self.done and self.scene.settled and self._pendulum_still and self._tip_in is None:
             self._end_timer += delta_time
             if self._end_timer >= _RESULT_DELAY_S:
                 self.done = True
@@ -733,11 +766,12 @@ class WoodhackingMinigame(MinigameOverlay):
             # In the open sky beside the post's top, clear of the trees
             surf.blit(pow_txt, pow_txt.get_rect(center=(_POWER_RECT.right + 95, _POWER_RECT.top - 30)))
 
-        if self._extra_shown > 0:
-            extra = self._inked("Extra swing!", self.font_grade, _BRASS_LIGHT)
-            extra.set_alpha(round(255 * min(1.0, self._extra_shown / 0.5)))
-            rise = 14 * (1 - self._extra_shown / _EXTRA_SWING_S)
-            surf.blit(extra, extra.get_rect(center=(SCENE_W // 2, SCENE_H - 66 - rise)))
+        if self.notice is not None:              # rises a little over the hint and fades
+            text, colour, left = self.notice
+            label = self._inked(text, self.font_grade, colour)
+            label.set_alpha(round(255 * min(1.0, left / 0.5)))
+            rise = 14 * (1 - left / _NOTICE_S)
+            surf.blit(label, label.get_rect(center=(SCENE_W // 2, SCENE_H - 66 - rise)))
 
         self._plaque(surf, f"Logs split: {self.scene.pile}", (SCENE_W - 90, 26))
         self._draw_streak(surf, (SCENE_W - 90, 56))
@@ -746,6 +780,8 @@ class WoodhackingMinigame(MinigameOverlay):
             hint, colour = "Release to swing!", _INK
         elif self._ending:
             hint, colour = "That was the last swing", PALE_BROWN
+        elif self.attempt == self.total_swings - 1:
+            hint, colour = "Last swing!", _INK
         else:
             hint, colour = "Hold the left mouse button to gather power, release to swing", PALE_BROWN
         label = self.font.render(hint, True, colour)
