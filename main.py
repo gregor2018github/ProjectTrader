@@ -251,6 +251,15 @@ def main() -> None:
     pygame.init()
     _install_patches()
 
+    # A test bench for the fishing minigame (temporary): python main.py --fishing
+    if "--fishing" in sys.argv:
+        screen = _setup_display()
+        Game.init_pygame()
+        from src.models.minigames.fishing_try import run as try_fishing
+        try_fishing(screen, sys.argv[1:])
+        pygame.quit()
+        return
+
     while True:
         _setup_display()
 

@@ -39,6 +39,10 @@ class Statistics:
         self.woodhacking_highscore: float = 0   # best score achieved in the woodhacking minigame (streak bonuses make it fractional)
         self.last_woodhacking_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last played, gates to once/day
         self.minigame_tips_seen: List[str] = []  # the minigames' one-time explanations already shown
+        self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
+        self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
+        self.fish_caught: int = 0               # fish landed, all kinds
+        self.fishing_records: Dict[str, float] = {}  # the biggest of each kind landed, in cm, by species key
 
         # Time
         self.days_played: int = 0               # in-game days elapsed this session
@@ -68,6 +72,10 @@ class Statistics:
             "woodhacking_highscore": self.woodhacking_highscore,
             "last_woodhacking_day": self.last_woodhacking_day,
             "minigame_tips_seen": list(self.minigame_tips_seen),
+            "fishing_highscore": self.fishing_highscore,
+            "last_fishing_day": self.last_fishing_day,
+            "fish_caught": self.fish_caught,
+            "fishing_records": dict(self.fishing_records),
         }
 
     @classmethod
@@ -93,4 +101,8 @@ class Statistics:
         obj.woodhacking_highscore = d.get("woodhacking_highscore", 0)
         obj.last_woodhacking_day = d.get("last_woodhacking_day", None)
         obj.minigame_tips_seen = list(d.get("minigame_tips_seen", []))
+        obj.fishing_highscore = d.get("fishing_highscore", 0.0)
+        obj.last_fishing_day = d.get("last_fishing_day", None)
+        obj.fish_caught = d.get("fish_caught", 0)
+        obj.fishing_records = dict(d.get("fishing_records", {}))
         return obj
