@@ -420,6 +420,7 @@ class PondScene:
         self.splashes: List[List[float]] = []     # x, y, vx, vy, life
         self.rings: List[List[float]] = []        # x, age, size
         self.bubbles: List[List[float]] = []      # x, y, speed
+        self.puffs: List[List[float]] = []        # mud stirred up off the bottom: x, y, vx, vy, life
         self.drops = [self._new_drop(anywhere=True) for _ in range(int(150 * c.rain))]
         self.flakes = [self._new_flake(anywhere=True) for _ in range(int(110 * c.snow))]
         self.flash = 0.0
@@ -696,6 +697,11 @@ class PondScene:
             ys = [y for x, y in dark if cols[0] <= x <= cols[-1]]
             cx = round((cols[0] + cols[-1]) / 2 * _PLAYER_SCALE)
             top = round(min(ys) * _PLAYER_SCALE)
+            for x in (cx - 1, cx, cx + 1):      # the grey smear under it back to skin
+                y = top + 2
+                if 0 <= x < small.get_width() and small.get_at((x, y))[3] \
+                        and sum(small.get_at((x, y))[:3]) < sum(skin[:3]) - 12:
+                    small.set_at((x, y), skin)
             for y in (top, top + 1):
                 # The grey smear beside the eye back to skin, then the eye
                 for x in (cx - 1, cx + 1):
@@ -756,6 +762,12 @@ class PondScene:
     def add_ring(self, x: float, size: float = 3.0) -> None:
         self.rings.append([x, 0.0, size])
 
+    def add_puff(self, x: float, y: float) -> None:
+        """A puff of mud off the bottom, where a hook digs in."""
+        for _ in range(7):
+            self.puffs.append([x + self.rng.uniform(-1, 1), y, self.rng.uniform(-9, 9), -self.rng.uniform(3, 12),
+                               self.rng.uniform(0.6, 1.3)])
+
     def add_bubble(self, x: float, y: float) -> None:
         for k in range(self.rng.randint(1, 3)):
             self.bubbles.append([x + self.rng.uniform(-1, 1), y - k * 2, self.rng.uniform(8, 14)])
@@ -809,6 +821,13 @@ class PondScene:
             if b[1] <= WATER_Y + 1:
                 self.add_ring(b[0], 1.2)
         self.bubbles = [b for b in self.bubbles if b[1] > WATER_Y + 1]
+        for m in self.puffs:
+            m[0] += m[2] * dt
+            m[1] += m[3] * dt
+            m[2] *= 1 - 2.5 * dt
+            m[3] = m[3] * (1 - 2.5 * dt) + 2 * dt
+            m[4] -= dt
+        self.puffs = [m for m in self.puffs if m[4] > 0]
         # Rain and snow
         slant = c.wind * 40
         for d in self.drops:
@@ -1010,6 +1029,8 @@ class PondScene:
                 _px(world, x, y, (128, 160, 150))
         for b in self.bubbles:
             _px(world, b[0], b[1], (178, 218, 216))
+        for x, y, _vx, _vy, life in self.puffs:
+            _px(world, x, y, _mix((70, 76, 60), (128, 120, 92), min(1.0, life)))
         under_fish = [f for f in v.fish if f.y > WATER_Y + 1 and not f.above_water]
         for fish in under_fish:
             self._draw_fish(world, fish)

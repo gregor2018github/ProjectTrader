@@ -13,8 +13,12 @@ movement of the mouse and in what the pond shows.
                 of whatever bites on it, and a clean cast lands softly while a
                 poor one slaps the water and scares the fish near it. Farther
                 out is deeper water and bigger fish (``fishing_pond``).
-  2. WAIT     — the bait sinks under its float to the line's depth (the
-                wheel sets it) and you only see round it. A click twitches it,
+  2. WAIT     — the bait sinks under its float to the line's depth, which
+                the wheel sets before the cast and is fixed once it is out:
+                set deeper than the water where it lands, the hook sinks onto
+                the bottom, catches and rips off (``STUCK``), as it does on the
+                roots under the bank when reeled over them. You only see round
+                the bait. A click twitches it,
                 which draws fish (and, overdone, scares the wary ones);
                 holding the button reels it in slowly. Fish come, look,
                 nibble (the float trembles) and take (the float goes under).
@@ -91,6 +95,9 @@ REEL_IDLE_SPEED = 14.0          # reeling an untouched bait in, low px/s
 TAP_S = 0.2                     # a press shorter than this is a twitch, longer is reeling
 TWITCH_WINDOW_S = 4.0           # twitches are counted over this long
 SNAG_RATE = 1.4                 # a bait dragged over the roots catches at this rate a second
+STUCK_S = 1.1                   # a hook caught on the bottom: the rod tugs this long, then the hook rips off
+STUCK_RIP_AT = 0.75             # the moment it goes (seconds in)
+CLEAR_OF_BOTTOM = 3.0           # a bait being reeled in rises this far clear of the bottom
 DUCK_BOB_RANGE = 7.0            # the duck paddling this near rocks the float
 
 # The strike: a flick up of at least this many pixels at this speed within the window
@@ -120,8 +127,8 @@ _PAPER = (236, 222, 186)
 _BRASS, _BRASS_LIGHT, _BRASS_DARK = (198, 164, 92), (232, 206, 140), (120, 92, 44)
 _GOOD, _BAD, _WARN = (150, 214, 120), (226, 110, 86), (236, 186, 96)
 
-READY, DRAW, FLIGHT, WAIT, FIGHT, LANDING, CARD, RETRIEVE, DONE = (
-    "ready", "draw", "flight", "wait", "fight", "landing", "card", "retrieve", "done")
+READY, DRAW, FLIGHT, WAIT, FIGHT, LANDING, CARD, RETRIEVE, STUCK, DONE = (
+    "ready", "draw", "flight", "wait", "fight", "landing", "card", "retrieve", "stuck", "done")
 
 
 def fish_coins(fish: Fish, cast_mult: float) -> float:
@@ -443,6 +450,8 @@ class FishingMinigame(MinigameOverlay):
         self.card: Optional[dict] = None
         self.card_t = 0.0
         self.retrieve_from: Tuple[float, float] = (0.0, 0.0)
+        self.stuck_t = 0.0
+        self.hook_lost = False         # retrieving a line whose hook has ripped off
         self.popups: List[list] = []     # text, colour, x, y (scene px), age, life, font
         self._turn_note_t = 0.0
         # The end
@@ -473,6 +482,8 @@ class FishingMinigame(MinigameOverlay):
             return _clamp(-self.omega * 0.035, -30, 30)
         if self.phase == WAIT:
             return 6 + 10 * self.float_dip
+        if self.phase == STUCK:
+            return 0.0 if self.stuck_t >= STUCK_RIP_AT else 40 + 12 * math.sin(self.stuck_t * 38)
         return _clamp(-self.omega * 0.02, -20, 20)
 
     def _popup(self, text: str, colour, low_pos: Tuple[float, float], big: bool = False, life: float = 1.6) -> None:
@@ -514,7 +525,7 @@ class FishingMinigame(MinigameOverlay):
                 self._strike()
             return
         if event.type == pygame.MOUSEWHEEL:
-            if self.phase in (READY, WAIT, DRAW, FLIGHT):
+            if self.phase in (READY, DRAW):
                 lo, hi = LEADER_RANGE
                 self.leader = min(hi, max(lo, self.leader - event.y * LEADER_STEP))
                 self.settled_t = 0.0
@@ -669,7 +680,10 @@ class FishingMinigame(MinigameOverlay):
                 self.float_x -= REEL_IDLE_SPEED * dt
                 self._reel_ticks(dt, 0.08)
             floor = bottom_y(self.hook_x) - 1
-            target = min(WATER_Y + (self.leader * 0.55 if reeling else self.leader), floor)
+            if reeling:
+                target = min(WATER_Y + self.leader * 0.55, floor - CLEAR_OF_BOTTOM)
+            else:
+                target = min(WATER_Y + self.leader, floor)
             self.hook_x += (self.float_x - self.hook_x) * min(1.0, dt * (1.2 if reeling else 2.5))
             if self.hook_y < target:
                 self.hook_y = min(target, self.hook_y + SINK_SPEED * dt)
@@ -679,12 +693,13 @@ class FishingMinigame(MinigameOverlay):
                 self.settled_t += dt
             else:
                 self.settled_t = 0.0
-            on_bottom = target >= floor - 0.5
-            if reeling and on_bottom and any(x0 <= self.hook_x <= x1 for x0, x1 in SNAGS) \
+            if not reeling and WATER_Y + self.leader >= floor and self.hook_y >= floor - 0.3:
+                self._start_stuck()             # set too deep: it has sunk onto the bottom
+                return
+            near_bottom = self.hook_y >= floor - CLEAR_OF_BOTTOM - 1
+            if reeling and near_bottom and any(x0 <= self.hook_x <= x1 for x0, x1 in SNAGS) \
                     and self.rng.random() < SNAG_RATE * dt:
-                self._popup("Snagged on a root!", _BAD, (self.hook_x, WATER_Y - 12))
-                self._use_worm()
-                self._start_retrieve()
+                self._start_stuck()             # dragged over the roots
                 return
             if self.float_x <= BANK_EDGE + 3:
                 self._start_retrieve()
@@ -692,6 +707,38 @@ class FishingMinigame(MinigameOverlay):
         self.hook.reeling = reeling
         self.wait_t += dt
         self.hook.alluring = self.baited and not taking and not reeling and self.wait_t > 0.4
+
+    def _start_stuck(self) -> None:
+        """The hook has caught on the bottom: the fish keep off, the rod tugs at it."""
+        self.phase = STUCK
+        self.stuck_t = 0.0
+        self.hook.alluring = False
+        if self.hook.engaged is not None:
+            self.hook.engaged.flee(self.hook, self.rng, 3.0)
+        self.hook.engaged = None
+        self.scene.add_puff(self.hook_x, self.hook_y)
+        self._play_synth("tick", 0.35)
+
+    def _update_stuck(self, dt: float) -> None:
+        before = self.stuck_t
+        self.stuck_t += dt
+        if self.stuck_t < STUCK_RIP_AT:
+            # Tug, tug: the rod jerks back, the float is drawn under, mud puffs up
+            self.kick = -10 * abs(math.sin(self.stuck_t * 19))
+            self.float_under = True
+            if int(self.stuck_t * 6) != int(before * 6):
+                self.scene.add_puff(self.hook_x, self.hook_y)
+                self._play_synth("tick", 0.3)
+        elif before < STUCK_RIP_AT:
+            self._play_synth("twang", 0.5)
+            self.scene.add_puff(self.hook_x, self.hook_y)
+            self._popup("Hook ripped off!", _BAD, (self.float_x, WATER_Y - 14), big=True, life=2.0)
+            self.kick = -30.0
+            self.float_under = False
+            self._use_worm()
+        if self.stuck_t >= STUCK_S:
+            self.hook_lost = True
+            self._start_retrieve()
 
     def _reel_ticks(self, dt: float, every: float) -> None:
         self._tick_t -= dt
@@ -908,6 +955,7 @@ class FishingMinigame(MinigameOverlay):
         step = 160 * dt
         if d <= step:
             self.baited = self.worms > 0
+            self.hook_lost = False
             self.phase = READY
             if self.worms <= 0:
                 self._finish()
@@ -985,6 +1033,8 @@ class FishingMinigame(MinigameOverlay):
                 self._after_card()
         elif self.phase == RETRIEVE:
             self._update_retrieve(dt)
+        elif self.phase == STUCK:
+            self._update_stuck(dt)
 
         self.hook.x, self.hook.y = self.hook_x, self.hook_y
         self.hook.twitch_age = self.twitch_age
@@ -1041,9 +1091,21 @@ class FishingMinigame(MinigameOverlay):
             v.net = (BANK_EDGE - 4 + (fish.x - BANK_EDGE + 4) * k, WATER_Y - 6 + (fish.y - WATER_Y + 6) * k) \
                 if not fish.above_water else (fish.x, fish.y + 2)
             v.focus = (fish.x, fish.y, self.scene.sight + 5)
+        elif self.phase == STUCK:
+            ripped = self.stuck_t >= STUCK_RIP_AT
+            fy = WATER_Y + (2 if self.float_under else 0)
+            v.float_at = (self.float_x, fy)
+            v.float_under = self.float_under
+            if ripped:          # the line springs back, slack, without its hook
+                v.line = curve(tip, (self.float_x, fy - 2), 9) + [(self.float_x + 1, fy + 6)]
+            else:               # taut and glinting, the hook caught in the mud
+                v.line = [tip, (self.float_x, fy - 2), (self.hook_x, self.hook_y)]
+                v.hook = (self.hook_x, self.hook_y)
+                v.tension = 1.0
+            v.focus = (self.hook_x, self.hook_y, self.scene.sight)
         elif self.phase == RETRIEVE:
             v.line = [tip, (self.hook_x, self.hook_y)]
-            v.hook = (self.hook_x, self.hook_y)
+            v.hook = None if self.hook_lost else (self.hook_x, self.hook_y)
             v.worm = self.baited
             if self.hook_y > WATER_Y:
                 v.focus = (self.hook_x, self.hook_y, self.scene.sight)
@@ -1074,14 +1136,17 @@ class FishingMinigame(MinigameOverlay):
             x, y = rect.left - 16 - i * 13, rect.centery
             pygame.draw.lines(surf, (214, 112, 112), False,
                               [(x, y + 3), (x + 3, y - 2), (x + 6, y + 2), (x + 9, y - 3)], 3)
-        if self.phase in (READY, DRAW, FLIGHT, WAIT):
-            self._plaque(surf, f"Line depth: {self.leader / PX_PER_FOOT:.0f} ft  (wheel)", (SCENE_W - 14, 44))
+        feet = f"Line depth: {self.leader / PX_PER_FOOT:.0f} ft"
+        if self.phase in (READY, DRAW):
+            self._plaque(surf, feet + "  (wheel to set)", (SCENE_W - 14, 44))
+        elif self.phase in (FLIGHT, WAIT, STUCK):
+            self._plaque(surf, feet, (SCENE_W - 14, 44))
         lore = self._inked(self.pond.lore, self.font_small, (236, 230, 206))
         surf.blit(lore, (12, 10))
 
     def _hint(self) -> Tuple[str, Tuple[int, int, int]]:
         if self.phase == READY:
-            return "Hold the left button and drag the mouse back, then whip it forward and let go", PALE_BROWN
+            return "Wheel: set the depth   |   Hold the left button, drag back, whip forward and let go", PALE_BROWN
         if self.phase == DRAW:
             return "Whip forward, and let go as the rod passes the golden mark!", _INK
         if self.phase == WAIT:
