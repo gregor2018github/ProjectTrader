@@ -94,6 +94,8 @@ _PLAYER_LEFT = 17
 _PLAYER_SCALE = _PLAYER_H / 336          # the sprite is 208 x 336
 _PLAYER_TOP = BANK_TOP - _PLAYER_H
 _HIP_ROW = round(_HIP[1] * _PLAYER_SCALE)   # the upper body leans over the legs from here
+_EYE_SEARCH = (110, 110, 62, 40)         # in the sprite's pixels: where its eyes are looked for
+_EYE_SKIN = (140, 105)                   # and a spot of bare skin between them
 _ART = _PLAYER_H / 230                   # the woodhacking's arm lengths are for a player 230 pixels tall
 _UPPER, _FORE = 21.0 * _ART, 20.0 * _ART
 _NEAR_UPPER, _NEAR_FORE = 30.0 * _ART, 28.0 * _ART
@@ -667,7 +669,40 @@ class PondScene:
                 else:
                     k = 255 / a          # undo the edge's blending with the see-through
                     small.set_at((x, y), (min(255, round(r * k)), min(255, round(g * k)), min(255, round(b * k)), 255))
+        PondScene._crisp_eyes(sprite, small)
         return small
+
+    @staticmethod
+    def _crisp_eyes(sprite: pygame.Surface, small: pygame.Surface) -> None:
+        """Shrunk to a tenth, the eyes blur into grey (the far one is a stroke three pixels
+        wide): find each in the sprite and set it again as two dark pixels on clean skin."""
+        face = pygame.Rect(_EYE_SEARCH)
+        dark = [(x, y) for y in range(face.top, face.bottom) for x in range(face.left, face.right)
+                if sprite.get_at((x, y))[3] > 200 and sum(sprite.get_at((x, y))[:3]) < 150]
+        if not dark:
+            return
+        skin = small.get_at((round(_EYE_SKIN[0] * _PLAYER_SCALE), round(_EYE_SKIN[1] * _PLAYER_SCALE)))
+        ink = min((sprite.get_at(p) for p in dark), key=lambda c: sum(c[:3]))
+        # Group the dark pixels into eyes by gaps across
+        eyes, xs = [], sorted({x for x, _ in dark})
+        group = [xs[0]]
+        for x in xs[1:]:
+            if x - group[-1] > 4:
+                eyes.append(group)
+                group = []
+            group.append(x)
+        eyes.append(group)
+        for cols in eyes:
+            ys = [y for x, y in dark if cols[0] <= x <= cols[-1]]
+            cx = round((cols[0] + cols[-1]) / 2 * _PLAYER_SCALE)
+            top = round(min(ys) * _PLAYER_SCALE)
+            for y in (top, top + 1):
+                # The grey smear beside the eye back to skin, then the eye
+                for x in (cx - 1, cx + 1):
+                    if 0 <= x < small.get_width() and small.get_at((x, y))[3] \
+                            and sum(small.get_at((x, y))[:3]) < sum(skin[:3]) - 12:
+                        small.set_at((x, y), skin)
+                small.set_at((cx, y), ink)
 
     def _hole(self, r: int) -> pygame.Surface:
         """What the light round the bait takes off the dark: full in the middle, dithered at the edge."""
