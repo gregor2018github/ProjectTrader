@@ -771,7 +771,7 @@ class DepotViewDetail:
                     label_surf = small_font.render(label_part, True, text_color)
                     value_surf = small_font.render(value_part, True, text_color)
                     screen.blit(label_surf, (self.rect.x + 20 + indent_pixels, y_pos))
-                    screen.blit(value_surf, (self.rect.x + 230, y_pos))
+                    screen.blit(value_surf, (self.rect.x + self.rect.width - 110, y_pos))
                 else:
                     text = small_font.render(display_line, True, text_color)
                     screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))

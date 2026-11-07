@@ -25,13 +25,13 @@ from src.ui import cursor
 from src.config import settings_store
 from src.config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 
-_NATIVE_W = SCREEN_WIDTH + SIDEBAR_WIDTH  # 1760
-_NATIVE_H = SCREEN_HEIGHT                 # 1064
+_NATIVE_W = SCREEN_WIDTH + SIDEBAR_WIDTH  # 1920
+_NATIVE_H = SCREEN_HEIGHT                 # 1080
 
-# The game always draws into this off-screen 1760x1064 surface. Each frame it
+# The game always draws into this off-screen 1920x1080 surface. Each frame it
 # is scaled to the physical window. Mouse coordinates and events are patched
 # below so that every downstream consumer (mouse.get_pos, event.pos) sees the
-# logical 1760x1064 coordinate space regardless of the actual window size.
+# logical 1920x1080 coordinate space regardless of the actual window size.
 _render_surf: pygame.Surface | None = None
 _display_surf: pygame.Surface | None = None
 _scale_x: float = 1.0   # logical = (physical - _offset_*) / _scale_uniform
@@ -135,7 +135,7 @@ def _install_patches() -> None:
 
 
 def _scaled_window(size: tuple[int, int]) -> pygame.Surface | None:
-    """A window of *size* the logical 1760x1064 surface is shrunk into on the GPU.
+    """A window of *size* the logical 1920x1080 surface is shrunk into on the GPU.
 
     pygame's SCALED does that for fullscreen, but 2.6.1 neither lets the
     window be smaller than the logical size (it sets that as the window's
@@ -180,7 +180,7 @@ def _scaled_window(size: tuple[int, int]) -> pygame.Surface | None:
 
 
 def _setup_display() -> pygame.Surface:
-    """Create the physical window and the logical 1760x1064 render surface."""
+    """Create the physical window and the logical 1920x1080 render surface."""
     global _render_surf, _display_surf, _scale_x, _scale_y, _offset_x, _offset_y, _scale_uniform
     global _display_kind, _display_res
 

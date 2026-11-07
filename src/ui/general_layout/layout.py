@@ -15,9 +15,11 @@ from ...sim.calendar import format_long
 # Goods in the top bar: those pinned (right-click in the market view) and those the player
 # holds, in goods.json order, one column of (upper, lower) per slot; only
 # TOP_BAR_VISIBLE_COLUMNS fit at once, the arrows scroll through the rest.
-TOP_BAR_VISIBLE_COLUMNS = 5
+TOP_BAR_VISIBLE_COLUMNS = 6
 TOP_BAR_COLUMN_SPACING = 160
 TOP_BAR_DATE_SEPARATOR_X = 466      # The money and the date are left of it, the goods right of it
+# The goods end here, the warehouses and the total stock are right of it
+TOP_BAR_STOCK_SEPARATOR_X = TOP_BAR_DATE_SEPARATOR_X + TOP_BAR_VISIBLE_COLUMNS * TOP_BAR_COLUMN_SPACING + 44
 
 
 def top_bar_goods(game_state: "GameState") -> List[str]:
@@ -306,12 +308,13 @@ def _draw_top_bar(
     buttons = _draw_top_bar_arrows(screen, game_state, offset, mouse_pos)
 
     # Separator bar
-    pygame.draw.line(screen, DARK_GRAY, (1310, 5), (1310, 55), 2)
+    sep_x = TOP_BAR_STOCK_SEPARATOR_X
+    pygame.draw.line(screen, DARK_GRAY, (sep_x, 5), (sep_x, 55), 2)
 
     # Warehouses counter
-    screen.blit(warehouses_30, (1330, 5))
+    screen.blit(warehouses_30, (sep_x + 20, 5))
     warehouses_text = main_font.render(f"Warehouses: {main_depot.warehouse_count}", True, BLACK)
-    screen.blit(warehouses_text, (1365, 10))
+    screen.blit(warehouses_text, (sep_x + 55, 10))
 
     # Merchant rank, right-aligned beside the warehouses; red while it is slipping
     rank_rect = _draw_top_bar_rank(screen, main_font, game_state, mouse_pos)
@@ -319,11 +322,11 @@ def _draw_top_bar(
         buttons['merchant_rank'] = rank_rect
 
     # Total Stock counter
-    screen.blit(stock_30, (1330, 30))
+    screen.blit(stock_30, (sep_x + 20, 30))
     total_stock = sum(main_depot.good_stock.values())
     stock_text = main_font.render(f"Total Stock: {total_stock} / {main_depot.total_capacity()}", True, BLACK)
-    screen.blit(stock_text, (1365, 35))
-    total_stock_rect = pygame.Rect(1330, 29, 30 + stock_text.get_width(), 31)
+    screen.blit(stock_text, (sep_x + 55, 35))
+    total_stock_rect = pygame.Rect(sep_x + 20, 29, 30 + stock_text.get_width(), 31)
 
     # Draw hover tooltip last so it renders above all other top-bar elements
     small_font = getattr(game_state, 'small_font', main_font)
@@ -387,7 +390,7 @@ def _draw_top_bar_arrows(
     )
     arrows = [
         ('top_bar_left', pygame.Rect(TOP_BAR_DATE_SEPARATOR_X + 6, 8, 18, 44), -1, offset > 0),
-        ('top_bar_right', pygame.Rect(1288, 8, 18, 44), 1, offset < max_offset),
+        ('top_bar_right', pygame.Rect(TOP_BAR_STOCK_SEPARATOR_X - 22, 8, 18, 44), 1, offset < max_offset),
     ]
     buttons = {}
     for key, rect, direction, enabled in arrows:

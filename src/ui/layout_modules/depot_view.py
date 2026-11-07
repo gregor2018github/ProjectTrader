@@ -29,6 +29,13 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     x = rect.x
     y = rect.y
     
+    # The list and its detail panel were laid out for a module 825 wide; any
+    # width beyond that goes half to the panel and part to the list's labels
+    extra = max(0, width - 825)
+    value_x = 250 + extra * 3 // 8          # the list's value column
+    panel_x = 435 + extra // 2              # the detail panel, from the view's left
+    panel_w = 340 + extra // 2
+
     # Draw depot container
     depot_rect = pygame.Rect(x, y, width, height)
     pygame.draw.rect(screen, BEIGE, depot_rect)
@@ -94,11 +101,12 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
     if game_state.detail_panel is None:
         from .depot_view_detail import DepotViewDetail
         game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
+        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + panel_x, depot_rect.top + 60, panel_w, depot_rect.height-80)
         # Open "Current Wealth" by default
         game_state.detail_panel.show_for_statistic("Current Wealth")
     else:
         # Update detail panel position in case the view moved
-        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + 435, depot_rect.top + 60, 340, depot_rect.height-80)
+        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + panel_x, depot_rect.top + 60, panel_w, depot_rect.height-80)
 
     # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
     scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
@@ -225,7 +233,7 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
         # Draw a subtle gray background for the selected row
         if is_selected:
             row_rect = pygame.Rect(10, y_pos-4, surf.get_width()-80, 24)
-            row_separator = pygame.Rect(410, y_pos-4, 7, 24)
+            row_separator = pygame.Rect(panel_x - 25, y_pos-4, 7, 24)
             pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
             pygame.draw.rect(surf, BEIGE, row_separator)
         
@@ -272,17 +280,17 @@ def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depo
             
             # First render (offset by 1 pixel)
             surf.blit(label_surf, (label_x+1, y_pos))
-            surf.blit(value_surf, (251, y_pos))
+            surf.blit(value_surf, (value_x + 1, y_pos))
             
             # Second render (original position)
             surf.blit(label_surf, (label_x, y_pos))
-            surf.blit(value_surf, (250, y_pos))
+            surf.blit(value_surf, (value_x, y_pos))
         else:
             # Normal rendering for non-selected rows
             label_surf = small_font.render(label, True, label_color)
             value_surf = small_font.render(value, True, value_color)
             surf.blit(label_surf, (label_x, y_pos))
-            surf.blit(value_surf, (250, y_pos))
+            surf.blit(value_surf, (value_x, y_pos))
             
         # Draw separator line after specific rows
         if label in ["Total Stock", "Total Actions", "Total Trade Profit", "Total"]:

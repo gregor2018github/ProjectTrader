@@ -18,10 +18,11 @@ SAVE_SECRET_KEY = "MerchantsRise_sv1_k9xP"
 
 # SIMULATION CONSTANTS
 
-SCREEN_WIDTH = 1650
-SCREEN_HEIGHT = 1064
+# The frame is 1920x1080 (16:9): the content area plus the sidebar
+SCREEN_WIDTH = 1810
+SCREEN_HEIGHT = 1080
 SIDEBAR_WIDTH = 110
-MODULE_WIDTH = (SCREEN_WIDTH) // 2  # 734 pixels per module
+MODULE_WIDTH = (SCREEN_WIDTH) // 2  # 905 pixels per module
 MAX_RECULCULATIONS_PER_SEC = 60
 TILE_SIZE = 32
 PLAYER_SPEED = 120                  # pixels per second
@@ -191,7 +192,7 @@ QUICK_TRADE_LOT_VALUE = 15
 QUICK_TRADE_STEPS = (1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50)
 # A new game (and a save without pins) starts with this many goods pinned to the top bar, the first
 # of goods.json; it holds as many, so it is full without scrolling
-TOP_BAR_DEFAULT_PINS = 10
+TOP_BAR_DEFAULT_PINS = 12
 DEFAULT_QUICKTRADE_SLOTS = {
     "Market_Area": ["Wood", "Stone", "Iron"],
     "Market_Area_Northwest": ["Herbs", "Salt", "Candle"],

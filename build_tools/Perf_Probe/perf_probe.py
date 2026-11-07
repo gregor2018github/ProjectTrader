@@ -33,6 +33,8 @@ sys.path.insert(0, PROJECT)
 
 import pygame  # noqa: E402
 
+from src.config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH  # noqa: E402
+
 #: The fixed frame time fed to the game, in milliseconds
 FRAME_MS = 16
 #: Side of the squares searched for the densest wood, in tiles
@@ -217,7 +219,7 @@ def zooms(game) -> None:
 def main() -> None:
     args = parse_args()
     pygame.init()
-    screen = pygame.display.set_mode((1760, 1064))
+    screen = pygame.display.set_mode((SCREEN_WIDTH + SIDEBAR_WIDTH, SCREEN_HEIGHT))
     game = build_game(screen, args.save)
     set_scene(game, args)
     if args.zooms:

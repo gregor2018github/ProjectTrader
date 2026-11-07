@@ -11,7 +11,7 @@ _cache: Optional[Dict[str, Any]] = None   # the file's contents, see _load_raw
 
 _DEFAULTS: Dict[str, Any] = {
     "show_map_debug": True,
-    "resolution": "1760x1064",
+    "resolution": "1920x1080",
     "autosave_enabled": True,
     "autosave_minutes": 5,
     "fps_limit": MAX_FRAMES_PER_SEC,
@@ -30,13 +30,23 @@ def fps_label(fps: int) -> str:
 
 # Ordered list of windowed resolution presets shown in the settings UI.
 # "Fullscreen" is always appended as the final option.
+# All 16:9, as the game's frame is (SCREEN_WIDTH + SIDEBAR_WIDTH by SCREEN_HEIGHT).
 RESOLUTION_PRESETS = [
-    "1760x1064",
-    "1540x931",
-    "1320x798",
-    "1100x665",
+    "1920x1080",
+    "1600x900",
+    "1440x810",
+    "1280x720",
     "Fullscreen",
 ]
+
+# The presets from before the frame was widened to 16:9, each to the new one
+# in its place in the list, so a window chosen then keeps about its size
+_OLD_RESOLUTIONS = {
+    "1760x1064": "1920x1080",
+    "1540x931": "1600x900",
+    "1320x798": "1440x810",
+    "1100x665": "1280x720",
+}
 
 
 def _load_raw() -> Dict[str, Any]:
@@ -72,7 +82,10 @@ def _save_raw(data: Dict[str, Any]) -> None:
 def get(key: str) -> Any:
     """Return the current value for *key*, falling back to the default."""
     raw = _load_raw()
-    return raw.get(key, _DEFAULTS.get(key))
+    value = raw.get(key, _DEFAULTS.get(key))
+    if key == "resolution" and value not in RESOLUTION_PRESETS:
+        value = _OLD_RESOLUTIONS.get(value, _DEFAULTS["resolution"])
+    return value
 
 
 def set(key: str, value: Any) -> None:
@@ -86,6 +99,7 @@ def get_all() -> Dict[str, Any]:
     """Return all settings merged with defaults."""
     merged = dict(_DEFAULTS)
     merged.update(_load_raw())
+    merged["resolution"] = get("resolution")
     return merged
 
 
