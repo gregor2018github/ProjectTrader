@@ -41,6 +41,7 @@ from typing import List, Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
+from .outdoors import Conditions
 from .woodhacking_scene import (
     ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H, POWER_RECT, POWER_POST_FOOT, AIM_PIVOT, AIM_RADIUS,
 )
@@ -120,6 +121,7 @@ _PAPER = (236, 222, 186)
 
 _GLINT_S = 0.8             # a perfect gauge's glint lasts this long
 _GLINT_COLOUR = (255, 240, 190)
+_THUNDER_VOLUME = 0.6      # a storm's thunder over the clearing
 _RING_VOLUME = 0.22        # the axe's steel ringing after a swing perfect on both gauges
 
 STREAK_BONUS = 0.05        # extra points on a swing for each split in a row before it
@@ -292,7 +294,9 @@ class WoodhackingMinigame(MinigameOverlay):
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_hit = pygame.font.SysFont("georgia", 34, bold=True)
 
-        self.scene = ChoppingScene(self.font_hit)
+        # The scene is played at the hour and in the weather of the game (which stands still meanwhile)
+        self.scene = ChoppingScene(self.font_hit, when=getattr(game.state, "date", None),
+                                   weather=Conditions.of(getattr(game, "weather", None)))
         self._ring = _steel_ring()
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)
@@ -394,8 +398,15 @@ class WoodhackingMinigame(MinigameOverlay):
     def _play_scene_sounds(self, kinds) -> None:
         """Play what the scene asks for: "chop" as the axe bites, "swoosh" as it
         swings past or short, "thud" (a soft chop) as a new log lands, "ring" the
-        steel after a swing perfect on both gauges."""
+        steel after a swing perfect on both gauges, "thunder" after lightning."""
         for kind in kinds:
+            if kind == "thunder":
+                candidates = [name for name in self.game.sounds if name.startswith("thunder_")]
+                if candidates:
+                    channel = self.game.play_sound(random.choice(candidates))
+                    if channel is not None:
+                        channel.set_volume(_THUNDER_VOLUME)
+                continue
             if kind == "ring":
                 if self._ring is not None:
                     channel = self._ring.play()
@@ -668,7 +679,8 @@ class WoodhackingMinigame(MinigameOverlay):
             surf.blit(aim_txt, aim_txt.get_rect(center=(_AIM_CX, _AIM_CY + 62)))
             pow_txt = self._inked(self.pow_hit_text, self.font_grade, self.pow_hit_color)
             pow_txt.set_alpha(self.hit_alpha)
-            surf.blit(pow_txt, pow_txt.get_rect(midleft=(_POWER_RECT.right + 40, _POWER_RECT.bottom - 40)))
+            # In the open sky beside the post's top, clear of the trees
+            surf.blit(pow_txt, pow_txt.get_rect(center=(_POWER_RECT.right + 95, _POWER_RECT.top - 30)))
 
         self._plaque(surf, f"Logs split: {self.scene.pile}", (SCENE_W - 90, 26))
         self._draw_streak(surf, (SCENE_W - 90, 56))

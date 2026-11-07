@@ -23,6 +23,14 @@ log splits in a warm glow, a few motes of sawdust drift up as if caught in
 the sun, and the axe's steel rings ("ring" among the sounds ``update`` asks
 for).
 
+The scene is played out of doors at the hour and in the weather of the game
+(``set_time``; ``outdoors.py``, shared with the other minigames played
+outside): the sky behind it with the sun or the moon and the stars, the light
+of the hour over everything else, the rain or snow, the fog and the lightning.
+Once it grows dark the two lanterns, one on an arm at the power post and one
+hanging from the beam, are lit and throw warm light round the gauges, the
+player and the block.
+
 The player's sprite is cut into head, torso and two legs (``_HEAD`` and so
 on), each turned about its joint every frame. Its painted arms (and the scroll
 in the front hand) are taken out and the arms drawn anew each frame instead,
@@ -35,6 +43,7 @@ minigame tells the scene what happened and plays the sounds the scene's
 ``update`` asks for, at the moment of impact.
 """
 
+import datetime
 import math
 import os
 import random
@@ -42,6 +51,7 @@ from typing import List, Optional, Tuple
 
 import pygame
 
+from .outdoors import Conditions, Outdoors, radial
 from ..figurines.humans.human import HUMAN_SPRITE_ROOT
 
 SPLIT, BITE, WHIFF, SHORT = "split", "bite", "whiff", "short"
@@ -121,7 +131,8 @@ _PILE_ROWS = 8                      # the pile: 8 + 7 + ... + 1 = 36 split logs,
 _PILE_LEFT, _PILE_R = 648, 10
 
 # Colours
-_SKY_TOP, _SKY_LOW = (214, 205, 176), (236, 226, 194)
+
+_LANTERN_GLASS, _LANTERN_GLASS_LIT = (96, 76, 44), (255, 222, 150)
 _HILLS = (176, 172, 128)
 _GRASS, _GRASS_DARK = (128, 140, 82), (104, 118, 66)
 # The forest floor: shaded grass at the tree line, lighter in front, a band of
@@ -175,6 +186,9 @@ _BOARD_WIDTH = 34                   # the scale board under the beam, a half rin
 _WOOD_DARK, _WOOD_MID, _WOOD_LIGHT = (86, 58, 36), (122, 86, 54), (150, 112, 72)
 _BRASS, _BRASS_LIGHT, _BRASS_DARK = (196, 154, 64), (236, 204, 120), (120, 86, 30)
 _IRON = (64, 62, 60)
+# The lanterns: on an arm at the left of the power post, and hanging from the beam's left end (their tops)
+_POST_LANTERN = (POWER_RECT.left - 34, POWER_RECT.top - 12)
+_BEAM_LANTERN = (_BEAM_LEFT + 6, _BEAM_Y + 44)
 
 
 def _ease_out(t: float) -> float:
@@ -254,14 +268,15 @@ class _Pose:
 class ChoppingScene:
     """The player at the chopping block, animated by the minigame's swings."""
 
-    def __init__(self, font: pygame.font.Font, rng: Optional[random.Random] = None) -> None:
+    def __init__(self, font: pygame.font.Font, rng: Optional[random.Random] = None,
+                 when: Optional[datetime.datetime] = None, weather: Optional[Conditions] = None) -> None:
         self.font = font
         self.rng = rng or random.Random()
-        self.surface = pygame.Surface((SCENE_W, SCENE_H))
+        self.surface = pygame.Surface((SCENE_W, SCENE_H))                    # the picture handed out
+        self._world = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)    # all but the sky, to be lit
         self._overlay = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
 
         self._build_player()
-        self._background = self._build_background()
         self._near_tree = self._build_near_tree()
         self._foot_tufts = self._build_foot_tufts()
         self._block = self._build_block()
@@ -298,6 +313,9 @@ class ChoppingScene:
 
         # Where the axe lands on the log, worked out from the fist at the strike
         self._strike_angle, self._axe_len = self._aim_at_log()
+
+        self._lantern_glow = radial(1.0, 46, (255, 200, 130))
+        self.set_time(when, weather)
 
     # ------------------------------------------------------------------
     # Building the pictures, once
@@ -337,10 +355,7 @@ class ChoppingScene:
         self._body_top = _FEET_Y - _PLAYER_H
 
     def _build_background(self) -> pygame.Surface:
-        bg = pygame.Surface((SCENE_W, SCENE_H))
-        for y in range(_HORIZON_Y + 10):
-            t = y / (_HORIZON_Y + 10)
-            bg.fill(tuple(round(_lerp(a, b, t)) for a, b in zip(_SKY_TOP, _SKY_LOW)), (0, y, SCENE_W, 1))
+        bg = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)    # see-through where the sky shows
 
         # Low hills on the horizon
         hills = [(0, _HORIZON_Y)]
@@ -352,6 +367,8 @@ class ChoppingScene:
 
         rng = random.Random(7)
         self._draw_ground(bg, rng)
+        if self.outdoors.snow_ground is not None:          # under the trees and the trodden clearing
+            bg.blit(self.outdoors.snow_ground, (0, 0))
 
         # The wood: the far row on the hills, then the nearer one at the clearing's edge,
         # standing in the grass
@@ -632,6 +649,67 @@ class ChoppingScene:
             pygame.draw.circle(glow, tuple(round(c * k) for c in _GLOW_COLOUR), (_GLOW_RADIUS, _GLOW_RADIUS), r)
         return glow
 
+    # ------------------------------------------------------------------
+    # The time of day
+    # ------------------------------------------------------------------
+
+    def set_time(self, when: Optional[datetime.datetime], weather: Optional[Conditions] = None) -> None:
+        """Play the scene at that moment and in that weather (None: noon, clear)."""
+        self.outdoors = Outdoors((SCENE_W, SCENE_H), _HORIZON_Y, when, weather,
+                                 lamps=self._lantern_places(), rng=random.Random(self.rng.random()))
+        self._background = self._build_background()       # snow may lie on its ground
+
+    @property
+    def lanterns(self) -> float:
+        """How brightly the lanterns burn: 0 by day, 1 at night."""
+        return self.outdoors.lamps
+
+    @property
+    def night(self) -> float:
+        return self.outdoors.night
+
+    @property
+    def _lightmap(self) -> pygame.Surface:
+        return self.outdoors.lightmap
+
+    def _lantern_places(self) -> List[Tuple[Tuple[int, int], int]]:
+        """Each lantern's light: its middle and how far it reaches."""
+        return [((_POST_LANTERN[0], _POST_LANTERN[1] + 12), 250), ((_BEAM_LANTERN[0], _BEAM_LANTERN[1] + 12), 330)]
+
+    def _draw_lanterns(self, surf: pygame.Surface) -> None:
+        """The lanterns themselves, unlit glass by day; the post's on an iron arm, the beam's on a chain."""
+        ax, ay = _POST_LANTERN
+        post_left = POWER_RECT.left - 16
+        pygame.draw.line(surf, _IRON, (post_left, ay - 8), (ax, ay - 8), 3)          # the arm
+        pygame.draw.line(surf, _IRON, (ax, ay - 8), (ax, ay - 2), 2)
+        bx, by = _BEAM_LANTERN
+        pygame.draw.line(surf, _IRON, (bx, _BEAM_Y + 22), (bx, by - 2), 2)            # the chain
+        for y in range(_BEAM_Y + 24, by - 2, 5):
+            pygame.draw.circle(surf, _IRON, (bx, y), 2, 1)
+        for x, y in (_POST_LANTERN, _BEAM_LANTERN):
+            pygame.draw.polygon(surf, _IRON, [(x - 8, y + 4), (x, y - 2), (x + 8, y + 4)])   # the cap
+            body = pygame.Rect(x - 7, y + 4, 14, 18)
+            pygame.draw.rect(surf, _LANTERN_GLASS, body)
+            pygame.draw.rect(surf, _IRON, body, 2)
+            pygame.draw.line(surf, _IRON, (x, y + 4), (x, y + 21), 1)
+            pygame.draw.rect(surf, _IRON, (x - 8, y + 21, 16, 3))
+
+    def _draw_lantern_flames(self, surf: pygame.Surface) -> None:
+        """After the lighting: the lit glass, a small flickering flame and its halo."""
+        if self.lanterns <= 0:
+            return
+        flicker = 0.9 + 0.1 * math.sin(pygame.time.get_ticks() / 90.0) * math.sin(pygame.time.get_ticks() / 37.0)
+        for x, y in (_POST_LANTERN, _BEAM_LANTERN):
+            glass = pygame.Rect(x - 5, y + 6, 10, 14)
+            colour = tuple(round(_lerp(a, b, self.lanterns)) for a, b in zip(_LANTERN_GLASS, _LANTERN_GLASS_LIT))
+            pygame.draw.rect(surf, colour, glass)
+            pygame.draw.line(surf, _IRON, (x, y + 4), (x, y + 21), 1)
+            pygame.draw.ellipse(surf, (255, 246, 210), (x - 2, y + 9 - flicker, 4, 7 + flicker))
+            halo = self._lantern_glow.copy()
+            k = round(255 * self.lanterns * flicker * 0.6)
+            halo.fill((k, k, k), special_flags=pygame.BLEND_RGB_MULT)
+            surf.blit(halo, halo.get_rect(center=(x, y + 13)), special_flags=pygame.BLEND_RGB_ADD)
+
     def _build_log_end(self) -> pygame.Surface:
         """A split log's end in the pile: a half disc of wood in bark."""
         d = _PILE_R * 2
@@ -758,10 +836,10 @@ class ChoppingScene:
 
     def update(self, dt: float) -> List[str]:
         """Advance the animation; returns the sounds to play now ("chop", "thud", "ring")."""
-        if self._hitstop > 0:            # the perfect blow holds still for a heartbeat
+        if self._hitstop > 0:            # the perfect blow holds still for a heartbeat, the rain too
             self._hitstop -= dt
             return []
-        sounds: List[str] = []
+        sounds: List[str] = self.outdoors.update(dt)
         if self.state == "charge":
             target = _REST_ANGLE + _WINDUP_EXTRA * self.charge_t
             self.angle += (target - self.angle) * min(1.0, _FOLLOW_RATE * dt)
@@ -1008,11 +1086,13 @@ class ChoppingScene:
     def draw(self, underlay=None, overlay=None) -> pygame.Surface:
         """Draw the scene; underlay(surface) is called behind the block and the
         player (the aim's zones and plumb line), overlay(surface) over all of it."""
-        surf = self.surface
+        surf = self._world
+        surf.fill((0, 0, 0, 0))
         surf.blit(self._background, (0, 0))
         if underlay is not None:
             underlay(surf)
         surf.blit(self._foot_tufts["post"], (0, 0))
+        self._draw_lanterns(surf)
         self._draw_pile(surf)
         self._draw_shadow(surf, _BLOCK_CX, _BLOCK_W + 10)
         self._draw_shadow(surf, _PLAYER_LEFT + self._body_w / 2, self._body_w * 0.75)
@@ -1041,6 +1121,12 @@ class ChoppingScene:
             tree, at = self._near_tree
             surf.blit(tree, at)
             surf.blit(self._foot_tufts["near"], (0, 0))
+        self.outdoors.draw_weather(surf)
+        self.outdoors.light(surf)
+        frame = self.surface
+        self.outdoors.compose(frame, surf)
+        self._draw_lantern_flames(frame)
+        surf = frame
         if self._popup is not None:
             text, color, age = self._popup
             face = self.font.render(text, True, color)

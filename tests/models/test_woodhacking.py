@@ -244,3 +244,28 @@ def test_each_perfect_gauge_glints(minigame):
     for _ in range(round(wh._GLINT_S / DT) + 1):
         minigame.update(DT)
     assert minigame.glints == []
+
+
+# ── The time of day ───────────────────────────────────────────────────────────
+
+def _scene_at(hour: int) -> ChoppingScene:
+    import datetime
+    return ChoppingScene(pygame.font.SysFont(None, 20), random.Random(0), when=datetime.datetime(1500, 1, 4, hour))
+
+
+def test_at_noon_the_lanterns_are_out_and_no_stars_show():
+    scene = _scene_at(12)
+    assert scene.lanterns == 0 and scene.night == 0
+
+
+def test_at_midnight_the_lanterns_burn_and_the_stars_show():
+    scene = _scene_at(0)
+    assert scene.lanterns == 1 and scene.night == 1
+    scene.draw()
+
+
+def test_the_night_is_darker_than_the_day_but_the_gauges_still_get_light():
+    day, night = _scene_at(12), _scene_at(0)
+    x, y = 71, 380                      # low on the power post, away from its lantern
+    assert sum(night._lightmap.get_at((x, y))[:3]) < sum(day._lightmap.get_at((x, y))[:3])
+    assert min(night._lightmap.get_at((x, y))[:3]) > 60
