@@ -334,7 +334,7 @@ SMOKE_DURATION_RANGE = 5.0           # burns at most 9 hours
 # overcast sky, which brings one about every other time; with the clear spells between, that is
 # 1 to 2 showers a week.
 # A thunderstorm ("storm", the only spell with a "storm" level, 0 when left out) now and then breaks out
-# of the rain or a downpour: as hard as it rains, a darker sky (STORM_TINT in map_view) and lightning.
+# of the rain or a downpour: as hard as it rains, a darker sky (STORM_TINT in daylight.py) and lightning.
 # Mist comes out of a clear sky or after a shower, still air either way, and now and then
 # thickens into fog; both hang longest at night and in the early morning (FOG_BY_HOUR).
 WEATHER_SPELLS = {

@@ -100,3 +100,50 @@ def sun_hour(moment: datetime.datetime) -> float:
         if c0 <= hour <= c1:
             return s0 + (s1 - s0) * (hour - c0) / (c1 - c0) if c1 > c0 else s0
     return hour
+
+
+#: The light over the land through a day of Spring or Autumn, by sun hour: (hour, (r, g, b)),
+#: multiplied into the picture, so (255, 255, 255) is full daylight
+AMBIENT_KEYFRAMES = (
+    (0.0, (30, 30, 70)),     # Deep night (dark blue)
+    (4.0, (30, 30, 70)),     # Still deep night
+    (5.5, (60, 60, 90)),     # Night turns to pre-dawn
+    (6.5, (180, 100, 100)),  # Sunrise (red/orange)
+    (8.0, (255, 255, 255)),  # Full daylight
+    (17.0, (255, 255, 255)), # The sun begins to set
+    (18.5, (220, 150, 100)), # Golden hour (orange/gold)
+    (20.0, (80, 60, 100)),   # Twilight (purple/dark)
+    (21.0, (30, 30, 70)),    # Night begins
+    (24.0, (30, 30, 70)),    # Midnight wrap
+)
+
+
+def ambient_light(moment: datetime.datetime) -> Tuple[int, int, int]:
+    """The colour of the light at that moment, to multiply into the picture: the keyframes
+    at its sun hour (so the day follows the seasons' length), times the season's mood."""
+    hour = sun_hour(moment)
+    for (start_hour, start), (end_hour, end) in zip(AMBIENT_KEYFRAMES, AMBIENT_KEYFRAMES[1:]):
+        if start_hour <= hour <= end_hour:
+            t = (hour - start_hour) / (end_hour - start_hour)
+            r, g, b = (a + (z - a) * t for a, z in zip(start, end))
+            tint = season_tint(moment)
+            return (int(r * tint[0] / 255), int(g * tint[1] / 255), int(b * tint[2] / 255))
+    return (255, 255, 255)
+
+
+# Full cloud multiplies the light by this: a cool grey, as under a rain sky
+CLOUD_TINT = (165, 172, 190)
+# A thunderstorm multiplies that by this as well: darker, and a little bluer
+STORM_TINT = (175, 180, 200)
+
+
+def overcast(color: Tuple[int, int, int], clouds: float, storm: float) -> Tuple[int, int, int]:
+    """The light under that much cloud (0 to 1) and storm: clouds take away daylight (in the
+    dark there is little left for them to take), and a storm's sky is darker still."""
+    if clouds > 0:
+        cover = clouds * max(color) / 255
+        color = tuple(round(c * (1 - cover * (1 - t / 255))) for c, t in zip(color, CLOUD_TINT))
+    if storm > 0:
+        gloom = storm * max(color) / 255
+        color = tuple(round(c * (1 - gloom * (1 - t / 255))) for c, t in zip(color, STORM_TINT))
+    return color

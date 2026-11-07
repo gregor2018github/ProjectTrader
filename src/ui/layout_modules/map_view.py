@@ -17,7 +17,7 @@ from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
 from ...models.roof_snow import roof_snow_level
 from ...models.fog import halo_margin, halos_show
-from ...models.daylight import season_tint, sun_hour
+from ...models.daylight import ambient_light, overcast
 from ...models.water import get_water_tile_frames, get_water_edge_overlay_frames, get_masked_water_surface, WATER_FRAME_COUNT, WATER_FRAME_INTERVAL
 
 if TYPE_CHECKING:
@@ -260,15 +260,7 @@ def _apply_lighting(
         The ambient color multiplied in, (255, 255, 255) in clear daylight.
     """
     # Calculate ambient color
-    color = _get_ambient_color(current_time)
-    if clouds > 0:
-        # Clouds take away daylight: in the dark there is little left for them to take
-        cover = clouds * max(color) / 255
-        color = tuple(round(c * (1 - cover * (1 - t / 255))) for c, t in zip(color, CLOUD_TINT))
-    if storm > 0:
-        # A storm's sky is darker still, by day above all
-        gloom = storm * max(color) / 255
-        color = tuple(round(c * (1 - gloom * (1 - t / 255))) for c, t in zip(color, STORM_TINT))
+    color = overcast(_get_ambient_color(current_time), clouds, storm)
     
     # If it's effectively full daylight (white), don't draw anything to save resources
     if color == (255, 255, 255):
@@ -319,59 +311,14 @@ def _apply_lighting(
     return color
 
 
-# Full cloud multiplies the light by this: a cool grey, as under a rain sky
-CLOUD_TINT = (165, 172, 190)
-# A thunderstorm multiplies that by this as well: darker, and a little bluer
-STORM_TINT = (175, 180, 200)
 _lighting_surf = None   # the overlay of _apply_lighting, reused
 
 
 def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
-    """Calculate the ambient light color based on current time.
-
-    The keyframes are a day of Spring or Autumn; the sun hour (models/daylight.py)
-    makes the day longer in Summer and shorter, with longer dawns and dusks, in Winter,
-    and the season tints it (season_tint): warm in Autumn, cold in Winter.
-
-    Returns:
-        RGB tuple representing the ambient light.
-    """
-    hour = sun_hour(date)
-    
-    # Keyframes define the color at specific times of day
-    # Format: (hour, (r, g, b))
-    # We use BLEND_MULT, so (255, 255, 255) is normal brightness (Day)
-    # Lower values darken the screen (Night)
-    keyframes = [
-        (0.0, (30, 30, 70)),     # Deep night (Dark Blue)
-        (4.0, (30, 30, 70)),     # Still deep night
-        (5.5, (60, 60, 90)),     # Night triggers pre-dawn
-        (6.5, (180, 100, 100)),  # Sunrise (Red/Orange tint)
-        (8.0, (255, 255, 255)),  # Full daylight
-        (17.0, (255, 255, 255)), # Start of sunset
-        (18.5, (220, 150, 100)), # Golden hour (Orange/Gold)
-        (20.0, (80, 60, 100)),   # Twilight (Purple/Dark)
-        (21.0, (30, 30, 70)),    # Night begins
-        (24.0, (30, 30, 70))     # Midnight wrap
-    ]
-    
-    # Find which segment we are in
-    for i in range(len(keyframes) - 1):
-        start_hour, start_color = keyframes[i]
-        end_hour, end_color = keyframes[i + 1]
-        
-        if start_hour <= hour <= end_hour:
-            # Interpolate
-            t = (hour - start_hour) / (end_hour - start_hour)
-            r = start_color[0] + (end_color[0] - start_color[0]) * t
-            g = start_color[1] + (end_color[1] - start_color[1]) * t
-            b = start_color[2] + (end_color[2] - start_color[2]) * t
-            # The season's mood: warm in Autumn, cold in Winter
-            tint = season_tint(date)
-            return (int(r * tint[0] / 255), int(g * tint[1] / 255), int(b * tint[2] / 255))
-            
-    # Fallback (shouldn't be reached if keyframes cover 0-24)
-    return (255, 255, 255)
+    """The ambient light at that time (models/daylight.py, ambient_light): its keyframes are
+    a day of Spring or Autumn, the sun hour makes the day longer in Summer and shorter, with
+    longer dawns and dusks, in Winter, and the season tints it: warm in Autumn, cold in Winter."""
+    return ambient_light(date)
 
 
 def _render_map_layers(
