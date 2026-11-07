@@ -4,6 +4,7 @@ This module handles detecting when the mouse hovers over houses that are
 within interaction range of the player, and provides hover effect rendering.
 """
 
+import math
 import pygame
 import os
 from typing import Optional, List, Tuple, Dict, Any, TYPE_CHECKING
@@ -27,6 +28,13 @@ HOVER_GLOW_EXTENSION = 4  # Fixed pixel amount to extend the sprite on each side
 HOVER_OFFSET_X = 0   # Pixel offset to the right
 HOVER_OFFSET_Y = 0  # Pixel offset upwards
 HOVER_TINT = (245, 245, 220, 160)  # Beige with transparency
+# Something waiting to be done there (the chopping stump while today's wood is not chopped):
+# a soft golden halo, breathing slowly; the hover's beige takes over under the mouse
+AVAILABLE_TINT = (255, 214, 110, 150)         # see-through, like the hover's beige
+AVAILABLE_GLOW_EXTENSION = HOVER_GLOW_EXTENSION  # no bigger than the hover's glow
+AVAILABLE_PULSE_S = 1.6              # one breath, in real seconds
+AVAILABLE_ALPHA = (0.1, 1.0)         # the halo's strength between breaths: nearly gone, then clear
+_available_glow_cache: Dict[Tuple[int, float], Tuple[pygame.Surface, pygame.Surface]] = {}
 
 # House menu sizing: the menu grows to fit its title, and only titles too long
 # for MAX_MENU_WIDTH get a smaller font
@@ -195,6 +203,57 @@ def _create_hover_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Sur
     
     _hover_glow_cache[cache_key] = (sprite, result)
     return result
+
+
+def _create_available_glow_sprite(sprite: pygame.Surface, zoom: float) -> pygame.Surface:
+    """A golden halo the shape of the sprite, as much larger as the hover's glow, its edge softened."""
+    cache_key = (id(sprite), round(zoom, 3))
+    cached = _available_glow_cache.get(cache_key)
+    if cached is not None and cached[0] is sprite:
+        return cached[1]
+    ext = AVAILABLE_GLOW_EXTENSION
+    w, h = sprite.get_size()
+    silhouette = pygame.mask.from_surface(sprite).to_surface(setcolor=AVAILABLE_TINT, unsetcolor=(0, 0, 0, 0))
+    halo = pygame.transform.smoothscale(silhouette, (w + ext * 2, h + ext * 2))   # as large as the hover's
+    # Soften its edge a little: down to half and back up
+    small = pygame.transform.smoothscale(halo, (max(1, halo.get_width() // 2), max(1, halo.get_height() // 2)))
+    halo = pygame.transform.smoothscale(small, halo.get_size())
+    if len(_available_glow_cache) > 20:
+        _available_glow_cache.clear()
+    _available_glow_cache[cache_key] = (sprite, halo)
+    return halo
+
+
+def inject_available_glow_into_queue(render_queue: List[Dict[str, Any]], target: Any, camera: 'Camera') -> None:
+    """Breathe a soft golden halo behind something there is to do (see AVAILABLE_TINT).
+
+    Like the hover's glow, it goes into the queue just before the object's own
+    entry (found by its 'owner'), so it sorts with it."""
+    for i, entry in enumerate(render_queue):
+        if entry.get('owner') is target:
+            break
+    else:
+        return
+    sprite = entry['sprite']
+    halo = _create_available_glow_sprite(sprite, camera.zoom)
+    phase = (pygame.time.get_ticks() / 1000.0) / AVAILABLE_PULSE_S * 2 * math.pi
+    low, high = AVAILABLE_ALPHA
+    halo.set_alpha(round(255 * (low + (high - low) * (0.5 + 0.5 * math.sin(phase)))))
+    dx = (halo.get_width() - sprite.get_width()) // 2
+    dy = (halo.get_height() - sprite.get_height()) // 2
+    render_queue.insert(i, {
+        'sprite': halo,
+        'pos': (entry['pos'][0] - dx, entry['pos'][1] - dy),
+        'y_sort': entry['y_sort'] - 0.002,
+    })
+
+
+def woodhacking_available(game_state: 'GameState') -> bool:
+    """Whether today's wood is still to be chopped (the woodhacking is once a day)."""
+    game = getattr(game_state, 'game', None)
+    if game is None:
+        return False
+    return game.depot.stats.last_woodhacking_day != game_state.date.date().isoformat()
 
 
 def inject_hover_effect_into_queue(

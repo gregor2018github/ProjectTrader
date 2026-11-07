@@ -11,7 +11,9 @@ import datetime
 from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
-from ..helper_modules.house_click_menu import inject_hover_effect_into_queue, is_player_near
+from ..helper_modules.house_click_menu import (
+    inject_available_glow_into_queue, inject_hover_effect_into_queue, is_player_near, woodhacking_available,
+)
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
@@ -114,6 +116,11 @@ def draw_map_view(
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date,
                                        halos=bool(weather) and halos_show(weather.fog),
                                        roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
+
+    # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse)
+    stump = _chopping_stump(game_map)
+    if stump is not None and stump is not hovered and woodhacking_available(game_state):
+        inject_available_glow_into_queue(render_queue, stump, game_map.camera)
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)
@@ -312,6 +319,14 @@ def _apply_lighting(
 
 
 _lighting_surf = None   # the overlay of _apply_lighting, reused
+
+
+def _chopping_stump(game_map) -> Any:
+    """The map's chopping stump (the house object named "Stomp"), where the woodhacking is played; found once."""
+    tmx_map = game_map.tmx_map
+    if not hasattr(tmx_map, '_chopping_stump'):
+        tmx_map._chopping_stump = next((h for h in tmx_map.houses if h.name == "Stomp"), None)
+    return tmx_map._chopping_stump
 
 
 def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
