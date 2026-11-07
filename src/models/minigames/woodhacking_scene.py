@@ -17,6 +17,10 @@ over the block (``AIM_PIVOT``) above a scale board; the minigame draws both
 through ``draw``'s ``underlay`` (behind the player and the block) and
 ``overlay`` (over everything), and the scene draws the beam and the board.
 
+The chips a blow knocks off fall round the stump and stay there
+(``_chip_layer``), on the trodden clearing, so the more is chopped, the more
+lie about; those flying out into the grass are lost in it.
+
 A swing perfect on both gauges (``swing(..., flourish=2)``) lands with a
 little more weight: the blow stops for a heartbeat (``_HITSTOP_S``), the
 log splits in a warm glow, a few motes of sawdust drift up as if caught in
@@ -119,6 +123,8 @@ _RECOVER_RATE = 9.0                 # and goes back to rest after a swing
 _BITES_TO_SPLIT = 2
 
 _GRAVITY = 1500.0
+_CHIPS_KEPT = 600                   # chips left lying round the stump at most
+_CLEARING = pygame.Rect(_BLOCK_CX - 240, _FEET_Y - 34, 360, 70)   # the trodden dirt, an ellipse in this
 
 # A swing perfect on both gauges
 _HITSTOP_S = 0.08                   # the blow holds still this long on impact
@@ -303,6 +309,8 @@ class ChoppingScene:
         self.pile = 0                   # split logs stacked behind
 
         self.pieces: List[_Piece] = []
+        self._chip_layer = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)   # chips lying round the stump
+        self.chips_lying = 0
         self.particles: List[_Particle] = []
         self._popup: Optional[Tuple[str, Tuple[int, int, int], float]] = None  # text, colour, age
         self.flourish = 0               # 2 for a swing perfect on both gauges
@@ -926,7 +934,8 @@ class ChoppingScene:
             color = self.rng.choice((_WOOD, _WOOD_CUT, _WOOD_RING, _BARK))
             self.particles.append(_Particle(
                 x + self.rng.uniform(-8, 8), y, math.cos(angle) * speed, -math.sin(angle) * speed,
-                self.rng.uniform(0.6, 1.0), self.rng.choice((2, 3, 3, 4)), color))
+                self.rng.uniform(0.6, 1.0), self.rng.choice((2, 3, 3, 4)), color,
+                ground=_FEET_Y + self.rng.uniform(-6, 20)))   # landing nearer or further round the stump
 
     def _release_motes(self) -> None:
         """Fine sawdust from the split, drifting up slowly and swaying, as if caught in the sun."""
@@ -998,8 +1007,27 @@ class ChoppingScene:
                 p.x += p.vx * dt
                 p.y += p.vy * dt
                 if p.y >= p.ground:
-                    p.y = p.ground + self.rng.uniform(-6, 6)
+                    p.y = p.ground
+                    if self._lay_chip(p):
+                        p.age = p.life          # it lies on the ground now, not in the air
         self.particles = [p for p in self.particles if p.age < p.life]
+
+    def _lay_chip(self, p: _Particle) -> bool:
+        """A chip landed: on the trodden clearing it stays, in the grass it is lost."""
+        if self.chips_lying >= _CHIPS_KEPT:
+            return False
+        cx, cy = _CLEARING.center
+        if ((p.x - cx) / (_CLEARING.w / 2)) ** 2 + ((p.y - cy) / (_CLEARING.h / 2)) ** 2 > 0.9:
+            return False
+        if abs(p.x - _BLOCK_CX) < _BLOCK_W / 2 + 2 and p.y < _FEET_Y + _END_H / 2 + 1:
+            return False                # behind the stump, out of sight
+        w = p.size + self.rng.choice((0, 1, 2))
+        pygame.draw.rect(self._chip_layer, (*p.color, 255), (round(p.x), round(p.y), w, max(2, p.size - 1)))
+        if self.rng.random() < 0.4:   # a darker edge, where it lies on its side
+            pygame.draw.line(self._chip_layer, (*_DIRT_DARK, 255), (round(p.x), round(p.y) + max(2, p.size - 1)),
+                             (round(p.x) + w - 1, round(p.y) + max(2, p.size - 1)), 1)
+        self.chips_lying += 1
+        return True
 
     # ------------------------------------------------------------------
     # Drawing
@@ -1101,6 +1129,7 @@ class ChoppingScene:
         if behind_log:
             self._draw_axe(surf)
         surf.blit(self._block, (_BLOCK_CX - _BLOCK_W / 2, _FEET_Y - _BLOCK_H - _END_H / 2))
+        surf.blit(self._chip_layer, (0, 0))
         surf.blit(self._foot_tufts["block"], (0, 0))
         self._draw_log(surf)
         for piece in self.pieces:
