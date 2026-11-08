@@ -409,6 +409,8 @@ class WoodhackingMinigame(MinigameOverlay):
         self.attempt = 0
         self.streak = 0            # logs split in a row
         self.best_streak = 0
+        self.perfect_hits = 0      # swings perfect on both gauges
+        self.blocks_chopped = 0    # logs split, counted at the blow: the scene's pile only when they land
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
         self.extra_swings = 0      # earned by swings perfect on both gauges
         self.notice: Optional[Tuple[str, Tuple[int, int, int], float]] = None   # text, colour, seconds left
@@ -457,6 +459,8 @@ class WoodhackingMinigame(MinigameOverlay):
         # counts as "played" and can set a new highscore, even if the round
         # itself scored no payout.
         depot.stats.minigames_played += 1
+        depot.stats.record_woodhacking(self.score, state.date.date().isoformat(), self.best_streak, self.perfect_hits,
+                                       self.blocks_chopped)
         self.previous_highscore = depot.stats.woodhacking_highscore
         if self.score > depot.stats.woodhacking_highscore:
             depot.stats.woodhacking_highscore = self.score
@@ -619,6 +623,7 @@ class WoodhackingMinigame(MinigameOverlay):
         if self.scene.outcome == SPLIT:
             self.streak += 1
             self.best_streak = max(self.best_streak, self.streak)
+            self.blocks_chopped += 1
         else:
             if self.streak > 0:
                 self._streak_lost_alpha = 255
@@ -630,6 +635,7 @@ class WoodhackingMinigame(MinigameOverlay):
             )
             self.opt_lo, self.opt_hi = _new_opt_zone()
         if flourish == 2:
+            self.perfect_hits += 1
             self.extra_swings += 1
             self.notice = ("Extra swing!", _EXTRA_COLOUR, _NOTICE_S)
             if TIP_DOUBLE_PERFECT not in self.game.depot.stats.minigame_tips_seen:

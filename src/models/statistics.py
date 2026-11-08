@@ -9,6 +9,8 @@ from typing import Any, Dict, List, Optional
 
 from .minigames.fishing_pond import SPECIES
 
+WOODHACKING_TOP_SCORES = 5       # how many of the best sessions are kept
+
 
 class Statistics:
     """Lifetime counters for a single game session."""
@@ -39,6 +41,10 @@ class Statistics:
         self.minigames_played: int = 0          # completed minigame sessions (all types)
         self.minigame_income_total: float = 0.0 # cumulative gold earned from minigames
         self.woodhacking_highscore: float = 0   # best score achieved in the woodhacking minigame (streak bonuses make it fractional)
+        # The best sessions, best first: "score", "date" (ISO), "streak", "perfects", "blocks"; None for what was not tracked yet
+        self.woodhacking_scores: List[Dict[str, Any]] = []
+        # Over all sessions, empty until the first tracked one: best_streak, most_perfects, total_perfects, most_blocks, total_blocks
+        self.woodhacking_bests: Dict[str, int] = {}
         self.last_woodhacking_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last played, gates to once/day
         self.minigame_tips_seen: List[str] = []  # the minigames' one-time explanations already shown
         self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
@@ -60,6 +66,19 @@ class Statistics:
             self.fishing_records[species_key] = cm
             return True
         return False
+
+    def record_woodhacking(self, score: float, date: str, streak: int, perfects: int, blocks: int) -> None:
+        """A finished session of woodhacking goes into the books: ``date`` is its ISO date."""
+        self.woodhacking_scores.append({"score": score, "date": date, "streak": streak,
+                                        "perfects": perfects, "blocks": blocks})
+        self.woodhacking_scores.sort(key=lambda entry: entry["score"], reverse=True)   # stable: the older first on a tie
+        del self.woodhacking_scores[WOODHACKING_TOP_SCORES:]
+        bests = self.woodhacking_bests
+        bests["best_streak"] = max(bests.get("best_streak", 0), streak)
+        bests["most_perfects"] = max(bests.get("most_perfects", 0), perfects)
+        bests["total_perfects"] = bests.get("total_perfects", 0) + perfects
+        bests["most_blocks"] = max(bests.get("most_blocks", 0), blocks)
+        bests["total_blocks"] = bests.get("total_blocks", 0) + blocks
 
     # ------------------------------------------------------------------
     # Serialization
@@ -84,6 +103,8 @@ class Statistics:
             "minigames_played": self.minigames_played,
             "minigame_income_total": self.minigame_income_total,
             "woodhacking_highscore": self.woodhacking_highscore,
+            "woodhacking_scores": [dict(entry) for entry in self.woodhacking_scores],
+            "woodhacking_bests": dict(self.woodhacking_bests),
             "last_woodhacking_day": self.last_woodhacking_day,
             "minigame_tips_seen": list(self.minigame_tips_seen),
             "fishing_highscore": self.fishing_highscore,
@@ -114,6 +135,12 @@ class Statistics:
         obj.minigames_played = d.get("minigames_played", 0)
         obj.minigame_income_total = d.get("minigame_income_total", 0.0)
         obj.woodhacking_highscore = d.get("woodhacking_highscore", 0)
+        obj.woodhacking_scores = [dict(entry) for entry in d.get("woodhacking_scores", [])]
+        obj.woodhacking_bests = dict(d.get("woodhacking_bests", {}))
+        # Saves from before the list only know the best score, not its date or what made it up
+        if "woodhacking_scores" not in d and obj.woodhacking_highscore > 0:
+            obj.woodhacking_scores = [{"score": obj.woodhacking_highscore, "date": None, "streak": None,
+                                       "perfects": None, "blocks": None}]
         obj.last_woodhacking_day = d.get("last_woodhacking_day", None)
         obj.minigame_tips_seen = list(d.get("minigame_tips_seen", []))
         obj.fishing_highscore = d.get("fishing_highscore", 0.0)

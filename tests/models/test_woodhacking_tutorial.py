@@ -1,5 +1,6 @@
 """The woodhacking how-to page: when it opens, that the game waits, and what its pictures show."""
 
+import datetime
 from types import SimpleNamespace
 
 import pygame
@@ -8,6 +9,7 @@ import pytest
 from src.models.minigames import woodhacking as wh
 from src.models.minigames import woodhacking_tutorial as tutorial
 from src.models.minigames.woodhacking_scene import SPLIT
+from src.models.statistics import Statistics
 
 DT = 1 / 60
 
@@ -21,10 +23,10 @@ def display():
 
 
 def _minigame(screen, tips_seen=()):
-    stats = SimpleNamespace(woodhacking_highscore=0, minigames_played=0, minigame_income_total=0.0,
-                            minigame_tips_seen=list(tips_seen))
+    stats = Statistics()
+    stats.minigame_tips_seen = list(tips_seen)
     depot = SimpleNamespace(stats=stats, book_labor_income=lambda coins, name: None)
-    game = SimpleNamespace(depot=depot, state=SimpleNamespace(log_event=lambda *a: None),
+    game = SimpleNamespace(depot=depot, state=SimpleNamespace(log_event=lambda *a: None, date=datetime.datetime(1500, 1, 3, 10)),
                            sounds={}, play_sound=lambda name: None)
     return wh.WoodhackingMinigame(screen, game)
 

@@ -1,5 +1,6 @@
 """The woodhacking minigame's chopping scene, and how the game waits for it."""
 
+import datetime
 import math
 import random
 from types import SimpleNamespace
@@ -9,6 +10,7 @@ import pytest
 
 from src.models.minigames import woodhacking as wh
 from src.models.minigames.woodhacking_scene import BITE, SHORT, SPLIT, WHIFF, ChoppingScene
+from src.models.statistics import Statistics
 
 DT = 1 / 60
 
@@ -102,11 +104,11 @@ def test_the_scene_draws_every_moment(scene):
 
 def _game(tips_seen=(wh.TIP_TUTORIAL, wh.TIP_DOUBLE_PERFECT)):
     """A stand-in game; the how-to page and the explanation of a perfect blow count as seen unless the test says not."""
-    stats = SimpleNamespace(woodhacking_highscore=0, minigames_played=0, minigame_income_total=0.0,
-                            minigame_tips_seen=list(tips_seen))
+    stats = Statistics()
+    stats.minigame_tips_seen = list(tips_seen)
     booked = []
     depot = SimpleNamespace(stats=stats, book_labor_income=lambda coins, name: booked.append(coins))
-    game = SimpleNamespace(depot=depot, state=SimpleNamespace(log_event=lambda *a: None),
+    game = SimpleNamespace(depot=depot, state=SimpleNamespace(log_event=lambda *a: None, date=datetime.datetime(1500, 1, 3, 10)),
                            sounds={}, play_sound=lambda name: None)
     return game, booked
 
@@ -479,3 +481,29 @@ def test_leaving_right_after_the_last_swing_still_pays_and_takes_the_hours(monke
     m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
     assert game.depot.stats.minigames_played == 1
     assert game.state.date.hour == 14
+
+
+def test_a_finished_session_goes_into_the_records(monkeypatch):
+    monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
+    game, _ = _game()
+    m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+    m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2   # perfect on both gauges: a split, and an extra swing
+    m._resolve_swing()
+    m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2
+    m._resolve_swing()
+    m.aim, m.power = wh.AIM_MAX, 0.0                  # a miss ends the streak
+    m._resolve_swing()
+    m._book_payout()
+    m._book_payout()                                  # booked once
+    stats = game.depot.stats
+    assert stats.woodhacking_scores == [{"score": m.score, "date": "1500-01-03", "streak": 2, "perfects": 2, "blocks": 2}]
+    assert stats.woodhacking_bests == {"best_streak": 2, "most_perfects": 2, "total_perfects": 2,
+                                       "most_blocks": 2, "total_blocks": 2}
+
+
+def test_a_session_left_early_is_not_in_the_records():
+    game, _ = _game()
+    m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
+    m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2
+    m._resolve_swing()
+    assert game.depot.stats.woodhacking_scores == [] and game.depot.stats.woodhacking_bests == {}

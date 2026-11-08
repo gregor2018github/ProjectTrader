@@ -12,7 +12,8 @@ import pytest
 from src.models.minigames.fishing_pond import SPECIES, format_kg
 from src.models.statistics import Statistics
 from src.ui.helper_modules.records_window import (
-    RecordsWindow, UNKNOWN_NAME, fish_records, open_records_window, portrait,
+    NOT_TRACKED, PAGE_FISHING, PAGE_WOODHACKING, RecordsWindow, UNKNOWN_NAME, date_text, fish_records,
+    open_records_window, overall_lines, portrait, score_details,
 )
 
 
@@ -110,3 +111,90 @@ class TestWindow:
         window = self.make(screen).info_window
         window.draw()
         window.draw(0.5)
+
+
+class TestWoodhackingBooks:
+    def test_only_the_five_best_are_kept_best_first(self):
+        stats = Statistics()
+        for score in (10, 50, 30, 20, 40, 60, 5):
+            stats.record_woodhacking(score, "1500-01-03", 1, 1, 1)
+        assert [entry["score"] for entry in stats.woodhacking_scores] == [60, 50, 40, 30, 20]
+
+    def test_the_bests_and_totals_count_every_session_even_one_off_the_list(self):
+        stats = Statistics()
+        for score in (60, 50, 40, 30, 20):
+            stats.record_woodhacking(score, "1500-01-03", 3, 2, 10)
+        stats.record_woodhacking(1, "1500-01-04", 9, 4, 12)
+        assert stats.woodhacking_bests == {"best_streak": 9, "most_perfects": 4, "total_perfects": 14,
+                                           "most_blocks": 12, "total_blocks": 62}
+
+    def test_they_survive_a_save(self):
+        stats = Statistics()
+        stats.record_woodhacking(40, "1500-01-03", 3, 2, 10)
+        loaded = Statistics.from_dict(stats.to_dict())
+        assert loaded.woodhacking_scores == stats.woodhacking_scores
+        assert loaded.woodhacking_bests == stats.woodhacking_bests
+
+    def test_an_older_save_keeps_its_best_score_with_nothing_else_known(self):
+        stats = Statistics.from_dict({"woodhacking_highscore": 77.5})
+        assert stats.woodhacking_scores == [{"score": 77.5, "date": None, "streak": None, "perfects": None, "blocks": None}]
+        assert stats.woodhacking_bests == {}
+
+    def test_an_older_save_without_a_score_lists_nothing(self):
+        assert Statistics.from_dict({}).woodhacking_scores == []
+
+
+class TestWoodhackingPage:
+    def make(self, screen, stats):
+        state = SimpleNamespace(screen=screen, info_window=None, game=SimpleNamespace(depot=SimpleNamespace(stats=stats)))
+        open_records_window(state)
+        return state.info_window
+
+    def test_what_was_not_tracked_shows_a_dash(self):
+        old = Statistics.from_dict({"woodhacking_highscore": 77.5})
+        entry = old.woodhacking_scores[0]
+        assert date_text(entry) == NOT_TRACKED
+        assert [value for _, value in score_details(entry)] == [NOT_TRACKED] * 3
+        assert [value for _, value in overall_lines(old)] == [NOT_TRACKED] * 5
+
+    def test_a_score_has_its_calendar_date_and_values(self):
+        stats = Statistics()
+        stats.record_woodhacking(40, "1500-01-03", 3, 2, 10)
+        entry = stats.woodhacking_scores[0]
+        assert date_text(entry) == "3 Spring 1500"
+        assert score_details(entry) == [("Best streak", "3"), ("Perfect hits", "2"), ("Blocks chopped", "10")]
+        assert [value for _, value in overall_lines(stats)] == ["3", "2", "2", "10", "10"]
+
+    def test_a_tab_turns_the_page_and_keeps_the_window_open(self, screen):
+        window = self.make(screen, Statistics())
+        assert window.page == PAGE_FISHING
+        assert window.handle_click(window.tab_rects[PAGE_WOODHACKING].center)
+        assert window.page == PAGE_WOODHACKING
+        assert window.game_state.info_window is window
+
+    def test_only_a_row_holding_a_score_can_be_hovered_and_only_on_its_page(self, screen):
+        stats = Statistics()
+        stats.record_woodhacking(40, "1500-01-03", 3, 2, 10)
+        window = self.make(screen, stats)
+        first, second = window.score_row_rect(0).center, window.score_row_rect(1).center
+        assert window.hovered_score(first) is None
+        window.page = PAGE_WOODHACKING
+        assert window.hovered_score(first) == 0
+        assert window.hovered_score(second) is None
+
+    def test_the_rows_and_labels_fit_their_panels(self, screen):
+        window = self.make(screen, Statistics())
+        assert window.score_row_rect(4).bottom <= window.scores_rect.bottom
+        assert window.overall_rect.top + window.PANEL_HEAD + 5 * window.OVERALL_ROW_H <= window.overall_rect.bottom
+        assert window.overall_rect.right <= window.panel.right - window.PAD
+        for label, _ in overall_lines(Statistics()):
+            assert window.body_font.size(label)[0] <= window.overall_rect.width - 18 - 90
+
+    @pytest.mark.parametrize("alpha", (1.0, 0.5))
+    def test_it_draws_with_a_tooltip(self, screen, monkeypatch, alpha):
+        stats = Statistics()
+        stats.record_woodhacking(40, "1500-01-03", 3, 2, 10)
+        window = self.make(screen, stats)
+        window.page = PAGE_WOODHACKING
+        monkeypatch.setattr(pygame.mouse, "get_pos", lambda: window.score_row_rect(0).center)
+        window.draw(alpha)
