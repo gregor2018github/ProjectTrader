@@ -77,6 +77,7 @@ from .fishing_pond import (
 )
 from .fishing_scene import PondScene, PondView, PX, SCENE_W, SCENE_H, rod_points, curve, fish_sprite
 from .outdoors import Conditions
+from .tutorial_sheet import mouse_icon
 from ...config.colors import BEIGE, SANDY_BROWN, PALE_BROWN, DARK_BROWN, BLACK, GOLD
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, FONTS_PATH
 from ...ui.paper import draw_paper
@@ -172,6 +173,14 @@ _INK = (44, 32, 22)
 _PAPER = (236, 222, 186)
 _BRASS, _BRASS_LIGHT, _BRASS_DARK = (198, 164, 92), (232, 206, 140), (120, 92, 44)
 _GOOD, _BAD, _WARN = (150, 214, 120), (226, 110, 86), (236, 186, 96)
+
+# The line's depth, shown at the top in the middle
+_DEPTH_TEXT = "Line depth: {:.0f} ft"
+_DEPTH_Y = 10
+_DEPTH_PAD = 10
+_DEPTH_ICON_SIZE = (24, 36)
+_DEPTH_ARROW_W = 22             # room beside the wheel for the arrow of its last turn
+_DEPTH_NUDGE_S = 0.6            # how long a turn of the wheel lights the sign up
 
 TIP_TUTORIAL_CAST = "fishing_tutorial_cast"     # the how-to sheet's first page, opened by itself once
 TIP_TUTORIAL_FIGHT = "fishing_tutorial_column"  # its second, opened by itself on the first fish hooked
@@ -421,6 +430,9 @@ class FishingMinigame(MinigameOverlay):
         self.float_dip = 0.0
         self.float_under = False
         self.leader = LEADER_START
+        self.depth_nudge = 0.0         # how long more the depth's sign shows the wheel's last turn
+        self.depth_turn = 0            # which way it went: 1 deeper, -1 shallower
+        self._wheel_icon = pygame.transform.smoothscale(mouse_icon(wheel=True), _DEPTH_ICON_SIZE)
         self.settled_t = 0.0
         self.wait_t = 0.0
         self.take_t = 0.0
@@ -608,7 +620,11 @@ class FishingMinigame(MinigameOverlay):
         if event.type == pygame.MOUSEWHEEL:
             if self.phase in (READY, DRAW):
                 lo, hi = LEADER_RANGE
-                self.leader = min(hi, max(lo, self.leader - event.y * LEADER_STEP))
+                leader = min(hi, max(lo, self.leader - event.y * LEADER_STEP))
+                if leader != self.leader:
+                    self.depth_turn = 1 if leader > self.leader else -1
+                    self.depth_nudge = _DEPTH_NUDGE_S
+                self.leader = leader
                 self.settled_t = 0.0
             return
         if event.type == pygame.MOUSEMOTION:
@@ -1117,6 +1133,7 @@ class FishingMinigame(MinigameOverlay):
         if self.held:
             self.lmb_t += dt
         self.strike_cool = max(0.0, self.strike_cool - dt)
+        self.depth_nudge = max(0.0, self.depth_nudge - dt)
         self.twitch_age += dt
         while self.twitches and self.t - self.twitches[0] > TWITCH_WINDOW_S:
             self.twitches.popleft()
@@ -1257,13 +1274,34 @@ class FishingMinigame(MinigameOverlay):
             x, y = rect.left - 16 - i * 13, rect.centery
             pygame.draw.lines(surf, (214, 112, 112), False,
                               [(x, y + 3), (x + 3, y - 2), (x + 6, y + 2), (x + 9, y - 3)], 3)
-        feet = f"Line depth: {self.leader / PX_PER_FOOT:.0f} ft"
-        if self.phase in (READY, DRAW):
-            self._plaque(surf, feet + "  (wheel to set)", (SCENE_W - 14, 44))
-        elif self.phase in (FLIGHT, WAIT, STUCK):
-            self._plaque(surf, feet, (SCENE_W - 14, 44))
+        self._draw_depth(surf)
         lore = self._inked(self.pond.lore, self.font_small, (236, 230, 206))
         surf.blit(lore, (12, 10))
+
+    def _draw_depth(self, surf: pygame.Surface) -> Optional[pygame.Rect]:
+        """The line's depth, at the top in the middle: with the wheel beside it while the wheel can set it,
+        lit up with an arrow the way the bait is going just after a turn. Its plate has the width of
+        the longest depth, so it does not change size between notches."""
+        if self.phase not in (READY, DRAW, FLIGHT, WAIT, STUCK):
+            return None
+        settable = self.phase in (READY, DRAW)
+        turning = settable and self.depth_nudge > 0
+        label = self.font.render(_DEPTH_TEXT.format(self.leader / PX_PER_FOOT), True, _INK)
+        text_w = self.font.size(_DEPTH_TEXT.format(LEADER_RANGE[1] / PX_PER_FOOT))[0]
+        icon_w = _DEPTH_ICON_SIZE[0] + _DEPTH_ARROW_W if settable else 0
+        plate = pygame.Rect(0, _DEPTH_Y, icon_w + text_w + 2 * _DEPTH_PAD, _DEPTH_ICON_SIZE[1] + 8)
+        plate.centerx = SCENE_W // 2
+        pygame.draw.rect(surf, _BRASS_LIGHT if turning else _BRASS, plate, border_radius=4)
+        pygame.draw.line(surf, _BRASS_LIGHT, (plate.left + 3, plate.top + 2), (plate.right - 4, plate.top + 2), 1)
+        pygame.draw.rect(surf, _BRASS_DARK, plate, 2, border_radius=4)
+        if settable:
+            icon = self._wheel_icon.get_rect(midleft=(plate.left + _DEPTH_PAD, plate.centery))
+            surf.blit(self._wheel_icon, icon)
+            if turning:
+                x, y, d = icon.right + _DEPTH_ARROW_W // 2, plate.centery, self.depth_turn
+                pygame.draw.polygon(surf, _INK, [(x - 6, y - 6 * d), (x + 6, y - 6 * d), (x, y + 6 * d)])
+        surf.blit(label, label.get_rect(midleft=(plate.left + _DEPTH_PAD + icon_w, plate.centery)))
+        return plate
 
     def _hint(self) -> Tuple[str, Tuple[int, int, int]]:
         if self.phase == READY:
