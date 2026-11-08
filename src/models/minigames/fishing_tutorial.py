@@ -118,6 +118,7 @@ _FIGHT_FROM = (159.0, 85.0)
 _FIGHT_HOLD = 0.8                        # a good strike's hook
 _AFTER_FIGHT_S = 1.8                     # looking at how it ended
 _LOOK_AHEAD_S = 0.28                     # how far ahead the script's hand reckons the bar's way
+_HAND_MIN_S = 0.12                       # a hand presses or lets go for at least this long, not for a frame
 _IN_S, _OUT_S = 4.0, 2.2                 # the meter's picture: in the bar so long, let go so long
 _METER_KEPT = (0.2, 0.85)                # and it never ends there: the meter stays between these
 _HOVER_STAGES = (("hold", 0.9, "Hold: it rises"), ("drop", 0.9, "Let go: it falls"), ("tap", 4.0, "Tap: it hovers"))
@@ -403,6 +404,13 @@ class FightDemo(PondDemo):
         g.fight = self.fight_class(fish, _FIGHT_HOLD, g.rng)
         g.popups.clear()
         self.verdict, self.held, self.timer, self.ended = None, False, 0.0, 0.0
+        self.hand_t = _HAND_MIN_S
+
+    def _hand(self, dt: float, wanted: bool) -> None:
+        """The button goes the way wanted, as soon as the hand can after its last press or release."""
+        self.hand_t += dt
+        if wanted != self.held and self.hand_t >= _HAND_MIN_S:
+            self.held, self.hand_t = wanted, 0.0
 
     def _play(self, dt: float, fight: Fight) -> None:
         """Works the button for this moment of the fight."""
@@ -435,7 +443,7 @@ class MeterDemo(FightDemo):
     def _play(self, dt: float, fight: Fight) -> None:
         fight.catch = min(max(fight.catch, _METER_KEPT[0]), _METER_KEPT[1])
         out = self.timer % (_IN_S + _OUT_S) >= _IN_S
-        self.held = False if out else _hand_for(fight, fight.fish_at)
+        self._hand(dt, False if out else _hand_for(fight, fight.fish_at))
         if fight.grace > 0:
             self.verdict = None
         elif fight.fish_in_bar:
@@ -461,7 +469,7 @@ class HoverDemo(FightDemo):
         if self.stage_t >= seconds:
             self.stage = (self.stage + 1) % len(_HOVER_STAGES)
             self.stage_t = 0.0
-        self.held = kind == "hold" or (kind == "tap" and _hand_for(fight, _HOVER_AT))
+        self._hand(dt, kind == "hold" or (kind == "tap" and _hand_for(fight, _HOVER_AT)))
         self.verdict = (text, (226, 226, 200))
 
 
@@ -469,7 +477,7 @@ class WholeDemo(FightDemo):
     """A whole fight, played as it should be: following the fish, up to the net."""
 
     def _play(self, dt: float, fight: Fight) -> None:
-        self.held = _hand_for(fight, fight.fish_at)
+        self._hand(dt, _hand_for(fight, fight.fish_at))
         self.verdict = self._newest_popup()
 
 
@@ -588,8 +596,7 @@ class FishingTutorial:
             well = pygame.Rect(rect.left + _COLUMN_INSET, rect.top + _COLUMN_INSET, _COLUMN_W,
                                rect.height - _COLUMN_INSET - _COLUMN_FOOT)
             g._draw_column(surf, well, _METER_W_SMALL)
-        hold_sign(surf, self.minigame.font_small, self._space[demo.held], "Space: held" if demo.held else "Space: let go",
-                  (rect.right - 54, rect.top + 40))
+        hold_sign(surf, self.minigame.font_small, self._space[demo.held], "Space", (rect.right - 54, rect.top + 40))
         self._say(surf, demo.verdict, (rect.centerx, rect.bottom - 26), rect.width)
 
     def _draw_meter(self, surf: pygame.Surface, rect: pygame.Rect, demo: MeterDemo) -> None:

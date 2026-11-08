@@ -256,8 +256,39 @@ class TestThePictures:
         assert "Netted!" in said
         assert "He broke free!" not in said
 
+    @pytest.mark.parametrize("make_demo", [lambda s: tutorial.MeterDemo(s, 24), tutorial.HoverDemo,
+                                           lambda s: tutorial.WholeDemo(s, 26)])
+    def test_the_key_is_pressed_as_by_a_hand_not_flickering(self, screen, make_demo):
+        demo = make_demo(screen)
+        lengths, frames, last = [], None, demo.held          # frames since the key last changed, once it has
+        for _ in range(round(30 / DT)):
+            demo.update(DT)
+            if demo.game.phase != fishing.FIGHT:             # the fight's end lets go at once
+                frames = None
+            elif demo.held != last:
+                if frames is not None:
+                    lengths.append((frames + 1) * DT)
+                frames = 0
+            elif frames is not None:
+                frames += 1
+            last = demo.held
+        assert lengths and min(lengths) >= tutorial._HAND_MIN_S - 1e-9
+
 
 class TestDrawing:
+    def test_the_keys_label_stays_the_same_while_it_is_pressed_and_let_go(self, screen, monkeypatch):
+        m = make(screen, tips_seen=BOTH_SEEN)
+        m._open_tutorial(fishing.PAGE_FIGHT)
+        labels = []
+        monkeypatch.setattr(tutorial, "hold_sign", lambda surf, font, icon, text, center: labels.append(text))
+        held = set()
+        for _ in range(120):
+            m.update(DT)
+            m.draw()
+            held.update(demo.held for demo in m.tutorial.demos[fishing.PAGE_FIGHT])
+        assert held == {True, False}
+        assert set(labels) == {"Space"}
+
     @pytest.mark.parametrize("page", [fishing.PAGE_CAST, fishing.PAGE_FIGHT])
     def test_each_page_draws_and_the_game_draws_after(self, screen, page):
         m = make(screen, tips_seen=BOTH_SEEN)
