@@ -12,8 +12,7 @@ the player and the rod. The trees, bush, grass and reeds go with the season
 (golden larches in Autumn, bare ones and snow in Winter).
 
 Below it: the water's cross-section, the bottom from the shelf under the bank
-to the deep hollow and the far shallows, roots on the slope (they snag a bait
-dragged over them), an old cart wheel in the hollow, weeds swaying. It is dark
+to the deep hollow and the far shallows, roots on the slope, an old cart wheel in the hollow, weeds swaying. It is dark
 down there: only a soft, dithered circle round the bait (``PondView.focus``)
 shows what is near it, and the first few feet under the surface, where the
 light still reaches, show a little; a fish further off is two glinting eyes at
@@ -33,7 +32,7 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import pygame
 
-from .fishing_pond import LOW_W, LOW_H, WATER_Y, BANK_EDGE, SNAGS, Fish, Species, bottom_y
+from .fishing_pond import LOW_W, LOW_H, WATER_Y, BANK_EDGE, Fish, Species, bottom_y
 from .outdoors import Conditions
 from .woodhacking_scene import (
     _PLAYER_FILE, _ARMS_CLEAR, _FRONT_SHOULDER, _NEAR_SHOULDER, _HIP,
@@ -656,7 +655,7 @@ class PondScene:
             r = rng.choice((1, 1, 2))
             pygame.draw.ellipse(s, (96, 100, 96), (x - r, y - r, 2 * r + 1, r + 1))
             _px(s, x - r + 1, y - r, (130, 134, 126))
-        # The roots on the slope (they snag a bait dragged over them)
+        # The roots on the slope
         root, root_lit = (66, 50, 36), (98, 76, 52)
         for pts in (((80, 70), (88, 74), (96, 77), (102, 76)), ((84, 78), (94, 84), (104, 88), (110, 87)),
                     ((90, 86), (98, 93), (106, 99)), ((96, 90), (100, 95), (103, 102))):

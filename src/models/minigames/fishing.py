@@ -16,8 +16,8 @@ movement of the mouse and in what the pond shows.
   2. WAIT     — the bait sinks under its float to the line's depth, which
                 the wheel sets before the cast and is fixed once it is out:
                 set deeper than the water where it lands, the hook sinks onto
-                the bottom, catches and rips off (``STUCK``), as it does on the
-                roots under the bank when reeled over them. You only see round
+                the bottom, catches and rips off (``STUCK``). Reeled in, it never
+                catches, whatever it passes (``self.reeled``). You only see round
                 the bait. Most fish only come to a bait lying calm. A click
                 twitches it and holding the button reels it in slowly, which
                 keeps them off but draws the predators, pike and perch, reeling
@@ -68,7 +68,7 @@ import pygame
 
 from .base import MinigameOverlay
 from .fishing_pond import (
-    Pond, Hook, Fish, SPECIES, WATER_Y, BANK_EDGE, LOW_W, SNAGS, PX_PER_FOOT, bottom_y, in_water,
+    Pond, Hook, Fish, SPECIES, WATER_Y, BANK_EDGE, LOW_W, PX_PER_FOOT, bottom_y, in_water,
     APPROACH, INSPECT, NIBBLE, TAKE, HOOKED,
 )
 from .fishing_scene import PondScene, PondView, PX, SCENE_W, SCENE_H, rod_points, curve, fish_sprite
@@ -109,7 +109,6 @@ SINK_SPEED = 20.0
 REEL_IDLE_SPEED = 14.0          # reeling an untouched bait in, low px/s
 TAP_S = 0.2                     # a press shorter than this is a twitch, longer is reeling
 TWITCH_WINDOW_S = 4.0           # twitches are counted over this long
-SNAG_RATE = 1.4                 # a bait dragged over the roots catches at this rate a second
 STUCK_S = 1.1                   # a hook caught on the bottom: the rod tugs this long, then the hook rips off
 STUCK_RIP_AT = 0.75             # the moment it goes (seconds in)
 CLEAR_OF_BOTTOM = 3.0           # a bait being reeled in rises this far clear of the bottom
@@ -438,6 +437,7 @@ class FishingMinigame(MinigameOverlay):
         self.retrieve_from: Tuple[float, float] = (0.0, 0.0)
         self.stuck_t = 0.0
         self.hook_lost = False         # retrieving a line whose hook has ripped off
+        self.reeled = False            # this cast has been reeled in: it can no longer stick
         self.popups: List[list] = []     # text, colour, x, y (scene px), age, life, font
         # The end
         self.close_rect = pygame.Rect(0, 0, 160, 44)
@@ -739,6 +739,7 @@ class FishingMinigame(MinigameOverlay):
         self._popup(f"{feet:.0f} feet out", (226, 226, 210), (x, WATER_Y - 6), life=1.4)
         self.hook_x, self.hook_y = x, WATER_Y + 1
         self.float_x = x
+        self.reeled = False
         self.float_under = False
         self.settled_t = 0.0
         self.wait_t = 0.0
@@ -790,11 +791,12 @@ class FishingMinigame(MinigameOverlay):
         else:
             self.float_under = False
             if reeling:
+                self.reeled = True
                 self.float_x -= REEL_IDLE_SPEED * dt
                 self._reel_ticks(dt, 0.08)
             floor = bottom_y(self.hook_x) - 1
             if reeling:
-                target = min(WATER_Y + self.leader * 0.55, floor - CLEAR_OF_BOTTOM)
+                target = max(WATER_Y + 1, min(WATER_Y + self.leader * 0.55, floor - CLEAR_OF_BOTTOM))
             else:
                 target = min(WATER_Y + self.leader, floor)
             self.hook_x += (self.float_x - self.hook_x) * min(1.0, dt * (1.2 if reeling else 2.5))
@@ -802,17 +804,13 @@ class FishingMinigame(MinigameOverlay):
                 self.hook_y = min(target, self.hook_y + SINK_SPEED * dt)
             else:
                 self.hook_y = max(target, self.hook_y - 30 * dt)
+            self.hook_y = min(self.hook_y, max(WATER_Y + 1, floor))     # brought in over the rising bottom
             if abs(self.hook_y - target) < 1 and not reeling:
                 self.settled_t += dt
             else:
                 self.settled_t = 0.0
-            if not reeling and WATER_Y + self.leader >= floor and self.hook_y >= floor - 0.3:
-                self._start_stuck()             # set too deep: it has sunk onto the bottom
-                return
-            near_bottom = self.hook_y >= floor - CLEAR_OF_BOTTOM - 1
-            if reeling and near_bottom and any(x0 <= self.hook_x <= x1 for x0, x1 in SNAGS) \
-                    and self.rng.random() < SNAG_RATE * dt:
-                self._start_stuck()             # dragged over the roots
+            if not self.reeled and WATER_Y + self.leader >= floor and self.hook_y >= floor - 0.3:
+                self._start_stuck()             # cast too deep: it has sunk onto the bottom
                 return
             if self.float_x <= BANK_EDGE + 3:
                 self._start_retrieve()

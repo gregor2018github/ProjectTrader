@@ -36,7 +36,6 @@ BANK_EDGE = 78                   # where the player's bank meets the water
 # The bottom, (x, y) from the bank across: a shelf, the drop-off, the deep hollow, the far shallows
 _PROFILE = ((BANK_EDGE, WATER_Y), (86, 74), (98, 88), (114, 116), (132, 140), (158, 150), (190, 153),
             (218, 149), (236, 136), (252, 114), (268, 101), (288, 95), (308, 90), (LOW_W, 87))
-SNAGS = ((88, 86),)              # sunken roots on the slope under the bank: a bait dragged over the bottom there catches
 
 PX_PER_FOOT = 5.0                # how deep the line hangs, for the player: low pixels a foot
 
