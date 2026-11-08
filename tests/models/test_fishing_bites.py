@@ -245,6 +245,7 @@ class TestInTheGame:
 
     def test_short_pulls_get_a_pike_on_and_letting_go_and_pressing_strikes_it(self, minigame):
         fish = self.add(minigame, "pike")
+        minigame.pond.mood = 10.0               # any hour's chance would do: only the way it goes counts here
         for _ in range(60):
             self.hold(minigame)
             for _ in range(36):

@@ -9,6 +9,10 @@ reeds on the far side. Each kind of fish (``SPECIES``) keeps to its own parts
 of it (``Species.zones``), so how far the player casts, and how deep the bait
 hangs, decides what can bite.
 
+How keen they are goes by the hour and the weather (``bite_mood``: rain and the
+best morning hour are the good times, noon the poorest), and each kind has its
+own hours on top (``Species.hours``: the pike by night, the perch by day).
+
 A fish (``Fish``) wanders its zone until it notices a bait it likes the look
 of, then swims up, inspects it, nibbles it a few times (``Species.nibbles``)
 and takes it, swimming off with it for ``Species.take_window`` seconds: the
@@ -95,6 +99,7 @@ class Species:
     count: int                     # how many live in the pond
     night_only: bool = False
     minnow: bool = False           # nibbles but never takes
+    hours: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)   # how keen at dawn, by day, at dusk, by night
     lore: str = ""
 
     @property
@@ -108,54 +113,54 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             ((82, 199, "surface", 4, 26),), speed=15, sense=26, nibbles=(1, 2), take_window=0.75,
             take_chance=0.9, caution=0.7, lure=0.0, power=0.35, stamina=0.55, style="smooth", shape="roach",
             height=0.36, colours=((66, 88, 96), (190, 200, 198), (232, 230, 220), (196, 72, 52), (66, 88, 96)),
-            count=5, lore="Greedy and quick: it takes after a nibble or two."),
+            count=5, hours=(1.0, 0.8, 1.2, 0.3), lore="Greedy and quick: it takes after a nibble or two."),
     Species("rudd", "Rudd", (14, 30), 0.75,
             ((174, 304, "surface", 2, 16),), speed=15, sense=28, nibbles=(1, 3), take_window=0.75,
             take_chance=0.85, caution=0.8, lure=0.0, power=0.38, stamina=0.6, style="floater", shape="roach",
             height=0.38, colours=((78, 90, 66), (200, 184, 124), (230, 218, 180), (218, 64, 40), (78, 90, 66)),
-            count=3, lore="Golden flanks and red fins, just under the surface."),
+            count=3, hours=(1.0, 0.9, 1.2, 0.3), lore="Golden flanks and red fins, just under the surface."),
     Species("tench", "Tench", (25, 55), 1.5,
             ((224, 310, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
             take_chance=0.7, caution=1.2, lure=0.0, power=0.7, stamina=1.2, style="sinker", shape="carp",
             height=0.4, colours=((52, 68, 38), (94, 110, 54), (150, 148, 88), (66, 80, 42), (52, 68, 38)),
-            count=2, lore="The doctor fish, olive and slimy, grubbing in the weedy shallows."),
+            count=2, hours=(1.6, 0.5, 1.0, 0.8), lore="The doctor fish, olive and slimy, grubbing in the weedy shallows."),
     Species("perch", "Perch", (15, 40), 0.9,
             ((90, 136, "surface", 6, 40), (256, 318, "surface", 4, 24)), speed=17, sense=30, nibbles=(1, 3),
             take_window=0.7, take_chance=0.85, caution=0.8, lure=1.3, power=0.5, stamina=0.8, style="dart",
             shape="perch", height=0.42,
             colours=((64, 92, 48), (150, 160, 72), (214, 206, 150), (212, 92, 40), (44, 58, 30)),
-            count=3, lore="Lurks by the drop-off and the reeds; a twitch draws it."),
+            count=3, hours=(1.3, 1.0, 1.3, 0.2), lore="Lurks by the drop-off and the reeds; a twitch draws it."),
     Species("bream", "Bream", (30, 56), 1.3,
             ((128, 246, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
             take_chance=0.7, caution=1.3, lure=0.0, power=0.6, stamina=1.0, style="sinker", shape="bream",
             height=0.5, colours=((96, 84, 52), (168, 146, 92), (204, 192, 150), (88, 76, 56), (96, 84, 52)),
-            count=2, lore="Grubs on the bottom of the deep water, slow to make up its mind."),
+            count=2, hours=(0.9, 0.5, 1.2, 1.3), lore="Grubs on the bottom of the deep water, slow to make up its mind."),
     Species("carp", "Carp", (40, 82), 2.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
             take_chance=0.6, caution=1.6, lure=0.0, power=0.95, stamina=1.6, style="smooth", shape="carp",
             height=0.42, colours=((84, 74, 38), (166, 136, 58), (210, 182, 112), (124, 82, 48), (70, 60, 30)),
-            count=2, lore="The old one of the hollow: many nibbles, then a slow, sliding take."),
+            count=2, hours=(1.2, 0.5, 1.2, 1.3), lore="The old one of the hollow: many nibbles, then a slow, sliding take."),
     Species("pike", "Pike", (45, 100), 2.4,
             ((252, 318, "surface", 6, 26), (108, 136, "surface", 10, 36)), speed=24, sense=40, nibbles=(0, 0),
             take_window=0.6, take_chance=1.0, caution=0.6, lure=2.6, power=1.05, stamina=1.3, style="dart",
             shape="pike", height=0.2,
             colours=((48, 78, 50), (106, 138, 78), (210, 208, 168), (138, 100, 58), (206, 204, 132)),
-            count=2, lore="Waits in the weeds and strikes at what moves, without a nibble."),
+            count=2, hours=(1.3, 0.2, 1.4, 2.4), lore="Waits in the weeds and strikes at what moves, without a nibble."),
     Species("eel", "Eel", (40, 90), 1.8,
             ((94, 256, "bottom", 1, 5),), speed=12, sense=26, nibbles=(2, 4), take_window=0.9,
             take_chance=0.75, caution=1.0, lure=0.0, power=0.75, stamina=1.2, style="dart", shape="eel",
             height=0.13, colours=((40, 40, 30), (70, 66, 44), (128, 116, 72), (52, 50, 36), (40, 40, 30)),
-            count=2, night_only=True, lore="Only comes out of the mud at night."),
+            count=2, night_only=True, hours=(1.0, 1.0, 1.0, 1.0), lore="Only comes out of the mud at night."),
     Species("golden_carp", "Golden Carp", (45, 86), 6.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(4, 8), take_window=1.1,
             take_chance=0.55, caution=1.8, lure=0.0, power=1.0, stamina=1.7, style="dart", shape="carp",
             height=0.42, colours=((196, 128, 30), (236, 186, 70), (250, 226, 140), (220, 110, 40), (180, 110, 20)),
-            count=0, lore="A rare gold one among the carp. Few have seen it."),
+            count=0, hours=(1.2, 0.5, 1.2, 1.3), lore="A rare gold one among the carp. Few have seen it."),
     Species("minnow", "Minnows", (4, 7), 0.0,
             ((84, 234, "surface", 2, 18),), speed=19, sense=30, nibbles=(3, 7), take_window=0.0,
             take_chance=0.0, caution=0.3, lure=0.0, power=0.0, stamina=0.1, style="smooth", shape="roach",
             height=0.32, colours=((90, 104, 100), (176, 190, 184), (210, 214, 206), (150, 150, 140), (90, 104, 100)),
-            count=3, minnow=True, lore="Pluck at the worm and are far too small for the hook."),
+            count=3, minnow=True, hours=(1.0, 1.0, 1.0, 0.4), lore="Pluck at the worm and are far too small for the hook."),
 )}
 
 GOLDEN_CARP_CHANCE = 0.06        # a session's pond has a golden carp among the carp
@@ -190,9 +195,9 @@ WANDER, APPROACH, INSPECT, NIBBLE, TAKE, HOOKED, FLEE = "wander", "approach", "i
 
 NOTICE_RATE = 0.4                # a fish in reach of a still bait comes over at this rate a second, times the mood
 TWITCH_LURES_S = 2.5             # a twitch moves the bait for this long, as the fish see it
-STIR_DRAW = 0.35                 # a predator comes to a stirred bait at this rate, times NOTICE_RATE, its lure and the stir
+STIR_DRAW = 0.12                 # a predator comes to a stirred bait at this rate, times NOTICE_RATE, its lure and the stir
 STIR_REACH = 0.25                # and notices it this much farther off, times its lure, at a stir of 1 or more
-PREDATOR_STILL = 0.25            # and to a still bait, of the rate the others have
+PREDATOR_STILL = 0.15            # and to a still bait, of the rate the others have
 CHASE_SPEED = 1.3                # chasing a reeled bait, of its fair swim
 CHASE_REACH = 6.0                # it hits the bait from this near: a fish easing up to a moving point stays behind it
 REEL_TAKE_STRETCH = 2.0          # a bait taken on a pull is held this much longer: the reel is to be let go first
@@ -426,29 +431,53 @@ class Fish:
 # The pond: who lives in it, and how hungry they are
 # ----------------------------------------------------------------------
 
+# How keen the fish are to bite, for all kinds, by the hour; each kind has its own ``Species.hours`` on top
+MOOD_DAY = 0.5
+MOOD_NOON = 0.2                  # bright noon: way calmer
+MOOD_DAWN = 0.75
+MOOD_BEST_MORNING = 1.0          # the best hour of the morning
+BEST_MORNING = (6.0, 7.5)
+MOOD_DUSK = 0.75
+MOOD_NIGHT = 0.5
+RAIN_MOOD = 2.0                  # rain on the water brings an ordinary day up to the best morning hour
+STORM_MOOD = 2.4
+MOOD_MAX = 1.4
+
+
+def time_of_day(hour: float) -> int:
+    """Which of a ``Species.hours`` it is, by the sun hour."""
+    if 5.0 <= hour < 8.5:
+        return 0
+    if hour < 5.0 or hour > 21.0:
+        return 3
+    return 2 if hour >= 17.5 else 1
+
+
 def bite_mood(hour: float, season: int, rain: float, storm: float, snow: float, clouds: float) -> Tuple[float, str]:
-    """How keen the fish are to bite (1 as usual) and a line saying why, by the sun hour,
-    the season (0 Spring .. 3 Winter) and the weather."""
-    mood, why = 1.0, "A quiet day by the water."
-    night = hour < 5.0 or hour > 21.0
-    dawn = 5.0 <= hour < 8.5
-    dusk = 17.5 <= hour <= 21.0
-    if dawn or dusk:
-        mood, why = 1.5, ("Dawn: the fish are feeding." if dawn else "Dusk: the fish are feeding.")
-    elif night:
-        mood, why = 0.85, "Night: the eels are about."
+    """How keen the fish are to bite (1 as at the best morning hour) and a line saying why, by the sun
+    hour, the season (0 Spring .. 3 Winter) and the weather."""
+    mood, why = MOOD_DAY, "A quiet day by the water."
+    time = time_of_day(hour)
+    if time == 0 and BEST_MORNING[0] <= hour < BEST_MORNING[1]:
+        mood, why = MOOD_BEST_MORNING, "Early morning: the fish are feeding hard."
+    elif time == 0:
+        mood, why = MOOD_DAWN, "Dawn: the fish are feeding."
+    elif time == 2:
+        mood, why = MOOD_DUSK, "Dusk: the fish are feeding, the pike among them."
+    elif time == 3:
+        mood, why = MOOD_NIGHT, "Night: the eels and the big pike are about."
     elif 11.0 <= hour <= 15.0 and clouds < 0.4 and rain < 0.1:
-        mood, why = 0.75, "Bright noon: the fish keep to the deep."
+        mood, why = MOOD_NOON, "Bright noon: the fish keep to the deep."
     if storm > 0.2:
-        mood, why = mood * 1.4, "A storm is coming: the fish bite boldly."
+        mood, why = mood * STORM_MOOD, "A storm is coming: the fish bite boldly."
     elif rain > 0.15:
-        mood, why = mood * 1.25, "Rain on the water: the fish are bold."
+        mood, why = mood * RAIN_MOOD, "Rain on the water: the fish are bold."
     if season == 3:
         mood *= 0.7
         why = "Winter: the fish are slow and sluggish." if mood < 1.0 else why
-    elif season == 1 and not night:
+    elif season == 1 and time != 3:
         mood *= 1.1
-    return mood, why
+    return min(MOOD_MAX, mood), why
 
 
 class Pond:
@@ -458,6 +487,7 @@ class Pond:
                  storm: float = 0.0, snow: float = 0.0, clouds: float = 0.0) -> None:
         self.rng = rng
         self.night = hour < 5.0 or hour > 21.0
+        self.time = time_of_day(hour)
         self.mood, self.lore = bite_mood(hour, season, rain, storm, snow, clouds)
         self.fish: List[Fish] = []
         golden = rng.random() < GOLDEN_CARP_CHANCE
@@ -481,7 +511,7 @@ class Pond:
         events: List[tuple] = []
         for fish in self.fish:
             if fish.state != HOOKED:
-                events.extend(fish.update(dt, hook, self.rng, self.mood))
+                events.extend(fish.update(dt, hook, self.rng, self.mood * fish.species.hours[self.time]))
         for i in range(len(self._respawn) - 1, -1, -1):
             left, sp = self._respawn[i]
             left -= dt
