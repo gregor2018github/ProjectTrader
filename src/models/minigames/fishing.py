@@ -35,9 +35,7 @@ movement of the mouse and in what the pond shows.
                 the fish is inside the bar and drains while it is out: full, and
                 the fish is netted; empty, and it is gone. How well the strike
                 set the hook sets where the meter starts (``CATCH_START``).
-                Sometimes a chest shows in the column: keep it in the bar for
-                ``CHEST_TAKE_S`` and its coins are yours, the meter not draining
-                meanwhile. A fish that never left the bar is a perfect catch,
+                A fish that never left the bar is a perfect catch,
                 which pays more (``PERFECT_CATCH_MULT``).
 
 Escape asks first ("Exit Mini Game now?"), the game waiting for the answer,
@@ -50,8 +48,7 @@ the first fish is hooked (``TIP_TUTORIAL_FIGHT``), both remembered in
 fight's only once a fish has been hooked.
 
 Coins come for fish brought in (the kind's value, times its size against the
-usual, times the cast's grade, ``fish_coins``, and for a perfect catch) and for
-chests, added up as they come and
+usual, times the cast's grade, ``fish_coins``, and for a perfect catch), added up as they land and
 paid when the session is finished: leaving it early with Escape pays nothing. A
 session is ``WORMS`` worms: one is used up by every fish hooked or lost and
 every worm stolen or snagged; a fish caught on a PERFECT cast with a PERFECT
@@ -64,7 +61,6 @@ import os
 import random
 from array import array
 from collections import deque
-from dataclasses import dataclass
 from typing import Callable, Deque, List, Optional, Tuple
 
 import pygame
@@ -147,12 +143,6 @@ CATCH_DRAIN = (0.09, 0.12)      # what it drains a second
 ENDURANCE = 2.4                 # how long fish fight, for all kinds
 MAX_ENDURANCE = 1.9             # the biggest are hard through how they move, not through taking for ever
 GRACE_S = 0.8                   # the first moments, and after a pause: the fish holds still, the meter too
-CHEST_CHANCE = 0.2              # a fight has a chest
-CHEST_AFTER_S = (2.0, 5.0)      # how far into the fight it comes
-CHEST_LIFE_S = 6.0              # how long it stays
-CHEST_TAKE_S = 1.6              # how long it has to be kept in the bar
-CHEST_COINS = (1.0, 3.0)
-CHEST_CLEAR = 0.25              # it comes at least this far from the fish
 PERFECT_CATCH_MULT = 1.5        # a fish that never left the bar pays this much more
 LAND_X = BANK_EDGE + 26         # where a full meter has brought the fish
 NET_S = 0.8
@@ -166,7 +156,6 @@ _CANVAS_W = SCENE_W + 2 * _MARGIN
 _CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
 _COLUMN = pygame.Rect(24, 52, 64, 528)          # the fight's column, in the scene's pixels, left of the player
-_CHEST_SAY = (64, 18)                           # where what a chest does is said, beside it, in low pixels
 _METER_W = 16                                   # the catch meter beside it
 
 _INK = (44, 32, 22)
@@ -254,14 +243,6 @@ def _make_sounds() -> dict:
 # The fight
 # ----------------------------------------------------------------------
 
-@dataclass
-class Chest:
-    """A chest showing in the column."""
-    at: float                       # where in the column
-    progress: float = 0.0           # 1 and it is the player's
-    life: float = CHEST_LIFE_S      # seconds until it is gone
-
-
 class Fight:
     """A hooked fish in the column, against the player's bar (see the module)."""
 
@@ -284,8 +265,6 @@ class Fight:
         self.catch = self.catch_from = _lerp(CATCH_START, _clamp((hold - 0.55) / 0.45))
         self.from_x = fish.x
         self.perfect = True
-        self.chest: Optional[Chest] = None
-        self.chest_in: Optional[float] = rng.uniform(*CHEST_AFTER_S) if rng.random() < CHEST_CHANCE else None
         self.t = 0.0
         self.T = 0.35                   # how taut the line looks: the rod's bend and the hum
         self.recentre()
@@ -330,34 +309,6 @@ class Fight:
         self.fish_v = _clamp(self.fish_v, -self.max_speed, self.max_speed)
         self.fish_at = _clamp(self.fish_at + self.fish_v * dt)
 
-    def _update_chest(self, dt: float, events: List[str]) -> bool:
-        """Whether a chest is being worked on, in the bar, this moment."""
-        if self.chest_in is not None:
-            self.chest_in -= dt
-            if self.chest_in <= 0:
-                self.chest_in = None
-                self.chest = Chest(self._clear_of_the_fish())
-                events.append("chest")
-        chest = self.chest
-        if chest is None:
-            return False
-        chest.life -= dt
-        working = self.in_bar(chest.at)
-        chest.progress = _clamp(chest.progress + (dt if working else -dt / 2) / CHEST_TAKE_S)
-        if chest.progress >= 1:
-            self.chest = None
-            events.append("chest_won")
-        elif chest.life <= 0:
-            self.chest = None
-            events.append("chest_gone")
-        return working
-
-    def _clear_of_the_fish(self) -> float:
-        low, high = max(0.05, self.fish_at + CHEST_CLEAR), min(0.95, self.fish_at - CHEST_CLEAR)
-        options = [(low, 0.95)] if low < 0.95 else []
-        options += [(0.05, high)] if high > 0.05 else []
-        return self.rng.uniform(*self.rng.choice(options))
-
     def _place_fish(self, dt: float) -> None:
         """The fish in the pond follows: its depth the column's, how near the bank the meter's."""
         f = self.fish
@@ -376,8 +327,8 @@ class Fight:
         f.tail += dt * (6 + 14 * abs(self.fish_v))
 
     def update(self, dt: float, held: bool) -> List[str]:
-        """dt seconds of the fight with the button held or not; returns what happened: "land" (the meter is full),
-        "free" (it is empty), "chest" (one shows), "chest_won", "chest_gone"."""
+        """dt seconds of the fight with the button held or not; returns what happened: "land" (the meter is full)
+        or "free" (it is empty)."""
         events: List[str] = []
         self.t += dt
         self._move_bar(dt, held)
@@ -385,13 +336,11 @@ class Fight:
             self.grace -= dt
         else:
             self._swim(dt)
-            on_chest = self._update_chest(dt, events)
             if self.fish_in_bar:
                 self.catch = _clamp(self.catch + self.fill * dt)
             else:
                 self.perfect = False
-                if not on_chest:
-                    self.catch = _clamp(self.catch - self.drain * dt)
+                self.catch = _clamp(self.catch - self.drain * dt)
         self._place_fish(dt)
         self.T += ((0.7 if held and self.fish_in_bar else 0.3) - self.T) * min(1.0, dt * 6)
         if self.catch >= 1:
@@ -972,26 +921,12 @@ class FishingMinigame(MinigameOverlay):
         self.float_x = fish.x
         self.hook_x, self.hook_y = fish.mouth
         for ev in events:
-            if ev == "chest":
-                self._popup("A chest!", _WARN, _CHEST_SAY)
-                self._play("splash_", 0.2)
-            elif ev == "chest_won":
-                self._open_chest()
-            elif ev == "chest_gone":
-                self._popup("The chest is gone", (226, 226, 200), _CHEST_SAY)
-            elif ev == "free":
+            if ev == "free":
                 self._lose_fish()
                 return
             elif ev == "land":
                 self._start_landing()
                 return
-
-    def _open_chest(self) -> None:
-        """The chest's coins go with the rest of the session's, whether the fish is landed or not."""
-        coins = round(self.rng.uniform(*CHEST_COINS), 2)
-        self.coins = round(self.coins + coins, 2)
-        self._popup(f"Chest: +{coins:.2f} coins!", _BRASS_LIGHT, _CHEST_SAY, big=True)
-        self._play("coin_single_", 0.6)
 
     def _lose_fish(self) -> None:
         """Its power is full: it breaks free, hook and worm with it, and lives on in the pond."""
@@ -1318,8 +1253,6 @@ class FishingMinigame(MinigameOverlay):
         if self.phase == WAIT:
             return "Click or Space: twitch the bait, and strike when the float goes under   |   Hold: reel in", PALE_BROWN
         if self.phase == FIGHT and self.fight is not None:
-            if self.fight.chest is not None:
-                return "A chest! Keep it in the bar: the meter waits meanwhile", _INK
             return "Hold Space or the left button: the bar rises   |   Let go: it falls   |   Tap to hover, keep the fish in it", _INK
         if self.phase == CARD:
             return "Click or Space to go on", PALE_BROWN
@@ -1346,7 +1279,7 @@ class FishingMinigame(MinigameOverlay):
             self._draw_card(surf)
 
     def _draw_column(self, surf: pygame.Surface, well: pygame.Rect, meter_w: int = _METER_W) -> None:
-        """The column: its well with the bar, the fish and any chest in it, and the catch meter beside it."""
+        """The column: its well with the bar and the fish in it, and the catch meter beside it."""
         fight = self.fight
         meter = pygame.Rect(well.right + 8, well.top, meter_w, well.height)
         whole = well.union(meter)
@@ -1371,8 +1304,6 @@ class FishingMinigame(MinigameOverlay):
         pygame.draw.line(surf, _mix_rgb(_GOOD, (255, 255, 255), 0.5 if inside else 0.1),
                          (bar.left + 3, bar.top + 2), (bar.right - 4, bar.top + 2), 2)
         pygame.draw.rect(surf, _INK, bar, 1, border_radius=3)
-        if fight.chest is not None:
-            self._draw_chest(surf, well, y_of(fight.chest.at), fight.chest)
         # The fish, as it looks in the pond
         sp = fight.fish.species
         img = fish_sprite(sp, fight.fish.length, (0, 1, 0, 2)[int(self.t * 6) % 4])
@@ -1394,22 +1325,6 @@ class FishingMinigame(MinigameOverlay):
         lozenge = [(cx, cy - 6), (cx + 5, cy), (cx, cy + 6), (cx - 5, cy)]
         pygame.draw.polygon(surf, _BRASS_LIGHT if fight.perfect else _BRASS_DARK, lozenge)
         pygame.draw.polygon(surf, _INK, lozenge, 1)
-
-    def _draw_chest(self, surf: pygame.Surface, well: pygame.Rect, y: int, chest: Chest) -> None:
-        """A small iron-bound chest, with how far it has been taken under it; it blinks before it goes."""
-        if chest.life < 1.5 and int(self.t * 8) % 2:
-            return
-        w, h = min(30, well.width - 10), min(22, well.width // 2)
-        box = pygame.Rect(0, 0, w, h)
-        box.center = (well.centerx, y)
-        box.clamp_ip(well.inflate(0, -8))
-        pygame.draw.rect(surf, (128, 82, 40), box, border_radius=2)
-        pygame.draw.rect(surf, (92, 58, 28), (box.left, box.top, w, h // 2 - 1), border_top_left_radius=4, border_top_right_radius=4)
-        pygame.draw.line(surf, _INK, (box.left, box.top + h // 2 - 1), (box.right - 1, box.top + h // 2 - 1))
-        pygame.draw.rect(surf, _BRASS_LIGHT, (box.centerx - 2, box.top + h // 2 - 2, 4, 5))
-        pygame.draw.rect(surf, _INK, box, 1, border_radius=2)
-        if chest.progress > 0:
-            pygame.draw.rect(surf, _BRASS_LIGHT, (box.left, box.bottom + 2, round(w * chest.progress), 3))
 
     def _draw_card(self, surf: pygame.Surface) -> None:
         """The landed fish on a sheet of paper, the sheet sized to the fish and the lines under it."""

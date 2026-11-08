@@ -1,4 +1,4 @@
-"""The fishing fight: the bar with its momentum, the fish by its kind, the catch meter, the chest and the perfect catch."""
+"""The fishing fight: the bar with its momentum, the fish by its kind, the catch meter and the perfect catch."""
 
 import datetime
 import os
@@ -13,7 +13,7 @@ import pygame
 import pytest
 
 from src.models.minigames import fishing, fishing_scene
-from src.models.minigames.fishing import Chest, Fight, FishingMinigame
+from src.models.minigames.fishing import Fight, FishingMinigame
 from src.models.minigames.fishing_pond import Fish, SPECIES
 from src.models.statistics import Statistics
 
@@ -22,15 +22,12 @@ SMALL = ("roach", 20)
 BIG = ("pike", 100)
 
 
-def make_fight(kind, seed=1, hold=0.8, chest=False):
+def make_fight(kind, seed=1, hold=0.8):
     rng = random.Random(seed)
     fish = Fish(SPECIES[kind[0]], rng)
     fish.cm = kind[1]
     fish.x, fish.y = 194.0, 90.0
-    fight = Fight(fish, hold, rng)
-    if not chest:
-        fight.chest_in = None
-    return fight
+    return Fight(fish, hold, rng)
 
 
 def under_way(kind=SMALL, **args):
@@ -218,49 +215,6 @@ class TestTheMeter:
         assert big.drain > small.drain
 
 
-class TestTheChest:
-    def fight_with_a_chest(self, at=0.9):
-        fight = under_way()
-        fight._swim = lambda dt: None
-        fight.fish_at, fight.chest = 0.1, Chest(at)
-        fight.catch = 0.5
-        return fight
-
-    def test_only_some_fights_have_one_and_it_comes_clear_of_the_fish(self):
-        fights = [make_fight(SMALL, seed, chest=True) for seed in range(200)]
-        with_one = [f for f in fights if f.chest_in is not None]
-        assert 0.1 * 200 <= len(with_one) <= 0.3 * 200
-        fight = with_one[0]
-        fight.chest_in, fight.grace = DT / 2, 0.0
-        assert "chest" in fight.update(DT, False)
-        assert abs(fight.chest.at - fight.fish_at) >= fishing.CHEST_CLEAR - 0.05
-
-    def test_kept_in_the_bar_long_enough_it_is_won(self):
-        fight = self.fight_with_a_chest()
-        events = []
-        for _ in range(int(fishing.CHEST_TAKE_S / DT) + 2):
-            fight.bar_at, fight.bar_v = 0.9, 0.0
-            events += fight.update(DT, False)
-        assert "chest_won" in events and fight.chest is None
-
-    def test_the_meter_does_not_drain_while_working_on_it(self):
-        fight = self.fight_with_a_chest()
-        for _ in range(30):
-            fight.bar_at, fight.bar_v = 0.8, 0.0
-            fight.update(DT, False)
-        assert fight.catch == 0.5
-
-    def test_left_alone_it_goes_and_the_meter_drains(self):
-        fight = self.fight_with_a_chest(at=0.9)
-        fight.chest.life = 0.1
-        events = []
-        for _ in range(12):
-            fight.bar_at, fight.bar_v = 0.5, 0.0
-            events += fight.update(DT, False)
-        assert "chest_gone" in events and fight.chest is None
-        assert fight.catch < 0.5
-
-
 class TestThePerfectCatch:
     def test_a_fish_that_left_the_bar_is_no_longer_perfect(self):
         fight = under_way()
@@ -322,7 +276,6 @@ class TestInTheRealOverlay:
         minigame.pond.fish.append(fish)
         minigame._start_fight(fish, 0.8, "GOOD STRIKE")
         minigame.fight.grace = 0.0
-        minigame.fight.chest_in = None
         return minigame.fight
 
     @staticmethod
@@ -349,20 +302,6 @@ class TestInTheRealOverlay:
         for _ in range(20):
             minigame.update(DT)
         assert fight.bar_at < 0.5
-
-    def test_a_chest_won_pays_with_the_session_even_if_the_fish_gets_away(self, minigame):
-        fight = self.hook(minigame)
-        fight._swim = lambda dt: None
-        fight.fish_at, fight.chest, fight.catch = 0.1, Chest(0.9), 0.5
-        for _ in range(int(fishing.CHEST_TAKE_S / DT) + 2):
-            fight.bar_at, fight.bar_v = 0.9, 0.0
-            minigame.update(DT)
-        low, high = fishing.CHEST_COINS
-        assert low <= minigame.coins <= high
-        fight.catch = 0.0001
-        fight.bar_at, fight.fish_at = 0.9, 0.1
-        minigame.update(DT)
-        assert minigame.phase != fishing.FIGHT and low <= minigame.coins <= high
 
     def land(self, minigame, perfect):
         fight = self.hook(minigame)
@@ -393,9 +332,7 @@ class TestInTheRealOverlay:
         whole = fishing._COLUMN.union(fishing._COLUMN.move(fishing._METER_W + 8, 0)).inflate(14, 14)
         assert whole.left >= 0 and whole.right <= fishing_scene._PLAYER_LEFT * fishing.PX
 
-    def test_the_column_draws_with_a_chest_in_it(self, minigame):
-        fight = self.hook(minigame, BIG)
-        fight.chest = Chest(0.8, progress=0.5)
+    def test_the_column_draws(self, minigame):
+        self.hook(minigame, BIG)
         minigame.update(DT)
         minigame.draw()
-        assert fight.chest is not None

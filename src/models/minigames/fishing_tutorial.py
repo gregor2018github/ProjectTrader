@@ -4,7 +4,7 @@ The first, the cast: the wheel setting the depth, and a hook set too deep rippin
 bottom (I); the rod dragged back, whipped forward and let go at different moments (II); a fish
 nibbling and taking, and the click that strikes it, in time, too early and too late
 (III). The second, the fight: the fish in and out of the bar and the meter answering (I); the bar
-rising, falling and hovering on the space bar (II); a whole fight with a chest, up to the net (III).
+rising, falling and hovering on the space bar (II); a whole fight, up to the net (III).
 
 Each picture is a ``FishingMinigame`` of its own, with no player: ``demo`` makes it silent, a
 script below works it as a hand would, and all that then happens and is drawn is the game's, so
@@ -53,8 +53,9 @@ CARDS = {
                                 "out of it, it *drains*. Full: he is yours. Empty: he is gone."),
         ("Tap to hover", "*Hold Space* and the bar rises, *let go* and it falls, and it keeps moving a moment. "
                          "*Tap* to keep it hovering. The left button works too."),
-        ("Chests and perfection", "A *chest* pays coins if kept in the bar a moment, and the meter waits meanwhile. "
-                                  f"A fish that never left the bar is a *perfect catch*: it pays ×{PERFECT_CATCH_MULT:g}."),
+        ("Bring him in", "Follow him smoothly: a little late beats overshooting. As the meter fills he comes to the "
+                         "bank and the net takes him. If he *never left the bar* it is a *perfect catch*, "
+                         f"which pays ×{PERFECT_CATCH_MULT:g}."),
     ),
 }
 
@@ -120,7 +121,6 @@ _IN_S, _OUT_S = 4.0, 2.2                 # the meter's picture: in the bar so lo
 _METER_KEPT = (0.2, 0.85)                # and it never ends there: the meter stays between these
 _HOVER_STAGES = (("hold", 0.9, "Hold: it rises"), ("drop", 0.9, "Let go: it falls"), ("tap", 4.0, "Tap: it hovers"))
 _HOVER_AT = 0.5                          # where it hovers
-_CHEST_AT_S = 2.5                        # the whole fight's picture: when the chest comes
 _COLUMN_INSET, _COLUMN_W, _METER_W_SMALL, _COLUMN_FOOT = 14, 34, 10, 58
 
 
@@ -359,11 +359,10 @@ def _hand_for(fight: Fight, aim: float) -> bool:
 
 
 class _CalmFight(Fight):
-    """A fish that moves smoothly, without a chest: nothing to distract from what a picture shows."""
+    """A fish that moves smoothly: nothing to distract from what a picture shows."""
 
     def __init__(self, fish: Fish, hold: float, rng: random.Random) -> None:
         super().__init__(fish, hold, rng)
-        self.chest_in = None
         self.band, self.keep_s, self.turn, self.anywhere = (0.25, 0.75), (1.6, 2.8), 4.0, 0.0
 
 
@@ -376,14 +375,6 @@ class _StillFight(_CalmFight):
 
     def _swim(self, dt: float) -> None:
         pass
-
-
-class _ChestFight(Fight):
-    """Always with a chest, soon."""
-
-    def __init__(self, fish: Fish, hold: float, rng: random.Random) -> None:
-        super().__init__(fish, hold, rng)
-        self.chest_in = _CHEST_AT_S
 
 
 class FightDemo(PondDemo):
@@ -474,13 +465,10 @@ class HoverDemo(FightDemo):
 
 
 class WholeDemo(FightDemo):
-    """A whole fight, played as it should be: following the fish, taking the chest in passing, up to the net."""
-
-    fight_class = _ChestFight
+    """A whole fight, played as it should be: following the fish, up to the net."""
 
     def _play(self, dt: float, fight: Fight) -> None:
-        aim = fight.chest.at if fight.chest is not None else fight.fish_at
-        self.held = _hand_for(fight, aim)
+        self.held = _hand_for(fight, fight.fish_at)
         self.verdict = self._newest_popup()
 
 

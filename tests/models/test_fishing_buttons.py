@@ -151,7 +151,6 @@ def test_the_press_that_strikes_starts_raising_the_bar(minigame, button):
     waiting_with(minigame, TAKE)
     press(minigame, button)
     minigame.fight.grace = 0.0
-    minigame.fight.chest_in = None
     minigame.fight.bar_at, minigame.fight.bar_v = 0.5, 0.0
     for _ in range(10):
         minigame.update(DT)

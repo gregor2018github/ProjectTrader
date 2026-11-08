@@ -250,11 +250,10 @@ class TestThePictures:
             spots.append(demo.game.fight.bar_at)
         assert max(spots) - min(spots) < 0.2
 
-    def test_the_whole_fight_takes_its_chest_and_ends_in_the_net_soon_enough(self, screen):
+    def test_the_whole_fight_ends_in_the_net_soon_enough(self, screen):
         demo = tutorial.WholeDemo(screen, 26)
         said = run(demo, 60, verdict_text)
-        assert "Netted!" in said and "A chest!" in said
-        assert any(text.startswith("Chest: +") for text in said)
+        assert "Netted!" in said
         assert "He broke free!" not in said
 
 
