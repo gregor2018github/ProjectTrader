@@ -230,8 +230,8 @@ def _scale_length(px_per_tile: float) -> Tuple[int, int]:
 
 # --- Legend --------------------------------------------------------------
 
-LEGEND_ROWS = ("Dwelling", "Market stall", "Your property", "Road", "Water", "Fishing spot", "Wood", "Field",
-               "You are here")
+LEGEND_ROWS = ("Dwelling", "Market stall", "Your property", "Road", "Water", "Fishing spot", "Chopping stump", "Wood",
+               "Field", "You are here")
 
 
 def legend_size() -> Tuple[int, int]:
@@ -272,6 +272,8 @@ def _legend_sample(screen: pygame.Surface, row: str, r: pygame.Rect) -> None:
     elif row == "Fishing spot":
         glyphs.wash_rect(screen, WATER_WASH, 160, r)
         glyphs.fish(screen, r.center)
+    elif row == "Chopping stump":
+        glyphs.chopping_stump(screen, r.center)
     elif row == "Wood":
         for i, x in enumerate((r.left + 7, r.centerx, r.right - 7)):
             glyphs.conifer(screen, x, r.bottom + 2, 18 if i == 1 else 14)

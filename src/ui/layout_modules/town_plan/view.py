@@ -32,10 +32,11 @@ from .style import (
 )
 from .terrain import Ground
 from ....config import settings_store
-from ....models.fishing_spot import FishingSpot
 
 #: How long a fishing spot's mark is drawn, in screen pixels at every zoom level
 FISH_MARK_LENGTH = 20
+#: How big the chopping stump's mark is drawn, in screen pixels at every zoom level
+STUMP_MARK_SIZE = 20
 
 #: The paper a shade darker, as for land not explored yet. Paper made from a
 #: darker base darkens its grain and browning with it, so this is the plain
@@ -275,21 +276,23 @@ class TownPlan:
         taken = self._ornament_rects(inner)
 
         mouse = pygame.mouse.get_pos()
-        hovered = hovered_spot = None
+        hovered = hovered_mark = None
         if (not self._dragging and inner.collidepoint(mouse) and not game_state.info_window
                 and pygame.Rect(mouse, (1, 1)).collidelist(taken) < 0):
-            hovered_spot = self._fishing_spot_at(mouse)
-            hovered = None if hovered_spot else self._building_at(mouse)
+            hovered_mark = self._minigame_mark_at(mouse)
+            hovered = None if hovered_mark else self._building_at(mouse)
 
         self._draw_live_buildings(screen, game_state, hovered)
         if not self._showing_all:
             self._cover_unexplored(screen, inner, blank_paper)
-        for spot in self.game_map.tmx_map.fishing_spots:
-            if self._explored((spot.x, spot.y)):
-                glyphs.fish(screen, self.world_to_screen(spot.x, spot.y), FISH_MARK_LENGTH)
+        self._draw_minigame_marks(screen)
         if game_state.is_map_visible:
             self._draw_camera_view(screen)
 
+        # The stump stands beside the woodcutter's hut: its name must not be written over the mark
+        stump_mark = self._stump_mark()
+        if stump_mark is not None:
+            taken.append(stump_mark)
         self._draw_labels(screen, inner, taken)
         player = self.game_map.map_player
         ornaments.player_mark(screen, self.world_to_screen(player.x + player.width / 2, player.y + player.height),
@@ -301,16 +304,39 @@ class TownPlan:
 
         if hovered is not None:
             ornaments.tooltip(screen, mouse, hovered.name, hovered.describe(), inner)
-        elif hovered_spot is not None:
-            ornaments.tooltip(screen, mouse, hovered_spot.name, "Fishing spot", inner)
+        elif hovered_mark is not None:
+            ornaments.tooltip(screen, mouse, *hovered_mark, inner)
 
-    def _fishing_spot_at(self, pos: Tuple[int, int]) -> Optional[FishingSpot]:
-        """The explored fishing spot whose mark is under this point of the screen, if any."""
-        for spot in self.game_map.tmx_map.fishing_spots:
+    def _draw_minigame_marks(self, screen: pygame.Surface) -> None:
+        """Mark the explored places where a minigame is played: the fishing spots and the chopping stump."""
+        tmx = self.game_map.tmx_map
+        for spot in tmx.fishing_spots:
+            if self._explored((spot.x, spot.y)):
+                glyphs.fish(screen, self.world_to_screen(spot.x, spot.y), FISH_MARK_LENGTH)
+        stump_mark = self._stump_mark()
+        if stump_mark is not None:
+            glyphs.chopping_stump(screen, stump_mark.center, STUMP_MARK_SIZE)
+
+    def _stump_mark(self) -> Optional[pygame.Rect]:
+        """Where the chopping stump's mark goes on the screen; None while the stump is unexplored."""
+        stump = self.game_map.tmx_map.chopping_stump
+        if stump is None or not self._explored(stump.collision_rect.center):
+            return None
+        mark = pygame.Rect(0, 0, STUMP_MARK_SIZE + 4, STUMP_MARK_SIZE + 4)
+        mark.center = self.world_to_screen(*stump.collision_rect.center)
+        return mark
+
+    def _minigame_mark_at(self, pos: Tuple[int, int]) -> Optional[Tuple[str, str]]:
+        """The title and detail of the explored minigame's mark under this point of the screen, if any."""
+        tmx = self.game_map.tmx_map
+        for spot in tmx.fishing_spots:
             x, y = self.world_to_screen(spot.x, spot.y)
             if abs(pos[0] - x) <= FISH_MARK_LENGTH / 2 + 2 and abs(pos[1] - y) <= FISH_MARK_LENGTH / 3 \
                     and self._explored((spot.x, spot.y)):
-                return spot
+                return spot.name, "Fishing spot"
+        stump_mark = self._stump_mark()
+        if stump_mark is not None and stump_mark.collidepoint(pos):
+            return "Chopping Stump", "Chop wood here, once a day"
         return None
 
     def _building_at(self, pos: Tuple[int, int]) -> Optional[PlanBuilding]:

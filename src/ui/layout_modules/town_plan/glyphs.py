@@ -12,7 +12,7 @@ import pygame
 
 from .style import (
     BRIDGE_WASH, FIELD_WASH, FIELD_WASH_ALPHA, INK, INK_FADED, PAPER, ROOF_WASH, ROOF_WASH_ALPHA,
-    SHADOW, SHADOW_ALPHA, STALL_WASH, TREE_WASH, WATER_LINE, WATER_WASH,
+    AXE_STEEL, SHADOW, SHADOW_ALPHA, STALL_WASH, STUMP_WASH, TREE_WASH, WATER_LINE, WATER_WASH,
 )
 
 Point = Tuple[float, float]
@@ -52,6 +52,31 @@ def fish(surface: pygame.Surface, center: Point, length: int = 20) -> None:
     pygame.draw.ellipse(surface, PAPER, body)
     pygame.draw.ellipse(surface, INK, body, 1)
     pygame.draw.circle(surface, INK, (body.left + length // 5, y - 1), 1)
+
+
+def chopping_stump(surface: pygame.Surface, center: Point, size: int = 20) -> None:
+    """A tree stump with an axe sunk in its pale cut face, about ``size`` tall and wide."""
+    x, y = round(center[0]), round(center[1])
+
+    def at(right: float, down: float) -> Point:
+        """A point of the drawing, in parts of ``size`` from its middle."""
+        return x + right * size, y + down * size
+
+    half = max(4, size * 3 // 10)
+    top = pygame.Rect(x - half, y - size // 8, half * 2, max(4, size // 4))
+    foot = y + size // 2 - 1
+    left, right = top.left, top.right - 1
+    pygame.draw.rect(surface, STUMP_WASH, (left, top.centery, right - left + 1, foot - top.centery + 1))
+    pygame.draw.lines(surface, INK, False, [(left, top.centery), (left, foot), (right, foot), (right, top.centery)])
+    pygame.draw.ellipse(surface, PAPER, top)
+    pygame.draw.ellipse(surface, INK, top, 1)
+
+    # The axe: the head on its blade in the cut, narrow at the top and flaring downwards,
+    # the haft leaving it at a shallow angle, so it reads as an axe and not a flag or a lamp
+    pygame.draw.line(surface, INK, at(-0.08, -0.25), at(0.48, -0.46), 2 if size >= 16 else 1)
+    head = [at(-0.15, -0.32), at(0.02, -0.34), at(0.08, 0.04), at(-0.28, 0.08)]
+    pygame.draw.polygon(surface, AXE_STEEL, head)
+    pygame.draw.polygon(surface, INK, head, 1)
 
 
 def roof(surface: pygame.Surface, rect: pygame.Rect, color: Tuple[int, int, int] = ROOF_WASH) -> None:

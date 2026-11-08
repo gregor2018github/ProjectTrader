@@ -39,6 +39,8 @@ ROOF_WASH = (172, 72, 54)          # Carmine, as on old town plans
 ROOF_WASH_ALPHA = 200
 STALL_WASH = (212, 172, 92)
 BRIDGE_WASH = (176, 132, 82)       # Planks, a shade lighter than the roads
+STUMP_WASH = (138, 96, 58)         # The chopping stump's bark
+AXE_STEEL = (196, 196, 188)        # And the head of the axe stuck in it
 SHADOW = (90, 64, 40)
 SHADOW_ALPHA = 70
 

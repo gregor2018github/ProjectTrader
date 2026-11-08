@@ -197,6 +197,8 @@ class TMXMap:
         self.doors: List[Door] = []
 
         self._load_houses()
+        #: Where the woodhacking is played: the house object named "Stomp"
+        self.chopping_stump: Optional[House] = next((h for h in self.houses if h.name == "Stomp"), None)
         self._load_special_points()
         self._load_trees()
         self._load_fields()

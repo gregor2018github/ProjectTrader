@@ -120,7 +120,7 @@ def draw_map_view(
                                        roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
 
     # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse)
-    stump = _chopping_stump(game_map)
+    stump = game_map.tmx_map.chopping_stump
     if stump is not None and stump is not hovered and woodhacking_available(game_state):
         inject_available_glow_into_queue(render_queue, stump, game_map.camera)
 
@@ -321,14 +321,6 @@ def _apply_lighting(
 
 
 _lighting_surf = None   # the overlay of _apply_lighting, reused
-
-
-def _chopping_stump(game_map) -> Any:
-    """The map's chopping stump (the house object named "Stomp"), where the woodhacking is played; found once."""
-    tmx_map = game_map.tmx_map
-    if not hasattr(tmx_map, '_chopping_stump'):
-        tmx_map._chopping_stump = next((h for h in tmx_map.houses if h.name == "Stomp"), None)
-    return tmx_map._chopping_stump
 
 
 def _get_ambient_color(date: datetime.datetime) -> Tuple[int, int, int]:
