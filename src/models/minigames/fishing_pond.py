@@ -10,11 +10,15 @@ of it (``Species.zones``), so how far the player casts, and how deep the bait
 hangs, decides what can bite.
 
 A fish (``Fish``) wanders its zone until it notices a bait it likes the look
-of (near enough, baited, lying still or just twitched), then swims up,
-inspects it, nibbles it a few times (``Species.nibbles``) and takes it,
-swimming off with it for ``Species.take_window`` seconds: the moment to
-strike. Struck too early it flees, too late it has the worm. Minnows nibble
-and never take. Only one fish deals with the bait at a time
+of, then swims up, inspects it, nibbles it a few times (``Species.nibbles``)
+and takes it, swimming off with it for ``Species.take_window`` seconds: the
+moment to strike. Struck too early it flees, too late it has the worm. What it
+likes depends on what it is: most fish only come to a bait lying calm, and a
+twitch turns away one on its way; the predators (``Species.lure`` above 0) hardly
+look at a still bait, come to a twitch (``TWITCH_DRAW``) and most of all to one
+being reeled in (``REEL_DRAW``), which they chase and hit at once, holding on
+longer (``REEL_TAKE_STRETCH``), as the player has the reel to let go of first.
+Minnows nibble and never take. Only one fish deals with the bait at a time
 (``Hook.engaged``). Once hooked, the fight (``fishing.py``) moves it.
 
 No pygame here: what a fish does is plain numbers, so it can be tested and
@@ -80,7 +84,7 @@ class Species:
     take_window: float             # seconds from its taking the bait to its spitting it out with the worm
     take_chance: float             # after its nibbles, the chance it takes rather than wanders off
     caution: float                 # how long it looks, and how easily twitching scares it
-    lure: float                    # how much a twitched bait draws it (1 as most; the pike hunts what moves)
+    lure: float                    # how much a moving bait draws it, a predator; 0: it only comes to a calm one
     power: float                   # how hard it pulls on the line, for its average size
     stamina: float                 # how long it fights
     style: str                     # how it moves up and down in the fight (fishing.STYLES)
@@ -101,17 +105,17 @@ class Species:
 SPECIES: Dict[str, Species] = {s.key: s for s in (
     Species("roach", "Roach", (14, 32), 0.6,
             ((82, 199, "surface", 4, 26),), speed=15, sense=26, nibbles=(1, 2), take_window=0.75,
-            take_chance=0.9, caution=0.7, lure=1.0, power=0.35, stamina=0.55, style="smooth", shape="roach",
+            take_chance=0.9, caution=0.7, lure=0.0, power=0.35, stamina=0.55, style="smooth", shape="roach",
             height=0.36, colours=((66, 88, 96), (190, 200, 198), (232, 230, 220), (196, 72, 52), (66, 88, 96)),
             count=5, lore="Greedy and quick: it takes after a nibble or two."),
     Species("rudd", "Rudd", (14, 30), 0.75,
             ((174, 304, "surface", 2, 16),), speed=15, sense=28, nibbles=(1, 3), take_window=0.75,
-            take_chance=0.85, caution=0.8, lure=1.1, power=0.38, stamina=0.6, style="floater", shape="roach",
+            take_chance=0.85, caution=0.8, lure=0.0, power=0.38, stamina=0.6, style="floater", shape="roach",
             height=0.38, colours=((78, 90, 66), (200, 184, 124), (230, 218, 180), (218, 64, 40), (78, 90, 66)),
             count=3, lore="Golden flanks and red fins, just under the surface."),
     Species("tench", "Tench", (25, 55), 1.5,
             ((224, 310, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
-            take_chance=0.7, caution=1.2, lure=0.7, power=0.7, stamina=1.2, style="sinker", shape="carp",
+            take_chance=0.7, caution=1.2, lure=0.0, power=0.7, stamina=1.2, style="sinker", shape="carp",
             height=0.4, colours=((52, 68, 38), (94, 110, 54), (150, 148, 88), (66, 80, 42), (52, 68, 38)),
             count=2, lore="The doctor fish, olive and slimy, grubbing in the weedy shallows."),
     Species("perch", "Perch", (15, 40), 0.9,
@@ -122,12 +126,12 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             count=3, lore="Lurks by the drop-off and the reeds; a twitch draws it."),
     Species("bream", "Bream", (30, 56), 1.3,
             ((128, 246, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
-            take_chance=0.7, caution=1.3, lure=0.8, power=0.6, stamina=1.0, style="sinker", shape="bream",
+            take_chance=0.7, caution=1.3, lure=0.0, power=0.6, stamina=1.0, style="sinker", shape="bream",
             height=0.5, colours=((96, 84, 52), (168, 146, 92), (204, 192, 150), (88, 76, 56), (96, 84, 52)),
             count=2, lore="Grubs on the bottom of the deep water, slow to make up its mind."),
     Species("carp", "Carp", (40, 82), 2.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
-            take_chance=0.6, caution=1.6, lure=0.6, power=0.95, stamina=1.6, style="smooth", shape="carp",
+            take_chance=0.6, caution=1.6, lure=0.0, power=0.95, stamina=1.6, style="smooth", shape="carp",
             height=0.42, colours=((84, 74, 38), (166, 136, 58), (210, 182, 112), (124, 82, 48), (70, 60, 30)),
             count=2, lore="The old one of the hollow: many nibbles, then a slow, sliding take."),
     Species("pike", "Pike", (45, 100), 2.4,
@@ -138,17 +142,17 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             count=2, lore="Waits in the weeds and strikes at what moves, without a nibble."),
     Species("eel", "Eel", (40, 90), 1.8,
             ((94, 256, "bottom", 1, 5),), speed=12, sense=26, nibbles=(2, 4), take_window=0.9,
-            take_chance=0.75, caution=1.0, lure=0.8, power=0.75, stamina=1.2, style="dart", shape="eel",
+            take_chance=0.75, caution=1.0, lure=0.0, power=0.75, stamina=1.2, style="dart", shape="eel",
             height=0.13, colours=((40, 40, 30), (70, 66, 44), (128, 116, 72), (52, 50, 36), (40, 40, 30)),
             count=2, night_only=True, lore="Only comes out of the mud at night."),
     Species("golden_carp", "Golden Carp", (45, 86), 6.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(4, 8), take_window=1.1,
-            take_chance=0.55, caution=1.8, lure=0.6, power=1.0, stamina=1.7, style="dart", shape="carp",
+            take_chance=0.55, caution=1.8, lure=0.0, power=1.0, stamina=1.7, style="dart", shape="carp",
             height=0.42, colours=((196, 128, 30), (236, 186, 70), (250, 226, 140), (220, 110, 40), (180, 110, 20)),
             count=0, lore="A rare gold one among the carp. Few have seen it."),
     Species("minnow", "Minnows", (4, 7), 0.0,
             ((84, 234, "surface", 2, 18),), speed=19, sense=30, nibbles=(3, 7), take_window=0.0,
-            take_chance=0.0, caution=0.3, lure=1.2, power=0.0, stamina=0.1, style="smooth", shape="roach",
+            take_chance=0.0, caution=0.3, lure=0.0, power=0.0, stamina=0.1, style="smooth", shape="roach",
             height=0.32, colours=((90, 104, 100), (176, 190, 184), (210, 214, 206), (150, 150, 140), (90, 104, 100)),
             count=3, minnow=True, lore="Pluck at the worm and are far too small for the hook."),
 )}
@@ -172,8 +176,8 @@ class Hook:
     """What the fish know of the bait; the game keeps it up to date."""
     x: float = 0.0
     y: float = 0.0
-    alluring: bool = False         # in the water, baited, and not flying, fighting or being pulled home
-    reeling: bool = False          # being reeled in: it moves, the fish keep off
+    alluring: bool = False         # in the water, baited, and not flying, fighting or being taken
+    reeling: bool = False          # being reeled in: the predators chase it, the others keep off
     twitch_age: float = 99.0       # seconds since the player last twitched it
     twitches_recent: int = 0       # twitches in the last few seconds
     engaged: Optional["Fish"] = None   # the one fish dealing with it
@@ -183,7 +187,15 @@ class Hook:
 WANDER, APPROACH, INSPECT, NIBBLE, TAKE, HOOKED, FLEE = "wander", "approach", "inspect", "nibble", "take", "hooked", "flee"
 
 NOTICE_RATE = 0.4                # a fish in reach of a still bait comes over at this rate a second, times the mood
-TWITCH_LURES_S = 2.5             # a twitch draws fish for this long
+TWITCH_LURES_S = 2.5             # a twitch moves the bait for this long, as the fish see it
+TWITCH_DRAW = 0.4                # a predator comes to a twitched bait at this rate, times NOTICE_RATE and its lure
+REEL_DRAW = 0.9                  # and to one being reeled in, over the widest reach
+TWITCH_REACH = 0.15              # how much farther it notices a twitch, times its lure
+REEL_REACH = 0.25                # and a reeled bait
+PREDATOR_STILL = 0.25            # and to a still bait, of the rate the others have
+CHASE_SPEED = 1.3                # chasing a reeled bait, of its fair swim
+CHASE_REACH = 6.0                # it hits the bait from this near: a fish easing up to a moving point stays behind it
+REEL_TAKE_STRETCH = 2.0          # a bait taken while reeled in is held this much longer: the reel is to be let go first
 TOO_MANY_TWITCHES = 3            # more in a few seconds and the wary ones take fright
 SPOOK_S = 7.0                    # a scared fish keeps off baits this long
 BORED_S = 5.0                    # one that wandered off from the bait this long
@@ -208,6 +220,7 @@ class Fish:
         self.spooked = 0.0
         self.bored = 0.0
         self.nibbles_left = 0
+        self.take_window = species.take_window   # how long it holds on to the bait it has taken
         self.sub = ""                # within NIBBLE: "pause", "dart", "back"
         self.tail = rng.random() * 10
         self.tired = False           # rolls on its side once beaten
@@ -268,16 +281,29 @@ class Fish:
 
     # -- what it does ---------------------------------------------------
 
+    @property
+    def predator(self) -> bool:
+        return self.species.lure > 0
+
+    def _notice_odds(self, hook: Hook) -> Tuple[float, float]:
+        """How far off it notices the bait as it is now, and how keen it is: 0 and it will not come."""
+        lure = self.species.lure
+        twitched = hook.twitch_age < TWITCH_LURES_S
+        if not self.predator:
+            return self.species.sense, 0.0 if twitched or hook.reeling else 1.0
+        if hook.reeling:
+            return self.species.sense * (1.0 + REEL_REACH * lure), REEL_DRAW * lure
+        if twitched:
+            return self.species.sense * (1.0 + TWITCH_REACH * lure), TWITCH_DRAW * lure
+        return self.species.sense, PREDATOR_STILL
+
     def _notices(self, hook: Hook, dt: float, mood: float, rng: random.Random) -> bool:
         if self.spooked > 0 or self.bored > 0 or not hook.alluring or hook.engaged is not None:
             return False
-        twitched = hook.twitch_age < TWITCH_LURES_S
-        reach = self.species.sense * (1.0 + 0.6 * self.species.lure if twitched else 1.0)
+        reach, keen = self._notice_odds(hook)
         if math.hypot(hook.x - self.x, hook.y - self.y) > reach:
             return False
-        lure = self.species.lure
-        rate = NOTICE_RATE * mood * (2.0 * lure if twitched else (1.0 / lure if lure > 1 else 1.0))
-        return rng.random() < rate * dt
+        return rng.random() < NOTICE_RATE * mood * keen * dt
 
     def update(self, dt: float, hook: Hook, rng: random.Random, mood: float = 1.0) -> List[tuple]:
         """Live for dt seconds; returns what happened: ("nibble", fish), ("take", fish),
@@ -305,8 +331,13 @@ class Fish:
                 self.side = 1 if self.x >= hx else -1
 
         elif self.state == APPROACH:
-            if hook.reeling or not hook.alluring:
+            if not hook.alluring or (hook.reeling and not self.predator):
                 self.flee(hook, rng, 3.0)
+            elif not self.predator and hook.twitch_age < dt * 1.01:
+                self.leave(hook, rng)       # it wanted a calm bait
+            elif hook.reeling:              # the chase: it hits it as it catches up
+                if self.steer(dt, hx + self.side * (self.length / 2), hy, sp.speed * CHASE_SPEED, turn=6) < CHASE_REACH:
+                    self._take(hook, events)
             else:
                 d = self.steer(dt, hx + self.side * (self.length / 2 + 4), hy + 1, sp.speed * 0.55)
                 if d < 2.0:
@@ -315,7 +346,9 @@ class Fish:
                     self.facing = -self.side
 
         elif self.state == INSPECT:
-            if hook.reeling or not hook.alluring:
+            if hook.reeling and self.predator and hook.alluring:
+                self._take(hook, events)    # it was making up its mind, and off the bait goes
+            elif hook.reeling or not hook.alluring:
                 self.flee(hook, rng, 4.0)
             else:
                 sway = math.sin(self.tail * 0.35) * 2
@@ -336,7 +369,9 @@ class Fish:
                             self.sub, self.timer = "pause", rng.uniform(0.2, 0.6)
 
         elif self.state == NIBBLE:
-            if hook.reeling or not hook.alluring:
+            if hook.reeling and self.predator and hook.alluring:
+                self._take(hook, events)
+            elif hook.reeling or not hook.alluring:
                 self.flee(hook, rng, 4.0)
             else:
                 self.facing = -self.side
@@ -389,7 +424,8 @@ class Fish:
 
     def _take(self, hook: Hook, events: List[tuple]) -> None:
         self.state = TAKE
-        self.timer = self.species.take_window
+        self.take_window = self.species.take_window * (REEL_TAKE_STRETCH if hook.reeling else 1.0)
+        self.timer = self.take_window
         self.side = 1 if self.x >= hook.x else -1
         events.append(("take", self))
 

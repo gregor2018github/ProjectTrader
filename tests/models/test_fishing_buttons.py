@@ -94,11 +94,11 @@ def test_too_late_the_fish_and_the_worm_are_gone(minigame):
 
 
 @both
-def test_a_fish_still_on_its_way_is_not_scared_by_a_twitch(minigame, button):
-    fish = waiting_with(minigame, APPROACH)
+def test_a_press_at_a_fish_still_on_its_way_is_a_twitch_and_no_strike(minigame, button):
+    waiting_with(minigame, APPROACH)
     press(minigame, button)
     let_go(minigame, button)
-    assert fish.state == APPROACH and not minigame.popups and minigame.twitches
+    assert not minigame.popups and minigame.twitches and minigame.phase == fishing.WAIT
 
 
 @both

@@ -18,10 +18,11 @@ movement of the mouse and in what the pond shows.
                 set deeper than the water where it lands, the hook sinks onto
                 the bottom, catches and rips off (``STUCK``), as it does on the
                 roots under the bank when reeled over them. You only see round
-                the bait. A click twitches it,
-                which draws fish (and, overdone, scares the wary ones);
-                holding the button reels it in slowly. Fish come, look,
-                nibble (the float trembles) and take (the float goes under).
+                the bait. Most fish only come to a bait lying calm. A click
+                twitches it and holding the button reels it in slowly, which
+                keeps them off but draws the predators, pike and perch, reeling
+                most of all (``fishing_pond``). Fish come, look, nibble (the
+                float trembles) and take (the float goes under).
   3. STRIKE   — click, or press Space, while a fish has the bait (a sharp flick
                 of the mouse upwards does it too): graded by how quickly after its take
                 (``STRIKE_GRADES``), which sets how well the hook holds. Too
@@ -765,7 +766,7 @@ class FishingMinigame(MinigameOverlay):
         fish = self.hook.engaged
         if fish is not None and fish.state == TAKE:
             reaction = self.t - self.take_t
-            label, hold = strike_grade(reaction, fish.species.take_window)
+            label, hold = strike_grade(reaction, fish.take_window)
             self.strike_label = label
             self._start_fight(fish, hold, label)
             return
@@ -816,9 +817,9 @@ class FishingMinigame(MinigameOverlay):
             if self.float_x <= BANK_EDGE + 3:
                 self._start_retrieve()
                 return
-        self.hook.reeling = reeling
+        self.hook.reeling = reeling and not taking
         self.wait_t += dt
-        self.hook.alluring = self.baited and not taking and not reeling and self.wait_t > 0.4
+        self.hook.alluring = self.baited and not taking and self.wait_t > 0.4
 
     def _start_stuck(self) -> None:
         """The hook has caught on the bottom: the fish keep off, the rod tugs at it."""

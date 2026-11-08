@@ -44,7 +44,8 @@ CARDS = {
                           "Too deep, and the hook *catches on the bottom* and rips off."),
         ("Whip the rod", "*Hold* the left button and drag back. Whip forward and *let go* as the rod passes "
                          "the golden mark: the cleaner the cast, the more its fish pay. "
-                         "Farther out is deeper water and bigger fish."),
+                         "Farther out is deeper water and bigger fish. Most fish come to a *calm* bait; "
+                         "pike and perch to a *moving* one, reeled in most of all."),
         ("Strike!", "The float trembles: only a nibble, wait. When it *goes under*, *click* "
                     "(or press Space). Too soon he is scared off, too late he is gone with the worm."),
     ),
