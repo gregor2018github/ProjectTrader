@@ -39,7 +39,7 @@ def make(screen, tips_seen=()):
 
 def hook_a_fish(minigame):
     fish = Fish(SPECIES["perch"], random.Random(1))
-    fish.x, fish.y = 170.0, 90.0
+    fish.x, fish.y = 194.0, 90.0
     minigame.pond.fish.append(fish)
     minigame._start_fight(fish, 0.8, "GOOD STRIKE")
     return minigame.fight

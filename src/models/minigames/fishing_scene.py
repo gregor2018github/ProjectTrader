@@ -91,7 +91,7 @@ _DARK = (6, 14, 22)                      # the murk the deep water fades into
 # starts where the fist is, ``grip_at``), the near hand takes the handle behind it, and
 # the upper body leans back to cast and forward after it (``_LEAN_BY_THETA``).
 _PLAYER_H = 34                           # low pixels tall
-_PLAYER_LEFT = 17
+_PLAYER_LEFT = 41
 _PLAYER_SCALE = _PLAYER_H / 336          # the sprite is 208 x 336
 _PLAYER_TOP = BANK_TOP - _PLAYER_H
 _HIP_ROW = round(_HIP[1] * _PLAYER_SCALE)   # the upper body leans over the legs from here
@@ -173,7 +173,7 @@ _HERON = (
 )
 _HERON_PAL = {"g": (160, 170, 174), "G": (104, 114, 122), "d": (52, 56, 66), "y": (222, 192, 92),
               "l": (122, 112, 82)}
-_HERON_POS = (250, 56 - len(_HERON))
+_HERON_POS = (274, 56 - len(_HERON))
 
 
 def _lerp(a: float, b: float, t: float) -> float:
@@ -401,23 +401,23 @@ class PondScene:
         self.t = 0.0
         # Weeds: x, height, phase
         self.weeds = []
-        for x0, x1, n in ((228, 298, 26), (88, 112, 6), (60, 70, 3), (190, 214, 4)):
+        for x0, x1, n in ((252, 322, 26), (112, 136, 6), (84, 94, 3), (214, 238, 4)):
             for _ in range(n):
                 x = scenery.uniform(x0, x1)
-                self.weeds.append((x, scenery.uniform(6, 22) if x0 >= 228 else scenery.uniform(5, 13),
+                self.weeds.append((x, scenery.uniform(6, 22) if x0 >= 252 else scenery.uniform(5, 13),
                                    scenery.uniform(0, 6.28)))
-        self.reeds = [(scenery.uniform(238, 299), scenery.uniform(6, 17), scenery.uniform(0, 6.28),
+        self.reeds = [(scenery.uniform(262, 323), scenery.uniform(6, 17), scenery.uniform(0, 6.28),
                        scenery.random() < 0.35) for _ in range(30)]
-        self.reeds += [(scenery.uniform(48, 56), scenery.uniform(4, 9), scenery.uniform(0, 6.28), False) for _ in range(5)]
+        self.reeds += [(scenery.uniform(72, 80), scenery.uniform(4, 9), scenery.uniform(0, 6.28), False) for _ in range(5)]
         self.silt = [[self.rng.uniform(BANK_EDGE, LOW_W), self.rng.uniform(WATER_Y, LOW_H), self.rng.uniform(0, 6.28)]
                      for _ in range(70)]
         self.stars = [(scenery.randint(0, LOW_W - 1), scenery.randint(0, 40), scenery.uniform(0, 6.28)) for _ in range(46)]
         self.clouds = [self._new_cloud(anywhere=True) for _ in range(int(1 + 6 * c.clouds + 3 * c.storm))]
-        self.shafts = [scenery.uniform(40, LOW_W) for _ in range(4)]
+        self.shafts = [scenery.uniform(64, LOW_W) for _ in range(4)]
         self._shaft_water = self._build_shaft_water()
-        self.fireflies = [[self.rng.uniform(20, 70) if i % 2 else self.rng.uniform(232, 296),
+        self.fireflies = [[self.rng.uniform(4, 94) if i % 2 else self.rng.uniform(256, 320),
                            self.rng.uniform(38, 62), self.rng.uniform(0, 6.28)] for i in range(10)]
-        self.duck_x, self.duck_dir = 236.0, -1
+        self.duck_x, self.duck_dir = 260.0, -1
         self.heron_face, self._heron_t = -1, self.rng.uniform(4, 10)
         self.splashes: List[List[float]] = []     # x, y, vx, vy, life
         self.rings: List[List[float]] = []        # x, age, size
@@ -458,7 +458,7 @@ class PondScene:
         h = self.hour
         if 5.6 < h < 20.4 and self.c.clouds < 0.85:
             p = (h - 5.6) / 14.8
-            sx, sy = 30 + 240 * p, 50 - 40 * math.sin(math.pi * p)
+            sx, sy = 54 + 240 * p, 50 - 40 * math.sin(math.pi * p)
             warm = _mix((255, 244, 214), (255, 170, 100), 1 - math.sin(math.pi * p) ** 0.5)
             glow = pygame.Surface((LOW_W, WATER_Y + 2), pygame.SRCALPHA)
             for r, a in ((9, 26), (6, 50)):
@@ -467,7 +467,7 @@ class PondScene:
             pygame.draw.circle(sky, _mix(warm, top, 0.6 * self.c.clouds), (sx, sy), 3)
         elif (h < 5.6 or h > 20.4) and self.c.clouds < 0.85:
             p = ((h - 20.4) % 24) / 9.2
-            mx, my = 40 + 220 * p, 34 - 22 * math.sin(math.pi * min(1, p))
+            mx, my = 64 + 220 * p, 34 - 22 * math.sin(math.pi * min(1, p))
             pygame.draw.circle(sky, (230, 228, 206), (mx, my), 3)
             pygame.draw.circle(sky, _mix(top, (200, 198, 180), 0.4), (mx + 1, my - 1), 2)
             pygame.draw.circle(sky, (230, 228, 206), (mx - 1, my), 2)
@@ -545,9 +545,9 @@ class PondScene:
                 for dx in range(-((h - k) // 2), (h - k) // 2 + 1):
                     _px(s, x + dx, base - k, _shade(near_c, 0.8) if not snow else _mix(_SNOW, near_c, 0.4))
         # The mountain (the sketch's), lit from the left, its foot in the water
-        peak_x, peak_y = 150, 13
-        for x in range(92, 224):
-            span = (peak_x - 92) if x < peak_x else (224 - peak_x)
+        peak_x, peak_y = 174, 13
+        for x in range(116, 248):
+            span = (peak_x - 116) if x < peak_x else (248 - peak_x)
             k = abs(x - peak_x) / span
             top = peak_y + (k ** 0.85) * (WATER_Y - peak_y) + rng.uniform(-1.2, 1.2) + 2.5 * math.sin(x * 0.4) * k
             ridge_x = peak_x + 3 * math.sin(x * 0.2)
@@ -567,11 +567,11 @@ class PondScene:
                         c = _SNOW
                 _px(s, x, y, c)
         # Little conifers along the mountain's foot
-        for x in range(96, 222, 4):
+        for x in range(120, 246, 4):
             self._pine(s, rng, x + rng.uniform(-1, 1), WATER_Y - 1, rng.randint(5, 9), _PINE, snow)
         # The far shore on the right: rocks, larches, a bush
-        for x in range(232, LOW_W):
-            top = 58 - min(1.0, (x - 232) / 30) * 6 + rng.uniform(-0.8, 0.8)
+        for x in range(256, LOW_W):
+            top = 58 - min(1.0, (x - 256) / 30) * 6 + rng.uniform(-0.8, 0.8)
             for y in range(int(top), WATER_Y + 1):
                 c = (86, 92, 96) if y - top > 1 else (124, 128, 126)
                 if (x + 2 * y) % 5 == 0:
@@ -580,16 +580,19 @@ class PondScene:
                     c = _SNOW
                 _px(s, x, y, c)
         larch = _LARCH[self.season]
-        self._pine(s, rng, 262, 54, 34, larch, snow)
-        self._blob(s, rng, 292, 46, 11, 7, _BUSH[self.season], snow)
-        self._pine(s, rng, 278, 53, 46, larch, snow)
-        self._pine(s, rng, 300, 52, 40, _PINE, snow)
-        # The player's bank: two pines, grass over earth
-        self._pine(s, rng, 6, BANK_TOP, 58, _PINE, snow)
-        self._pine(s, rng, 18, BANK_TOP, 44, _PINE, snow)
+        self._pine(s, rng, 286, 54, 34, larch, snow)
+        self._blob(s, rng, 316, 46, 11, 7, _BUSH[self.season], snow)
+        self._pine(s, rng, 302, 53, 46, larch, snow)
+        self._pine(s, rng, 324, 52, 40, _PINE, snow)
+        # The player's bank: the wood behind him, grass over earth
+        self._pine(s, rng, 2, BANK_TOP, 40, _PINE, snow)
+        self._pine(s, rng, 15, BANK_TOP, 50, _PINE, snow)
+        self._blob(s, rng, 8, BANK_TOP - 3, 6, 4, _BUSH[self.season], snow)
+        self._pine(s, rng, 30, BANK_TOP, 58, _PINE, snow)
+        self._pine(s, rng, 42, BANK_TOP, 44, _PINE, snow)
         grass = _SNOW if snow else _GRASS[self.season]
         for x in range(0, BANK_EDGE + 1):
-            top = BANK_TOP if x <= 46 else BANK_TOP + (x - 46) / (BANK_EDGE - 46) * (WATER_Y - BANK_TOP)
+            top = BANK_TOP if x <= 70 else BANK_TOP + (x - 70) / (BANK_EDGE - 70) * (WATER_Y - BANK_TOP)
             top += 0.6 * math.sin(x * 1.3)
             for y in range(int(top), WATER_Y + 1):
                 d = y - int(top)
@@ -655,13 +658,13 @@ class PondScene:
             _px(s, x - r + 1, y - r, (130, 134, 126))
         # The roots on the slope (they snag a bait dragged over them)
         root, root_lit = (66, 50, 36), (98, 76, 52)
-        for pts in (((56, 70), (64, 74), (72, 77), (78, 76)), ((60, 78), (70, 84), (80, 88), (86, 87)),
-                    ((66, 86), (74, 93), (82, 99)), ((72, 90), (76, 95), (79, 102))):
+        for pts in (((80, 70), (88, 74), (96, 77), (102, 76)), ((84, 78), (94, 84), (104, 88), (110, 87)),
+                    ((90, 86), (98, 93), (106, 99)), ((96, 90), (100, 95), (103, 102))):
             pygame.draw.lines(s, root, False, pts, 1)
             for (x, y) in pts[1:]:
                 _px(s, x, y - 1, root_lit)
         # An old cart wheel, half sunk in the hollow
-        cx, cy = 176, 149
+        cx, cy = 200, 149
         pygame.draw.circle(s, (78, 62, 44), (cx, cy), 6, 1)
         for a in range(0, 360, 60):
             pygame.draw.line(s, (70, 56, 40), (cx, cy), (cx + 5 * math.cos(math.radians(a)), cy + 5 * math.sin(math.radians(a))))
@@ -802,9 +805,9 @@ class PondScene:
         c = self.c
         # The duck paddles to and fro over the far side; the heron looks about
         self.duck_x += self.duck_dir * 2.6 * dt
-        if self.duck_x < 196 or self.duck_x > 288:
+        if self.duck_x < 220 or self.duck_x > 312:
             self.duck_dir *= -1
-            self.duck_x = min(max(self.duck_x, 196), 288)
+            self.duck_x = min(max(self.duck_x, 220), 312)
         if rng.random() < dt * 0.6:
             self.add_ring(self.duck_x - self.duck_dir * 5, 2)
         self._heron_t -= dt

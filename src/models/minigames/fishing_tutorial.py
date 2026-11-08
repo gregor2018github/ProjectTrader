@@ -59,18 +59,18 @@ CARDS = {
 }
 
 _LAYOUTS = {
-    PAGE_CAST: SheetLayout(card_widths=(290, 518, 320), cards_bottom=650, picture_h=340, button_y=692),
-    PAGE_FIGHT: SheetLayout(card_widths=(330, 330, 468), cards_bottom=650, picture_h=340, button_y=692),
+    PAGE_CAST: SheetLayout(card_widths=(290, 614, 320), cards_bottom=650, picture_h=340, button_y=692),
+    PAGE_FIGHT: SheetLayout(card_widths=(330, 330, 564), cards_bottom=650, picture_h=340, button_y=692),
 }
 _TURN_GAP = 16
 
-# Which part of the scene (1200 x 640) each picture shows; the first and last of the first page at full size
-_DEPTH_X, _STRIKE_X = 100, 125           # where in the pond (low pixels) their bait goes in
+# Which part of the scene (1296 x 640) each picture shows; the first and last of the first page at full size
+_DEPTH_X, _STRIKE_X = 124, 149           # where in the pond (low pixels) their bait goes in
 _DEPTH_CROP = pygame.Rect(_DEPTH_X * PX - 133, 200, 266, 340)
-_CAST_CROP = pygame.Rect(0, 0, 930, 640)
+_CAST_CROP = pygame.Rect(0, 0, 1118, 640)
 _STRIKE_CROP = pygame.Rect(_STRIKE_X * PX - 148, 200, 296, 340)
-_MARK_CROP = pygame.Rect(216, 0, 576, 640)
-_WHOLE_CROP = pygame.Rect(0, 0, 836, 640)
+_MARK_CROP = pygame.Rect(312, 0, 576, 640)
+_WHOLE_CROP = pygame.Rect(0, 0, 1016, 640)
 
 # The depth's picture: the depths it tries, the last deeper than the water where it goes in
 _DEPTH_TRIES = (LEADER_START, LEADER_START + 6 * LEADER_STEP, LEADER_START + 13 * LEADER_STEP)
@@ -112,7 +112,7 @@ _AFTER_STRIKE_S = 1.6                    # looking at how it went
 
 # The fights' pictures
 _FIGHT_FISH = ("perch", 34.0)            # big enough to run and rage, small enough to come in soon
-_FIGHT_FROM = (135.0, 85.0)
+_FIGHT_FROM = (159.0, 85.0)
 _FIGHT_HOLD = 0.8                        # a good strike's hook
 _AFTER_FIGHT_S = 1.8                     # looking at how it ended
 _PLAIN_RUN_S, _PLAIN_REST_S = (1.4, 2.2), (1.2, 2.0)    # a fish with no tricks: how long it runs and rests
@@ -126,7 +126,7 @@ _STRAIN_EASED = 0.05                     # and reels again at this
 _STRAIN_RISK_BELOW = 0.45                # it only lets the line give way on a fish this tired, or he would be gone
 _FIGHT_BAR_INSET, _FIGHT_BAR_H = 16, 18
 _METERS_LEFT = 48                        # room for their names
-_WHOLE_METERS_LEFT = 170                 # and for the player, in the picture he is in
+_WHOLE_METERS_LEFT = 221                 # and for the player, in the picture he is in
 
 
 class PondDemo:
@@ -589,7 +589,7 @@ class FishingTutorial:
     def _draw_cast(self, surf: pygame.Surface, rect: pygame.Rect, demo: CastDemo) -> None:
         self._scene(surf, demo, rect, _CAST_CROP)
         hold_sign(surf, self.minigame.font_small, self._mouse[demo.held], demo.sign,
-                  (rect.left + 300 + round(demo.mouse_offset), rect.top + 62))
+                  (rect.left + 351 + round(demo.mouse_offset), rect.top + 62))
         self._say(surf, demo.verdict, (rect.centerx + 60, rect.top + 150), rect.width)
         if demo.landing:
             self._say(surf, (demo.landing, (226, 226, 210)), (rect.centerx + 60, rect.top + 184), rect.width)

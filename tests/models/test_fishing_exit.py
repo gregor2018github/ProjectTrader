@@ -47,7 +47,7 @@ def click(minigame, rect):
 
 def in_a_fight(minigame):
     fish = Fish(SPECIES["pike"], random.Random(1))
-    fish.x, fish.y = 170.0, 90.0
+    fish.x, fish.y = 194.0, 90.0
     minigame.pond.fish.append(fish)
     minigame._start_fight(fish, 0.8, "GOOD STRIKE")
     return minigame.fight

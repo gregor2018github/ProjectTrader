@@ -26,13 +26,13 @@ import random
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence, Tuple
 
-LOW_W, LOW_H = 300, 160
+LOW_W, LOW_H = 324, 160
 WATER_Y = 66                     # the water's surface
-BANK_EDGE = 54                   # where the player's bank meets the water
+BANK_EDGE = 78                   # where the player's bank meets the water
 # The bottom, (x, y) from the bank across: a shelf, the drop-off, the deep hollow, the far shallows
-_PROFILE = ((BANK_EDGE, WATER_Y), (62, 74), (74, 88), (90, 116), (108, 140), (134, 150), (166, 153),
-            (194, 149), (212, 136), (228, 114), (244, 101), (264, 95), (284, 90), (LOW_W, 87))
-SNAGS = ((64, 86),)              # sunken roots on the slope under the bank: a bait dragged over the bottom there catches
+_PROFILE = ((BANK_EDGE, WATER_Y), (86, 74), (98, 88), (114, 116), (132, 140), (158, 150), (190, 153),
+            (218, 149), (236, 136), (252, 114), (268, 101), (288, 95), (308, 90), (LOW_W, 87))
+SNAGS = ((88, 86),)              # sunken roots on the slope under the bank: a bait dragged over the bottom there catches
 
 PX_PER_FOOT = 5.0                # how deep the line hangs, for the player: low pixels a foot
 
@@ -100,54 +100,54 @@ class Species:
 
 SPECIES: Dict[str, Species] = {s.key: s for s in (
     Species("roach", "Roach", (14, 32), 0.6,
-            ((58, 175, "surface", 4, 26),), speed=15, sense=26, nibbles=(1, 2), take_window=0.75,
+            ((82, 199, "surface", 4, 26),), speed=15, sense=26, nibbles=(1, 2), take_window=0.75,
             take_chance=0.9, caution=0.7, lure=1.0, power=0.35, stamina=0.55, jumps=0.05, shape="roach",
             height=0.36, colours=((66, 88, 96), (190, 200, 198), (232, 230, 220), (196, 72, 52), (66, 88, 96)),
             count=5, lore="Greedy and quick: it takes after a nibble or two."),
     Species("rudd", "Rudd", (14, 30), 0.75,
-            ((150, 280, "surface", 2, 16),), speed=15, sense=28, nibbles=(1, 3), take_window=0.75,
+            ((174, 304, "surface", 2, 16),), speed=15, sense=28, nibbles=(1, 3), take_window=0.75,
             take_chance=0.85, caution=0.8, lure=1.1, power=0.38, stamina=0.6, jumps=0.1, shape="roach",
             height=0.38, colours=((78, 90, 66), (200, 184, 124), (230, 218, 180), (218, 64, 40), (78, 90, 66)),
             count=3, lore="Golden flanks and red fins, just under the surface."),
     Species("tench", "Tench", (25, 55), 1.5,
-            ((200, 286, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
+            ((224, 310, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
             take_chance=0.7, caution=1.2, lure=0.7, power=0.7, stamina=1.2, jumps=0.0, shape="carp",
             height=0.4, colours=((52, 68, 38), (94, 110, 54), (150, 148, 88), (66, 80, 42), (52, 68, 38)),
             count=2, lore="The doctor fish, olive and slimy, grubbing in the weedy shallows."),
     Species("perch", "Perch", (15, 40), 0.9,
-            ((66, 112, "surface", 6, 40), (232, 294, "surface", 4, 24)), speed=17, sense=30, nibbles=(1, 3),
+            ((90, 136, "surface", 6, 40), (256, 318, "surface", 4, 24)), speed=17, sense=30, nibbles=(1, 3),
             take_window=0.7, take_chance=0.85, caution=0.8, lure=1.3, power=0.5, stamina=0.8, jumps=0.15,
             shape="perch", height=0.42,
             colours=((64, 92, 48), (150, 160, 72), (214, 206, 150), (212, 92, 40), (44, 58, 30)),
             count=3, lore="Lurks by the drop-off and the reeds; a twitch draws it."),
     Species("bream", "Bream", (30, 56), 1.3,
-            ((104, 222, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
+            ((128, 246, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
             take_chance=0.7, caution=1.3, lure=0.8, power=0.6, stamina=1.0, jumps=0.0, shape="bream",
             height=0.5, colours=((96, 84, 52), (168, 146, 92), (204, 192, 150), (88, 76, 56), (96, 84, 52)),
             count=2, lore="Grubs on the bottom of the deep water, slow to make up its mind."),
     Species("carp", "Carp", (40, 82), 2.0,
-            ((124, 206, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
+            ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
             take_chance=0.6, caution=1.6, lure=0.6, power=0.95, stamina=1.6, jumps=0.05, shape="carp",
             height=0.42, colours=((84, 74, 38), (166, 136, 58), (210, 182, 112), (124, 82, 48), (70, 60, 30)),
             count=2, lore="The old one of the hollow: many nibbles, then a slow, sliding take."),
     Species("pike", "Pike", (45, 100), 2.4,
-            ((228, 294, "surface", 6, 26), (84, 112, "surface", 10, 36)), speed=24, sense=40, nibbles=(0, 0),
+            ((252, 318, "surface", 6, 26), (108, 136, "surface", 10, 36)), speed=24, sense=40, nibbles=(0, 0),
             take_window=0.6, take_chance=1.0, caution=0.6, lure=2.6, power=1.05, stamina=1.3, jumps=0.45,
             shape="pike", height=0.2,
             colours=((48, 78, 50), (106, 138, 78), (210, 208, 168), (138, 100, 58), (206, 204, 132)),
             count=2, lore="Waits in the weeds and strikes at what moves, without a nibble."),
     Species("eel", "Eel", (40, 90), 1.8,
-            ((70, 232, "bottom", 1, 5),), speed=12, sense=26, nibbles=(2, 4), take_window=0.9,
+            ((94, 256, "bottom", 1, 5),), speed=12, sense=26, nibbles=(2, 4), take_window=0.9,
             take_chance=0.75, caution=1.0, lure=0.8, power=0.75, stamina=1.2, jumps=0.0, shape="eel",
             height=0.13, colours=((40, 40, 30), (70, 66, 44), (128, 116, 72), (52, 50, 36), (40, 40, 30)),
             count=2, night_only=True, lore="Only comes out of the mud at night."),
     Species("golden_carp", "Golden Carp", (45, 86), 6.0,
-            ((124, 206, "bottom", 2, 10),), speed=11, sense=22, nibbles=(4, 8), take_window=1.1,
+            ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(4, 8), take_window=1.1,
             take_chance=0.55, caution=1.8, lure=0.6, power=1.0, stamina=1.7, jumps=0.05, shape="carp",
             height=0.42, colours=((196, 128, 30), (236, 186, 70), (250, 226, 140), (220, 110, 40), (180, 110, 20)),
             count=0, lore="A rare gold one among the carp. Few have seen it."),
     Species("minnow", "Minnows", (4, 7), 0.0,
-            ((60, 210, "surface", 2, 18),), speed=19, sense=30, nibbles=(3, 7), take_window=0.0,
+            ((84, 234, "surface", 2, 18),), speed=19, sense=30, nibbles=(3, 7), take_window=0.0,
             take_chance=0.0, caution=0.3, lure=1.2, power=0.0, stamina=0.1, jumps=0.0, shape="roach",
             height=0.32, colours=((90, 104, 100), (176, 190, 184), (210, 214, 206), (150, 150, 140), (90, 104, 100)),
             count=3, minnow=True, lore="Pluck at the worm and are far too small for the hook."),

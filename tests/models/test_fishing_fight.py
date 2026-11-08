@@ -17,7 +17,7 @@ from src.models.minigames.fishing_pond import Fish, SPECIES
 from src.models.statistics import Statistics
 
 DT = 1 / 60
-TIP = (40.0, 30.0)
+TIP = (64.0, 30.0)
 SMALL = ("roach", 20)
 BIG = ("pike", 100)
 
@@ -26,7 +26,7 @@ def make_fight(kind, seed=1, hand=0.5):
     rng = random.Random(seed)
     fish = Fish(SPECIES[kind[0]], rng)
     fish.cm = kind[1]
-    fish.x, fish.y = 170.0, 90.0
+    fish.x, fish.y = 194.0, 90.0
     return Fight(fish, 0.8, TIP, rng, hand)
 
 
@@ -71,7 +71,7 @@ class TestInTheRealOverlay:
         rng = random.Random(seed)
         fish = Fish(SPECIES[kind[0]], rng)
         fish.cm = kind[1]
-        fish.x, fish.y = 170.0, 90.0
+        fish.x, fish.y = 194.0, 90.0
         minigame.pond.fish.append(fish)
         minigame._start_fight(fish, 0.8, "GOOD STRIKE")
         minigame.lmb = True

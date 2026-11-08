@@ -94,6 +94,7 @@ HOURS_OF_WORK = 3.0             # a whole session takes this long: the clock has
 READY_THETA = 26.0              # the rod's angle from upright, held out over the water
 THETA_RANGE = (-88.0, 72.0)
 DEG_PER_PX = 0.32               # how far the rod turns for a pixel the mouse moves
+BACK_MIN_PX = 120               # the least the mouse has to go for a full back-swing (see _rod_target)
 ROD_SPRING = 700.0              # how stiffly the rod follows the hand (1/s²)
 ROD_DAMPING = 40.0
 SWEET_THETA = 8.0               # let go here: a little ahead of upright
@@ -183,7 +184,7 @@ _TOP_BAR, _BOTTOM_BAR, _MARGIN = 44, 46, 6
 _CANVAS_W = SCENE_W + 2 * _MARGIN
 _CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
-_BAR = pygame.Rect(44, 42, SCENE_W - 88, 26)   # the fight's bar, in the scene's pixels
+_BAR = pygame.Rect(140, 42, SCENE_W - 184, 26)   # the fight's bar, in the scene's pixels, over the water
 _METER_W, _METER_H = 260, 9                    # the line's strain and the fish's strength under it
 
 _INK = (44, 32, 22)
@@ -760,7 +761,7 @@ class FishingMinigame(MinigameOverlay):
 
     def _track_mouse(self, pos: Tuple[int, int]) -> None:
         sx, _ = self._to_scene(pos)
-        self.lean = _clamp((sx - SCENE_W * 0.42) / (SCENE_W * 0.3), -1.0, 1.0)
+        self.lean = _clamp((sx - (_BAR.left + 460)) / 360, -1.0, 1.0)
         self.hand = (sx - _BAR.left) / _BAR.width
 
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -796,8 +797,7 @@ class FishingMinigame(MinigameOverlay):
             while self.mouse_trail and now - self.mouse_trail[0][0] > STRIKE_WINDOW_S:
                 self.mouse_trail.popleft()
             if self.phase == DRAW:
-                self.theta_target = min(THETA_RANGE[1], max(THETA_RANGE[0],
-                                        READY_THETA + (event.pos[0] - self.press_x) * DEG_PER_PX))
+                self.theta_target = self._rod_target(event.pos[0])
             elif self.phase == WAIT and len(self.mouse_trail) >= 2:
                 t0, y0 = self.mouse_trail[0]
                 rise = y0 - event.pos[1]
@@ -833,6 +833,19 @@ class FishingMinigame(MinigameOverlay):
             elif self.phase == WAIT and held < TAP_S:
                 self._twitch()
 
+    def _rod_target(self, mouse_x: int) -> float:
+        """The rod's angle for the mouse here while drawing a cast.
+
+        Pressed too near the frame's left edge for a full back-swing at the usual rate, the way back
+        is geared up, so that the whole of it can be done inside the frame.
+        """
+        moved = mouse_x - self.press_x
+        rate = DEG_PER_PX
+        if moved < 0:
+            room = max(BACK_MIN_PX, self.press_x - self.canvas_rect.left - _SCENE_RECT.left)
+            rate = max(DEG_PER_PX, (READY_THETA - THETA_RANGE[0]) / room)
+        return min(THETA_RANGE[1], max(THETA_RANGE[0], READY_THETA + moved * rate))
+
     def _session_over(self) -> bool:
         """Finished, or the last worm is used (a fish on it is lost or landed by then) and only the ending is left."""
         return self.phase == DONE or self.worms <= 0
@@ -855,7 +868,7 @@ class FishingMinigame(MinigameOverlay):
     def _release_cast(self) -> None:
         omega = self.omega                          # degrees a second, + towards the water
         if omega < MIN_WHIP_DEG_S:
-            self._popup("Drag back, then whip it forward!", _WARN, (130, 30))
+            self._popup("Drag back, then whip it forward!", _WARN, (154, 30))
             self.phase = READY
             self.theta_target = READY_THETA
             return
@@ -879,7 +892,7 @@ class FishingMinigame(MinigameOverlay):
     def _land_cast(self) -> None:
         x = min(self.hook_x, LOW_W - 5)
         if x <= BANK_EDGE + 4:
-            self._popup("Too short!", _WARN, (max(x, 60), 52))
+            self._popup("Too short!", _WARN, (max(x, 84), 52))
             self._start_retrieve()
             return
         soft = self.cast_label.startswith("PERFECT")
@@ -1453,8 +1466,8 @@ class FishingMinigame(MinigameOverlay):
         if self.phase == FIGHT and self.fight is not None:
             self._draw_fight_bar(surf, _BAR)
             y = _BAR.bottom + 36
-            self._draw_fight_meters(surf, pygame.Rect(SCENE_W // 2 - _METER_W - 60, y, _METER_W, _METER_H),
-                                    pygame.Rect(SCENE_W // 2 + 60, y, _METER_W, _METER_H))
+            self._draw_fight_meters(surf, pygame.Rect(_BAR.centerx - _METER_W - 60, y, _METER_W, _METER_H),
+                                    pygame.Rect(_BAR.centerx + 60, y, _METER_W, _METER_H))
         # The line straining: the edges glow red
         if self.phase == FIGHT and self.fight is not None and self.fight.strain > 0.05:
             glow = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
