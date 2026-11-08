@@ -146,3 +146,15 @@ def test_the_page_draws_and_leaves_the_game_drawing_after(display):
     m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
     m.update(DT)
     m.draw()
+
+
+def test_the_words_fit_their_cards(display):
+    font = _minigame(display).font_words
+    for card, (_, words) in zip(tutorial._LAYOUT.card_rects(), tutorial.CARDS):
+        width, lines, x = card.width - 28, 1, 0
+        for word in words.replace("*", "").split():
+            w = font.size(word)[0]
+            if x and x + w > width:
+                lines, x = lines + 1, 0
+            x += w + font.size(" ")[0]
+        assert card.top + 50 + tutorial._LAYOUT.picture_h + 16 + lines * 27 <= card.bottom

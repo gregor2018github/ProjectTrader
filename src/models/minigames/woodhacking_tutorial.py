@@ -27,12 +27,12 @@ TITLE = "How to Swing the Axe"
 BUTTON = "To the axe!"
 #: Each card: its heading, and its words, *these* in red ink
 CARDS = (
-    ("Gather power", "*Hold* the left mouse button and the power rises. *Let go* in the green. "
-                     "After a good swing the green moves."),
-    ("Mind the plumb bob", "It never rests, and it swings *faster* while you hold. "
-                           "Its best place is right in the *middle*."),
-    ("Strike!", "Let go when power and plumb bob both stand *in the green*: the log splits. "
-                "The nearer their middles, the more you earn."),
+    ("Gather power", "*Hold* the left mouse button to raise your power. *Let loose* in the green. "
+                     "Too little or too much means a miss."),
+    ("Mind the plumb bob", "Your aim meter never rests its swing. Time your hit so that your swing is "
+                           "let loose in the *green*."),
+    ("Strike!", "Well-tempered, well-timed hits *split the wood* and bring more points. Repeated hits "
+                "give bonus points, and perfect hits even grant *extra swings*."),
 )
 
 _LAYOUT = SheetLayout(card_widths=(268, 268, 396), cards_bottom=532, picture_h=244, button_y=572)
