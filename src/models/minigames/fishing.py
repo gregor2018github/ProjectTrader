@@ -32,15 +32,20 @@ movement of the mouse and in what the pond shows.
                 reel gains nothing, the fish drags line out and the line takes
                 more strain. Any but the tiniest fish strains the line while it
                 runs (``PULL_FORCE``), and the strain hardly eases until the
-                button is let go, so reel in bursts. Now and then the fish braces itself (the bar flashes)
-                and rages: hold on through that and the line snaps, so let go
-                until it calms, and reel while it is spent. A fish shaking its
-                head wants a tight line, or the hook slips out; a leaping one a
-                slack one (let go while it is in the air), or it throws the hook.
-                A slack line lets it get its strength back. A bigger fish
+                button is let go, so reel in bursts. Now and then the fish braces
+                itself (the bar flashes) and rages: let go until it calms, and
+                reel while it is spent.
+                The fish is lost only when its power (``Fight.stamina``, the
+                bar under the marker) is full. It starts at half or a little
+                under (``FRESH_POWER``), falls while it is reeled and rises while
+                the line is let go. A line strained to its limit gives way a
+                little and hands the fish a jump of power (``OVERLOAD_POWER``),
+                as does holding on to a leaping fish; a slack line on a fish
+                shaking its head lets it gain faster. A bigger fish
                 (``Fight.heft``) has a narrower zone, a faster marker, rages
-                more often and for longer and strains the line more. Once beaten
-                and near the bank it is netted.
+                more often and for longer and gains more from an overload. Once
+                its power is low (``LAND_STAMINA``) and it is near the bank it
+                is netted.
 
 Coins come only for fish brought in: the kind's value, times its size against
 the usual, times the cast's grade (``fish_coins``), booked as it lands. A
@@ -119,18 +124,26 @@ REEL_SPEED = 20.0
 OFF_MARK_DRAG = 0.5             # off the marker, a fish drags out this share of its swim (the line stays taut)
 OFF_MARK_TENSION = (0.25, 0.8)  # what being off the marker adds to the tension, lightest to heaviest fish
 SNAP_TENSION = 0.9              # the line takes strain above this tension
-STRAIN_RATE = 2.6               # strain a second for each unit of tension above it (a full 1 snaps it)
+STRAIN_RATE = 2.6               # strain a second for each unit of tension above it (at 1 the line gives way)
 MAX_TENSION = 1.7
 # How hard a running fish pulls on a held line, by its heft: only the tiniest can be simply held
 PULL_FORCE = ((0.0, 1.05), (0.06, 1.2), (0.1, 1.75), (1.0, 1.75))
 FIGHT_ANCHOR = rod_points(20.0, 0.0)[-1]   # the fight measures the line from here: not the moving tip (see below)
 TINY_HEFT = 0.06                # a fish no heftier than this never rages
-ENDURANCE = 1.6                 # how long fish fight, for all kinds
+ENDURANCE = 2.4                 # how long fish fight, for all kinds
+MAX_ENDURANCE = 1.9             # the biggest are hard through their pull, not through taking for ever
 STRAIN_EASE_HOLDING = 0.08      # the strain the line sheds a second while the reel is still held
 STRAIN_EASE_LET_GO = 0.6        # and once it is let go
-FISH_TIRE_RUNNING = 0.015       # the stamina a fish spends a second running on a let-go line
 SLACK_TENSION = 0.1             # a line this slack lets the hook work loose, slowly
-FISH_RECOVERY = 0.025           # the stamina a fish gets back a second while the line is let go
+# The fish's power, 0 to 1: full, and it is lost
+FRESH_POWER = (0.4, 0.5)        # what it starts with
+FRESH = 0.5                     # at this power it fights as a fresh fish; above it, harder still
+FISH_RECOVERY = 0.045           # the power it gets back a second while the line is let go
+OVERLOAD_POWER = (0.38, 0.42)   # what a line giving way hands it, lightest to heaviest fish
+OVERLOAD_GIVE = 8.0             # and the line it runs out then, low px
+OVERLOAD_STRAIN = 0.5           # the strain left on the line after that
+LEAP_HELD_POWER = 0.15          # what holding on to a leaping fish hands it, for a perfect strike's hook
+SHAKE_SLACK_POWER = 0.08        # what a slack line on a fish shaking its head adds a second, likewise
 # The marker on the bar, in shares of the bar's width, lightest to heaviest fish
 BAR_ZONE = (0.085, 0.04)        # half the width of the zone to keep the mouse in
 BAR_FALLOFF = 1.0               # the grip is gone this many zone widths outside it
@@ -148,7 +161,7 @@ RAGE_SPEED = 2.0                # its speed, of the kind's fair swim
 RAGE_PULL = (1.05, 1.55)        # how hard it pulls on a held line when fresh
 RAGE_DRAIN = 0.06               # the stamina the rage costs it a second, on a let-go line
 RAGE_REST_S = 0.9               # spent after it: the moment to reel
-LAND_STAMINA = 0.32             # beaten: it can be netted near the bank
+LAND_STAMINA = 0.16             # beaten: it can be netted near the bank
 LAND_ZONE = (BANK_EDGE + 26, WATER_Y + 22)
 NET_S = 0.8
 LIFT_S = 0.5
@@ -258,12 +271,11 @@ class Fight:
         self.heft = (self.power - 0.25) / 1.05     # 0 the lightest fish, 1 the heaviest: the fight's difficulty
         self.zone = _lerp(BAR_ZONE, self.heft)
         self.force = _pull_force(self.heft)
-        self.endurance = ENDURANCE * sp.stamina * self.size ** 0.5
-        self.stamina = 1.0
+        self.endurance = min(MAX_ENDURANCE, ENDURANCE * sp.stamina * self.size ** 0.5)
+        self.stamina = rng.uniform(*FRESH_POWER)
         self.line = math.hypot(fish.x - tip[0], fish.y - tip[1]) + 1
         self.T = 0.35
         self.strain = 0.0
-        self.slip = 0.0
         self.t = 0.0
         self.track = 1.0                # how well the mouse is under the marker, 0 to 1
         # The marker starts over the mouse, so the fight does not start with the mouse off it
@@ -275,6 +287,11 @@ class Fight:
         self.jump_phase = ""
         self.held_in_air = 0.0
         self.air_v = [0.0, 0.0]
+
+    @property
+    def vigor(self) -> float:
+        """How hard it fights: 1 as a fresh fish, more as its power climbs."""
+        return self.stamina / FRESH
 
     def _run_dir(self, away: bool) -> Tuple[float, float]:
         vx = 1.0 if away else -1.0
@@ -295,7 +312,7 @@ class Fight:
 
     def _swing(self, dt: float) -> None:
         """The marker eases from turning point to turning point, faster for a bigger, fresher fish."""
-        speed = _lerp(BAR_SPEED, self.heft) * BAR_MODE_SPEED.get(self.mode, 1.0) * (0.65 + 0.35 * self.stamina)
+        speed = _lerp(BAR_SPEED, self.heft) * BAR_MODE_SPEED.get(self.mode, 1.0) * (0.65 + 0.35 * self.vigor)
         self.leg_t += dt * speed / max(0.01, self.leg_len)
         k = _clamp(self.leg_t)
         self.bar_x = self.leg_from + (self.leg_to - self.leg_from) * k * k * (3 - 2 * k)
@@ -313,7 +330,7 @@ class Fight:
         self._new_leg()
 
     def _pick(self) -> None:
-        s = self.stamina
+        s = min(1.0, self.vigor)
         sp = self.fish.species
         options = [("run", 2.5 * s + 0.4), ("shake", 1.4), ("rest", 0.5 + 2.0 * (1 - s)),
                    ("dive", 1.0 if self.fish.zone[2] == "bottom" else 0.3)]
@@ -346,13 +363,13 @@ class Fight:
 
     def update(self, dt: float, tip: Tuple[float, float], reeling: bool, hand: float) -> List[str]:
         """dt seconds of the fight, hand being the mouse as a share of the bar; returns what happened:
-        "snap", "slip", "thrown", "rise", "jump_out", "jump_in", "kept", "brace", "rage", "calm", "land"."""
+        "free" (its power is full: the only way to lose it), "overload", "wrench", "rise", "jump_out", "jump_in", "kept", "brace", "rage", "calm", "land"."""
         f, sp = self.fish, self.fish.species
         events: List[str] = []
         self.t += dt
         self._swing(dt)
         self.track = self.tracking(hand)
-        strength = 0.3 + 0.7 * self.stamina
+        strength = 0.3 + 0.7 * self.vigor
         if self.mode == "jump":
             return self._update_jump(dt, tip, reeling, events)
         self.mode_t -= dt
@@ -394,7 +411,7 @@ class Fight:
         out = away / (speed * 1.5)
         pull = out * self.force
         if self.mode == "rage":
-            pull = _lerp(RAGE_PULL, self.heft) * (0.6 + 0.4 * self.stamina)
+            pull = _lerp(RAGE_PULL, self.heft) * (0.6 + 0.4 * self.vigor)
         elif self.mode == "shake":
             pull += 0.25 * self.power * abs(math.sin(self.t * 26))
         off = 1 - self.track
@@ -424,13 +441,11 @@ class Fight:
         self.T += (min(MAX_TENSION, target) - self.T) * min(1.0, dt * 9)
         self._strain_and_slack(dt, events, reeling)
         if reeling:
-            drain = (0.03 + 0.12 * self.T) * (0.35 + 0.65 * self.track) / self.endurance
+            drain = FRESH * (0.04 + 0.16 * self.T) * (0.35 + 0.65 * self.track) / self.endurance
         elif self.mode == "rage":
-            drain = RAGE_DRAIN / self.endurance
-        elif self.mode in ("run", "dive"):
-            drain = FISH_TIRE_RUNNING / self.endurance
+            drain = FRESH * RAGE_DRAIN / self.endurance
         else:
-            drain = -FISH_RECOVERY                  # lying on a let-go line: it gets its strength back
+            drain = -FISH_RECOVERY * (1.5 - 0.5 * self.hold)   # a let-go line: it gets its power back
         self.stamina = _clamp(self.stamina - drain * dt)
         f.tired = self.stamina < LAND_STAMINA and self.mode == "rest"
         if self.stamina < LAND_STAMINA and f.x < LAND_ZONE[0] and f.y < LAND_ZONE[1]:
@@ -443,15 +458,14 @@ class Fight:
         else:
             self.strain = max(0.0, self.strain - dt * (STRAIN_EASE_HOLDING if reeling else STRAIN_EASE_LET_GO))
         if self.strain >= 1:
-            events.append("snap")
+            self.strain = OVERLOAD_STRAIN
+            self.stamina = _clamp(self.stamina + _lerp(OVERLOAD_POWER, self.heft))
+            self.line += OVERLOAD_GIVE
+            events.append("overload")
         if self.mode == "shake" and self.T < 0.17:
-            self.slip += dt * (1.3 - self.hold) * 1.1
-        elif self.mode not in ("rage", "brace", "jump") and self.T < SLACK_TENSION:
-            self.slip += dt * (1.3 - self.hold) * 0.3
-        else:
-            self.slip = max(0.0, self.slip - dt * 0.4)
-        if self.slip >= 1:
-            events.append("slip")
+            self.stamina = _clamp(self.stamina + SHAKE_SLACK_POWER * (1.3 - self.hold) * dt)
+        if self.stamina >= 1:
+            events.append("free")
 
     def _update_jump(self, dt: float, tip: Tuple[float, float], reeling: bool, events: List[str]) -> List[str]:
         f = self.fish
@@ -480,9 +494,10 @@ class Fight:
                 f.angle = 0.0
                 f.y = WATER_Y + 2
                 events.append("jump_in")
-                if self.held_in_air > 0.2 and self.rng.random() < 0.75 * (1.25 - self.hold):
-                    events.append("thrown")
-                elif self.held_in_air <= 0.2:
+                if self.held_in_air > 0.2:
+                    self.stamina = _clamp(self.stamina + LEAP_HELD_POWER * (1.25 - self.hold))
+                    events.append("wrench")
+                else:
                     events.append("kept")
                 self.mode, self.mode_t = "run", self.rng.uniform(0.6, 1.2)
                 self.dir = self._run_dir(away=True)
@@ -955,30 +970,33 @@ class FishingMinigame(MinigameOverlay):
                 self._play("splash_", 0.4)
             elif ev == "kept":
                 self._popup("Well kept!", _GOOD, (fish.x, WATER_Y - 18), life=1.2)
-            elif ev in ("snap", "slip", "thrown"):
-                self._lose_fish(ev)
+            elif ev == "overload":
+                self.kick = -18.0
+                self._play_synth("twang", 0.3)
+                self._popup("The line gives: he gains power!", _BAD, (fish.x, WATER_Y - 14), life=1.3)
+            elif ev == "wrench":
+                self._popup("You held on: he gains power!", _BAD, (fish.x, WATER_Y - 18), life=1.2)
+            elif ev == "free":
+                self._lose_fish()
                 return
             elif ev == "land":
                 self._start_landing()
                 return
 
-    def _lose_fish(self, how: str) -> None:
+    def _lose_fish(self) -> None:
+        """Its power is full: it breaks free, hook and worm with it, and lives on in the pond."""
         fish = self.fight.fish
-        text = {"snap": "The line snapped!", "slip": "The hook slipped out!", "thrown": "He threw the hook!"}[how]
-        self._popup(text, _BAD, (fish.x, WATER_Y - 14), big=True, life=2.0)
-        if how == "snap":
-            self._play_synth("twang", 0.6)
-            self.pond.remove(fish)
-        else:
-            fish.state = "wander"
-            fish.above_water = False
-            fish.angle = 0.0
-            fish.tired = False
-            fish.flee(None, self.rng)
+        self._popup("He broke free!", _BAD, (fish.x, WATER_Y - 14), big=True, life=2.0)
+        self._play_synth("twang", 0.6)
+        fish.state = "wander"
+        fish.above_water = False
+        fish.angle = 0.0
+        fish.tired = False
+        fish.flee(None, self.rng)
         self.fight = None
         self._stop_hum()
         self._use_worm()
-        self._start_retrieve(from_tip=(how == "snap"))
+        self._start_retrieve(from_tip=True)
 
     def _start_landing(self) -> None:
         self._stop_hum()
@@ -1290,7 +1308,7 @@ class FishingMinigame(MinigameOverlay):
             if mode == "jump":
                 return "He leaps: let go while he is in the air!", _shade_text(_BAD)
             if self.fight.T > SNAP_TENSION:
-                return "The line is straining: let go before it snaps!", _shade_text(_BAD)
+                return "The line is straining: let go, or he gains power!", _shade_text(_BAD)
             return "Hold to reel, keeping the mouse under the marker   |   Let go when the line strains", _INK
         if self.phase == CARD:
             return "Click to go on", PALE_BROWN
@@ -1362,7 +1380,10 @@ class FishingMinigame(MinigameOverlay):
         # The line's strain and the fish's strength
         y = _BAR.bottom + 36
         self._draw_meter(surf, "Line", fight.strain, _BAD, (SCENE_W // 2 - _METER_W - 60, y))
-        self._draw_meter(surf, "Fish", fight.stamina, _WARN, (SCENE_W // 2 + 60, y))
+        power = _mix_rgb(_WARN, _BAD, _clamp((fight.stamina - 0.6) / 0.3))
+        self._draw_meter(surf, "Fish", fight.stamina, power, (SCENE_W // 2 + 60, y))
+        beaten = SCENE_W // 2 + 60 + round(_METER_W * LAND_STAMINA)    # below this mark it can be netted
+        pygame.draw.line(surf, _PAPER, (beaten, y - 2), (beaten, y + _METER_H + 1), 1)
 
     def _draw_meter(self, surf: pygame.Surface, name: str, level: float, colour, pos: Tuple[int, int]) -> None:
         rect = pygame.Rect(pos[0], pos[1], _METER_W, _METER_H)

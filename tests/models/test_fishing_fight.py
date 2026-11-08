@@ -41,7 +41,7 @@ def play(fight, player, seconds=120.0):
     while fight.t < seconds:
         reeling, hand = player(fight)
         for event in fight.update(DT, TIP, reeling, hand):
-            if event in ("land", "snap", "slip", "thrown"):
+            if event in ("land", "free"):
                 return event
     return "time"
 
@@ -88,12 +88,12 @@ class TestInTheRealOverlay:
                 tensions.append(fight.T)
         assert min(tensions) > fishing.SNAP_TENSION
 
-    def test_holding_on_the_marker_snaps_the_line_of_a_big_fish(self, minigame):
+    def test_holding_on_the_marker_loses_a_big_fish(self, minigame):
         fight = self.hold_on_marker(minigame, BIG)
         while minigame.phase == fishing.FIGHT and fight.t < 60:
             minigame.hand = fight.bar_x
             minigame.update(DT)
-        assert any("snapped" in popup[0] for popup in minigame.popups)
+        assert any("broke free" in popup[0] for popup in minigame.popups)
 
 
 class TestMarker:
@@ -137,6 +137,7 @@ class TestReeling:
         for fight in (on, off):         # running straight away from the rod, the line taut
             fight.mode, fight.mode_t, fight.dir = "run", 99.0, (1.0, 0.0)
         for _ in range(60):
+            on.strain = off.strain = 0.0        # no line giving way: only the tension is watched here
             on.update(DT, TIP, True, on.bar_x)
             off.update(DT, TIP, True, off.bar_x + 0.5)
         assert off.T > on.T + 0.2
@@ -166,16 +167,19 @@ class TestRage:
         assert fight.mode == "rest"
         assert fight.mode_t == pytest.approx(fishing.RAGE_REST_S)
 
-    def test_holding_on_through_it_snaps_the_line(self):
+    def test_holding_on_through_it_overloads_the_line_and_feeds_the_fish(self):
         fight = self.rage(BIG)
         fight.update(DT, TIP, True, fight.bar_x)
         fight.mode_t = 99.0
+        power = fight.stamina
         events = []
         for _ in range(60 * 5):
             events += fight.update(DT, TIP, True, fight.bar_x)
-            if "snap" in events:
+            if "overload" in events:
                 break
-        assert "snap" in events
+        assert "overload" in events
+        assert fight.stamina > power + 0.1
+        assert fight.strain == pytest.approx(fishing.OVERLOAD_STRAIN)
 
     def test_letting_go_through_it_saves_the_line_but_gives_it_line(self):
         fight = self.rage(BIG)
@@ -185,9 +189,50 @@ class TestRage:
         events = []
         for _ in range(60 * 4):
             events += fight.update(DT, TIP, False, fight.bar_x)
-        assert "snap" not in events
+        assert "overload" not in events
         assert fight.strain == 0.0
         assert fight.line > line
+
+
+class TestPower:
+    @pytest.mark.parametrize("seed", range(10))
+    def test_it_starts_at_half_or_a_little_under(self, seed):
+        assert 0.4 <= make_fight(BIG, seed).stamina <= 0.5
+
+    def test_starts_vary(self):
+        assert len({make_fight(BIG, seed).stamina for seed in range(10)}) > 1
+
+    def test_it_regains_it_while_the_line_is_let_go(self):
+        fight = calm_at_rest(make_fight(SMALL))
+        power = fight.stamina
+        for _ in range(60):
+            fight.update(DT, TIP, False, fight.bar_x)
+        assert fight.stamina == pytest.approx(power + fishing.FISH_RECOVERY * (1.5 - 0.5 * fight.hold), abs=0.002)
+
+    def test_full_power_is_lost_and_nothing_else_loses_it(self):
+        seen = set()
+        for seed in range(10):
+            fight = make_fight(BIG, seed)
+            for _ in range(60 * 30):
+                fight.stamina = 0.3             # never near full: nothing else may lose it
+                seen.update(fight.update(DT, TIP, True, fight.bar_x + 0.5))
+        assert "overload" in seen
+        assert "free" not in seen
+        assert not seen & {"snap", "slip", "thrown"}
+
+    def test_full_power_breaks_free(self):
+        fight = calm_at_rest(make_fight(SMALL))
+        fight.stamina = 1.0
+        assert "free" in fight.update(DT, TIP, False, fight.bar_x)
+
+    def test_holding_on_to_a_leaping_fish_feeds_it(self):
+        fight = make_fight(BIG)
+        fight.mode, fight.jump_phase, fight.held_in_air = "jump", "air", 0.5
+        fight.air_v = [0.0, 10.0]
+        fight.fish.y = 66.0
+        power = fight.stamina
+        assert "wrench" in fight.update(DT, TIP, True, fight.bar_x)
+        assert fight.stamina > power
 
 
 class TestOnlyTheTiniestCanBeHeld:
@@ -202,7 +247,7 @@ class TestOnlyTheTiniestCanBeHeld:
         assert self.landed(kind) >= 36
 
     @pytest.mark.parametrize("kind", (("roach", 24), ("roach", 32), ("perch", 25), ("bream", 40), ("tench", 35)))
-    def test_anything_more_mostly_snaps_the_line(self, kind):
+    def test_anything_more_mostly_gets_away(self, kind):
         assert self.landed(kind) <= 12
 
     @pytest.mark.parametrize("kind", (("carp", 55), ("pike", 65), ("pike", 100)))
@@ -230,9 +275,9 @@ class TestBiggerIsHarder:
                 for _ in range(60 * 40):
                     fight.update(DT, TIP, False, fight.bar_x)
                     total += DT if fight.mode == "rage" else 0.0
-                    fight.slip = 0.0
+                    fight.stamina = 0.45
             return total
-        assert rage_seconds(BIG) > 2 * rage_seconds(SMALL)
+        assert rage_seconds(BIG) > 1.5 * rage_seconds(SMALL)
 
     def test_holding_on_blindly_loses_the_big_one(self):
         assert sum(play(make_fight(BIG, seed), lambda f: (True, f.bar_x)) == "land" for seed in range(20)) < 5
