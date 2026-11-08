@@ -48,6 +48,7 @@ PX = 4                                   # each low pixel is this many screen pi
 SCENE_W, SCENE_H = LOW_W * PX, LOW_H * PX
 ROD_LEN = 40.0
 BANK_TOP = 60                            # the player's bank, where his feet stand
+_SHAFT_TOP, _SHAFT_H = WATER_Y + 1, 70   # the band the shafts of light are drawn in
 NIGHT_LIFT = 0.32                        # the night lifted this far towards daylight, to keep it playable
 _SCENERY_SEED = 1517                     # the pond looks the same every time
 
@@ -413,6 +414,7 @@ class PondScene:
         self.stars = [(scenery.randint(0, LOW_W - 1), scenery.randint(0, 40), scenery.uniform(0, 6.28)) for _ in range(46)]
         self.clouds = [self._new_cloud(anywhere=True) for _ in range(int(1 + 6 * c.clouds + 3 * c.storm))]
         self.shafts = [scenery.uniform(40, LOW_W) for _ in range(4)]
+        self._shaft_water = self._build_shaft_water()
         self.fireflies = [[self.rng.uniform(20, 70) if i % 2 else self.rng.uniform(232, 296),
                            self.rng.uniform(38, 62), self.rng.uniform(0, 6.28)] for i in range(10)]
         self.duck_x, self.duck_dir = 236.0, -1
@@ -598,6 +600,26 @@ class PondScene:
             if x % 2 == 0 and not snow:
                 _px(s, x, int(top) - 1, _shade(grass, 0.85))
         return s
+
+    @staticmethod
+    def _build_shaft_water() -> pygame.Surface:
+        """White where a shaft of light may show: the water, not the bank or the bottom."""
+        s = pygame.Surface((LOW_W, _SHAFT_H), pygame.SRCALPHA)
+        for x in range(LOW_W):
+            depth = int(bottom_y(x)) - _SHAFT_TOP
+            if depth > 0:
+                s.fill((255, 255, 255, 255), (x, 0, 1, depth))
+        return s
+
+    def _shaft_layer(self, day: float) -> pygame.Surface:
+        """The shafts of light under the surface, cut to the water; its top row is _SHAFT_TOP."""
+        shaft = pygame.Surface((LOW_W, _SHAFT_H), pygame.SRCALPHA)
+        for x0 in self.shafts:
+            for k in range(0, 60, 2):
+                a = round(30 * day * (1 - k / 60))
+                shaft.fill((214, 236, 222, a), (x0 - 20 + k * 0.5, k, 5 + k * 0.08, 2))
+        shaft.blit(self._shaft_water, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+        return shaft
 
     def _build_under(self, rng: random.Random) -> pygame.Surface:
         """The water's cross-section and the bottom, without what moves."""
@@ -1049,12 +1071,7 @@ class PondScene:
         # Shafts of light under the surface, by day
         day = (1 - self.night) * (1 - 0.7 * self.c.clouds) * (1 - 0.5 * self.c.rain)
         if day > 0.1:
-            shaft = pygame.Surface((LOW_W, 70), pygame.SRCALPHA)
-            for x0 in self.shafts:
-                for k in range(0, 60, 2):
-                    a = round(30 * day * (1 - k / 60))
-                    shaft.fill((214, 236, 222, a), (x0 - 20 + k * 0.5, k, 5 + k * 0.08, 2))
-            world.blit(shaft, (0, WATER_Y + 1))
+            world.blit(self._shaft_layer(day), (0, _SHAFT_TOP))
         # The surface, rippling, and the rings on it
         for x in range(BANK_EDGE - 1, LOW_W):
             off = math.sin(x * 0.35 + self.t * 1.7) * 0.5 + math.sin(x * 0.13 - self.t * 1.1) * 0.5
