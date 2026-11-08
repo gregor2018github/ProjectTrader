@@ -443,6 +443,10 @@ def test_going_back_carries_on_with_the_session(monkeypatch, answer):
     assert not m.charging                        # the click answering is no swing
 
 
+def test_the_exit_question_says_there_is_no_money():
+    assert "no money" in wh._EXIT_TEXT
+
+
 def test_exiting_early_pays_nothing_and_is_no_session_played(monkeypatch):
     m, game, booked = _timed_minigame(monkeypatch)
     m.aim, m.power = math.radians(-5), (m.opt_lo + m.opt_hi) / 2     # a good swing, worth points

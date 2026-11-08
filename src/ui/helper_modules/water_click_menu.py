@@ -67,6 +67,32 @@ def get_hovered_water(
     return None
 
 
+def fishing_available(game_state: 'GameState') -> bool:
+    """Whether today's fishing is still to be done (the fishing is once a day)."""
+    game = getattr(game_state, 'game', None)
+    if game is None:
+        return False
+    return game.depot.stats.last_fishing_day != game_state.date.date().isoformat()
+
+
+def open_fishing(game_state: 'GameState') -> bool:
+    """Start the day's fishing, or say it has been done; whether it started.
+
+    The day counts as fished from here on, however the session ends, as the woodhacking's does.
+    """
+    game_state.info_window = None
+    game_state.active_house_menu = None
+    if not fishing_available(game_state):
+        game_state.show_warning("You already went fishing today! Come back tomorrow.")
+        return False
+    from ...models.minigames.fishing import FishingMinigame
+    game_state.game.depot.stats.last_fishing_day = game_state.date.date().isoformat()
+    game_state.previous_time_level = game_state.time_level
+    game_state.time_level = 1
+    game_state.minigame = FishingMinigame(game_state.screen, game_state.game)
+    return True
+
+
 def show_water_menu(game_state: 'GameState', water: 'Water', click_pos: Tuple[int, int]) -> None:
     """Open the generic interaction menu for a clicked water body."""
     options = ["Throw Stone"]

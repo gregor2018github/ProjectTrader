@@ -48,10 +48,11 @@ movement of the mouse and in what the pond shows.
                 is netted.
 
 Escape asks first ("Exit Mini Game now?"), the game waiting for the answer,
-unless the session is over.
+unless the worms are used up and nothing is left to play.
 
 Coins come only for fish brought in: the kind's value, times its size against
-the usual, times the cast's grade (``fish_coins``), booked as it lands. A
+the usual, times the cast's grade (``fish_coins``), added up as they land and
+paid when the session is finished: leaving it early with Escape pays nothing. A
 session is ``WORMS`` worms: one is used up by every fish hooked or lost and
 every worm stolen or snagged; a fish caught on a PERFECT cast with a PERFECT
 strike earns an extra one (``MAX_EXTRA_WORMS`` at most). The fishing is once a day, and the clock moves on
@@ -185,7 +186,8 @@ _BRASS, _BRASS_LIGHT, _BRASS_DARK = (198, 164, 92), (232, 206, 140), (120, 92, 4
 _GOOD, _BAD, _WARN = (150, 214, 120), (226, 110, 86), (236, 186, 96)
 
 _EXIT_TITLE = "Exit Mini Game now?"
-_EXIT_TEXT = "Your coins are kept; the worms left are lost."
+_EXIT_TEXT = "You get no money for this session."
+_EXIT_COINS_TEXT = "You get no money: the {:.2f} coins you earned are lost."
 _EXIT_FISH_TEXT = "The fish on your line gets away."
 
 READY, DRAW, FLIGHT, WAIT, FIGHT, LANDING, CARD, RETRIEVE, STUCK, DONE = (
@@ -715,7 +717,7 @@ class FishingMinigame(MinigameOverlay):
             return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                if self.phase == DONE:          # the session is over: nothing is lost by leaving
+                if self._session_over():        # nothing is lost by leaving
                     self._leave()
                 else:
                     self._ask_to_exit()
@@ -767,9 +769,13 @@ class FishingMinigame(MinigameOverlay):
             elif self.phase == WAIT and held < TAP_S:
                 self._twitch()
 
+    def _session_over(self) -> bool:
+        """Finished, or the last worm is used (a fish on it is lost or landed by then) and only the ending is left."""
+        return self.phase == DONE or self.worms <= 0
+
     def _leave(self) -> None:
-        """Back to the map, the share of HOURS_OF_WORK the worms used took."""
-        if self.phase != DONE:
+        """Back to the map, the share of HOURS_OF_WORK the worms used took. Only a finished session pays."""
+        if self._session_over():
             self._finish()
         used = (self.total_worms - self.worms) / max(1, self.total_worms)
         state = getattr(self.game, "state", None)
@@ -1099,7 +1105,7 @@ class FishingMinigame(MinigameOverlay):
                 record = True
                 records[sp.key] = fish.cm
             stats.fish_caught = getattr(stats, "fish_caught", 0) + 1
-        self._book(coins)
+        self.coins = round(self.coins + coins, 2)
         extra = self.cast_label.startswith("PERFECT") and self.strike_label.startswith("PERFECT")             and self.total_worms - WORMS < MAX_EXTRA_WORMS
         self.catches.append({"name": sp.name, "cm": fish.cm, "coins": coins, "species": sp})
         self.card = {"fish": fish, "coins": coins, "size": size, "record": record, "extra": extra,
@@ -1114,25 +1120,21 @@ class FishingMinigame(MinigameOverlay):
         self.phase = CARD
         self._play("splash_", 0.2)
 
-    def _book(self, coins: float) -> None:
-        """A landed fish's coins, straight into the purse."""
-        if coins <= 0:
-            return
-        self.coins = round(self.coins + coins, 2)
+    def _pay(self) -> None:
+        """The session's coins, into the purse."""
         depot = getattr(self.game, "depot", None)
-        if depot is None:
+        if self.coins <= 0 or depot is None:
             return
-        depot.book_labor_income(coins, MINIGAME_NAME)
-        stats = depot.stats
-        stats.minigame_income_total += coins
+        depot.book_labor_income(self.coins, MINIGAME_NAME)
+        depot.stats.minigame_income_total += self.coins
         state = getattr(self.game, "state", None)
         try:
             from ...ui.transaction_feedback import on_money_received
-            on_money_received(state, coins)
+            on_money_received(state, self.coins)
         except Exception:
             self._play("coin_single_", 0.6)
         if state is not None and hasattr(state, "log_event"):
-            state.log_event("FINANCE", f"Earned {coins:.2f}g fishing")
+            state.log_event("FINANCE", f"Earned {self.coins:.2f}g fishing")
 
     def _after_card(self) -> None:
         self.card = None
@@ -1177,12 +1179,13 @@ class FishingMinigame(MinigameOverlay):
         self._reel_ticks(dt, 0.04)
 
     def _finish(self) -> None:
-        """The session is over: count it, keep the best day."""
+        """The session is over: pay it, count it, keep the best day."""
         self.phase = DONE
         self._stop_hum()
         if self._booked:
             return
         self._booked = True
+        self._pay()
         stats = self._stats()
         if stats is None:
             return
@@ -1551,7 +1554,7 @@ class FishingMinigame(MinigameOverlay):
 
     def _draw_exit_question(self) -> None:
         """Whether to leave a session under way, on a paper box over the shaded scene."""
-        lines = [_EXIT_TEXT]
+        lines = [_EXIT_COINS_TEXT.format(self.coins) if self.coins > 0 else _EXIT_TEXT]
         if self.phase in (FIGHT, LANDING):
             lines.insert(0, _EXIT_FISH_TEXT)
         shade = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)

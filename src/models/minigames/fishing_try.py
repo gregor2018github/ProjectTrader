@@ -12,6 +12,8 @@ gets them:
     F8   the next season
     F10  quit (Escape leaves the session, and a new one starts)
 
+The once-a-day rule (``open_fishing`` in ``water_click_menu.py``) does not apply here.
+
 To be removed once the fishing spot on the map is played for real.
 """
 

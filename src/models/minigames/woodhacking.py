@@ -146,7 +146,7 @@ _HELP_LABEL = "How to play"
 
 # Asked when Escape is pressed with swings still to make; only a finished session pays
 _EXIT_TITLE = "Exit Mini Game now?"
-_EXIT_TEXT = "Progress will be lost."
+_EXIT_TEXT = "You get no money for this session."
 _EXIT_BUTTON_DY = 40           # the buttons' middle, below the box's
 
 # The one-time explanation of a swing perfect on both gauges, shown this long after it

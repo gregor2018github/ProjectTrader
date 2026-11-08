@@ -25,7 +25,9 @@ def minigame():
     screen = pygame.display.set_mode((1920, 1080))
     state = SimpleNamespace(date=datetime.datetime(1500, 1, 4, 10), coin_popups=[], screen=screen,
                             log_event=lambda *a: None)
-    depot = SimpleNamespace(stats=Statistics(), book_labor_income=lambda *a: None)
+    booked = []
+    depot = SimpleNamespace(stats=Statistics(), booked=booked,
+                            book_labor_income=lambda coins, name: booked.append(coins))
     game = SimpleNamespace(state=state, sounds={}, weather=SimpleNamespace(), depot=depot)
     return FishingMinigame(screen, game, random.Random(1))
 
@@ -60,13 +62,59 @@ def test_escape_again_goes_back(minigame):
     assert minigame.active and not minigame.exit_asked
 
 
-def test_enter_leaves_keeping_the_coins_and_counting_the_session(minigame):
-    minigame.coins = 3.5
+def land_a_fish(minigame):
+    fish = Fish(SPECIES["roach"], random.Random(1))
+    minigame.pond.fish.append(fish)
+    minigame.landed = fish
+    minigame.fight = SimpleNamespace(fish=fish)
+    minigame._land_fish()
+    return minigame.coins
+
+
+def test_a_landed_fish_is_not_paid_until_the_session_is_finished(minigame):
+    assert land_a_fish(minigame) > 0
+    assert minigame.game.depot.booked == []
+
+
+def test_exiting_early_pays_nothing_and_is_no_session_played(minigame):
+    land_a_fish(minigame)
     press(minigame, pygame.K_ESCAPE)
     press(minigame, pygame.K_RETURN)
     assert not minigame.active
-    assert minigame.coins == 3.5
-    assert minigame.game.depot.stats.minigames_played == 1
+    stats = minigame.game.depot.stats
+    assert minigame.game.depot.booked == []
+    assert stats.minigame_income_total == 0
+    assert stats.minigames_played == 0
+    assert stats.fishing_highscore == 0
+
+
+def test_a_finished_session_pays_once_all_it_earned(minigame):
+    first = land_a_fish(minigame)
+    second = land_a_fish(minigame) - first
+    minigame._finish()
+    minigame._finish()
+    minigame._leave()
+    stats = minigame.game.depot.stats
+    assert minigame.game.depot.booked == [pytest.approx(first + second)]
+    assert stats.minigame_income_total == pytest.approx(first + second)
+    assert stats.minigames_played == 1
+    assert stats.fishing_highscore == pytest.approx(first + second)
+
+
+def test_escape_with_the_worms_used_up_asks_nothing_and_pays(minigame):
+    coins = land_a_fish(minigame)
+    minigame.worms = 0
+    press(minigame, pygame.K_ESCAPE)
+    assert not minigame.active and not minigame.exit_asked
+    assert minigame.game.depot.booked == [pytest.approx(coins)]
+
+
+def test_the_box_says_how_much_is_lost(minigame):
+    assert fishing._EXIT_COINS_TEXT.format(3.5) == "You get no money: the 3.50 coins you earned are lost."
+    land_a_fish(minigame)
+    press(minigame, pygame.K_ESCAPE)
+    minigame.draw()
+    assert minigame.exit_asked
 
 
 def test_the_buttons_answer_and_a_click_beside_them_does_not(minigame):
