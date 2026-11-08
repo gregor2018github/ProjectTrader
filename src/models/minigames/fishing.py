@@ -6,7 +6,9 @@ movement of the mouse and in what the pond shows.
   1. CAST     — hold the left button and drag the mouse back: the rod goes
                 back over the shoulder. Whip it forward and let go. How fast
                 the rod moves when you let go sets how far the bait flies
-                (``V_FULL``; overdo it and the line tangles), *when* you let go
+                (``V_FULL``; a whip harder than that still carries a little
+                farther, ``OVER_WHIP_GAIN``, onto the far shallows, and overdone
+                the line tangles), *when* you let go
                 its arc: best as the rod passes the faint mark a little ahead
                 of upright (``SWEET_THETA``). That timing is the cast's grade
                 (``CAST_GRADES``, PERFECT to POOR), which multiplies the coins
@@ -95,7 +97,8 @@ SWEET_THETA = 8.0               # let go here: a little ahead of upright
 LAUNCH_ANGLE = 33.0             # the bait's best arc, let go at the sweet spot
 TIMING_DEG_PER_S = 320.0        # each second too early (late) lifts (flattens) the arc this much
 V_FULL = 600.0                  # the rod tip's speed (low px/s) of a full cast
-V_LAUNCH = 262.0                # the bait's speed leaving a full cast
+V_LAUNCH = 230.0               # the bait's speed leaving a full cast: it lands over water deeper than LEADER_START
+OVER_WHIP_GAIN = 0.18           # what each power above full adds to that: only a very sharp flick overshoots
 GRAVITY = 300.0
 TANGLE_POWER = 1.75             # a whip this much harder than full tangles the line
 MIN_WHIP_DEG_S = 160.0          # slower than this when let go is no cast at all
@@ -716,11 +719,11 @@ class FishingMinigame(MinigameOverlay):
         early = (SWEET_THETA - self.theta) / omega   # seconds before the sweet spot (negative: after it)
         label, mult, colour = cast_grade(early)
         angle = math.radians(_clamp(LAUNCH_ANGLE + early * TIMING_DEG_PER_S, -15, 80))
-        speed = V_LAUNCH * min(1.0, power)
+        speed = V_LAUNCH * (power if power <= 1.0 else 1.0 + OVER_WHIP_GAIN * (power - 1.0))
         self.cast_power = power
         self.tangled = power > TANGLE_POWER
         if self.tangled:
-            speed *= 0.35
+            speed = V_LAUNCH * 0.35
             label, mult, colour = "TANGLED LINE", CAST_GRADES[-1][2], _BAD
         self.cast_label, self.cast_mult, self.cast_colour = label, mult, colour
         self.hook_x, self.hook_y = self._tip()

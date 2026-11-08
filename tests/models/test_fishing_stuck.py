@@ -1,6 +1,7 @@
 """When a hook sticks: only on a cast too deep, left to sink. Reeled in, it comes home whatever it passes."""
 
 import datetime
+import math
 import os
 import random
 from types import SimpleNamespace
@@ -121,6 +122,43 @@ def test_a_cast_too_deep_reeled_before_it_touches_down_is_saved():
     run(m, 0.5)
     let_go(m)
     assert fishing.STUCK not in run(m, 6)
+
+
+def whip_at_the_mark(m, power, early=0.0):
+    """A real cast through the rod and the flight: let go at this power, this many seconds before the mark."""
+    m.omega = math.degrees(power * fishing.V_FULL / 40.0)
+    m.theta = fishing.SWEET_THETA - early * m.omega
+    m.phase = fishing.DRAW
+    m._release_cast()
+    while m.phase == fishing.FLIGHT:
+        m.update(DT)
+    assert m.phase == fishing.WAIT
+    return m.float_x
+
+
+@pytest.mark.parametrize("power", (0.8, 1.0, 1.15, 1.3))
+@pytest.mark.parametrize("early", (-0.035, -0.02, 0.0, 0.02, 0.035))
+def test_a_perfect_cast_at_the_standard_depth_does_not_stick(power, early):
+    m = make()
+    x = whip_at_the_mark(m, power, early)
+    assert m.cast_label == "PERFECT CAST"
+    assert WATER_Y + fishing.LEADER_START < bottom_y(x) - 1     # clear of the bottom, not by chance
+    assert fishing.STUCK not in run(m, 10)
+
+
+@pytest.mark.parametrize("power", (1.6, 1.7))
+def test_a_cast_thrown_too_far_at_the_standard_depth_sticks(power):
+    m = make()
+    x = whip_at_the_mark(m, power)
+    assert x > whip_at_the_mark(make(), 1.0)
+    assert fishing.STUCK in run(m, 10)
+
+
+def test_a_cast_thrown_too_far_on_a_short_line_hangs_free():
+    m = make()
+    m.leader = fishing.LEADER_RANGE[0]
+    whip_at_the_mark(m, 1.7)
+    assert fishing.STUCK not in run(m, 10)
 
 
 def test_the_next_cast_too_deep_sticks_again():
