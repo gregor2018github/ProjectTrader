@@ -144,6 +144,11 @@ MAX_SCORE = MAX_SWINGS * 5
 TIP_TUTORIAL = "woodhacking_tutorial"   # the how-to page, opened by itself once
 _HELP_LABEL = "How to play"
 
+# Asked when Escape is pressed with swings still to make; only a finished session pays
+_EXIT_TITLE = "Exit Mini Game now?"
+_EXIT_TEXT = "Progress will be lost."
+_EXIT_BUTTON_DY = 40           # the buttons' middle, below the box's
+
 # The one-time explanation of a swing perfect on both gauges, shown this long after it
 TIP_DOUBLE_PERFECT = "woodhacking_double_perfect"
 _TIP_DELAY_S = 0.9
@@ -410,6 +415,12 @@ class WoodhackingMinigame(MinigameOverlay):
         self._tip_in: Optional[float] = None   # seconds until the explanation opens
         self.tip_open = False
         self.tip_ok_rect = pygame.Rect(0, 0, 120, 40)
+        self.exit_asked = False        # "Exit Mini Game now?" is open
+        centre_x, button_y = _SCENE_RECT.centerx, _SCENE_RECT.centery + _EXIT_BUTTON_DY
+        self.exit_back_rect = pygame.Rect(0, 0, 130, 40)
+        self.exit_back_rect.center = (centre_x - 75, button_y)
+        self.exit_yes_rect = pygame.Rect(0, 0, 130, 40)
+        self.exit_yes_rect.center = (centre_x + 75, button_y)
         self.glints: List[dict] = []   # perfect gauges glinting: "kind", "age", "at" (where the marker stood)
         self._streak_lost_alpha = 0
         self.done = False
@@ -471,13 +482,41 @@ class WoodhackingMinigame(MinigameOverlay):
     @property
     def help_available(self) -> bool:
         """The how-to page can be opened until the last swing has been made."""
-        return not self.done and not self._ending and not self.tip_open
+        return not self.done and not self._ending and not self.tip_open and not self.exit_asked
+
+    def _ask_to_exit(self) -> None:
+        """Ask before leaving a session under way, which pays nothing."""
+        self.exit_asked = True
+        self._drop_charge()
+
+    def _drop_charge(self) -> None:
+        """A swing being gathered is let go of, not swung (the button's release goes unseen)."""
+        if self.charging:
+            self.charging = False
+            self.power = 0.0
+            self.scene.state = "recover"
+
+    def _handle_exit_question(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                self.exit_asked = False
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                self._leave()
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = self._to_canvas(event.pos)
+            if self.exit_back_rect.collidepoint(pos):
+                self.exit_asked = False
+            elif self.exit_yes_rect.collidepoint(pos):
+                self._leave()
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if self.tutorial is not None:
             self.tutorial.handle_event(event)
             if self.tutorial.closed:
                 self.tutorial = None
+            return
+        if self.exit_asked:
+            self._handle_exit_question(event)
             return
         if self.tip_open:
             if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
@@ -489,7 +528,10 @@ class WoodhackingMinigame(MinigameOverlay):
             return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
-                self._leave()
+                if self.done or self._ending:  # every swing made: nothing is lost by leaving
+                    self._leave()
+                else:
+                    self._ask_to_exit()
                 return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             if self.done:
@@ -634,10 +676,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self._tip_in = None
         self.tip_open = True
         self.game.depot.stats.minigame_tips_seen.append(TIP_DOUBLE_PERFECT)
-        if self.charging:              # a swing being gathered is let go of, not swung
-            self.charging = False
-            self.power = 0.0
-            self.scene.state = "recover"
+        self._drop_charge()
 
     @property
     def streak_bonus(self) -> float:
@@ -653,7 +692,7 @@ class WoodhackingMinigame(MinigameOverlay):
             self.tutorial.update(delta_time)
             self._play_scene_sounds(self.scene.update(delta_time))
             return
-        if self.tip_open:              # the gauges wait for the OK; the scene settles meanwhile
+        if self.tip_open or self.exit_asked:   # the gauges wait for an answer; the scene settles meanwhile
             self._play_scene_sounds(self.scene.update(delta_time))
             return
         if self._tip_in is not None:
@@ -947,28 +986,41 @@ class WoodhackingMinigame(MinigameOverlay):
         close_txt = self.font.render("Close", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.close_rect.center))
 
-    def _draw_tip(self) -> None:
-        """A small box explaining a perfect blow, over the scene, closed with OK."""
+    def _draw_box(self, title_text: str, lines: List[str]) -> pygame.Rect:
+        """A small paper box with a title and lines over the shaded scene, room left for buttons."""
         shade = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
         shade.fill((0, 0, 0, 110))
         self.canvas.blit(shade, (0, 0))
-        lines = self._wrap(_TIP_TEXT, self.font, 360)
         panel = pygame.Rect(0, 0, 420, 112 + 24 * len(lines))
         panel.center = _SCENE_RECT.center
         pygame.draw.rect(self.canvas, _PAPER, panel, border_radius=6)
         pygame.draw.rect(self.canvas, _BRASS, panel, 3, border_radius=6)
         pygame.draw.rect(self.canvas, _BRASS_DARK, panel.inflate(-8, -8), 1, border_radius=4)
-        title = self.font_grade.render(_TIP_TITLE, True, _INK)
+        title = self.font_grade.render(title_text, True, _INK)
         self.canvas.blit(title, title.get_rect(center=(panel.centerx, panel.top + 30)))
         for i, line in enumerate(lines):
             text = self.font.render(line, True, _INK)
             self.canvas.blit(text, text.get_rect(center=(panel.centerx, panel.top + 64 + 24 * i)))
+        return panel
+
+    def _draw_box_button(self, rect: pygame.Rect, text: str) -> None:
+        hovered = rect.collidepoint(self._to_canvas(pygame.mouse.get_pos()))
+        pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, rect, border_radius=4)
+        pygame.draw.rect(self.canvas, _BRASS_DARK, rect, 2, border_radius=4)
+        label = self.font.render(text, True, _INK)
+        self.canvas.blit(label, label.get_rect(center=rect.center))
+
+    def _draw_tip(self) -> None:
+        """A small box explaining a perfect blow, over the scene, closed with OK."""
+        panel = self._draw_box(_TIP_TITLE, self._wrap(_TIP_TEXT, self.font, 360))
         self.tip_ok_rect.center = (panel.centerx, panel.bottom - 32)
-        hovered = self.tip_ok_rect.collidepoint(self._to_canvas(pygame.mouse.get_pos()))
-        pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, self.tip_ok_rect, border_radius=4)
-        pygame.draw.rect(self.canvas, _BRASS_DARK, self.tip_ok_rect, 2, border_radius=4)
-        ok = self.font.render("OK", True, _INK)
-        self.canvas.blit(ok, ok.get_rect(center=self.tip_ok_rect.center))
+        self._draw_box_button(self.tip_ok_rect, "OK")
+
+    def _draw_exit_question(self) -> None:
+        """Whether to leave a session under way, which pays nothing."""
+        self._draw_box(_EXIT_TITLE, [_EXIT_TEXT])
+        self._draw_box_button(self.exit_back_rect, "Go back")
+        self._draw_box_button(self.exit_yes_rect, "Exit")
 
     @staticmethod
     def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
@@ -1085,6 +1137,8 @@ class WoodhackingMinigame(MinigameOverlay):
 
         if self.tip_open:
             self._draw_tip()
+        if self.exit_asked:
+            self._draw_exit_question()
         if self.done:
             self._draw_result_overlay(coins)
             if self._show_congrats:

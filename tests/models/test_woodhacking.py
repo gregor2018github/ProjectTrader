@@ -397,14 +397,74 @@ def test_back_on_the_map_after_a_whole_session_four_hours_have_passed(monkeypatc
 def test_leaving_early_takes_the_share_of_the_hours_worked(monkeypatch):
     m, game, _ = _timed_minigame(monkeypatch)
     _miss(m)                                   # one of four swings
-    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    _press(m, pygame.K_ESCAPE)
+    _press(m, pygame.K_RETURN)
     assert not m.active and game.state.date.hour == 11
 
 
 def test_leaving_before_the_first_swing_takes_no_time(monkeypatch):
     m, game, _ = _timed_minigame(monkeypatch)
-    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    _press(m, pygame.K_ESCAPE)
+    _press(m, pygame.K_RETURN)
+    assert not m.active
     assert game.state.date.hour == 10 and game.state.date.minute == 0
+
+
+def _press(m, key):
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=key))
+
+
+def _click(m, rect, kind=pygame.MOUSEBUTTONDOWN):
+    pos = (rect.centerx + m.canvas_rect.left, rect.centery + m.canvas_rect.top)
+    m.handle_event(pygame.event.Event(kind, button=1, pos=pos))
+
+
+def test_escape_asks_first_and_the_game_waits_for_the_answer(monkeypatch):
+    m, _, _ = _timed_minigame(monkeypatch)
+    _press(m, pygame.K_ESCAPE)
+    assert m.active and m.exit_asked
+    aim = m.aim
+    m.update(DT)
+    assert m.aim == aim
+    m.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert m.exit_asked and not m.charging       # a click beside the buttons does nothing
+
+
+@pytest.mark.parametrize("answer", ["key", "button"])
+def test_going_back_carries_on_with_the_session(monkeypatch, answer):
+    m, _, _ = _timed_minigame(monkeypatch)
+    _miss(m)
+    _press(m, pygame.K_ESCAPE)
+    if answer == "key":
+        _press(m, pygame.K_ESCAPE)
+    else:
+        _click(m, m.exit_back_rect)
+    assert m.active and not m.exit_asked and m.attempt == 1
+    assert not m.charging                        # the click answering is no swing
+
+
+def test_exiting_early_pays_nothing_and_is_no_session_played(monkeypatch):
+    m, game, booked = _timed_minigame(monkeypatch)
+    m.aim, m.power = math.radians(-5), (m.opt_lo + m.opt_hi) / 2     # a good swing, worth points
+    m._resolve_swing()
+    assert m.score > 0
+    _press(m, pygame.K_ESCAPE)
+    _click(m, m.exit_yes_rect)
+    assert not m.active
+    assert booked == [] and game.depot.stats.minigames_played == 0
+    assert game.depot.stats.woodhacking_highscore == 0
+
+
+def test_escape_while_gathering_power_lets_the_swing_go_unswung(monkeypatch):
+    m, _, _ = _timed_minigame(monkeypatch)
+    _click(m, pygame.Rect(0, 200, 2, 2))
+    m.update(DT)
+    assert m.charging
+    _press(m, pygame.K_ESCAPE)
+    assert not m.charging and m.power == 0.0
+    _click(m, pygame.Rect(0, 200, 2, 2), pygame.MOUSEBUTTONUP)
+    _press(m, pygame.K_ESCAPE)
+    assert m.attempt == 0                        # no swing was made of it
 
 
 def test_leaving_right_after_the_last_swing_still_pays_and_takes_the_hours(monkeypatch):

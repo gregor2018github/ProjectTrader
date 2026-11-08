@@ -129,6 +129,14 @@ def test_a_good_try_of_the_scene_picture_is_truly_good_by_the_game_rules():
         assert t.good == (t.outcome == SPLIT)
 
 
+def test_the_exit_question_draws(display):
+    m = _minigame(display, tips_seen=(wh.TIP_TUTORIAL,))
+    m.handle_event(pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE))
+    m.update(DT)
+    m.draw()
+    assert m.exit_asked
+
+
 def test_the_page_draws_and_leaves_the_game_drawing_after(display):
     m = _minigame(display)
     for _ in range(120):

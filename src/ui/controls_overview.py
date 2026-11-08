@@ -60,7 +60,7 @@ RIGHT_COLUMN: List[Section] = [
         ([["Hold left"]], "Gather power"),
         ([["Release"]], "Swing the axe"),
         ([["Left click"]], "\"How to play\": the how-to page"),
-        ([["Esc"]], "Leave (or close the page)"),
+        ([["Esc"]], "Leave, after asking (or close the page)"),
     ]),
     ("Inventory", [
         ([["I"]], "What you carry, open / close"),
