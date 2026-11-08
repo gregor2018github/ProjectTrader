@@ -72,7 +72,7 @@ import pygame
 
 from .base import MinigameOverlay
 from .fishing_pond import (
-    Pond, Hook, Fish, SPECIES, WATER_Y, BANK_EDGE, LOW_W, PX_PER_FOOT, bottom_y, in_water,
+    Pond, Hook, Fish, SPECIES, format_kg, WATER_Y, BANK_EDGE, LOW_W, PX_PER_FOOT, bottom_y, in_water,
     APPROACH, INSPECT, NIBBLE, TAKE, HOOKED,
 )
 from .fishing_scene import PondScene, PondView, PX, SCENE_W, SCENE_H, rod_points, curve, fish_sprite
@@ -1013,17 +1013,8 @@ class FishingMinigame(MinigameOverlay):
         perfect, self.perfect_catch = self.perfect_catch, False
         coins = fish_coins(fish, self.cast_mult * (PERFECT_CATCH_MULT if perfect else 1.0))
         size = fish.cm / sp.avg_cm
-        record = False
         stats = self._stats()
-        if stats is not None:
-            records = getattr(stats, "fishing_records", None)
-            if records is None:
-                records = {}
-                stats.fishing_records = records
-            if fish.cm > records.get(sp.key, 0):
-                record = True
-                records[sp.key] = fish.cm
-            stats.fish_caught = getattr(stats, "fish_caught", 0) + 1
+        record = stats is not None and stats.record_fish(sp.key, fish.cm, fish.kg)
         self.coins = round(self.coins + coins, 2)
         extra = self.cast_label.startswith("PERFECT") and self.strike_label.startswith("PERFECT")             and self.total_worms - WORMS < MAX_EXTRA_WORMS
         self.catches.append({"name": sp.name, "cm": fish.cm, "coins": coins, "species": sp})
@@ -1393,7 +1384,7 @@ class FishingMinigame(MinigameOverlay):
         k = max(2, min(12, CARD_FISH_W // img.get_width(), CARD_FISH_H // img.get_height()))
         big = pygame.transform.scale(img, (img.get_width() * k, img.get_height() * k))
         label, mult, colour = card["cast"]
-        lines = [(self.font.render(f"{fish.cm:.0f} cm   |   size ×{card['size']:.2f}", True, DARK_BROWN), 26),
+        lines = [(self.font.render(f"{fish.cm:.0f} cm   |   {format_kg(fish.kg)}   |   size ×{card['size']:.2f}", True, DARK_BROWN), 26),
                  (self.font.render(f"{label.title()}   ×{mult:g}", True, _shade_text(colour)), 30),
                  (self.font_large.render(f"+{card['coins']:.2f} coins", True, (60, 110, 40)), 42)]
         if card["record"]:

@@ -7,6 +7,8 @@ call site (no listeners, no callbacks).
 
 from typing import Any, Dict, List, Optional
 
+from .minigames.fishing_pond import SPECIES
+
 
 class Statistics:
     """Lifetime counters for a single game session."""
@@ -43,9 +45,21 @@ class Statistics:
         self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
         self.fish_caught: int = 0               # fish landed, all kinds
         self.fishing_records: Dict[str, float] = {}  # the biggest of each kind landed, in cm, by species key
+        self.fish_tally: Dict[str, Dict[str, float]] = {}  # per species key: {"count": fish landed, "kg": their weight together}
 
         # Time
         self.days_played: int = 0               # in-game days elapsed this session
+
+    def record_fish(self, species_key: str, cm: float, kg: float) -> bool:
+        """A fish landed goes into the books; whether it is the biggest of its kind so far."""
+        self.fish_caught += 1
+        tally = self.fish_tally.setdefault(species_key, {"count": 0, "kg": 0.0})
+        tally["count"] += 1
+        tally["kg"] += kg
+        if cm > self.fishing_records.get(species_key, 0):
+            self.fishing_records[species_key] = cm
+            return True
+        return False
 
     # ------------------------------------------------------------------
     # Serialization
@@ -76,6 +90,7 @@ class Statistics:
             "last_fishing_day": self.last_fishing_day,
             "fish_caught": self.fish_caught,
             "fishing_records": dict(self.fishing_records),
+            "fish_tally": {key: dict(entry) for key, entry in self.fish_tally.items()},
         }
 
     @classmethod
@@ -105,4 +120,9 @@ class Statistics:
         obj.last_fishing_day = d.get("last_fishing_day", None)
         obj.fish_caught = d.get("fish_caught", 0)
         obj.fishing_records = dict(d.get("fishing_records", {}))
+        obj.fish_tally = {key: dict(entry) for key, entry in d.get("fish_tally", {}).items()}
+        # Saves from before the tally only know each kind's biggest: that one, at least, was caught
+        for key, cm in obj.fishing_records.items():
+            if key not in obj.fish_tally and key in SPECIES:
+                obj.fish_tally[key] = {"count": 1, "kg": SPECIES[key].kg(cm)}
         return obj

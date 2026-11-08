@@ -348,6 +348,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     
     # The merchants' guild keeps the ranks: the same overview as the rank in the top bar
     if house.name == "Guildhall":
+        options.insert(0, "Records")
         options.insert(0, "Merchant Rank")
 
     if house.tavern_class:
@@ -454,6 +455,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
 
         if option_text == "Merchant Rank" and house.name == "Guildhall":
             open_rank_window(game_state)
+            return
+
+        if option_text == "Records" and house.name == "Guildhall":
+            from .records_window import open_records_window
+            open_records_window(game_state)
             return
 
         if option_text == "Daily Menu" and house.tavern_class:

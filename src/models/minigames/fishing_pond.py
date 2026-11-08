@@ -101,6 +101,11 @@ class Species:
     minnow: bool = False           # nibbles but never takes
     hours: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)   # how keen at dawn, by day, at dusk, by night
     lore: str = ""
+    plumpness: float = 1.4         # its weight for its length: grams per 100 cm of length cubed (anglers' condition factor)
+
+    def kg(self, cm: float) -> float:
+        """What one of this kind and length weighs: it grows in all three directions."""
+        return self.plumpness * cm ** 3 / 100_000
 
     @property
     def avg_cm(self) -> float:
@@ -113,57 +118,62 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             ((82, 199, "surface", 4, 26),), speed=15, sense=26, nibbles=(1, 2), take_window=0.75,
             take_chance=0.9, caution=0.7, lure=0.0, power=0.35, stamina=0.55, style="smooth", shape="roach",
             height=0.36, colours=((66, 88, 96), (190, 200, 198), (232, 230, 220), (196, 72, 52), (66, 88, 96)),
-            count=5, hours=(1.0, 0.8, 1.2, 0.3), lore="Greedy and quick: it takes after a nibble or two."),
+            count=5, hours=(1.0, 0.8, 1.2, 0.3), lore="Greedy and quick: it takes after a nibble or two.", plumpness=1.3),
     Species("rudd", "Rudd", (14, 30), 0.75,
             ((174, 304, "surface", 2, 16),), speed=15, sense=28, nibbles=(1, 3), take_window=0.75,
             take_chance=0.85, caution=0.8, lure=0.0, power=0.38, stamina=0.6, style="floater", shape="roach",
             height=0.38, colours=((78, 90, 66), (200, 184, 124), (230, 218, 180), (218, 64, 40), (78, 90, 66)),
-            count=3, hours=(1.0, 0.9, 1.2, 0.3), lore="Golden flanks and red fins, just under the surface."),
+            count=3, hours=(1.0, 0.9, 1.2, 0.3), lore="Golden flanks and red fins, just under the surface.", plumpness=1.4),
     Species("tench", "Tench", (25, 55), 1.5,
             ((224, 310, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
             take_chance=0.7, caution=1.2, lure=0.0, power=0.7, stamina=1.2, style="sinker", shape="carp",
             height=0.4, colours=((52, 68, 38), (94, 110, 54), (150, 148, 88), (66, 80, 42), (52, 68, 38)),
-            count=2, hours=(1.6, 0.5, 1.0, 0.8), lore="The doctor fish, olive and slimy, grubbing in the weedy shallows."),
+            count=2, hours=(1.6, 0.5, 1.0, 0.8), lore="The doctor fish, olive and slimy, grubbing in the weedy shallows.", plumpness=1.6),
     Species("perch", "Perch", (15, 40), 0.9,
             ((90, 136, "surface", 6, 40), (256, 318, "surface", 4, 24)), speed=17, sense=30, nibbles=(1, 3),
             take_window=0.7, take_chance=0.85, caution=0.8, lure=1.3, power=0.5, stamina=0.8, style="dart",
             shape="perch", height=0.42,
             colours=((64, 92, 48), (150, 160, 72), (214, 206, 150), (212, 92, 40), (44, 58, 30)),
-            count=3, hours=(1.3, 1.0, 1.3, 0.2), lore="Lurks by the drop-off and the reeds; a twitch draws it."),
+            count=3, hours=(1.3, 1.0, 1.3, 0.2), lore="Lurks by the drop-off and the reeds; a twitch draws it.", plumpness=1.5),
     Species("bream", "Bream", (30, 56), 1.3,
             ((128, 246, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
             take_chance=0.7, caution=1.3, lure=0.0, power=0.6, stamina=1.0, style="sinker", shape="bream",
             height=0.5, colours=((96, 84, 52), (168, 146, 92), (204, 192, 150), (88, 76, 56), (96, 84, 52)),
-            count=2, hours=(0.9, 0.5, 1.2, 1.3), lore="Grubs on the bottom of the deep water, slow to make up its mind."),
+            count=2, hours=(0.9, 0.5, 1.2, 1.3), lore="Grubs on the bottom of the deep water, slow to make up its mind.", plumpness=1.4),
     Species("carp", "Carp", (40, 82), 2.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
             take_chance=0.6, caution=1.6, lure=0.0, power=0.95, stamina=1.6, style="smooth", shape="carp",
             height=0.42, colours=((84, 74, 38), (166, 136, 58), (210, 182, 112), (124, 82, 48), (70, 60, 30)),
-            count=2, hours=(1.2, 0.5, 1.2, 1.3), lore="The old one of the hollow: many nibbles, then a slow, sliding take."),
+            count=2, hours=(1.2, 0.5, 1.2, 1.3), lore="The old one of the hollow: many nibbles, then a slow, sliding take.", plumpness=1.8),
     Species("pike", "Pike", (45, 100), 2.4,
             ((252, 318, "surface", 6, 26), (108, 136, "surface", 10, 36)), speed=24, sense=40, nibbles=(0, 0),
             take_window=0.6, take_chance=1.0, caution=0.6, lure=2.6, power=1.05, stamina=1.3, style="dart",
             shape="pike", height=0.2,
             colours=((48, 78, 50), (106, 138, 78), (210, 208, 168), (138, 100, 58), (206, 204, 132)),
-            count=2, hours=(1.3, 0.2, 1.4, 2.4), lore="Waits in the weeds and strikes at what moves, without a nibble."),
+            count=2, hours=(1.3, 0.2, 1.4, 2.4), lore="Waits in the weeds and strikes at what moves, without a nibble.", plumpness=0.75),
     Species("eel", "Eel", (40, 90), 1.8,
             ((94, 256, "bottom", 1, 5),), speed=12, sense=26, nibbles=(2, 4), take_window=0.9,
             take_chance=0.75, caution=1.0, lure=0.0, power=0.75, stamina=1.2, style="dart", shape="eel",
             height=0.13, colours=((40, 40, 30), (70, 66, 44), (128, 116, 72), (52, 50, 36), (40, 40, 30)),
-            count=2, night_only=True, hours=(1.0, 1.0, 1.0, 1.0), lore="Only comes out of the mud at night."),
+            count=2, night_only=True, hours=(1.0, 1.0, 1.0, 1.0), lore="Only comes out of the mud at night.", plumpness=0.2),
     Species("golden_carp", "Golden Carp", (45, 86), 6.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(4, 8), take_window=1.1,
             take_chance=0.55, caution=1.8, lure=0.0, power=1.0, stamina=1.7, style="dart", shape="carp",
             height=0.42, colours=((196, 128, 30), (236, 186, 70), (250, 226, 140), (220, 110, 40), (180, 110, 20)),
-            count=0, hours=(1.2, 0.5, 1.2, 1.3), lore="A rare gold one among the carp. Few have seen it."),
+            count=0, hours=(1.2, 0.5, 1.2, 1.3), lore="A rare gold one among the carp. Few have seen it.", plumpness=1.8),
     Species("minnow", "Minnows", (4, 7), 0.0,
             ((84, 234, "surface", 2, 18),), speed=19, sense=30, nibbles=(3, 7), take_window=0.0,
             take_chance=0.0, caution=0.3, lure=0.0, power=0.0, stamina=0.1, style="smooth", shape="roach",
             height=0.32, colours=((90, 104, 100), (176, 190, 184), (210, 214, 206), (150, 150, 140), (90, 104, 100)),
-            count=3, minnow=True, hours=(1.0, 1.0, 1.0, 0.4), lore="Pluck at the worm and are far too small for the hook."),
+            count=3, minnow=True, hours=(1.0, 1.0, 1.0, 0.4), lore="Pluck at the worm and are far too small for the hook.", plumpness=1.0),
 )}
 
 GOLDEN_CARP_CHANCE = 0.06        # a session's pond has a golden carp among the carp
+
+
+def format_kg(kg: float) -> str:
+    """A weight as the player reads it: small fish need the second decimal."""
+    return f"{kg:.2f} kg" if kg < 10 else f"{kg:,.1f} kg"
 
 
 def length_px(cm: float, species: Species) -> int:
@@ -230,6 +240,10 @@ class Fish:
         self.tired = False           # rolls on its side once beaten
         self.angle = 0.0             # tilted while leaping
         self.above_water = False
+
+    @property
+    def kg(self) -> float:
+        return self.species.kg(self.cm)
 
     # -- where it lives -------------------------------------------------
 

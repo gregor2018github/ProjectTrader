@@ -78,6 +78,16 @@ def test_a_landed_fish_is_not_paid_until_the_session_is_finished(minigame):
     assert minigame.game.depot.booked == []
 
 
+def test_a_landed_fish_goes_into_the_records_with_its_weight(minigame):
+    land_a_fish(minigame)
+    fish = minigame.card["fish"]
+    stats = minigame.game.depot.stats
+    assert minigame.card["record"]
+    assert stats.fish_caught == 1
+    assert stats.fish_tally["roach"] == {"count": 1, "kg": pytest.approx(SPECIES["roach"].kg(fish.cm))}
+    assert stats.fishing_records["roach"] == fish.cm
+
+
 def test_exiting_early_pays_nothing_and_is_no_session_played(minigame):
     land_a_fish(minigame)
     press(minigame, pygame.K_ESCAPE)
