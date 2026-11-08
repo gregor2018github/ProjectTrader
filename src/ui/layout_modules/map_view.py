@@ -15,6 +15,7 @@ from ..helper_modules.house_click_menu import (
     inject_available_glow_into_queue, inject_hover_effect_into_queue, is_player_near, woodhacking_available,
 )
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
+from ..helper_modules.water_click_menu import fishing_available
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
 from ...models.roof_snow import roof_snow_level
@@ -71,6 +72,7 @@ def draw_map_view(
         # The snow lying in winter, over the wet ground
         game_map.snow_cover.draw(screen, game_map.camera, offset_x, offset_y, weather.snow_cover)
     _draw_bridges(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y)
+    _draw_fishing_spots(screen, game_map.tmx_map, game_map.camera, offset_x, offset_y, game_state)
 
     # Update light states
     game_map.tmx_map.update_lights(game_state.date)
@@ -409,6 +411,22 @@ def _draw_bridges(
         if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and
                 draw_y + sprite.get_height() >= offset_y and draw_y < camera.screen_height + offset_y):
             screen.blit(sprite, (draw_x, draw_y))
+
+
+def _draw_fishing_spots(
+    screen: pygame.Surface,
+    tmx_map: 'TMXMap',
+    camera: 'Camera',
+    offset_x: int,
+    offset_y: int,
+    game_state: Any,
+) -> None:
+    """Golden rings on the water at the fishing spots, while today's fishing is still to be done."""
+    if not tmx_map.fishing_spots or not fishing_available(game_state):
+        return
+    seconds = pygame.time.get_ticks() / 1000.0
+    for spot in tmx_map.fishing_spots:
+        spot.draw(screen, camera, offset_x, offset_y, seconds)
 
 
 def _draw_animated_water(

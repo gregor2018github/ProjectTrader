@@ -17,7 +17,7 @@ LEFT_COLUMN: List[Section] = [
         ([["W A S D"], ["Arrows"]], "Walk"),
         ([["Wheel"], ["+"], ["-"]], "Zoom the map in and out"),
         ([["Ctrl", "Wheel"]], "Zoom out further than usual"),
-        ([["Left click"]], "Talk, knock, look at water"),
+        ([["Left click"]], "Talk, knock, at the water: fish"),
     ]),
     ("Town Map", [
         ([["Drag"]], "Move the plan around"),

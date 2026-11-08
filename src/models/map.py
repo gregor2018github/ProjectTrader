@@ -22,6 +22,7 @@ from .institutions.well import Well
 from .institutions.warehouse import Warehouse
 from .tree import Tree
 from .bridge import Bridge, DEFAULT_RAIL_TILES, off_deck_parts
+from .fishing_spot import FishingSpot
 from .ground_chunks import GroundChunks
 from .map_warmup import MapWarmup
 from .spatial_index import SpatialIndex
@@ -183,6 +184,8 @@ class TMXMap:
         self.waters: List[Water] = []
         #: Decks over the water, from the "Bridges" object layer.
         self.bridges: List[Bridge] = []
+        #: Where the player can fish, from the "Fishing" object layer.
+        self.fishing_spots: List[FishingSpot] = []
         # Grid cells covered by water (used for the animated water tile
         # rendering in map_view.py). Rasterized once at load time so the
         # render loop only ever needs an O(1) set lookup per visible tile.
@@ -205,6 +208,7 @@ class TMXMap:
         self._load_water()
         self._rasterize_water_tiles()
         self._load_bridges()
+        self._load_fishing_spots()
         #: The ground tile layers, drawn in cached chunks (ground_chunks.py)
         self.ground_chunks: GroundChunks = GroundChunks(self)
         self._index_for_drawing()
@@ -304,6 +308,20 @@ class TMXMap:
                         float(obj.properties.get(end_key, across_tiles - DEFAULT_RAIL_TILES)),
                         obj.properties.get('File_name', ''),
                     ))
+
+    def _load_fishing_spots(self) -> None:
+        """Load the fishing spots from the 'Fishing' object layer (see fishing_spot.py)."""
+        for layer in self.tmx_data.visible_layers:
+            if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Fishing":
+                for obj in layer:
+                    if any(water.contains_point(obj.x, obj.y) for water in self.waters):
+                        self.fishing_spots.append(FishingSpot(obj.name or "Fishing Spot", obj.x, obj.y))
+                    else:
+                        print(f"Fishing spot '{obj.name}' is not in the water - left out")
+
+    def fishing_spot_near(self, x: float, y: float) -> Optional[FishingSpot]:
+        """The fishing spot within reach of a world point, if any."""
+        return next((spot for spot in self.fishing_spots if spot.in_reach(x, y)), None)
 
     def bridge_at(self, x: float, y: float) -> Optional[Bridge]:
         """The bridge over a world point, if any."""

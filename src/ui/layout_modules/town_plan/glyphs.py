@@ -11,7 +11,7 @@ from typing import Optional, Sequence, Tuple
 import pygame
 
 from .style import (
-    BRIDGE_WASH, FIELD_WASH, FIELD_WASH_ALPHA, INK, INK_FADED, ROOF_WASH, ROOF_WASH_ALPHA,
+    BRIDGE_WASH, FIELD_WASH, FIELD_WASH_ALPHA, INK, INK_FADED, PAPER, ROOF_WASH, ROOF_WASH_ALPHA,
     SHADOW, SHADOW_ALPHA, STALL_WASH, TREE_WASH, WATER_LINE, WATER_WASH,
 )
 
@@ -38,6 +38,20 @@ def wash_polygon(surface: pygame.Surface, color: Tuple[int, int, int], alpha: in
     wash = pygame.Surface((w, h), pygame.SRCALPHA)
     pygame.draw.polygon(wash, (*color, alpha), [(x - left, y - top) for x, y in points])
     surface.blit(wash, (left, top))
+
+
+def fish(surface: pygame.Surface, center: Point, length: int = 20) -> None:
+    """A little fish swimming left, light with an inked edge so it reads over the water's wash."""
+    x, y = round(center[0]), round(center[1])
+    half, tall = length // 2, max(3, length // 4)
+    tail_at = x + half - length // 4
+    tail = [(tail_at, y), (x + half + 1, y - tall), (x + half + 1, y + tall)]
+    body = pygame.Rect(x - half, y - tall, length - length // 4, tall * 2)
+    pygame.draw.polygon(surface, PAPER, tail)
+    pygame.draw.polygon(surface, INK, tail, 1)
+    pygame.draw.ellipse(surface, PAPER, body)
+    pygame.draw.ellipse(surface, INK, body, 1)
+    pygame.draw.circle(surface, INK, (body.left + length // 5, y - 1), 1)
 
 
 def roof(surface: pygame.Surface, rect: pygame.Rect, color: Tuple[int, int, int] = ROOF_WASH) -> None:

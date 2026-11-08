@@ -32,6 +32,10 @@ from .style import (
 )
 from .terrain import Ground
 from ....config import settings_store
+from ....models.fishing_spot import FishingSpot
+
+#: How long a fishing spot's mark is drawn, in screen pixels at every zoom level
+FISH_MARK_LENGTH = 20
 
 #: The paper a shade darker, as for land not explored yet. Paper made from a
 #: darker base darkens its grain and browning with it, so this is the plain
@@ -271,14 +275,18 @@ class TownPlan:
         taken = self._ornament_rects(inner)
 
         mouse = pygame.mouse.get_pos()
-        hovered = None
+        hovered = hovered_spot = None
         if (not self._dragging and inner.collidepoint(mouse) and not game_state.info_window
                 and pygame.Rect(mouse, (1, 1)).collidelist(taken) < 0):
-            hovered = self._building_at(mouse)
+            hovered_spot = self._fishing_spot_at(mouse)
+            hovered = None if hovered_spot else self._building_at(mouse)
 
         self._draw_live_buildings(screen, game_state, hovered)
         if not self._showing_all:
             self._cover_unexplored(screen, inner, blank_paper)
+        for spot in self.game_map.tmx_map.fishing_spots:
+            if self._explored((spot.x, spot.y)):
+                glyphs.fish(screen, self.world_to_screen(spot.x, spot.y), FISH_MARK_LENGTH)
         if game_state.is_map_visible:
             self._draw_camera_view(screen)
 
@@ -293,6 +301,17 @@ class TownPlan:
 
         if hovered is not None:
             ornaments.tooltip(screen, mouse, hovered.name, hovered.describe(), inner)
+        elif hovered_spot is not None:
+            ornaments.tooltip(screen, mouse, hovered_spot.name, "Fishing spot", inner)
+
+    def _fishing_spot_at(self, pos: Tuple[int, int]) -> Optional[FishingSpot]:
+        """The explored fishing spot whose mark is under this point of the screen, if any."""
+        for spot in self.game_map.tmx_map.fishing_spots:
+            x, y = self.world_to_screen(spot.x, spot.y)
+            if abs(pos[0] - x) <= FISH_MARK_LENGTH / 2 + 2 and abs(pos[1] - y) <= FISH_MARK_LENGTH / 3 \
+                    and self._explored((spot.x, spot.y)):
+                return spot
+        return None
 
     def _building_at(self, pos: Tuple[int, int]) -> Optional[PlanBuilding]:
         wx, wy = self.screen_to_world(*pos)

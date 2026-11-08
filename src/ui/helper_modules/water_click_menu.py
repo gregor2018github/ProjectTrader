@@ -2,8 +2,8 @@
 
 Handles detecting clicks on water tiles and opening a small generic
 interaction menu for them (distinct from HouseMenu, since a water body is
-not a building). Currently offers "Throw Stone"; fishing will be added here
-later.
+not a building). It offers "Throw Stone" and, within reach of one of the map's
+fishing spots (``models/fishing_spot.py``), "Go Fishing".
 """
 
 import pygame
@@ -95,9 +95,15 @@ def open_fishing(game_state: 'GameState') -> bool:
 
 def show_water_menu(game_state: 'GameState', water: 'Water', click_pos: Tuple[int, int]) -> None:
     """Open the generic interaction menu for a clicked water body."""
-    options = ["Throw Stone"]
+    game_map = game_state.game.game_map
+    player = game_map.map_player
+    spot = game_map.tmx_map.fishing_spot_near(player.x + player.width / 2, player.y + player.height / 2)
+    options = ["Throw Stone"] if spot is None else ["Go Fishing", "Throw Stone"]
 
     def menu_callback(option_text: str) -> None:
+        if option_text == "Go Fishing":
+            open_fishing(game_state)
+            return
         if option_text == "Throw Stone":
             water.throw_rock(game_state)
             return
@@ -105,7 +111,7 @@ def show_water_menu(game_state: 'GameState', water: 'Water', click_pos: Tuple[in
 
     game_state.info_window = WaterMenu(
         game_state.screen,
-        "Water",
+        "Water" if spot is None else spot.name,
         options,
         game_state.font,
         game_state,
