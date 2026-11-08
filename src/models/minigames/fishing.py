@@ -524,10 +524,11 @@ class FishingMinigame(MinigameOverlay):
     # Input
     # ------------------------------------------------------------------
 
-    def _open_tutorial(self, page: int) -> None:
+    def _open_tutorial(self, page: int, browsing: bool = False) -> None:
+        """Opens the how-to sheet: by itself only that page, or for browsing, with tabs to the others."""
         from .fishing_tutorial import FishingTutorial   # it builds on this module
         pages = (PAGE_CAST, PAGE_FIGHT) if TIP_TUTORIAL_FIGHT in self._tips_seen() else (PAGE_CAST,)
-        self.tutorial = FishingTutorial(self, page, pages)
+        self.tutorial = FishingTutorial(self, page, pages, browsing)
         self._hold_still()
 
     @property
@@ -624,7 +625,7 @@ class FishingMinigame(MinigameOverlay):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = (event.pos[0] - self.canvas_rect.left, event.pos[1] - self.canvas_rect.top)
             if self.help_available and self.help_rect.collidepoint(pos):
-                self._open_tutorial(self._help_page())
+                self._open_tutorial(self._help_page(), browsing=True)
                 return
             if self.phase == DONE and self.close_rect.collidepoint(pos):
                 self._leave()

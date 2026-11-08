@@ -12,8 +12,10 @@ the pages cannot drift from what they explain. Nothing of the real session is to
 
 The minigame opens the first page by itself the first time (``TIP_TUTORIAL_CAST``) and the second
 when the first fish is hooked (``TIP_TUTORIAL_FIGHT``), both remembered in
-``Statistics.minigame_tips_seen``; its "How to play" button opens them again, and only a player
-who has hooked a fish can turn to the second.
+``Statistics.minigame_tips_seen``; opened like that, the page's only button is the one closing it.
+Its "How to play" button opens them for browsing: the same closing button in the same place, and
+beside it a tab per page, always both and always in the same place; only a player who has hooked
+a fish can open the second.
 """
 
 import random
@@ -30,14 +32,15 @@ from .fishing import (
 from .fishing_pond import APPROACH, NIBBLE, PX_PER_FOOT, SPECIES, TAKE, Fish, length_px
 from .fishing_scene import PX
 from .tutorial_sheet import (
-    BAD, BRASS_LIGHT, BUTTON_SIZE, GOOD, INK, MAX_DT, SheetLayout, build_sheet, draw_button, hold_sign, mouse_icon, plaque,
-    space_icon,
+    BAD, BRASS_LIGHT, BUTTON_SIZE, GOOD, INK, MAX_DT, SheetLayout, build_sheet, draw_button, draw_tab, hold_sign,
+    mouse_icon, plaque, space_icon,
 )
 
 #: Each card: its heading, and its words, *these* in red ink
 TITLES = {PAGE_CAST: "How to Cast and Strike", PAGE_FIGHT: "How to Land a Fish"}
-BUTTONS = {PAGE_CAST: "To the water!", PAGE_FIGHT: "To the fish!"}
-TURN_LABELS = {PAGE_CAST: "The cast", PAGE_FIGHT: "The fight"}
+CLOSE_LABEL = "Let's fish!"
+TAB_LABELS = {PAGE_CAST: "The cast", PAGE_FIGHT: "The fight"}
+LOCKED_NOTE = "Hook a fish first"
 CARDS = {
     PAGE_CAST: (
         ("Set the depth", "Before the cast, the *wheel* sets how deep the bait hangs. "
@@ -60,11 +63,14 @@ CARDS = {
     ),
 }
 
+_BUTTONS_Y = 692                         # the row of buttons, the same on both pages
 _LAYOUTS = {
-    PAGE_CAST: SheetLayout(card_widths=(290, 614, 320), cards_bottom=650, picture_h=340, button_y=692),
-    PAGE_FIGHT: SheetLayout(card_widths=(330, 330, 564), cards_bottom=650, picture_h=340, button_y=692),
+    PAGE_CAST: SheetLayout(card_widths=(290, 614, 320), cards_bottom=650, picture_h=340, button_y=_BUTTONS_Y),
+    PAGE_FIGHT: SheetLayout(card_widths=(330, 330, 564), cards_bottom=650, picture_h=340, button_y=_BUTTONS_Y),
 }
-_TURN_GAP = 16
+_TAB_SIZE = (130, 44)
+_TAB_GAP = 6
+_NOTE_GAP = 14                           # from the tabs to the word on the one locked
 
 # Which part of the scene (1296 x 640) each picture shows; the first and last of the first page at full size
 _DEPTH_X, _STRIKE_X = 124, 149           # where in the pond (low pixels) their bait goes in
@@ -483,15 +489,18 @@ class WholeDemo(FightDemo):
 
 class FishingTutorial:
     """The how-to sheet: drawn on the minigame's canvas over everything, closed by its button, Enter,
-    Space or Escape, turned by its other button or the arrow keys. The game waits behind it."""
+    Space or Escape. While browsing, its tabs or the arrow keys open the pages that can be opened
+    (``pages``). The game waits behind it."""
 
-    def __init__(self, minigame: FishingMinigame, page: int, pages: Sequence[int]) -> None:
+    def __init__(self, minigame: FishingMinigame, page: int, pages: Sequence[int], browsing: bool = False) -> None:
         self.minigame = minigame
         self.pages = tuple(pages)
+        self.browsing = browsing
         self.closed = False
         self.page = page if page in self.pages else self.pages[0]
         self.button = pygame.Rect((0, 0), BUTTON_SIZE)
-        self.turn_button = pygame.Rect((0, 0), BUTTON_SIZE)
+        self.button.center = (minigame.canvas.get_width() // 2, _BUTTONS_Y)
+        self.tabs = self._lay_tabs() if browsing else {}
         self.demos: dict = {}                # each page's, made when it is first shown
         self._sheets: dict = {}
         self._mouse = {False: mouse_icon(False), True: mouse_icon(True)}
@@ -499,25 +508,29 @@ class FishingTutorial:
         self._space = {False: space_icon(False), True: space_icon(True)}
         self._show(self.page)
 
+    def _lay_tabs(self) -> dict:
+        """A tab per page, in the pages' order, from the left edge of the cards."""
+        tabs, x = {}, _LAYOUTS[PAGE_CAST].card_rects()[0].left
+        for page in (PAGE_CAST, PAGE_FIGHT):
+            rect = pygame.Rect((x, 0), _TAB_SIZE)
+            rect.centery = _BUTTONS_Y
+            tabs[page] = rect
+            x = rect.right + _TAB_GAP
+        return tabs
+
     def _show(self, page: int) -> None:
         self.page = page
-        layout = _LAYOUTS[page]
-        centre = self.minigame.canvas.get_width() // 2
-        self.button.center = (centre, layout.button_y)
-        side = BUTTON_SIZE[0] + _TURN_GAP
-        self.turn_button.center = (centre + (side if page == PAGE_CAST else -side), layout.button_y)
         if page not in self.demos:
             screen = self.minigame.screen
             self.demos[page] = ([DepthDemo(screen), CastDemo(screen), StrikeDemo(screen)] if page == PAGE_CAST else
                                 [MeterDemo(screen, 24), HoverDemo(screen), WholeDemo(screen, 26)])
 
-    @property
-    def can_turn(self) -> bool:
-        return len(self.pages) > 1
+    def can_open(self, page: int) -> bool:
+        return self.browsing and page in self.pages
 
-    def _turn(self) -> None:
-        if self.can_turn:
-            self._show(PAGE_FIGHT if self.page == PAGE_CAST else PAGE_CAST)
+    def _open(self, page: int) -> None:
+        if self.can_open(page):
+            self._show(page)
 
     # ------------------------------------------------------------------
     # Input and time
@@ -527,14 +540,17 @@ class FishingTutorial:
         if event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE, pygame.K_ESCAPE):
                 self.closed = True
-            elif event.key in (pygame.K_LEFT, pygame.K_RIGHT):
-                self._turn()
+            elif event.key == pygame.K_LEFT:
+                self._open(PAGE_CAST)
+            elif event.key == pygame.K_RIGHT:
+                self._open(PAGE_FIGHT)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = self._to_canvas(event.pos)
             if self.button.collidepoint(pos):
                 self.closed = True
-            elif self.can_turn and self.turn_button.collidepoint(pos):
-                self._turn()
+            for page, rect in self.tabs.items():
+                if rect.collidepoint(pos):
+                    self._open(page)
 
     def update(self, delta_time: float) -> None:
         dt = min(delta_time, MAX_DT)
@@ -627,16 +643,11 @@ class FishingTutorial:
         canvas.set_clip(clip)
 
         mouse = self._to_canvas(pygame.mouse.get_pos())
-        draw_button(canvas, self.button, BUTTONS[self.page], minigame.font_grade, self.button.collidepoint(mouse))
-        if self.can_turn:
-            other = PAGE_FIGHT if self.page == PAGE_CAST else PAGE_CAST
-            draw_button(canvas, self.turn_button, TURN_LABELS[other], minigame.font_grade,
-                        self.turn_button.collidepoint(mouse))
-            self._draw_turn_arrow(canvas, other)
-
-    def _draw_turn_arrow(self, canvas: pygame.Surface, other: int) -> None:
-        """A little arrow on the other page's button, on the side it lies."""
-        rect, d = self.turn_button, 1 if other == PAGE_FIGHT else -1
-        x = rect.right - 14 if d > 0 else rect.left + 14
-        y = rect.centery
-        pygame.draw.polygon(canvas, INK, [(x - 5 * d, y - 7), (x - 5 * d, y + 7), (x + 4 * d, y)])
+        draw_button(canvas, self.button, CLOSE_LABEL, minigame.font_grade, self.button.collidepoint(mouse))
+        for page, rect in self.tabs.items():
+            draw_tab(canvas, rect, TAB_LABELS[page], minigame.font_grade, page == self.page,
+                     not self.can_open(page), rect.collidepoint(mouse))
+        if self.browsing and not self.can_open(PAGE_FIGHT):
+            note = minigame.font_small.render(LOCKED_NOTE, True, INK)
+            tab = self.tabs[PAGE_FIGHT]
+            canvas.blit(note, note.get_rect(midleft=(tab.right + _NOTE_GAP, tab.centery)))

@@ -132,6 +132,21 @@ def draw_button(canvas: pygame.Surface, rect: pygame.Rect, label: str, font: pyg
     canvas.blit(text, text.get_rect(center=rect.center))
 
 
+def draw_tab(canvas: pygame.Surface, rect: pygame.Rect, label: str, font: pygame.font.Font, current: bool,
+             locked: bool, hovered: bool) -> None:
+    """A page's tab: red and gold like the cards' seals on the page shown, faded while it cannot be opened."""
+    if current:
+        fill, edge, ink = RUBRIC, GOLD, BRASS_LIGHT
+    elif locked:
+        fill, edge, ink = (214, 196, 158), (160, 138, 100), (140, 120, 90)
+    else:
+        fill, edge, ink = BRASS_LIGHT if hovered else BRASS, BRASS_DARK, INK
+    pygame.draw.rect(canvas, fill, rect, border_radius=4)
+    pygame.draw.rect(canvas, edge, rect, 2, border_radius=4)
+    text = font.render(label, True, ink)
+    canvas.blit(text, text.get_rect(center=rect.center))
+
+
 def plaque(surf: pygame.Surface, font: pygame.font.Font, text: str, center: Tuple[float, float]) -> pygame.Rect:
     """A small brass plate with engraved text, nailed on."""
     label = font.render(text, True, INK)

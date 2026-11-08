@@ -72,6 +72,19 @@ class TestWhenItOpens:
         assert m.tutorial is not None and m.tutorial.page == fishing.PAGE_FIGHT
         assert fishing.TIP_TUTORIAL_FIGHT in seen(m)
 
+    def test_opened_by_itself_it_only_has_the_button_closing_it(self, screen):
+        cast = make(screen)
+        hooked = make(screen, tips_seen=(fishing.TIP_TUTORIAL_CAST,))
+        hook_a_fish(hooked)
+        for m in (cast, hooked):
+            page = m.tutorial.page
+            assert m.tutorial.tabs == {}
+            key(m, pygame.K_LEFT)
+            key(m, pygame.K_RIGHT)
+            assert m.tutorial.page == page
+            m.update(DT)
+            m.draw()
+
     def test_later_fish_do_not_open_it(self, screen):
         m = make(screen, tips_seen=BOTH_SEEN)
         hook_a_fish(m)
@@ -136,18 +149,46 @@ class TestOpeningItAgain:
     def test_before_the_first_fish_only_the_cast_page_can_be_seen(self, screen):
         m = make(screen, tips_seen=(fishing.TIP_TUTORIAL_CAST,))
         click(m, m.help_rect.center)
-        assert m.tutorial.page == fishing.PAGE_CAST and not m.tutorial.can_turn
+        assert m.tutorial.page == fishing.PAGE_CAST and not m.tutorial.can_open(fishing.PAGE_FIGHT)
         key(m, pygame.K_RIGHT)
         assert m.tutorial.page == fishing.PAGE_CAST
+        click(m, m.tutorial.tabs[fishing.PAGE_FIGHT].center)
+        assert m.tutorial is not None and m.tutorial.page == fishing.PAGE_CAST
 
-    def test_after_it_both_pages_can_be_turned_to(self, screen):
+    def test_after_it_both_pages_can_be_opened(self, screen):
         m = make(screen, tips_seen=BOTH_SEEN)
         click(m, m.help_rect.center)
-        assert m.tutorial.page == fishing.PAGE_CAST and m.tutorial.can_turn
+        assert m.tutorial.page == fishing.PAGE_CAST
         key(m, pygame.K_RIGHT)
         assert m.tutorial.page == fishing.PAGE_FIGHT
-        click(m, m.tutorial.turn_button.center)
+        key(m, pygame.K_RIGHT)                       # the arrows say which page, they do not toggle
+        assert m.tutorial.page == fishing.PAGE_FIGHT
+        click(m, m.tutorial.tabs[fishing.PAGE_CAST].center)
         assert m.tutorial.page == fishing.PAGE_CAST
+        click(m, m.tutorial.tabs[fishing.PAGE_CAST].center)
+        assert m.tutorial.page == fishing.PAGE_CAST
+        click(m, m.tutorial.tabs[fishing.PAGE_FIGHT].center)
+        assert m.tutorial.page == fishing.PAGE_FIGHT
+
+    def test_nothing_at_the_bottom_moves_when_the_page_changes(self, screen):
+        m = make(screen, tips_seen=BOTH_SEEN)
+        click(m, m.help_rect.center)
+        before = m.tutorial.button.copy(), {page: rect.copy() for page, rect in m.tutorial.tabs.items()}
+        key(m, pygame.K_RIGHT)
+        assert (m.tutorial.button, m.tutorial.tabs) == before
+
+    def test_the_closing_button_is_in_the_same_place_however_it_was_opened(self, screen):
+        by_itself = make(screen).tutorial.button
+        m = make(screen, tips_seen=BOTH_SEEN)
+        click(m, m.help_rect.center)
+        assert m.tutorial.button == by_itself
+
+    def test_the_tabs_lie_clear_of_the_closing_button_with_room_for_the_note(self, screen):
+        m = make(screen, tips_seen=(fishing.TIP_TUTORIAL_CAST,))
+        click(m, m.help_rect.center)
+        tab = m.tutorial.tabs[fishing.PAGE_FIGHT]
+        note = m.font_small.size(tutorial.LOCKED_NOTE)[0]
+        assert tab.right + tutorial._NOTE_GAP + note < m.tutorial.button.left
 
     def test_with_a_fish_on_the_line_it_opens_on_the_fight(self, screen):
         m = make(screen, tips_seen=BOTH_SEEN)
