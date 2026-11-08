@@ -13,22 +13,15 @@ The minigame opens it by itself the first time (``TIP_TUTORIAL``, remembered in
 
 import random
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 
 import pygame
 
-from .woodhacking import (
-    AIM_MAX, OPT_WIDTH, POWER_RATE, WoodhackingMinigame, draw_divider, draw_flourish, next_aim,
+from .tutorial_sheet import (
+    BAD, BRASS_LIGHT, BUTTON_SIZE, GOOD, MAX_DT, SheetLayout, build_sheet, draw_button, hold_sign, mouse_icon,
 )
+from .woodhacking import OPT_WIDTH, POWER_RATE, WoodhackingMinigame, next_aim
 from .woodhacking_scene import SHORT, SPLIT, WHIFF, ChoppingScene
-from ...config.colors import GOLD, MUTED_DARK_RED, WHITE
-from ...ui.paper import draw_paper
-
-_INK = (44, 32, 22)
-_RUBRIC = MUTED_DARK_RED                # the red ink of a manuscript's emphasised words
-_BRASS, _BRASS_LIGHT, _BRASS_DARK = (196, 154, 64), (236, 204, 120), (120, 86, 30)
-_GOOD, _BAD = (146, 214, 120), (240, 120, 96)
-_MAX_DT = 0.05                          # a slow frame does not make the pictures jump
 
 TITLE = "How to Swing the Axe"
 BUTTON = "To the axe!"
@@ -42,26 +35,12 @@ CARDS = (
                 "The nearer their middles, the more you earn."),
 )
 
-# The sheet, in the minigame's canvas pixels
-_FRAME_INSET = 13
-_TITLE_Y, _DIVIDER_Y = 52, 84
-_CARDS_LEFT, _CARDS_TOP, _CARDS_BOTTOM = 30, 98, 532
-_CARD_WIDTHS = (268, 268, 396)
-_CARD_GAP = 12
-_CARD_PAD = 12
-_HEADING_H = 42
-_PICTURE_H = 244
-_LINE_H = 27
-_BUTTON_SIZE = (176, 44)
-_BUTTON_Y = 572
+_LAYOUT = SheetLayout(card_widths=(268, 268, 396), cards_bottom=532, picture_h=244, button_y=572)
 
 # Which part of the scene (1000 x 520) each picture shows
 _POST_CROP = pygame.Rect(0, 60, 378, 378)
 _BOB_CROP = pygame.Rect(370, 30, 380, 380)
 _SCENE_CROP = pygame.Rect(20, 15, 744, 488)
-
-_MOUSE_SIZE = (40, 60)
-_SUPERSAMPLE = 4
 
 # The power post's picture: where each try lets go, and how the green moves on after a good one
 _POWER_TRIES = (0.64, 0.14, 0.36, 0.92)   # right, too weak, right (the green has moved), too strong
@@ -223,27 +202,6 @@ class SceneDemo:
             self.scene.pile = 0
 
 
-def _mouse_icon(pressed: bool) -> pygame.Surface:
-    """A mouse, drawn large and smoothed down: its left button gilded while it is pressed."""
-    k = _SUPERSAMPLE
-    w, h = _MOUSE_SIZE
-    art = pygame.Surface((w * k, h * k), pygame.SRCALPHA)
-    body = art.get_rect().inflate(-2 * k, -2 * k)
-    radius = 17 * k
-    pygame.draw.rect(art, (236, 222, 186), body, border_radius=radius)
-    split_y = body.top + 25 * k
-    if pressed:
-        left = pygame.Surface(art.get_size(), pygame.SRCALPHA)
-        pygame.draw.rect(left, (*GOLD, 255), body, border_radius=radius)
-        left.fill((0, 0, 0, 0), (body.centerx, 0, art.get_width(), art.get_height()))
-        left.fill((0, 0, 0, 0), (0, split_y, art.get_width(), art.get_height()))
-        art.blit(left, (0, 0))
-    pygame.draw.rect(art, _INK, body, 2 * k, border_radius=radius)
-    pygame.draw.line(art, _INK, (body.left, split_y), (body.right, split_y), 2 * k)
-    pygame.draw.line(art, _INK, (body.centerx, body.top), (body.centerx, split_y), 2 * k)
-    return pygame.transform.smoothscale(art, _MOUSE_SIZE)
-
-
 class WoodhackingTutorial:
     """The how-to page: drawn on the minigame's canvas over everything, closed by its button,
     Enter, Space or Escape. The game waits behind it."""
@@ -254,12 +212,13 @@ class WoodhackingTutorial:
         self.power_demo = PowerDemo()
         self.bob_demo = BobDemo()
         self.scene_demo = SceneDemo(minigame.font_hit)
-        self.button = pygame.Rect((0, 0), _BUTTON_SIZE)
+        self.button = pygame.Rect((0, 0), BUTTON_SIZE)
+        self.button.center = (minigame.canvas.get_width() // 2, _LAYOUT.button_y)
         self._page: Optional[pygame.Surface] = None          # all that does not move
-        self._pictures = self._picture_rects()
+        self._pictures = _LAYOUT.picture_rects()
         self._backdrop: Optional[pygame.Surface] = None      # the scene at rest, under the first two pictures
         self._work: Optional[pygame.Surface] = None
-        self._mouse = {False: _mouse_icon(False), True: _mouse_icon(True)}
+        self._mouse = {False: mouse_icon(False), True: mouse_icon(True)}
 
     # ------------------------------------------------------------------
     # Input and time
@@ -274,106 +233,22 @@ class WoodhackingTutorial:
             self.closed = True
 
     def update(self, delta_time: float) -> None:
-        dt = min(delta_time, _MAX_DT)
+        dt = min(delta_time, MAX_DT)
         self.power_demo.update(dt)
         self.bob_demo.update(dt)
         self.scene_demo.update(dt)
-
-    # ------------------------------------------------------------------
-    # The sheet
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _card_rects() -> List[pygame.Rect]:
-        rects, x = [], _CARDS_LEFT
-        for width in _CARD_WIDTHS:
-            rects.append(pygame.Rect(x, _CARDS_TOP, width, _CARDS_BOTTOM - _CARDS_TOP))
-            x += width + _CARD_GAP
-        return rects
-
-    def _picture_rects(self) -> List[pygame.Rect]:
-        return [pygame.Rect(card.left + _CARD_PAD, card.top + _HEADING_H + 8, card.width - 2 * _CARD_PAD, _PICTURE_H)
-                for card in self._card_rects()]
-
-    def _build_page(self, size: Tuple[int, int]) -> pygame.Surface:
-        minigame = self.minigame
-        page = pygame.Surface(size)
-        sheet = page.get_rect()
-        draw_paper(page, sheet, sheet.topleft)
-        pygame.draw.rect(page, (150, 108, 30), sheet, 6)
-        pygame.draw.rect(page, GOLD, sheet.inflate(-4, -4), 3)
-        inner = sheet.inflate(-2 * _FRAME_INSET, -2 * _FRAME_INSET)
-        pygame.draw.rect(page, (150, 108, 30), inner, 1)
-        for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
-                               (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
-            draw_flourish(page, corner, sx, sy)
-
-        title = minigame._inked(TITLE, minigame.font_title, GOLD)
-        page.blit(title, title.get_rect(center=(sheet.centerx, _TITLE_Y)))
-        draw_divider(page, (sheet.centerx, _DIVIDER_Y), 170)
-
-        for number, (card, picture, (heading, words)) in enumerate(zip(self._card_rects(), self._pictures, CARDS), 1):
-            self._draw_card(page, card, picture, number, heading, words)
-        self.button.center = (sheet.centerx, _BUTTON_Y)
-        return page
-
-    def _draw_card(self, page: pygame.Surface, card: pygame.Rect, picture: pygame.Rect,
-                   number: int, heading: str, words: str) -> None:
-        """A card: a paler leaf, ruled in brass, with a rubric numeral, a heading, a frame
-        waiting for its picture, and the words under it."""
-        minigame = self.minigame
-        leaf = pygame.Surface(card.size, pygame.SRCALPHA)
-        leaf.fill((255, 248, 226, 96))
-        page.blit(leaf, card.topleft)
-        pygame.draw.rect(page, _BRASS_DARK, card, 2, border_radius=4)
-        pygame.draw.rect(page, _BRASS, card.inflate(-6, -6), 1, border_radius=3)
-
-        seal = pygame.Rect(card.left + _CARD_PAD, card.top + 10, 32, 32)
-        pygame.draw.rect(page, _RUBRIC, seal, border_radius=3)
-        pygame.draw.rect(page, GOLD, seal, 2, border_radius=3)
-        numeral = minigame.font.render("I" * number, True, _BRASS_LIGHT)
-        page.blit(numeral, numeral.get_rect(center=seal.center))
-        title = minigame.font_large.render(heading, True, _INK)
-        page.blit(title, title.get_rect(midleft=(seal.right + 8, seal.centery)))
-
-        pygame.draw.rect(page, _INK, picture.inflate(8, 8), border_radius=3)
-        pygame.draw.rect(page, _BRASS, picture.inflate(6, 6), 2, border_radius=3)
-        pygame.draw.rect(page, _BRASS_DARK, picture.inflate(2, 2), 1)
-
-        self._draw_words(page, words, card.left + _CARD_PAD + 2, picture.bottom + 16, card.width - 2 * _CARD_PAD - 4)
-
-    def _draw_words(self, page: pygame.Surface, words: str, x: int, y: int, width: int) -> None:
-        """The words broken to the width, those between stars in red ink."""
-        font = self.minigame.font_words
-        space = font.size(" ")[0]
-        cx = x
-        red = False
-        for word in words.split():
-            opens = word.startswith("*")
-            red = red or opens
-            bare = word.replace("*", "")
-            if cx > x and cx + font.size(bare)[0] > x + width:
-                cx, y = x, y + _LINE_H
-            page.blit(font.render(bare, True, _RUBRIC if red else _INK), (cx, y))
-            cx += font.size(bare)[0] + space
-            if word.rstrip(".,:;!?").endswith("*"):
-                red = False
 
     # ------------------------------------------------------------------
     # The moving pictures
     # ------------------------------------------------------------------
 
     def _hold_sign(self, surf: pygame.Surface, held: bool, center: Tuple[int, int]) -> None:
-        """The mouse and what it is doing."""
-        icon = self._mouse[held]
-        rect = icon.get_rect(center=center)
-        surf.blit(icon, rect)
-        self.minigame._plaque(surf, "Hold" if held else "Let go", (rect.centerx, rect.bottom + 15))
+        hold_sign(surf, self.minigame.font_small, self._mouse[held], "Hold" if held else "Let go", center)
 
     def _verdict(self, surf: pygame.Surface, verdict: Optional[Tuple[str, bool]], center: Tuple[int, int]) -> None:
         if verdict is not None:
             text, good = verdict
-            label = self.minigame._inked(text, self.minigame.font_grade, _GOOD if good else _BAD)
+            label = self.minigame._inked(text, self.minigame.font_grade, GOOD if good else BAD)
             surf.blit(label, label.get_rect(center=center))
 
     def _crop(self, crop: pygame.Rect, size: Tuple[int, int], draw_gauge) -> pygame.Surface:
@@ -397,7 +272,7 @@ class WoodhackingTutorial:
         surf.blit(picture, rect)
         self._hold_sign(surf, demo.held, (rect.left + 36, rect.bottom - 62))
         if demo.held:
-            label = self.minigame._inked("Faster!", self.minigame.font_grade, _BRASS_LIGHT)
+            label = self.minigame._inked("Faster!", self.minigame.font_grade, BRASS_LIGHT)
             surf.blit(label, label.get_rect(center=(rect.right - 54, rect.bottom - 30)))
 
     def _draw_scene_picture(self, surf: pygame.Surface, rect: pygame.Rect) -> None:
@@ -419,7 +294,7 @@ class WoodhackingTutorial:
 
     def draw(self, canvas: pygame.Surface) -> None:
         if self._page is None:
-            self._page = self._build_page(canvas.get_size())
+            self._page = build_sheet(canvas.get_size(), self.minigame, _LAYOUT, TITLE, CARDS)
             self._backdrop = self.scene_demo.scene.draw(player=False).copy()
             self._work = self._backdrop.copy()
         canvas.blit(self._page, (0, 0))
@@ -432,9 +307,4 @@ class WoodhackingTutorial:
         canvas.set_clip(clip)
 
         hovered = self.button.collidepoint(self.minigame._to_canvas(pygame.mouse.get_pos()))
-        pygame.draw.rect(canvas, _BRASS_LIGHT if hovered else _BRASS, self.button, border_radius=4)
-        pygame.draw.line(canvas, WHITE if hovered else _BRASS_LIGHT, (self.button.left + 4, self.button.top + 3),
-                         (self.button.right - 5, self.button.top + 3), 1)
-        pygame.draw.rect(canvas, _BRASS_DARK, self.button, 2, border_radius=4)
-        label = self.minigame.font_grade.render(BUTTON, True, _INK)
-        canvas.blit(label, label.get_rect(center=self.button.center))
+        draw_button(canvas, self.button, BUTTON, self.minigame.font_grade, hovered)

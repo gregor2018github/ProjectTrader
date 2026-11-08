@@ -60,8 +60,10 @@ class TestInTheRealOverlay:
         screen = pygame.display.set_mode((1920, 1080))
         state = SimpleNamespace(date=datetime.datetime(1500, 1, 4, 10), coin_popups=[], screen=screen,
                                 log_event=lambda *a: None)
+        stats = Statistics()
+        stats.minigame_tips_seen = [fishing.TIP_TUTORIAL_CAST, fishing.TIP_TUTORIAL_FIGHT]
         game = SimpleNamespace(state=state, sounds={}, weather=SimpleNamespace(),
-                               depot=SimpleNamespace(stats=Statistics(), book_labor_income=lambda *a: None))
+                               depot=SimpleNamespace(stats=stats, book_labor_income=lambda *a: None))
         return FishingMinigame(screen, game, random.Random(1))
 
     @staticmethod

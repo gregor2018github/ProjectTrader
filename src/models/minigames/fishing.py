@@ -50,6 +50,12 @@ movement of the mouse and in what the pond shows.
 Escape asks first ("Exit Mini Game now?"), the game waiting for the answer,
 unless the worms are used up and nothing is left to play.
 
+A how-to sheet (``fishing_tutorial.py``) has two pages, the cast and the fight.
+The first opens by itself the first time (``TIP_TUTORIAL_CAST``), the second when
+the first fish is hooked (``TIP_TUTORIAL_FIGHT``), both remembered in
+``Statistics.minigame_tips_seen``; the title bar's button opens them again, the
+fight's only once a fish has been hooked.
+
 Coins come only for fish brought in: the kind's value, times its size against
 the usual, times the cast's grade (``fish_coins``), added up as they land and
 paid when the session is finished: leaving it early with Escape pays nothing. A
@@ -184,6 +190,11 @@ _INK = (44, 32, 22)
 _PAPER = (236, 222, 186)
 _BRASS, _BRASS_LIGHT, _BRASS_DARK = (198, 164, 92), (232, 206, 140), (120, 92, 44)
 _GOOD, _BAD, _WARN = (150, 214, 120), (226, 110, 86), (236, 186, 96)
+
+TIP_TUTORIAL_CAST = "fishing_tutorial_cast"     # the how-to sheet's first page, opened by itself once
+TIP_TUTORIAL_FIGHT = "fishing_tutorial_fight"   # its second, opened by itself on the first fish hooked
+PAGE_CAST, PAGE_FIGHT = 0, 1
+_HELP_LABEL = "How to play"
 
 _EXIT_TITLE = "Exit Mini Game now?"
 _EXIT_TEXT = "You get no money for this session."
@@ -524,11 +535,13 @@ class Fight:
 # ----------------------------------------------------------------------
 
 class FishingMinigame(MinigameOverlay):
-    """Full-screen overlay for the fishing minigame (see the module)."""
+    """Full-screen overlay for the fishing minigame (see the module). With ``demo`` it is one of the
+    how-to sheet's moving pictures: silent, played by a script, and with no how-to sheet of its own."""
 
-    def __init__(self, screen: pygame.Surface, game, rng: Optional[random.Random] = None) -> None:
+    def __init__(self, screen: pygame.Surface, game, rng: Optional[random.Random] = None, demo: bool = False) -> None:
         self.screen = screen
         self.game = game
+        self.demo = demo
         self.active = True
         self.rng = rng or random.Random()
         self.canvas = pygame.Surface((_CANVAS_W, _CANVAS_H))
@@ -539,12 +552,14 @@ class FishingMinigame(MinigameOverlay):
             medici = os.path.join(FONTS_PATH, "Medici Text.ttf")
             self.font = pygame.font.Font(roman, 18)
             self.font_small = pygame.font.Font(roman, 15)
+            self.font_words = pygame.font.Font(roman, 21)
             self.font_grade = pygame.font.Font(roman, 28)
             self.font_large = pygame.font.Font(medici, 28)
             self.font_title = pygame.font.Font(medici, 40)
         except Exception:
             self.font = pygame.font.SysFont("georgia", 18)
             self.font_small = pygame.font.SysFont("georgia", 15)
+            self.font_words = pygame.font.SysFont("georgia", 21)
             self.font_grade = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_title = pygame.font.SysFont("georgia", 40, bold=True)
@@ -555,7 +570,7 @@ class FishingMinigame(MinigameOverlay):
         self.pond = Pond(self.rng, self.scene.hour, self.scene.season, weather.rain, weather.storm,
                          weather.snow, weather.clouds)
         self.hook = Hook()
-        self.sounds = _make_sounds()
+        self.sounds = {} if demo else _make_sounds()
         self._hum_channel: Optional[pygame.mixer.Channel] = None
 
         self.t = 0.0
@@ -614,6 +629,10 @@ class FishingMinigame(MinigameOverlay):
         stats = self._stats()
         self.highscore = getattr(stats, "fishing_highscore", 0.0) if stats else 0.0
         self.new_highscore = False
+        self.help_rect = pygame.Rect(_CANVAS_W - 128, 7, 116, 30)
+        self.tutorial = None           # the how-to sheet, while open
+        if self._first_time(TIP_TUTORIAL_CAST):
+            self._open_tutorial(PAGE_CAST)
 
     # ------------------------------------------------------------------
     # Small helpers
@@ -622,6 +641,17 @@ class FishingMinigame(MinigameOverlay):
     def _stats(self):
         depot = getattr(self.game, "depot", None)
         return getattr(depot, "stats", None)
+
+    def _tips_seen(self) -> List[str]:
+        return getattr(self._stats(), "minigame_tips_seen", [])
+
+    def _first_time(self, tip: str) -> bool:
+        """Whether this one-time explanation is still to be shown; it counts as shown from now on."""
+        stats = self._stats()
+        if self.demo or stats is None or tip in self._tips_seen():
+            return False
+        self._tips_seen().append(tip)
+        return True
 
     def _to_scene(self, pos: Tuple[int, int]) -> Tuple[float, float]:
         return (pos[0] - self.canvas_rect.left - _SCENE_RECT.left, pos[1] - self.canvas_rect.top - _SCENE_RECT.top)
@@ -671,9 +701,23 @@ class FishingMinigame(MinigameOverlay):
     # Input
     # ------------------------------------------------------------------
 
-    def _ask_to_exit(self) -> None:
-        """Ask before leaving a session under way. A button held now is let go of, its release going unseen."""
-        self.exit_asked = True
+    def _open_tutorial(self, page: int) -> None:
+        from .fishing_tutorial import FishingTutorial   # it builds on this module
+        pages = (PAGE_CAST, PAGE_FIGHT) if TIP_TUTORIAL_FIGHT in self._tips_seen() else (PAGE_CAST,)
+        self.tutorial = FishingTutorial(self, page, pages)
+        self._hold_still()
+
+    @property
+    def help_available(self) -> bool:
+        """The how-to sheet can be opened until the worms are used up."""
+        return not self._session_over()
+
+    def _help_page(self) -> int:
+        """The sheet opens on what is going on: the fight's page with a fish on the line."""
+        return PAGE_FIGHT if self.phase in (FIGHT, LANDING) else PAGE_CAST
+
+    def _hold_still(self) -> None:
+        """The session waits behind a box or a page. A button held now is let go of, its release going unseen."""
         self.lmb = False
         if self.phase == DRAW:
             self.phase = READY
@@ -681,14 +725,22 @@ class FishingMinigame(MinigameOverlay):
         if self._hum_channel is not None:
             self._hum_channel.pause()
 
-    def _go_back(self) -> None:
+    def _carry_on(self) -> None:
         """On with the session, where it stood. The mouse may be far from the marker now: it starts over it."""
-        self.exit_asked = False
         self.mouse_trail.clear()
         if self.fight is not None:
             self.fight.recentre(self.hand)
         if self._hum_channel is not None:
             self._hum_channel.unpause()
+
+    def _ask_to_exit(self) -> None:
+        """Ask before leaving a session under way."""
+        self.exit_asked = True
+        self._hold_still()
+
+    def _go_back(self) -> None:
+        self.exit_asked = False
+        self._carry_on()
 
     def _handle_exit_question(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN:
@@ -712,6 +764,14 @@ class FishingMinigame(MinigameOverlay):
         self.hand = (sx - _BAR.left) / _BAR.width
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.tutorial is not None:
+            if event.type in (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN):
+                self._track_mouse(event.pos)
+            self.tutorial.handle_event(event)
+            if self.tutorial.closed:
+                self.tutorial = None
+                self._carry_on()
+            return
         if self.exit_asked:
             self._handle_exit_question(event)
             return
@@ -747,9 +807,13 @@ class FishingMinigame(MinigameOverlay):
             self._track_mouse(event.pos)
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = (event.pos[0] - self.canvas_rect.left, event.pos[1] - self.canvas_rect.top)
+            if self.help_available and self.help_rect.collidepoint(pos):
+                self._track_mouse(event.pos)
+                self._open_tutorial(self._help_page())
+                return
             self.lmb, self.lmb_t = True, 0.0
             if self.phase == DONE:
-                pos = (event.pos[0] - self.canvas_rect.left, event.pos[1] - self.canvas_rect.top)
                 if self.close_rect.collidepoint(pos):
                     self._leave()
             elif self.phase == CARD:
@@ -994,6 +1058,8 @@ class FishingMinigame(MinigameOverlay):
             self._hum_channel = self.sounds["hum"].play(loops=-1)
             if self._hum_channel is not None:
                 self._hum_channel.set_volume(0.0)
+        if self._first_time(TIP_TUTORIAL_FIGHT):
+            self._open_tutorial(PAGE_FIGHT)
 
     def _stop_hum(self) -> None:
         if self._hum_channel is not None:
@@ -1201,6 +1267,9 @@ class FishingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def update(self, delta_time: float) -> None:
+        if self.tutorial is not None:           # everything waits behind the page
+            self.tutorial.update(delta_time)
+            return
         if self.exit_asked:                     # everything waits for the answer
             return
         dt = min(0.05, max(0.0, delta_time))
@@ -1382,7 +1451,10 @@ class FishingMinigame(MinigameOverlay):
     def _draw_overlay(self, surf: pygame.Surface) -> None:
         self._draw_hud(surf)
         if self.phase == FIGHT and self.fight is not None:
-            self._draw_fight_bar(surf)
+            self._draw_fight_bar(surf, _BAR)
+            y = _BAR.bottom + 36
+            self._draw_fight_meters(surf, pygame.Rect(SCENE_W // 2 - _METER_W - 60, y, _METER_W, _METER_H),
+                                    pygame.Rect(SCENE_W // 2 + 60, y, _METER_W, _METER_H))
         # The line straining: the edges glow red
         if self.phase == FIGHT and self.fight is not None and self.fight.strain > 0.05:
             glow = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
@@ -1406,8 +1478,8 @@ class FishingMinigame(MinigameOverlay):
         if self.card is not None:
             self._draw_card(surf)
 
-    def _draw_fight_bar(self, surf: pygame.Surface) -> None:
-        """The bar along the top: the marker swinging on it, its zone, and where the mouse is under it."""
+    def _draw_fight_bar(self, surf: pygame.Surface, bar: pygame.Rect) -> None:
+        """The bar: the marker swinging on it, its zone, and where the mouse is under it."""
         fight = self.fight
         flash = 0.5 + 0.5 * math.sin(self.t * 22)
         if fight.mode == "rage":
@@ -1416,42 +1488,43 @@ class FishingMinigame(MinigameOverlay):
             zone_colour = _mix_rgb(_WARN, _BAD, flash)
         else:
             zone_colour = _mix_rgb(_BAD, _GOOD, fight.track)
-        pygame.draw.rect(surf, _BRASS_DARK, _BAR.inflate(10, 10), border_radius=5)
+        pygame.draw.rect(surf, _BRASS_DARK, bar.inflate(10, 10), border_radius=5)
         heat = _clamp((fight.T - SNAP_TENSION + 0.15) / 0.3)
-        pygame.draw.rect(surf, _mix_rgb(_BRASS, _BAD, heat), _BAR.inflate(6, 6), border_radius=4)
-        pygame.draw.rect(surf, (34, 26, 20), _BAR, border_radius=2)
-        x = _BAR.left + fight.bar_x * _BAR.width
-        half = fight.zone * _BAR.width
-        surf.blit(self._guide, (round(x) - 1, _BAR.bottom))
+        pygame.draw.rect(surf, _mix_rgb(_BRASS, _BAD, heat), bar.inflate(6, 6), border_radius=4)
+        pygame.draw.rect(surf, (34, 26, 20), bar, border_radius=2)
+        x = bar.left + fight.bar_x * bar.width
+        half = fight.zone * bar.width
+        surf.blit(self._guide, (round(x) - 1, bar.bottom))
         # Where the grip fades out, then the zone itself
-        fade = pygame.Rect(0, 0, round(2 * half * (1 + BAR_FALLOFF)), _BAR.height - 8)
-        fade.center = (round(x), _BAR.centery)
-        pygame.draw.rect(surf, _mix_rgb((34, 26, 20), zone_colour, 0.3), fade.clip(_BAR), border_radius=2)
-        zone = pygame.Rect(0, 0, round(2 * half), _BAR.height - 4)
-        zone.center = (round(x), _BAR.centery)
-        pygame.draw.rect(surf, zone_colour, zone.clip(_BAR), border_radius=2)
+        fade = pygame.Rect(0, 0, round(2 * half * (1 + BAR_FALLOFF)), bar.height - 8)
+        fade.center = (round(x), bar.centery)
+        pygame.draw.rect(surf, _mix_rgb((34, 26, 20), zone_colour, 0.3), fade.clip(bar), border_radius=2)
+        zone = pygame.Rect(0, 0, round(2 * half), bar.height - 4)
+        zone.center = (round(x), bar.centery)
+        pygame.draw.rect(surf, zone_colour, zone.clip(bar), border_radius=2)
         # The marker: a needle through the bar, pointing down at the mouse
-        needle = pygame.Rect(round(x) - 3, _BAR.top - 5, 6, _BAR.height + 10)
+        needle = pygame.Rect(round(x) - 3, bar.top - 5, 6, bar.height + 10)
         pygame.draw.rect(surf, _PAPER, needle)
         pygame.draw.rect(surf, _INK, needle, 1)
-        tip_y = _BAR.bottom + 16
-        pygame.draw.polygon(surf, _PAPER, [(x - 9, _BAR.bottom + 5), (x + 9, _BAR.bottom + 5), (x, tip_y)])
-        pygame.draw.polygon(surf, _INK, [(x - 9, _BAR.bottom + 5), (x + 9, _BAR.bottom + 5), (x, tip_y)], 1)
+        tip_y = bar.bottom + 16
+        pygame.draw.polygon(surf, _PAPER, [(x - 9, bar.bottom + 5), (x + 9, bar.bottom + 5), (x, tip_y)])
+        pygame.draw.polygon(surf, _INK, [(x - 9, bar.bottom + 5), (x + 9, bar.bottom + 5), (x, tip_y)], 1)
         # The mouse, under the bar, pointing up at the marker
-        hx = _BAR.left + _clamp(self.hand) * _BAR.width
+        hx = bar.left + _clamp(self.hand) * bar.width
         hand = [(hx, tip_y + 2), (hx - 8, tip_y + 14), (hx + 8, tip_y + 14)]
         pygame.draw.polygon(surf, zone_colour, hand)
         pygame.draw.polygon(surf, _INK, hand, 1)
-        # The line's strain and the fish's strength
-        y = _BAR.bottom + 36
-        self._draw_meter(surf, "Line", fight.strain, _BAD, (SCENE_W // 2 - _METER_W - 60, y))
-        power = _mix_rgb(_WARN, _BAD, _clamp((fight.stamina - 0.6) / 0.3))
-        self._draw_meter(surf, "Fish", fight.stamina, power, (SCENE_W // 2 + 60, y))
-        beaten = SCENE_W // 2 + 60 + round(_METER_W * LAND_STAMINA)    # below this mark it can be netted
-        pygame.draw.line(surf, _PAPER, (beaten, y - 2), (beaten, y + _METER_H + 1), 1)
 
-    def _draw_meter(self, surf: pygame.Surface, name: str, level: float, colour, pos: Tuple[int, int]) -> None:
-        rect = pygame.Rect(pos[0], pos[1], _METER_W, _METER_H)
+    def _draw_fight_meters(self, surf: pygame.Surface, line: pygame.Rect, fish: pygame.Rect) -> None:
+        """The line's strain and the fish's strength, with the mark below which it can be netted."""
+        fight = self.fight
+        self._draw_meter(surf, "Line", fight.strain, _BAD, line)
+        power = _mix_rgb(_WARN, _BAD, _clamp((fight.stamina - 0.6) / 0.3))
+        self._draw_meter(surf, "Fish", fight.stamina, power, fish)
+        beaten = fish.left + round(fish.width * LAND_STAMINA)
+        pygame.draw.line(surf, _PAPER, (beaten, fish.top - 2), (beaten, fish.bottom), 1)
+
+    def _draw_meter(self, surf: pygame.Surface, name: str, level: float, colour, rect: pygame.Rect) -> None:
         pygame.draw.rect(surf, (34, 26, 20), rect)
         pygame.draw.rect(surf, colour, (rect.left, rect.top, round(rect.width * _clamp(level)), rect.height))
         pygame.draw.rect(surf, _BRASS_DARK, rect, 1)
@@ -1501,6 +1574,13 @@ class FishingMinigame(MinigameOverlay):
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, _TOP_BAR), (_CANVAS_W, _TOP_BAR), 1)
         title = self.font.render("FISHING", True, SANDY_BROWN)
         self.canvas.blit(title, title.get_rect(center=(_CANVAS_W // 2, _TOP_BAR // 2)))
+        if self.help_available:
+            mouse = pygame.mouse.get_pos()
+            hovered = self.help_rect.collidepoint((mouse[0] - self.canvas_rect.left, mouse[1] - self.canvas_rect.top))
+            pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, self.help_rect, border_radius=4)
+            pygame.draw.rect(self.canvas, _BRASS_DARK, self.help_rect, 2, border_radius=4)
+            label = self.font_small.render(_HELP_LABEL, True, _INK)
+            self.canvas.blit(label, label.get_rect(center=self.help_rect.center))
         y0 = _CANVAS_H - _BOTTOM_BAR
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, y0, _CANVAS_W, _BOTTOM_BAR))
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, y0), (_CANVAS_W, y0), 1)
@@ -1584,6 +1664,15 @@ class FishingMinigame(MinigameOverlay):
         backdrop = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         backdrop.fill((0, 0, 0, 160))
         self.screen.blit(backdrop, (0, 0))
+        if self.tutorial is not None:
+            self.tutorial.draw(self.canvas)
+        else:
+            self._draw_game()
+        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
+        self.screen.blit(self.canvas, self.canvas_rect.topleft)
+        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)
+
+    def _draw_game(self) -> None:
         self.canvas.fill(DARK_BROWN)
         picture = self.scene.draw(self._view())
         self._draw_overlay(picture)
@@ -1594,9 +1683,6 @@ class FishingMinigame(MinigameOverlay):
             self._draw_result()
         if self.exit_asked:
             self._draw_exit_question()
-        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
-        self.screen.blit(self.canvas, self.canvas_rect.topleft)
-        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)
 
 
 def _mix_rgb(a, b, k: float) -> Tuple[int, int, int]:

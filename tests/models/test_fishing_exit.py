@@ -26,7 +26,9 @@ def minigame():
     state = SimpleNamespace(date=datetime.datetime(1500, 1, 4, 10), coin_popups=[], screen=screen,
                             log_event=lambda *a: None)
     booked = []
-    depot = SimpleNamespace(stats=Statistics(), booked=booked,
+    stats = Statistics()
+    stats.minigame_tips_seen = [fishing.TIP_TUTORIAL_CAST, fishing.TIP_TUTORIAL_FIGHT]
+    depot = SimpleNamespace(stats=stats, booked=booked,
                             book_labor_income=lambda coins, name: booked.append(coins))
     game = SimpleNamespace(state=state, sounds={}, weather=SimpleNamespace(), depot=depot)
     return FishingMinigame(screen, game, random.Random(1))

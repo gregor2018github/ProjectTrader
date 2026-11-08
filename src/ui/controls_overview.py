@@ -35,6 +35,15 @@ LEFT_COLUMN: List[Section] = [
         ([["Left click"]], "Rank in the top bar: the ladder"),
         ([["Right click"]], "Market good: pin to the top bar"),
     ]),
+    ("Fishing", [
+        ([["Wheel"]], "Set the depth, before the cast"),
+        ([["Hold left", "Drag"]], "Drag back, whip, let go to cast"),
+        ([["Left click"]], "Twitch the bait"),
+        ([["Flick up"], ["Space"]], "Strike when it takes"),
+        ([["Hold left"]], "Reel in; keep under the marker"),
+        ([["Left click"]], "\"How to play\": the how-to pages"),
+        ([["Esc"]], "Leave, after asking (or close the page)"),
+    ]),
 ]
 
 RIGHT_COLUMN: List[Section] = [
@@ -70,7 +79,7 @@ RIGHT_COLUMN: List[Section] = [
 ]
 
 _PANEL_W = 1100
-_PANEL_H = 840
+_PANEL_H = 970
 _ROW_H = 28
 _SECTION_GAP = 14
 _KEY_COLUMN_W = 190
