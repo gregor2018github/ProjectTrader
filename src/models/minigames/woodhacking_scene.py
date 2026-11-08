@@ -1164,9 +1164,10 @@ class ChoppingScene:
             pygame.draw.lines(surf, _OUTLINE, False,
                               [(cx - 2, top - 3), (cx + 1, top + 1), (cx - 1, top + 10), (cx + 2, top + 22)], 2)
 
-    def draw(self, underlay=None, overlay=None) -> pygame.Surface:
+    def draw(self, underlay=None, overlay=None, player: bool = True) -> pygame.Surface:
         """Draw the scene; underlay(surface) is called behind the block and the
-        player (the aim's zones and plumb line), overlay(surface) over all of it."""
+        player (the aim's zones and plumb line), overlay(surface) over all of it;
+        without the player for a picture of the clearing alone (the how-to page)."""
         surf = self._world
         surf.fill((0, 0, 0, 0))
         surf.blit(self._background, (0, 0))
@@ -1176,7 +1177,8 @@ class ChoppingScene:
         self._draw_lanterns(surf)
         self._draw_pile(surf)
         self._draw_shadow(surf, _BLOCK_CX, _BLOCK_W + 10)
-        self._draw_shadow(surf, _PLAYER_LEFT + self._body_w / 2, self._body_w * 0.75)
+        if player:
+            self._draw_shadow(surf, _PLAYER_LEFT + self._body_w / 2, self._body_w * 0.75)
 
         behind_log = self.outcome == WHIFF and self.state in ("swing", "hold")
         if behind_log:
@@ -1196,7 +1198,8 @@ class ChoppingScene:
             glow = self._glow.copy()
             glow.fill((round(255 * k),) * 3, special_flags=pygame.BLEND_RGB_MULT)
             surf.blit(glow, glow.get_rect(center=(_BLOCK_CX, _LOG_TOP + 20)), special_flags=pygame.BLEND_RGB_ADD)
-        self._draw_player(surf, axe_drawn=behind_log)
+        if player:
+            self._draw_player(surf, axe_drawn=behind_log)
 
         self._draw_particles(surf)
         if self._near_tree is not None:

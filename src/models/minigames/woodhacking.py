@@ -27,6 +27,8 @@ the power pointer and a thin ring spreading from it; the aim's sweet spot lights
 PERFECT at once also make the blow itself land with weight (see the scene)
 and earn an extra swing; the first time it happens, a small box explains it
 (``TIP_DOUBLE_PERFECT``, remembered in ``Statistics.minigame_tips_seen``).
+A how-to page (``woodhacking_tutorial.py``) opens by itself the first time
+(``TIP_TUTORIAL``, remembered there too) and from the title bar's button after.
 Splits in a row make a streak: each one adds ``STREAK_BONUS`` (5%) to
 the next swing's points, so the third split in a row scores 10% more and so
 on, until a swing fails to split its log and the streak starts again from
@@ -98,16 +100,16 @@ _AIM_VERYGOOD_R = math.radians(4)
 _AIM_GOOD_R = math.radians(10)
 _AIM_OK_R = math.radians(40)
 
-_AIM_MAX = math.radians(84)
+AIM_MAX = math.radians(84)
 _AIM_MISS_MARGIN = math.radians(14)  # last stretch before AIM_MAX is dark red — an outright miss
 
 _BASE_AIM_SPEED = math.radians(58)  # radians / second when idle
 _CHARGE_SPEED_K = 1.8  # aim speed multiplier per full-power unit
 
 _POWER_RECT = POWER_RECT           # in the scene: the channel in the gauge post
-_OPT_WIDTH = 0.14  # green zone width (perfect power should be rare)
+OPT_WIDTH = 0.14  # green zone width (perfect power should be rare)
 _OPT_CENTER_0 = 0.64  # starting center (gives lo=0.57, hi=0.71)
-_POWER_RATE = 0.72  # fills from 0->1 in ~1.4 seconds
+POWER_RATE = 0.72  # fills from 0->1 in ~1.4 seconds
 
 _YELLOW_MARGIN = 0.12  # yellow band width either side of green
 _RED_MARGIN = 0.12  # red band width beyond the yellow band
@@ -138,6 +140,9 @@ STREAK_BONUS = 0.05        # extra points on a swing for each split in a row bef
 
 MAX_SWINGS = 30            # the swings of a session, before the extra ones earned
 MAX_SCORE = MAX_SWINGS * 5
+
+TIP_TUTORIAL = "woodhacking_tutorial"   # the how-to page, opened by itself once
+_HELP_LABEL = "How to play"
 
 # The one-time explanation of a swing perfect on both gauges, shown this long after it
 TIP_DOUBLE_PERFECT = "woodhacking_double_perfect"
@@ -185,6 +190,17 @@ def swing_outcome(points: int, power: float, opt_lo: float) -> str:
     return SHORT if power < opt_lo else WHIFF
 
 
+def next_aim(aim: float, direction: int, speed_bonus: float, power: float, dt: float) -> Tuple[float, int]:
+    """The bob a moment on: where it is and which way it swings. It swings at its base speed
+    plus any bonus, the faster for the power gathered, and turns at the end of its travel."""
+    speed = (_BASE_AIM_SPEED + speed_bonus) * (1.0 + power * _CHARGE_SPEED_K)
+    aim += direction * speed * dt
+    if abs(aim) >= AIM_MAX:
+        direction *= -1
+        aim = math.copysign(AIM_MAX, aim)
+    return aim, direction
+
+
 def _power_zone_bounds(opt_lo: float, opt_hi: float) -> Tuple[float, float, float, float]:
     """Yellow and red band edges around the green sweet spot.
 
@@ -204,7 +220,7 @@ def _power_zone_bounds(opt_lo: float, opt_hi: float) -> Tuple[float, float, floa
 
 def _new_opt_zone() -> Tuple[float, float]:
     center = random.uniform(0.22, 0.78)
-    return center - _OPT_WIDTH / 2, center + _OPT_WIDTH / 2
+    return center - OPT_WIDTH / 2, center + OPT_WIDTH / 2
 
 
 def _arc_pts(cx: int, cy: int, r: int, a0: float, a1: float, steps: int = 48):
@@ -245,7 +261,7 @@ def _grade_aim(aim: float) -> Tuple[int, str, tuple, bool]:
     else:
         perfect, very_good, good, fair = _AIM_PERFECT_R, _AIM_VERYGOOD_R, _AIM_GOOD_R, _AIM_OK_R
     a = abs(aim)
-    if a >= _AIM_MAX - _AIM_MISS_MARGIN:
+    if a >= AIM_MAX - _AIM_MISS_MARGIN:
         return 0, "MISS", DARK_RED, True
     if a < perfect:
         return 3, "PERFECT", DARK_GREEN, False
@@ -283,6 +299,41 @@ def _grade_power(power: float, opt_lo: float, opt_hi: float) -> Tuple[int, str, 
     return 0, "WEAK", RED, False
 
 
+def draw_flourish(surf: pygame.Surface, corner: Tuple[int, int], sx: int, sy: int) -> None:
+    """A scrolled flourish in a corner of the frame: a curl turning in, a stem along each
+    side and a small diamond; sx, sy point into the panel."""
+    x0, y0 = corner
+    points = []
+    for i in range(40):                         # a spiral curling in towards the corner
+        t = i / 39
+        angle = math.pi * (0.25 + 2.6 * t)
+        r = 18 * (1 - 0.82 * t)
+        points.append((x0 + sx * (22 + r * math.cos(angle)), y0 + sy * (22 + r * math.sin(angle))))
+    pygame.draw.lines(surf, GOLD, False, points, 2)
+    pygame.draw.circle(surf, GOLD, points[-1], 2)
+    for length, (dx, dy) in ((70, (1, 0)), (54, (0, 1))):   # stems along the two sides
+        start = (x0 + sx * (6 + 34 * dx), y0 + sy * (6 + 34 * dy))
+        end = (start[0] + sx * dx * length, start[1] + sy * dy * length)
+        pygame.draw.line(surf, _GOLD_DARK, start, end, 1)
+        leaf = (end[0] + sx * dx * 6, end[1] + sy * dy * 6)
+        pygame.draw.polygon(surf, GOLD, [end, (leaf[0] - dy * 3, leaf[1] - dx * 3),
+                                                 (leaf[0] + sx * dx * 6, leaf[1] + sy * dy * 6),
+                                                 (leaf[0] + dy * 3, leaf[1] + dx * 3)])
+    d = (x0 + sx * 7, y0 + sy * 7)
+    pygame.draw.polygon(surf, GOLD, [(d[0], d[1] - 4), (d[0] + 4, d[1]), (d[0], d[1] + 4), (d[0] - 4, d[1])])
+
+
+def draw_divider(surf: pygame.Surface, centre: Tuple[int, int], half: int) -> None:
+    """A line with a diamond in its middle and a dot near each end, under a title."""
+    x, y = centre
+    pygame.draw.line(surf, _GOLD_DARK, (x - half, y), (x - 12, y), 1)
+    pygame.draw.line(surf, _GOLD_DARK, (x + 12, y), (x + half, y), 1)
+    pygame.draw.polygon(surf, GOLD, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)])
+    pygame.draw.polygon(surf, _GOLD_DARK, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)], 1)
+    for dx in (-half - 5, half + 5):
+        pygame.draw.circle(surf, GOLD, (x + dx, y), 3)
+
+
 class WoodhackingMinigame(MinigameOverlay):
     """Full-screen overlay for the woodhacking double-gauge minigame.
 
@@ -305,6 +356,7 @@ class WoodhackingMinigame(MinigameOverlay):
         try:
             self.font = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 18)
             self.font_small = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 15)
+            self.font_words = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 21)
             self.font_grade = pygame.font.Font(os.path.join(FONTS_PATH, "RomanAntique.ttf"), 26)
             self.font_large = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 28)
             self.font_title = pygame.font.Font(os.path.join(FONTS_PATH, "Medici Text.ttf"), 44)
@@ -313,6 +365,7 @@ class WoodhackingMinigame(MinigameOverlay):
         except Exception:
             self.font = pygame.font.SysFont("georgia", 18)
             self.font_small = pygame.font.SysFont("georgia", 15)
+            self.font_words = pygame.font.SysFont("georgia", 21)
             self.font_grade = pygame.font.SysFont("georgia", 26, bold=True)
             self.font_large = pygame.font.SysFont("georgia", 28, bold=True)
             self.font_title = pygame.font.SysFont("georgia", 44, bold=True)
@@ -325,16 +378,21 @@ class WoodhackingMinigame(MinigameOverlay):
         self._ring = _steel_ring()
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)
+        self.help_rect = pygame.Rect(_CANVAS_W - 128, 7, 116, 30)
         self._payout_booked = False
         self._reset_round()
+        self.tutorial = None           # the how-to page, while open
+        if TIP_TUTORIAL not in game.depot.stats.minigame_tips_seen:
+            game.depot.stats.minigame_tips_seen.append(TIP_TUTORIAL)
+            self._open_tutorial()
 
     # ------------------------------------------------------------------
     # Round state
     # ------------------------------------------------------------------
 
     def _reset_round(self) -> None:
-        lo = _OPT_CENTER_0 - _OPT_WIDTH / 2
-        hi = _OPT_CENTER_0 + _OPT_WIDTH / 2
+        lo = _OPT_CENTER_0 - OPT_WIDTH / 2
+        hi = _OPT_CENTER_0 + OPT_WIDTH / 2
         self.aim = 0.0
         self.aim_dir = 1
         self.aim_speed_bonus = 0.0
@@ -406,7 +464,21 @@ class WoodhackingMinigame(MinigameOverlay):
     # Input
     # ------------------------------------------------------------------
 
+    def _open_tutorial(self) -> None:
+        from .woodhacking_tutorial import WoodhackingTutorial   # it builds on this module
+        self.tutorial = WoodhackingTutorial(self)
+
+    @property
+    def help_available(self) -> bool:
+        """The how-to page can be opened until the last swing has been made."""
+        return not self.done and not self._ending and not self.tip_open
+
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.tutorial is not None:
+            self.tutorial.handle_event(event)
+            if self.tutorial.closed:
+                self.tutorial = None
+            return
         if self.tip_open:
             if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER,
                                                               pygame.K_SPACE, pygame.K_ESCAPE):
@@ -427,6 +499,9 @@ class WoodhackingMinigame(MinigameOverlay):
                     return
                 if self.close_rect.collidepoint(self._to_canvas(event.pos)):
                     self._leave()
+                return
+            if self.help_available and self.help_rect.collidepoint(self._to_canvas(event.pos)):
+                self._open_tutorial()
                 return
             if not self.charging and not self._ending and self.scene.can_charge:
                 self.charging = True
@@ -574,6 +649,10 @@ class WoodhackingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def update(self, delta_time: float) -> None:
+        if self.tutorial is not None:  # the gauges wait behind the page; the scene settles meanwhile
+            self.tutorial.update(delta_time)
+            self._play_scene_sounds(self.scene.update(delta_time))
+            return
         if self.tip_open:              # the gauges wait for the OK; the scene settles meanwhile
             self._play_scene_sounds(self.scene.update(delta_time))
             return
@@ -588,14 +667,10 @@ class WoodhackingMinigame(MinigameOverlay):
         if self._ending:
             self._settle_pendulum(delta_time)
         elif not self.done:
-            spd = (_BASE_AIM_SPEED + self.aim_speed_bonus) * (1.0 + self.power * _CHARGE_SPEED_K)
-            self.aim += self.aim_dir * spd * delta_time
-            if abs(self.aim) >= _AIM_MAX:
-                self.aim_dir *= -1
-                self.aim = math.copysign(_AIM_MAX, self.aim)
+            self.aim, self.aim_dir = next_aim(self.aim, self.aim_dir, self.aim_speed_bonus, self.power, delta_time)
 
             if self.charging:
-                self.power = min(1.0, self.power + _POWER_RATE * delta_time)
+                self.power = min(1.0, self.power + POWER_RATE * delta_time)
                 self.scene.charge(self.power)
 
         self._play_scene_sounds(self.scene.update(delta_time))
@@ -618,15 +693,15 @@ class WoodhackingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def _draw_gauges(self, surf: pygame.Surface) -> None:
-        self._draw_power_bar(surf)
-        self._draw_aim_gauge(surf)
+        self._draw_power_bar(surf, self.power, self.opt_lo, self.opt_hi, self.charging)
+        self._draw_aim_gauge(surf, self.aim)
 
-    def _draw_aim_gauge(self, surf: pygame.Surface) -> None:
+    def _draw_aim_gauge(self, surf: pygame.Surface, aim: float) -> None:
         """The zones painted on the scale board, and the plumb bob swinging over them."""
         cx, cy, r = _AIM_CX, _AIM_CY, _AIM_R
-        dark_lo = _AIM_MAX - _AIM_MISS_MARGIN
+        dark_lo = AIM_MAX - _AIM_MISS_MARGIN
         zones = [
-            (-_AIM_MAX, -dark_lo, DARK_RED), (dark_lo, _AIM_MAX, DARK_RED),
+            (-AIM_MAX, -dark_lo, DARK_RED), (dark_lo, AIM_MAX, DARK_RED),
             (-dark_lo, -_AIM_OK_L, RED), (_AIM_OK_R, dark_lo, RED),
             (-_AIM_OK_L, -_AIM_GOOD_L, YELLOW), (_AIM_GOOD_R, _AIM_OK_R, YELLOW),
             (-_AIM_GOOD_L, -_AIM_VERYGOOD_L, GREEN), (_AIM_VERYGOOD_R, _AIM_GOOD_R, GREEN),
@@ -635,7 +710,7 @@ class WoodhackingMinigame(MinigameOverlay):
         for a0, a1, col in zones:
             if a1 > a0:
                 pygame.draw.polygon(surf, col, _arc_ring_poly(cx, cy, r, 18, a0, a1))
-        pygame.draw.polygon(surf, _INK, _arc_ring_poly(cx, cy, r, 18, -_AIM_MAX, _AIM_MAX), 2)
+        pygame.draw.polygon(surf, _INK, _arc_ring_poly(cx, cy, r, 18, -AIM_MAX, AIM_MAX), 2)
         # Ticks cut into the board's outer edge every 10 degrees, the centre one long
         for deg in range(-80, 81, 10):
             a = math.radians(deg)
@@ -645,8 +720,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self._plaque(surf, "AIM", (cx - 96, cy - 9))
 
         # The cord and the brass bob at its end, pointing along it
-        a = self.aim
-        along = pygame.Vector2(math.sin(a), math.cos(a))
+        along = pygame.Vector2(math.sin(aim), math.cos(aim))
         side = pygame.Vector2(along.y, -along.x)
         pivot = pygame.Vector2(cx, cy)
         bob = pivot + along * (r - 4)
@@ -658,7 +732,8 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.polygon(surf, _INK, body, 2)
         pygame.draw.circle(surf, _IRON, pivot, 4)
 
-    def _draw_power_bar(self, surf: pygame.Surface) -> None:
+    def _draw_power_bar(self, surf: pygame.Surface, power: float, opt_lo: float, opt_hi: float,
+                        charging: bool) -> None:
         """The gauge post: the zones inlaid in its channel, the power rising in it,
         and a brass pointer on its side at the level."""
         r = _POWER_RECT
@@ -683,11 +758,11 @@ class WoodhackingMinigame(MinigameOverlay):
                 pygame.draw.circle(surf, (120, 116, 110), (x, band.centery), 1)
 
         # The channel and its zones
-        ylo, yhi, rlo, rhi = _power_zone_bounds(self.opt_lo, self.opt_hi)
+        ylo, yhi, rlo, rhi = _power_zone_bounds(opt_lo, opt_hi)
         zone_defs = [
-            (0.0, rlo, DARK_RED), (rlo, ylo, RED), (ylo, self.opt_lo, YELLOW),
-            (self.opt_lo, self.opt_hi, DARK_GREEN),
-            (self.opt_hi, yhi, YELLOW), (yhi, rhi, RED), (rhi, 1.0, DARK_RED),
+            (0.0, rlo, DARK_RED), (rlo, ylo, RED), (ylo, opt_lo, YELLOW),
+            (opt_lo, opt_hi, DARK_GREEN),
+            (opt_hi, yhi, YELLOW), (yhi, rhi, RED), (rhi, 1.0, DARK_RED),
         ]
         pygame.draw.rect(surf, _INK, r.inflate(6, 6))
         for lo, hi, col in zone_defs:
@@ -697,19 +772,19 @@ class WoodhackingMinigame(MinigameOverlay):
         for i in range(1, 10):                             # notches every tenth
             y = r.bottom - r.height * i // 10
             pygame.draw.line(surf, _INK, (r.left, y), (r.left + (8 if i == 5 else 5), y), 1)
-        fill_h = int(self.power * r.height)
+        fill_h = int(power * r.height)
         if fill_h > 0:
             sap = pygame.Surface((r.width, fill_h), pygame.SRCALPHA)
             sap.fill((255, 255, 240, 70))
             surf.blit(sap, (r.left, r.bottom - fill_h))
 
         # The pointer: a brass wedge on the post's side, bright while in the sweet spot
-        y = r.bottom - self.power * r.height
+        y = r.bottom - power * r.height
         pygame.draw.line(surf, WHITE, (r.left, y), (r.right - 1, y), 2)
-        sweet = self.opt_lo <= self.power <= self.opt_hi
+        sweet = opt_lo <= power <= opt_hi
         x = post.right + 2
         wedge = [(r.right + 2, y), (x + 14, y - 9), (x + 14, y + 9)]
-        pygame.draw.polygon(surf, _BRASS_LIGHT if sweet and self.charging else _BRASS, wedge)
+        pygame.draw.polygon(surf, _BRASS_LIGHT if sweet and charging else _BRASS, wedge)
         pygame.draw.polygon(surf, _INK, wedge, 2)
         self._plaque(surf, "POWER", (post.centerx, post.top + 30))
 
@@ -816,6 +891,12 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, 44), (_CANVAS_W, 44), 1)
         title = self.font.render("WOODHACKING", True, SANDY_BROWN)
         self.canvas.blit(title, title.get_rect(center=(_CANVAS_W // 2, 22)))
+        if self.help_available:
+            hovered = self.help_rect.collidepoint(self._to_canvas(pygame.mouse.get_pos()))
+            pygame.draw.rect(self.canvas, _BRASS_LIGHT if hovered else _BRASS, self.help_rect, border_radius=4)
+            pygame.draw.rect(self.canvas, _BRASS_DARK, self.help_rect, 2, border_radius=4)
+            label = self.font_small.render(_HELP_LABEL, True, _INK)
+            self.canvas.blit(label, label.get_rect(center=self.help_rect.center))
 
         pygame.draw.rect(self.canvas, DARK_BROWN, (0, _CANVAS_H - 46, _CANVAS_W, 46))
         pygame.draw.line(self.canvas, SANDY_BROWN, (0, _CANVAS_H - 46), (_CANVAS_W, _CANVAS_H - 46), 1)
@@ -918,11 +999,11 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, _GOLD_DARK, inner, 1)
         for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
                                (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
-            self._flourish(corner, sx, sy)
+            draw_flourish(self.canvas, corner, sx, sy)
 
         title = self._inked("New Highscore!", self.font_title, GOLD)
         self.canvas.blit(title, title.get_rect(center=(_CX, panel.top + 58)))
-        self._divider((_CX, panel.top + 92), 150)
+        draw_divider(self.canvas, (_CX, panel.top + 92), 150)
 
         centre = (_CX, panel.top + 186)
         self._laurel(centre, 70)
@@ -943,39 +1024,6 @@ class WoodhackingMinigame(MinigameOverlay):
         pygame.draw.rect(self.canvas, _GOLD_DARK, self.congrats_close_rect, 2, border_radius=4)
         close_txt = self.font.render("Nice!", True, DARK_BROWN)
         self.canvas.blit(close_txt, close_txt.get_rect(center=self.congrats_close_rect.center))
-
-    def _flourish(self, corner: Tuple[int, int], sx: int, sy: int) -> None:
-        """A scrolled flourish in a corner of the frame: a curl turning in, a stem along each
-        side and a small diamond; sx, sy point into the panel."""
-        x0, y0 = corner
-        points = []
-        for i in range(40):                         # a spiral curling in towards the corner
-            t = i / 39
-            angle = math.pi * (0.25 + 2.6 * t)
-            r = 18 * (1 - 0.82 * t)
-            points.append((x0 + sx * (22 + r * math.cos(angle)), y0 + sy * (22 + r * math.sin(angle))))
-        pygame.draw.lines(self.canvas, GOLD, False, points, 2)
-        pygame.draw.circle(self.canvas, GOLD, points[-1], 2)
-        for length, (dx, dy) in ((70, (1, 0)), (54, (0, 1))):   # stems along the two sides
-            start = (x0 + sx * (6 + 34 * dx), y0 + sy * (6 + 34 * dy))
-            end = (start[0] + sx * dx * length, start[1] + sy * dy * length)
-            pygame.draw.line(self.canvas, _GOLD_DARK, start, end, 1)
-            leaf = (end[0] + sx * dx * 6, end[1] + sy * dy * 6)
-            pygame.draw.polygon(self.canvas, GOLD, [end, (leaf[0] - dy * 3, leaf[1] - dx * 3),
-                                                     (leaf[0] + sx * dx * 6, leaf[1] + sy * dy * 6),
-                                                     (leaf[0] + dy * 3, leaf[1] + dx * 3)])
-        d = (x0 + sx * 7, y0 + sy * 7)
-        pygame.draw.polygon(self.canvas, GOLD, [(d[0], d[1] - 4), (d[0] + 4, d[1]), (d[0], d[1] + 4), (d[0] - 4, d[1])])
-
-    def _divider(self, centre: Tuple[int, int], half: int) -> None:
-        """A line with a diamond in its middle and a dot near each end, under a title."""
-        x, y = centre
-        pygame.draw.line(self.canvas, _GOLD_DARK, (x - half, y), (x - 12, y), 1)
-        pygame.draw.line(self.canvas, _GOLD_DARK, (x + 12, y), (x + half, y), 1)
-        pygame.draw.polygon(self.canvas, GOLD, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)])
-        pygame.draw.polygon(self.canvas, _GOLD_DARK, [(x, y - 6), (x + 7, y), (x, y + 6), (x - 7, y)], 1)
-        for dx in (-half - 5, half + 5):
-            pygame.draw.circle(self.canvas, GOLD, (x + dx, y), 3)
 
     def _laurel(self, centre: Tuple[int, int], radius: int) -> None:
         """A laurel wreath round a point: two leafy branches rising from a bow at the bottom."""
@@ -1013,6 +1061,16 @@ class WoodhackingMinigame(MinigameOverlay):
         backdrop.fill((0, 0, 0, 160))
         self.screen.blit(backdrop, (0, 0))
 
+        if self.tutorial is not None:
+            self.tutorial.draw(self.canvas)
+        else:
+            self._draw_game()
+
+        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
+        self.screen.blit(self.canvas, self.canvas_rect.topleft)
+        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)
+
+    def _draw_game(self) -> None:
         self.canvas.fill(DARK_BROWN)
         # The scene with its gauges, shaken a little by a clean split
         dx, dy = self.scene.shake_offset
@@ -1031,7 +1089,3 @@ class WoodhackingMinigame(MinigameOverlay):
             self._draw_result_overlay(coins)
             if self._show_congrats:
                 self._draw_congrats_overlay()
-
-        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
-        self.screen.blit(self.canvas, self.canvas_rect.topleft)
-        pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)

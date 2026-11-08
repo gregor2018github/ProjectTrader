@@ -59,7 +59,8 @@ RIGHT_COLUMN: List[Section] = [
     ("Woodhacking", [
         ([["Hold left"]], "Gather power"),
         ([["Release"]], "Swing the axe"),
-        ([["Esc"]], "Leave"),
+        ([["Left click"]], "\"How to play\": the how-to page"),
+        ([["Esc"]], "Leave (or close the page)"),
     ]),
     ("Inventory", [
         ([["I"]], "What you carry, open / close"),

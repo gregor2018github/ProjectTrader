@@ -100,8 +100,8 @@ def test_the_scene_draws_every_moment(scene):
             scene.draw()
 
 
-def _game(tips_seen=(wh.TIP_DOUBLE_PERFECT,)):
-    """A stand-in game; the explanation of a perfect blow counts as seen unless the test says not."""
+def _game(tips_seen=(wh.TIP_TUTORIAL, wh.TIP_DOUBLE_PERFECT)):
+    """A stand-in game; the how-to page and the explanation of a perfect blow count as seen unless the test says not."""
     stats = SimpleNamespace(woodhacking_highscore=0, minigames_played=0, minigame_income_total=0.0,
                             minigame_tips_seen=list(tips_seen))
     booked = []
@@ -294,14 +294,14 @@ def test_a_swing_perfect_on_both_gauges_earns_an_extra_swing(minigame):
 
 def test_the_first_perfect_blow_is_explained_once_and_waits_for_ok(monkeypatch):
     monkeypatch.setattr(wh, "on_money_received", lambda *a, **k: None)
-    game, _ = _game(tips_seen=())
+    game, _ = _game(tips_seen=(wh.TIP_TUTORIAL,))
     m = wh.WoodhackingMinigame(pygame.Surface((10, 10)), game)
     m.aim, m.power = 0.0, (m.opt_lo + m.opt_hi) / 2
     m._resolve_swing()
     for _ in range(round(1.2 / DT)):
         m.update(DT)
     assert m.tip_open
-    assert game.depot.stats.minigame_tips_seen == [wh.TIP_DOUBLE_PERFECT]
+    assert game.depot.stats.minigame_tips_seen == [wh.TIP_TUTORIAL, wh.TIP_DOUBLE_PERFECT]
     aim = m.aim
     m.update(DT)
     assert m.aim == aim                          # the game waits
