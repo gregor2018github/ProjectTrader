@@ -24,6 +24,7 @@ MAX_DT = 0.05                           # a slow frame does not make the picture
 
 BUTTON_SIZE = (176, 44)
 MOUSE_SIZE = (40, 60)
+SPACE_SIZE = (92, 28)
 
 _FRAME_INSET = 13
 _TITLE_Y, _DIVIDER_Y = 52, 84
@@ -167,6 +168,17 @@ def mouse_icon(pressed: bool = False, wheel: bool = False) -> pygame.Surface:
         pygame.draw.rect(art, GOLD, spokes, border_radius=3 * k)
         pygame.draw.rect(art, INK, spokes, k, border_radius=3 * k)
     return pygame.transform.smoothscale(art, MOUSE_SIZE)
+
+
+def space_icon(pressed: bool = False) -> pygame.Surface:
+    """The space bar, gilded and pushed down a little while it is pressed."""
+    w, h = SPACE_SIZE
+    art = pygame.Surface(SPACE_SIZE, pygame.SRCALPHA)
+    pygame.draw.rect(art, INK, (0, 3, w, h - 3), border_radius=6)
+    top = pygame.Rect(2, 2 if pressed else 0, w - 4, h - 7)
+    pygame.draw.rect(art, GOLD if pressed else (236, 222, 186), top, border_radius=5)
+    pygame.draw.rect(art, INK, top, 2, border_radius=5)
+    return art
 
 
 def hold_sign(surf: pygame.Surface, font: pygame.font.Font, icon: pygame.Surface, text: str,

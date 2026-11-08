@@ -40,7 +40,7 @@ LEFT_COLUMN: List[Section] = [
         ([["Hold left", "Drag"]], "Drag back, whip, let go to cast"),
         ([["Left click"]], "Twitch the bait"),
         ([["Flick up"], ["Space"]], "Strike when it takes"),
-        ([["Hold left"]], "Reel in; keep under the marker"),
+        ([["Space"], ["Hold left"]], "Hold: bar rises; let go: falls"),
         ([["Left click"]], "\"How to play\": the how-to pages"),
         ([["Esc"]], "Leave, after asking (or close the page)"),
     ]),

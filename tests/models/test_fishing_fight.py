@@ -1,8 +1,9 @@
-"""The fishing fight: the marker to keep the mouse under, the rages, and that a bigger fish is harder."""
+"""The fishing fight: the bar with its momentum, the fish by its kind, the catch meter, the chest and the perfect catch."""
 
 import datetime
 import os
 import random
+from collections import deque
 from types import SimpleNamespace
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -12,48 +13,295 @@ import pygame
 import pytest
 
 from src.models.minigames import fishing
-from src.models.minigames.fishing import Fight, FishingMinigame
+from src.models.minigames.fishing import Chest, Fight, FishingMinigame
 from src.models.minigames.fishing_pond import Fish, SPECIES
 from src.models.statistics import Statistics
 
 DT = 1 / 60
-TIP = (64.0, 30.0)
 SMALL = ("roach", 20)
 BIG = ("pike", 100)
 
 
-def make_fight(kind, seed=1, hand=0.5):
+def make_fight(kind, seed=1, hold=0.8, chest=False):
     rng = random.Random(seed)
     fish = Fish(SPECIES[kind[0]], rng)
     fish.cm = kind[1]
     fish.x, fish.y = 194.0, 90.0
-    return Fight(fish, 0.8, TIP, rng, hand)
-
-
-def calm_at_rest(fight):
-    """Hold the fish in one mode for the test: rest, with long enough to go."""
-    fight.mode, fight.mode_t = "rest", 99.0
+    fight = Fight(fish, hold, rng)
+    if not chest:
+        fight.chest_in = None
     return fight
 
 
+def under_way(kind=SMALL, **args):
+    """A fight past its first moments."""
+    fight = make_fight(kind, **args)
+    fight.grace = 0.0
+    return fight
+
+
+def player_who_sees(late_frames, ahead):
+    """Sees the fish and the bar so many frames late, and reckons the bar's way so many seconds ahead."""
+    seen = deque()
+
+    def player(fight):
+        seen.append((fight.fish_at, fight.bar_at, fight.bar_v))
+        if len(seen) > late_frames + 1:
+            seen.popleft()
+        fish_at, bar_at, bar_v = seen[0]
+        return bar_at + bar_v * ahead < fish_at
+    return player
+
+
+def sharp():
+    return player_who_sees(6, 0.28)
+
+
+def fair():
+    """About what a person manages: a quarter of a second late."""
+    return player_who_sees(14, 0.3)
+
+
 def play(fight, player, seconds=120.0):
-    """Runs the fight with player(fight) -> (reeling, hand); returns how it ended."""
+    """Runs the fight; returns how it ended."""
     while fight.t < seconds:
-        reeling, hand = player(fight)
-        for event in fight.update(DT, TIP, reeling, hand):
+        for event in fight.update(DT, player(fight)):
             if event in ("land", "free"):
                 return event
     return "time"
 
 
-def careful(fight):
-    """Follows the marker exactly, lets go through rages and leaps and when the line strains."""
-    return fight.mode not in ("brace", "rage", "jump") and fight.strain < 0.4, fight.bar_x
+def landed(kind, make_player, seeds=30):
+    return sum(play(make_fight(kind, seed), make_player()) == "land" for seed in range(seeds))
+
+
+class TestTheBar:
+    def test_it_starts_over_the_fish(self):
+        for seed in range(10):
+            assert make_fight(BIG, seed).fish_in_bar
+
+    def test_holding_makes_it_rise_and_letting_go_makes_it_fall(self):
+        fight = under_way()
+        fight.bar_at, fight.bar_v = 0.5, 0.0
+        for _ in range(20):
+            fight._move_bar(DT, True)
+        high = fight.bar_at
+        assert high > 0.5
+        fight.bar_at, fight.bar_v = 0.5, 0.0
+        for _ in range(20):
+            fight._move_bar(DT, False)
+        assert fight.bar_at < 0.5
+
+    def test_it_keeps_moving_a_moment_after_letting_go(self):
+        fight = under_way()
+        fight.bar_at, fight.bar_v = 0.3, 0.0
+        for _ in range(30):
+            fight._move_bar(DT, True)
+        at, speed = fight.bar_at, fight.bar_v
+        assert speed > 0
+        fight._move_bar(DT, False)
+        assert fight.bar_at > at
+
+    def test_it_stays_in_the_column_and_bounces_off_its_foot(self):
+        fight = under_way()
+        for _ in range(60 * 4):
+            fight._move_bar(DT, False)
+            assert fight.bar_at >= fight.bar_h / 2
+        fight.bar_at, fight.bar_v = fight.bar_h / 2 + 0.001, -0.8
+        fight._move_bar(DT, False)
+        assert fight.bar_v > 0
+        for _ in range(60 * 4):
+            fight._move_bar(DT, True)
+            assert fight.bar_at <= 1 - fight.bar_h / 2
+
+    def test_quick_taps_keep_it_hovering(self):
+        fight = under_way()
+        fight.bar_at, fight.bar_v = 0.5, 0.0
+        spots = []
+        for _ in range(60 * 5):
+            fight._move_bar(DT, fight.bar_at + fight.bar_v * 0.28 < 0.5)
+            spots.append(fight.bar_at)
+        assert max(spots) - min(spots) < 0.15
+
+
+class TestTheFish:
+    @pytest.mark.parametrize("key", sorted(SPECIES))
+    def test_every_kind_has_a_way_of_moving(self, key):
+        assert SPECIES[key].style in fishing.STYLES
+
+    def test_it_moves_by_itself_and_stays_in_the_column(self):
+        fight = under_way(BIG)
+        spots = []
+        for _ in range(60 * 30):
+            fight._swim(DT)
+            spots.append(fight.fish_at)
+        assert min(spots) >= 0 and max(spots) <= 1
+        assert max(spots) - min(spots) > 0.5
+
+    @staticmethod
+    def mean_place(key, cm=30):
+        total, frames = 0.0, 0
+        for seed in range(6):
+            fight = under_way((key, cm), seed=seed)
+            for _ in range(60 * 40):
+                fight._swim(DT)
+                total += fight.fish_at
+                frames += 1
+        return total / frames
+
+    def test_a_sinker_keeps_low_and_a_floater_high(self):
+        assert self.mean_place("bream") < 0.45 < 0.55 < self.mean_place("rudd")
+
+    def test_a_darter_turns_oftener_and_sharper_than_a_smooth_one(self):
+        def travel(key, cm):
+            fight, way, last = under_way((key, cm)), 0.0, None
+            for _ in range(60 * 40):
+                fight._swim(DT)
+                way += abs(fight.fish_at - last) if last is not None else 0.0
+                last = fight.fish_at
+            return way
+        assert travel("perch", 25) > 1.3 * travel("roach", 25)
+
+    def test_a_bigger_one_goes_faster_and_leaves_a_smaller_bar(self):
+        small, big = make_fight(SMALL), make_fight(BIG)
+        assert big.max_speed > small.max_speed
+        assert big.bar_h < small.bar_h
+
+    def test_it_holds_still_for_the_first_moments_and_the_meter_too(self):
+        fight = make_fight(BIG)
+        at, meter = fight.fish_at, fight.catch
+        for _ in range(int(fishing.GRACE_S / DT) - 1):
+            fight.update(DT, False)
+        assert fight.fish_at == at and fight.catch == meter
+
+    def test_it_shows_in_the_pond_at_its_depth_and_nearer_the_bank_as_the_meter_fills(self):
+        fight = under_way(("bream", 40))
+        fight._swim = lambda dt: None
+        fight.fish_at = 0.9
+        for _ in range(120):
+            fight.update(DT, False)
+            fight.bar_at, fight.bar_v = 0.9, 0.0
+        shallow = fight.fish.y
+        fight.fish_at = 0.1
+        for _ in range(120):
+            fight.update(DT, False)
+            fight.bar_at, fight.bar_v = 0.1, 0.0
+        assert fight.fish.y > shallow + 10
+        assert fight.fish.x < fight.from_x
+
+
+class TestTheMeter:
+    def test_it_fills_with_the_fish_in_the_bar_and_drains_out_of_it(self):
+        fight = under_way()
+        fight._swim = lambda dt: None
+        fight.fish_at, fight.bar_at, fight.bar_v, fight.catch = 0.5, 0.5, 0.0, 0.5
+        fight.update(DT, True)
+        assert fight.catch == pytest.approx(0.5 + fight.fill * DT)
+        fight.fish_at, fight.bar_at, fight.catch = 0.95, 0.2, 0.5
+        fight.update(DT, False)
+        assert fight.catch == pytest.approx(0.5 - fight.drain * DT)
+
+    def test_full_lands_it_and_empty_loses_it(self):
+        fight = under_way()
+        fight._swim = lambda dt: None
+        fight.fish_at, fight.bar_at, fight.bar_v, fight.catch = 0.5, 0.5, 0.0, 0.9999
+        assert "land" in fight.update(DT, True)
+        fight.fish_at, fight.bar_at, fight.catch = 0.95, 0.2, 0.0001
+        assert "free" in fight.update(DT, False)
+
+    def test_a_better_strike_starts_it_higher(self):
+        assert make_fight(SMALL, hold=1.0).catch > make_fight(SMALL, hold=0.8).catch > make_fight(SMALL, hold=0.55).catch
+
+    def test_a_bigger_fish_takes_longer_and_drains_faster(self):
+        small, big = make_fight(SMALL), make_fight(BIG)
+        assert big.fill < small.fill
+        assert big.drain > small.drain
+
+
+class TestTheChest:
+    def fight_with_a_chest(self, at=0.9):
+        fight = under_way()
+        fight._swim = lambda dt: None
+        fight.fish_at, fight.chest = 0.1, Chest(at)
+        fight.catch = 0.5
+        return fight
+
+    def test_only_some_fights_have_one_and_it_comes_clear_of_the_fish(self):
+        fights = [make_fight(SMALL, seed, chest=True) for seed in range(200)]
+        with_one = [f for f in fights if f.chest_in is not None]
+        assert 0.1 * 200 <= len(with_one) <= 0.3 * 200
+        fight = with_one[0]
+        fight.chest_in, fight.grace = DT / 2, 0.0
+        assert "chest" in fight.update(DT, False)
+        assert abs(fight.chest.at - fight.fish_at) >= fishing.CHEST_CLEAR - 0.05
+
+    def test_kept_in_the_bar_long_enough_it_is_won(self):
+        fight = self.fight_with_a_chest()
+        events = []
+        for _ in range(int(fishing.CHEST_TAKE_S / DT) + 2):
+            fight.bar_at, fight.bar_v = 0.9, 0.0
+            events += fight.update(DT, False)
+        assert "chest_won" in events and fight.chest is None
+
+    def test_the_meter_does_not_drain_while_working_on_it(self):
+        fight = self.fight_with_a_chest()
+        for _ in range(30):
+            fight.bar_at, fight.bar_v = 0.8, 0.0
+            fight.update(DT, False)
+        assert fight.catch == 0.5
+
+    def test_left_alone_it_goes_and_the_meter_drains(self):
+        fight = self.fight_with_a_chest(at=0.9)
+        fight.chest.life = 0.1
+        events = []
+        for _ in range(12):
+            fight.bar_at, fight.bar_v = 0.5, 0.0
+            events += fight.update(DT, False)
+        assert "chest_gone" in events and fight.chest is None
+        assert fight.catch < 0.5
+
+
+class TestThePerfectCatch:
+    def test_a_fish_that_left_the_bar_is_no_longer_perfect(self):
+        fight = under_way()
+        assert fight.perfect
+        fight._swim = lambda dt: None
+        fight.fish_at, fight.bar_at = 0.95, 0.2
+        fight.update(DT, False)
+        assert not fight.perfect
+
+    def test_the_first_moments_do_not_count(self):
+        fight = make_fight(SMALL)
+        fight.fish_at, fight.bar_at = 0.95, 0.2
+        fight.update(DT, False)
+        assert fight.perfect
+
+
+class TestWhoLandsWhat:
+    """Simulated players, all on the same fish: the fight's balance."""
+
+    @pytest.mark.parametrize("kind", (("roach", 16), ("roach", 28), ("rudd", 22), ("perch", 25), ("bream", 40)))
+    def test_a_fair_player_lands_the_common_fish(self, kind):
+        assert landed(kind, fair) >= 25
+
+    @pytest.mark.parametrize("kind", (("carp", 55), ("eel", 60), ("pike", 65), ("golden_carp", 60)))
+    def test_a_sharp_player_lands_the_big_ones(self, kind):
+        assert landed(kind, sharp) >= 20
+
+    def test_the_biggest_is_hard_but_can_be_done(self):
+        assert 0 < landed(BIG, sharp) < 30
+        assert landed(BIG, fair) < landed(("perch", 25), fair)
+
+    @pytest.mark.parametrize("kind", (("roach", 28), ("perch", 25), ("bream", 40), ("tench", 35), ("rudd", 22), ("pike", 65)))
+    def test_just_holding_mostly_loses_it(self, kind):
+        assert landed(kind, lambda: (lambda fight: True)) <= 15     # a floater, up there anyway, is the most it gets
+
+    @pytest.mark.parametrize("kind", (("roach", 28), ("perch", 25), ("bream", 40), ("tench", 35), ("rudd", 22), ("pike", 65)))
+    def test_never_pressing_mostly_loses_it(self, kind):
+        assert landed(kind, lambda: (lambda fight: False)) <= 10
 
 
 class TestInTheRealOverlay:
-    """Through FishingMinigame itself, whose rod bends and swings, not a Fight with a fixed tip."""
-
     @pytest.fixture
     def minigame(self):
         pygame.init()
@@ -67,232 +315,88 @@ class TestInTheRealOverlay:
         return FishingMinigame(screen, game, random.Random(1))
 
     @staticmethod
-    def hold_on_marker(minigame, kind, seed=1):
-        rng = random.Random(seed)
-        fish = Fish(SPECIES[kind[0]], rng)
+    def hook(minigame, kind=SMALL):
+        fish = Fish(SPECIES[kind[0]], random.Random(1))
         fish.cm = kind[1]
         fish.x, fish.y = 194.0, 90.0
         minigame.pond.fish.append(fish)
         minigame._start_fight(fish, 0.8, "GOOD STRIKE")
-        minigame.lmb = True
+        minigame.fight.grace = 0.0
+        minigame.fight.chest_in = None
         return minigame.fight
 
-    def test_a_bending_rod_gives_the_line_no_slack(self, minigame):
-        fight = self.hold_on_marker(minigame, ("bream", 40))
-        fight.mode, fight.mode_t, fight.dir = "run", 99.0, (1.0, 0.0)
-        fight.endurance = 1e9
-        tensions = []
-        for frame in range(60 * 2):
-            minigame.hand = fight.bar_x
-            fight.strain = 0.0              # keep the line whole: only the tension is watched here
-            minigame.update(DT)
-            if frame > 30:
-                tensions.append(fight.T)
-        assert min(tensions) > fishing.SNAP_TENSION
-
-    def test_holding_on_the_marker_loses_a_big_fish(self, minigame):
-        fight = self.hold_on_marker(minigame, BIG)
-        while minigame.phase == fishing.FIGHT and fight.t < 60:
-            minigame.hand = fight.bar_x
-            minigame.update(DT)
-        assert any("broke free" in popup[0] for popup in minigame.popups)
-
-
-class TestMarker:
-    def test_starts_over_the_mouse(self):
-        assert make_fight(SMALL, hand=0.3).bar_x == pytest.approx(0.3)
-
-    def test_swings_both_ways_across_the_bar_and_stays_on_it(self):
-        fight = calm_at_rest(make_fight(BIG))
-        seen = []
-        for _ in range(60 * 30):
-            fight._swing(DT)
-            seen.append(fight.bar_x)
-        assert min(seen) >= fishing.BAR_EDGE - 1e-9
-        assert max(seen) <= 1 - fishing.BAR_EDGE + 1e-9
-        assert max(seen) - min(seen) > 0.5
-
-    def test_tracking_is_full_in_the_zone_and_gone_well_outside_it(self):
-        fight = make_fight(SMALL, hand=0.5)
-        assert fight.tracking(0.5 + fight.zone * 0.9) == 1.0
-        assert fight.tracking(0.5 + fight.zone * (1 + fishing.BAR_FALLOFF)) == 0.0
-        assert 0.0 < fight.tracking(0.5 - fight.zone * (1 + fishing.BAR_FALLOFF / 2)) < 1.0
-
-
-class TestReeling:
-    def test_reeling_on_the_marker_brings_the_fish_in(self):
-        fight = calm_at_rest(make_fight(SMALL))
-        line = fight.line
-        for _ in range(60):
-            fight.update(DT, TIP, True, fight.bar_x)
-        assert fight.line < line - 10
-
-    def test_reeling_off_the_marker_gains_nothing(self):
-        fight = calm_at_rest(make_fight(SMALL))
-        line = fight.line
-        for _ in range(60):
-            fight.update(DT, TIP, True, fight.bar_x + 0.5)
-        assert fight.line >= line
-
-    def test_off_the_marker_the_line_is_under_more_tension(self):
-        on, off = make_fight(("bream", 40)), make_fight(("bream", 40))
-        for fight in (on, off):         # running straight away from the rod, the line taut
-            fight.mode, fight.mode_t, fight.dir = "run", 99.0, (1.0, 0.0)
-        for _ in range(60):
-            on.strain = off.strain = 0.0        # no line giving way: only the tension is watched here
-            on.update(DT, TIP, True, on.bar_x)
-            off.update(DT, TIP, True, off.bar_x + 0.5)
-        assert off.T > on.T + 0.2
-
-    def test_a_let_go_line_lets_the_fish_recover(self):
-        fight = calm_at_rest(make_fight(BIG))
-        fight.stamina = 0.5
-        for _ in range(60):
-            fight.update(DT, TIP, False, fight.bar_x)
-        assert fight.stamina > 0.5
-
-
-class TestRage:
-    def rage(self, kind):
-        fight = make_fight(kind)
-        fight.update(DT, TIP, True, fight.bar_x)
-        fight.mode, fight.mode_t = "brace", 0.0
-        return fight
-
-    def test_it_is_warned_of_then_ends_in_a_rest_to_reel_in(self):
-        fight = make_fight(BIG)
-        fight.mode, fight.mode_t = "brace", 0.0
-        assert "rage" in fight.update(DT, TIP, False, fight.bar_x)
-        assert fight.mode == "rage"
-        fight.mode_t = 0.0
-        assert "calm" in fight.update(DT, TIP, False, fight.bar_x)
-        assert fight.mode == "rest"
-        assert fight.mode_t == pytest.approx(fishing.RAGE_REST_S)
-
-    def test_holding_on_through_it_overloads_the_line_and_feeds_the_fish(self):
-        fight = self.rage(BIG)
-        fight.update(DT, TIP, True, fight.bar_x)
-        fight.mode_t = 99.0
-        power = fight.stamina
-        events = []
-        for _ in range(60 * 5):
-            events += fight.update(DT, TIP, True, fight.bar_x)
-            if "overload" in events:
-                break
-        assert "overload" in events
-        assert fight.stamina > power + 0.1
-        assert fight.strain == pytest.approx(fishing.OVERLOAD_STRAIN)
-
-    def test_letting_go_through_it_saves_the_line_but_gives_it_line(self):
-        fight = self.rage(BIG)
-        fight.update(DT, TIP, False, fight.bar_x)
-        fight.mode_t = 5.0
-        line = fight.line
-        events = []
-        for _ in range(60 * 4):
-            events += fight.update(DT, TIP, False, fight.bar_x)
-        assert "overload" not in events
-        assert fight.strain == 0.0
-        assert fight.line > line
-
-
-class TestPower:
-    @pytest.mark.parametrize("seed", range(10))
-    def test_it_starts_at_half_or_a_little_under(self, seed):
-        assert 0.4 <= make_fight(BIG, seed).stamina <= 0.5
-
-    def test_starts_vary(self):
-        assert len({make_fight(BIG, seed).stamina for seed in range(10)}) > 1
-
-    def test_it_regains_it_while_the_line_is_let_go(self):
-        fight = calm_at_rest(make_fight(SMALL))
-        power = fight.stamina
-        for _ in range(60):
-            fight.update(DT, TIP, False, fight.bar_x)
-        assert fight.stamina == pytest.approx(power + fishing.FISH_RECOVERY * (1.5 - 0.5 * fight.hold), abs=0.002)
-
-    def test_full_power_is_lost_and_nothing_else_loses_it(self):
-        seen = set()
-        for seed in range(10):
-            fight = make_fight(BIG, seed)
-            for _ in range(60 * 30):
-                fight.stamina = 0.3             # never near full: nothing else may lose it
-                seen.update(fight.update(DT, TIP, True, fight.bar_x + 0.5))
-        assert "overload" in seen
-        assert "free" not in seen
-        assert not seen & {"snap", "slip", "thrown"}
-
-    def test_full_power_breaks_free(self):
-        fight = calm_at_rest(make_fight(SMALL))
-        fight.stamina = 1.0
-        assert "free" in fight.update(DT, TIP, False, fight.bar_x)
-
-    def test_holding_on_to_a_leaping_fish_feeds_it(self):
-        fight = make_fight(BIG)
-        fight.mode, fight.jump_phase, fight.held_in_air = "jump", "air", 0.5
-        fight.air_v = [0.0, 10.0]
-        fight.fish.y = 66.0
-        power = fight.stamina
-        assert "wrench" in fight.update(DT, TIP, True, fight.bar_x)
-        assert fight.stamina > power
-
-
-class TestOnlyTheTiniestCanBeHeld:
-    """Following the marker perfectly and never letting go."""
-
     @staticmethod
-    def landed(kind):
-        return sum(play(make_fight(kind, seed), lambda f: (True, f.bar_x)) == "land" for seed in range(40))
+    def key(minigame, kind, code=pygame.K_SPACE):
+        minigame.handle_event(pygame.event.Event(kind, key=code))
 
-    @pytest.mark.parametrize("kind", (("roach", 14), ("roach", 16), ("roach", 18)))
-    def test_the_tiniest_can(self, kind):
-        assert self.landed(kind) >= 36
+    @pytest.mark.parametrize("press", ("space", "mouse"))
+    def test_space_and_the_left_button_both_raise_the_bar(self, minigame, press):
+        fight = self.hook(minigame)
+        fight.bar_at, fight.bar_v = 0.5, 0.0
+        if press == "space":
+            self.key(minigame, pygame.KEYDOWN)
+        else:
+            minigame.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, pos=(900, 500), button=1))
+        for _ in range(20):
+            minigame.update(DT)
+        assert fight.bar_at > 0.5
 
-    @pytest.mark.parametrize("kind", (("roach", 24), ("roach", 32), ("perch", 25), ("bream", 40), ("tench", 35)))
-    def test_anything_more_mostly_gets_away(self, kind):
-        assert self.landed(kind) <= 12
+    def test_letting_go_of_space_lets_it_fall(self, minigame):
+        fight = self.hook(minigame)
+        fight.bar_at, fight.bar_v = 0.5, 0.0
+        self.key(minigame, pygame.KEYDOWN)
+        self.key(minigame, pygame.KEYUP)
+        for _ in range(20):
+            minigame.update(DT)
+        assert fight.bar_at < 0.5
 
-    @pytest.mark.parametrize("kind", (("carp", 55), ("pike", 65), ("pike", 100)))
-    def test_a_big_one_never_lets_you(self, kind):
-        assert self.landed(kind) == 0
+    def test_space_still_strikes_and_does_not_reel_while_waiting(self, minigame):
+        minigame.phase = fishing.WAIT
+        self.key(minigame, pygame.KEYDOWN)
+        assert minigame.space and not minigame.lmb
 
-    def test_strain_hardly_eases_until_the_button_is_let_go(self):
-        assert fishing.STRAIN_EASE_HOLDING < fishing.STRAIN_EASE_LET_GO / 4
+    def test_a_chest_won_pays_with_the_session_even_if_the_fish_gets_away(self, minigame):
+        fight = self.hook(minigame)
+        fight._swim = lambda dt: None
+        fight.fish_at, fight.chest, fight.catch = 0.1, Chest(0.9), 0.5
+        for _ in range(int(fishing.CHEST_TAKE_S / DT) + 2):
+            fight.bar_at, fight.bar_v = 0.9, 0.0
+            minigame.update(DT)
+        low, high = fishing.CHEST_COINS
+        assert low <= minigame.coins <= high
+        fight.catch = 0.0001
+        fight.bar_at, fight.fish_at = 0.9, 0.1
+        minigame.update(DT)
+        assert minigame.phase != fishing.FIGHT and low <= minigame.coins <= high
 
+    def land(self, minigame, perfect):
+        fight = self.hook(minigame)
+        fight.perfect = perfect
+        fight.catch = 0.9999
+        fight.bar_at, fight.fish_at, fight.bar_v = 0.5, 0.5, 0.0
+        fight._swim = lambda dt: None
+        minigame.update(DT)
+        assert minigame.phase == fishing.LANDING
+        for _ in range(int((fishing.NET_S + fishing.LIFT_S) / DT) + 5):
+            minigame.update(DT)
+        assert minigame.phase == fishing.CARD
+        return minigame.card
 
-class TestBiggerIsHarder:
-    def test_narrower_zone_and_faster_marker(self):
-        small, big = make_fight(SMALL), make_fight(BIG)
-        assert big.heft > small.heft
-        assert big.zone < small.zone
-        assert fishing._lerp(fishing.BAR_SPEED, big.heft) > fishing._lerp(fishing.BAR_SPEED, small.heft)
+    def test_a_perfect_catch_pays_more_and_says_so(self, minigame):
+        card = self.land(minigame, perfect=True)
+        fish = card["fish"]
+        assert card["perfect"]
+        assert card["coins"] == pytest.approx(fishing.fish_coins(fish, fishing.PERFECT_CATCH_MULT * minigame.cast_mult))
+        minigame.draw()
 
-    def test_rages_more_often_and_longer(self):
-        def rage_seconds(kind):
-            total = 0.0
-            for seed in range(10):
-                fight = make_fight(kind, seed)
-                fight.endurance = 1e9       # keep it fresh: only how it behaves counts here
-                fight.t = 0.0
-                for _ in range(60 * 40):
-                    fight.update(DT, TIP, False, fight.bar_x)
-                    total += DT if fight.mode == "rage" else 0.0
-                    fight.stamina = 0.45
-            return total
-        assert rage_seconds(BIG) > 1.5 * rage_seconds(SMALL)
+    def test_a_plain_catch_pays_the_plain_price(self, minigame):
+        card = self.land(minigame, perfect=False)
+        assert not card["perfect"]
+        assert card["coins"] == pytest.approx(fishing.fish_coins(card["fish"], minigame.cast_mult))
 
-    def test_holding_on_blindly_loses_the_big_one(self):
-        assert sum(play(make_fight(BIG, seed), lambda f: (True, f.bar_x)) == "land" for seed in range(20)) < 5
-
-    def test_a_careful_player_lands_both(self):
-        for kind in (SMALL, BIG):
-            assert sum(play(make_fight(kind, seed), careful) == "land" for seed in range(20)) >= 15
-
-
-@pytest.mark.parametrize("kind", (SMALL, BIG))
-def test_holding_without_following_the_marker_rarely_lands_anything(kind):
-    assert sum(play(make_fight(kind, seed), lambda f: (True, 0.1)) == "land" for seed in range(20)) <= 4
-
-
-def test_never_reeling_lands_nothing():
-    assert all(play(make_fight(SMALL, seed), lambda f: (False, f.bar_x), 60.0) != "land" for seed in range(10))
+    def test_the_column_draws_with_a_chest_in_it(self, minigame):
+        fight = self.hook(minigame, BIG)
+        fight.chest = Chest(0.8, progress=0.5)
+        minigame.update(DT)
+        minigame.draw()
+        assert fight.chest is not None

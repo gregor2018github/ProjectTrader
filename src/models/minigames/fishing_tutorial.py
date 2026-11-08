@@ -3,8 +3,8 @@
 The first, the cast: the wheel setting the depth, and a hook set too deep ripping off on the
 bottom (I); the rod dragged back, whipped forward and let go at different moments (II); a fish
 nibbling and taking, and the flick of the mouse that strikes it, in time, too early and too late
-(III). The second, the fight: the mouse following the marker (I); reeling in bursts, the line's
-strain against the fish's power (II); a whole fight with its rages, up to the net (III).
+(III). The second, the fight: the fish in and out of the bar and the meter answering (I); the bar
+rising, falling and hovering on the space bar (II); a whole fight with a chest, up to the net (III).
 
 Each picture is a ``FishingMinigame`` of its own, with no player: ``demo`` makes it silent, a
 script below works it as a hand would, and all that then happens and is drawn is the game's, so
@@ -24,14 +24,14 @@ from typing import Optional, Sequence, Tuple
 import pygame
 
 from .fishing import (
-    BRACE_S, CARD, DEG_PER_PX, DRAW, FIGHT, FIGHT_ANCHOR, FLIGHT, FishingMinigame, FRESH, Fight, LANDING, LEADER_START,
-    LEADER_STEP, PAGE_CAST, PAGE_FIGHT, RAGE_FROM_STAMINA, READY, READY_THETA, RETRIEVE, SWEET_THETA, STUCK, WAIT,
-    WORMS, _lerp,
+    CARD, DEG_PER_PX, DRAW, FIGHT, FLIGHT, FishingMinigame, Fight, LANDING, LEADER_START, LEADER_STEP, PAGE_CAST,
+    PAGE_FIGHT, PERFECT_CATCH_MULT, READY, READY_THETA, RETRIEVE, SWEET_THETA, STUCK, WAIT, WORMS,
 )
-from .fishing_pond import APPROACH, NIBBLE, PX_PER_FOOT, SPECIES, TAKE, WATER_Y, Fish, length_px
+from .fishing_pond import APPROACH, NIBBLE, PX_PER_FOOT, SPECIES, TAKE, Fish, length_px
 from .fishing_scene import PX
 from .tutorial_sheet import (
     BAD, BRASS_LIGHT, BUTTON_SIZE, GOOD, INK, MAX_DT, SheetLayout, build_sheet, draw_button, hold_sign, mouse_icon, plaque,
+    space_icon,
 )
 
 #: Each card: its heading, and its words, *these* in red ink
@@ -49,12 +49,12 @@ CARDS = {
                     "(or press Space). Too soon he flees, too late the worm is gone."),
     ),
     PAGE_FIGHT: (
-        ("Keep on the mark", "A marker swings along the bar. *Keep the mouse under it*: off it the reel "
-                             "gains nothing, he takes line and it strains."),
-        ("Reel in bursts", "*Hold* to reel and he tires, but the *Line* strains. *Let go* and it eases while he "
-                           "gets power back. If the line gives he gains much; full power, and he is gone."),
-        ("Bring him in", "When he *rages*, the bar flashes: let go until he is spent, then reel. With his power "
-                         "under the mark on the *Fish* bar and him near the bank, the net takes him."),
+        ("Keep him in the bar", "The fish moves by itself. While he is *inside the green bar* the meter fills; "
+                                "out of it, it *drains*. Full: he is yours. Empty: he is gone."),
+        ("Tap to hover", "*Hold Space* and the bar rises, *let go* and it falls, and it keeps moving a moment. "
+                         "*Tap* to keep it hovering. The left button works too."),
+        ("Chests and perfection", "A *chest* pays coins if kept in the bar a moment, and the meter waits meanwhile. "
+                                  f"A fish that never left the bar is a *perfect catch*: it pays ×{PERFECT_CATCH_MULT:g}."),
     ),
 }
 
@@ -111,22 +111,17 @@ _FLICK_S = 0.22                          # the mouse's jump upwards
 _AFTER_STRIKE_S = 1.6                    # looking at how it went
 
 # The fights' pictures
-_FIGHT_FISH = ("perch", 34.0)            # big enough to run and rage, small enough to come in soon
+_FIGHT_FISH = ("perch", 25.0)            # lively, and not too heavy for a script to keep in the bar
 _FIGHT_FROM = (159.0, 85.0)
 _FIGHT_HOLD = 0.8                        # a good strike's hook
 _AFTER_FIGHT_S = 1.8                     # looking at how it ended
-_PLAIN_RUN_S, _PLAIN_REST_S = (1.4, 2.2), (1.2, 2.0)    # a fish with no tricks: how long it runs and rests
-_RAGE_EVERY = 4                         # the whole fight's picture: every this many moves it rages
-_MARK_ON_S, _MARK_OFF_S = 3.4, 1.8       # the marker's picture: on the mark so long, off it so long
-_MARK_OFF_BY = 0.3                       # and this far beside it, of the bar
-_MARK_FOLLOW = 8.0                       # how quickly the hand gets there
-_MARK_FRESH_S = 20.0                     # it starts over now and then, the fish far out again
-_STRAIN_LIMITS = (0.65, 0.65, 1.2)       # the strain's picture: lets go at this strain; above 1 the line gives way
-_STRAIN_EASED = 0.05                     # and reels again at this
-_STRAIN_RISK_BELOW = 0.45                # it only lets the line give way on a fish this tired, or he would be gone
-_FIGHT_BAR_INSET, _FIGHT_BAR_H = 16, 18
-_METERS_LEFT = 48                        # room for their names
-_WHOLE_METERS_LEFT = 221                 # and for the player, in the picture he is in
+_LOOK_AHEAD_S = 0.28                     # how far ahead the script's hand reckons the bar's way
+_IN_S, _OUT_S = 4.0, 2.2                 # the meter's picture: in the bar so long, let go so long
+_METER_KEPT = (0.2, 0.85)                # and it never ends there: the meter stays between these
+_HOVER_STAGES = (("hold", 0.9, "Hold: it rises"), ("drop", 0.9, "Let go: it falls"), ("tap", 4.0, "Tap: it hovers"))
+_HOVER_AT = 0.5                          # where it hovers
+_CHEST_AT_S = 2.5                        # the whole fight's picture: when the chest comes
+_COLUMN_INSET, _COLUMN_W, _METER_W_SMALL, _COLUMN_FOOT = 14, 34, 10, 58
 
 
 class PondDemo:
@@ -341,7 +336,6 @@ class StrikeDemo(PondDemo):
                 self.timer = 0.0
         else:
             if g.phase == FIGHT:
-                g.hand = g.fight.bar_x
                 self.verdict = (g.strike_label.title(), GOOD)
             else:
                 self.verdict = self._newest_popup() or self.verdict
@@ -359,27 +353,37 @@ class StrikeDemo(PondDemo):
         self._bait_in_water(_STRIKE_X, _STRIKE_DEPTH)
 
 
-class _PlainFight(Fight):
-    """A fish that runs away and rests by turns: no rages or leaps to distract from what a picture shows."""
-
-    def _pick(self) -> None:
-        if self.mode == "run":
-            self.mode, self.mode_t = "rest", self.rng.uniform(*_PLAIN_REST_S)
-        else:
-            self.mode, self.mode_t, self.dir = "run", self.rng.uniform(*_PLAIN_RUN_S), self._run_dir(away=True)
+def _hand_for(fight: Fight, aim: float) -> bool:
+    """The script's hand: whether to hold the button for the bar to go to aim."""
+    return fight.bar_at + fight.bar_v * _LOOK_AHEAD_S < aim
 
 
-class _RagingFight(Fight):
-    """The fish's own moves, with a rage every so often, so that a short fight shows them."""
+class _CalmFight(Fight):
+    """A fish that moves smoothly, without a chest: nothing to distract from what a picture shows."""
 
-    _moves = 0
+    def __init__(self, fish: Fish, hold: float, rng: random.Random) -> None:
+        super().__init__(fish, hold, rng)
+        self.chest_in = None
+        self.band, self.keep_s, self.turn, self.anywhere = (0.25, 0.75), (1.6, 2.8), 4.0, 0.0
 
-    def _pick(self) -> None:
-        self._moves += 1
-        if self._moves % _RAGE_EVERY == 1 and self.vigor > RAGE_FROM_STAMINA:
-            self.mode, self.mode_t = "brace", _lerp(BRACE_S, self.heft)
-        else:
-            super()._pick()
+
+class _StillFight(_CalmFight):
+    """A fish that stays where it is, and a meter that stays too: only the bar moves."""
+
+    def __init__(self, fish: Fish, hold: float, rng: random.Random) -> None:
+        super().__init__(fish, hold, rng)
+        self.fill = self.drain = 0.0
+
+    def _swim(self, dt: float) -> None:
+        pass
+
+
+class _ChestFight(Fight):
+    """Always with a chest, soon."""
+
+    def __init__(self, fish: Fish, hold: float, rng: random.Random) -> None:
+        super().__init__(fish, hold, rng)
+        self.chest_in = _CHEST_AT_S
 
 
 class FightDemo(PondDemo):
@@ -389,6 +393,7 @@ class FightDemo(PondDemo):
 
     def __init__(self, screen: pygame.Surface, seed: int) -> None:
         super().__init__(screen, seed)
+        self.sign = ""
         self.timer = 0.0
         self.ended = 0.0
         self._new_fight()
@@ -403,12 +408,12 @@ class FightDemo(PondDemo):
         fish.x, fish.y = _FIGHT_FROM
         g.pond.fish.append(fish)
         g._start_fight(fish, _FIGHT_HOLD, "GOOD STRIKE")
-        g.fight = self.fight_class(fish, _FIGHT_HOLD, FIGHT_ANCHOR, g.rng, g.hand)
+        g.fight = self.fight_class(fish, _FIGHT_HOLD, g.rng)
         g.popups.clear()
         self.verdict, self.held, self.timer, self.ended = None, False, 0.0, 0.0
 
     def _play(self, dt: float, fight: Fight) -> None:
-        """Works the reel and the mouse for this moment of the fight."""
+        """Works the button for this moment of the fight."""
         raise NotImplementedError
 
     def update(self, dt: float) -> None:
@@ -430,67 +435,52 @@ class FightDemo(PondDemo):
         g.update(dt)
 
 
-class MarkerDemo(FightDemo):
-    """On the mark for a while, then off it. The fish neither tires nor gains: only the mark counts here."""
+class MeterDemo(FightDemo):
+    """In the bar for a while and the meter fills, then let go and it drains. It never ends here."""
 
-    fight_class = _PlainFight
+    fight_class = _CalmFight
 
     def _play(self, dt: float, fight: Fight) -> None:
-        g = self.game
-        if self.timer >= _MARK_FRESH_S:
-            self._new_fight()
-            return
-        fight.stamina, fight.strain = FRESH, 0.0
-        off = self.timer % (_MARK_ON_S + _MARK_OFF_S) >= _MARK_ON_S
-        if not off:                      # the side it will miss on is settled before it goes
-            self._side = 1 if fight.bar_x < 0.5 else -1
-        wanted = fight.bar_x + (self._side * _MARK_OFF_BY if off else 0.0)
-        g.hand += (wanted - g.hand) * min(1.0, dt * _MARK_FOLLOW)
-        self.held = True
-        if fight.track > 0.8:
-            self.verdict = ("On the mark!", GOOD)
-        elif fight.track < 0.3:
-            self.verdict = ("Off the mark!", BAD)
+        fight.catch = min(max(fight.catch, _METER_KEPT[0]), _METER_KEPT[1])
+        out = self.timer % (_IN_S + _OUT_S) >= _IN_S
+        self.held = False if out else _hand_for(fight, fight.fish_at)
+        if fight.grace > 0:
+            self.verdict = None
+        elif fight.fish_in_bar:
+            self.verdict = ("In the bar: it fills", GOOD)
+        else:
+            self.verdict = ("Out of it: it drains", BAD)
 
 
-class StrainDemo(FightDemo):
-    """Reels until the line has taken so much, lets go until it has eased; now and then holds on too long."""
+class HoverDemo(FightDemo):
+    """Only the bar: it rises while held, falls when let go, and hovers on quick taps."""
 
-    fight_class = _PlainFight
+    fight_class = _StillFight
 
     def __init__(self, screen: pygame.Surface) -> None:
-        self.burst = 0
+        self.stage = 0
+        self.stage_t = 0.0
         super().__init__(screen, 25)
 
     def _play(self, dt: float, fight: Fight) -> None:
-        self.game.hand = fight.bar_x
-        limit = _STRAIN_LIMITS[self.burst % len(_STRAIN_LIMITS)]
-        if limit > 1 and fight.stamina >= _STRAIN_RISK_BELOW:
-            limit = _STRAIN_LIMITS[0]
-        if self.held:
-            if fight.strain >= limit or (limit > 1 and self._newest_popup() is not None):
-                self.held = False
-                self.burst += 1
-        elif fight.strain <= _STRAIN_EASED:
-            self.game.popups.clear()
-            self.held = True
-        popup = self._newest_popup()
-        if popup is not None:
-            self.verdict = popup
-        elif self.held:
-            self.verdict = ("He tires, the line strains", (226, 226, 200))
-        else:
-            self.verdict = ("The line eases, he gains", (226, 226, 200))
+        fight.grace = 0.0
+        kind, seconds, text = _HOVER_STAGES[self.stage]
+        self.stage_t += dt
+        if self.stage_t >= seconds:
+            self.stage = (self.stage + 1) % len(_HOVER_STAGES)
+            self.stage_t = 0.0
+        self.held = kind == "hold" or (kind == "tap" and _hand_for(fight, _HOVER_AT))
+        self.verdict = (text, (226, 226, 200))
 
 
 class WholeDemo(FightDemo):
-    """A whole fight, played as it should be: on the mark, and letting go through rages and leaps."""
+    """A whole fight, played as it should be: following the fish, taking the chest in passing, up to the net."""
 
-    fight_class = _RagingFight
+    fight_class = _ChestFight
 
     def _play(self, dt: float, fight: Fight) -> None:
-        self.game.hand = fight.bar_x
-        self.held = fight.mode not in ("brace", "rage", "jump") and fight.strain < 0.4
+        aim = fight.chest.at if fight.chest is not None else fight.fish_at
+        self.held = _hand_for(fight, aim)
         self.verdict = self._newest_popup()
 
 
@@ -509,6 +499,7 @@ class FishingTutorial:
         self._sheets: dict = {}
         self._mouse = {False: mouse_icon(False), True: mouse_icon(True)}
         self._wheel = mouse_icon(wheel=True)
+        self._space = {False: space_icon(False), True: space_icon(True)}
         self._show(self.page)
 
     def _show(self, page: int) -> None:
@@ -521,7 +512,7 @@ class FishingTutorial:
         if page not in self.demos:
             screen = self.minigame.screen
             self.demos[page] = ([DepthDemo(screen), CastDemo(screen), StrikeDemo(screen)] if page == PAGE_CAST else
-                                [MarkerDemo(screen, 24), StrainDemo(screen), WholeDemo(screen, 26)])
+                                [MeterDemo(screen, 24), HoverDemo(screen), WholeDemo(screen, 26)])
 
     @property
     def can_turn(self) -> bool:
@@ -605,40 +596,26 @@ class FishingTutorial:
             pygame.draw.rect(surf, BRASS_LIGHT, (x - 3, y, 6, 14))
         self._say(surf, demo.verdict, (rect.centerx, rect.top + 26), rect.width)
 
-    def _draw_fight(self, surf: pygame.Surface, rect: pygame.Rect, demo: FightDemo, crop: pygame.Rect,
-                    meters_left: Optional[int] = None) -> pygame.Rect:
-        """The fight's scene with its bar and meters at their own size, not made small with the scene."""
+    def _draw_fight(self, surf: pygame.Surface, rect: pygame.Rect, demo: FightDemo, crop: pygame.Rect) -> None:
+        """The fight's scene with its column at its own size, not made small with the scene, and the key."""
         self._scene(surf, demo, rect, crop)
-        bar = pygame.Rect(rect.left + _FIGHT_BAR_INSET, rect.top + 14, rect.width - 2 * _FIGHT_BAR_INSET, _FIGHT_BAR_H)
         g = demo.game
         if g.phase == FIGHT and g.fight is not None:
-            g._draw_fight_bar(surf, bar)
-            if meters_left is not None:
-                left, y = rect.left + meters_left, bar.bottom + 36
-                width = rect.right - _FIGHT_BAR_INSET - left
-                g._draw_fight_meters(surf, pygame.Rect(left, y, width, 9), pygame.Rect(left, y + 16, width, 9))
-        return bar
-
-    def _draw_marker(self, surf: pygame.Surface, rect: pygame.Rect, demo: MarkerDemo) -> None:
-        bar = self._draw_fight(surf, rect, demo, _MARK_CROP)
-        x = bar.left + max(0.0, min(1.0, demo.game.hand)) * bar.width
-        icon = self._mouse[demo.held]
-        icon_rect = icon.get_rect(center=(round(x), bar.bottom + 66))
-        icon_rect.clamp_ip(rect)
-        surf.blit(icon, icon_rect)
+            well = pygame.Rect(rect.left + _COLUMN_INSET, rect.top + _COLUMN_INSET, _COLUMN_W,
+                               rect.height - _COLUMN_INSET - _COLUMN_FOOT)
+            g._draw_column(surf, well, _METER_W_SMALL)
+        hold_sign(surf, self.minigame.font_small, self._space[demo.held], "Space: held" if demo.held else "Space: let go",
+                  (rect.right - 54, rect.top + 40))
         self._say(surf, demo.verdict, (rect.centerx, rect.bottom - 26), rect.width)
 
-    def _draw_strain(self, surf: pygame.Surface, rect: pygame.Rect, demo: StrainDemo) -> None:
-        self._draw_fight(surf, rect, demo, _MARK_CROP, _METERS_LEFT)
-        hold_sign(surf, self.minigame.font_small, self._mouse[demo.held], "Hold" if demo.held else "Let go",
-                  (rect.right - 40, rect.bottom - 90))
-        self._say(surf, demo.verdict, (rect.centerx, rect.bottom - 26), rect.width)
+    def _draw_meter(self, surf: pygame.Surface, rect: pygame.Rect, demo: MeterDemo) -> None:
+        self._draw_fight(surf, rect, demo, _MARK_CROP)
+
+    def _draw_hover(self, surf: pygame.Surface, rect: pygame.Rect, demo: HoverDemo) -> None:
+        self._draw_fight(surf, rect, demo, _MARK_CROP)
 
     def _draw_whole(self, surf: pygame.Surface, rect: pygame.Rect, demo: WholeDemo) -> None:
-        self._draw_fight(surf, rect, demo, _WHOLE_CROP, _WHOLE_METERS_LEFT)
-        hold_sign(surf, self.minigame.font_small, self._mouse[demo.held], "Hold" if demo.held else "Let go",
-                  (rect.right - 40, rect.bottom - 90))
-        self._say(surf, demo.verdict, (rect.centerx, rect.bottom - 26), rect.width)
+        self._draw_fight(surf, rect, demo, _WHOLE_CROP)
 
     # ------------------------------------------------------------------
     # Drawing
@@ -651,7 +628,7 @@ class FishingTutorial:
                                                   CARDS[self.page])
         canvas.blit(self._sheets[self.page], (0, 0))
         drawers = ([self._draw_depth, self._draw_cast, self._draw_strike] if self.page == PAGE_CAST else
-                   [self._draw_marker, self._draw_strain, self._draw_whole])
+                   [self._draw_meter, self._draw_hover, self._draw_whole])
         clip = canvas.get_clip()
         for picture, demo, draw in zip(_LAYOUTS[self.page].picture_rects(), self.demos[self.page], drawers):
             canvas.set_clip(picture)

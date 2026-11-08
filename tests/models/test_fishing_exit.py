@@ -136,10 +136,10 @@ def test_the_fight_waits_for_the_answer(minigame):
     fight = in_a_fight(minigame)
     minigame.lmb = True
     press(minigame, pygame.K_ESCAPE)
-    before = (fight.t, fight.bar_x, fight.stamina, fight.fish.x, minigame.t)
+    before = (fight.t, fight.bar_at, fight.fish_at, fight.catch, fight.fish.x, minigame.t)
     for _ in range(120):
         minigame.update(DT)
-    assert (fight.t, fight.bar_x, fight.stamina, fight.fish.x, minigame.t) == before
+    assert (fight.t, fight.bar_at, fight.fish_at, fight.catch, fight.fish.x, minigame.t) == before
     assert minigame.phase == fishing.FIGHT
 
 
@@ -150,16 +150,16 @@ def test_the_box_draws_with_a_fish_on_the_line(minigame):
     assert minigame.exit_asked
 
 
-def test_going_back_lets_go_of_the_reel_and_puts_the_marker_over_the_mouse(minigame):
+def test_going_back_lets_go_and_puts_the_bar_over_the_fish(minigame):
     fight = in_a_fight(minigame)
-    minigame.lmb = True
+    minigame.lmb = minigame.space = True
+    fight.bar_at, fight.bar_v, fight.grace = 0.9, 0.5, 0.0
     press(minigame, pygame.K_ESCAPE)
-    assert not minigame.lmb
+    assert not minigame.lmb and not minigame.space
     minigame.draw()
     click(minigame, minigame.exit_back_rect)
-    assert not minigame.lmb
-    assert fight.bar_x == pytest.approx(min(1 - fishing.BAR_EDGE, max(fishing.BAR_EDGE, minigame.hand)))
-    assert fight.tracking(minigame.hand) == 1.0
+    assert not minigame.lmb and not minigame.space
+    assert fight.fish_in_bar and fight.bar_v == 0.0 and fight.grace > 0
 
 
 def test_a_cast_being_drawn_is_called_off(minigame):

@@ -87,10 +87,10 @@ class TestTheGameWaitsBehindIt:
     def test_the_first_fish_fight_stands_still_until_it_closes(self, screen):
         m = make(screen, tips_seen=(fishing.TIP_TUTORIAL_CAST,))
         fight = hook_a_fish(m)
-        before = (fight.t, fight.bar_x, fight.stamina, fight.fish.x, m.t)
+        before = (fight.t, fight.bar_at, fight.fish_at, fight.catch, fight.fish.x, m.t)
         for _ in range(60):
             m.update(DT)
-        assert (fight.t, fight.bar_x, fight.stamina, fight.fish.x, m.t) == before
+        assert (fight.t, fight.bar_at, fight.fish_at, fight.catch, fight.fish.x, m.t) == before
         key(m, pygame.K_RETURN)
         assert m.tutorial is None and m.phase == fishing.FIGHT
         m.update(DT)
@@ -114,12 +114,13 @@ class TestTheGameWaitsBehindIt:
         click(m, m.help_rect.center, pygame.MOUSEBUTTONUP)
         assert m.phase == fishing.READY
 
-    def test_closing_it_puts_the_marker_over_the_mouse(self, screen):
+    def test_closing_it_gives_a_moment_with_the_bar_over_the_fish(self, screen):
         m = make(screen, tips_seen=(fishing.TIP_TUTORIAL_CAST,))
         fight = hook_a_fish(m)
+        fight.grace = 0.0
         click(m, m.tutorial.button.center)
         assert m.tutorial is None
-        assert 0 <= m.hand <= 1 and fight.tracking(m.hand) == 1.0
+        assert fight.fish_in_bar and fight.grace > 0
 
 
 class TestOpeningItAgain:
@@ -221,27 +222,39 @@ class TestThePictures:
                      "Too late: the worm is gone!"):
             assert text in said
 
-    def test_the_marker_picture_goes_on_and_off_the_mark(self, screen):
-        demo = tutorial.MarkerDemo(screen, 24)
-        assert run(demo, 8, verdict_text) == ["On the mark!", "Off the mark!"]
-        assert demo.game.fight.stamina == pytest.approx(fishing.FRESH, abs=0.01)   # nothing else goes on there
+    def test_the_meter_picture_fills_in_the_bar_and_drains_out_of_it(self, screen):
+        demo = tutorial.MeterDemo(screen, 24)
+        said = run(demo, 8, verdict_text)
+        assert "In the bar: it fills" in said and "Out of it: it drains" in said
+        assert demo.game.phase == fishing.FIGHT
 
-    def test_the_marker_picture_starts_over_with_the_fish_far_out(self, screen):
-        demo = tutorial.MarkerDemo(screen, 24)
+    def test_the_meter_picture_never_ends_its_fight(self, screen):
+        demo = tutorial.MeterDemo(screen, 24)
         first = demo.game.fight
-        run(demo, tutorial._MARK_FRESH_S + 1, lambda d: None)
-        assert demo.game.fight is not first
+        run(demo, 40, lambda d: None)
+        assert demo.game.fight is first
 
-    def test_the_strain_picture_reels_in_bursts_and_the_line_gives_on_a_tired_fish(self, screen):
-        demo = tutorial.StrainDemo(screen)
-        said = run(demo, 120, verdict_text)
-        assert {"He tires, the line strains", "The line eases, he gains"} <= set(said)
-        assert "The line gives: he gains power!" in said
+    def test_the_hover_picture_rises_falls_and_hovers_with_the_fish_still(self, screen):
+        demo = tutorial.HoverDemo(screen)
+        fight = demo.game.fight
+        said = run(demo, 7, verdict_text)
+        assert said == ["Hold: it rises", "Let go: it falls", "Tap: it hovers"]
+        assert fight.catch == pytest.approx(fight.catch_from)
 
-    def test_the_whole_fight_rages_and_ends_in_the_net_soon_enough(self, screen):
+    def test_the_hover_picture_really_hovers(self, screen):
+        demo = tutorial.HoverDemo(screen)
+        run(demo, 2.8, lambda d: None)              # well into the tapping
+        spots = []
+        for _ in range(60):
+            demo.update(DT)
+            spots.append(demo.game.fight.bar_at)
+        assert max(spots) - min(spots) < 0.2
+
+    def test_the_whole_fight_takes_its_chest_and_ends_in_the_net_soon_enough(self, screen):
         demo = tutorial.WholeDemo(screen, 26)
         said = run(demo, 60, verdict_text)
-        assert "He rages! Let go!" in said and "He's spent: reel!" in said and "Netted!" in said
+        assert "Netted!" in said and "A chest!" in said
+        assert any(text.startswith("Chest: +") for text in said)
         assert "He broke free!" not in said
 
 
