@@ -26,14 +26,21 @@ movement of the mouse and in what the pond shows.
                 has the bait: graded by how quickly after its take
                 (``STRIKE_GRADES``), which sets how well the hook holds. Too
                 early and it flees, too late and the worm is gone.
-  4. FIGHT    — hold the button to reel, let go to give line. A running fish
-                pulls the line taut: keep reeling against it and the line,
-                creaking and glinting, snaps; let go and it runs out. Hold the
-                mouse to the side away from its run to turn it (it tires
-                faster, and the line is spared). A fish shaking its head wants
-                a tight line, or the hook slips out; a leaping one a slack one
-                (let go while it is in the air), or it throws the hook. Once
-                beaten and near the bank it is netted.
+  4. FIGHT    — hold the button to reel, let go to give line. Along the top of
+                the scene a marker swings left and right over a wide bar
+                (``Fight.bar_x``): keep the mouse under it. Off its zone the
+                reel gains nothing, the fish drags line out and the line takes
+                more strain. Any but the tiniest fish strains the line while it
+                runs (``PULL_FORCE``), and the strain hardly eases until the
+                button is let go, so reel in bursts. Now and then the fish braces itself (the bar flashes)
+                and rages: hold on through that and the line snaps, so let go
+                until it calms, and reel while it is spent. A fish shaking its
+                head wants a tight line, or the hook slips out; a leaping one a
+                slack one (let go while it is in the air), or it throws the hook.
+                A slack line lets it get its strength back. A bigger fish
+                (``Fight.heft``) has a narrower zone, a faster marker, rages
+                more often and for longer and strains the line more. Once beaten
+                and near the bank it is netted.
 
 Coins come only for fish brought in: the kind's value, times its size against
 the usual, times the cast's grade (``fish_coins``), booked as it lands. A
@@ -109,6 +116,38 @@ STRIKE_GRADES = ((0.42, "PERFECT STRIKE", 1.0), (0.75, "GOOD STRIKE", 0.8), (1.0
 
 # The fight
 REEL_SPEED = 20.0
+OFF_MARK_DRAG = 0.5             # off the marker, a fish drags out this share of its swim (the line stays taut)
+OFF_MARK_TENSION = (0.25, 0.8)  # what being off the marker adds to the tension, lightest to heaviest fish
+SNAP_TENSION = 0.9              # the line takes strain above this tension
+STRAIN_RATE = 2.6               # strain a second for each unit of tension above it (a full 1 snaps it)
+MAX_TENSION = 1.7
+# How hard a running fish pulls on a held line, by its heft: only the tiniest can be simply held
+PULL_FORCE = ((0.0, 1.05), (0.06, 1.2), (0.1, 1.75), (1.0, 1.75))
+FIGHT_ANCHOR = rod_points(20.0, 0.0)[-1]   # the fight measures the line from here: not the moving tip (see below)
+TINY_HEFT = 0.06                # a fish no heftier than this never rages
+ENDURANCE = 1.6                 # how long fish fight, for all kinds
+STRAIN_EASE_HOLDING = 0.08      # the strain the line sheds a second while the reel is still held
+STRAIN_EASE_LET_GO = 0.6        # and once it is let go
+FISH_TIRE_RUNNING = 0.015       # the stamina a fish spends a second running on a let-go line
+SLACK_TENSION = 0.1             # a line this slack lets the hook work loose, slowly
+FISH_RECOVERY = 0.025           # the stamina a fish gets back a second while the line is let go
+# The marker on the bar, in shares of the bar's width, lightest to heaviest fish
+BAR_ZONE = (0.085, 0.04)        # half the width of the zone to keep the mouse in
+BAR_FALLOFF = 1.0               # the grip is gone this many zone widths outside it
+BAR_SPEED = (0.16, 0.40)        # its average speed a second, fresh fish
+BAR_MODE_SPEED = {"run": 1.15, "shake": 1.2, "rest": 0.7, "brace": 0.5, "rage": 1.35}
+BAR_LEG = (0.22, 0.7)           # how far it swings before turning back
+BAR_EDGE = 0.05                 # it stays this far from the bar's ends
+# The rage
+RAGE_WEIGHT = (0.8, 2.8)        # against the other moves' weights, about 5 together when fresh
+RAGE_FROM_STAMINA = 0.3         # a fish more tired than this does not rage
+BRACE_S = (0.65, 0.42)          # the warning before it breaks loose
+RAGE_S = (1.2, 2.0)             # how long it lasts, this times 1 + RAGE_S_HEFT * heft
+RAGE_S_HEFT = 0.6
+RAGE_SPEED = 2.0                # its speed, of the kind's fair swim
+RAGE_PULL = (1.05, 1.55)        # how hard it pulls on a held line when fresh
+RAGE_DRAIN = 0.06               # the stamina the rage costs it a second, on a let-go line
+RAGE_REST_S = 0.9               # spent after it: the moment to reel
 LAND_STAMINA = 0.32             # beaten: it can be netted near the bank
 LAND_ZONE = (BANK_EDGE + 26, WATER_Y + 22)
 NET_S = 0.8
@@ -121,6 +160,8 @@ _TOP_BAR, _BOTTOM_BAR, _MARGIN = 44, 46, 6
 _CANVAS_W = SCENE_W + 2 * _MARGIN
 _CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
+_BAR = pygame.Rect(44, 42, SCENE_W - 88, 26)   # the fight's bar, in the scene's pixels
+_METER_W, _METER_H = 260, 9                    # the line's strain and the fish's strength under it
 
 _INK = (44, 32, 22)
 _PAPER = (236, 222, 186)
@@ -152,6 +193,18 @@ def strike_grade(reaction: float, window: float) -> Tuple[str, float]:
 
 def _clamp(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return lo if x < lo else hi if x > hi else x
+
+
+def _lerp(ends: Tuple[float, float], k: float) -> float:
+    return ends[0] + (ends[1] - ends[0]) * k
+
+
+def _pull_force(heft: float) -> float:
+    """PULL_FORCE at a fish's heft, between its points."""
+    for (h0, f0), (h1, f1) in zip(PULL_FORCE, PULL_FORCE[1:]):
+        if heft <= h1:
+            return f0 + (f1 - f0) * _clamp((heft - h0) / (h1 - h0))
+    return PULL_FORCE[-1][1]
 
 
 # ----------------------------------------------------------------------
@@ -196,19 +249,27 @@ def _make_sounds() -> dict:
 class Fight:
     """A hooked fish against the line (see the module)."""
 
-    def __init__(self, fish: Fish, hold: float, tip: Tuple[float, float], rng: random.Random) -> None:
+    def __init__(self, fish: Fish, hold: float, tip: Tuple[float, float], rng: random.Random,
+                 hand: float = 0.5) -> None:
         self.fish, self.hold, self.rng = fish, hold, rng
         sp = fish.species
         self.size = fish.cm / sp.avg_cm
         self.power = _clamp(sp.power * self.size ** 0.8, 0.25, 1.3)
-        self.endurance = sp.stamina * self.size ** 0.5
+        self.heft = (self.power - 0.25) / 1.05     # 0 the lightest fish, 1 the heaviest: the fight's difficulty
+        self.zone = _lerp(BAR_ZONE, self.heft)
+        self.force = _pull_force(self.heft)
+        self.endurance = ENDURANCE * sp.stamina * self.size ** 0.5
         self.stamina = 1.0
         self.line = math.hypot(fish.x - tip[0], fish.y - tip[1]) + 1
         self.T = 0.35
         self.strain = 0.0
         self.slip = 0.0
         self.t = 0.0
-        self.side_good = False
+        self.track = 1.0                # how well the mouse is under the marker, 0 to 1
+        # The marker starts over the mouse, so the fight does not start with the mouse off it
+        self.bar_x = _clamp(hand, BAR_EDGE, 1 - BAR_EDGE)
+        self.leg_from = self.leg_to = self.bar_x
+        self.leg_t, self.leg_len, self.leg_dir = 1.0, 1.0, rng.choice((-1, 1))
         self.mode, self.mode_t = "run", rng.uniform(0.8, 1.5)
         self.dir = self._run_dir(away=True)
         self.jump_phase = ""
@@ -221,6 +282,36 @@ class Fight:
         n = math.hypot(vx, vy)
         return vx / n, vy / n
 
+    def _new_leg(self) -> None:
+        """The marker sets off for its next turning point, on the other side of it."""
+        side = -self.leg_dir
+        room = (self.bar_x - BAR_EDGE) if side < 0 else (1 - BAR_EDGE - self.bar_x)
+        if room < BAR_LEG[0]:
+            side, room = -side, 1 - 2 * BAR_EDGE - room
+        self.leg_dir = side
+        self.leg_len = min(room, self.rng.uniform(*BAR_LEG))
+        self.leg_from, self.leg_to = self.bar_x, self.bar_x + side * self.leg_len
+        self.leg_t = 0.0
+
+    def _swing(self, dt: float) -> None:
+        """The marker eases from turning point to turning point, faster for a bigger, fresher fish."""
+        speed = _lerp(BAR_SPEED, self.heft) * BAR_MODE_SPEED.get(self.mode, 1.0) * (0.65 + 0.35 * self.stamina)
+        self.leg_t += dt * speed / max(0.01, self.leg_len)
+        k = _clamp(self.leg_t)
+        self.bar_x = self.leg_from + (self.leg_to - self.leg_from) * k * k * (3 - 2 * k)
+        if self.leg_t >= 1:
+            self._new_leg()
+
+    def tracking(self, hand: float) -> float:
+        """How well the mouse (as a share of the bar) is under the marker: 1 in its zone, 0 well outside it."""
+        return _clamp(1 - (abs(hand - self.bar_x) - self.zone) / (self.zone * BAR_FALLOFF))
+
+    def _start_rage(self) -> None:
+        self.mode = "rage"
+        self.mode_t = self.rng.uniform(*RAGE_S) * (1 + RAGE_S_HEFT * self.heft)
+        self.dir = self._run_dir(away=True)
+        self._new_leg()
+
     def _pick(self) -> None:
         s = self.stamina
         sp = self.fish.species
@@ -228,6 +319,8 @@ class Fight:
                    ("dive", 1.0 if self.fish.zone[2] == "bottom" else 0.3)]
         if sp.jumps > 0 and s > 0.25 and self.fish.y < WATER_Y + 45:
             options.append(("jump", sp.jumps * 3 * s))
+        if s > RAGE_FROM_STAMINA and self.heft > TINY_HEFT:
+            options.append(("brace", _lerp(RAGE_WEIGHT, self.heft)))
         total = sum(w for _, w in options)
         r = self.rng.uniform(0, total)
         for mode, w in options:
@@ -245,34 +338,50 @@ class Fight:
         elif mode == "dive":
             self.dir = (0.3, 0.95)
             self.mode_t = self.rng.uniform(0.8, 1.4)
+        elif mode == "brace":
+            self.mode_t = _lerp(BRACE_S, self.heft)
         else:
             self.jump_phase = "rise"
             self.mode_t = 3.0
 
-    def update(self, dt: float, tip: Tuple[float, float], reeling: bool, lean: float) -> List[str]:
-        """dt seconds of the fight; returns what happened: "snap", "slip", "thrown", "rise", "jump_out",
-        "jump_in", "kept", "land"."""
+    def update(self, dt: float, tip: Tuple[float, float], reeling: bool, hand: float) -> List[str]:
+        """dt seconds of the fight, hand being the mouse as a share of the bar; returns what happened:
+        "snap", "slip", "thrown", "rise", "jump_out", "jump_in", "kept", "brace", "rage", "calm", "land"."""
         f, sp = self.fish, self.fish.species
         events: List[str] = []
         self.t += dt
+        self._swing(dt)
+        self.track = self.tracking(hand)
         strength = 0.3 + 0.7 * self.stamina
         if self.mode == "jump":
             return self._update_jump(dt, tip, reeling, events)
         self.mode_t -= dt
         if self.mode_t <= 0:
-            self._pick()
-            if self.mode == "jump":
-                events.append("rise")
-                return events
-        if f.x < BANK_EDGE + 26 and self.stamina >= LAND_STAMINA and self.mode != "run":
+            if self.mode == "brace":
+                self._start_rage()
+                events.append("rage")
+            elif self.mode == "rage":
+                self.mode, self.mode_t = "rest", RAGE_REST_S
+                events.append("calm")
+            else:
+                self._pick()
+                if self.mode == "jump":
+                    events.append("rise")
+                    return events
+                if self.mode == "brace":
+                    events.append("brace")
+        raging = self.mode in ("brace", "rage")
+        if f.x < BANK_EDGE + 26 and self.stamina >= LAND_STAMINA and self.mode != "run" and not raging:
             self.mode, self.mode_t, self.dir = "run", 1.3, self._run_dir(away=True)
 
         speed = sp.speed
         if self.mode == "run":
             vx, vy = self.dir[0] * speed * 1.5 * strength, self.dir[1] * speed * 1.5 * strength
-        elif self.mode == "shake":
+        elif self.mode == "rage":
+            vx, vy = self.dir[0] * speed * RAGE_SPEED * strength, self.dir[1] * speed * RAGE_SPEED * strength
+        elif self.mode in ("shake", "brace"):
             vx, vy = self.dir[0] * speed * 0.15 * strength, 0.0
-            f.facing = 1 if int(self.t * 9) % 2 else -1
+            f.facing = 1 if int(self.t * (16 if self.mode == "brace" else 9)) % 2 else -1
         elif self.mode == "dive":
             vx, vy = self.dir[0] * speed * strength, self.dir[1] * speed * strength
         else:
@@ -281,23 +390,25 @@ class Fight:
         rx, ry = nx - tip[0], ny - tip[1]
         d = max(0.01, math.hypot(rx, ry))
         ux, uy = rx / d, ry / d
-        out = max(0.0, vx * ux + vy * uy) / (speed * 1.5)
-        pull = out * self.power * strength * 1.2
-        self.side_good = abs(vx) > 2 and lean * (1 if vx > 0 else -1) < -0.35
-        if self.side_good:
-            pull *= 0.7
-        if self.mode == "shake":
+        away = max(0.0, vx * ux + vy * uy)
+        out = away / (speed * 1.5)
+        pull = out * self.force
+        if self.mode == "rage":
+            pull = _lerp(RAGE_PULL, self.heft) * (0.6 + 0.4 * self.stamina)
+        elif self.mode == "shake":
             pull += 0.25 * self.power * abs(math.sin(self.t * 26))
+        off = 1 - self.track
         if reeling:
-            self.line = max(5.0, self.line - REEL_SPEED * (1 - 0.65 * min(1.0, pull)) * dt)
+            gain = 0.0 if self.mode == "rage" else REEL_SPEED * (1 - 0.65 * min(1.0, pull)) * self.track
+            self.line = max(5.0, self.line - gain * dt + OFF_MARK_DRAG * off * away * dt)
             if d > self.line:
                 nx, ny = tip[0] + ux * self.line, tip[1] + uy * self.line
-                target = 0.24 + 0.78 * pull
+                target = 0.24 + 0.78 * pull + _lerp(OFF_MARK_TENSION, self.heft) * off
             else:
                 target = 0.05
         else:
             if d > self.line:
-                give = self.line + (d - self.line) * 0.65
+                give = self.line + (d - self.line) * (0.55 + 0.35 * off)
                 nx, ny = tip[0] + ux * give, tip[1] + uy * give
                 self.line = give
                 target = 0.08 + 0.3 * pull
@@ -307,27 +418,36 @@ class Fight:
         if dt > 0:
             f.vx, f.vy = (nx - f.x) / dt, (ny - f.y) / dt
         f.x, f.y = nx, ny
-        if self.mode != "shake" and abs(f.vx) > 1:
+        if self.mode not in ("shake", "brace") and abs(f.vx) > 1:
             f.facing = 1 if f.vx > 0 else -1
-        f.tail += dt * (5 + 10 * strength)
-        self.T += (target - self.T) * min(1.0, dt * 9)
-        self._strain_and_slack(dt, events)
-        drain = (0.03 + 0.12 * self.T) * (1.7 if self.side_good else 1.0) / self.endurance
-        self.stamina = max(0.0, self.stamina - drain * dt)
+        f.tail += dt * (5 + 10 * strength) * (2.0 if raging else 1.0)
+        self.T += (min(MAX_TENSION, target) - self.T) * min(1.0, dt * 9)
+        self._strain_and_slack(dt, events, reeling)
+        if reeling:
+            drain = (0.03 + 0.12 * self.T) * (0.35 + 0.65 * self.track) / self.endurance
+        elif self.mode == "rage":
+            drain = RAGE_DRAIN / self.endurance
+        elif self.mode in ("run", "dive"):
+            drain = FISH_TIRE_RUNNING / self.endurance
+        else:
+            drain = -FISH_RECOVERY                  # lying on a let-go line: it gets its strength back
+        self.stamina = _clamp(self.stamina - drain * dt)
         f.tired = self.stamina < LAND_STAMINA and self.mode == "rest"
         if self.stamina < LAND_STAMINA and f.x < LAND_ZONE[0] and f.y < LAND_ZONE[1]:
             events.append("land")
         return events
 
-    def _strain_and_slack(self, dt: float, events: List[str]) -> None:
-        if self.T > 0.9:
-            self.strain += (self.T - 0.9) * dt * 6
+    def _strain_and_slack(self, dt: float, events: List[str], reeling: bool) -> None:
+        if self.T > SNAP_TENSION:
+            self.strain += (self.T - SNAP_TENSION) * dt * STRAIN_RATE
         else:
-            self.strain = max(0.0, self.strain - dt * 0.7)
+            self.strain = max(0.0, self.strain - dt * (STRAIN_EASE_HOLDING if reeling else STRAIN_EASE_LET_GO))
         if self.strain >= 1:
             events.append("snap")
         if self.mode == "shake" and self.T < 0.17:
             self.slip += dt * (1.3 - self.hold) * 1.1
+        elif self.mode not in ("rage", "brace", "jump") and self.T < SLACK_TENSION:
+            self.slip += dt * (1.3 - self.hold) * 0.3
         else:
             self.slip = max(0.0, self.slip - dt * 0.4)
         if self.slip >= 1:
@@ -367,7 +487,7 @@ class Fight:
                 self.mode, self.mode_t = "run", self.rng.uniform(0.6, 1.2)
                 self.dir = self._run_dir(away=True)
         self.line = max(self.line, math.hypot(f.x - tip[0], f.y - tip[1]))
-        self._strain_and_slack(dt, events)
+        self._strain_and_slack(dt, events, reeling)
         return events
 
 
@@ -442,6 +562,7 @@ class FishingMinigame(MinigameOverlay):
         self.twitches: Deque[float] = deque()
         self.twitch_age = 99.0
         self.lean = 0.0
+        self.hand = 0.5                 # the mouse as a share of the fight's bar
         self._tick_t = 0.0
         # The fight and after
         self.fight: Optional[Fight] = None
@@ -453,7 +574,9 @@ class FishingMinigame(MinigameOverlay):
         self.stuck_t = 0.0
         self.hook_lost = False         # retrieving a line whose hook has ripped off
         self.popups: List[list] = []     # text, colour, x, y (scene px), age, life, font
-        self._turn_note_t = 0.0
+        self._guide = pygame.Surface((2, SCENE_H - _BAR.bottom), pygame.SRCALPHA)   # dashes from the marker down
+        for y in range(0, self._guide.get_height(), 14):
+            self._guide.fill((255, 244, 214, 70), (0, y, 2, 7))
         # The end
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self._booked = False
@@ -477,7 +600,7 @@ class FishingMinigame(MinigameOverlay):
 
     def _bend(self) -> float:
         if self.phase == FIGHT and self.fight is not None:
-            return 55 * self.fight.T
+            return 55 * min(1.1, self.fight.T)
         if self.phase == DRAW:
             return _clamp(-self.omega * 0.035, -30, 30)
         if self.phase == WAIT:
@@ -546,6 +669,7 @@ class FishingMinigame(MinigameOverlay):
                     self._strike()
             sx, _ = self._to_scene(event.pos)
             self.lean = _clamp((sx - SCENE_W * 0.42) / (SCENE_W * 0.3), -1.0, 1.0)
+            self.hand = (sx - _BAR.left) / _BAR.width
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self.lmb, self.lmb_t = True, 0.0
@@ -779,7 +903,7 @@ class FishingMinigame(MinigameOverlay):
         self.hook.engaged = None
         self.hook.alluring = False
         fish.state = HOOKED
-        self.fight = Fight(fish, hold, self._tip(), self.rng)
+        self.fight = Fight(fish, hold, FIGHT_ANCHOR, self.rng, self.hand)
         self.phase = FIGHT
         colour = _GOOD if hold >= 1.0 else (226, 226, 200) if hold >= 0.8 else _WARN
         self._popup(label, colour, (fish.x, WATER_Y - 14), big=True)
@@ -799,7 +923,9 @@ class FishingMinigame(MinigameOverlay):
         fight = self.fight
         fish = fight.fish
         reeling = self.lmb
-        events = fight.update(dt, self._tip(), reeling, self.lean)
+        # From a fixed point, not the rod's tip: tension bends the rod towards the fish and the mouse swings it,
+        # and a tip moving nearer the fish would slacken the line, dropping the tension each time it rose
+        events = fight.update(dt, FIGHT_ANCHOR, reeling, self.hand)
         if reeling:
             self._reel_ticks(dt, 0.05 + 0.1 * fight.T)
         if self._hum_channel is not None:
@@ -807,12 +933,18 @@ class FishingMinigame(MinigameOverlay):
         self.float_under = True
         self.float_x = fish.x
         self.hook_x, self.hook_y = fish.mouth
-        self._turn_note_t -= dt
-        if fight.side_good and self._turn_note_t <= 0 and fight.mode == "run":
-            self._popup("Turning him!", _GOOD, (fish.x, WATER_Y - 10), life=1.0)
-            self._turn_note_t = 3.0
         for ev in events:
-            if ev == "rise":
+            if ev == "brace":
+                self.scene.add_ring(fish.x, 5)
+                self._play("splash_", 0.2)
+                self._popup("He rages! Let go!", _BAD, (fish.x, WATER_Y - 14), big=True, life=1.2)
+            elif ev == "rage":
+                self.kick = -14.0
+                self.scene.add_splash(fish.x, 0.5)
+                self._play("splash_", 0.3)
+            elif ev == "calm":
+                self._popup("He's spent: reel!", _GOOD, (fish.x, WATER_Y - 14), life=1.0)
+            elif ev == "rise":
                 self.scene.add_ring(fish.x, 6)
             elif ev == "jump_out":
                 self.scene.add_splash(fish.x, 0.7)
@@ -1004,7 +1136,7 @@ class FishingMinigame(MinigameOverlay):
 
         # The rod follows the hand, springily; in a fight it leans with the mouse
         if self.phase == FIGHT:
-            self.theta_target = 20 + 26 * self.lean
+            self.theta_target = 20 + 12 * self.lean
         elif self.phase in (WAIT, RETRIEVE):
             self.theta_target = READY_THETA - (8 if self.lmb and self.phase == WAIT and self.lmb_t >= TAP_S else 0)
         acc = ROD_SPRING * (self.theta_target - self.theta) - ROD_DAMPING * self.omega
@@ -1081,7 +1213,7 @@ class FishingMinigame(MinigameOverlay):
             v.line = curve(tip, fish.mouth, sag)
             v.hook = None
             v.worm = False
-            v.tension = self.fight.T
+            v.tension = min(1.1, self.fight.T)
             v.focus = (fish.x, fish.y, self.scene.sight + 5) if not fish.above_water else (fish.x, WATER_Y + 4, self.scene.sight)
         elif self.phase == LANDING and self.landed is not None:
             fish = self.landed
@@ -1151,14 +1283,23 @@ class FishingMinigame(MinigameOverlay):
             return "Whip forward, and let go as the rod passes the golden mark!", _INK
         if self.phase == WAIT:
             return "Click: twitch the bait   |   Hold: reel in   |   Flick the mouse UP to strike when it takes", PALE_BROWN
-        if self.phase == FIGHT:
-            return "Hold: reel   |   Let go when the line strains   |   Mouse against his run turns him", _INK
+        if self.phase == FIGHT and self.fight is not None:
+            mode = self.fight.mode
+            if mode in ("brace", "rage"):
+                return "He rages: let go of the button until he calms!", _shade_text(_BAD)
+            if mode == "jump":
+                return "He leaps: let go while he is in the air!", _shade_text(_BAD)
+            if self.fight.T > SNAP_TENSION:
+                return "The line is straining: let go before it snaps!", _shade_text(_BAD)
+            return "Hold to reel, keeping the mouse under the marker   |   Let go when the line strains", _INK
         if self.phase == CARD:
             return "Click to go on", PALE_BROWN
         return "", PALE_BROWN
 
     def _draw_overlay(self, surf: pygame.Surface) -> None:
         self._draw_hud(surf)
+        if self.phase == FIGHT and self.fight is not None:
+            self._draw_fight_bar(surf)
         # The line straining: the edges glow red
         if self.phase == FIGHT and self.fight is not None and self.fight.strain > 0.05:
             glow = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)
@@ -1181,6 +1322,55 @@ class FishingMinigame(MinigameOverlay):
             surf.blit(label, label.get_rect(center=ribbon.center))
         if self.card is not None:
             self._draw_card(surf)
+
+    def _draw_fight_bar(self, surf: pygame.Surface) -> None:
+        """The bar along the top: the marker swinging on it, its zone, and where the mouse is under it."""
+        fight = self.fight
+        flash = 0.5 + 0.5 * math.sin(self.t * 22)
+        if fight.mode == "rage":
+            zone_colour = _BAD
+        elif fight.mode == "brace":
+            zone_colour = _mix_rgb(_WARN, _BAD, flash)
+        else:
+            zone_colour = _mix_rgb(_BAD, _GOOD, fight.track)
+        pygame.draw.rect(surf, _BRASS_DARK, _BAR.inflate(10, 10), border_radius=5)
+        heat = _clamp((fight.T - SNAP_TENSION + 0.15) / 0.3)
+        pygame.draw.rect(surf, _mix_rgb(_BRASS, _BAD, heat), _BAR.inflate(6, 6), border_radius=4)
+        pygame.draw.rect(surf, (34, 26, 20), _BAR, border_radius=2)
+        x = _BAR.left + fight.bar_x * _BAR.width
+        half = fight.zone * _BAR.width
+        surf.blit(self._guide, (round(x) - 1, _BAR.bottom))
+        # Where the grip fades out, then the zone itself
+        fade = pygame.Rect(0, 0, round(2 * half * (1 + BAR_FALLOFF)), _BAR.height - 8)
+        fade.center = (round(x), _BAR.centery)
+        pygame.draw.rect(surf, _mix_rgb((34, 26, 20), zone_colour, 0.3), fade.clip(_BAR), border_radius=2)
+        zone = pygame.Rect(0, 0, round(2 * half), _BAR.height - 4)
+        zone.center = (round(x), _BAR.centery)
+        pygame.draw.rect(surf, zone_colour, zone.clip(_BAR), border_radius=2)
+        # The marker: a needle through the bar, pointing down at the mouse
+        needle = pygame.Rect(round(x) - 3, _BAR.top - 5, 6, _BAR.height + 10)
+        pygame.draw.rect(surf, _PAPER, needle)
+        pygame.draw.rect(surf, _INK, needle, 1)
+        tip_y = _BAR.bottom + 16
+        pygame.draw.polygon(surf, _PAPER, [(x - 9, _BAR.bottom + 5), (x + 9, _BAR.bottom + 5), (x, tip_y)])
+        pygame.draw.polygon(surf, _INK, [(x - 9, _BAR.bottom + 5), (x + 9, _BAR.bottom + 5), (x, tip_y)], 1)
+        # The mouse, under the bar, pointing up at the marker
+        hx = _BAR.left + _clamp(self.hand) * _BAR.width
+        hand = [(hx, tip_y + 2), (hx - 8, tip_y + 14), (hx + 8, tip_y + 14)]
+        pygame.draw.polygon(surf, zone_colour, hand)
+        pygame.draw.polygon(surf, _INK, hand, 1)
+        # The line's strain and the fish's strength
+        y = _BAR.bottom + 36
+        self._draw_meter(surf, "Line", fight.strain, _BAD, (SCENE_W // 2 - _METER_W - 60, y))
+        self._draw_meter(surf, "Fish", fight.stamina, _WARN, (SCENE_W // 2 + 60, y))
+
+    def _draw_meter(self, surf: pygame.Surface, name: str, level: float, colour, pos: Tuple[int, int]) -> None:
+        rect = pygame.Rect(pos[0], pos[1], _METER_W, _METER_H)
+        pygame.draw.rect(surf, (34, 26, 20), rect)
+        pygame.draw.rect(surf, colour, (rect.left, rect.top, round(rect.width * _clamp(level)), rect.height))
+        pygame.draw.rect(surf, _BRASS_DARK, rect, 1)
+        label = self._inked(name, self.font_small, (236, 230, 206))
+        surf.blit(label, label.get_rect(midright=(rect.left - 6, rect.centery)))
 
     def _draw_card(self, surf: pygame.Surface) -> None:
         """The landed fish on a sheet of paper, the sheet sized to the fish and the lines under it."""
@@ -1291,6 +1481,10 @@ class FishingMinigame(MinigameOverlay):
         pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
         self.screen.blit(self.canvas, self.canvas_rect.topleft)
         pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)
+
+
+def _mix_rgb(a, b, k: float) -> Tuple[int, int, int]:
+    return tuple(round(x + (y - x) * k) for x, y in zip(a, b))
 
 
 def _shade_text(colour) -> Tuple[int, int, int]:
