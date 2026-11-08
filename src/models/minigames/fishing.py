@@ -19,10 +19,12 @@ movement of the mouse and in what the pond shows.
                 the bottom, catches and rips off (``STUCK``). Reeled in, it never
                 catches, whatever it passes (``self.reeled``). You only see round
                 the bait. Most fish only come to a bait lying calm. A click
-                twitches it and holding the button reels it in slowly, which
-                keeps them off but draws the predators, pike and perch, reeling
-                most of all (``fishing_pond``). Fish come, look, nibble (the
-                float trembles) and take (the float goes under).
+                twitches it and holding the button pulls it in, which keeps
+                them off but draws the predators, pike and perch: twitches do,
+                repeated short pulls most of all (``Hook.stir``). A pull held
+                past ``LONG_PULL_S`` interests no fish at all, so a bait can
+                always be brought home. Fish come, look, nibble (the float
+                trembles) and take (the float goes under).
   3. STRIKE   — click, or press Space, while a fish has the bait (a sharp flick
                 of the mouse upwards does it too): graded by how quickly after its take
                 (``STRIKE_GRADES``), which sets how well the hook holds. Too
@@ -108,6 +110,11 @@ LEADER_START = 26.0
 SINK_SPEED = 20.0
 REEL_IDLE_SPEED = 14.0          # reeling an untouched bait in, low px/s
 TAP_S = 0.2                     # a press shorter than this is a twitch, longer is reeling
+LONG_PULL_S = 1.0               # held this long the bait is just being brought in: no fish cares
+TWITCH_STIR = 1.0               # what a twitch adds to the bait's stir
+PULL_STIR = 2.5                 # and a short pull, a second
+STIR_FADE = 0.3                 # what it loses a second
+STIR_MAX = 4.0
 TWITCH_WINDOW_S = 4.0           # twitches are counted over this long
 STUCK_S = 1.1                   # a hook caught on the bottom: the rod tugs this long, then the hook rips off
 STUCK_RIP_AT = 0.75             # the moment it goes (seconds in)
@@ -653,8 +660,9 @@ class FishingMinigame(MinigameOverlay):
             self.press_x = mouse_x
         elif self.phase == WAIT:
             fish = self.hook.engaged
-            # A fish at the bait: as it takes this is the strike, before that it scares the fish off
-            if fish is not None and fish.state in (INSPECT, NIBBLE, TAKE):
+            # A fish at the bait: as it takes this is the strike, before that it scares the fish off.
+            # Only a predator making up its mind likes to see the bait move
+            if fish is not None and (fish.state in (NIBBLE, TAKE) or (fish.state == INSPECT and not fish.predator)):
                 self.press_spent = True
                 self._strike()
 
@@ -731,8 +739,10 @@ class FishingMinigame(MinigameOverlay):
         self.scene.add_splash(x, strength)
         self._play("splash_", 0.12 + 0.35 * strength)
         if soft:
-            self.twitch_age = 0.0       # a soft landing draws the fish rather than scaring them
+            self.twitch_age = 0.0       # a soft landing draws the predators rather than scaring them
+            self.hook.stir = TWITCH_STIR
         else:
+            self.hook.stir = 0.0
             self.pond.scare(x, WATER_Y + 10, 18 + 30 * strength, 2 + 5 * strength, self.hook)
         self._popup(self.cast_label, self.cast_colour, (x, WATER_Y - 18), big=True)
         feet = (x - BANK_EDGE) / PX_PER_FOOT
@@ -754,6 +764,7 @@ class FishingMinigame(MinigameOverlay):
         self.hook_x = max(BANK_EDGE + 4, self.hook_x - 1.0)
         self.float_dip = 0.8
         self.twitch_age = 0.0
+        self.hook.stir = min(STIR_MAX, self.hook.stir + TWITCH_STIR)
         self.twitches.append(self.t)
         self.settled_t = 0.0
         self._play_synth("tick", 0.2)
@@ -815,9 +826,15 @@ class FishingMinigame(MinigameOverlay):
             if self.float_x <= BANK_EDGE + 3:
                 self._start_retrieve()
                 return
-        self.hook.reeling = reeling and not taking
+        long_pull = reeling and not taking and self.lmb_t >= LONG_PULL_S
+        if reeling:
+            self.twitch_age = 0.0               # to the fish that want it calm, a pull is one long twitch
+        stir = 0.0 if long_pull else self.hook.stir + (PULL_STIR * dt if reeling else 0.0) - STIR_FADE * dt
+        self.hook.stir = max(0.0, min(STIR_MAX, stir))
+        self.hook.reeling = reeling and not taking and not long_pull
+        self.hook.ignored = long_pull
         self.wait_t += dt
-        self.hook.alluring = self.baited and not taking and self.wait_t > 0.4
+        self.hook.alluring = self.baited and not taking and not long_pull and self.wait_t > 0.4
 
     def _start_stuck(self) -> None:
         """The hook has caught on the bottom: the fish keep off, the rod tugs at it."""
@@ -1138,10 +1155,10 @@ class FishingMinigame(MinigameOverlay):
 
         self.hook.x, self.hook.y = self.hook_x, self.hook_y
         self.hook.twitch_age = self.twitch_age
-        self.hook.twitches_recent = len(self.twitches)
         if self.phase != WAIT:
             self.hook.alluring = False
             self.hook.reeling = False
+            self.hook.ignored = False
         self._pond_events(self.pond.update(dt, self.hook))
         # The duck rocks the float as it paddles by: is that a bite?
         if self.phase == WAIT and abs(self.scene.duck_x - self.float_x) < DUCK_BOB_RANGE and self.rng.random() < dt * 1.2:
@@ -1250,7 +1267,7 @@ class FishingMinigame(MinigameOverlay):
         if self.phase == DRAW:
             return "Whip forward, and let go as the rod passes the golden mark!", _INK
         if self.phase == WAIT:
-            return "Click or Space: twitch the bait, and strike when the float goes under   |   Hold: reel in", PALE_BROWN
+            return "Click or Space: twitch, or strike when the float goes under   |   Short pulls draw pike and perch   |   Hold: bring it in", PALE_BROWN
         if self.phase == FIGHT and self.fight is not None:
             return "Hold Space or the left button: the bar rises   |   Let go: it falls   |   Tap to hover, keep the fish in it", _INK
         if self.phase == CARD:

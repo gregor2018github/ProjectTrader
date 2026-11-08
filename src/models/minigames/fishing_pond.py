@@ -15,9 +15,11 @@ and takes it, swimming off with it for ``Species.take_window`` seconds: the
 moment to strike. Struck too early it flees, too late it has the worm. What it
 likes depends on what it is: most fish only come to a bait lying calm, and a
 twitch turns away one on its way; the predators (``Species.lure`` above 0) hardly
-look at a still bait, come to a twitch (``TWITCH_DRAW``) and most of all to one
-being reeled in (``REEL_DRAW``), which they chase and hit at once, holding on
-longer (``REEL_TAKE_STRETCH``), as the player has the reel to let go of first.
+look at a still bait, but come to one kept stirring (``Hook.stir``): twitches
+draw them, repeated short pulls most of all. They chase a bait being pulled and
+hit it at once, holding on longer (``REEL_TAKE_STRETCH``), as the player has the
+reel to let go of first. A bait pulled in at length (``Hook.ignored``) is of no
+interest to any fish, so it can always be brought home.
 Minnows nibble and never take. Only one fish deals with the bait at a time
 (``Hook.engaged``). Once hooked, the fight (``fishing.py``) moves it.
 
@@ -176,9 +178,10 @@ class Hook:
     x: float = 0.0
     y: float = 0.0
     alluring: bool = False         # in the water, baited, and not flying, fighting or being taken
-    reeling: bool = False          # being reeled in: the predators chase it, the others keep off
+    reeling: bool = False          # on a short pull: the predators chase it, the others keep off
+    ignored: bool = False          # being pulled in at length: no fish cares
+    stir: float = 0.0              # how much it has been moved of late, in small movements: what draws a predator
     twitch_age: float = 99.0       # seconds since the player last twitched it
-    twitches_recent: int = 0       # twitches in the last few seconds
     engaged: Optional["Fish"] = None   # the one fish dealing with it
 
 
@@ -187,15 +190,12 @@ WANDER, APPROACH, INSPECT, NIBBLE, TAKE, HOOKED, FLEE = "wander", "approach", "i
 
 NOTICE_RATE = 0.4                # a fish in reach of a still bait comes over at this rate a second, times the mood
 TWITCH_LURES_S = 2.5             # a twitch moves the bait for this long, as the fish see it
-TWITCH_DRAW = 0.4                # a predator comes to a twitched bait at this rate, times NOTICE_RATE and its lure
-REEL_DRAW = 0.9                  # and to one being reeled in, over the widest reach
-TWITCH_REACH = 0.15              # how much farther it notices a twitch, times its lure
-REEL_REACH = 0.25                # and a reeled bait
+STIR_DRAW = 0.35                 # a predator comes to a stirred bait at this rate, times NOTICE_RATE, its lure and the stir
+STIR_REACH = 0.25                # and notices it this much farther off, times its lure, at a stir of 1 or more
 PREDATOR_STILL = 0.25            # and to a still bait, of the rate the others have
 CHASE_SPEED = 1.3                # chasing a reeled bait, of its fair swim
 CHASE_REACH = 6.0                # it hits the bait from this near: a fish easing up to a moving point stays behind it
-REEL_TAKE_STRETCH = 2.0          # a bait taken while reeled in is held this much longer: the reel is to be let go first
-TOO_MANY_TWITCHES = 3            # more in a few seconds and the wary ones take fright
+REEL_TAKE_STRETCH = 2.0          # a bait taken on a pull is held this much longer: the reel is to be let go first
 SPOOK_S = 7.0                    # a scared fish keeps off baits this long
 BORED_S = 5.0                    # one that wandered off from the bait this long
 
@@ -287,14 +287,10 @@ class Fish:
     def _notice_odds(self, hook: Hook) -> Tuple[float, float]:
         """How far off it notices the bait as it is now, and how keen it is: 0 and it will not come."""
         lure = self.species.lure
-        twitched = hook.twitch_age < TWITCH_LURES_S
         if not self.predator:
-            return self.species.sense, 0.0 if twitched or hook.reeling else 1.0
-        if hook.reeling:
-            return self.species.sense * (1.0 + REEL_REACH * lure), REEL_DRAW * lure
-        if twitched:
-            return self.species.sense * (1.0 + TWITCH_REACH * lure), TWITCH_DRAW * lure
-        return self.species.sense, PREDATOR_STILL
+            return self.species.sense, 0.0 if hook.twitch_age < TWITCH_LURES_S or hook.reeling else 1.0
+        keen = max(PREDATOR_STILL, STIR_DRAW * lure * hook.stir)
+        return self.species.sense * (1.0 + STIR_REACH * lure * min(1.0, hook.stir)), keen
 
     def _notices(self, hook: Hook, dt: float, mood: float, rng: random.Random) -> bool:
         if self.spooked > 0 or self.bored > 0 or not hook.alluring or hook.engaged is not None:
@@ -329,6 +325,9 @@ class Fish:
                 hook.engaged = self
                 self.side = 1 if self.x >= hx else -1
 
+        elif self.state in (APPROACH, INSPECT, NIBBLE) and hook.ignored:
+            self.leave(hook, rng)
+
         elif self.state == APPROACH:
             if not hook.alluring or (hook.reeling and not self.predator):
                 self.flee(hook, rng, 3.0)
@@ -345,32 +344,26 @@ class Fish:
                     self.facing = -self.side
 
         elif self.state == INSPECT:
-            if hook.reeling and self.predator and hook.alluring:
-                self._take(hook, events)    # it was making up its mind, and off the bait goes
+            if self.predator and hook.alluring and (hook.reeling or hook.twitch_age < dt * 1.01):
+                self._take(hook, events)    # it was making up its mind, and the bait moves
             elif hook.reeling or not hook.alluring:
                 self.flee(hook, rng, 4.0)
             else:
                 sway = math.sin(self.tail * 0.35) * 2
                 self.steer(dt, hx + self.side * (self.length / 2 + 4 + sway), hy + 1 + math.sin(self.tail * 0.2), sp.speed * 0.3)
                 self.facing = -self.side
-                if hook.twitch_age < dt * 1.01 and hook.twitches_recent > TOO_MANY_TWITCHES \
-                        and rng.random() < 0.35 * sp.caution:
-                    self.flee(hook, rng)
-                else:
-                    self.timer -= dt
-                    if self.timer <= 0:
-                        lo, hi = sp.nibbles
-                        if hi <= 0:
-                            self._take(hook, events)
-                        else:
-                            self.state = NIBBLE
-                            self.nibbles_left = rng.randint(lo, hi)
-                            self.sub, self.timer = "pause", rng.uniform(0.2, 0.6)
+                self.timer -= dt
+                if self.timer <= 0:
+                    lo, hi = sp.nibbles
+                    if hi <= 0:
+                        self._take(hook, events)
+                    else:
+                        self.state = NIBBLE
+                        self.nibbles_left = rng.randint(lo, hi)
+                        self.sub, self.timer = "pause", rng.uniform(0.2, 0.6)
 
         elif self.state == NIBBLE:
-            if hook.reeling and self.predator and hook.alluring:
-                self._take(hook, events)
-            elif hook.reeling or not hook.alluring:
+            if hook.reeling or not hook.alluring:
                 self.flee(hook, rng, 4.0)
             else:
                 self.facing = -self.side
