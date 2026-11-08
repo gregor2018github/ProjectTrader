@@ -12,7 +12,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from src.models.minigames import fishing
+from src.models.minigames import fishing, fishing_scene
 from src.models.minigames.fishing import Chest, Fight, FishingMinigame
 from src.models.minigames.fishing_pond import Fish, SPECIES
 from src.models.statistics import Statistics
@@ -350,11 +350,6 @@ class TestInTheRealOverlay:
             minigame.update(DT)
         assert fight.bar_at < 0.5
 
-    def test_space_still_strikes_and_does_not_reel_while_waiting(self, minigame):
-        minigame.phase = fishing.WAIT
-        self.key(minigame, pygame.KEYDOWN)
-        assert minigame.space and not minigame.lmb
-
     def test_a_chest_won_pays_with_the_session_even_if_the_fish_gets_away(self, minigame):
         fight = self.hook(minigame)
         fight._swim = lambda dt: None
@@ -393,6 +388,10 @@ class TestInTheRealOverlay:
         card = self.land(minigame, perfect=False)
         assert not card["perfect"]
         assert card["coins"] == pytest.approx(fishing.fish_coins(card["fish"], minigame.cast_mult))
+
+    def test_the_column_stands_left_of_the_player_inside_the_scene(self):
+        whole = fishing._COLUMN.union(fishing._COLUMN.move(fishing._METER_W + 8, 0)).inflate(14, 14)
+        assert whole.left >= 0 and whole.right <= fishing_scene._PLAYER_LEFT * fishing.PX
 
     def test_the_column_draws_with_a_chest_in_it(self, minigame):
         fight = self.hook(minigame, BIG)

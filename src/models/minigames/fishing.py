@@ -22,11 +22,11 @@ movement of the mouse and in what the pond shows.
                 which draws fish (and, overdone, scares the wary ones);
                 holding the button reels it in slowly. Fish come, look,
                 nibble (the float trembles) and take (the float goes under).
-  3. STRIKE   — flick the mouse sharply upwards (or press Space) while a fish
-                has the bait: graded by how quickly after its take
+  3. STRIKE   — click, or press Space, while a fish has the bait (a sharp flick
+                of the mouse upwards does it too): graded by how quickly after its take
                 (``STRIKE_GRADES``), which sets how well the hook holds. Too
                 early and it flees, too late and the worm is gone.
-  4. FIGHT    — a tall column stands by the bank (``_COLUMN``). In it the fish
+  4. FIGHT    — a tall column stands left of the player (``_COLUMN``). In it the fish
                 moves up and down by itself, each kind in its own way
                 (``Species.style``: ``STYLES``), a bigger one faster and more
                 often. The green bar is the player's: hold Space or the left
@@ -165,7 +165,8 @@ _TOP_BAR, _BOTTOM_BAR, _MARGIN = 44, 46, 6
 _CANVAS_W = SCENE_W + 2 * _MARGIN
 _CANVAS_H = _TOP_BAR + SCENE_H + 2 * _MARGIN + _BOTTOM_BAR
 _SCENE_RECT = pygame.Rect(_MARGIN, _TOP_BAR + _MARGIN, SCENE_W, SCENE_H)
-_COLUMN = pygame.Rect(330, 40, 64, 540)         # the fight's column, in the scene's pixels, off the bank
+_COLUMN = pygame.Rect(24, 52, 64, 528)          # the fight's column, in the scene's pixels, left of the player
+_CHEST_SAY = (64, 18)                           # where what a chest does is said, beside it, in low pixels
 _METER_W = 16                                   # the catch meter beside it
 
 _INK = (44, 32, 22)
@@ -474,7 +475,8 @@ class FishingMinigame(MinigameOverlay):
         self.strike_cool = 0.0
         self.twitches: Deque[float] = deque()
         self.twitch_age = 99.0
-        self.space = False              # Space held: in a fight it works as the button does
+        self.space = False              # Space held: it does all that the left button does
+        self.press_spent = False        # this press has struck: its release is no twitch
         self._tick_t = 0.0
         # The fight and after
         self.fight: Optional[Fight] = None
@@ -636,12 +638,11 @@ class FishingMinigame(MinigameOverlay):
                 else:
                     self._ask_to_exit()
             elif event.key == pygame.K_SPACE:
-                self.space = True
-                self._strike()
+                self._button("space", True, pygame.mouse.get_pos()[0])
             return
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_SPACE:
-                self.space = False
+                self._button("space", False)
             return
         if event.type == pygame.MOUSEWHEEL:
             if self.phase in (READY, DRAW):
@@ -668,26 +669,50 @@ class FishingMinigame(MinigameOverlay):
             if self.help_available and self.help_rect.collidepoint(pos):
                 self._open_tutorial(self._help_page())
                 return
-            self.lmb, self.lmb_t = True, 0.0
-            if self.phase == DONE:
-                if self.close_rect.collidepoint(pos):
-                    self._leave()
-            elif self.phase == CARD:
-                self._after_card()
-                self.lmb = False
-            elif self.phase == READY:
-                self.phase = DRAW
-                self.press_x = event.pos[0]
+            if self.phase == DONE and self.close_rect.collidepoint(pos):
+                self._leave()
+                return
+            self._button("lmb", True, event.pos[0])
             return
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            pressed, held = self.lmb, self.lmb_t
-            self.lmb = False
-            if not pressed:                     # the press was on the exit question's button
-                return
-            if self.phase == DRAW:
-                self._release_cast()
-            elif self.phase == WAIT and held < TAP_S:
-                self._twitch()
+            self._button("lmb", False)
+
+    @property
+    def held(self) -> bool:
+        """The left button or Space is down: the two do the same in all the game."""
+        return self.lmb or self.space
+
+    def _button(self, which: str, down: bool, mouse_x: int = 0) -> None:
+        """One of the two went down or up. Only the first down and the last up count, and an up whose
+        down went unseen (it was on a box or a page, or the box let go of it) does nothing."""
+        was = self.held
+        setattr(self, which, down)
+        if down and not was:
+            self._press(mouse_x)
+        elif was and not self.held:
+            self._let_go()
+
+    def _press(self, mouse_x: int) -> None:
+        self.lmb_t = 0.0
+        self.press_spent = False
+        if self.phase == CARD:
+            self._after_card()
+            self.lmb = self.space = False
+        elif self.phase == READY:
+            self.phase = DRAW
+            self.press_x = mouse_x
+        elif self.phase == WAIT:
+            fish = self.hook.engaged
+            # A fish at the bait: as it takes this is the strike, before that it scares the fish off
+            if fish is not None and fish.state in (INSPECT, NIBBLE, TAKE):
+                self.press_spent = True
+                self._strike()
+
+    def _let_go(self) -> None:
+        if self.phase == DRAW:
+            self._release_cast()
+        elif self.phase == WAIT and self.lmb_t < TAP_S and not self.press_spent:
+            self._twitch()
 
     def _rod_target(self, mouse_x: int) -> float:
         """The rod's angle for the mouse here while drawing a cast.
@@ -805,7 +830,7 @@ class FishingMinigame(MinigameOverlay):
         self.settled_t = 0.0
 
     def _update_wait(self, dt: float) -> None:
-        reeling = self.lmb and self.lmb_t >= TAP_S
+        reeling = self.held and self.lmb_t >= TAP_S
         fish = self.hook.engaged
         taking = fish is not None and fish.state == TAKE
         if taking:
@@ -938,9 +963,8 @@ class FishingMinigame(MinigameOverlay):
     def _update_fight(self, dt: float) -> None:
         fight = self.fight
         fish = fight.fish
-        held = self.lmb or self.space
-        events = fight.update(dt, held)
-        if held:
+        events = fight.update(dt, self.held)
+        if self.held:
             self._reel_ticks(dt, 0.09)
         if self._hum_channel is not None:
             self._hum_channel.set_volume(_clamp((fight.T - 0.45) * 1.5) * 0.45)
@@ -949,12 +973,12 @@ class FishingMinigame(MinigameOverlay):
         self.hook_x, self.hook_y = fish.mouth
         for ev in events:
             if ev == "chest":
-                self._popup("A chest!", _WARN, (LAND_X + 30, 30))
+                self._popup("A chest!", _WARN, _CHEST_SAY)
                 self._play("splash_", 0.2)
             elif ev == "chest_won":
                 self._open_chest()
             elif ev == "chest_gone":
-                self._popup("The chest is gone", (226, 226, 200), (LAND_X + 30, 30))
+                self._popup("The chest is gone", (226, 226, 200), _CHEST_SAY)
             elif ev == "free":
                 self._lose_fish()
                 return
@@ -966,7 +990,7 @@ class FishingMinigame(MinigameOverlay):
         """The chest's coins go with the rest of the session's, whether the fish is landed or not."""
         coins = round(self.rng.uniform(*CHEST_COINS), 2)
         self.coins = round(self.coins + coins, 2)
-        self._popup(f"Chest: +{coins:.2f} coins!", _BRASS_LIGHT, (LAND_X + 30, 30), big=True)
+        self._popup(f"Chest: +{coins:.2f} coins!", _BRASS_LIGHT, _CHEST_SAY, big=True)
         self._play("coin_single_", 0.6)
 
     def _lose_fish(self) -> None:
@@ -1135,7 +1159,7 @@ class FishingMinigame(MinigameOverlay):
         for sound in self.scene.update(dt):
             if sound == "thunder":
                 self._play("thunder_", 0.6)
-        if self.lmb:
+        if self.held:
             self.lmb_t += dt
         self.strike_cool = max(0.0, self.strike_cool - dt)
         self.twitch_age += dt
@@ -1146,9 +1170,9 @@ class FishingMinigame(MinigameOverlay):
 
         # The rod follows the hand, springily; in a fight it comes up while the button is held
         if self.phase == FIGHT:
-            self.theta_target = 14 if self.lmb or self.space else 24
+            self.theta_target = 14 if self.held else 24
         elif self.phase in (WAIT, RETRIEVE):
-            self.theta_target = READY_THETA - (8 if self.lmb and self.phase == WAIT and self.lmb_t >= TAP_S else 0)
+            self.theta_target = READY_THETA - (8 if self.held and self.phase == WAIT and self.lmb_t >= TAP_S else 0)
         acc = ROD_SPRING * (self.theta_target - self.theta) - ROD_DAMPING * self.omega
         self.omega += acc * dt
         self.theta += self.omega * dt
@@ -1288,17 +1312,17 @@ class FishingMinigame(MinigameOverlay):
 
     def _hint(self) -> Tuple[str, Tuple[int, int, int]]:
         if self.phase == READY:
-            return "Wheel: set the depth   |   Hold the left button, drag back, whip forward and let go", PALE_BROWN
+            return "Wheel: set the depth   |   Hold the left button or Space, drag back, whip forward and let go", PALE_BROWN
         if self.phase == DRAW:
             return "Whip forward, and let go as the rod passes the golden mark!", _INK
         if self.phase == WAIT:
-            return "Click: twitch the bait   |   Hold: reel in   |   Flick the mouse UP to strike when it takes", PALE_BROWN
+            return "Click or Space: twitch the bait, and strike when the float goes under   |   Hold: reel in", PALE_BROWN
         if self.phase == FIGHT and self.fight is not None:
             if self.fight.chest is not None:
                 return "A chest! Keep it in the bar: the meter waits meanwhile", _INK
-            return "Hold Space: the bar rises   |   Let go: it falls   |   Tap to hover, keep the fish inside it", _INK
+            return "Hold Space or the left button: the bar rises   |   Let go: it falls   |   Tap to hover, keep the fish in it", _INK
         if self.phase == CARD:
-            return "Click to go on", PALE_BROWN
+            return "Click or Space to go on", PALE_BROWN
         return "", PALE_BROWN
 
     def _draw_overlay(self, surf: pygame.Surface) -> None:

@@ -2,7 +2,7 @@
 
 The first, the cast: the wheel setting the depth, and a hook set too deep ripping off on the
 bottom (I); the rod dragged back, whipped forward and let go at different moments (II); a fish
-nibbling and taking, and the flick of the mouse that strikes it, in time, too early and too late
+nibbling and taking, and the click that strikes it, in time, too early and too late
 (III). The second, the fight: the fish in and out of the bar and the meter answering (I); the bar
 rising, falling and hovering on the space bar (II); a whole fight with a chest, up to the net (III).
 
@@ -45,8 +45,8 @@ CARDS = {
         ("Whip the rod", "*Hold* the left button and drag back. Whip forward and *let go* as the rod passes "
                          "the golden mark: the cleaner the cast, the more its fish pay. "
                          "Farther out is deeper water and bigger fish."),
-        ("Strike!", "The float trembles: only a nibble, wait. When it *goes under*, flick the mouse *up* "
-                    "(or press Space). Too soon he flees, too late the worm is gone."),
+        ("Strike!", "The float trembles: only a nibble, wait. When it *goes under*, *click* "
+                    "(or press Space). Too soon he is scared off, too late he is gone with the worm."),
     ),
     PAGE_FIGHT: (
         ("Keep him in the bar", "The fish moves by itself. While he is *inside the green bar* the meter fills; "
@@ -107,7 +107,7 @@ _FISH_COMES_FROM = (24.0, 6.0)           # where the fish starts, from the bait,
 _FISH_KEEN = 4.0                         # the pond's mood: this fish always takes after its nibbles
 _EARLY_AFTER_S = 0.4                     # a strike too early, into the nibbling
 _STRIKE_AFTER_S = 0.2                    # one in time, after the take
-_FLICK_S = 0.22                          # the mouse's jump upwards
+_CLICK_S = 0.22                          # how long the button is shown down
 _AFTER_STRIKE_S = 1.6                    # looking at how it went
 
 # The fights' pictures
@@ -279,7 +279,7 @@ class StrikeDemo(PondDemo):
         self.game.pond.mood = _FISH_KEEN
         self.index = 0
         self.fish: Optional[Fish] = None
-        self.flick = 0.0
+        self.click = 0.0
         self.stage, self.timer = "bait", 0.0
         self._bait_in_water(_STRIKE_X, _STRIKE_DEPTH)
 
@@ -289,7 +289,7 @@ class StrikeDemo(PondDemo):
 
     @property
     def sign(self) -> str:
-        return "Flick up!" if self.flick > 0 else "Wait"
+        return "Click!" if self.click > 0 else "Wait"
 
     def _send_fish(self) -> None:
         g = self.game
@@ -302,8 +302,8 @@ class StrikeDemo(PondDemo):
         g.hook.engaged = fish
         g.pond.fish.append(fish)
 
-    def _flick_up(self) -> None:
-        self.flick = _FLICK_S
+    def _strike(self) -> None:
+        self.click = _CLICK_S
         self.game._strike()
         self.verdict = None
         self.stage, self.timer = "after", 0.0
@@ -311,7 +311,7 @@ class StrikeDemo(PondDemo):
     def update(self, dt: float) -> None:
         g = self.game
         self.timer += dt
-        self.flick = max(0.0, self.flick - dt)
+        self.click = max(0.0, self.click - dt)
         if self.stage == "bait":
             if g.hook.alluring:
                 self._send_fish()
@@ -321,13 +321,13 @@ class StrikeDemo(PondDemo):
             if state == NIBBLE:
                 self.verdict = ("Only a nibble: wait", (226, 226, 200))
                 if self.current == "early" and self.timer >= _EARLY_AFTER_S:
-                    self._flick_up()
+                    self._strike()
                 elif self.current != "early":
                     self.timer = 0.0
             elif state == TAKE:
                 self.verdict = ("It takes!", GOOD)
                 if self.current == "good" and g.t - g.take_t >= _STRIKE_AFTER_S:
-                    self._flick_up()
+                    self._strike()
                 elif self.current == "late" and g.phase != WAIT:
                     self.stage, self.timer = "after", 0.0
             elif g.phase != WAIT:              # the worm was stolen while it waited
@@ -587,13 +587,8 @@ class FishingTutorial:
 
     def _draw_strike(self, surf: pygame.Surface, rect: pygame.Rect, demo: StrikeDemo) -> None:
         self._scene(surf, demo, rect, _STRIKE_CROP)
-        rise = round(30 * demo.flick / _FLICK_S) if demo.flick > 0 else 0
-        center = (rect.left + 40, rect.bottom - 64 - rise)
-        hold_sign(surf, self.minigame.font_small, self._mouse[False], demo.sign, center)
-        if demo.flick > 0:                   # the flick's arrow
-            x, y = center[0] + 34, center[1]
-            pygame.draw.polygon(surf, BRASS_LIGHT, [(x - 9, y), (x + 9, y), (x, y - 16)])
-            pygame.draw.rect(surf, BRASS_LIGHT, (x - 3, y, 6, 14))
+        hold_sign(surf, self.minigame.font_small, self._mouse[demo.click > 0], demo.sign,
+                  (rect.left + 40, rect.bottom - 64))
         self._say(surf, demo.verdict, (rect.centerx, rect.top + 26), rect.width)
 
     def _draw_fight(self, surf: pygame.Surface, rect: pygame.Rect, demo: FightDemo, crop: pygame.Rect) -> None:
