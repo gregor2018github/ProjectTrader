@@ -47,6 +47,9 @@ movement of the mouse and in what the pond shows.
                 its power is low (``LAND_STAMINA``) and it is near the bank it
                 is netted.
 
+Escape asks first ("Exit Mini Game now?"), the game waiting for the answer,
+unless the session is over.
+
 Coins come only for fish brought in: the kind's value, times its size against
 the usual, times the cast's grade (``fish_coins``), booked as it lands. A
 session is ``WORMS`` worms: one is used up by every fish hooked or lost and
@@ -181,6 +184,10 @@ _PAPER = (236, 222, 186)
 _BRASS, _BRASS_LIGHT, _BRASS_DARK = (198, 164, 92), (232, 206, 140), (120, 92, 44)
 _GOOD, _BAD, _WARN = (150, 214, 120), (226, 110, 86), (236, 186, 96)
 
+_EXIT_TITLE = "Exit Mini Game now?"
+_EXIT_TEXT = "Your coins are kept; the worms left are lost."
+_EXIT_FISH_TEXT = "The fish on your line gets away."
+
 READY, DRAW, FLIGHT, WAIT, FIGHT, LANDING, CARD, RETRIEVE, STUCK, DONE = (
     "ready", "draw", "flight", "wait", "fight", "landing", "card", "retrieve", "stuck", "done")
 
@@ -278,10 +285,8 @@ class Fight:
         self.strain = 0.0
         self.t = 0.0
         self.track = 1.0                # how well the mouse is under the marker, 0 to 1
-        # The marker starts over the mouse, so the fight does not start with the mouse off it
-        self.bar_x = _clamp(hand, BAR_EDGE, 1 - BAR_EDGE)
-        self.leg_from = self.leg_to = self.bar_x
-        self.leg_t, self.leg_len, self.leg_dir = 1.0, 1.0, rng.choice((-1, 1))
+        self.leg_dir = rng.choice((-1, 1))
+        self.recentre(hand)             # so the fight does not start with the mouse off the marker
         self.mode, self.mode_t = "run", rng.uniform(0.8, 1.5)
         self.dir = self._run_dir(away=True)
         self.jump_phase = ""
@@ -298,6 +303,12 @@ class Fight:
         vy = self.rng.uniform(-0.5, 0.8)
         n = math.hypot(vx, vy)
         return vx / n, vy / n
+
+    def recentre(self, hand: float) -> None:
+        """The marker over the mouse, setting off from there."""
+        self.bar_x = _clamp(hand, BAR_EDGE, 1 - BAR_EDGE)
+        self.leg_from = self.leg_to = self.bar_x
+        self.leg_t, self.leg_len = 1.0, 1.0
 
     def _new_leg(self) -> None:
         """The marker sets off for its next turning point, on the other side of it."""
@@ -594,6 +605,9 @@ class FishingMinigame(MinigameOverlay):
             self._guide.fill((255, 244, 214, 70), (0, y, 2, 7))
         # The end
         self.close_rect = pygame.Rect(0, 0, 160, 44)
+        self.exit_asked = False        # "Exit Mini Game now?" is open
+        self.exit_back_rect = pygame.Rect(0, 0, 130, 40)
+        self.exit_yes_rect = pygame.Rect(0, 0, 130, 40)
         self._booked = False
         stats = self._stats()
         self.highscore = getattr(stats, "fishing_highscore", 0.0) if stats else 0.0
@@ -655,10 +669,56 @@ class FishingMinigame(MinigameOverlay):
     # Input
     # ------------------------------------------------------------------
 
-    def handle_event(self, event: pygame.event.Event) -> None:
+    def _ask_to_exit(self) -> None:
+        """Ask before leaving a session under way. A button held now is let go of, its release going unseen."""
+        self.exit_asked = True
+        self.lmb = False
+        if self.phase == DRAW:
+            self.phase = READY
+            self.theta_target = READY_THETA
+        if self._hum_channel is not None:
+            self._hum_channel.pause()
+
+    def _go_back(self) -> None:
+        """On with the session, where it stood. The mouse may be far from the marker now: it starts over it."""
+        self.exit_asked = False
+        self.mouse_trail.clear()
+        if self.fight is not None:
+            self.fight.recentre(self.hand)
+        if self._hum_channel is not None:
+            self._hum_channel.unpause()
+
+    def _handle_exit_question(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
+                self._go_back()
+            elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                 self._leave()
+        elif event.type == pygame.MOUSEMOTION:
+            self._track_mouse(event.pos)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            self._track_mouse(event.pos)
+            pos = (event.pos[0] - self.canvas_rect.left, event.pos[1] - self.canvas_rect.top)
+            if self.exit_back_rect.collidepoint(pos):
+                self._go_back()
+            elif self.exit_yes_rect.collidepoint(pos):
+                self._leave()
+
+    def _track_mouse(self, pos: Tuple[int, int]) -> None:
+        sx, _ = self._to_scene(pos)
+        self.lean = _clamp((sx - SCENE_W * 0.42) / (SCENE_W * 0.3), -1.0, 1.0)
+        self.hand = (sx - _BAR.left) / _BAR.width
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if self.exit_asked:
+            self._handle_exit_question(event)
+            return
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                if self.phase == DONE:          # the session is over: nothing is lost by leaving
+                    self._leave()
+                else:
+                    self._ask_to_exit()
             elif event.key == pygame.K_SPACE:
                 self._strike()
             return
@@ -682,9 +742,7 @@ class FishingMinigame(MinigameOverlay):
                 if rise >= STRIKE_PX and rise / max(0.008, now - t0) >= STRIKE_SPEED:
                     self.mouse_trail.clear()
                     self._strike()
-            sx, _ = self._to_scene(event.pos)
-            self.lean = _clamp((sx - SCENE_W * 0.42) / (SCENE_W * 0.3), -1.0, 1.0)
-            self.hand = (sx - _BAR.left) / _BAR.width
+            self._track_mouse(event.pos)
             return
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self.lmb, self.lmb_t = True, 0.0
@@ -700,8 +758,10 @@ class FishingMinigame(MinigameOverlay):
                 self.press_x = event.pos[0]
             return
         if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            held = self.lmb_t
+            pressed, held = self.lmb, self.lmb_t
             self.lmb = False
+            if not pressed:                     # the press was on the exit question's button
+                return
             if self.phase == DRAW:
                 self._release_cast()
             elif self.phase == WAIT and held < TAP_S:
@@ -1138,6 +1198,8 @@ class FishingMinigame(MinigameOverlay):
     # ------------------------------------------------------------------
 
     def update(self, delta_time: float) -> None:
+        if self.exit_asked:                     # everything waits for the answer
+            return
         dt = min(0.05, max(0.0, delta_time))
         self.t += dt
         for sound in self.scene.update(dt):
@@ -1487,6 +1549,34 @@ class FishingMinigame(MinigameOverlay):
         t = self.font.render("Close", True, DARK_BROWN)
         self.canvas.blit(t, t.get_rect(center=self.close_rect.center))
 
+    def _draw_exit_question(self) -> None:
+        """Whether to leave a session under way, on a paper box over the shaded scene."""
+        lines = [_EXIT_TEXT]
+        if self.phase in (FIGHT, LANDING):
+            lines.insert(0, _EXIT_FISH_TEXT)
+        shade = pygame.Surface((_CANVAS_W, _CANVAS_H), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 110))
+        self.canvas.blit(shade, (0, 0))
+        panel = pygame.Rect(0, 0, 440, 112 + 24 * len(lines))
+        panel.center = _SCENE_RECT.center
+        pygame.draw.rect(self.canvas, _PAPER, panel, border_radius=6)
+        pygame.draw.rect(self.canvas, _BRASS, panel, 3, border_radius=6)
+        pygame.draw.rect(self.canvas, _BRASS_DARK, panel.inflate(-8, -8), 1, border_radius=4)
+        title = self.font_grade.render(_EXIT_TITLE, True, _INK)
+        self.canvas.blit(title, title.get_rect(center=(panel.centerx, panel.top + 30)))
+        for i, line in enumerate(lines):
+            text = self.font.render(line, True, _INK)
+            self.canvas.blit(text, text.get_rect(center=(panel.centerx, panel.top + 64 + 24 * i)))
+        self.exit_back_rect.center = (panel.centerx - 75, panel.bottom - 32)
+        self.exit_yes_rect.center = (panel.centerx + 75, panel.bottom - 32)
+        mouse = pygame.mouse.get_pos()
+        mouse = (mouse[0] - self.canvas_rect.left, mouse[1] - self.canvas_rect.top)
+        for rect, label in ((self.exit_back_rect, "Go back"), (self.exit_yes_rect, "Exit")):
+            pygame.draw.rect(self.canvas, _BRASS_LIGHT if rect.collidepoint(mouse) else _BRASS, rect, border_radius=4)
+            pygame.draw.rect(self.canvas, _BRASS_DARK, rect, 2, border_radius=4)
+            text = self.font.render(label, True, _INK)
+            self.canvas.blit(text, text.get_rect(center=rect.center))
+
     def draw(self) -> None:
         backdrop = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
         backdrop.fill((0, 0, 0, 160))
@@ -1499,6 +1589,8 @@ class FishingMinigame(MinigameOverlay):
         self._draw_bars()
         if self.phase == DONE:
             self._draw_result()
+        if self.exit_asked:
+            self._draw_exit_question()
         pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect.inflate(8, 8), border_radius=6)
         self.screen.blit(self.canvas, self.canvas_rect.topleft)
         pygame.draw.rect(self.screen, DARK_BROWN, self.canvas_rect, 3, border_radius=6)
