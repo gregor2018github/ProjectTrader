@@ -69,7 +69,7 @@ class TestCards:
         record = fish_records(Statistics())[0]
         assert not record.caught
         assert record.name == UNKNOWN_NAME
-        assert not any(ch.isdigit() for line in record.lines() for ch in line)
+        assert not any(ch.isdigit() for _, value in record.rows() for ch in value)
 
     def test_a_caught_kind_shows_its_name_and_numbers(self):
         stats = Statistics()
@@ -77,8 +77,8 @@ class TestCards:
         stats.record_fish("carp", 40, SPECIES["carp"].kg(40))
         record = next(r for r in fish_records(stats) if r.species.key == "carp")
         assert record.name == "Carp"
-        assert record.lines() == ["Caught: 2", f"Total: {format_kg(SPECIES['carp'].kg(80) + SPECIES['carp'].kg(40))}",
-                                  f"Biggest: 80 cm, {format_kg(SPECIES['carp'].kg(80))}"]
+        assert record.rows() == [("Caught", "2"), ("Total", format_kg(SPECIES['carp'].kg(80) + SPECIES['carp'].kg(40))),
+                                 ("Biggest", f"80 cm, {format_kg(SPECIES['carp'].kg(80))}")]
 
     def test_a_kind_not_caught_has_a_grey_portrait(self, screen):
         grey = portrait(SPECIES["golden_carp"], False)
@@ -102,10 +102,18 @@ class TestWindow:
         window = self.make(screen).info_window
         assert isinstance(window, RecordsWindow)
         assert window.H <= screen.get_height() and window.W <= screen.get_width()
-        for record in fish_records(window.game_state.game.depot.stats):
-            for line in record.lines():
-                assert window.body_font.size(line)[0] <= window.CARD_W - 146 - 6
-            assert window.name_font.size(record.species.name)[0] <= window.CARD_W - 146 - 6
+        text_w = window.CARD_W - 12 - window.PICTURE_W - 16 - 14
+        for key, species in SPECIES.items():        # the widest figures a kind can show
+            stats = Statistics()
+            stats.record_fish(key, species.cm[1], 1234.5)
+            record = next((r for r in fish_records(stats) if r.species.key == key), None)
+            if record is None:
+                continue
+            for label, value in record.rows():
+                assert window.body_font.size(label)[0] + 12 + window.body_font.size(value)[0] <= text_w
+            assert window.name_font.size(species.name)[0] <= text_w
+            assert portrait(species, True).get_height() <= window.PICTURE_H
+            assert portrait(species, True).get_width() <= window.PICTURE_W
 
     def test_it_draws_also_while_fading(self, screen):
         window = self.make(screen).info_window
@@ -146,7 +154,8 @@ class TestWoodhackingBooks:
 
 class TestWoodhackingPage:
     def make(self, screen, stats):
-        state = SimpleNamespace(screen=screen, info_window=None, game=SimpleNamespace(depot=SimpleNamespace(stats=stats)))
+        state = SimpleNamespace(screen=screen, info_window=None, menu_fade_duration=0.2,
+                                game=SimpleNamespace(depot=SimpleNamespace(stats=stats)))
         open_records_window(state)
         return state.info_window
 
@@ -185,10 +194,12 @@ class TestWoodhackingPage:
     def test_the_rows_and_labels_fit_their_panels(self, screen):
         window = self.make(screen, Statistics())
         assert window.score_row_rect(4).bottom <= window.scores_rect.bottom
-        assert window.overall_rect.top + window.PANEL_HEAD + 5 * window.OVERALL_ROW_H <= window.overall_rect.bottom
+        assert window.score_row_rect(1).top == window.score_row_rect(0).bottom
+        assert window.body.bottom <= window.panel.bottom - window.FRAME_INSET
+        assert window.overall_rect.top + window.HEAD_H + 5 * window.OVERALL_ROW_H <= window.overall_rect.bottom
         assert window.overall_rect.right <= window.panel.right - window.PAD
         for label, _ in overall_lines(Statistics()):
-            assert window.body_font.size(label)[0] <= window.overall_rect.width - 18 - 90
+            assert window.body_font.size(label)[0] <= window.overall_rect.width - 58 - 90
 
     @pytest.mark.parametrize("alpha", (1.0, 0.5))
     def test_it_draws_with_a_tooltip(self, screen, monkeypatch, alpha):
@@ -198,3 +209,19 @@ class TestWoodhackingPage:
         window.page = PAGE_WOODHACKING
         monkeypatch.setattr(pygame.mouse, "get_pos", lambda: window.score_row_rect(0).center)
         window.draw(alpha)
+
+    def test_it_draws_both_pages_and_keeps_each_once_built(self, screen):
+        window = self.make(screen, Statistics())
+        window.draw()
+        fishing = window._pages[PAGE_FISHING]
+        window.handle_click(window.tab_rects[PAGE_WOODHACKING].center)
+        window.draw()
+        window.handle_click(window.tab_rects[PAGE_FISHING].center)
+        window.draw()
+        assert window._pages[PAGE_FISHING] is fishing
+
+    def test_the_close_seal_closes(self, screen):
+        window = self.make(screen, Statistics())
+        assert window.panel.contains(window.close_rect)
+        window.handle_click(window.close_rect.center)
+        assert window.game_state.info_window is None
