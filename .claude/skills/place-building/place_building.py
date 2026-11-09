@@ -37,6 +37,14 @@ Run from the repo root. Subcommands:
       are removed when new ones are given, else left alone; to move a
       building use `move` instead.
 
+  tree SPRITE X Y [--scale S] [--no-snap] [--no-preview] [--dry-run]
+      Plant one tree (trees/Tree_<n>.png, from plant_catalog.json) on the
+      Trees object layer: X,Y the bottom-left of the sprite as for `place`,
+      its type Broadleaf_Tree or Pine_Tree by the catalog's kind, its stem
+      from the catalog, Scale if not 1. On the grid at its own size it is
+      also stamped into the first "Trees N" tile layer with room, so Tiled
+      shows it; scaled or off the grid it shows only in the game.
+
   move ID X Y [--dry-run]
       Move a Houses object to a new X,Y (snapped to tiles) with what belongs
       to it: Doors points inside its collision rect, the Light_rectangles the
@@ -68,6 +76,8 @@ import sys
 
 TMX = 'assets/tiles/Map1.tmx'
 CATALOG = 'build_tools/Sprite_Manager/building_catalog.json'
+PLANT_CATALOG = 'build_tools/Sprite_Manager/plant_catalog.json'
+TREES_ATLAS = 'assets/map_sprites/trees/Trees.png'
 TILE = 32
 HOUSES_FIRSTGID = 18837      # <tileset firstgid=... source="Houses.tsx"/>
 ATLAS_COLUMNS = 125          # Houses.tsx: 4000 px / 32
@@ -122,8 +132,8 @@ def object_xml(obj_id, name, cls, x, y, props, nl):
     return nl.join(lines)
 
 
-def _atlas_gids(rect, cols, rows_up):
-    """Houses-tileset gids of a sprite's atlas cells, row by row.
+def _atlas_gids(rect, cols, rows_up, firstgid=HOUSES_FIRSTGID, columns=ATLAS_COLUMNS):
+    """Tileset gids of a sprite's atlas cells, row by row (Houses.png unless told otherwise).
 
     The catalog rect is the sprite's own box, bottom-aligned in a
     tile-aligned slot, so its slot ends on the tile row its bottom reaches.
@@ -131,7 +141,7 @@ def _atlas_gids(rect, cols, rows_up):
     ax, ay, aw, ah = rect
     acol = ax // TILE
     arow = -(-(ay + ah) // TILE) - rows_up
-    return [[HOUSES_FIRSTGID + (arow + dy) * ATLAS_COLUMNS + acol + dx for dx in range(cols)]
+    return [[firstgid + (arow + dy) * columns + acol + dx for dx in range(cols)]
             for dy in range(rows_up)]
 
 
@@ -431,6 +441,69 @@ def cmd_place(a):
             grp = re.search(rf'<objectgroup [^>]*name="{group}"[^>]*>.*?(\s*</objectgroup>)', text, re.S)
             text = text[:grp.start(1)] + nl + '  ' + xml.format(id=new_id) + text[grp.start(1):]
             print(f'{group}: {xml.format(id=new_id)}'.replace(nl, ' '))
+    if a.dry_run:
+        print('dry run, nothing written')
+    else:
+        save_tmx(text, layers)
+        print('written', TMX)
+
+
+def cmd_tree(a):
+    cat = json.load(open(PLANT_CATALOG, encoding='utf-8'))['files']
+    entry = cat.get(f'trees/{a.sprite}')
+    if not entry or 'tiled' not in entry:
+        sys.exit(f'{a.sprite} has no Tiled block in {PLANT_CATALOG}')
+    tiled = entry['tiled']
+    path = f'assets/map_sprites/trees/{a.sprite}'
+    w, h = _png_size(path)
+    kind = 'Broadleaf_Tree' if entry.get('kind') == 'broadleaf_tree' else 'Pine_Tree'
+    props = {'File_name': a.sprite,
+             'Stem_Position': float(tiled['Stem_Position']),
+             'Stem_Thick': float(tiled['Stem_Thick']),
+             'Tiles_to_right': -(-w // TILE)}
+    if a.scale != 1:
+        props['Scale'] = float(a.scale)
+    x, y = (round(a.x, 2), round(a.y, 2)) if a.no_snap else (round(a.x / TILE) * TILE, round(a.y / TILE) * TILE)
+
+    text, layers = load_tmx()
+    nl = '\r\n' if '\r\n' in text else '\n'
+    nxt = re.search(r'nextobjectid="(\d+)"', text)
+    obj_id = int(nxt.group(1))
+    text = text.replace(nxt.group(0), f'nextobjectid="{obj_id + 1}"', 1)
+    grp = re.search(r'<objectgroup [^>]*name="Trees"[^>]*>.*?(\s*</objectgroup>)', text, re.S)
+    name = os.path.splitext(a.sprite)[0]
+    text = text[:grp.start(1)] + nl + ' ' + object_xml(obj_id, name, kind, x, y, props, nl) + text[grp.start(1):]
+    print(f'object {obj_id} "{name}" {kind} at ({x},{y}): {props}')
+
+    ax = entry.get('rect', [1])[0]
+    if a.no_preview:
+        pass
+    elif x % TILE or y % TILE or a.scale != 1 or ax % TILE or 'rect' not in entry:
+        print('no Tiled preview: tile stamps are native size on whole tiles, so this tree shows only in the game')
+    else:
+        os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+        import pygame
+        pygame.init()
+        atlas = pygame.image.load(TREES_ATLAS)
+        ts = re.search(r'<tileset firstgid="(\d+)" name="Trees"[^>]*columns="(\d+)"', text)
+        cols, rows_up = -(-w // TILE), -(-h // TILE)
+        gids = _atlas_gids(entry['rect'], cols, rows_up, int(ts.group(1)), int(ts.group(2)))
+        top, left = y // TILE - rows_up, x // TILE
+        cells = []
+        for dy, row in enumerate(gids):
+            for dx, gid in enumerate(row):
+                local = gid - int(ts.group(1))
+                tile = pygame.Rect(local % int(ts.group(2)) * TILE, local // int(ts.group(2)) * TILE, TILE, TILE)
+                if pygame.mask.from_surface(atlas.subsurface(tile), 8).count():
+                    cells.append((left + dx, top + dy, gid))
+        tree_layers = sorted((n for n in layers if re.fullmatch(r'Trees \d+', n)), key=lambda n: int(n.split()[1]))
+        free = [n for n in tree_layers if all(layers[n][cy][cx] in (0, gid) for cx, cy, gid in cells)]
+        if not free:
+            print('no "Trees N" layer has room there: no Tiled preview')
+        else:
+            for cx, cy, gid in cells:
+                layers[free[0]][cy][cx] = gid
+            print(f'preview: {len(cells)} cells on "{free[0]}"')
     if a.dry_run:
         print('dry run, nothing written')
     else:
@@ -754,6 +827,11 @@ def main():
     p.add_argument('--door', action='append', default=[])
     p.add_argument('--light', action='append', default=[])
     p.add_argument('--smoke', action='append', default=[])
+    p = sub.add_parser('tree')
+    p.add_argument('sprite'); p.add_argument('x', type=float); p.add_argument('y', type=float)
+    p.add_argument('--scale', type=float, default=1.0)
+    p.add_argument('--no-snap', action='store_true', help='keep X,Y as given, off the tile grid')
+    p.add_argument('--no-preview', action='store_true'); p.add_argument('--dry-run', action='store_true')
     p = sub.add_parser('move')
     p.add_argument('id', type=int); p.add_argument('x', type=float); p.add_argument('y', type=float)
     p.add_argument('--dry-run', action='store_true')
@@ -768,7 +846,8 @@ def main():
     p.add_argument('--show', help='save a 3x zoom of the sprite with the roof over it')
     p.add_argument('--dry-run', action='store_true')
     a = ap.parse_args()
-    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place, 'move': cmd_move, 'roof': cmd_roof}[a.cmd](a)
+    {'near': cmd_near, 'render': cmd_render, 'place': cmd_place, 'tree': cmd_tree, 'move': cmd_move,
+     'roof': cmd_roof}[a.cmd](a)
 
 
 if __name__ == '__main__':

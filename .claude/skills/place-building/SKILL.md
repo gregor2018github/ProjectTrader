@@ -1,6 +1,6 @@
 ---
 name: place-building
-description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object, swapped in for an existing one, or moving one already placed, including buyable warehouses and homes with their door, window lights and chimney smoke. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", or wants an existing building's texture replaced.
+description: Put a building sprite made in the Sprite Manager (assets/map_sprites/houses/House_<n>.png) onto the game map, either as a new object, swapped in for an existing one, or moving one already placed, including buyable warehouses and homes with their door, window lights and chimney smoke; also single trees and decorations. Use when the user wants a new house, barn, workshop, warehouse or other building "in the game", "on the map", wants an existing building's texture replaced, or says they placed things in the Placing Helper (build_tools/Placing_Helper/placements.json).
 ---
 
 # Place a building on the map
@@ -11,7 +11,42 @@ occlusion and the Town Plan all follow from the object. No Python is needed
 unless the building is a new *kind*.
 
 Helper (run from the repo root): `python .claude/skills/place-building/place_building.py`
-with `near`, `render`, `place`, `move` and `roof`. Its docstring has the arguments.
+with `near`, `render`, `place`, `tree`, `move` and `roof`. Its docstring has the arguments.
+
+## From the Placing Helper
+
+The user may have put the sprites down themselves in
+`build_tools/Placing_Helper/Placing_Helper.py`, a window on the map where
+they pick a sprite not on the map yet, drop, drag and scale it, and write a
+note. Then `build_tools/Placing_Helper/placements.json` says exactly where
+(`build_tools/Placing_Helper/placements.py` has the format). Read it first;
+per entry:
+
+- `x`, `y` are the Tiled object's point (bottom-left of the sprite, world px)
+  and `scale` its `Scale`: take them as they are, the spot was the user's
+  choice. `on_grid` false means `--no-snap`. Don't move it to fix things
+  without asking, except by a tile or so to clear a collision the user
+  can't have meant.
+- `hint` is the first command (`place` for the Houses layer, `tree` for
+  trees). It is the start, not the job: for a building follow the steps
+  below from step 3 on (the spot is chosen): trim the collision, door, lights
+  and smoke for anything people live or work in, roof, render, load it.
+- `note` is the user's wishes (a home and for how many, a warehouse and its
+  price, the door's side, a name): act on them. Without a note, a dwelling
+  is a home of 15–35 (`Max_inhabitants`) with door, lights and smoke; a
+  decoration or fence gets none of that and no roof unless it has one.
+- `checks` lists what to watch: no Tiled block in the catalog (measure the
+  sprite first), scaled (check the door against a figure), and collision
+  overlaps with what is on the map or with another placement.
+- `figures` are where the user stood figures for scale: pass them as
+  `render --figure X,Y`.
+- Trees (`object_layer` `Trees`) need nothing but `tree`; a row of them can
+  go in one go.
+
+Render the whole lot at the end, and once an entry is on the map take it
+out of `placements.json` (write the file back without it; keep the rest,
+`figures` and `view`). The helper also drops entries it finds on the map
+when it starts, but only where they were not moved.
 
 ## Steps
 
