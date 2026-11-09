@@ -879,6 +879,54 @@
     "Stem_Position": 3.23,
     "Stem_Thick": 2.5
    }
+  },
+  "trees/Tree_56.png": {
+   "kind": "needle_tree",
+   "subcategory": "small lopsided pine",
+   "atlas": "trees",
+   "rect": [
+    3136,
+    345,
+    102,
+    135
+   ],
+   "tiled": {
+    "File_name": "Tree_56.png",
+    "Stem_Position": 1.69,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_57.png": {
+   "kind": "needle_tree",
+   "subcategory": "small bushy fir",
+   "atlas": "trees",
+   "rect": [
+    1600,
+    379,
+    105,
+    133
+   ],
+   "tiled": {
+    "File_name": "Tree_57.png",
+    "Stem_Position": 1.75,
+    "Stem_Thick": 1.4
+   }
+  },
+  "trees/Tree_58.png": {
+   "kind": "needle_tree",
+   "subcategory": "small pine, slightly leaning",
+   "atlas": "trees",
+   "rect": [
+    2624,
+    400,
+    100,
+    144
+   ],
+   "tiled": {
+    "File_name": "Tree_58.png",
+    "Stem_Position": 1.38,
+    "Stem_Thick": 1.4
+   }
   }
  },
  "motifs": {

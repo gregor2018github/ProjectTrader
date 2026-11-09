@@ -1048,6 +1048,90 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -15
    }
+  },
+  "houses/House_42.png": {
+   "kind": "dwelling",
+   "subcategory": "house with a gallery and a cart arch",
+   "atlas": "houses",
+   "rect": [
+    1536,
+    1228,
+    354,
+    340
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_42.png",
+    "Tiles_to_right": 12,
+    "Tiles_up": 11,
+    "Collision_to_right": 12,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -30
+   }
+  },
+  "houses/House_43.png": {
+   "kind": "dwelling",
+   "subcategory": "house with a tall gabled wing",
+   "atlas": "houses",
+   "rect": [
+    832,
+    1460,
+    245,
+    300
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_43.png",
+    "Tiles_to_right": 8,
+    "Tiles_up": 10,
+    "Collision_to_right": 8,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -9,
+    "Col_margin_right_pixel": -21
+   }
+  },
+  "houses/House_44.png": {
+   "kind": "dwelling",
+   "subcategory": "town house with a lean-to",
+   "atlas": "houses",
+   "rect": [
+    1120,
+    1499,
+    258,
+    293
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_44.png",
+    "Tiles_to_right": 9,
+    "Tiles_up": 10,
+    "Collision_to_right": 9,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -6,
+    "Col_margin_right_pixel": -30
+   }
+  },
+  "houses/House_45.png": {
+   "kind": "dwelling",
+   "subcategory": "narrow gabled town house",
+   "atlas": "houses",
+   "rect": [
+    1952,
+    1485,
+    211,
+    307
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_45.png",
+    "Tiles_to_right": 7,
+    "Tiles_up": 10,
+    "Collision_to_right": 7,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -5,
+    "Col_margin_right_pixel": -20
+   }
   }
  },
  "motifs": {}
