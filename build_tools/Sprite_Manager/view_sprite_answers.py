@@ -47,15 +47,17 @@ class AnswersView(View):
         self.paste_button = Button('Paste answer', h=BUTTON_H)
         self.open_button = Button('Open image', h=BUTTON_H)
         self.send_button = Button('Send again', h=BUTTON_H)
+        self.web_button = Button('Send in browser again', h=BUTTON_H)
         self.design_button = Button('Change the design', h=BUTTON_H)
         self.gimp_button = Button('Edit in GIMP', h=BUTTON_H)
-        self.button_rows = ((self.paste_button, self.open_button), (self.send_button,),
+        self.button_rows = ((self.paste_button, self.open_button), (self.send_button,), (self.web_button,),
                             (self.design_button, self.gimp_button))
         self.reject_button = Button('Not good enough', w=190)
         self.accept_button = Button('Accept', w=150)
         self.actions = ((self.paste_button, self.paste_answer),
                         (self.open_button, self.open_answer),
                         (self.send_button, self.send),
+                        (self.web_button, self.send_web),
                         (self.design_button, self.back),
                         (self.gimp_button, self.edit_in_gimp),
                         (self.reject_button, self.reject),
@@ -139,6 +141,20 @@ class AnswersView(View):
         if self.sheet:
             self.app.send([self.sheet])
 
+    def send_web(self):
+        """The split image to the Gemini tab in the browser, as the sketch screen sends it."""
+        if not self.sheet:
+            return
+        job, store, sheet = self.job, self.store, self.sheet
+        self.app.send_web(sheet, f'new {job.domain.noun}', lambda path: self.take_downloaded(job, store, sheet, path))
+
+    def take_downloaded(self, job, store, sheet, path):
+        """Book the browser's answer with its job; show it if that job's answers are still on screen."""
+        entry = store_web_answer(job, store, sheet, path)
+        if self.app.view is self and self.job is job:
+            self.build_answer_cards()
+            self.choose(entry)
+
     def accept(self):
         """Save the chosen answer as a new sprite, single and in its collection."""
         if not (self.detail and self.detail.result):
@@ -186,7 +202,7 @@ class AnswersView(View):
 
     def header(self):
         return (f'3. Answers for the new {self.job.label}',
-                'Ctrl+V or drop a file = answer, Enter = accept into the game, Del = not good enough, '
+                'Ctrl+V or drop a file = answer, Ctrl+W = send in browser again, Enter = accept into the game, Del = not good enough, '
                 'click white gaps in the result to see through them.')
 
     def footer(self):
@@ -324,6 +340,8 @@ class AnswersView(View):
             self.paste_answer()
         elif event.key == pygame.K_o and ctrl:
             self.open_answer()
+        elif event.key == pygame.K_w and ctrl:
+            self.send_web()
         elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
             self.accept()
         elif event.key == pygame.K_DELETE:
