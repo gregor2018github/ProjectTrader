@@ -16,7 +16,7 @@ import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
-from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, RUMOUR_FILE, load_sentences, sentences_for
+from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, load_sentences, rumours_for, sentences_for
 
 if TYPE_CHECKING:
     from ...figurine import Figurine
@@ -205,9 +205,8 @@ class NPC(Human):
         Returns:
             A random sentence fitting the NPC's class and trade, or now and then a rumour.
         """
-        if random.random() < RUMOUR_CHANCE:
-            sentences = list(load_sentences(RUMOUR_FILE))
-        else:
+        sentences = rumours_for(self.SOCIAL_CLASS, self.IS_TRADER) if random.random() < RUMOUR_CHANCE else []
+        if not sentences:
             sentences = sentences_for(self.SOCIAL_CLASS, self.IS_TRADER)
         return self._pick_line(sentences, "Good day to you.")
 

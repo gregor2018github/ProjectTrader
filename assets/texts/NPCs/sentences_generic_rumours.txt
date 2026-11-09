@@ -1,42 +1,41 @@
 • I heard that the guild is collecting information on the best fishermen and the best woodcutters in town. I wonder what they want with such information.
-• At the Guildhall a clerk writes down the weight of every fish you bring in, as if it were a shipment of pepper. Grown men, arguing over a carp.
-• The guild keeps the five best days ever had at the chopping stump, they say. Five! For splitting logs! Next they'll be recording who sneezes loudest.
-• The guild has a ladder for its merchants: Peddler, Hawker, Chapman and on up to Patrician. Ask at the Guildhall how high you stand. Bring a thick skin.
-• A title from the guild is no gift for life. Let your wealth or your good name slip, and a fortnight later you are one rung lower.
-• The guild won't have a mere Peddler buying up the town's buildings. Get yourself called Hawker first, then come and talk about warehouses.
-• Gold alone won't make you a Patrician. The guild asks too what you own, how much you have traded and what people say of you behind your back.
-• A good name fades like the paint on an inn sign, a little every season. Keep giving, or folk will forget you ever gave at all.
-• A rich man must give a great deal more than a poor one before anyone calls him generous. The widow's mite has much to answer for.
-• Bring bread, fish and beer to the church and the priest will feed the poor with it. They'll speak well of you long after the meal is gone.
-• Both the church and the town hall will take your money as a gift, and neither has ever been known to hand any back. It does wonders for a man's name, though.
-• A single coin to a beggar in the street gets noticed too. Not by much, I grant you, but it costs less than a bishop.
-• Some swear the old well grants wishes: one coin in twenty, and the price of any good you name goes up or down. The other nineteen just go plop.
-• A wish at the well doesn't last, they say. Five days and the price is back where it belongs, and the well sulks for a while after.
-• Buy up all the bread in town of a morning and by noon the price has run away and the whole street is shouting at the baker. Mind who sees you do it.
-• The booths don't all shut on the stroke. Every stallholder packs up when it suits them, so at dusk one stall is open and the next one shut.
-• When the town runs short, merchants cart the stuff in from outside. When it's drowning in it, they cart it off again. There's only so far a price can wander.
-• A workshop that does well takes on more hands and grows. One that keeps losing money shrinks, and the owner wonders where it all went.
-• When hands are short the workshops pay more, and when they're plenty the wage falls again. Funny how nobody ever calls that a miracle.
-• Whoever holds the wheat licence may deal in flour and bread as well. The town hall sells them. Iron's does for tools and charcoal, wool's for cloth and garments.
-• A trading licence runs out, you know. Forget the day and the market won't sell you a single sack, though it'll still gladly buy what you have left.
-• A warehouse is a queer thing. Put one sack of salt in a bay and that bay is salt's alone, half empty or no. Not a fleece may lie beside it.
-• Own a warehouse and you can tell it what to take and what to refuse, even bay by bay. More obedient than any apprentice I've met.
-• The bank charges the most to those who have the least. Come back with a full purse and the rate is suddenly very friendly.
-• The longer the loan, the dearer it gets. And dear as a loan is, letting your account slip below nothing is dearer still, every single day.
-• Go fishing at first light, when they feed hardest. Under a bright noon sun you may as well read your worm a sermon.
-• Rain on the water makes the fish bold, and with a storm coming they bite like tax collectors. Just mind the lightning.
-• The eels only come out of the mud at night. Much like the town's aldermen.
-• A pike wants something that moves. Leave your bait lying still and it won't so much as look at you. Keep it twitching, short and sharp, and watch your fingers.
-• Don't strike at the first nibble. A carp will nibble a long while before it takes. Strike early and all you have caught is a bad temper.
-• There's talk of a golden carp in these waters. Nobody I know has seen it, but everybody I know has a cousin who nearly caught it.
-• Cast deep and let the line sink too far, and you'll hook the bottom of the river. It fights poorly and tastes worse.
-• In winter the fish are as slow and sullen as the rest of us. Save your worms for the summer.
-• They fish at the Wide River, the River Fork and off the Harbor Pier. Once a day is plenty. The fish start to recognise you.
-• Anyone may split logs at the old stump for a few coins. It takes a good four hours, and once a day is all a back can stand.
-• At the chopping stump it's not the strong arm that pays, it's the steady one. Land blow after clean blow and the coins start to add up.
-• The Grey Griffin writes a new menu every day. Only don't ask for meat on a Friday or in Lent, whatever you offer the cook.
+• [Commons, Middling Sort, Nobility, Traders] At the Guildhall a clerk writes down the weight of every fish you bring in, as if it were a shipment of pepper. Grown men, arguing over a carp.
+• [Middling Sort, Nobility, Traders] The guild keeps the five best days ever had at the chopping stump, they say. Five! For splitting logs! Next they'll be recording who sneezes loudest.
+• [Middling Sort, Nobility, Traders] The guild has a ladder for its merchants: Peddler, Hawker, Chapman and on up to Patrician. Ask at the Guildhall how high you stand. Bring a thick skin.
+• [Middling Sort, Traders] A title from the guild is no gift for life. Let your wealth or your good name slip, and a fortnight later you are one rung lower.
+• [Middling Sort, Traders] The guild won't have a mere Peddler buying up the town's buildings. Get yourself called Hawker first, then come and talk about warehouses.
+• [Middling Sort, Nobility, Traders] Gold alone won't make you a Patrician. The guild asks too what you own, how much you have traded and what people say of you behind your back.
+• [Middling Sort, Nobility] A good name fades like the paint on an inn sign, a little every season. Keep giving, or folk will forget you ever gave at all.
+• [Poor, Commons, Middling Sort] A rich man must give a great deal more than a poor one before anyone calls him generous. The widow's mite has much to answer for.
+• [Poor, Commons, Middling Sort] Bring bread, fish and beer to the church and the priest will feed the poor with it. They'll speak well of you long after the meal is gone.
+• [Middling Sort, Nobility, Traders] Both the church and the town hall will take your money as a gift, and neither has ever been known to hand any back. It does wonders for a man's name, though.
+• [Poor, Commons] A single coin to a beggar in the street gets noticed too. Not by much, I grant you, but it costs less than a bishop.
+• [Poor, Commons, Traders] Some swear the old well grants wishes: one coin in twenty, and the price of any good you name goes up or down. The other nineteen just go plop.
+• [Poor, Commons] Buy up all the bread in town of a morning and by noon the price has run away and the whole street is shouting at the baker. Mind who sees you do it.
+• [Commons, Middling Sort, Traders] The booths don't all shut on the stroke. Every stallholder packs up when it suits them, so at dusk one stall is open and the next one shut.
+• [Middling Sort, Traders] When the town runs short, merchants cart the stuff in from outside. When it's drowning in it, they cart it off again. There's only so far a price can wander.
+• [Middling Sort, Traders] A workshop that does well takes on more hands and grows. One that keeps losing money shrinks, and the owner wonders where it all went.
+• [Poor, Commons] When hands are short the workshops pay more, and when they're plenty the wage falls again. Funny how nobody ever calls that a miracle.
+• [Middling Sort, Traders] Whoever holds the wheat licence may deal in flour and bread as well. The town hall sells them. Iron's does for tools and charcoal, wool's for cloth and garments.
+• [Middling Sort, Traders] A trading licence runs out, you know. Forget the day and the market won't sell you a single sack, though it'll still gladly buy what you have left.
+• [Middling Sort, Traders] A warehouse is a queer thing. Put one sack of salt in a bay and that bay is salt's alone, half empty or no. Not a fleece may lie beside it.
+• [Middling Sort, Traders] Own a warehouse and you can tell it what to take and what to refuse, even bay by bay. More obedient than any apprentice I've met.
+• [Commons, Middling Sort, Traders] The bank charges the most to those who have the least. Come back with a full purse and the rate is suddenly very friendly.
+• [Middling Sort, Nobility, Traders] The longer the loan, the dearer it gets. And dear as a loan is, letting your account slip below nothing is dearer still, every single day.
+• [Poor, Commons] Go fishing at first light, when they feed hardest. Under a bright noon sun you may as well read your worm a sermon.
+• [Poor, Commons, Middling Sort] Rain on the water makes the fish bold, and with a storm coming they bite like tax collectors. Just mind the lightning.
+• [Poor, Commons] The eels only come out of the mud at night. Much like the town's aldermen.
+• [Commons, Middling Sort] A pike wants something that moves. Leave your bait lying still and it won't so much as look at you. Keep it twitching, short and sharp, and watch your fingers.
+• [Poor, Commons, Middling Sort] Don't strike at the first nibble. A carp will nibble a long while before it takes. Strike early and all you have caught is a bad temper.
+• [Poor, Commons, Middling Sort] There's talk of a golden carp in these waters. Nobody I know has seen it, but everybody I know has a cousin who nearly caught it.
+• [Commons, Middling Sort] Cast deep and let the line sink too far, and you'll hook the bottom of the river. It fights poorly and tastes worse.
+• [Poor, Commons] In winter the fish are as slow and sullen as the rest of us. Save your worms for the summer.
+• [Poor, Commons] They fish at the Wide River, the River Fork and off the Harbor Pier. Once a day is plenty. The fish start to recognise you.
+• [Poor, Commons] Anyone may split logs at the old stump for a few coins. It takes a good four hours, and once a day is all a back can stand.
+• [Poor, Commons] At the chopping stump it's not the strong arm that pays, it's the steady one. Land blow after clean blow and the coins start to add up.
+• [Commons, Middling Sort, Traders] The Grey Griffin writes a new menu every day. Only don't ask for meat on a Friday or in Lent, whatever you offer the cook.
 • Thunder only ever comes in summer hereabouts. Autumn gives us the rain and the fog instead, thick enough to lose a cow in.
-• Knock on a door and half the time nobody comes, even with the whole family sitting inside. I've done it myself. I hold my breath.
-• If folk go hungry they leave town, and if there's a roof to spare, new ones come. The town hall keeps count of every soul, down to the last beggar.
-• Whatever you do all day, the living costs you. Bread, candles, a roof: it leaves your purse each night whether you've earned it or not.
-• A sheep will stand quite still for you if you give it a good pat. More than you can say for most of the council.
+• [Commons, Middling Sort, Nobility] Knock on a door and half the time nobody comes, even with the whole family sitting inside. I've done it myself. I hold my breath.
+• [Middling Sort, Nobility] If folk go hungry they leave town, and if there's a roof to spare, new ones come. The town hall keeps count of every soul, down to the last beggar.
+• [Commons, Middling Sort, Traders] Whatever you do all day, the living costs you. Bread, candles, a roof: it leaves your purse each night whether you've earned it or not.
+• [Poor, Commons, Middling Sort] A sheep will stand quite still for you if you give it a good pat. More than you can say for most of us.
