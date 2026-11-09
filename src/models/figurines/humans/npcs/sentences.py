@@ -11,6 +11,9 @@ skipped.
 A rumour names who may say it in brackets at its start, as
 ``• [Poor, Commons, Traders] The sentence.``: social classes, and TRADER_TAG for
 anyone who trades for a living, whatever their class. Without brackets anyone may.
+
+A sentence about the speaker's marriage uses the placeholders of SPOUSE_WORDS,
+as ``my {spouse}``, which for_speaker() fills in by the speaker's gender.
 """
 
 import os
@@ -33,6 +36,13 @@ ALMS_THANKS_FILE = "sentences_thanks_alms.txt"
 RUMOUR_FILE = "sentences_generic_rumours.txt"
 RUMOUR_CHANCE = 0.3
 TRADER_TAG = "Traders"
+
+#: Placeholder in a sentence file: what a man says, what a woman says.
+SPOUSE_WORDS = {
+    "{spouse}": ("wife", "husband"),
+    "{spouse_pronoun}": ("she", "he"),
+    "{love_rival}": ("the tanner", "the miller's daughter"),
+}
 
 BULLET = "•"
 _RUMOUR_TAGS = re.compile(r"\[([^\]]*)\]\s*(.*)")
@@ -71,6 +81,21 @@ def sentences_for(social_class: str, is_trader: bool) -> List[str]:
     if is_trader:
         sentences += load_sentences(TRADER_SENTENCE_FILE)
     return sentences
+
+
+def for_speaker(sentence: str, gender: str) -> str:
+    """Fill in a sentence's placeholders for who is saying it.
+
+    Args:
+        sentence: A sentence as it stands in its file.
+        gender: The speaker's, ``"male"`` or ``"female"``.
+
+    Returns:
+        The sentence as they say it: a man has a wife, a woman a husband.
+    """
+    for placeholder, (his, hers) in SPOUSE_WORDS.items():
+        sentence = sentence.replace(placeholder, hers if gender == "female" else his)
+    return sentence
 
 
 def rumours() -> List[Tuple[Tuple[str, ...], str]]:

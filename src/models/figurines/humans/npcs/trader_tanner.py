@@ -23,3 +23,5 @@ class TraderTanner(Trader):
     MARKET_NAME = "Wool & Hide Market"
     # A stinking trade kept at the edge of town: plain working folk.
     SOCIAL_CLASS = "Commons"
+    # A man's wife leaves him for the tanner in that line, and he cannot lose her to himself.
+    NEVER_SAYS = ("{love_rival}",)

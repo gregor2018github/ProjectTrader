@@ -10,13 +10,13 @@ butcher, and whoever follows) subclass it and decide *when* to move.
 import os
 import random
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
-from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, load_sentences, rumours_for, sentences_for
+from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, for_speaker, load_sentences, rumours_for, sentences_for
 
 if TYPE_CHECKING:
     from ...figurine import Figurine
@@ -59,6 +59,8 @@ class NPC(Human):
     GENDER: str = "male"
     #: Traders talk shop: their chat also draws on the trader sentences.
     IS_TRADER: bool = False
+    #: Sentences holding any of these are not for this NPC to say.
+    NEVER_SAYS: Tuple[str, ...] = ()
 
     def __init__(self, name: str, x: float, y: float, tile_size: int) -> None:
         """Initialize shared NPC state.
@@ -228,10 +230,12 @@ class NPC(Human):
         Returns:
             The chosen line.
         """
+        sentences = [sentence for sentence in sentences
+                     if not any(words in sentence for words in self.NEVER_SAYS)]
         if len(sentences) > 1 and self._last_chat_line in sentences:
             sentences.remove(self._last_chat_line)
         self._last_chat_line = random.choice(sentences) if sentences else fallback
-        return self._last_chat_line
+        return for_speaker(self._last_chat_line, self.GENDER)
 
     # ------------------------------------------------------------------
     # Movement
