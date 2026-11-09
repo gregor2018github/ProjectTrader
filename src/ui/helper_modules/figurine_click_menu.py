@@ -221,7 +221,13 @@ def show_figurine_menu(
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
         if option_text == GIVE_COIN_OPTION and isinstance(figurine, NPC):
-            _give_coin(game_state, figurine)
+            if _give_coin(game_state, figurine):
+                # As with a chat, the bubble takes the menu's place; the coin's
+                # popup is drawn over it
+                game_state.info_window = FigurineSpeech(game_state.screen, figurine, figurine.thanks_line(),
+                                                        game_state, map_content_rect)
+                game_state.active_house_menu = None
+                return
         menu.close()
 
     # The tail points at the top centre of the sprite, or its bottom if the bubble flips below
@@ -254,7 +260,7 @@ def release_ended_conversations(game_state: 'GameState', game_map: 'GameMap') ->
             npc.talking_to = None
 
 
-def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
+def _give_coin(game_state: 'GameState', npc: 'NPC') -> bool:
     """Hand one of the poor a coin, booked as alms.
 
     The player gets the donation feedback for it: a single coin heard flipped or dropped and
@@ -263,14 +269,18 @@ def _give_coin(game_state: 'GameState', npc: 'NPC') -> None:
     Args:
         game_state: The current game state.
         npc: The townsperson receiving the coin.
+
+    Returns:
+        True if the coin was given, False if the player could not spare it.
     """
     depot = game_state.game.depot
     if not depot.book_donation(ALMS_COIN, category=ALMS_CATEGORY):
         game_state.show_warning("You have not a coin to spare.")
-        return
+        return False
     on_money_donated(game_state, ALMS_COIN)
     gain = game_state.game.merchant_rank.record_gift(ALMS_COIN)
     game_state.log_event("DONATION", f"Gave {ALMS_COIN:.0f}g to {npc.display_name} (reputation +{gain:.2f})")
+    return True
 
 
 def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:

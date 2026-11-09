@@ -16,7 +16,7 @@ import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
-from .sentences import sentences_for
+from .sentences import ALMS_THANKS_FILE, load_sentences, sentences_for
 
 if TYPE_CHECKING:
     from ...figurine import Figurine
@@ -205,10 +205,29 @@ class NPC(Human):
         Returns:
             A random sentence fitting the NPC's class and trade.
         """
-        sentences = sentences_for(self.SOCIAL_CLASS, self.IS_TRADER)
+        return self._pick_line(sentences_for(self.SOCIAL_CLASS, self.IS_TRADER), "Good day to you.")
+
+    def thanks_line(self) -> str:
+        """Pick how to thank the player for alms, never the same line twice in a row.
+
+        Returns:
+            A random sentence of thanks.
+        """
+        return self._pick_line(list(load_sentences(ALMS_THANKS_FILE)), "God reward you.")
+
+    def _pick_line(self, sentences: List[str], fallback: str) -> str:
+        """Choose a line other than the last one this NPC said.
+
+        Args:
+            sentences: The candidates; this list is changed.
+            fallback: Said if there are no candidates.
+
+        Returns:
+            The chosen line.
+        """
         if len(sentences) > 1 and self._last_chat_line in sentences:
             sentences.remove(self._last_chat_line)
-        self._last_chat_line = random.choice(sentences) if sentences else "Good day to you."
+        self._last_chat_line = random.choice(sentences) if sentences else fallback
         return self._last_chat_line
 
     # ------------------------------------------------------------------

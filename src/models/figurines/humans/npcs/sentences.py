@@ -1,9 +1,10 @@
 """Small-talk lines for human NPCs, read from ``assets/texts/NPCs``.
 
 Every NPC draws on the generic file for its social class; traders also draw on
-the trader file, which holds most of the lines, so they mostly talk shop. In
-the files each sentence is a ``•`` bullet on its own line; empty bullets are
-placeholders and are skipped.
+the trader file, which holds most of the lines, so they mostly talk shop. The
+poor say a line of their own file when given a coin. In the files each sentence
+is a ``•`` bullet on its own line; empty bullets are placeholders and are
+skipped.
 """
 
 import os
@@ -21,6 +22,7 @@ CLASS_SENTENCE_FILES = {
     "Nobility": "sentences_generic_nobility.txt",
 }
 TRADER_SENTENCE_FILE = "sentences_traders.txt"
+ALMS_THANKS_FILE = "sentences_thanks_alms.txt"
 
 BULLET = "•"
 
