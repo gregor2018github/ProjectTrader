@@ -56,9 +56,8 @@ class SheetLayout:
                 for card in self.card_rects()]
 
 
-def build_sheet(size: Tuple[int, int], minigame, layout: SheetLayout, title: str,
-                cards: Sequence[Tuple[str, str]]) -> pygame.Surface:
-    """All of a sheet that does not move. Each card is its heading and its words, *these* in red ink."""
+def framed_sheet(size: Tuple[int, int]) -> pygame.Surface:
+    """A blank sheet: browned parchment in a gold frame with flourishes in its corners."""
     page = pygame.Surface(size)
     sheet = page.get_rect()
     draw_paper(page, sheet, sheet.topleft)
@@ -69,6 +68,24 @@ def build_sheet(size: Tuple[int, int], minigame, layout: SheetLayout, title: str
     for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
                            (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
         draw_flourish(page, corner, sx, sy)
+    return page
+
+
+def inked(text: str, font: pygame.font.Font, colour) -> pygame.Surface:
+    """Text with a dark edge, so gold reads on the paper."""
+    edge = font.render(text, True, INK)
+    label = pygame.Surface((edge.get_width() + 2, edge.get_height() + 2), pygame.SRCALPHA)
+    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+        label.blit(edge, (dx, dy))
+    label.blit(font.render(text, True, colour), (1, 1))
+    return label
+
+
+def build_sheet(size: Tuple[int, int], minigame, layout: SheetLayout, title: str,
+                cards: Sequence[Tuple[str, str]]) -> pygame.Surface:
+    """All of a sheet that does not move. Each card is its heading and its words, *these* in red ink."""
+    page = framed_sheet(size)
+    sheet = page.get_rect()
 
     label = minigame._inked(title, minigame.font_title, GOLD)
     page.blit(label, label.get_rect(center=(sheet.centerx, _TITLE_Y)))

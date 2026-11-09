@@ -1,10 +1,11 @@
 """The merchant's rank: a ladder of titles the player climbs and can fall down again.
 
 Each rank of MERCHANT_RANKS asks for four things at once: net wealth, property
-value, lifetime trade volume and reputation. Once a day (`daily_check`) the
-player rises at once to the highest rank all four allow. When the rank held
-stops being met, the player has RANK_GRACE_DAYS to put it right before falling
-back one rank (and then again, if that one is not met either).
+value, lifetime trade volume and reputation. The moment all four allow a higher
+rank the player rises to the highest of them (`check_rise`, every game update).
+Once a day (`daily_check`) the rank held is judged: when it stops being met, the
+player has RANK_GRACE_DAYS to put it right before falling back one rank (and then
+again, if that one is not met either).
 
 What a rank opens (RANK_UNLOCKS) follows the highest rank ever reached, so it is
 never taken away; bonuses that follow the rank held can be added on `level`.
@@ -35,6 +36,19 @@ CONDITION_LABELS = {
 UNLOCK_TEXTS = {                 # how each of RANK_UNLOCKS reads after "you may now"
     "buy_buildings": "buy buildings",
 }
+
+
+@dataclass(frozen=True)
+class RankRise:
+    """A rise that has just happened, for the ledger and the screen announcing it."""
+    level: int                   # index of the rank risen to
+    name: str
+    opened: Tuple[str, ...]      # what it opens for the first time, as UNLOCK_TEXTS has it
+    again: bool                  # a rank held before and lost
+
+    @property
+    def ledger_line(self) -> str:
+        return f"Risen {'again ' if self.again else ''}to the rank of {self.name}"
 
 
 @dataclass(frozen=True)
@@ -109,24 +123,26 @@ class MerchantRank:
             return None
         return max(0, RANK_GRACE_DAYS - (today - self.grace_since).days)
 
+    # RISING, AT ONCE
+
+    def check_rise(self) -> Optional[RankRise]:
+        """Rise to the highest rank the standing now meets, if that is higher than the one held."""
+        qualified = self.qualified_level(self.standing())
+        if qualified <= self.level:
+            return None
+        opened = tuple(UNLOCK_TEXTS[unlock] for unlock, name in RANK_UNLOCKS.items()
+                       if self.highest < rank_index(name) <= qualified)
+        again = qualified <= self.highest
+        self.level = qualified
+        self.highest = max(self.highest, qualified)
+        self.grace_since = None
+        return RankRise(qualified, self.rank.name, opened, again)
+
     # DAILY AND SEASONAL
 
     def daily_check(self, today: datetime.date) -> Optional[Tuple[str, str]]:
-        """Promote, warn or demote; returns (ledger line, message to show) when something happened."""
+        """Warn or demote; returns (ledger line, message to show) when something happened."""
         standing = self.standing()
-        qualified = self.qualified_level(standing)
-        if qualified > self.level:
-            opened = [UNLOCK_TEXTS[unlock] for unlock, name in RANK_UNLOCKS.items()
-                      if self.highest < rank_index(name) <= qualified]
-            self.level = qualified
-            self.highest = max(self.highest, qualified)
-            self.grace_since = None
-            name = self.rank.name
-            message = f"The town now speaks of you as a **{name}**."
-            if opened:
-                message += f"\nAs a {name} you may now {' and '.join(opened)}."
-            return f"Risen to the rank of {name}", message
-
         unmet = self.rank.unmet(standing)
         if not unmet:
             if self.grace_since is not None:
@@ -201,7 +217,7 @@ class MerchantRank:
         }
 
     def load(self, saved: Optional[Dict[str, Any]]) -> None:
-        """Take over a save's rank; a save without one starts at the first rank and rises on the next day."""
+        """Take over a save's rank; a save without one starts at the first rank and rises at once."""
         saved = saved or {}
         top = len(self.ranks) - 1
         self.level = min(max(int(saved.get("level", 0)), 0), top)

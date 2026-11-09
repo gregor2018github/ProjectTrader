@@ -3,7 +3,7 @@ import os
 import random
 import datetime
 import time
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any, Tuple, Union
 from .game_state import GameState, quick_trade_quantity
 from .handlers.event_handler import EventHandler
 from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
@@ -16,7 +16,7 @@ from .ui import cursor
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
-from .models.merchant_rank import MerchantRank
+from .models.merchant_rank import MerchantRank, RankRise
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
@@ -40,6 +40,7 @@ from .ui.helper_modules.time_control import TimeControl
 from .ui.helper_modules.sound_control import SoundControl  # Add import for SoundControl
 from .ui.helper_modules.contract_acquisition import ContractView
 from .ui.helper_modules.info_window import InfoWindow
+from .ui.helper_modules.rank_up_window import RankUpWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
@@ -170,7 +171,7 @@ class Game:
         self._update_player_market_area()
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
-        self._pending_notices: List[str] = []
+        self._pending_notices: List[Union[str, RankRise]] = []
 
         # Autosave — settings can only change in the main menu, so read them once
         self.autosave_enabled: bool = bool(settings_store.get("autosave_enabled"))
@@ -514,6 +515,22 @@ class Game:
             print(f"Sound {sound_name} not found")
             return None
 
+    def _show_next_notice(self) -> None:
+        """Open one queued notice, pausing the game, once nothing else has the player's attention."""
+        state = self.state
+        if (not self._pending_notices or state.info_window or state.minigame or state.contract_acquisition
+                or getattr(state, "menu_fade_window", None)):
+            return
+        notice = self._pending_notices.pop(0)
+        if isinstance(notice, RankRise):
+            window = RankUpWindow(state.screen, state, notice)
+            self.play_sound("scroll_unroll")
+        else:
+            window = InfoWindow(state.screen, notice, ["OK"], state.font, self)
+        window.restore_time_level = state.time_level
+        state.time_level = 1
+        state.info_window = window
+
     def run(self) -> Optional[str]:
         """Execute the main game loop, handling updates, rendering, and events."""
         running = True
@@ -638,15 +655,13 @@ class Game:
                             if message:
                                 self._pending_notices.append(message)
 
-                # Show one queued license warning if no dialog is currently open
-                if self._pending_notices and not self.state.info_window:
-                    msg = self._pending_notices.pop(0)
-                    window = InfoWindow(
-                        self.state.screen, msg, ["OK"], self.state.font, self
-                    )
-                    window.restore_time_level = self.state.time_level
-                    self.state.time_level = 1
-                    self.state.info_window = window
+                    # Whatever raised the standing (a sale, a gift, a price), the rank follows at once
+                    rise = self.merchant_rank.check_rise()
+                    if rise:
+                        self.state.log_event("RANK", rise.ledger_line)
+                        self._pending_notices.append(rise)
+
+                self._show_next_notice()
 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []

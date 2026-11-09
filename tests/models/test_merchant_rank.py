@@ -69,25 +69,54 @@ def later(days):
 
 def test_a_new_merchant_holds_the_first_rank(rank):
     assert rank.rank.name == "First"
+    assert rank.check_rise() is None
     assert rank.daily_check(DAY) is None
 
 
 def test_rises_once_every_condition_is_met(rank, depot, player):
     meet_second(depot, player)
     player.reputation = 4.9
-    assert rank.daily_check(DAY) is None
+    assert rank.check_rise() is None
 
     player.reputation = 5
-    ledger, message = rank.daily_check(DAY)
+    rise = rank.check_rise()
     assert rank.rank.name == "Second"
-    assert "Second" in ledger and "buy buildings" in message
+    assert (rise.name, rise.level, rise.opened, rise.again) == ("Second", 1, ("buy buildings",), False)
+    assert "Second" in rise.ledger_line
+
+
+def test_a_rise_is_announced_once(rank, depot, player):
+    meet_second(depot, player)
+    assert rank.check_rise() is not None
+    assert rank.check_rise() is None
+
+
+def test_the_midnight_check_leaves_rising_to_check_rise(rank, depot, player):
+    meet_second(depot, player)
+    assert rank.daily_check(DAY) is None
+    assert rank.rank.name == "First"
+
+
+def test_rising_ends_a_grace_period(rank, depot, player):
+    meet_second(depot, player)
+    rank.check_rise()
+    depot.money = 50
+    rank.daily_check(DAY)
+    assert rank.grace_since == DAY
+
+    depot.money = 500
+    depot.properties["warehouses"].append({"buy_price": 500})
+    depot.stats.money_received = 1000
+    player.reputation = 20
+    rank.check_rise()
+    assert rank.rank.name == "Third" and rank.grace_since is None
 
 
 def test_trade_volume_counts_buying_and_selling(rank, depot, player):
     meet_second(depot, player)
     depot.stats.money_spent_goods = 60
     depot.stats.money_received = 40
-    rank.daily_check(DAY)
+    rank.check_rise()
     assert rank.rank.name == "Second"
 
 
@@ -96,7 +125,7 @@ def test_rises_straight_to_the_highest_rank_met(rank, depot, player):
     depot.properties["warehouses"].append({"buy_price": 500})
     depot.stats.money_received = 1000
     player.reputation = 20
-    rank.daily_check(DAY)
+    rank.check_rise()
     assert rank.rank.name == "Third"
     assert rank.highest == 2
 
@@ -104,14 +133,14 @@ def test_rises_straight_to_the_highest_rank_met(rank, depot, player):
 def test_loans_count_against_the_net_wealth(rank, depot, player):
     meet_second(depot, player)
     depot.active_loans.append({"remaining_principal": 50})
-    assert rank.daily_check(DAY) is None
+    assert rank.check_rise() is None
 
 
 # FALLING
 
 def test_falls_back_only_after_the_grace_period(rank, depot, player):
     meet_second(depot, player)
-    rank.daily_check(DAY)
+    rank.check_rise()
     depot.money = 50
 
     ledger, message = rank.daily_check(later(1))
@@ -128,7 +157,7 @@ def test_falls_back_only_after_the_grace_period(rank, depot, player):
 
 def test_putting_it_right_in_time_ends_the_grace_period(rank, depot, player):
     meet_second(depot, player)
-    rank.daily_check(DAY)
+    rank.check_rise()
     depot.money = 50
     rank.daily_check(later(1))
 
@@ -145,7 +174,7 @@ def test_falls_one_rank_at_a_time(rank, depot, player):
     depot.properties["warehouses"].append({"buy_price": 500})
     depot.stats.money_received = 1000
     player.reputation = 20
-    rank.daily_check(DAY)
+    rank.check_rise()
     depot.money, player.reputation = 0, 0     # meets neither Third nor Second now
 
     rank.daily_check(later(1))
@@ -160,7 +189,7 @@ def test_falls_one_rank_at_a_time(rank, depot, player):
 def test_unlocks_are_kept_after_a_fall(rank, depot, player):
     assert not rank.has_unlocked("buy_buildings")
     meet_second(depot, player)
-    rank.daily_check(DAY)
+    rank.check_rise()
     player.reputation = 0
     rank.daily_check(later(1))
     rank.daily_check(later(1 + GRACE_DAYS))
@@ -170,14 +199,14 @@ def test_unlocks_are_kept_after_a_fall(rank, depot, player):
 
 def test_rising_again_does_not_announce_an_unlock_twice(rank, depot, player):
     meet_second(depot, player)
-    rank.daily_check(DAY)
+    rank.check_rise()
     player.reputation = 0
     rank.daily_check(later(1))
     rank.daily_check(later(1 + GRACE_DAYS))
 
     player.reputation = 5
-    _, message = rank.daily_check(later(2 + GRACE_DAYS))
-    assert "buy buildings" not in message
+    rise = rank.check_rise()
+    assert rise.opened == () and rise.again
 
 
 # REPUTATION
@@ -228,7 +257,7 @@ def test_a_new_season_fades_reputation_and_resets_the_gifts(rank, depot, player)
 
 def test_save_round_trip(rank, depot, player):
     meet_second(depot, player)
-    rank.daily_check(DAY)
+    rank.check_rise()
     depot.money = 0
     rank.daily_check(later(3))
     rank.given_this_season = 42

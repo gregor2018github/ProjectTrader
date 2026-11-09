@@ -25,13 +25,14 @@ import pygame
 from .loan_dialog import _BaseDialog
 from .statistics_view import _fmt_woodhacking_score
 from ..layout_modules.town_plan import glyphs
-from ..paper import draw_paper
 from ...config.colors import GOLD, GRAY, PARCHMENT
 from ...config.constants import FONTS_PATH
 from ...models.minigames.fishing_pond import SPECIES, Species, format_kg
 from ...models.minigames.fishing_scene import fish_sprite
-from ...models.minigames.tutorial_sheet import BRASS, BRASS_DARK, BRASS_LIGHT, INK, RUBRIC, draw_tab, plaque
-from ...models.minigames.woodhacking import draw_divider, draw_flourish, draw_laurel
+from ...models.minigames.tutorial_sheet import (
+    BRASS, BRASS_DARK, BRASS_LIGHT, INK, RUBRIC, draw_tab, framed_sheet, inked, plaque,
+)
+from ...models.minigames.woodhacking import draw_divider, draw_laurel
 from ...models.statistics import Statistics, WOODHACKING_TOP_SCORES
 from ...sim.calendar import format_date
 
@@ -312,30 +313,13 @@ class RecordsWindow(_BaseDialog):
         """A rect on the screen, as it lies on the page's own sheet."""
         return rect.move(-self.panel.left, -self.panel.top)
 
-    def _inked(self, text: str, font: pygame.font.Font, colour) -> pygame.Surface:
-        """Text with a dark edge, so gold reads on the paper."""
-        edge = font.render(text, True, INK)
-        label = pygame.Surface((edge.get_width() + 2, edge.get_height() + 2), pygame.SRCALPHA)
-        for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
-            label.blit(edge, (dx, dy))
-        label.blit(font.render(text, True, colour), (1, 1))
-        return label
-
     # -- the sheet ---------------------------------------------------------
 
     def _build_sheet(self) -> pygame.Surface:
         """What every page has: the paper, the gold frame, its flourishes and the title."""
-        sheet = pygame.Surface((self.W, self.H))
+        sheet = framed_sheet((self.W, self.H))
         whole = sheet.get_rect()
-        draw_paper(sheet, whole, whole.topleft)
-        pygame.draw.rect(sheet, _GOLD_DARK, whole, 6)
-        pygame.draw.rect(sheet, GOLD, whole.inflate(-4, -4), 3)
-        inner = whole.inflate(-2 * self.FRAME_INSET, -2 * self.FRAME_INSET)
-        pygame.draw.rect(sheet, _GOLD_DARK, inner, 1)
-        for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
-                               (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
-            draw_flourish(sheet, corner, sx, sy)
-        title = self._inked("Records", self.sheet_title_font, GOLD)
+        title = inked("Records", self.sheet_title_font, GOLD)
         sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
         draw_divider(sheet, (whole.centerx, self.DIVIDER_Y), 170)
         return sheet

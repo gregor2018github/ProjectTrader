@@ -96,7 +96,7 @@ class RankWindow(_BaseDialog):
 
         y += 8
         notes = [
-            "A rank needs all four at once. The town judges you each midnight.",
+            "A rank needs all four at once, and you rise the moment you have them.",
             f"A rank no longer met is lost after {RANK_GRACE_DAYS} days, one rank at a time.",
             f"Reputation comes from gifts, and fades by {REPUTATION_SEASONAL_DECAY:.1%} each season.",
         ]
