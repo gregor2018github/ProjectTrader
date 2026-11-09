@@ -100,6 +100,7 @@ class Species:
     night_only: bool = False
     minnow: bool = False           # nibbles but never takes
     hours: Tuple[float, float, float, float] = (1.0, 1.0, 1.0, 1.0)   # how keen at dawn, by day, at dusk, by night
+    slog: bool = False             # slow but heavy: the bigger, the longer its fight and the dearer an error (fishing.SLOG_*)
     lore: str = ""
     plumpness: float = 1.4         # its weight for its length: grams per 100 cm of length cubed (anglers' condition factor)
 
@@ -128,7 +129,7 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             ((224, 310, "bottom", 1, 6),), speed=9, sense=24, nibbles=(2, 5), take_window=1.05,
             take_chance=0.7, caution=1.2, lure=0.0, power=0.7, stamina=1.2, style="sinker", shape="carp",
             height=0.4, colours=((52, 68, 38), (94, 110, 54), (150, 148, 88), (66, 80, 42), (52, 68, 38)),
-            count=2, hours=(1.6, 0.5, 1.0, 0.8), lore="The doctor fish, olive and slimy, grubbing in the weedy shallows.", plumpness=1.6),
+            count=2, hours=(1.6, 0.5, 1.0, 0.8), slog=True, lore="The doctor fish, olive and slimy, grubbing in the weedy shallows.", plumpness=1.6),
     Species("perch", "Perch", (15, 40), 0.9,
             ((90, 136, "surface", 6, 40), (256, 318, "surface", 4, 24)), speed=17, sense=30, nibbles=(1, 3),
             take_window=0.7, take_chance=0.85, caution=0.8, lure=1.3, power=0.5, stamina=0.8, style="dart",
@@ -139,12 +140,12 @@ SPECIES: Dict[str, Species] = {s.key: s for s in (
             ((128, 246, "bottom", 2, 12),), speed=10, sense=24, nibbles=(2, 5), take_window=1.0,
             take_chance=0.7, caution=1.3, lure=0.0, power=0.6, stamina=1.0, style="sinker", shape="bream",
             height=0.5, colours=((96, 84, 52), (168, 146, 92), (204, 192, 150), (88, 76, 56), (96, 84, 52)),
-            count=2, hours=(0.9, 0.5, 1.2, 1.3), lore="Grubs on the bottom of the deep water, slow to make up its mind.", plumpness=1.4),
+            count=2, hours=(0.9, 0.5, 1.2, 1.3), slog=True, lore="Grubs on the bottom of the deep water, slow to make up its mind.", plumpness=1.4),
     Species("carp", "Carp", (40, 82), 2.0,
             ((148, 230, "bottom", 2, 10),), speed=11, sense=22, nibbles=(3, 7), take_window=1.15,
             take_chance=0.6, caution=1.6, lure=0.0, power=0.95, stamina=1.6, style="smooth", shape="carp",
             height=0.42, colours=((84, 74, 38), (166, 136, 58), (210, 182, 112), (124, 82, 48), (70, 60, 30)),
-            count=2, hours=(1.2, 0.5, 1.2, 1.3), lore="The old one of the hollow: many nibbles, then a slow, sliding take.", plumpness=1.8),
+            count=2, hours=(1.2, 0.5, 1.2, 1.3), slog=True, lore="The old one of the hollow: many nibbles, then a slow, sliding take.", plumpness=1.8),
     Species("pike", "Pike", (45, 100), 2.4,
             ((252, 318, "surface", 6, 26), (108, 136, "surface", 10, 36)), speed=24, sense=40, nibbles=(0, 0),
             take_window=0.6, take_chance=1.0, caution=0.6, lure=2.6, power=1.05, stamina=1.3, style="dart",

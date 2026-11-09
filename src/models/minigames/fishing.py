@@ -40,6 +40,8 @@ movement of the mouse and in what the pond shows.
                 the fish is inside the bar and drains while it is out: full, and
                 the fish is netted; empty, and it is gone. How well the strike
                 set the hook sets where the meter starts (``CATCH_START``).
+                The big ones of the slow bottom fish (``Species.slog``: tench,
+                bream, carp) fill it far slower and drain it faster (``SLOG_*``).
                 A fish that never left the bar is a perfect catch,
                 which pays more (``PERFECT_CATCH_MULT``).
 
@@ -153,6 +155,10 @@ CATCH_FILL = 0.16               # what it fills a second, over the fish's endura
 CATCH_DRAIN = (0.09, 0.12)      # what it drains a second
 ENDURANCE = 2.4                 # how long fish fight, for all kinds
 MAX_ENDURANCE = 1.9             # the biggest are hard through how they move, not through taking for ever
+# The slow, heavy bottom fish (Species.slog) are hard through their bulk instead, from this heft up to the heaviest:
+SLOG_FROM = 0.35
+SLOG_FILL = 3.0                 # the heaviest fills the meter 1 / (1 + this) as fast
+SLOG_DRAIN = 0.3                # and drains it 1 + this as fast
 GRACE_S = 0.8                   # the first moments, and after a pause: the fish holds still, the meter too
 PERFECT_CATCH_MULT = 1.5        # a fish that never left the bar pays this much more
 LAND_X = BANK_EDGE + 26         # where a full meter has brought the fish
@@ -274,6 +280,10 @@ class Fight:
         endurance = min(MAX_ENDURANCE, ENDURANCE * sp.stamina * size ** 0.5)
         self.fill = CATCH_FILL / max(0.5, endurance)
         self.drain = _lerp(CATCH_DRAIN, self.heft)
+        if sp.slog:
+            bulk = _clamp((self.heft - SLOG_FROM) / (1 - SLOG_FROM))
+            self.fill /= 1 + SLOG_FILL * bulk
+            self.drain *= 1 + SLOG_DRAIN * bulk
         self.bar_h = _lerp(BAR_H, self.heft)
         self.max_speed = _lerp(FISH_SPEED, self.heft)
         self.band, self.keep_s, self.turn, self.anywhere = STYLES[sp.style]

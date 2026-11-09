@@ -255,6 +255,49 @@ class TestWhoLandsWhat:
         assert landed(kind, lambda: (lambda fight: False)) <= 10
 
 
+class TestTheBigBottomFish:
+    """Tench, bream and carp: slow movers, so the bigger ones are hard through their bulk instead."""
+
+    SLOGS = ("tench", "bream", "carp")
+
+    def test_only_the_slow_bottom_fish_slog(self):
+        assert {key for key, kind in SPECIES.items() if kind.slog} == set(self.SLOGS)
+        assert not any(kind.lure > 0 for kind in SPECIES.values() if kind.slog)
+
+    @pytest.mark.parametrize("key", SLOGS)
+    def test_the_bigger_fills_slower_and_drains_faster(self, key):
+        low, high = SPECIES[key].cm
+        small, big = make_fight((key, low)), make_fight((key, high))
+        assert big.fill < small.fill
+        assert big.drain > small.drain
+
+    def test_a_giant_takes_about_four_times_as_long_and_an_error_costs_more(self):
+        carp, pike = make_fight(("carp", 82)), make_fight(("pike", 100))
+        assert carp.heft == pytest.approx(pike.heft, abs=0.02)
+        assert carp.fill == pytest.approx(pike.fill / (1 + fishing.SLOG_FILL), rel=0.03)
+        assert carp.drain == pytest.approx(pike.drain * (1 + fishing.SLOG_DRAIN), rel=0.03)
+
+    def test_an_ordinary_one_is_as_it_was(self):
+        bream = make_fight(("bream", 40))
+        assert bream.heft < fishing.SLOG_FROM
+        assert bream.fill == pytest.approx(make_fight(("perch", 25)).fill)
+
+    @pytest.mark.parametrize("kind", (("pike", 65), ("eel", 60), ("golden_carp", 60), ("perch", 40)))
+    def test_the_others_are_not_touched(self, kind):
+        fight = make_fight(kind)
+        assert fight.fill == pytest.approx(make_fight(("perch", 25)).fill)
+
+    def test_a_fair_player_still_lands_an_average_tench(self):
+        assert landed(("tench", 35), fair) >= 20
+
+    def test_a_fair_player_loses_a_big_one_but_a_sharp_one_lands_it(self):
+        assert landed(("carp", 60), fair) == 0
+        assert landed(("carp", 60), sharp) >= 25
+
+    def test_the_biggest_carp_is_for_the_sharpest_and_not_always(self):
+        assert 0 < landed(("carp", 82), sharp) < 30
+
+
 class TestInTheRealOverlay:
     @pytest.fixture
     def minigame(self):
