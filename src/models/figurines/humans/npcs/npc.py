@@ -16,7 +16,7 @@ import pygame
 
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
-from .sentences import ALMS_THANKS_FILE, load_sentences, sentences_for
+from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, RUMOUR_FILE, load_sentences, sentences_for
 
 if TYPE_CHECKING:
     from ...figurine import Figurine
@@ -203,9 +203,13 @@ class NPC(Human):
         """Pick something to say, never the same line twice in a row.
 
         Returns:
-            A random sentence fitting the NPC's class and trade.
+            A random sentence fitting the NPC's class and trade, or now and then a rumour.
         """
-        return self._pick_line(sentences_for(self.SOCIAL_CLASS, self.IS_TRADER), "Good day to you.")
+        if random.random() < RUMOUR_CHANCE:
+            sentences = list(load_sentences(RUMOUR_FILE))
+        else:
+            sentences = sentences_for(self.SOCIAL_CLASS, self.IS_TRADER)
+        return self._pick_line(sentences, "Good day to you.")
 
     def thanks_line(self) -> str:
         """Pick how to thank the player for alms, never the same line twice in a row.

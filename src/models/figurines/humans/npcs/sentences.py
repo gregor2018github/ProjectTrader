@@ -1,8 +1,10 @@
 """Small-talk lines for human NPCs, read from ``assets/texts/NPCs``.
 
 Every NPC draws on the generic file for its social class; traders also draw on
-the trader file, which holds most of the lines, so they mostly talk shop. The
-poor say a line of their own file when given a coin. In the files each sentence
+the trader file, which holds most of the lines, so they mostly talk shop.
+Anyone may instead pass on a rumour about how things work in town, with a chance
+of RUMOUR_CHANCE, so these do not crowd out a class's own lines however many
+there are. The poor say a line of their own file when given a coin. In the files each sentence
 is a ``•`` bullet on its own line; empty bullets are placeholders and are
 skipped.
 """
@@ -23,6 +25,8 @@ CLASS_SENTENCE_FILES = {
 }
 TRADER_SENTENCE_FILE = "sentences_traders.txt"
 ALMS_THANKS_FILE = "sentences_thanks_alms.txt"
+RUMOUR_FILE = "sentences_generic_rumours.txt"
+RUMOUR_CHANCE = 0.3
 
 BULLET = "•"
 
