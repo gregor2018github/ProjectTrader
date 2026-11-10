@@ -1,7 +1,7 @@
 """Snow on the roofs: each building's roofs whitened as the snow on the ground deepens.
 
 A building's roofs are the polygons on the map's `Roofs` layer over its
-sprite (models/roofs.py), cut to where the sprite is painted. Its snow cap is
+sprite (models/roofs.py) less their holes, cut to where the sprite is painted. Its snow cap is
 the sprite there, turned to grey, lifted towards white and tinted like snow
 (make_cap()), so the roof's tiles and the shade of its slopes still show
 through. It is drawn just over its building in the render queue (map_view),
@@ -35,17 +35,25 @@ def roof_snow_level(cover: float) -> float:
     return min(1.0, (cover - low) / (high - low))
 
 
-def make_cap(image: pygame.Surface, rect: pygame.Rect, roofs: Sequence[Sequence[Point]]) -> Optional[pygame.Surface]:
-    """The snow cap of a building drawn as *image* over world *rect*, or None if none of *roofs* is on it."""
+def make_cap(image: pygame.Surface, rect: pygame.Rect,
+             roofs: Sequence[Tuple[Sequence[Point], Sequence[Sequence[Point]]]]) -> Optional[pygame.Surface]:
+    """The snow cap of a building drawn as *image* over world *rect*, or None if none of *roofs* is on it.
+
+    *roofs* are each roof's points and its holes (roofs.match_holes()).
+    """
     outline = pygame.Surface(rect.size, pygame.SRCALPHA)
     drawn = False
-    for points in roofs:
+    holes = []
+    for points, cut in roofs:
         local = [(x - rect.x, y - rect.y) for x, y in points]
         xs, ys = [p[0] for p in local], [p[1] for p in local]
         if max(xs) < 0 or max(ys) < 0 or min(xs) >= rect.width or min(ys) >= rect.height:
             continue
         pygame.draw.polygon(outline, (255, 255, 255, 255), local)
         drawn = True
+        holes += cut
+    for hole in holes:   # after all the roofs, so a hole is open whichever of them it lies on
+        pygame.draw.polygon(outline, (0, 0, 0, 0), [(x - rect.x, y - rect.y) for x, y in hole])
     if not drawn:
         return None
     on_roof = pygame.mask.from_surface(outline).overlap_mask(pygame.mask.from_surface(image), (0, 0))
@@ -65,7 +73,8 @@ def make_cap(image: pygame.Surface, rect: pygame.Rect, roofs: Sequence[Sequence[
 class RoofSnow:
     """The snow caps of the map's buildings, made as they are first needed."""
 
-    def __init__(self, roofs: List[List[Point]]) -> None:
+    def __init__(self, roofs: List[Tuple[List[Point], List[List[Point]]]]) -> None:
+        """*roofs*: each roof's points and its holes (roofs.match_holes())."""
         self.roofs = roofs
         self._caps: Dict[int, Optional[pygame.Surface]] = {}          # id(house) -> its cap at world size
         self._scaled: Dict[Tuple[int, float, int], pygame.Surface] = {}

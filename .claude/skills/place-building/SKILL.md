@@ -191,7 +191,12 @@ when it starts, but only where they were not moved.
    roofs; `move` carries them along. The Townhall, Church, Guildhall,
    House_19/20/21/23/24/26, the Mill, House_1 and the Meat, Wood and Herbs
    stalls are traced by hand: see their polygons in `Map1.tmx` for the kind
-   of shape.
+   of shape. Where a roof is open in the middle (a courtyard, a light well),
+   add a hole: a polygon on `Roofs` named after the building with
+   `type="Hole"`; it cuts that building's roofs it overlaps. The user can
+   also fix roofs and holes by hand in the Placing Helper's roof mode (`O`),
+   which writes them into the map; `move` and `roof` carry and replace the
+   holes with the roofs.
 
 8. **Render again** with figures in front of the door and look at it.
 

@@ -44,7 +44,7 @@ from .door import Door
 from .map_fog import FogOfWar
 from .rain import Rainfall
 from .fog import Fog, HALO_GROW
-from .roofs import Roofs
+from .roofs import Roofs, match_holes
 from .roof_snow import RoofSnow
 from .puddles import Puddles
 from .wet_ground import WetGround
@@ -796,15 +796,20 @@ class TMXMap:
         return min(candidates, key=lambda h: h.collision_rect.bottom) if candidates else None
 
     def _load_roofs(self) -> None:
-        """The roofs, polygons on the 'Roofs' object layer: the only part of a building rain splashes on."""
-        polygons = []
+        """The roofs, polygons on the 'Roofs' object layer: the only part of a building rain splashes on.
+
+        Those of type `Hole` are where a roof is open, cut from the roofs named after the same building.
+        """
+        roofs, holes = [], []
         for layer in self.tmx_data.visible_layers:
             if isinstance(layer, pytmx.TiledObjectGroup) and layer.name == "Roofs":
                 for obj in layer:
                     if getattr(obj, 'points', None):
-                        polygons.append([(p.x, p.y) for p in obj.points])   # already world points, as for water
-        self.roofs: Roofs = Roofs(self.houses, polygons)
-        self.roof_snow: RoofSnow = RoofSnow(polygons)   # the roofs white in a snowy winter
+                        points = [(p.x, p.y) for p in obj.points]   # already world points, as for water
+                        (holes if obj.type == 'Hole' else roofs).append((obj.name or '', points))
+        shapes = match_holes(roofs, holes)
+        self.roofs: Roofs = Roofs(self.houses, shapes)
+        self.roof_snow: RoofSnow = RoofSnow(shapes)   # the roofs white in a snowy winter
 
     def _load_smoke(self) -> None:
         """Load Smoke objects from the 'Smoke' object layer and create SmokeEmitters."""

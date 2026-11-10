@@ -638,7 +638,8 @@ def _roofs_of(text, obj_id):
     if not grp or not box:
         return []
     found = []
-    for o in re.finditer(r'<object id="\d+" name="([^"]*)" x="([^"]+)" y="([^"]+)">\s*<polygon [^>]*/>\s*</object>',
+    # Its holes (type "Hole") too, so they are moved and replaced with it
+    for o in re.finditer(r'<object id="\d+" name="([^"]*)"(?: type="[^"]*")? x="([^"]+)" y="([^"]+)">\s*<polygon [^>]*/>\s*</object>',
                          grp.group(1)):
         px, py = float(o.group(2)), float(o.group(3))
         if o.group(1) == name and box[0] - 1 <= px <= box[2] + 1 and box[1] - 1 <= py <= box[3] + 1:

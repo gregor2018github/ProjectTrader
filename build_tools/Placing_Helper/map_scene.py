@@ -2,7 +2,8 @@
 
 `Scene` loads assets/tiles/Map1.tmx with pytmx: the `Ground*` tile layers
 (the only tile layers the game draws), the buildings of the `Houses` object
-layer, the trees of `Trees` and the bridges' rectangles. Ground is drawn from
+layer, the trees of `Trees`, the bridges' rectangles, the window lights and
+the roofs (with their holes) as polygons. Ground is drawn from
 chunks of `CHUNK_TILES` square, made per zoom level as they come into view
 (at most `CHUNK_BUDGET_S` of each frame) and kept least-recently-used.
 Buildings and trees are y-sorted on their base, as in the game, together
@@ -167,6 +168,7 @@ class Scene:
         self.bridges = []
         self.lights = []                         # the game's Light: one window each
         self.light_groups = {}                   # {building name: BuildingLightGroup}, the shaped windows
+        self.roofs = []                          # (obj_id, building name, is a hole, world points) of the Roofs layer
         self._load_objects()
         self.sprites = self._load_sprites()
         self.figure = pygame.image.load(str(FIGURE)).convert_alpha()
@@ -185,6 +187,10 @@ class Scene:
                         self.things.append(Thing(layer.name, obj, folder / file_name))
             elif layer.name == 'Bridges':
                 self.bridges += [(o.x, o.y, o.width, o.height) for o in layer]
+            elif layer.name == 'Roofs':
+                for o in layer:
+                    if getattr(o, 'points', None):
+                        self.roofs.append((o.id, o.name or '', o.type == 'Hole', [(p.x, p.y) for p in o.points]))
             elif layer.name == 'Lights':
                 # As TMXMap._load_lights: rectangles one window each, polygons
                 # grouped by the building they are named after

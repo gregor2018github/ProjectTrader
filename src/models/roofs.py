@@ -2,7 +2,10 @@
 
 The roofs are polygons on the map's `Roofs` object layer, one or more per
 building, named after it (as building lights are on `Lights`); they are not
-tied to their building otherwise. A raindrop landing where a building's
+tied to their building otherwise. A polygon of Tiled type `Hole` on that
+layer is where a roof is open (a courtyard, a gap between two wings): it
+cuts the roofs named after the same building that it lies on
+(`match_holes`), and nobody else's. A raindrop landing where a building's
 sprite is painted only splashes inside a roof; on a wall, a window, a door,
 a fence or a cart it just ends unseen. Where no building is painted it
 splashes on the ground, drawn under everything standing (a tree's crown, a
@@ -31,6 +34,28 @@ def _inside(points: Sequence[Point], x: float, y: float) -> bool:
     return inside
 
 
+def _box(points: Sequence[Point]) -> Tuple[float, float, float, float]:
+    xs, ys = [p[0] for p in points], [p[1] for p in points]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+Shape = Tuple[List[Point], List[List[Point]]]   # a roof's points and the holes in it
+
+
+def match_holes(roofs: Sequence[Tuple[str, List[Point]]], holes: Sequence[Tuple[str, List[Point]]]) -> List[Shape]:
+    """Each roof's points with its holes: those named after the same building that overlap it."""
+    shapes = []
+    for name, points in roofs:
+        left, top, right, bottom = _box(points)
+        cut = []
+        for hole_name, hole in holes:
+            hl, ht, hr, hb = _box(hole)
+            if hole_name == name and hl < right and left < hr and ht < bottom and top < hb:
+                cut.append(hole)
+        shapes.append((points, cut))
+    return shapes
+
+
 def _tiles(rect: pygame.Rect):
     for ty in range(rect.top // TILE_SIZE, (rect.bottom - 1) // TILE_SIZE + 1):
         for tx in range(rect.left // TILE_SIZE, (rect.right - 1) // TILE_SIZE + 1):
@@ -40,10 +65,11 @@ def _tiles(rect: pygame.Rect):
 class Roofs:
     """The buildings' painted pixels and their roofs, to ask whether rain may splash at a point."""
 
-    def __init__(self, houses, roofs: List[List[Point]]) -> None:
-        self.polygons = roofs
+    def __init__(self, houses, roofs: List[Shape]) -> None:
+        """*roofs*: each roof's points and its holes (match_holes())."""
+        self.shapes = roofs
         self._sprites: Dict[Tuple[int, int], List[Tuple[pygame.Rect, pygame.Mask]]] = {}
-        self._roofs: Dict[Tuple[int, int], List[List[Point]]] = {}
+        self._roofs: Dict[Tuple[int, int], List[Shape]] = {}
         masks: Dict[int, pygame.Mask] = {}
         for house in houses:
             image: Optional[pygame.Surface] = getattr(house, 'image', None)
@@ -54,11 +80,11 @@ class Roofs:
             rect = pygame.Rect(round(house.x), round(house.y) - image.get_height(), *image.get_size())
             for tile in _tiles(rect):
                 self._sprites.setdefault(tile, []).append((rect, masks[id(image)]))
-        for points in roofs:
-            xs, ys = [p[0] for p in points], [p[1] for p in points]
-            box = pygame.Rect(int(min(xs)), int(min(ys)), int(max(xs) - min(xs)) + 1, int(max(ys) - min(ys)) + 1)
+        for shape in roofs:
+            left, top, right, bottom = _box(shape[0])
+            box = pygame.Rect(int(left), int(top), int(right - left) + 1, int(bottom - top) + 1)
             for tile in _tiles(box):
-                self._roofs.setdefault(tile, []).append(points)
+                self._roofs.setdefault(tile, []).append(shape)
 
     def on_building(self, x: float, y: float) -> bool:
         """Whether a building's sprite is painted at a world point."""
@@ -68,5 +94,6 @@ class Roofs:
         return False
 
     def on_roof(self, x: float, y: float) -> bool:
-        """Whether a world point is inside a roof."""
-        return any(_inside(points, x, y) for points in self._roofs.get((int(x // TILE_SIZE), int(y // TILE_SIZE)), ()))
+        """Whether a world point is inside a roof, and not in one of its holes."""
+        return any(_inside(points, x, y) and not any(_inside(hole, x, y) for hole in holes)
+                   for points, holes in self._roofs.get((int(x // TILE_SIZE), int(y // TILE_SIZE)), ()))

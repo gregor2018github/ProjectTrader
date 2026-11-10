@@ -46,7 +46,11 @@ Keys:
                        pixel, Shift+arrows make it wider or taller; R puts it back, Delete
                        removes it, Escape is done. Shaped windows (the Townhall's, Church's,
                        Guildhall's polygons) only move. The changes go into Map1.tmx with
-                       "Save lights to map", or when closing, which asks first.
+                       "Save to map", or when closing, which asks first.
+    O                  roof mode: the roofs and their holes, edited point by point (roof_mode.py
+                       has its keys: click a roof, drag its points, click an edge for a new one,
+                       right-click a point to take it away, P a new roof, H a new hole, Ctrl+Z
+                       undo); saved into Map1.tmx with the lights
     G                  snap to the tile grid on / off
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+S             save now (it saves by itself anyway)
@@ -54,8 +58,9 @@ Keys:
 
 The code: map_scene.py (the map, its chunks and objects, the sprites),
 placements.py (a placement and the file), light_edits.py (window lights
-moved, resized, removed, and writing them into the map), this file (the
-window).
+moved, resized, removed, and writing them into the map), roof_edits.py (the
+roofs and holes, their undo, and writing them into the map), roof_mode.py
+(the roof mode's input and drawing), this file (the window).
 """
 
 import os
@@ -73,6 +78,7 @@ sys.path.insert(1, str(HERE.parent / 'Sprite_Manager'))   # its theme and widget
 from light_edits import LightEdits, geometry  # noqa: E402
 from map_scene import LIGHT_MODES, TABS, TILE, BuildingLight, Scene, boxes_overlap, draw_box  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
+from roof_mode import ROOF_KEYS_HINT, RoofMode  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
     TEXT, TEXT_DIM, THUMB_BG,
@@ -108,8 +114,8 @@ MIN_BOX_PX = 4                      # sprite px a collision box keeps at least
 FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it away
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
-KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   C collision   T night   L lights   F figure   D another   '
-             'Enter note   Del delete')
+KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   C collision   T night   L lights   O roofs   F figure   '
+             'D another   Enter note   Del delete')
 LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
 LIGHT_HOVER = (255, 225, 120)       # the window light under the pointer, ready for a right-click
 LIGHT_EDITED = (90, 220, 255)       # the one being edited, with its handles
@@ -117,7 +123,7 @@ LIGHT_GRAB_SLACK_PX = 4             # screen px around a window light that still
 DIALOG_W = 520
 
 
-class PlacingHelper:
+class PlacingHelper(RoofMode):
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
@@ -166,9 +172,11 @@ class PlacingHelper:
         self.remove_light_button = Button('Remove  (Del)', w=124, h=34)
         self.reset_light_button = Button('Reset  (R)', w=104, h=34)
         self.done_light_button = Button('Done  (Esc)', w=110, h=34)
-        self.save_lights_button = Button('Save lights to map', w=200, h=34)
+        self.save_lights_button = Button('Save to map', w=130, h=34)
         self.dialog_buttons = [Button('Save', w=140, h=40), Button('Discard', w=140, h=40),
                                Button('Keep editing', w=160, h=40)]
+        self.init_roofs()                 # the roof mode's (roof_mode.py)
+        self.roof_chips = []
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
         self.note_field = TextField(placeholder='Note: what it is for, what it needs  (Enter)')
@@ -361,8 +369,8 @@ class PlacingHelper:
         while True:
             for event in pygame.event.get():
                 result = self.handle(event)
-                if result == 'quit' and self.edits.count and not self.dialog:
-                    self.dialog = True        # ask first: save the light changes?
+                if result == 'quit' and self.unsaved() and not self.dialog:
+                    self.dialog = True        # ask first: save the changes to the map?
                 elif result in ('quit', 'quit now'):
                     self.finish_note()
                     self.save_now()
@@ -397,8 +405,12 @@ class PlacingHelper:
             self.mouse_move(event)
         return None
 
+    def unsaved(self):
+        """Changes to window lights and roofs not written into the map yet."""
+        return self.edits.count + self.roof_edits.count
+
     def dialog_event(self, event):
-        """The question on closing with light changes not saved: Save, Discard or Keep editing."""
+        """The question on closing with changes to the map not saved: Save, Discard or Keep editing."""
         choice = None
         if event.type == pygame.KEYDOWN:
             choice = {pygame.K_RETURN: 'Save', pygame.K_KP_ENTER: 'Save', pygame.K_s: 'Save',
@@ -406,7 +418,7 @@ class PlacingHelper:
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             choice = next((b.label for b in self.dialog_buttons if b.hit(event.pos)), None)
         if choice == 'Save':
-            if self.save_lights():
+            if self.save_map():
                 return 'quit now'
             self.dialog = False
         elif choice == 'Discard':
@@ -415,18 +427,23 @@ class PlacingHelper:
             self.dialog = False
         return None
 
-    def save_lights(self):
-        """Write the light changes into Map1.tmx; False if that failed."""
-        count = self.edits.count
+    def save_map(self):
+        """Write the window light and roof changes into Map1.tmx; False if that failed."""
+        count = self.unsaved()
+        done, missing = [], []
         try:
-            written, missing = self.edits.save()
-        except OSError as error:
+            for edits, what in ((self.edits, 'window lights'), (self.roof_edits, 'roofs and holes')):
+                if edits.count:
+                    written, lost = edits.save()
+                    done.append(f'{written} {what}')
+                    missing += lost
+        except (OSError, ValueError) as error:
             self.status = f'Could not write the map: {error}'
             return False
-        self.status = f'{written} window light changes written to Map1.tmx' + (
+        self.status = (' and '.join(done) + ' written to Map1.tmx' if done else 'Nothing to save') + (
             f'; not found any more: {", ".join(map(str, missing))}' if missing else '')
         if count:
-            self.toast.show('Lights saved')
+            self.toast.show('Saved to the map')
         return True
 
     def edit_key(self, event):
@@ -493,6 +510,11 @@ class PlacingHelper:
         if self.note_field.focused:
             if self.note_field.key(event) == 'done':
                 self.finish_note()
+            return None
+        if event.key == pygame.K_o and not event.mod & pygame.KMOD_CTRL:
+            self.set_roof_mode(not self.roof_mode)
+            return None
+        if self.roof_mode and self.roof_key(event):
             return None
         if self.edit_light and self.edit_key(event):
             return None
@@ -581,6 +603,9 @@ class PlacingHelper:
             return
         if event.button != 1:
             return
+        if self.roof_mode:
+            self.roof_mouse_down(pos)
+            return
         if self.ghost:
             self.put_down(pos, keep=bool(pygame.key.get_mods() & pygame.KMOD_SHIFT))
             return
@@ -616,6 +641,8 @@ class PlacingHelper:
             self.cam_x = cam[0] - (event.pos[0] - start[0]) / self.zoom
             self.cam_y = cam[1] - (event.pos[1] - start[1]) / self.zoom
             self.clamp_camera()
+        elif self.drag[0] in ('vertex', 'ring'):
+            self.roof_mouse_move(event.pos)
         elif self.drag[0] == 'move':
             _, p, gx, gy = self.drag
             wx, wy = self.to_world(event.pos)
@@ -701,8 +728,19 @@ class PlacingHelper:
             self.status = f'Placement {self.chosen.id}: collision box back to the catalog\'s'
             self.mark_dirty()
 
+    def set_cursor(self, cursor):
+        if cursor != getattr(self, '_cursor', None):
+            self._cursor = cursor
+            try:
+                pygame.mouse.set_system_cursor(cursor)
+            except pygame.error:
+                pass
+
     def update_cursor(self, mouse):
         """A resize arrow over an edge of the chosen collision box."""
+        if self.roof_mode:
+            self.set_cursor(self.roof_cursor(mouse))
+            return
         if self.drag and self.drag[0] in ('edge', 'light'):
             edges = self.drag[2]
         else:
@@ -737,7 +775,12 @@ class PlacingHelper:
     def mouse_up(self, event):
         if not self.drag:
             return
-        if self.drag[0] == 'maybe':
+        if self.drag[0] in ('vertex', 'ring'):
+            self.roof_edits.drop_unchanged_checkpoint()
+        elif self.drag[0] == 'maybe' and self.roof_mode:
+            if self.drag[3] == 3:
+                self.roof_right_click(event.pos)
+        elif self.drag[0] == 'maybe':
             # A click without a drag: on empty ground it lets go of the choice,
             # with the right button it also drops what is on the mouse
             light = self.light_at_screen(event.pos) if self.drag[3] == 3 else None
@@ -768,6 +811,10 @@ class PlacingHelper:
             if rect.collidepoint(pos):
                 self.set_light_mode(mode)
                 return
+        for rect, _ in self.roof_chips:
+            if rect.collidepoint(pos):
+                self.set_roof_mode(not self.roof_mode)
+                return
         for rect, value in self.toggle_chips:
             if rect.collidepoint(pos):
                 if value == 'collision':
@@ -778,11 +825,16 @@ class PlacingHelper:
                 return
         for rect, sprite in self.rows:
             if rect.collidepoint(pos):
+                if self.roof_mode:
+                    self.set_roof_mode(False)
                 self.ghost = sprite
                 self.ghost_scale = 1.0
                 self.choose(None)
                 self.status = f'{sprite.stem} on the mouse: click on the map to put it down (Shift+click for another)'
                 return
+        if self.roof_mode:
+            self.roof_panel_click(pos)
+            return
         if self.edit_light:
             if self.remove_light_button.hit(pos):
                 self.remove_light(self.edit_light)
@@ -791,10 +843,10 @@ class PlacingHelper:
             elif self.done_light_button.hit(pos):
                 self.edit_light = None
             elif self.save_lights_button.hit(pos):
-                self.save_lights()
+                self.save_map()
             return
-        if self.edits.count and self.save_lights_button.hit(pos):
-            self.save_lights()
+        if self.unsaved() and self.save_lights_button.hit(pos):
+            self.save_map()
             return
         if self.chosen:
             if self.note_field.rect.collidepoint(pos):
@@ -874,8 +926,11 @@ class PlacingHelper:
             lx, ly = ox + round(p.x * self.zoom), oy + round(p.y * self.zoom) + 2
             pygame.draw.rect(self.screen, (0, 0, 0), (lx, ly, label.get_width() + 6, label.get_height()))
             self.screen.blit(label, (lx + 3, ly))
-        self.draw_light_marks(mouse)
+        if not self.roof_mode:
+            self.draw_light_marks(mouse)
         self.screen.set_clip(None)
+        if self.roof_mode:
+            self.draw_roofs(area, mouse)
 
         self.update_cursor(mouse)
         self.draw_overlay(area, mouse, ghost_point)
@@ -919,10 +974,11 @@ class PlacingHelper:
         pygame.draw.rect(self.screen, BAR_BG, box, border_radius=10)
         pygame.draw.rect(self.screen, DIALOG_LINE, box, 2, border_radius=10)
         y = box.y + 22
-        title = self.fonts.title.render('Save your light changes?', True, TEXT)
+        title = self.fonts.title.render('Save your changes to the map?', True, TEXT)
         self.screen.blit(title, (box.x + 24, y))
         y += 46
-        lines = [f'{self.edits.count} window lights moved, resized or removed.',
+        lines = [f'{self.edits.count} window lights moved, resized or removed; '
+                 f'{self.roof_edits.count} roofs or holes changed, added or deleted.',
                  'Save writes them into assets/tiles/Map1.tmx (close Tiled first if it has the map open).']
         for line in lines:
             for part in wrap_text(self.fonts.small, line, box.w - 48, 2):
@@ -985,7 +1041,8 @@ class PlacingHelper:
         pygame.draw.rect(self.screen, BAR_BG, bar)
         status = self.fonts.small.render(fit_text(self.fonts.small, self.status, area.w // 2 - 20), True, TEXT)
         self.screen.blit(status, status.get_rect(midleft=(bar.x + 10, bar.centery)))
-        hint = self.fonts.small.render(fit_text(self.fonts.small, KEYS_HINT, area.w // 2 - 20), True, TEXT_DIM)
+        keys = ROOF_KEYS_HINT if self.roof_mode else KEYS_HINT
+        hint = self.fonts.small.render(fit_text(self.fonts.small, keys, area.w // 2 - 20), True, TEXT_DIM)
         self.screen.blit(hint, hint.get_rect(midright=(bar.right - 10, bar.centery)))
 
     def draw_panel(self, mouse):
@@ -1009,9 +1066,12 @@ class PlacingHelper:
             x = chips[0][0].right + 8
         # Day or night, and at night which windows are lit
         x, y = panel.x + PAD, y + CHIP_HEIGHT + 6
-        self.time_chips, y = draw_chips(self.screen, self.fonts.font, ('day', 'night'),
+        self.time_chips, _ = draw_chips(self.screen, self.fonts.font, ('day', 'night'),
                                         lambda t: {'day': 'Day', 'night': 'Night  (T)'}[t],
                                         'night' if self.night else 'day', x, y, panel.w - 2 * PAD, mouse)
+        rx = self.time_chips[-1][0].right + 18
+        self.roof_chips, y = draw_chips(self.screen, self.fonts.font, ['roofs'], lambda _: 'Roof mode  (O)',
+                                        'roofs' if self.roof_mode else None, rx, y, panel.right - PAD - rx, mouse)
         y += 6
         self.light_chips, _ = draw_chips(self.screen, self.fonts.font, LIGHT_MODES,
                                          lambda m: LIGHT_LABELS[m], self.light_mode if self.night else None,
@@ -1065,14 +1125,17 @@ class PlacingHelper:
         y = box.y + 4
         small = self.fonts.small
         self.pending_rows = []
+        if self.roof_mode:
+            self.draw_roof_detail(box, mouse)
+            return
         if self.edit_light:
             self.draw_light_detail(box, mouse)
             return
-        if self.edits.count:
+        if self.unsaved():
             # Light changes waiting: a line and the button at the foot of the box
             self.save_lights_button.rect.bottomleft = (box.x, box.bottom)
             self.save_lights_button.draw(self.screen, small, mouse)
-            note = small.render(f'{self.edits.count} light changes', True, DONE_COLOR)
+            note = small.render(f'{self.unsaved()} changes to the map', True, DONE_COLOR)
             self.screen.blit(note, note.get_rect(midleft=(self.save_lights_button.rect.right + 10,
                                                           self.save_lights_button.rect.centery)))
             box = pygame.Rect(box.x, box.y, box.w, box.h - 44)
@@ -1172,9 +1235,9 @@ class PlacingHelper:
             button.draw(self.screen, small, mouse)
         y += 44
         self.save_lights_button.rect.topleft = (box.x, y)
-        self.save_lights_button.enabled = bool(self.edits.count)
+        self.save_lights_button.enabled = bool(self.unsaved())
         self.save_lights_button.draw(self.screen, small, mouse)
-        count = small.render(f'{self.edits.count} light changes', True, DONE_COLOR if self.edits.count else TEXT_DIM)
+        count = small.render(f'{self.unsaved()} changes to the map', True, DONE_COLOR if self.unsaved() else TEXT_DIM)
         self.screen.blit(count, count.get_rect(midleft=(self.save_lights_button.rect.right + 10,
                                                         self.save_lights_button.rect.centery)))
         self.save_lights_button.enabled = True
