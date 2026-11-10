@@ -927,6 +927,54 @@
     "Stem_Position": 1.38,
     "Stem_Thick": 1.4
    }
+  },
+  "trees/Tree_59.png": {
+   "kind": "needle_tree",
+   "subcategory": "small pine with a kinked stem",
+   "atlas": "trees",
+   "rect": [
+    3904,
+    46,
+    43,
+    114
+   ],
+   "tiled": {
+    "File_name": "Tree_59.png",
+    "Stem_Position": 0.66,
+    "Stem_Thick": 0.7
+   }
+  },
+  "trees/Tree_60.png": {
+   "kind": "needle_tree",
+   "subcategory": "young pine sapling with sparse tiers",
+   "atlas": "trees",
+   "rect": [
+    160,
+    393,
+    95,
+    151
+   ],
+   "tiled": {
+    "File_name": "Tree_60.png",
+    "Stem_Position": 1.53,
+    "Stem_Thick": 0.7
+   }
+  },
+  "trees/Tree_61.png": {
+   "kind": "broadleaf_tree",
+   "subcategory": "young oak",
+   "atlas": "trees",
+   "rect": [
+    320,
+    1329,
+    206,
+    303
+   ],
+   "tiled": {
+    "File_name": "Tree_61.png",
+    "Stem_Position": 3.02,
+    "Stem_Thick": 2.5
+   }
   }
  },
  "motifs": {
