@@ -44,6 +44,7 @@ CHUNK_TILES = 16
 CHUNK_PX = CHUNK_TILES * TILE
 CHUNK_BUDGET_S = 0.025           # of a frame, for making ground chunks
 CHUNK_CACHE_PIXELS = 40_000_000  # about 160 MB of ground chunks kept
+SPRITE_CACHE_PIXELS = 40_000_000  # and as much of scaled sprites, the least recently drawn dropped
 MISSING_GROUND = (52, 60, 44)    # where a chunk is not made yet
 BRIDGE_FILL = (150, 112, 70)
 BRIDGE_LINE = (90, 62, 36)
@@ -162,7 +163,8 @@ class Scene:
         self.chunk_pixels = 0
         self.missing = 0                         # ground chunks the last frame had no time for
         self.sources = {}                        # {path: Surface}
-        self.scaled = {}                         # {(path, factor): Surface}
+        self.scaled = OrderedDict()              # {(path, factor): Surface}, least recently drawn first
+        self.scaled_pixels = 0
         self.masks = {}                          # {path: Mask} for hit tests
         self.things = []
         self.bridges = []
@@ -276,14 +278,18 @@ class Scene:
         factor = round(factor, 4)
         key = (path, factor)
         image = self.scaled.get(key)
-        if image is None:
+        if image is not None:
+            self.scaled.move_to_end(key)
+        else:
             src = self.source(path)
             size = (max(1, round(src.get_width() * factor)), max(1, round(src.get_height() * factor)))
             image = (pygame.transform.smoothscale(src, size) if factor < 1
                      else pygame.transform.scale(src, size))
-            if len(self.scaled) > 4000:
-                self.scaled.clear()
             self.scaled[key] = image
+            self.scaled_pixels += size[0] * size[1]
+            while self.scaled_pixels > SPRITE_CACHE_PIXELS and len(self.scaled) > 1:
+                _, old = self.scaled.popitem(last=False)
+                self.scaled_pixels -= old.get_width() * old.get_height()
         return image
 
     def opaque_at(self, path, scale, x, y, px, py):
