@@ -41,13 +41,21 @@ Keys:
                        and lit as the game does it
     L                  at night, which windows are lit: none, as the game picks them (again: a
                        new night), or all of them
+    Right-click a window light (outlined under the pointer, lit or not): edit it. Drag it, or a
+                       rectangle's edges and corners by the white handles; arrows nudge it a
+                       pixel, Shift+arrows make it wider or taller; R puts it back, Delete
+                       removes it, Escape is done. Shaped windows (the Townhall's, Church's,
+                       Guildhall's polygons) only move. The changes go into Map1.tmx with
+                       "Save lights to map", or when closing, which asks first.
     G                  snap to the tile grid on / off
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+S             save now (it saves by itself anyway)
     Escape             drop what is on the mouse, then the choice, then close
 
 The code: map_scene.py (the map, its chunks and objects, the sprites),
-placements.py (a placement and the file), this file (the window).
+placements.py (a placement and the file), light_edits.py (window lights
+moved, resized, removed, and writing them into the map), this file (the
+window).
 """
 
 import os
@@ -62,7 +70,8 @@ import pygame  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(HERE.parent / 'Sprite_Manager'))   # its theme and widgets, as the Sound Manager does
-from map_scene import LIGHT_MODES, TABS, TILE, Scene, boxes_overlap, draw_box  # noqa: E402
+from light_edits import LightEdits, geometry  # noqa: E402
+from map_scene import LIGHT_MODES, TABS, TILE, BuildingLight, Scene, boxes_overlap, draw_box  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
@@ -102,6 +111,10 @@ UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
 KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   C collision   T night   L lights   F figure   D another   '
              'Enter note   Del delete')
 LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
+LIGHT_HOVER = (255, 225, 120)       # the window light under the pointer, ready for a right-click
+LIGHT_EDITED = (90, 220, 255)       # the one being edited, with its handles
+LIGHT_GRAB_SLACK_PX = 4             # screen px around a window light that still pick it
+DIALOG_W = 520
 
 
 class PlacingHelper:
@@ -147,6 +160,15 @@ class PlacingHelper:
         self.light_mode = 'random'        # which of them: LIGHT_MODES
         self.lit = []                     # the window lights lit now
         self.time_chips, self.light_chips = [], []
+        self.edits = LightEdits(self.scene)   # window lights moved, resized, removed: written on saving
+        self.edit_light = None            # the window light being edited (right-click one)
+        self.dialog = False               # the "save the light changes?" question on closing
+        self.remove_light_button = Button('Remove  (Del)', w=124, h=34)
+        self.reset_light_button = Button('Reset  (R)', w=104, h=34)
+        self.done_light_button = Button('Done  (Esc)', w=110, h=34)
+        self.save_lights_button = Button('Save lights to map', w=200, h=34)
+        self.dialog_buttons = [Button('Save', w=140, h=40), Button('Discard', w=140, h=40),
+                               Button('Keep editing', w=160, h=40)]
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
         self.note_field = TextField(placeholder='Note: what it is for, what it needs  (Enter)')
@@ -243,6 +265,7 @@ class PlacingHelper:
         self.chosen = placement
         if placement:
             self.note_field.text = placement.note
+            self.edit_light = None
 
     def finish_note(self):
         self.note_field.focus(False)
@@ -337,7 +360,10 @@ class PlacingHelper:
     def run(self):
         while True:
             for event in pygame.event.get():
-                if self.handle(event) == 'quit':
+                result = self.handle(event)
+                if result == 'quit' and self.edits.count and not self.dialog:
+                    self.dialog = True        # ask first: save the light changes?
+                elif result in ('quit', 'quit now'):
                     self.finish_note()
                     self.save_now()
                     pygame.quit()
@@ -349,6 +375,8 @@ class PlacingHelper:
             self.clock.tick(FPS)
 
     def handle(self, event):
+        if self.dialog:
+            return self.dialog_event(event)
         if event.type == pygame.QUIT:
             return 'quit'
         if event.type == pygame.VIDEORESIZE:
@@ -369,10 +397,104 @@ class PlacingHelper:
             self.mouse_move(event)
         return None
 
+    def dialog_event(self, event):
+        """The question on closing with light changes not saved: Save, Discard or Keep editing."""
+        choice = None
+        if event.type == pygame.KEYDOWN:
+            choice = {pygame.K_RETURN: 'Save', pygame.K_KP_ENTER: 'Save', pygame.K_s: 'Save',
+                      pygame.K_d: 'Discard', pygame.K_ESCAPE: 'Keep editing'}.get(event.key)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            choice = next((b.label for b in self.dialog_buttons if b.hit(event.pos)), None)
+        if choice == 'Save':
+            if self.save_lights():
+                return 'quit now'
+            self.dialog = False
+        elif choice == 'Discard':
+            return 'quit now'
+        elif choice == 'Keep editing':
+            self.dialog = False
+        return None
+
+    def save_lights(self):
+        """Write the light changes into Map1.tmx; False if that failed."""
+        count = self.edits.count
+        try:
+            written, missing = self.edits.save()
+        except OSError as error:
+            self.status = f'Could not write the map: {error}'
+            return False
+        self.status = f'{written} window light changes written to Map1.tmx' + (
+            f'; not found any more: {", ".join(map(str, missing))}' if missing else '')
+        if count:
+            self.toast.show('Lights saved')
+        return True
+
+    def edit_key(self, event):
+        """A key while a window light is being edited; True if it was the editor's."""
+        k, shift, light = event.key, event.mod & pygame.KMOD_SHIFT, self.edit_light
+        if k == pygame.K_ESCAPE:
+            self.edit_light = None
+        elif k in (pygame.K_DELETE, pygame.K_BACKSPACE):
+            self.remove_light(light)
+        elif k == pygame.K_r:
+            self.edits.reset(light)
+            self.status = f'Window light {light.obj_id} back where it was'
+        elif k in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
+            dx = (k == pygame.K_RIGHT) - (k == pygame.K_LEFT)
+            dy = (k == pygame.K_DOWN) - (k == pygame.K_UP)
+            x, y, w, h = geometry(light)
+            if shift and not isinstance(light, BuildingLight):
+                self.edits.set_geometry(light, x, y, w + dx, h + dy)    # Shift: wider, taller
+            else:
+                self.edits.set_geometry(light, x + dx, y + dy, w, h)
+        else:
+            return False
+        return True
+
+    def remove_light(self, light):
+        self.edits.remove(light)
+        if light in self.lit:
+            self.lit.remove(light)
+        self.edit_light = None
+        self.status = f'Window light {light.obj_id} removed ({self.edits.count} light changes to save)'
+
+    def light_screen_rect(self, light):
+        area = self.map_area()
+        x, y, w, h = geometry(light)
+        return pygame.Rect(round((x - self.cam_x) * self.zoom) + area.x, round((y - self.cam_y) * self.zoom) + area.y,
+                           max(1, round(w * self.zoom)), max(1, round(h * self.zoom)))
+
+    def light_at_screen(self, pos):
+        wx, wy = self.to_world(pos)
+        return self.scene.light_at(wx, wy, LIGHT_GRAB_SLACK_PX / self.zoom)
+
+    def light_edges_at(self, pos):
+        """Edges of the edited window light under the pointer: a set of them, {'move'} inside it, or empty."""
+        light = self.edit_light
+        if not light or self.ghost:
+            return set()
+        rect, g = self.light_screen_rect(light), EDGE_GRAB_PX
+        x, y = pos
+        if not (rect.left - g <= x <= rect.right + g and rect.top - g <= y <= rect.bottom + g):
+            return set()
+        edges = set()
+        if not isinstance(light, BuildingLight):     # a shaped window only moves
+            if abs(x - rect.left) <= g:
+                edges.add('left')
+            elif abs(x - rect.right) <= g:
+                edges.add('right')
+            if abs(y - rect.top) <= g:
+                edges.add('top')
+            elif abs(y - rect.bottom) <= g:
+                edges.add('bottom')
+        return edges or {'move'}
+
     def key(self, event):
         if self.note_field.focused:
             if self.note_field.key(event) == 'done':
                 self.finish_note()
+            return None
+        if self.edit_light and self.edit_key(event):
             return None
         k, mods = event.key, event.mod
         shift = mods & pygame.KMOD_SHIFT
@@ -462,6 +584,14 @@ class PlacingHelper:
         if self.ghost:
             self.put_down(pos, keep=bool(pygame.key.get_mods() & pygame.KMOD_SHIFT))
             return
+        if self.edit_light:
+            edges = self.light_edges_at(pos)
+            if edges:
+                wx, wy = self.to_world(pos)
+                x, y, _, _ = geometry(self.edit_light)
+                self.drag = ('light', self.edit_light, edges, wx - x, wy - y)
+                return
+            self.edit_light = None             # a click elsewhere ends the editing
         edges = self.collision_edges_at(pos)
         if edges:
             self.drag = ('edge', self.chosen, edges)
@@ -510,6 +640,25 @@ class PlacingHelper:
             if (left, top, right, bottom) != tuple(p.box_px):
                 p.collision_box = (left, top, right, bottom)
                 self.mark_dirty()
+        elif self.drag[0] == 'light':
+            _, light, edges, gx, gy = self.drag
+            wx, wy = self.to_world(event.pos)
+            x, y, w, h = geometry(light)
+            if edges == {'move'}:
+                x, y = round(wx - gx), round(wy - gy)    # whole world pixels
+            else:
+                left, top, right, bottom = x, y, x + w, y + h
+                if 'left' in edges:
+                    left = min(round(wx), right - 2)
+                if 'right' in edges:
+                    right = max(round(wx), left + 2)
+                if 'top' in edges:
+                    top = min(round(wy), bottom - 2)
+                if 'bottom' in edges:
+                    bottom = max(round(wy), top + 2)
+                x, y, w, h = left, top, right - left, bottom - top
+            if (x, y, w, h) != geometry(light):
+                self.edits.set_geometry(light, x, y, w, h)
 
     def collision_edges_at(self, pos):
         """Which edges of the chosen building's collision box are under the pointer (a corner: two)."""
@@ -554,7 +703,20 @@ class PlacingHelper:
 
     def update_cursor(self, mouse):
         """A resize arrow over an edge of the chosen collision box."""
-        edges = self.drag[2] if self.drag and self.drag[0] == 'edge' else self.collision_edges_at(mouse)
+        if self.drag and self.drag[0] in ('edge', 'light'):
+            edges = self.drag[2]
+        else:
+            edges = self.light_edges_at(mouse) or self.collision_edges_at(mouse)
+        if edges == {'move'}:
+            edges = set()
+            cursor = pygame.SYSTEM_CURSOR_SIZEALL
+            if cursor != getattr(self, '_cursor', None):
+                self._cursor = cursor
+                try:
+                    pygame.mouse.set_system_cursor(cursor)
+                except pygame.error:
+                    pass
+            return
         if edges in ({'left', 'top'}, {'right', 'bottom'}):
             cursor = pygame.SYSTEM_CURSOR_SIZENWSE
         elif edges in ({'right', 'top'}, {'left', 'bottom'}):
@@ -578,10 +740,19 @@ class PlacingHelper:
         if self.drag[0] == 'maybe':
             # A click without a drag: on empty ground it lets go of the choice,
             # with the right button it also drops what is on the mouse
+            light = self.light_at_screen(event.pos) if self.drag[3] == 3 else None
             if self.drag[3] == 3 and self.ghost:
                 self.ghost = None
+            elif light:
+                # A right-click on a window light: edit it
+                self.choose(None)
+                self.edit_light = light
+                self.status = (f'Editing window light {light.obj_id}: drag it'
+                               + ('' if isinstance(light, BuildingLight) else ' or its edges')
+                               + ', arrows nudge, Del removes, R resets, Esc done')
             elif self.drag[3] in (1, 3):
                 self.choose(None)
+                self.edit_light = None
         self.drag = None
 
     def panel_click(self, pos):
@@ -612,6 +783,19 @@ class PlacingHelper:
                 self.choose(None)
                 self.status = f'{sprite.stem} on the mouse: click on the map to put it down (Shift+click for another)'
                 return
+        if self.edit_light:
+            if self.remove_light_button.hit(pos):
+                self.remove_light(self.edit_light)
+            elif self.reset_light_button.hit(pos):
+                self.edits.reset(self.edit_light)
+            elif self.done_light_button.hit(pos):
+                self.edit_light = None
+            elif self.save_lights_button.hit(pos):
+                self.save_lights()
+            return
+        if self.edits.count and self.save_lights_button.hit(pos):
+            self.save_lights()
+            return
         if self.chosen:
             if self.note_field.rect.collidepoint(pos):
                 self.note_field.focus(True)
@@ -643,8 +827,12 @@ class PlacingHelper:
         if self.ghost and area.collidepoint(mouse):
             ghost_point = self.ghost_point(mouse)
             extra.append((ghost_point[1], self._ghost_drawer(ghost_point)))
+        night = None
+        if self.night:
+            # The window being edited is shown lit, whichever are lit tonight
+            night = self.lit + ([self.edit_light] if self.edit_light and self.edit_light not in self.lit else [])
         ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra, self.show_collision,
-                                 night=self.lit if self.night else None)
+                                 night=night)
 
         self.screen.set_clip(area)
         # Collision boxes of what is being placed: red where one overlaps
@@ -686,13 +874,65 @@ class PlacingHelper:
             lx, ly = ox + round(p.x * self.zoom), oy + round(p.y * self.zoom) + 2
             pygame.draw.rect(self.screen, (0, 0, 0), (lx, ly, label.get_width() + 6, label.get_height()))
             self.screen.blit(label, (lx + 3, ly))
+        self.draw_light_marks(mouse)
         self.screen.set_clip(None)
 
         self.update_cursor(mouse)
         self.draw_overlay(area, mouse, ghost_point)
         self.draw_footer(area)
         self.draw_panel(mouse)
+        if self.dialog:
+            self.draw_dialog(mouse)
         self.toast.draw(self.screen, self.fonts)
+
+    def draw_light_marks(self, mouse):
+        """The window light under the pointer outlined (lit or not), and the edited one with its handles."""
+        area = self.map_area()
+        if area.collidepoint(mouse) and not self.ghost and not self.drag:
+            hover = self.light_at_screen(mouse)
+            if hover and hover is not self.edit_light:
+                pygame.draw.rect(self.screen, LIGHT_HOVER, self.light_screen_rect(hover).inflate(4, 4), 1)
+        light = self.edit_light
+        if not light:
+            return
+        rect = self.light_screen_rect(light)
+        pygame.draw.rect(self.screen, LIGHT_EDITED, rect.inflate(4, 4), 2)
+        if isinstance(light, BuildingLight):
+            return                                  # a shaped window only moves: no handles
+        for hx in (rect.left, rect.centerx, rect.right):
+            for hy in (rect.top, rect.centery, rect.bottom):
+                if (hx, hy) == rect.center:
+                    continue
+                handle = pygame.Rect(0, 0, HANDLE_PX, HANDLE_PX)
+                handle.center = (hx, hy)
+                pygame.draw.rect(self.screen, (255, 255, 255), handle)
+                pygame.draw.rect(self.screen, (0, 0, 0), handle, 1)
+
+    def draw_dialog(self, mouse):
+        """Closing with window light changes not saved: save them into the map, throw them away, or stay."""
+        w, h = self.screen.get_size()
+        shade = pygame.Surface((w, h), pygame.SRCALPHA)
+        shade.fill((0, 0, 0, 150))
+        self.screen.blit(shade, (0, 0))
+        box = pygame.Rect(0, 0, DIALOG_W, 220)
+        box.center = (w // 2, h // 2)
+        pygame.draw.rect(self.screen, BAR_BG, box, border_radius=10)
+        pygame.draw.rect(self.screen, DIALOG_LINE, box, 2, border_radius=10)
+        y = box.y + 22
+        title = self.fonts.title.render('Save your light changes?', True, TEXT)
+        self.screen.blit(title, (box.x + 24, y))
+        y += 46
+        lines = [f'{self.edits.count} window lights moved, resized or removed.',
+                 'Save writes them into assets/tiles/Map1.tmx (close Tiled first if it has the map open).']
+        for line in lines:
+            for part in wrap_text(self.fonts.small, line, box.w - 48, 2):
+                self.screen.blit(self.fonts.small.render(part, True, TEXT_DIM), (box.x + 24, y))
+                y += 20
+        x = box.x + 24
+        for button in self.dialog_buttons:
+            button.rect.topleft = (x, box.bottom - 60)
+            button.draw(self.screen, self.fonts.font, mouse)
+            x = button.rect.right + 12
 
     def _placement_drawer(self, p):
         def draw(screen, ox, oy, zoom):
@@ -825,6 +1065,17 @@ class PlacingHelper:
         y = box.y + 4
         small = self.fonts.small
         self.pending_rows = []
+        if self.edit_light:
+            self.draw_light_detail(box, mouse)
+            return
+        if self.edits.count:
+            # Light changes waiting: a line and the button at the foot of the box
+            self.save_lights_button.rect.bottomleft = (box.x, box.bottom)
+            self.save_lights_button.draw(self.screen, small, mouse)
+            note = small.render(f'{self.edits.count} light changes', True, DONE_COLOR)
+            self.screen.blit(note, note.get_rect(midleft=(self.save_lights_button.rect.right + 10,
+                                                          self.save_lights_button.rect.centery)))
+            box = pygame.Rect(box.x, box.y, box.w, box.h - 44)
         p = self.chosen
         if not p:
             head = self.fonts.font.render(f'{len(self.placements)} placements waiting', True, TEXT)
@@ -888,6 +1139,50 @@ class PlacingHelper:
         tips = ('Drag it on the map, its collision box by the white handles. '
                 '[ ] or Ctrl+wheel scale, arrows nudge, D another one.')
         for line in wrap_text(small, tips, box.w, 3):
+            self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
+            y += 19
+
+    def draw_light_detail(self, box, mouse):
+        light, small = self.edit_light, self.fonts.small
+        shaped = isinstance(light, BuildingLight)
+        y = box.y + 4
+        head = self.fonts.font.render(f'Window light {light.obj_id}' + (f' ({light.building_name})' if shaped else ''),
+                                      True, TEXT)
+        self.screen.blit(head, (box.x, y))
+        y += 26
+        x, yy, w, h = geometry(light)
+        house = self.scene.house_at(x + w / 2, yy + h / 2)
+        owner = (house.props.get('Display_name') or house.name) if house else None
+        lines = [
+            (f'At {x:g}, {yy:g}   {w:g} x {h:g} px' + ('   (a shaped window: it only moves)' if shaped else ''), TEXT),
+            (f'On {owner}' if owner else 'On no building: the game hands it to the nearest one below',
+             TEXT if owner else ERROR_COLOR),
+            ('Changed, not saved yet' if self.edits.is_changed(light) else 'As on the map',
+             DONE_COLOR if self.edits.is_changed(light) else TEXT_DIM),
+        ]
+        for text, colour in lines:
+            self.screen.blit(small.render(fit_text(small, text, box.w), True, colour), (box.x, y))
+            y += 20
+        y += 8
+        self.remove_light_button.rect.topleft = (box.x, y)
+        self.reset_light_button.rect.topleft = (self.remove_light_button.rect.right + 8, y)
+        self.done_light_button.rect.topleft = (self.reset_light_button.rect.right + 8, y)
+        self.reset_light_button.enabled = self.edits.is_changed(light)
+        for button in (self.remove_light_button, self.reset_light_button, self.done_light_button):
+            button.draw(self.screen, small, mouse)
+        y += 44
+        self.save_lights_button.rect.topleft = (box.x, y)
+        self.save_lights_button.enabled = bool(self.edits.count)
+        self.save_lights_button.draw(self.screen, small, mouse)
+        count = small.render(f'{self.edits.count} light changes', True, DONE_COLOR if self.edits.count else TEXT_DIM)
+        self.screen.blit(count, count.get_rect(midleft=(self.save_lights_button.rect.right + 10,
+                                                        self.save_lights_button.rect.centery)))
+        self.save_lights_button.enabled = True
+        y += 44
+        tips = ('Drag it' + ('' if shaped else ', or its edges and corners by the white handles')
+                + '. Arrows nudge it a pixel' + ('' if shaped else ', Shift+arrows make it wider or taller')
+                + '. Closing asks whether to save the changes into the map.')
+        for line in wrap_text(small, tips, box.w, 4):
             self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
             y += 19
 

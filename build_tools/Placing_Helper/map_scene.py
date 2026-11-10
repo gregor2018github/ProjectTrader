@@ -198,6 +198,23 @@ class Scene:
                         light.obj_id = o.id
                         self.light_groups.setdefault(o.name, BuildingLightGroup(o.name)).add_light(light)
 
+    def all_lights(self):
+        return self.lights + [light for group in self.light_groups.values() for light in group.lights]
+
+    def light_at(self, px, py, slack=0.0):
+        """The window light at world point px, py (within `slack` px of it); the smallest if several."""
+        hits = []
+        for light in self.all_lights():
+            x, y = (light.bbox_x, light.bbox_y) if isinstance(light, BuildingLight) else (light.x, light.y)
+            if x - slack <= px <= x + light.width + slack and y - slack <= py <= y + light.height + slack:
+                hits.append(light)
+        return min(hits, key=lambda light: light.width * light.height) if hits else None
+
+    def house_at(self, px, py):
+        """The building painted frontmost at world point px, py: the one a window there belongs to in the game."""
+        hits = [t for t in self.things if t.layer == 'Houses' and self.opaque_at(t.path, t.scale, t.x, t.y, px, py)]
+        return max(hits, key=lambda t: t.y) if hits else None
+
     def lit_windows(self, mode):
         """The window lights lit at NIGHT_TIME: none, all, or drawn by the game's own rules (a new draw each call)."""
         if mode == 'none':
