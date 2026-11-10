@@ -40,6 +40,12 @@ CHUNK_CACHE_PIXELS = 40_000_000  # about 160 MB of ground chunks kept
 MISSING_GROUND = (52, 60, 44)    # where a chunk is not made yet
 BRIDGE_FILL = (150, 112, 70)
 BRIDGE_LINE = (90, 62, 36)
+COLLISION_LINE = (240, 240, 240)  # what is on the map; red is kept for overlaps
+
+
+def boxes_overlap(a, b):
+    """Whether two (left, top, right, bottom) boxes overlap; touching edges do not count."""
+    return bool(a and b) and a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
 
 TABS = ('Buildings', 'Decoration', 'Trees')
 DECORATION_KINDS = {'decoration', 'wall_fence'}
@@ -319,7 +325,7 @@ class Scene:
         if show_collision:
             for t in self.things:
                 if t.collision and view[0] - 64 < t.collision[0] < view[2] and view[1] - 64 < t.collision[1] < view[3]:
-                    draw_box(screen, t.collision, ox, oy, zoom, (230, 40, 40))
+                    draw_box(screen, t.collision, ox, oy, zoom, COLLISION_LINE)
         screen.set_clip(None)
         return ox, oy
 

@@ -32,8 +32,11 @@ Keys:
     D                  another of the chosen placement on the mouse
     Enter or N         write the chosen placement's note
     Delete             delete the chosen placement
+    White handles      on the chosen building's collision box: drag an edge or corner to fit it
+                       to the walls (in the sprite's pixels, so it moves and scales with it)
+    R                  its collision box back to the catalog's
     F                  put a figure down at the pointer for scale (again on it: take it away)
-    C                  collision boxes of what is on the map
+    C                  collision boxes of what is on the map (white; also the panel's switch)
     G                  snap to the tile grid on / off
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+S             save now (it saves by itself anyway)
@@ -55,7 +58,7 @@ import pygame  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(HERE.parent / 'Sprite_Manager'))   # its theme and widgets, as the Sound Manager does
-from map_scene import TABS, TILE, Scene, draw_box  # noqa: E402
+from map_scene import TABS, TILE, Scene, boxes_overlap, draw_box  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
@@ -85,6 +88,10 @@ GHOST_ALPHA = 170
 PLACEMENT_LINE = (255, 200, 60)
 CHOSEN_LINE = (90, 220, 255)
 PLACEMENT_COLLISION = (255, 140, 0)
+OVERLAP_COLLISION = (255, 30, 30)   # both boxes of a collision that overlaps another
+EDGE_GRAB_PX = 7                    # screen px from an edge of the chosen collision box that grab it
+HANDLE_PX = 7                       # its handles' size
+MIN_BOX_PX = 4                      # sprite px a collision box keeps at least
 FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it away
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
@@ -133,8 +140,9 @@ class PlacingHelper:
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
         self.note_field = TextField(placeholder='Note: what it is for, what it needs  (Enter)')
-        self.delete_button = Button('Delete  (Del)', w=150, h=34)
-        self.goto_button = Button('Go to it', w=110, h=34)
+        self.delete_button = Button('Delete  (Del)', w=112, h=34)
+        self.goto_button = Button('Go to it', w=86, h=34)
+        self.reset_box_button = Button('Reset box  (R)', w=134, h=34)
         self.pending_rows = []
         self.status = ' / '.join(notes) if notes else f'{len(self.placements)} placements in {PLACEMENTS_FILE.name}'
         if notes:
@@ -395,6 +403,8 @@ class PlacingHelper:
             self.note_field.focus(True)
         elif k == pygame.K_DELETE and self.chosen:
             self.delete(self.chosen)
+        elif k == pygame.K_r and self.chosen:
+            self.reset_collision()
         elif k in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
             dx = (k == pygame.K_RIGHT) - (k == pygame.K_LEFT)
             dy = (k == pygame.K_DOWN) - (k == pygame.K_UP)
@@ -438,6 +448,10 @@ class PlacingHelper:
         if self.ghost:
             self.put_down(pos, keep=bool(pygame.key.get_mods() & pygame.KMOD_SHIFT))
             return
+        edges = self.collision_edges_at(pos)
+        if edges:
+            self.drag = ('edge', self.chosen, edges)
+            return
         wx, wy = self.to_world(pos)
         hit = self.placement_at(wx, wy)
         if hit:
@@ -465,6 +479,71 @@ class PlacingHelper:
             if (x, y) != (p.x, p.y):
                 p.x, p.y = x, y
                 self.mark_dirty()
+        elif self.drag[0] == 'edge':
+            _, p, edges = self.drag
+            wx, wy = self.to_world(event.pos)
+            # In the sprite's own pixels, whole ones, so the margins come out whole
+            sx, sy = round((wx - p.x) / p.scale), round((wy - p.y) / p.scale)
+            left, top, right, bottom = p.box_px
+            if 'left' in edges:
+                left = min(sx, right - MIN_BOX_PX)
+            if 'right' in edges:
+                right = max(sx, left + MIN_BOX_PX)
+            if 'top' in edges:
+                top = min(sy, bottom - MIN_BOX_PX)
+            if 'bottom' in edges:
+                bottom = max(sy, top + MIN_BOX_PX)
+            if (left, top, right, bottom) != tuple(p.box_px):
+                p.collision_box = (left, top, right, bottom)
+                self.mark_dirty()
+
+    def collision_edges_at(self, pos):
+        """Which edges of the chosen building's collision box are under the pointer (a corner: two)."""
+        p = self.chosen
+        if not p or p.sprite.layer != 'Houses' or self.ghost:
+            return set()
+        area = self.map_area()
+        left, top, right, bottom = ((v - c) * self.zoom + o for v, c, o in zip(
+            p.collision, (self.cam_x, self.cam_y) * 2, (area.x, area.y) * 2))
+        x, y, g = pos[0], pos[1], EDGE_GRAB_PX
+        if not (left - g <= x <= right + g and top - g <= y <= bottom + g):
+            return set()
+        edges = set()
+        if abs(x - left) <= g:
+            edges.add('left')
+        elif abs(x - right) <= g:
+            edges.add('right')
+        if abs(y - top) <= g:
+            edges.add('top')
+        elif abs(y - bottom) <= g:
+            edges.add('bottom')
+        return edges
+
+    def reset_collision(self):
+        if self.chosen and self.chosen.collision_box:
+            self.chosen.collision_box = None
+            self.status = f'Placement {self.chosen.id}: collision box back to the catalog\'s'
+            self.mark_dirty()
+
+    def update_cursor(self, mouse):
+        """A resize arrow over an edge of the chosen collision box."""
+        edges = self.drag[2] if self.drag and self.drag[0] == 'edge' else self.collision_edges_at(mouse)
+        if edges in ({'left', 'top'}, {'right', 'bottom'}):
+            cursor = pygame.SYSTEM_CURSOR_SIZENWSE
+        elif edges in ({'right', 'top'}, {'left', 'bottom'}):
+            cursor = pygame.SYSTEM_CURSOR_SIZENESW
+        elif edges & {'left', 'right'}:
+            cursor = pygame.SYSTEM_CURSOR_SIZEWE
+        elif edges:
+            cursor = pygame.SYSTEM_CURSOR_SIZENS
+        else:
+            cursor = pygame.SYSTEM_CURSOR_ARROW
+        if cursor != getattr(self, '_cursor', None):
+            self._cursor = cursor
+            try:
+                pygame.mouse.set_system_cursor(cursor)
+            except pygame.error:
+                pass
 
     def mouse_up(self, event):
         if not self.drag:
@@ -483,10 +562,13 @@ class PlacingHelper:
             if rect.collidepoint(pos):
                 self.tab, self.list_scroll = tab, 0
                 return
-        for rect, _ in self.toggle_chips:
+        for rect, value in self.toggle_chips:
             if rect.collidepoint(pos):
-                self.unplaced_only[self.tab] = not self.unplaced_only[self.tab]
-                self.list_scroll = 0
+                if value == 'collision':
+                    self.show_collision = not self.show_collision
+                else:
+                    self.unplaced_only[self.tab] = not self.unplaced_only[self.tab]
+                    self.list_scroll = 0
                 return
         for rect, sprite in self.rows:
             if rect.collidepoint(pos):
@@ -500,6 +582,8 @@ class PlacingHelper:
                 self.note_field.focus(True)
             elif self.delete_button.hit(pos):
                 self.delete(self.chosen)
+            elif self.reset_box_button.hit(pos):
+                self.reset_collision()
             elif self.goto_button.hit(pos):
                 self.centre_on(self.chosen.x + self.chosen.size[0] / 2, self.chosen.y - self.chosen.size[1] / 2)
         else:
@@ -527,22 +611,48 @@ class PlacingHelper:
         ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra, self.show_collision)
 
         self.screen.set_clip(area)
-        for p in self.placements:
-            box = p.collision
+        # Collision boxes of what is being placed: red where one overlaps
+        # anything (and the box it overlaps red too), only as a warning
+        new_boxes = [p.collision for p in self.placements]
+        if ghost_point:
+            new_boxes.append(Placement(0, self.ghost, ghost_point[0], ghost_point[1], self.ghost_scale).collision)
+        clashing = set()
+        for t in self.scene.things:
+            if t.collision and any(boxes_overlap(t.collision, b) for b in new_boxes):
+                draw_box(self.screen, t.collision, ox, oy, self.zoom, OVERLAP_COLLISION, 2)
+                clashing.update(i for i, b in enumerate(new_boxes) if boxes_overlap(t.collision, b))
+        for i, a in enumerate(new_boxes):
+            for j in range(i + 1, len(new_boxes)):
+                if boxes_overlap(a, new_boxes[j]):
+                    clashing.update((i, j))
+        for i, box in enumerate(new_boxes):
             if box:
-                draw_box(self.screen, box, ox, oy, self.zoom, PLACEMENT_COLLISION)
+                red = i in clashing
+                draw_box(self.screen, box, ox, oy, self.zoom,
+                         OVERLAP_COLLISION if red else PLACEMENT_COLLISION, 2 if red else 1)
+        if self.chosen and self.chosen.sprite.layer == 'Houses' and not self.ghost:
+            # Handles on the chosen building's collision box: its edges and corners can be dragged
+            left, top, right, bottom = self.chosen.collision
+            xs = (ox + round(left * self.zoom), ox + round((left + right) / 2 * self.zoom), ox + round(right * self.zoom))
+            ys = (oy + round(top * self.zoom), oy + round((top + bottom) / 2 * self.zoom), oy + round(bottom * self.zoom))
+            for i, hx in enumerate(xs):
+                for j, hy in enumerate(ys):
+                    if i == 1 and j == 1:
+                        continue
+                    handle = pygame.Rect(0, 0, HANDLE_PX, HANDLE_PX)
+                    handle.center = (hx, hy)
+                    pygame.draw.rect(self.screen, (255, 255, 255), handle)
+                    pygame.draw.rect(self.screen, (0, 0, 0), handle, 1)
+        for p in self.placements:
             draw_box(self.screen, p.rect, ox, oy, self.zoom,
                      CHOSEN_LINE if p is self.chosen else PLACEMENT_LINE, 2 if p is self.chosen else 1)
             label = self.fonts.small.render(f'{p.id} {p.sprite.stem}', True, TEXT)
             lx, ly = ox + round(p.x * self.zoom), oy + round(p.y * self.zoom) + 2
             pygame.draw.rect(self.screen, (0, 0, 0), (lx, ly, label.get_width() + 6, label.get_height()))
             self.screen.blit(label, (lx + 3, ly))
-        if ghost_point:
-            box = self.ghost.collision(ghost_point[0], ghost_point[1], self.ghost_scale)
-            if box:
-                draw_box(self.screen, box, ox, oy, self.zoom, PLACEMENT_COLLISION)
         self.screen.set_clip(None)
 
+        self.update_cursor(mouse)
         self.draw_overlay(area, mouse, ghost_point)
         self.draw_footer(area)
         self.draw_panel(mouse)
@@ -613,10 +723,14 @@ class PlacingHelper:
         self.tab_chips, y = draw_chips(self.screen, self.fonts.font, TABS, lambda t: t, self.tab,
                                        x, y, panel.w - 2 * PAD, mouse)
         y += 6
-        on = self.unplaced_only[self.tab]
-        self.toggle_chips, _ = draw_chips(self.screen, self.fonts.font, ['only'],
-                                          lambda _: 'Only those not on the map  (U)', 'only' if on else None,
-                                          x, y, panel.w - 2 * PAD, mouse)
+        # Two switches on one row, each lit while on
+        self.toggle_chips = []
+        for value, label, on in (('only', 'Unplaced only  (U)', self.unplaced_only[self.tab]),
+                                 ('collision', 'Collision boxes  (C)', self.show_collision)):
+            chips, _ = draw_chips(self.screen, self.fonts.font, [value], lambda _, label=label: label,
+                                  value if on else None, x, y, panel.right - PAD - x, mouse)
+            self.toggle_chips += chips
+            x = chips[0][0].right + 8
         self.draw_list(mouse)
         self.draw_detail(mouse)
 
@@ -703,6 +817,11 @@ class PlacingHelper:
              + ('' if p.on_grid else '   off the grid'), TEXT),
             (f'Scale {p.scale:g}   drawn {w:.0f} x {h:.0f} px   ({s.layer} layer)', TEXT),
         ]
+        if s.layer == 'Houses':
+            bl, bt, br, bb = p.box_px
+            lines.append((f'Collision {br - bl:.0f} x {bb - bt:.0f} px'
+                          + ('   set by hand' if p.collision_box else '   from the catalog'),
+                          DONE_COLOR if p.collision_box else TEXT))
         if s.layer == 'Houses' and not s.tiled:
             lines.append(('No Tiled properties in the catalog yet', ERROR_COLOR))
         for text, colour in lines:
@@ -713,12 +832,17 @@ class PlacingHelper:
         self.note_field.draw(self.screen, small, mouse)
         y += 46
         self.delete_button.rect.topleft = (box.x, y)
-        self.goto_button.rect.topleft = (self.delete_button.rect.right + 10, y)
+        self.goto_button.rect.topleft = (self.delete_button.rect.right + 8, y)
+        self.reset_box_button.rect.topleft = (self.goto_button.rect.right + 8, y)
+        self.reset_box_button.enabled = bool(p.collision_box)
         self.delete_button.draw(self.screen, small, mouse)
         self.goto_button.draw(self.screen, small, mouse)
+        if s.layer == 'Houses':
+            self.reset_box_button.draw(self.screen, small, mouse)
         y += 44
-        tips = 'Drag it on the map. [ ] or Ctrl+wheel scale, arrows nudge, D another one.'
-        for line in wrap_text(small, tips, box.w, 2):
+        tips = ('Drag it on the map, its collision box by the white handles. '
+                '[ ] or Ctrl+wheel scale, arrows nudge, D another one.')
+        for line in wrap_text(small, tips, box.w, 3):
             self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
             y += 19
 

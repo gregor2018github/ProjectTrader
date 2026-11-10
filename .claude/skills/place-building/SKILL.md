@@ -35,6 +35,9 @@ per entry:
   price, the door's side, a name): act on them. Without a note, a dwelling
   is a home of 15–35 (`Max_inhabitants`) with door, lights and smoke; a
   decoration or fence gets none of that and no roof unless it has one.
+- `collision_edited` true means the user drew the collision box: pass
+  `collision_props` (already in the hint) as they are and skip step 4's
+  trimming. Otherwise `collision_props` are the catalog's; trim as usual.
 - `checks` lists what to watch: no Tiled block in the catalog (measure the
   sprite first), scaled (check the door against a figure), and collision
   overlaps with what is on the map or with another placement.
