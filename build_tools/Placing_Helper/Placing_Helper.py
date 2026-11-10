@@ -37,6 +37,10 @@ Keys:
     R                  its collision box back to the catalog's
     F                  put a figure down at the pointer for scale (again on it: take it away)
     C                  collision boxes of what is on the map (white; also the panel's switch)
+    T                  day or night (the panel's switch too): 22:00 on the 1st of Spring, darkened
+                       and lit as the game does it
+    L                  at night, which windows are lit: none, as the game picks them (again: a
+                       new night), or all of them
     G                  snap to the tile grid on / off
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+S             save now (it saves by itself anyway)
@@ -58,7 +62,7 @@ import pygame  # noqa: E402
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(HERE.parent / 'Sprite_Manager'))   # its theme and widgets, as the Sound Manager does
-from map_scene import TABS, TILE, Scene, boxes_overlap, draw_box  # noqa: E402
+from map_scene import LIGHT_MODES, TABS, TILE, Scene, boxes_overlap, draw_box  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
@@ -95,7 +99,9 @@ MIN_BOX_PX = 4                      # sprite px a collision box keeps at least
 FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it away
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
-KEYS_HINT = 'Wheel zoom   [ ] scale   G grid   C collision   F figure   D another   Enter note   Del delete'
+KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   C collision   T night   L lights   F figure   D another   '
+             'Enter note   Del delete')
+LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
 
 
 class PlacingHelper:
@@ -137,6 +143,10 @@ class PlacingHelper:
         self.chosen = None                # the Placement chosen
         self.snap = True
         self.show_collision = False
+        self.night = False                # the map at NIGHT_TIME, lit by its windows
+        self.light_mode = 'random'        # which of them: LIGHT_MODES
+        self.lit = []                     # the window lights lit now
+        self.time_chips, self.light_chips = [], []
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
         self.note_field = TextField(placeholder='Note: what it is for, what it needs  (Enter)')
@@ -304,7 +314,7 @@ class PlacingHelper:
 
     def list_rect(self):
         panel = self.panel_rect()
-        top = PAD + 40 + CHIP_HEIGHT * 2 + 24
+        top = PAD + 40 + CHIP_HEIGHT * 4 + 36     # under the tabs and the three rows of switches
         return pygame.Rect(panel.x + PAD, top, panel.w - 2 * PAD, panel.h - top - DETAIL_H - PAD)
 
     def thumb(self, sprite):
@@ -388,6 +398,10 @@ class PlacingHelper:
             self.status = 'Snapping to the tile grid' if self.snap else 'Free placement, off the grid (--no-snap)'
         elif k == pygame.K_c:
             self.show_collision = not self.show_collision
+        elif k == pygame.K_t:
+            self.set_night(not self.night)
+        elif k == pygame.K_l:
+            self.set_light_mode(LIGHT_MODES[(LIGHT_MODES.index(self.light_mode) + 1) % len(LIGHT_MODES)])
         elif k == pygame.K_f and self.map_area().collidepoint(pygame.mouse.get_pos()):
             self.toggle_figure(pygame.mouse.get_pos())
         elif k == pygame.K_TAB:
@@ -519,6 +533,19 @@ class PlacingHelper:
             edges.add('bottom')
         return edges
 
+    def set_night(self, on):
+        self.night = on
+        if on:
+            self.lit = self.scene.lit_windows(self.light_mode)
+            self.status = f'Night: {len(self.lit)} windows lit ({LIGHT_LABELS[self.light_mode].split("  ")[0].lower()})'
+        else:
+            self.status = 'Day'
+
+    def set_light_mode(self, mode):
+        """Which windows are lit at night; "As in game" again draws a new night. Night comes with it."""
+        self.light_mode = mode
+        self.set_night(True)
+
     def reset_collision(self):
         if self.chosen and self.chosen.collision_box:
             self.chosen.collision_box = None
@@ -561,6 +588,14 @@ class PlacingHelper:
         for rect, tab in self.tab_chips:
             if rect.collidepoint(pos):
                 self.tab, self.list_scroll = tab, 0
+                return
+        for rect, value in self.time_chips:
+            if rect.collidepoint(pos):
+                self.set_night(value == 'night')
+                return
+        for rect, mode in self.light_chips:
+            if rect.collidepoint(pos):
+                self.set_light_mode(mode)
                 return
         for rect, value in self.toggle_chips:
             if rect.collidepoint(pos):
@@ -608,7 +643,8 @@ class PlacingHelper:
         if self.ghost and area.collidepoint(mouse):
             ghost_point = self.ghost_point(mouse)
             extra.append((ghost_point[1], self._ghost_drawer(ghost_point)))
-        ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra, self.show_collision)
+        ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra, self.show_collision,
+                                 night=self.lit if self.night else None)
 
         self.screen.set_clip(area)
         # Collision boxes of what is being placed: red where one overlaps
@@ -731,6 +767,15 @@ class PlacingHelper:
                                   value if on else None, x, y, panel.right - PAD - x, mouse)
             self.toggle_chips += chips
             x = chips[0][0].right + 8
+        # Day or night, and at night which windows are lit
+        x, y = panel.x + PAD, y + CHIP_HEIGHT + 6
+        self.time_chips, y = draw_chips(self.screen, self.fonts.font, ('day', 'night'),
+                                        lambda t: {'day': 'Day', 'night': 'Night  (T)'}[t],
+                                        'night' if self.night else 'day', x, y, panel.w - 2 * PAD, mouse)
+        y += 6
+        self.light_chips, _ = draw_chips(self.screen, self.fonts.font, LIGHT_MODES,
+                                         lambda m: LIGHT_LABELS[m], self.light_mode if self.night else None,
+                                         x, y, panel.w - 2 * PAD, mouse)
         self.draw_list(mouse)
         self.draw_detail(mouse)
 

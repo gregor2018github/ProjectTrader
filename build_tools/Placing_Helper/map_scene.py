@@ -13,10 +13,12 @@ the Sprite Manager's catalogs know about it (kind, subcategory, the Tiled
 properties it was made with) and how many objects on the map use it.
 """
 
+import datetime
 import json
 import math
 import os
 import re
+import sys
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -25,6 +27,10 @@ import pygame
 import pytmx
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))   # the game's own window lights and daylight
+from src.models.daylight import ambient_light  # noqa: E402
+from src.models.light import BuildingLight, BuildingLightGroup, Light  # noqa: E402
 TMX = ROOT / 'assets' / 'tiles' / 'Map1.tmx'
 HOUSES_DIR = ROOT / 'assets' / 'map_sprites' / 'houses'
 TREES_DIR = ROOT / 'assets' / 'map_sprites' / 'trees'
@@ -46,6 +52,12 @@ COLLISION_LINE = (240, 240, 240)  # what is on the map; red is kept for overlaps
 def boxes_overlap(a, b):
     """Whether two (left, top, right, bottom) boxes overlap; touching edges do not count."""
     return bool(a and b) and a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+#: The night shown: 22:00 on the 1st of Spring, full dark, and the hour most
+#: windows the game lights are lit (LIGHT_START_HOUR_* and LIGHT_DURATION_*)
+NIGHT_TIME = datetime.datetime(1500, 1, 1, 22, 0)
+#: Which windows are lit at night: none, as the game picks them, or all
+LIGHT_MODES = ('none', 'random', 'all')
 
 TABS = ('Buildings', 'Decoration', 'Trees')
 DECORATION_KINDS = {'decoration', 'wall_fence'}
@@ -153,6 +165,8 @@ class Scene:
         self.masks = {}                          # {path: Mask} for hit tests
         self.things = []
         self.bridges = []
+        self.lights = []                         # the game's Light: one window each
+        self.light_groups = {}                   # {building name: BuildingLightGroup}, the shaped windows
         self._load_objects()
         self.sprites = self._load_sprites()
         self.figure = pygame.image.load(str(FIGURE)).convert_alpha()
@@ -171,6 +185,36 @@ class Scene:
                         self.things.append(Thing(layer.name, obj, folder / file_name))
             elif layer.name == 'Bridges':
                 self.bridges += [(o.x, o.y, o.width, o.height) for o in layer]
+            elif layer.name == 'Lights':
+                # As TMXMap._load_lights: rectangles one window each, polygons
+                # grouped by the building they are named after
+                for o in layer:
+                    if o.name == 'Light_rectangle':
+                        light = Light(o.x, o.y, o.width, o.height, TILE)
+                        light.obj_id = o.id
+                        self.lights.append(light)
+                    elif o.name and getattr(o, 'points', None):
+                        light = BuildingLight(o.x, o.y, [(p.x - o.x, p.y - o.y) for p in o.points], o.name, TILE)
+                        light.obj_id = o.id
+                        self.light_groups.setdefault(o.name, BuildingLightGroup(o.name)).add_light(light)
+
+    def lit_windows(self, mode):
+        """The window lights lit at NIGHT_TIME: none, all, or drawn by the game's own rules (a new draw each call)."""
+        if mode == 'none':
+            return []
+        shaped = [light for group in self.light_groups.values() for light in group.lights]
+        if mode == 'all':
+            return self.lights + shaped
+        lit = []
+        for light in self.lights:
+            light._schedule_for_night(NIGHT_TIME)
+            if light.is_on(NIGHT_TIME):
+                lit.append(light)
+        for group in self.light_groups.values():
+            group._schedule_for_night(NIGHT_TIME)
+            if group.is_on(NIGHT_TIME):
+                lit += group.lights
+        return lit
 
     def _load_sprites(self):
         sprites = []
@@ -272,12 +316,14 @@ class Scene:
 
     # ----- drawing
 
-    def draw(self, screen, area, cam_x, cam_y, zoom, extra=(), show_collision=False):
+    def draw(self, screen, area, cam_x, cam_y, zoom, extra=(), show_collision=False, night=None):
         """Draw the map into `area` (a screen rect) seen from cam_x, cam_y at `zoom`.
 
         `extra` are further (base_y, draw_function) pairs y-sorted in with the
         buildings and trees; each function gets (screen, ox, oy, zoom), the
-        screen position of the world's origin.
+        screen position of the world's origin. `night`, when given, is the
+        list of lit window lights: the scene is then darkened to NIGHT_TIME
+        and lit by them as the game's map view does it.
         """
         screen.set_clip(area)
         screen.fill(MISSING_GROUND, area)
@@ -315,6 +361,19 @@ class Scene:
                 continue
             queue.append((t.y, 0, t))
         queue += [(base, 1, fn) for base, fn in extra]
+        lit = []                                 # (surface, screen position) of the windows lit in view
+        for light in night or ():
+            x, y = (light.bbox_x, light.bbox_y) if isinstance(light, BuildingLight) else (light.x, light.y)
+            if x + light.width < view[0] or x > view[2] or y + light.height < view[1] or y > view[3]:
+                continue
+            sprite, _ = light.get_render_data(zoom)
+            pos = (ox + round(x * zoom), oy + round(y * zoom))
+            lit.append((sprite, pos))
+            # Into the queue at the window's foot like the game's map view, so
+            # its own house (based lower) is drawn over it; what shows is the
+            # light let through the darkness below
+            queue.append((light.y_sort, 1, lambda s, _ox, _oy, _z, sprite=sprite, pos=pos:
+                          s.blit(sprite, pos, special_flags=pygame.BLEND_ADD)))
         queue.sort(key=lambda item: (item[0], item[1]))
         for _, is_extra, item in queue:
             if is_extra:
@@ -322,12 +381,25 @@ class Scene:
             else:
                 image = self.image(item.path, item.scale * zoom)
                 screen.blit(image, (ox + round(item.x * zoom), oy + round(item.y * zoom) - image.get_height()))
+        if night is not None:
+            self._darken(screen, area, lit)
         if show_collision:
             for t in self.things:
                 if t.collision and view[0] - 64 < t.collision[0] < view[2] and view[1] - 64 < t.collision[1] < view[3]:
                     draw_box(screen, t.collision, ox, oy, zoom, COLLISION_LINE)
         screen.set_clip(None)
         return ox, oy
+
+    def _darken(self, screen, area, lit):
+        """The night over the drawn scene, as map_view._apply_lighting: the ambient colour multiplied
+        in, brightened where a window is lit so the light breaks through the dark."""
+        overlay = getattr(self, '_overlay', None)
+        if overlay is None or overlay.get_size() != area.size:
+            overlay = self._overlay = pygame.Surface(area.size)
+        overlay.fill(ambient_light(NIGHT_TIME))
+        for sprite, (x, y) in lit:
+            overlay.blit(sprite, (x - area.x, y - area.y), special_flags=pygame.BLEND_ADD)
+        screen.blit(overlay, area, special_flags=pygame.BLEND_MULT)
 
     def draw_figure(self, screen, ox, oy, zoom, x, y):
         """The player standing with his feet at world x, y, at the game's size (a tile wide)."""
