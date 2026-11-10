@@ -11,7 +11,9 @@ A door has three positions along one line. The *threshold* is the Tiled point
 itself, marking where the doorway is; nobody ever stands there, since it sits
 inside the wall. The *step* is the first walkable spot outside it, a tile or
 two out in the door's own direction, and the place every route to or from this
-house begins and ends. Between the two is the *entry*: as far back towards the
+house begins and ends. It may lie behind a neighbour drawn in front of the
+house, out of sight; the grid then lets walkers through the hidden ground
+between it and the open street (:meth:`NavGrid.open_way_out`). Between the two is the *entry*: as far back towards the
 threshold as the player would be allowed to walk, and so the spot a townsperson
 fades out at. Going any further would put them behind the building, which
 y-sorts on its own top edge, and the house would snap over them.
@@ -148,9 +150,13 @@ class Door:
             # standing off-centre in it clears the wall; and a clear line onto
             # the grid proper, since the first thing a route does is make for
             # the middle of its own cell and that hop is on no one else's map.
-            if not (nav.is_free_at(*spot) and is_standable(*spot)):
+            # The grid rule is only collision's: a step a neighbour drawn in
+            # front of the house hides is still the door's, and the grid opens
+            # the hidden way from it to ground in sight.
+            if not (nav.is_open_at(*spot) and is_standable(*spot)):
                 continue
-            if self._clear_line(spot, nav.cell_centre(*nav.cell_of(*spot)), is_standable):
+            if (self._clear_line(spot, nav.cell_centre(*nav.cell_of(*spot)), is_standable)
+                    and nav.open_way_out(*spot)):
                 return spot
         return None
 

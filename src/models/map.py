@@ -743,19 +743,8 @@ class TMXMap:
                         light_center_x = obj.x + obj.width / 2
                         light_center_y = obj.y + obj.height / 2
                         
-                        # Windows sit above the collision rect (the base of
-                        # the house), so a light counts as in a house when its
-                        # X is within the rect and its Y within 5 tiles above
-                        # it. Where those zones overlap -- a building across
-                        # the street reaches up past it -- the window belongs
-                        # to the nearest base below it.
-                        candidates = [
-                            house for house in self.houses
-                            if (house.collision_rect.left <= light_center_x <= house.collision_rect.right and
-                                house.collision_rect.top - house.tile_size * 5 <= light_center_y <= house.collision_rect.bottom)
-                        ]
-                        if candidates:
-                            owner = min(candidates, key=lambda h: h.collision_rect.bottom)
+                        owner = self._light_owner(light_center_x, light_center_y)
+                        if owner is not None:
                             owner.associated_lights.append(light)
                     
                     # Load polygon lights for buildings
@@ -778,6 +767,34 @@ class TMXMap:
                         
                         self.building_light_groups[obj.name].add_light(building_light)
     
+    def _light_owner(self, x: float, y: float) -> Optional['House']:
+        """The house a window light at world x, y belongs to.
+
+        The one whose sprite is drawn frontmost there, painted pixels only:
+        where houses stand one behind another, the window shows on the one in
+        front. A light on no sprite falls back to the old rule: windows sit
+        above the collision rect (the base of the house), so a light counts
+        as in a house when its X is within the rect and its Y within 5 tiles
+        above it, and where those zones overlap -- a building across the
+        street reaches up past it -- the nearest base below it.
+        """
+        painted = []
+        for house in self.houses:
+            image = house.image
+            if image is None:
+                continue
+            px, py = int(x - house.x), int(y - (house.y - image.get_height()))
+            if 0 <= px < image.get_width() and 0 <= py < image.get_height() and image.get_at((px, py)).a > 0:
+                painted.append(house)
+        if painted:
+            return max(painted, key=lambda h: h.y_sort)   # drawn last, so seen
+        candidates = [
+            house for house in self.houses
+            if (house.collision_rect.left <= x <= house.collision_rect.right and
+                house.collision_rect.top - house.tile_size * 5 <= y <= house.collision_rect.bottom)
+        ]
+        return min(candidates, key=lambda h: h.collision_rect.bottom) if candidates else None
+
     def _load_roofs(self) -> None:
         """The roofs, polygons on the 'Roofs' object layer: the only part of a building rain splashes on."""
         polygons = []

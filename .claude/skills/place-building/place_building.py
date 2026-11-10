@@ -266,13 +266,34 @@ def _attached(text, obj_id):
     left, top, right, bottom = _collision_rect(ox, oy, _obj_props(xml))
 
     houses_grp = re.search(r'<objectgroup [^>]*name="Houses"[^>]*>(.*?)</objectgroup>', text, re.S).group(1)
-    rects = {}
+    rects, sprites = {}, {}
     for h in re.finditer(r'<object id="(\d+)"[^>]* x="([^"]+)" y="([^"]+)"[^>]*>.*?</object>', houses_grp, re.S):
         hp = _obj_props(h.group(0))
+        hx, hy = float(h.group(2)), float(h.group(3))
         if 'Collision_to_right' in hp:
-            rects[int(h.group(1))] = _collision_rect(float(h.group(2)), float(h.group(3)), hp)
+            rects[int(h.group(1))] = _collision_rect(hx, hy, hp)
+        path = f'assets/map_sprites/houses/{hp.get("File_name")}'
+        if hp.get('File_name') and os.path.exists(path):
+            sprites[int(h.group(1))] = (path, hx, hy, float(hp.get('Scale', 1)))
+    masks = {}
+
+    def painted(i, cx, cy):
+        path, hx, hy, s = sprites[i]
+        if path not in masks:
+            os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+            import pygame
+            masks[path] = pygame.mask.from_surface(pygame.image.load(path), 1)
+        mask = masks[path]
+        w, h = mask.get_size()
+        sx, sy = int((cx - hx) / s), int((cy - (hy - h * s)) / s)
+        return 0 <= sx < w and 0 <= sy < h and mask.get_at((sx, sy))
 
     def light_owner(cx, cy):
+        # As TMXMap._light_owner: the house painted frontmost there, else the
+        # nearest base below within 5 tiles
+        front = [(sprites[i][2], i) for i in sprites if painted(i, cx, cy)]
+        if front:
+            return max(front)[1]
         zone = [(r[3], i) for i, r in rects.items() if r[0] <= cx <= r[2] and r[1] - 5 * TILE <= cy <= r[3]]
         return min(zone)[1] if zone else None
 

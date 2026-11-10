@@ -118,8 +118,8 @@ when it starts, but only where they were not moved.
      bottom (inside the wall, i.e. inside the collision rect). The game finds
      the step and entry itself and warns if it can't.
    - **lights** `--light SX,SY,W,H`: one per glass pane (not the frame), roughly
-     18x22 px for a normal window. They only count within the collision rect's
-     x range and up to 5 tiles above it.
+     18x22 px for a normal window. Each belongs to the house painted
+     frontmost under it, so skip windows a building in front covers.
    - **smoke** `--smoke SX,SY,W`: the top of the chimney pots, as wide as the
      pots. Smoke is only read for buildings named `House_<n>`, so give a home
      the next free `House_<n>` name (`grep -o 'name="House_[0-9]*"' Map1.tmx`).
@@ -164,10 +164,8 @@ when it starts, but only where they were not moved.
 
    To **move** a building that is already placed, use
    `place_building.py move ID X Y [--dry-run]`: it carries its door, its
-   lights (the ones the game gives it), its smoke and its preview along. Read
-   the "moved" list: a light zone reaches 5 tiles above the base, so at some
-   spots the game hands a neighbour's window to it, and `move` takes that too.
-   Compare per-house light counts before and after (load `TMXMap` on `git show
+   lights (the ones the game gives it: painted on its sprite, frontmost), its
+   smoke and its preview along. Read the "moved" list. Compare per-house light counts before and after (load `TMXMap` on `git show
    HEAD:assets/tiles/Map1.tmx` written to a temp file inside `assets/tiles/`,
    so its tileset paths resolve).
 
@@ -207,9 +205,15 @@ when it starts, but only where they were not moved.
    print(h.collision_rect, h.inhabitants, len(h.associated_lights), [(d.direction, d.step) for d in h.doors])
    print([x.name for x in m.houses if x is not h and x.collision_rect.colliderect(h.collision_rect)])"
    ```
-   A light goes to the candidate building with the nearest base below it
-   (`TMXMap._load_lights`), so fewer lights than you placed means one of them
-   is outside the 5-tiles-above zone.
+   A light goes to the house whose sprite is painted frontmost at its
+   centre (`TMXMap._light_owner`), so fewer lights than you placed means a
+   window is covered by a building standing in front: take that light out,
+   it would glow on the other wall. Only a light on no sprite at all falls
+   back to the 5-tiles-above zone, nearest base below.
+
+   A door whose step a building in front hides is fine: the grid opens the
+   hidden way from it to the open street (`NavGrid.open_way_out`). A door is
+   only dropped (with a warning) when collision blocks its way out.
 
 10. Tick its item in `docs/TODO.md` (move it to "Finished Features") and
    commit the map with the sprite, `Houses.png` and `building_catalog.json` if

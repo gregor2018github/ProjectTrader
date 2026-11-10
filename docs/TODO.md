@@ -19,7 +19,6 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 - [ ] add snow animation for winter season
 - [ ] have a big warehouse close to the market area, that one will be expensive and needs higher stage to be unlocked
-- [ ] find a skill on how to place new houses with the agent (something where I can shift the sprite and say "place here")
 - [ ] add three more houses with different designs between two marketplaces
 - [ ] have sprite manager routines for fences
 - [ ] make new sprites for the new products
@@ -66,6 +65,8 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 ## Finished Features
 
+- [x] placing new houses with the agent: the Placing Helper (build_tools/Placing_Helper) to put sprites on the map, scale them and draw their collision box, read by the place-building skill; nine buildings placed with it (the Cloth Hall, The Golden Sheaf inn, the Smithy, six homes)
+- [x] doors open onto ground a neighbour drawn in front of the house hides (they were dropped before), and a window light belongs to the house it is painted on
 - [x] the market crowd's sound swells in over a game hour after a booth opens and dies away after it shuts
 - [x] top bar shows pinned goods (right-click a good in the market view; a folded corner marks it) and those held, scrolling past 10; quick-trade quantities start at about 15g worth of each good
 - [x] living market P1.3: 30 goods in chains (wheat → flour → bread, livestock → meat, hides and tallow → leather, shoes and candles, wool and flax → cloth and linen → garments, iron and charcoal → tools that wear out, ...), licences per guild, extra goods at the booths (sold_at), placeholder icons

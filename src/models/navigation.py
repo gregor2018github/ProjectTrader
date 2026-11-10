@@ -19,6 +19,11 @@ minds, being steered by someone who can see where they are going, but a
 townsperson routed through it simply disappears into the wall and comes out the
 other side. Those cells are blocked too, so a route goes round what you can
 see, not merely round what you can bump into.
+
+Except on the way to a door. A front door may open onto ground that a
+neighbour drawn in front of it hides; the door is still a door, so
+:meth:`NavGrid.open_way_out` opens the shortest way through the hidden cells
+from its step to ground in sight, and routes to that house walk it.
 """
 
 import heapq
@@ -66,6 +71,15 @@ RouteSteps = Generator[None, None, Optional[List[Tuple[float, float]]]]
 #: ground they stand on counts as no place to walk. Well short of all of it:
 #: passing behind the corner of a house is ordinary, vanishing is not.
 OCCLUSION_COVER = 0.7
+
+#: How many hidden cells a door's way out may run through to reach ground in
+#: sight, at most. A door hemmed in by hidden ground further than that is
+#: more likely drawn in the wrong place than meant.
+MAX_HIDDEN_WAY_CELLS = 400
+
+#: How many free cells must hang together for ground in sight to count as the
+#: open town rather than a pocket between buildings, for a door's way out
+OPEN_GROUND_CELLS = 200
 
 #: Figure size assumed when no walker is on hand to measure, as multiples of a
 #: tile: one tile wide and a good head taller.
@@ -134,6 +148,9 @@ class NavGrid:
                 self._block_rect(rail)
             self._open_deck(bridge.deck, bridge.vertical)
 
+        # What collision alone blocks, before the hidden cells are added: a
+        # door's way out may run through those (open_way_out)
+        self.solid: bytearray = bytearray(self.blocked)
         # Last, because it only ever looks at cells the collision left free
         self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))
 
@@ -323,6 +340,89 @@ class NavGrid:
             world_y: World Y in pixels.
         """
         return self.is_free(*self.cell_of(world_x, world_y))
+
+    def is_open_at(self, world_x: float, world_y: float) -> bool:
+        """Whether nothing solid is in the way at a world position, seen or not.
+
+        Like :meth:`is_free_at`, but a cell only a building drawn in front of
+        it hides counts as open.
+
+        Args:
+            world_x: World X in pixels.
+            world_y: World Y in pixels.
+        """
+        cell_x, cell_y = self.cell_of(world_x, world_y)
+        if not (0 <= cell_x < self.width and 0 <= cell_y < self.height):
+            return False
+        return not self.solid[cell_y * self.width + cell_x]
+
+    def open_way_out(self, world_x: float, world_y: float) -> bool:
+        """Let walkers through the hidden cells between a spot and ground in sight.
+
+        For a door whose step a building drawn in front of it hides: the
+        shortest way, through cells nothing solid is in, from the step's cell
+        to the nearest free one is made free, so routes can reach the door.
+        Cells only collision blocks are never opened.
+
+        Args:
+            world_x: World X of the spot, in pixels.
+            world_y: World Y of the spot, in pixels.
+
+        Returns:
+            bool: Whether the spot is now reachable: it was free already, or a
+            way of at most :data:`MAX_HIDDEN_WAY_CELLS` hidden cells was opened.
+        """
+        start = self.cell_of(world_x, world_y)
+        if self.is_free(*start):
+            return True
+        if not self.is_open_at(world_x, world_y):
+            return False
+        # Breadth first over the open cells, straight steps only, so the way
+        # opened is one a walker can follow cell to cell
+        came_from: Dict[Tuple[int, int], Optional[Tuple[int, int]]] = {start: None}
+        queue = [start]
+        for cell in queue:
+            if len(came_from) > MAX_HIDDEN_WAY_CELLS:
+                return False
+            for dx, dy, _ in NEIGHBOURS[:4]:
+                nxt = (cell[0] + dx, cell[1] + dy)
+                if nxt in came_from or not (0 <= nxt[0] < self.width and 0 <= nxt[1] < self.height):
+                    continue
+                index = nxt[1] * self.width + nxt[0]
+                if self.solid[index]:
+                    continue
+                came_from[nxt] = cell
+                if not self.blocked[index] and self._reaches_open_ground(nxt):
+                    # Ground in sight: free the way back to the start
+                    step: Optional[Tuple[int, int]] = cell
+                    while step is not None:
+                        self.blocked[step[1] * self.width + step[0]] = 0
+                        step = came_from[step]
+                    return True
+                queue.append(nxt)
+        return False
+
+    def _reaches_open_ground(self, cell: Tuple[int, int]) -> bool:
+        """Whether a free cell belongs to more than a pocket of ground in sight.
+
+        A gap between buildings can be free but shut in on every side; a
+        door's way out ending there would lead nowhere. At least
+        :data:`OPEN_GROUND_CELLS` free cells have to hang together with it.
+
+        Args:
+            cell: A free cell.
+        """
+        seen = {cell}
+        queue = [cell]
+        for x, y in queue:
+            for dx, dy, _ in NEIGHBOURS[:4]:
+                nxt = (x + dx, y + dy)
+                if nxt not in seen and self.is_free(*nxt):
+                    seen.add(nxt)
+                    if len(seen) >= OPEN_GROUND_CELLS:
+                        return True
+                    queue.append(nxt)
+        return False
 
     def nearest_free(
         self, world_x: float, world_y: float, radius: int = NEAREST_FREE_RADIUS
