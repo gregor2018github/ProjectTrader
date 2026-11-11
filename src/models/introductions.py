@@ -6,7 +6,8 @@ homebody.py). Talking to them plays the pages below in their speech bubble,
 each answer leading to another page, or agreeing (the minigame is introduced
 from then on, ``Statistics.minigames_introduced``) and perhaps starting it at
 once. Afterwards the same NPC offers ``lend_option``, which starts the minigame
-too, or says ``done_today`` once it has been played that day.
+too, or says ``done_today`` once it has been played that day. The pieces of a
+talk are in talks.py.
 
 So far there is the woodhacking, introduced by Osric, the old woodcutter by the
 wood shed: too old to split logs all day, he is glad of a hand. The texts are
@@ -14,24 +15,11 @@ not voiced.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict
+
+from .talks import Answer, Page
 
 WOODHACKING = "woodhacking"
-
-
-@dataclass(frozen=True)
-class Answer:
-    """One of the player's answers on a page."""
-    label: str
-    next: Optional[str] = None   # the page it leads to; None ends the talk
-    agrees: bool = False         # the minigame counts as introduced from here on
-    starts: bool = False         # and opens at once (if it may be played today)
-
-
-@dataclass(frozen=True)
-class Page:
-    text: str
-    answers: Tuple[Answer, ...]
 
 
 @dataclass(frozen=True)

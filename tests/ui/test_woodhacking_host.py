@@ -20,10 +20,9 @@ import pytest
 from src.models.figurines.humans.npcs.homebody import Homebody
 from src.models.introductions import INTRODUCTIONS, WOODHACKING
 from src.models.statistics import Statistics
-from src.ui.helper_modules import figurine_click_menu as menu_module
-from src.ui.helper_modules.figurine_click_menu import (
-    FigurineConversation, FigurineSpeech, lend_a_hand, open_introduction,
-)
+from src.ui.helper_modules import figurine_talks as talks_module
+from src.ui.helper_modules.figurine_bubbles import FigurineConversation, FigurineSpeech
+from src.ui.helper_modules.figurine_talks import lend_a_hand, open_introduction
 from src.ui.helper_modules.house_click_menu import minigame_host, minigame_introduced
 
 TODAY = datetime.datetime(1500, 1, 4, 10)
@@ -58,7 +57,7 @@ def state(host):
 def opened(monkeypatch):
     """The woodhacking's opener, recording instead of starting the minigame."""
     started = []
-    monkeypatch.setitem(menu_module.MINIGAME_OPENERS, WOODHACKING,
+    monkeypatch.setitem(talks_module.MINIGAME_OPENERS, WOODHACKING,
                         (lambda gs: started.append(gs) or True,
                          lambda gs: gs.game.depot.stats.last_woodhacking_day != gs.date.date().isoformat()))
     return started

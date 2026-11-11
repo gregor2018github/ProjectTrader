@@ -16,6 +16,7 @@ from ..helper_modules.house_click_menu import (
     minigame_introduced, woodhacking_available,
 )
 from ...models.introductions import WOODHACKING
+from ..helper_modules.figurine_talks import waiting_thanks
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ..helper_modules.water_click_menu import fishing_available
 from ..paper import draw_paper
@@ -136,6 +137,10 @@ def draw_map_view(
             glowing = minigame_host(game_state, WOODHACKING)
         if glowing is not None and glowing is not hovered:
             inject_available_glow_into_queue(render_queue, glowing, game_map.camera)
+    # So does whoever has a thanks waiting for the player (figurine_talks.py)
+    for npc in game_map.tmx_map.npcs:
+        if npc is not hovered and not npc.is_hidden and waiting_thanks(game_state, npc) is not None:
+            inject_available_glow_into_queue(render_queue, npc, game_map.camera)
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)

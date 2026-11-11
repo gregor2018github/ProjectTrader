@@ -50,6 +50,8 @@ class Statistics:
         # The minigames someone in town has shown the player ("woodhacking": the old woodcutter
         # by the wood shed); one not introduced yet is not offered where it is played
         self.minigames_introduced: List[str] = []
+        # The one-off talks over and done with: thanks given, their gift taken or turned down (models/thanks.py)
+        self.talks_done: List[str] = []
         self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
         self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
         self.fish_caught: int = 0               # fish landed, all kinds
@@ -111,6 +113,7 @@ class Statistics:
             "last_woodhacking_day": self.last_woodhacking_day,
             "minigame_tips_seen": list(self.minigame_tips_seen),
             "minigames_introduced": list(self.minigames_introduced),
+            "talks_done": list(self.talks_done),
             "fishing_highscore": self.fishing_highscore,
             "last_fishing_day": self.last_fishing_day,
             "fish_caught": self.fish_caught,
@@ -151,6 +154,7 @@ class Statistics:
         # Saves from before the introductions: whoever has chopped wood already knows the way to the stump
         if "minigames_introduced" not in d and (obj.last_woodhacking_day or obj.woodhacking_scores):
             obj.minigames_introduced.append("woodhacking")
+        obj.talks_done = list(d.get("talks_done", []))
         obj.fishing_highscore = d.get("fishing_highscore", 0.0)
         obj.last_fishing_day = d.get("last_fishing_day", None)
         obj.fish_caught = d.get("fish_caught", 0)
