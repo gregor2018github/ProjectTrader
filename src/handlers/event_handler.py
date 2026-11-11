@@ -127,6 +127,11 @@ class EventHandler:
                 game_state.game.sound_control.handle_mouse_up()
 
         if not _slider_consumed and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # The intro's address note: a click on it unfolds it, any click folds it again
+            note = getattr(game_state.game, 'address_note', None)
+            if (note is not None and not game_state.info_window and not getattr(game_state, 'dialogue', None)
+                    and note.handle_click(event.pos)):
+                return self.running
             if game_state.info_window:
                 if hasattr(game_state.info_window, 'handle_click'):
                     choice = game_state.info_window.handle_click(event.pos)

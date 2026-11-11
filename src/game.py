@@ -32,7 +32,8 @@ from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
-from .models.intro import Intro, SCENES, find_shop_spot
+from .models.intro import ADDRESS_TEXT, OBJECTIVE_TITLE, Intro, SCENES, find_shop_spot
+from .ui.helper_modules.address_note import AddressNote
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
@@ -174,6 +175,8 @@ class Game:
         # A new game starts on the docks with the story, and the player goes to find
         # Uncle Gared's shop (models/intro.py); a save says how far they got
         self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
+        # Its address, folded at the top of the map until clicked (address_note.py)
+        self.address_note: AddressNote = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise]] = []
@@ -278,6 +281,7 @@ class Game:
         self.game_map.tmx_map.update_crops(self.state.date)
         self.merchant_rank.load(save_data.get("merchant_rank"))
         self.intro.load(save_data.get("intro"))
+        self.address_note.reset()
         self.restore_owned_buildings()
         self._update_player_market_area()
         self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
@@ -717,6 +721,7 @@ class Game:
                 self.screen.fill(BEIGE)
                 # The plan only takes input while it is drawn this frame
                 self.town_plan.begin_frame()
+                self.address_note.begin_frame()
                 
                 # 2. Draw content modules based on view states
                 # Calculate view rectangles for left and right modules

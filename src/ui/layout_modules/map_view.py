@@ -20,7 +20,6 @@ from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_fi
 from ..helper_modules.water_click_menu import fishing_available
 from ..paper import draw_paper
 from ...models.fishing_spot import draw_rings
-from ...models.intro import ADDRESS_HINT, OBJECTIVE_TITLE
 from ...models.figurines.animals.sheep import HEART_DURATION
 from ...models.wet_ground import wet_level
 from ...models.roof_snow import roof_snow_level
@@ -198,60 +197,15 @@ def draw_map_view(
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
 
-    # The address the player is looking for, while they look
-    if intro is not None and intro.finding_shop:
-        _draw_objective_note(screen, map_content_rect, game_state)
+    # The address the player is looking for, folded at the top, while they look
+    note = getattr(game_state.game, "address_note", None)
+    if note is not None and intro is not None and intro.finding_shop:
+        note.draw(screen, map_content_rect)
     
     # Restore clipping
     screen.set_clip(old_clip)
     
     # Debug overlay is drawn by the caller after the sidebar so it isn't covered
-
-
-OBJECTIVE_NOTE_MAX_WIDTH = 640    # the address note over the map, at most this wide
-OBJECTIVE_NOTE_TOP = 14           # and this far below the map's top edge
-_objective_notes: Dict[Tuple[int, int], pygame.Surface] = {}
-
-
-def _wrap(font: pygame.font.Font, text: str, width: int) -> List[str]:
-    lines: List[str] = []
-    for word in text.split():
-        if lines and font.size(f"{lines[-1]} {word}")[0] <= width:
-            lines[-1] = f"{lines[-1]} {word}"
-        else:
-            lines.append(word)
-    return lines
-
-
-def _objective_note(width: int, title_font: pygame.font.Font, font: pygame.font.Font) -> pygame.Surface:
-    """The slip of paper with the intro's objective and address, made once per width."""
-    key = (width, id(font))
-    note = _objective_notes.get(key)
-    if note is None:
-        pad = 14
-        lines = _wrap(font, ADDRESS_HINT, width - 2 * pad)
-        # This font's own line size is too small for it: measured on its letters, as the dialogue does
-        title_h = round(title_font.size("Tg")[1] * 1.15)
-        line_h = round(font.size("Tg")[1] * 1.15)
-        height = pad + title_h + 4 + line_h * len(lines) + pad
-        note = pygame.Surface((width, height))
-        draw_paper(note, note.get_rect(), (0, 0), edge_depth=10)
-        pygame.draw.rect(note, DARK_BROWN, note.get_rect(), 2)
-        title = title_font.render(OBJECTIVE_TITLE, True, DARK_BROWN)
-        note.blit(title, title.get_rect(midtop=(width // 2, pad)))
-        y = pad + title_h + 4
-        for line in lines:
-            text = font.render(line, True, BLACK)
-            note.blit(text, text.get_rect(midtop=(width // 2, y)))
-            y += line_h
-        _objective_notes[key] = note
-    return note
-
-
-def _draw_objective_note(screen: pygame.Surface, area: pygame.Rect, game_state: Any) -> None:
-    width = min(OBJECTIVE_NOTE_MAX_WIDTH, area.width - 32)
-    note = _objective_note(width, game_state.font, game_state.small_font)
-    screen.blit(note, note.get_rect(midtop=(area.centerx, area.top + OBJECTIVE_NOTE_TOP)))
 
 
 # Pixel-art heart shown above a petted sheep
