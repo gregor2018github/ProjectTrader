@@ -2,7 +2,6 @@
   "name": "Osric",
   "gender": "male",
   "home": "Wood Chopper",
-  "stand_in": "trader_woodcutter",
   "sentences": "sentences_osric.txt",
   "introduces": "woodhacking"
 }
