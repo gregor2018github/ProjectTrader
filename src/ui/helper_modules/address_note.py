@@ -15,11 +15,11 @@ click if it was drawn that frame.
 
 import math
 import os
+import random
 from typing import Dict, List, Optional, Tuple
 
 import pygame
 
-from ...config.colors import PARCHMENT
 from ...config.constants import FONTS_PATH, PICTURES_PATH
 from ..paper import draw_paper
 
@@ -40,6 +40,14 @@ FOLD_S = 0.5                  # folding it up again
 #: comes out of the item, the side flaps open, the middle panel and the last
 #: panel fold down
 PHASES = (0.15, 0.45, 0.72, 1.0)
+
+#: The paper: darker and browner than the game's parchment, like the parcel's
+PAPER = (204, 174, 128)
+PAPER_STAIN = (128, 92, 56)   # its mottled blots
+STAINS = 34
+ROUGH_PX = 7                  # how deep the torn edge bites in
+EDGE_INK = (58, 38, 22)       # the torn edge's outline
+PAPER_SEED = 1500             # the same tears and stains every time
 
 INK = (62, 40, 22)
 INK_FADED = (120, 88, 56)
@@ -157,7 +165,7 @@ class AddressNote:
         if self.t <= 0.0:
             self._draw_item(screen, now / 1000.0)
         elif self.t >= 1.0:
-            self._shadow(screen, [self.sheet_rect])
+            screen.blit(self._sheet_shadow, self.sheet_rect.move(6, 8))
             screen.blit(self._sheet, self.sheet_rect)
         else:
             self._draw_unfolding(screen)
@@ -171,12 +179,12 @@ class AddressNote:
         screen.blit(self._item_shadow, rect.move(3, 4))
         screen.blit(self._item, rect)
 
-    def _shadow(self, screen: pygame.Surface, rects: List[pygame.Rect], drop: int = 6) -> None:
-        for rect in rects:
+    def _shadow(self, screen: pygame.Surface, pieces: List[Tuple[pygame.Surface, pygame.Rect]],
+                drop: int = 6) -> None:
+        """The shadow of each piece of paper, in its own torn shape."""
+        for part, rect in pieces:
             if rect.width > 0 and rect.height > 0:
-                shade = pygame.Surface(rect.size, pygame.SRCALPHA)
-                shade.fill((20, 10, 0, 70))
-                screen.blit(shade, rect.move(drop, drop + 2))
+                screen.blit(_silhouette(part, (20, 10, 0), 80), rect.move(drop, drop + 2))
 
     def _draw_unfolding(self, screen: pygame.Surface) -> None:
         come, flaps, middle, last = phase_amounts(self.t)
@@ -189,8 +197,8 @@ class AddressNote:
             # The folded packet coming down out of the item, growing to its size,
             # the item's picture turning into it on the way
             rect = _lerp_rect(self.item_rect, packet, come)
-            self._shadow(screen, [rect], 3 + round(3 * come))
-            unfolded = pygame.transform.smoothscale(self._item_packet(), rect.size)
+            unfolded = pygame.transform.smoothscale(self._packet, rect.size)
+            self._shadow(screen, [(unfolded, rect)], 3 + round(3 * come))
             unfolded.set_alpha(round(255 * min(1.0, come * 1.5)))
             screen.blit(unfolded, rect)
             picture = pygame.transform.smoothscale(self._item, rect.size)
@@ -229,8 +237,7 @@ class AddressNote:
                 x = packet.left - span if side == 0 else packet.right
             first.append((part, pygame.Rect(x, sy, span, p)))
 
-        outline = [r for _, r in first] + [r for _, r in pieces]
-        self._shadow(screen, outline)
+        self._shadow(screen, first + pieces)
         for part, rect in pieces:
             screen.blit(part, rect)
         for part, rect in first:
@@ -250,23 +257,25 @@ class AddressNote:
     def _build(self, size: Tuple[int, int]) -> None:
         w, h = size
         f, p = w // 3, h // 3
-        sheet = pygame.Surface(size)
-        draw_paper(sheet, sheet.get_rect(), (0, 0), PARCHMENT, edge_depth=22)
+        rng = random.Random(PAPER_SEED)
+        outline = _torn_outline(size, rng)
+        sheet = _rough_paper(size, (0, 0), outline, rng)
         # The creases it was folded along
         for x in (f, 2 * f):
             _crease(sheet, (x, 0), (x, p), vertical=True)
         for y in (p, 2 * p):
             _crease(sheet, (0, y), (w, y), vertical=False)
-        pygame.draw.rect(sheet, INK_FADED, sheet.get_rect(), 1)
+        _cut_to(sheet, outline)
         self._write(sheet, pygame.Rect(0, 0, w, p))
         self._sketch(sheet, pygame.Rect(0, p, w, 2 * p))
         self._sheet = sheet
+        self._sheet_shadow = _silhouette(sheet, (20, 10, 0), 80)
 
-        back = pygame.Surface(size)
-        draw_paper(back, back.get_rect(), (311, 173), PARCHMENT, edge_depth=22)
+        back = _rough_paper(size, (311, 173), outline, rng)
         _darken(back, BACK_SHADE)
-        pygame.draw.rect(back, INK_FADED, back.get_rect(), 1)
+        _cut_to(back, outline)
         self._back = back
+        self._packet = self._item_packet()
 
         self._item = _load_picture(ITEM_PICTURE, ITEM_HEIGHT) or pygame.transform.smoothscale(
             self._item_packet(), ITEM_SIZE)
@@ -279,7 +288,8 @@ class AddressNote:
         f, p = w // 3, h // 3
         packet = self._back.subsurface((f, 0, f, p)).copy()
         _crease(packet, (f // 2, 2), (f // 2, p - 2), vertical=True)
-        pygame.draw.rect(packet, INK_FADED, packet.get_rect(), 2)
+        # Its folded sides and bottom are straight; the top is the sheet's torn edge
+        pygame.draw.lines(packet, EDGE_INK, False, [(0, 0), (0, p - 1), (f - 1, p - 1), (f - 1, 0)], 2)
         # Tied with twine, like the item's picture
         twine = (92, 64, 38)
         pygame.draw.line(packet, twine, (0, p // 2), (f, p // 2), 3)
@@ -369,6 +379,51 @@ class AddressNote:
         sheet.blit(hint, hint.get_rect(bottomright=(area.right - 14, area.bottom - 10)))
 
 
+def _torn_outline(size: Tuple[int, int], rng: random.Random) -> List[Tuple[int, int]]:
+    """The sheet's torn edge: a polygon wandering up to ``ROUGH_PX`` in from each
+    side, with a few deeper nicks and the corners worn off."""
+    w, h = size
+    points: List[Tuple[int, int]] = []
+    depth = rng.uniform(1, ROUGH_PX)
+
+    def bite() -> float:
+        nonlocal depth
+        depth = min(ROUGH_PX, max(1.0, depth + rng.uniform(-2.5, 2.5)))
+        return depth + (rng.uniform(3, 7) if rng.random() < 0.05 else 0.0)
+
+    corner = ROUGH_PX + 3
+    for x in range(corner, w - corner, 6):                  # top, left to right
+        points.append((x, round(bite())))
+    for y in range(corner, h - corner, 6):                  # right, downwards
+        points.append((w - 1 - round(bite()), y))
+    for x in range(w - corner, corner, -6):                 # bottom, right to left
+        points.append((x, h - 1 - round(bite())))
+    for y in range(h - corner, corner, -6):                 # left, upwards
+        points.append((round(bite()), y))
+    return points
+
+
+def _rough_paper(size: Tuple[int, int], anchor: Tuple[int, int], outline: List[Tuple[int, int]],
+                 rng: random.Random) -> pygame.Surface:
+    """Brown paper with mottled stains, browned towards its edges."""
+    paper = pygame.Surface(size, pygame.SRCALPHA)
+    draw_paper(paper, paper.get_rect(), anchor, PAPER, edge_depth=34)
+    stains = pygame.Surface((size[0] // 4, size[1] // 4), pygame.SRCALPHA)
+    for _ in range(STAINS):
+        centre = (rng.randrange(stains.get_width()), rng.randrange(stains.get_height()))
+        pygame.draw.circle(stains, (*PAPER_STAIN, rng.randrange(30, 70)), centre, rng.randrange(2, 9))
+    paper.blit(pygame.transform.smoothscale(stains, size), (0, 0))
+    return paper
+
+
+def _cut_to(paper: pygame.Surface, outline: List[Tuple[int, int]]) -> None:
+    """Clear what lies outside the torn edge and ink the edge."""
+    keep = pygame.Surface(paper.get_size(), pygame.SRCALPHA)
+    pygame.draw.polygon(keep, (255, 255, 255, 255), outline)
+    paper.blit(keep, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    pygame.draw.polygon(paper, EDGE_INK, outline, 2)
+
+
 def _lerp_rect(a: pygame.Rect, b: pygame.Rect, k: float) -> pygame.Rect:
     return pygame.Rect(round(a.x + (b.x - a.x) * k), round(a.y + (b.y - a.y) * k),
                        max(1, round(a.w + (b.w - a.w) * k)), max(1, round(a.h + (b.h - a.h) * k)))
@@ -383,8 +438,8 @@ def _darken(surface: pygame.Surface, factor: float) -> None:
 def _crease(surface: pygame.Surface, start: Tuple[int, int], end: Tuple[int, int], vertical: bool) -> None:
     """A fold line: a dark groove with a light ridge beside it."""
     shift = (1, 0) if vertical else (0, 1)
-    pygame.draw.line(surface, (190, 166, 120), start, end, 1)
-    pygame.draw.line(surface, (248, 238, 212), (start[0] + shift[0], start[1] + shift[1]),
+    pygame.draw.line(surface, (150, 118, 80), start, end, 1)
+    pygame.draw.line(surface, (226, 202, 158), (start[0] + shift[0], start[1] + shift[1]),
                      (end[0] + shift[0], end[1] + shift[1]), 1)
 
 
