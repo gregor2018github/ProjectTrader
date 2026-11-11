@@ -1,6 +1,6 @@
 """Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
 the plant and building sprites of the map, the growth stages of the crops on the fields, the
-frames of the animals, and the goods' pictures for the menus.
+frames of the animals, the goods' pictures for the menus, and the tavern dishes' pictures.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -20,8 +20,8 @@ switches to full screen.
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
    card each for the humans, the plants and the buildings, and under them the
-   crops, the animals and the menu sprites, with how far they are. Click one
-   (or 1 to 6) to go there; "Start page" or
+   crops, the animals, the menu sprites and the food, with how far they are. Click one
+   (or 1 to 7) to go there; "Start page" or
    Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
@@ -223,6 +223,17 @@ the red frame and writes its painting, cut-out, 30px icon and licence
 picture, the good toned sepia, keeping what they
 replace in replaced/ (goods_sheets.py).
 
+Food: "Food" on the start page (7) lists every tavern dish of
+assets/texts/taverns/dishes.csv by its type, the csv's "type" column: plates,
+bowls and drinks (food.py, view_food.py), each with its picture,
+assets/pictures/dish_<name in snake case>.png, which the game shows when the
+dish is ordered, or "missing". Over them, per type, how many have a picture
+and its example: the picture every other dish of the type is to be drawn
+after, so they all look alike (EXAMPLE_DISHES, else the type's first dish
+with a picture; Roast Pigeons for the plates, none yet for bowls and
+drinks). Clicking a type's block (or T) shows only it, M only the dishes without a
+picture, O opens assets/pictures, "GIMP" opens the chosen dish's picture.
+
 The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
@@ -289,6 +300,8 @@ The code, for whoever works on it next:
     goods_sheets.py    a good's sketch beside three other goods, its prompt, and the pictures an answer makes
     view_good_design.py  sketching a good's picture; its description and the goods shown for the style
     view_good_answers.py  the answers for a good's picture, and writing the three files from one
+    food.py            the tavern dishes: their types, pictures and each type's example
+    view_food.py       the food: the dishes by type with their pictures, and the chosen one large
 """
 
 import io
@@ -330,6 +343,8 @@ from view_crops import CropsView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_goods import GoodsView  # noqa: E402
+from view_food import FoodView  # noqa: E402
+from food import FOOD_PICTURES  # noqa: E402
 from view_good_design import GoodDesignView  # noqa: E402
 from goods import find_goods  # noqa: E402
 from goods_sheets import GOODS_PICTURES, GoodSketch, GoodSubject, remake_from_painting  # noqa: E402
@@ -348,7 +363,7 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'),
-           ('animals', 'Animals'), ('menu', 'Menu'))   # Tab goes round them; the start page shows them 3 a row
+           ('animals', 'Animals'), ('menu', 'Menu'), ('food', 'Food'))   # Tab goes round them; the start page shows them 3 a row
 FPS = 30
 
 
@@ -559,6 +574,11 @@ class SpriteManager:
             if domain == GOODS_PICTURES:
                 self.good_picture_saved(path)
                 continue
+            if domain == FOOD_PICTURES:
+                self.set_status(f'{path.name} saved back from GIMP')
+                if isinstance(self.view, FoodView):
+                    self.view.refresh()
+                continue
             try:
                 message, updated = restamp(domain, path, self.catalog(domain))
             except (pygame.error, OSError) as exc:
@@ -637,7 +657,7 @@ class SpriteManager:
 
     @staticmethod
     def screens():
-        """(key, title) of humans, plants, buildings, crops, animals and the menu sprites."""
+        """(key, title) of humans, plants, buildings, crops, animals, the menu sprites and the food."""
         return SCREENS
 
     @staticmethod
@@ -663,7 +683,8 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants, the buildings, the crops, the animals or the menu sprites."""
+        """Show the start page, the humans, the plants, the buildings, the crops, the animals, the menu sprites
+        or the food."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
         if screen == 'home':
@@ -676,6 +697,8 @@ class SpriteManager:
             self.show(AnimalsView(self))
         elif screen == 'menu':
             self.show(GoodsView(self))
+        elif screen == 'food':
+            self.show(FoodView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
 
@@ -687,6 +710,8 @@ class SpriteManager:
             current = 'crops'
         elif isinstance(self.view, GoodsView):
             current = 'menu'
+        elif isinstance(self.view, FoodView):
+            current = 'food'
         else:
             current = 'animals' if isinstance(self.view, AnimalsView) else 'humans'
         self.switch_to(keys[(keys.index(current) + 1) % len(keys)])

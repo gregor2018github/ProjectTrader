@@ -1,7 +1,9 @@
 """The daily menu a tavern offers, drawn from the dishes in assets/texts/taverns/dishes.csv.
 
 Each dish there has a class (low, middle or high: which kind of tavern serves
-it), a course, whether it has meat and its price in coins. A tavern's class is the `Tavern`
+it), a course, a type (how it is served: on a plate, in a bowl or as a drink,
+`DISH_TYPES`; its picture is drawn after an example of its type), whether it
+has meat and its price in coins. A tavern's class is the `Tavern`
 property on its building in Tiled. Its menu is drawn anew each day from the
 dishes of its class: `MENU_SIZE` dishes (2 or 3), the first a main dish
 (`HEARTY_COURSES`) and the rest each from another course, the same all day and
@@ -27,6 +29,9 @@ DISHES_PATH = os.path.join(MAIN_PATH, "assets", "texts", "taverns", "dishes.csv"
 
 TAVERN_CLASSES = ("low", "middle", "high")
 
+# How a dish is served, which decides the example its picture is drawn after
+DISH_TYPES = ("plate", "bowl", "drink")
+
 # The courses in the order they are listed, with their heading on the menu
 COURSES: Tuple[Tuple[str, str], ...] = (
     ("pottage", "Pottage"),
@@ -51,21 +56,23 @@ class Dish:
     meat: bool
     price: float
     description: str
+    type: str = "plate"   # one of DISH_TYPES
 
 
 _dishes: Optional[List[Dish]] = None
 
 
 def load_dishes(path: str = DISHES_PATH) -> List[Dish]:
-    """Every dish in the file; rows with an unknown class or course are skipped with a warning."""
+    """Every dish in the file; rows with an unknown class, course or type are skipped with a warning."""
     courses = {course for course, _ in COURSES}
     dishes = []
     with open(path, newline="", encoding="utf-8") as file:
         for row in csv.DictReader(file):
             tavern_class = row["class"].strip().lower()
             course = row["course"].strip().lower()
-            if tavern_class not in TAVERN_CLASSES or course not in courses:
-                print(f"Warning: dish {row['dish']!r} has an unknown class or course, skipped")
+            dish_type = row["type"].strip().lower()
+            if tavern_class not in TAVERN_CLASSES or course not in courses or dish_type not in DISH_TYPES:
+                print(f"Warning: dish {row['dish']!r} has an unknown class, course or type, skipped")
                 continue
             dishes.append(Dish(
                 name=row["dish"].strip(),
@@ -74,6 +81,7 @@ def load_dishes(path: str = DISHES_PATH) -> List[Dish]:
                 meat=row["meat"].strip().lower() == "yes",
                 price=float(row["price"]),
                 description=row["description"].strip(),
+                type=dish_type,
             ))
     return dishes
 

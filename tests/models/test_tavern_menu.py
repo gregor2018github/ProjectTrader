@@ -8,7 +8,7 @@ from src.models import tavern_menu
 from src.sim.calendar import EPOCH
 from src.models.statistics import Statistics
 from src.models.tavern_menu import (
-    COURSES, TAVERN_CLASSES, Dish, daily_menu, dish_key, dish_picture_path, load_dishes,
+    COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, daily_menu, dish_key, dish_picture_path, load_dishes,
 )
 
 DISHES = [
@@ -45,6 +45,9 @@ def test_the_dish_file_reads_and_serves_every_class_every_course():
             # Something to serve on fast days too
             assert any(not d.meat for d in offer), f"no meatless {course} for a {tavern_class} tavern"
     assert all(dish.price > 0 for dish in dishes)
+    assert len(dishes) == sum(1 for _ in open(tavern_menu.DISHES_PATH, encoding="utf-8")) - 1   # none skipped
+    assert {dish.type for dish in dishes} == set(DISH_TYPES)
+    assert all(dish.type == "drink" for dish in dishes if dish.course == "drink")
 
 
 DAYS = [MONDAY + datetime.timedelta(days=n) for n in range(28)]
