@@ -47,6 +47,9 @@ class Statistics:
         self.woodhacking_bests: Dict[str, int] = {}
         self.last_woodhacking_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last played, gates to once/day
         self.minigame_tips_seen: List[str] = []  # the minigames' one-time explanations already shown
+        # The minigames someone in town has shown the player ("woodhacking": the old woodcutter
+        # by the wood shed); one not introduced yet is not offered where it is played
+        self.minigames_introduced: List[str] = []
         self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
         self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
         self.fish_caught: int = 0               # fish landed, all kinds
@@ -107,6 +110,7 @@ class Statistics:
             "woodhacking_bests": dict(self.woodhacking_bests),
             "last_woodhacking_day": self.last_woodhacking_day,
             "minigame_tips_seen": list(self.minigame_tips_seen),
+            "minigames_introduced": list(self.minigames_introduced),
             "fishing_highscore": self.fishing_highscore,
             "last_fishing_day": self.last_fishing_day,
             "fish_caught": self.fish_caught,
@@ -143,6 +147,10 @@ class Statistics:
                                        "perfects": None, "blocks": None}]
         obj.last_woodhacking_day = d.get("last_woodhacking_day", None)
         obj.minigame_tips_seen = list(d.get("minigame_tips_seen", []))
+        obj.minigames_introduced = list(d.get("minigames_introduced", []))
+        # Saves from before the introductions: whoever has chopped wood already knows the way to the stump
+        if "minigames_introduced" not in d and (obj.last_woodhacking_day or obj.woodhacking_scores):
+            obj.minigames_introduced.append("woodhacking")
         obj.fishing_highscore = d.get("fishing_highscore", 0.0)
         obj.last_fishing_day = d.get("last_fishing_day", None)
         obj.fish_caught = d.get("fish_caught", 0)

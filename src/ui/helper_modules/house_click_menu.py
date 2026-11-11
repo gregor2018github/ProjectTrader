@@ -13,6 +13,7 @@ from ...config import settings_store
 from ...config.colors import BEIGE, DARK_BROWN, SANDY_BROWN, BLACK, WHITE, DARK_RED, GRAY
 from ...config.constants import FONTS_PATH
 from ..ui_utils import draw_9slice
+from ...models.introductions import WOODHACKING
 
 if TYPE_CHECKING:
     from ...models.house import House
@@ -256,6 +257,41 @@ def woodhacking_available(game_state: 'GameState') -> bool:
     return game.depot.stats.last_woodhacking_day != game_state.date.date().isoformat()
 
 
+def minigame_host(game_state: 'GameState', minigame: str) -> Optional[Any]:
+    """The NPC on the map who introduces a minigame (models/introductions.py), or None."""
+    game = getattr(game_state, 'game', None)
+    if game is None:
+        return None
+    return next((npc for npc in game.game_map.tmx_map.npcs
+                 if getattr(npc, 'introduces', None) == minigame), None)
+
+
+def minigame_introduced(game_state: 'GameState', minigame: str) -> bool:
+    """Whether the player has been shown a minigame; always, if nobody on the map shows it."""
+    game = getattr(game_state, 'game', None)
+    if game is None:
+        return False
+    return minigame in game.depot.stats.minigames_introduced or minigame_host(game_state, minigame) is None
+
+
+def open_woodhacking(game_state: 'GameState') -> bool:
+    """Start the day's woodhacking, or say it has been done; whether it started.
+
+    The day counts as chopped from here on, however the session ends.
+    """
+    game_state.info_window = None
+    game_state.active_house_menu = None
+    if not woodhacking_available(game_state):
+        game_state.show_warning("You already chopped wood today! Come back tomorrow.")
+        return False
+    from ...models.minigames.woodhacking import WoodhackingMinigame
+    game_state.game.depot.stats.last_woodhacking_day = game_state.date.date().isoformat()
+    game_state.previous_time_level = game_state.time_level
+    game_state.time_level = 1
+    game_state.minigame = WoodhackingMinigame(game_state.screen, game_state.game)
+    return True
+
+
 def inject_hover_effect_into_queue(
     render_queue: List[Dict[str, Any]],
     hovered: Optional[Any],
@@ -394,20 +430,15 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     # Since InfoWindow constructor takes callback for button clicks, we define one here
     def menu_callback(option_text: str):
         if option_text == "Chop Wood" and house.name == "Stomp":
-            today = game_state.date.date().isoformat()
-            depot = game_state.game.depot
-            if depot.stats.last_woodhacking_day == today:
-                game_state.show_warning("You already chopped wood today! Come back tomorrow.")
+            if not minigame_introduced(game_state, WOODHACKING):
+                # The stump and the axe are the old woodcutter's: he is to be asked first
+                host = minigame_host(game_state, WOODHACKING)
                 game_state.info_window = None
                 game_state.active_house_menu = None
+                game_state.show_warning(f"The axe belongs to {host.display_name}, the old woodcutter. "
+                                        f"Ask him first; he is about the wood shed by day.")
                 return
-            from ...models.minigames.woodhacking import WoodhackingMinigame
-            depot.stats.last_woodhacking_day = today
-            game_state.previous_time_level = game_state.time_level
-            game_state.time_level = 1
-            game_state.info_window = None
-            game_state.active_house_menu = None
-            game_state.minigame = WoodhackingMinigame(game_state.screen, game_state.game)
+            open_woodhacking(game_state)
             return
 
         if option_text == "Buy Building" and isinstance(house, Warehouse) and not house.is_owned:

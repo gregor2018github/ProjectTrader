@@ -12,8 +12,10 @@ from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import (
-    inject_available_glow_into_queue, inject_hover_effect_into_queue, is_player_near, woodhacking_available,
+    inject_available_glow_into_queue, inject_hover_effect_into_queue, is_player_near, minigame_host,
+    minigame_introduced, woodhacking_available,
 )
+from ...models.introductions import WOODHACKING
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ..helper_modules.water_click_menu import fishing_available
 from ..paper import draw_paper
@@ -126,10 +128,15 @@ def draw_map_view(
                                        halos=bool(weather) and halos_show(weather.fog),
                                        roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
 
-    # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse)
-    stump = game_map.tmx_map.chopping_stump
-    if stump is not None and stump is not hovered and woodhacking_available(game_state):
-        inject_available_glow_into_queue(render_queue, stump, game_map.camera)
+    # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse);
+    # until the old woodcutter has asked the player for a hand, he glows instead
+    if woodhacking_available(game_state):
+        if minigame_introduced(game_state, WOODHACKING):
+            glowing = game_map.tmx_map.chopping_stump
+        else:
+            glowing = minigame_host(game_state, WOODHACKING)
+        if glowing is not None and glowing is not hovered:
+            inject_available_glow_into_queue(render_queue, glowing, game_map.camera)
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)

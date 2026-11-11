@@ -9,7 +9,7 @@ figurine that is deliberately lighter than the framed HouseMenu.
 
 import os
 import random
-from typing import Callable, Iterator, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import Callable, Dict, Iterator, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import pygame
 
@@ -18,10 +18,14 @@ from ...config.colors import DARK_BROWN, BLACK
 from ...config.constants import ALMS_CATEGORY, ALMS_COIN, FONTS_PATH, SHEEP_VOLUME
 from ..text_reveal import LetterReveal
 from ..transaction_feedback import on_money_donated
-from .house_click_menu import get_hovered_house, is_player_near
+from ...models.introductions import INTRODUCTIONS, Introduction, WOODHACKING
+from .house_click_menu import (
+    get_hovered_house, is_player_near, minigame_introduced, open_woodhacking, woodhacking_available,
+)
 
 if TYPE_CHECKING:
     from ...models.figurines.figurine import Figurine
+    from ...models.figurines.humans.npcs.npc import NPC
     from ...models.figurines.animals.sheep import Sheep
     from ...models.house import House
     from ...models.map import GameMap, Camera
@@ -48,6 +52,9 @@ SPEECH_TEXT_GAP = 5                    # Extra space between the title rule and 
 # little beyond the reach needed to start one, so a step aside does not cut
 # the conversation short, but far from having to leave the map view
 SPEECH_BREAK_DISTANCE = 80             # About 2.5 tiles
+
+ANSWER_GAP = 8                         # Between a conversation's line and its answers
+ANSWER_MARK = "\u00bb "                # Before each of the player's answers
 
 # Label of the alms option, used both to offer it and to recognise the choice
 GIVE_COIN_OPTION = "Give a Coin"
@@ -185,6 +192,10 @@ def show_figurine_menu(
     options: List[str] = []
     if figurine is game_state.game.game_map.map_player:
         options.append("Inventory")
+    introduction = _introduction_of(figurine)
+    if introduction is not None:
+        introduced = minigame_introduced(game_state, figurine.introduces)
+        options.append(introduction.lend_option if introduced else introduction.talk_option)
     if isinstance(figurine, NPC):
         options.append("Chat")
         # Only the town's poor are offered a coin; the rest would take it ill
@@ -218,6 +229,12 @@ def show_figurine_menu(
                                                     game_state, map_content_rect)
             game_state.active_house_menu = None
             return
+        if introduction is not None and option_text == introduction.talk_option:
+            open_introduction(game_state, figurine, introduction.first, map_content_rect)
+            return
+        if introduction is not None and option_text == introduction.lend_option:
+            lend_a_hand(game_state, figurine, map_content_rect)
+            return
         if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine)
         if option_text == GIVE_COIN_OPTION and isinstance(figurine, NPC):
@@ -239,6 +256,63 @@ def show_figurine_menu(
     # Keeps the hover glow on and closes the menu when the player walks away
     game_state.active_house_menu = figurine
     return True
+
+
+#: What starts each minigame an NPC introduces, and whether it may still be played today
+MINIGAME_OPENERS: Dict[str, Tuple[Callable[['GameState'], bool], Callable[['GameState'], bool]]] = {
+    WOODHACKING: (open_woodhacking, woodhacking_available),
+}
+
+
+def _introduction_of(figurine: 'Figurine') -> Optional[Introduction]:
+    """The minigame introduction an NPC gives (models/introductions.py), or None."""
+    minigame = getattr(figurine, 'introduces', None)
+    if minigame not in MINIGAME_OPENERS:
+        return None
+    return INTRODUCTIONS.get(minigame)
+
+
+def open_introduction(game_state: 'GameState', npc: 'NPC', page_name: str,
+                      map_content_rect: pygame.Rect) -> None:
+    """Open a page of the NPC's introduction in their speech bubble.
+
+    Args:
+        game_state: The current game state.
+        npc: The NPC introducing their minigame.
+        page_name: The page to show.
+        map_content_rect: The map's drawing area on screen.
+    """
+    introduction = INTRODUCTIONS[npc.introduces]
+    page = introduction.page(page_name)
+
+    def answered(label: str) -> None:
+        answer = next(a for a in page.answers if a.label == label)
+        introduced = game_state.game.depot.stats.minigames_introduced
+        if answer.agrees and npc.introduces not in introduced:
+            introduced.append(npc.introduces)
+        if answer.starts:
+            lend_a_hand(game_state, npc, map_content_rect)
+        elif answer.next is not None:
+            open_introduction(game_state, npc, answer.next, map_content_rect)
+        else:
+            game_state.info_window.close()
+
+    game_state.info_window = FigurineConversation(
+        game_state.screen, npc, page.text, [a.label for a in page.answers], answered,
+        game_state, map_content_rect)
+    game_state.active_house_menu = None
+
+
+def lend_a_hand(game_state: 'GameState', npc: 'NPC', map_content_rect: pygame.Rect) -> None:
+    """Start the minigame the NPC introduced, or have them say it was played today."""
+    opener, available = MINIGAME_OPENERS[npc.introduces]
+    if available(game_state):
+        npc.talking_to = None
+        opener(game_state)
+        return
+    game_state.info_window = FigurineSpeech(game_state.screen, npc, INTRODUCTIONS[npc.introduces].done_today,
+                                            game_state, map_content_rect)
+    game_state.active_house_menu = None
 
 
 def release_ended_conversations(game_state: 'GameState', game_map: 'GameMap') -> None:
@@ -615,6 +689,99 @@ class FigurineSpeech(_FigurineBubble):
             positions.append(line_surf.get_rect(midtop=(body.centerx, y)).topleft)
             y += self.line_height
         self.reveal.draw(surf, positions)
+
+
+class FigurineConversation(FigurineSpeech):
+    """A speech bubble with the player's answers under the line, as plain rows like a menu's.
+
+    Clicking an answer calls back with its label; the cross or a click outside
+    closes it, as for any speech bubble. Enter or Space finishes the line, then
+    picks the first answer.
+    """
+
+    def __init__(
+        self,
+        screen: pygame.Surface,
+        figurine: 'Figurine',
+        text: str,
+        answers: List[str],
+        on_answer: Callable[[str], None],
+        game_state: 'GameState',
+        map_content_rect: pygame.Rect,
+    ):
+        """Lay out the line and the answers under it.
+
+        Args:
+            screen: Surface to draw on.
+            figurine: The figurine speaking.
+            text: What it says.
+            answers: The player's answers, top to bottom.
+            on_answer: Called with the label of the answer picked.
+            game_state: The current game state.
+            map_content_rect: The map's drawing area on screen, to follow the figurine in.
+        """
+        # Set before the bubble first lays itself out, which places the answers too
+        self.answers = list(answers)
+        self.on_answer = on_answer
+        self.answer_rows: List[Tuple[pygame.Rect, str]] = []
+        self.text_bottom: Optional[int] = None
+        super().__init__(screen, figurine, text, game_state, map_content_rect)
+        answer_width = max((self.text_font.size(ANSWER_MARK + answer)[0] + 2 * BUBBLE_PADDING
+                            for answer in self.answers), default=0)
+        self.width = max(self.width, answer_width + 2 * BUBBLE_PADDING)
+        self.text_bottom = self.height - BUBBLE_PADDING
+        self.height += ANSWER_GAP + len(self.answers) * OPTION_HEIGHT
+        self._layout()
+
+    def _layout(self) -> None:
+        super()._layout()
+        if self.text_bottom is None:
+            self.answer_rows = []
+            return
+        top = self.rect.y + self.text_bottom + ANSWER_GAP
+        self.answer_rows = [
+            (pygame.Rect(self.rect.x + BUBBLE_PADDING // 2, top + index * OPTION_HEIGHT,
+                         self.width - BUBBLE_PADDING, OPTION_HEIGHT), answer)
+            for index, answer in enumerate(self.answers)
+        ]
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        """An answer, the cross or outside the bubble. Returns True if handled."""
+        for row, answer in self.answer_rows:
+            if row.collidepoint(pos):
+                self.on_answer(answer)
+                return True
+        return super().handle_click(pos)
+
+    def handle_event(self, event: pygame.event.Event) -> bool:
+        """Enter or Space: finish the line, then pick the first answer; Escape walks away."""
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self.close()
+            return True
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+            if not self.reveal.is_complete:
+                self.reveal.skip()
+            elif self.answers:
+                self.on_answer(self.answers[0])
+            return True
+        return False
+
+    def _draw_content(self, surf: pygame.Surface, offset: Tuple[int, int],
+                      mouse_pos: Optional[Tuple[int, int]]) -> None:
+        """The line, then the answers below a rule, with a soft highlight on hover."""
+        super()._draw_content(surf, offset, mouse_pos)
+        if not self.answer_rows:
+            return
+        first = self.answer_rows[0][0].move(offset)
+        rule_y = first.top - ANSWER_GAP // 2
+        pygame.draw.line(surf, BUBBLE_BORDER, (first.left + BUBBLE_PADDING, rule_y),
+                         (first.right - BUBBLE_PADDING, rule_y), 1)
+        for rect, text in self.answer_rows:
+            row = rect.move(offset)
+            if mouse_pos is not None and rect.collidepoint(mouse_pos):
+                pygame.draw.rect(surf, OPTION_HOVER_FILL, row, border_radius=OPTION_HEIGHT // 2)
+            text_surf = self.text_font.render(ANSWER_MARK + text, True, BLACK)
+            surf.blit(text_surf, text_surf.get_rect(center=row.center))
 
 
 def _wrap_text(text: str, font: pygame.font.Font, max_width: int) -> List[str]:

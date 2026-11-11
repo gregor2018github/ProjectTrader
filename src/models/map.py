@@ -39,6 +39,7 @@ from .figurines.humans.npcs import (
     TraderStonemason, TraderTanner, TraderVintner, TraderWeaver, TraderWoodcutter,
 )
 from .figurines.humans.npcs.townsperson import discover_townsfolk
+from .figurines.humans.npcs.homebody import Homebody, discover_homebodies
 from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .map_fog import FogOfWar
@@ -195,6 +196,11 @@ class TMXMap:
         self._tile_signature_cache: Dict[int, Optional[Tuple[float, float, float, int]]] = {}
         #: Front doors townsfolk come out of, from the "Doors" object layer.
         self.doors: List[Door] = []
+        #: Those who keep to one house (homebody.py), also in npcs.
+        self.homebodies: List[Homebody] = []
+        # The "Movements" layer's named objects, kept for the homebodies, who
+        # are placed only once the grid and the doors are there
+        self._movement_objects: Dict[str, Any] = {}
 
         self._load_houses()
         #: Where the woodhacking is played: the house object named "Stomp"
@@ -227,10 +233,15 @@ class TMXMap:
         )
         self.nav: NavGrid = NavGrid(self, figure_size)
         self._load_doors()
-        self.street_life: StreetLife = StreetLife(self.doors, townsfolk, self.nav)
+        self._load_homebodies()
+        # A homebody's door is his: nobody else is sent out of it or into it
+        taken = {homebody.door.id for homebody in self.homebodies}
+        self.street_life: StreetLife = StreetLife([door for door in self.doors if door.id not in taken],
+                                                  townsfolk, self.nav)
         # They are ordinary NPCs for drawing, clicking and updating; only the
         # decision to send them out is StreetLife's.
         self.npcs.extend(townsfolk)
+        self.npcs.extend(self.homebodies)
 
     def _index_for_drawing(self) -> None:
         """File the trees, crop sprites and window lights by where they are
@@ -865,6 +876,51 @@ class TMXMap:
                               f"blocked, or a walker would stand hidden behind something. "
                               f"Move the point in Tiled to use it.")
 
+    def _load_homebodies(self) -> None:
+        """Settle everyone whose profile names a home (homebody.py) at that building.
+
+        His door is the building's first on the "Doors" layer, his yard and
+        walks are his objects on the "Movements" layer (``<prefix>_Yard``,
+        ``<prefix>_Walk...``), and the ways between them are worked out on the
+        grid here, once. Someone whose building or door is not found is left
+        out, and says so.
+        """
+        for homebody in discover_homebodies(self.tile_size):
+            house = next((h for h in self.houses if h.name == homebody.home_name), None)
+            doors = getattr(house, "doors", None) if house is not None else None
+            if not doors:
+                print(f"{homebody.name}: no building '{homebody.home_name}' with a usable door; left out")
+                continue
+            prefix = homebody.tiled_prefix
+            yard_obj = self._movement_objects.get(f"{prefix}_Yard")
+            yard = self._movement_path(yard_obj) if yard_obj is not None else None
+            walks = [(obj.x, obj.y) for name, obj in sorted(self._movement_objects.items())
+                     if name.startswith(f"{prefix}_Walk")]
+            homebody.settle(doors[0], yard, walks, self._homebody_route)
+            self.homebodies.append(homebody)
+
+    def _homebody_route(self, start: Tuple[float, float],
+                        goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+        """A homebody's way between two points: straight where it is clear, else
+        round by the grid (whose route runs by the cells' centres, so a short
+        step would zig-zag)."""
+        if self.nav.has_line_of_sight(start, goal) or self._short_and_clear(start, goal):
+            return [start, goal]
+        return self.nav.find_route(start, goal)
+
+    def _short_and_clear(self, start: Tuple[float, float], goal: Tuple[float, float],
+                         max_tiles: float = 3.0) -> bool:
+        """Whether a short hop (a doorstep's to the yard) can be walked straight: every
+        point of it standable. The grid's line of sight asks for room round the line,
+        which a doorstep tucked against its wall never has."""
+        span = math.dist(start, goal)
+        if span > max_tiles * self.tile_size:
+            return False
+        samples = max(1, int(span / 2))
+        return all(self.is_standable(start[0] + (goal[0] - start[0]) * i / samples,
+                                     start[1] + (goal[1] - start[1]) * i / samples)
+                   for i in range(samples + 1))
+
     def _attach_door_to_house(self, door: Door) -> None:
         """Tell the building a door belongs to that it has that door.
 
@@ -931,6 +987,7 @@ class TMXMap:
                         )
                     elif obj.name:
                         objects_by_name[obj.name] = obj
+        self._movement_objects = objects_by_name
 
         stalls: Dict[str, List[Trader]] = {}
         for trader_class in self.TRADER_TYPES:

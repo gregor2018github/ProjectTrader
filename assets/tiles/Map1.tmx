@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="56" nextobjectid="1272">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="56" nextobjectid="1277">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -10967,6 +10967,18 @@
    <polyline points="0,0 0,-160 124,-160 124,-211"/>
   </object>
   <object id="923" name="Salter_Homeway_End" x="3132" y="2541">
+   <point/>
+  </object>
+  <object id="1273" name="Osric_Yard" x="2590" y="5572">
+   <polygon points="0,0 150,-2 152,20 58,26 56,78 2,80"/>
+  </object>
+  <object id="1274" name="Osric_Walk_1" x="2200" y="5496">
+   <point/>
+  </object>
+  <object id="1275" name="Osric_Walk_2" x="2620" y="5830">
+   <point/>
+  </object>
+  <object id="1276" name="Osric_Walk_3" x="2620" y="5380">
    <point/>
   </object>
  </objectgroup>

@@ -69,6 +69,8 @@ CLASS_BY_FOLDER_PREFIX = {
 
 #: Filename holding a townsperson's name and gender, in their sprite folder.
 PROFILE_FILE = "npc.json"
+#: A profile's key naming the one building its NPC keeps to (a homebody's).
+HOME_KEY = "home"
 
 # Where a townsperson is in their outing. STEPPING_OUT, ANSWERING and GOING_IN
 # are all spent standing at a door while the fade runs.
@@ -90,21 +92,18 @@ TURNING_IN = "Going back inside"
 ANSWERING_STATES = (STEPPING_UP, AT_THE_DOOR, TURNING_IN)
 
 
-def discover_townsfolk(tile_size: int) -> List['Townsperson']:
-    """Create one townsperson per sprite folder that holds an ``npc.json``.
+def read_profiles() -> List[Tuple[str, dict]]:
+    """Every sprite folder holding an ``npc.json``, with what it says.
 
     Trader folders have no profile file, so they are passed over here and
     placed from the Tiled "Movements" layer instead.
 
-    Args:
-        tile_size: Base tile size for scaling.
-
     Returns:
-        List: Everyone the artwork tree knows about, in folder order.
+        List: (folder name, profile) pairs, in folder order.
     """
-    townsfolk: List['Townsperson'] = []
+    profiles: List[Tuple[str, dict]] = []
     if not os.path.isdir(NPC_SPRITE_ROOT):
-        return townsfolk
+        return profiles
     for folder in sorted(os.listdir(NPC_SPRITE_ROOT)):
         profile_path = os.path.join(NPC_SPRITE_ROOT, folder, PROFILE_FILE)
         if not os.path.isfile(profile_path):
@@ -115,10 +114,30 @@ def discover_townsfolk(tile_size: int) -> List['Townsperson']:
         except (OSError, ValueError) as error:
             print(f"Skipping townsperson {folder}: {error}")
             continue
-        name = profile.get("name") or folder
-        gender = "female" if profile.get("gender") == "female" else "male"
-        townsfolk.append(Townsperson(folder, name, tile_size, gender))
-    return townsfolk
+        if isinstance(profile, dict):
+            profiles.append((folder, profile))
+    return profiles
+
+
+def profile_gender(profile: dict) -> str:
+    """"male" or "female", as a profile says; male if it says neither."""
+    return "female" if profile.get("gender") == "female" else "male"
+
+
+def discover_townsfolk(tile_size: int) -> List['Townsperson']:
+    """Create one townsperson per sprite folder that holds an ``npc.json``.
+
+    A profile naming a ``"home"`` is a homebody's, who keeps to that one house
+    (see homebody.py) and is not sent strolling through town.
+
+    Args:
+        tile_size: Base tile size for scaling.
+
+    Returns:
+        List: Everyone the artwork tree knows about, in folder order.
+    """
+    return [Townsperson(folder, profile.get("name") or folder, tile_size, profile_gender(profile))
+            for folder, profile in read_profiles() if not profile.get(HOME_KEY)]
 
 
 class Townsperson(NPC):
