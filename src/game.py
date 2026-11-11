@@ -32,7 +32,7 @@ from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
-from .models.intro import ADDRESS_TEXT, OBJECTIVE_TITLE, Intro, SCENES, find_shop_spot
+from .models.intro import Intro, SCENES, find_shop_spot
 from .ui.helper_modules.address_note import AddressNote
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
@@ -176,7 +176,7 @@ class Game:
         # Uncle Gared's shop (models/intro.py); a save says how far they got
         self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
         # Its address, folded at the top of the map until clicked (address_note.py)
-        self.address_note: AddressNote = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+        self.address_note: AddressNote = AddressNote()
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise]] = []

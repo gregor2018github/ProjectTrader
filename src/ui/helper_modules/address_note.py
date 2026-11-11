@@ -4,8 +4,7 @@ for his shop (``Intro.finding_shop``).
 It sits folded at the top of the map, a small glowing packet. A click on it
 unfolds it into a sheet: the packet comes down out of the item, its two side
 flaps open out, and the two lower panels fold down one after the other. The
-sheet shows the address in the uncle's hand and a little sketch of the way. The
-next click anywhere folds it up again, the same way back, so the town can be
+sheet shows only the map of the way drawn on it (``MAP_PICTURE``). The next click anywhere folds it up again, the same way back, so the town can be
 seen; the click does nothing else.
 
 Owned by ``Game`` as ``address_note``. ``begin_frame()`` each frame, then
@@ -16,11 +15,11 @@ click if it was drawn that frame.
 import math
 import os
 import random
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import pygame
 
-from ...config.constants import FONTS_PATH, PICTURES_PATH
+from ...config.constants import PICTURES_PATH
 from ..paper import draw_paper
 
 #: The folded packet at the top of the map: this picture, this high
@@ -33,7 +32,10 @@ GLOW_PERIOD_S = 1.8           # one pulse of its glow
 GLOW_REACH = 26               # how far the glow reaches out from the packet
 
 #: The unfolded sheet: three panels high and three flaps wide
-SHEET_SIZE = (540, 450)
+SHEET_SIZE = (600, 564)
+#: The map drawn on it, see-through around its lines, and its gap to the torn edge
+MAP_PICTURE = "map_prologue.png"
+MAP_MARGIN = 24
 UNFOLD_S = 0.75               # opening, in real seconds
 FOLD_S = 0.5                  # folding it up again
 #: Where each step of the unfolding ends, as a share of the whole: the packet
@@ -48,9 +50,6 @@ STAINS = 34
 ROUGH_PX = 7                  # how deep the torn edge bites in
 EDGE_INK = (58, 38, 22)       # the torn edge's outline
 PAPER_SEED = 1500             # the same tears and stains every time
-
-INK = (62, 40, 22)
-INK_FADED = (120, 88, 56)
 BACK_SHADE = 0.9              # the paper's back is a little darker than its front
 FLAP_SHADE = 0.72             # how dark a flap still standing up is
 
@@ -74,9 +73,8 @@ def phase_amounts(t: float) -> Tuple[float, float, float, float]:
 class AddressNote:
     """The folded address and its sheet (see the module)."""
 
-    def __init__(self, title: str, address: str) -> None:
-        self.title = title
-        self.address = address
+    def __init__(self, picture: str = MAP_PICTURE) -> None:
+        self.picture = picture
         self.state: str = FOLDED
         self.t: float = 0.0                   # 0 folded, 1 open
         self.item_rect: Optional[pygame.Rect] = None
@@ -88,7 +86,6 @@ class AddressNote:
         self._item: Optional[pygame.Surface] = None
         self._item_shadow: Optional[pygame.Surface] = None
         self._glow: Optional[pygame.Surface] = None
-        self._fonts: Dict[str, pygame.font.Font] = {}
 
     # --- State ----------------------------------------------------------------
 
@@ -245,15 +242,6 @@ class AddressNote:
 
     # --- The paper, made once per size ------------------------------------------
 
-    def _font(self, name: str, size: int) -> pygame.font.Font:
-        key = f"{name}{size}"
-        if key not in self._fonts:
-            try:
-                self._fonts[key] = pygame.font.Font(os.path.join(FONTS_PATH, name), size)
-            except (OSError, FileNotFoundError):
-                self._fonts[key] = pygame.font.SysFont("georgia", size)
-        return self._fonts[key]
-
     def _build(self, size: Tuple[int, int]) -> None:
         w, h = size
         f, p = w // 3, h // 3
@@ -266,8 +254,9 @@ class AddressNote:
         for y in (p, 2 * p):
             _crease(sheet, (0, y), (w, y), vertical=False)
         _cut_to(sheet, outline)
-        self._write(sheet, pygame.Rect(0, 0, w, p))
-        self._sketch(sheet, pygame.Rect(0, p, w, 2 * p))
+        drawing = _load_fitted(self.picture, (w - 2 * MAP_MARGIN, h - 2 * MAP_MARGIN))
+        if drawing is not None:
+            sheet.blit(drawing, drawing.get_rect(center=(w // 2, h // 2)))
         self._sheet = sheet
         self._sheet_shadow = _silhouette(sheet, (20, 10, 0), 80)
 
@@ -297,87 +286,6 @@ class AddressNote:
         for dx in (-1, 1):
             pygame.draw.ellipse(packet, twine, pygame.Rect(f // 2 + (dx - 1) * 10, p // 2 - 7, 20, 14), 2)
         return packet
-
-    def _write(self, sheet: pygame.Surface, panel: pygame.Rect) -> None:
-        """The address, in the uncle's hand, on the top panel."""
-        title_font = self._font("Augusta.ttf", 40)
-        font = self._font("RomanAntique.ttf", 22)
-        title = title_font.render(self.title, True, INK)
-        sheet.blit(title, title.get_rect(midtop=(panel.centerx, panel.top + 10)))
-        y = panel.top + 12 + title.get_height()
-        line_h = round(font.size("Tg")[1] * 1.15)
-        for line in _wrap(font, self.address, panel.width - 60):
-            text = font.render(line, True, INK)
-            sheet.blit(text, text.get_rect(midtop=(panel.centerx, y)))
-            y += line_h
-
-    def _sketch(self, sheet: pygame.Surface, area: pygame.Rect) -> None:
-        """A little drawing of the way, on the lower two panels: the docks at the top,
-        the market square to the south-west, the row of houses and his marked."""
-        label = self._font("RomanAntique.ttf", 18)
-        small = self._font("RomanAntique.ttf", 15)
-        w, h = area.size
-
-        def at(fx: float, fy: float) -> Tuple[int, int]:
-            return area.left + round(fx * w), area.top + round(fy * h)
-
-        # The docks and the water
-        for i in range(3):
-            y = 0.08 + 0.05 * i
-            pts = [at(0.06 + 0.02 * k, y + (0.012 if k % 2 else 0)) for k in range(13)]
-            pygame.draw.lines(sheet, INK_FADED, False, pts, 1)
-        pygame.draw.rect(sheet, INK, pygame.Rect(*at(0.12, 0.18), round(0.18 * w), round(0.03 * h)), 1)
-        for k in range(4):
-            x, y = at(0.14 + 0.045 * k, 0.21)
-            pygame.draw.line(sheet, INK, (x, y), (x, y + 6), 1)
-        text = label.render("Docks", True, INK)
-        sheet.blit(text, text.get_rect(midtop=at(0.21, 0.25)))
-
-        # The market square, with its stalls
-        square = pygame.Rect(*at(0.12, 0.66), round(0.24 * w), round(0.2 * h))
-        pygame.draw.rect(sheet, INK, square, 2)
-        for k in range(3):
-            stall = pygame.Rect(square.left + 10 + k * (square.width - 20) // 3, square.top + 10,
-                                (square.width - 40) // 3, square.height // 3)
-            pygame.draw.rect(sheet, INK_FADED, stall, 1)
-            pygame.draw.line(sheet, INK_FADED, stall.topleft, stall.bottomright, 1)
-        text = label.render("Market", True, INK)
-        sheet.blit(text, text.get_rect(midtop=(square.centerx, square.bottom + 4)))
-
-        # The row of houses, north-east of the square, his the middle one
-        houses = []
-        for k in range(5):
-            left, bottom = at(0.5 + 0.085 * k, 0.5)
-            body = pygame.Rect(left, bottom - 24, round(0.07 * w), 24)
-            pygame.draw.rect(sheet, INK, body, 1)
-            pygame.draw.polygon(sheet, INK, [(body.left - 2, body.top), (body.centerx, body.top - 14),
-                                             (body.right + 2, body.top)], 1)
-            pygame.draw.rect(sheet, INK, pygame.Rect(body.centerx - 3, body.bottom - 9, 6, 9), 1)
-            houses.append(body)
-        shop = houses[2]
-
-        # The way, dotted, from the docks to his door
-        way = [at(0.21, 0.33), at(0.3, 0.42), at(0.38, 0.56), (shop.centerx - 40, shop.bottom + 14),
-               (shop.centerx, shop.bottom + 4)]
-        _dotted(sheet, way, INK_FADED, 7)
-
-        # His door marked with a cross, and his name under it
-        cx, cy = shop.centerx, shop.bottom + 16
-        for dx in (-1, 1):
-            pygame.draw.line(sheet, (140, 32, 24), (cx - 7, cy - 7 * dx), (cx + 7, cy + 7 * dx), 3)
-        text = label.render("Gared", True, (140, 32, 24))
-        sheet.blit(text, text.get_rect(midtop=(cx, cy + 10)))
-
-        # North
-        nx, ny = at(0.9, 0.12)
-        pygame.draw.line(sheet, INK, (nx, ny + 18), (nx, ny - 14), 1)
-        pygame.draw.polygon(sheet, INK, [(nx, ny - 18), (nx - 5, ny - 8), (nx + 5, ny - 8)])
-        text = small.render("N", True, INK)
-        sheet.blit(text, text.get_rect(midtop=(nx, ny + 20)))
-
-        hint = small.render("Click anywhere to fold it away", True, INK_FADED)
-        sheet.blit(hint, hint.get_rect(bottomright=(area.right - 14, area.bottom - 10)))
-
 
 def _torn_outline(size: Tuple[int, int], rng: random.Random) -> List[Tuple[int, int]]:
     """The sheet's torn edge: a polygon wandering up to ``ROUGH_PX`` in from each
@@ -443,16 +351,19 @@ def _crease(surface: pygame.Surface, start: Tuple[int, int], end: Tuple[int, int
                      (end[0] + shift[0], end[1] + shift[1]), 1)
 
 
-def _dotted(surface: pygame.Surface, points: List[Tuple[int, int]], color, gap: int) -> None:
-    carry = 0.0
-    for (x0, y0), (x1, y1) in zip(points, points[1:]):
-        length = math.hypot(x1 - x0, y1 - y0)
-        d = carry
-        while d < length:
-            k = d / length
-            pygame.draw.circle(surface, color, (round(x0 + (x1 - x0) * k), round(y0 + (y1 - y0) * k)), 2)
-            d += gap
-        carry = d - length
+def _load_fitted(name: str, size: Tuple[int, int]) -> Optional[pygame.Surface]:
+    """The picture cut to what is drawn on it and scaled to fit ``size``; None if
+    it cannot be loaded."""
+    try:
+        picture = pygame.image.load(os.path.join(PICTURES_PATH, name))
+        picture = picture.convert_alpha() if pygame.display.get_surface() else picture
+    except (pygame.error, FileNotFoundError, OSError):
+        print(f"Address note: cannot load {name}")
+        return None
+    picture = picture.subsurface(picture.get_bounding_rect())
+    w, h = picture.get_size()
+    k = min(size[0] / w, size[1] / h)
+    return pygame.transform.smoothscale(picture, (max(1, round(w * k)), max(1, round(h * k))))
 
 
 def _load_picture(name: str, height: int) -> Optional[pygame.Surface]:
@@ -489,13 +400,3 @@ def _glow_surface(picture: pygame.Surface, reach: int) -> pygame.Surface:
     glow = pygame.transform.smoothscale(small, size)
     glow.fill((255, 255, 255, 200), special_flags=pygame.BLEND_RGBA_MULT)
     return glow
-
-
-def _wrap(font: pygame.font.Font, text: str, width: int) -> List[str]:
-    lines: List[str] = []
-    for word in text.split():
-        if lines and font.size(f"{lines[-1]} {word}")[0] <= width:
-            lines[-1] = f"{lines[-1]} {word}"
-        else:
-            lines.append(word)
-    return lines

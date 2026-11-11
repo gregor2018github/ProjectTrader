@@ -3,7 +3,7 @@
 A new game opens on the docks (``START_X_POSITION``, ``START_Y_POSITION``) with
 the story teller's first scene. Its answer, "Follow the Address", hands the
 player back the map: they walk into town themselves, guided by the address on
-their slip of paper (``ADDRESS_TEXT``, folded at the top of the map and
+their slip of paper (a map drawn on it, folded at the top of the map and
 unfolded with a click, ``ui/helper_modules/address_note.py``) and golden rings on
 the doorstep of the shop. Standing within ``ARRIVAL_REACH_TILES`` of that
 doorstep plays the rest of the story, the shop, the uncle and the hug, and the
@@ -31,9 +31,6 @@ SHOP_POINT = (5678.0, 3760.0)
 SHOP_DOOR_SEARCH_TILES = 2.0
 #: How near the doorstep the player's feet must come for the uncle's scene
 ARRIVAL_REACH_TILES = 1.5
-
-OBJECTIVE_TITLE = "Uncle Gared"
-ADDRESS_TEXT = "Gared, merchant – the long row of houses north-east of the market square, the middle door."
 
 
 @dataclass(frozen=True)

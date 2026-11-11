@@ -9,7 +9,6 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
-from src.models.intro import ADDRESS_TEXT, OBJECTIVE_TITLE
 from src.ui.helper_modules import address_note as mod
 from src.ui.helper_modules.address_note import FOLDED, FOLDING, OPEN, UNFOLDING, AddressNote, phase_amounts
 
@@ -36,7 +35,7 @@ def _drawn(note):
 
 
 def test_a_click_on_the_item_unfolds_it_and_any_click_folds_it_again():
-    note = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+    note = AddressNote()
     _drawn(note)
     assert note.state == FOLDED
     assert not note.handle_click((AREA.left + 5, AREA.bottom - 5))   # elsewhere: the game's
@@ -51,7 +50,7 @@ def test_a_click_on_the_item_unfolds_it_and_any_click_folds_it_again():
 
 
 def test_a_click_while_unfolding_folds_it_back_from_where_it_got():
-    note = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+    note = AddressNote()
     _drawn(note)
     note.handle_click(note.item_rect.center)
     note.update(mod.UNFOLD_S / 2)
@@ -60,7 +59,7 @@ def test_a_click_while_unfolding_folds_it_back_from_where_it_got():
 
 
 def test_no_click_is_taken_unless_it_was_drawn_this_frame():
-    note = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+    note = AddressNote()
     _drawn(note)
     note.begin_frame()                          # not drawn: the map is hidden, or the intro is over
     assert not note.handle_click(note.item_rect.center)
@@ -76,7 +75,7 @@ def test_the_steps_follow_one_another():
 
 @pytest.mark.parametrize("t", [0.0, 0.05, 0.2, 0.3, 0.4, 0.6, 0.9, 1.0])
 def test_every_moment_of_the_unfolding_draws_within_the_map(t):
-    note = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+    note = AddressNote()
     note.state, note.t = (UNFOLDING if 0 < t < 1 else OPEN if t == 1 else FOLDED), t
     note.update = lambda dt: None
     _drawn(note)
@@ -85,7 +84,7 @@ def test_every_moment_of_the_unfolding_draws_within_the_map(t):
 
 
 def test_the_item_is_the_parcel_picture_cut_to_its_shape():
-    note = AddressNote(OBJECTIVE_TITLE, ADDRESS_TEXT)
+    note = AddressNote()
     _drawn(note)
     assert note.item_rect.height == mod.ITEM_HEIGHT
     assert note.item_rect.width < 2 * mod.ITEM_HEIGHT     # the stray speck in its corner left out
