@@ -66,13 +66,20 @@ class FishingSpot:
 
     def draw(self, screen: pygame.Surface, camera: 'Camera', offset_x: int, offset_y: int, seconds: float) -> None:
         """The golden rings, flat on the water, if they are in view."""
-        centre_x, centre_y = camera.apply(self.x, self.y)
-        reach = _RING_MAX_RADIUS * camera.zoom + 2
-        if not (-reach <= centre_x <= camera.screen_width + reach and -reach <= centre_y <= camera.screen_height + reach):
-            return
-        width = max(2, round(camera.zoom * 1.5))
-        for radius, alpha in self.rings(seconds):
-            radius_px = round(radius * camera.zoom)
-            if radius_px >= 3 and alpha >= _ALPHA_STEP:
-                surface = _ring_surface(radius_px, alpha, width)
-                screen.blit(surface, surface.get_rect(center=(round(centre_x) + offset_x, round(centre_y) + offset_y)))
+        draw_rings(screen, camera, self.x, self.y, offset_x, offset_y, seconds)
+
+
+def draw_rings(screen: pygame.Surface, camera: 'Camera', x: float, y: float,
+               offset_x: int, offset_y: int, seconds: float) -> None:
+    """Golden rings spreading flat from the world point (x, y), if it is in view:
+    a fishing spot's, or the uncle's doorstep in the intro."""
+    centre_x, centre_y = camera.apply(x, y)
+    reach = _RING_MAX_RADIUS * camera.zoom + 2
+    if not (-reach <= centre_x <= camera.screen_width + reach and -reach <= centre_y <= camera.screen_height + reach):
+        return
+    width = max(2, round(camera.zoom * 1.5))
+    for radius, alpha in FishingSpot.rings(seconds):
+        radius_px = round(radius * camera.zoom)
+        if radius_px >= 3 and alpha >= _ALPHA_STEP:
+            surface = _ring_surface(radius_px, alpha, width)
+            screen.blit(surface, surface.get_rect(center=(round(centre_x) + offset_x, round(centre_y) + offset_y)))

@@ -1239,6 +1239,8 @@ class GameMap:
             START_Y_POSITION,
             self.tmx_map.tile_size
         )
+        # A new game starts with the player's feet on the docks (a save puts them back where they were)
+        self.map_player.place_feet(START_X_POSITION, START_Y_POSITION)
 
         # Transient VFX (e.g. splash ripples from thrown stones) — not part of the
         # static TMX data, so they live on GameMap rather than TMXMap.

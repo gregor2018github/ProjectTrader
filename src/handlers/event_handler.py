@@ -63,6 +63,17 @@ class EventHandler:
             game_state.game.sound_control.handle_music_end_event(game_state.game)
             return self.running
 
+        # A story dialogue takes the keys: Enter or Space go on, nothing else
+        # (Space would otherwise start the clock under it)
+        dialogue = getattr(game_state, 'dialogue', None)
+        if dialogue and event.type in (pygame.KEYDOWN, pygame.KEYUP):
+            if event.type == pygame.KEYDOWN and not game_state.info_window:
+                answer = dialogue.handle_key(event)
+                if answer:
+                    from ..ui.helper_modules.dialogue import answer_dialogue
+                    answer_dialogue(game_state, answer)
+            return self.running
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_q and not game_state.info_window:
                 game_state.info_window = InfoWindow(game_state.screen,

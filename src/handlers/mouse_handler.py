@@ -133,46 +133,8 @@ def handle_mouse_click(pos: Tuple[int, int],
     if hasattr(game_state, 'dialogue') and game_state.dialogue:
         result = game_state.dialogue.handle_click(pos)
         if result:
-            if result == "Follow the Address":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_shop",  # Use picture parameter
-                    "Story Teller",       # Use npc_name parameter
-                    """You make your way through the sleepy town and eventually enter a cramped but well-organized shop nestled between the cobbler and the blacksmith. The old trader's eyes light up with recognition as you approach.""",
-                    ["What a journey!"],
-                    "story_teller_2"  # Sound to play
-                )                
-            elif result == "What a journey!":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_merchant",  # Use picture parameter
-                    "Old Merchant",       # Use npc_name parameter
-                    """By the Saints, is that you? After all these years! Look how you've grown since I last saw you in Eastmere. Your father's letter said you were coming, but I hardly believed it. Welcome to Blackwater Harbor, Kid!""",
-                    ["Give him a hug"],
-                    "merchant_1"  # Sound to play
-                )
-            elif result == "Give him a hug":
-                # Create a new follow-up dialogue
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_merchant",  # Use picture parameter
-                    "Story Teller",        # Use npc_name parameter
-                    """Uncle Gared pulls you into a quick embrace before stepping back, his hands trembling slightly as he leans on his gnarled oak staff. He calmly smiles at you.""",
-                    ["I will help you!"],
-                    "story_teller_3"  # Sound to play
-                )                 
-            else:
-                # Close the dialogue
-                game_state.dialogue = None
-                game_state.time_level = game_state.previous_time_level
+            from ..ui.helper_modules.dialogue import answer_dialogue
+            answer_dialogue(game_state, result)
         # Always return when dialogue is active - block all other UI interactions
         return
 
@@ -291,20 +253,6 @@ def handle_mouse_click(pos: Tuple[int, int],
                                                   ["Back", "Quit"], 
                                                   game_state.font,
                                                   game_state.game)  # Pass game reference
-            elif menu_action == "Demo":
-                game_state.previous_time_level = game_state.time_level
-                game_state.time_level = 1
-                from ..ui.helper_modules.dialogue import show_dialogue
-                game_state.dialogue = show_dialogue(
-                    game_state.screen,
-                    game_state.game,
-                    "portrait_harbor",      # picture parameter
-                    "Story Teller",         # npc_name parameter
-                    "With nothing but hopes and an address scribbled on a small piece of paper, you step off the creaking gangplank onto the bustling docks of Blackwater Harbor, your future uncertain but full of promise.",
-                    ["Follow the Address"],
-                    "story_teller_1"        # Sound to play
-                )
-                return
             elif menu_action == "Main Menu":
                 game_state.info_window = InfoWindow(game_state.screen,
                                                   "Return to main menu?",

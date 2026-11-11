@@ -114,7 +114,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -223,6 +223,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "weather": weather.to_save() if weather is not None else None,
         # Loaded by MerchantRank.load, missing means the first rank
         "merchant_rank": merchant_rank.to_save() if merchant_rank is not None else None,
+        # How far the intro has got (models/intro.py); a save without it has had it
+        "intro": intro.to_save() if intro is not None else None,
     }
 
 
@@ -230,11 +232,11 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
 # Public API
 # ---------------------------------------------------------------------------
 
-def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None) -> None:
+def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT)."""
     os.makedirs(SAVES_PATH, exist_ok=True)
-    data = _serialize_game(game_state, player, depot, goods, save_name, sim, fog, weather, merchant_rank)
+    data = _serialize_game(game_state, player, depot, goods, save_name, sim, fog, weather, merchant_rank, intro)
     blob = _pack(data)
     with open(_slot_path(slot), "wb") as f:
         f.write(blob)

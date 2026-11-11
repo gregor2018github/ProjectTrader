@@ -1,5 +1,5 @@
 import pygame
-from typing import Dict, List, Optional, Tuple, Any, TYPE_CHECKING
+from typing import Callable, Dict, List, Optional, Tuple, Any, TYPE_CHECKING
 from ...config.colors import *
 from ..ui_utils import draw_9slice
 from ..text_reveal import LetterReveal
@@ -39,6 +39,8 @@ class Dialogue:
         self.font: pygame.font.Font = game.font
         self.active: bool = True
         self.result: Optional[str] = None  # Will store the selected answer
+        # Called with the answer picked (see answer_dialogue); without one the dialogue just closes
+        self.on_answer: Optional[Callable[[str], None]] = None
 
         # first stop all sounds that are still running
         pygame.mixer.stop()
@@ -260,6 +262,32 @@ class Dialogue:
                 return answer
         
         return None
+
+    def handle_key(self, event: pygame.event.Event) -> Optional[str]:
+        """Enter or Space finishes the text, then picks the answer if there is only one."""
+        if not self.active or event.type != pygame.KEYDOWN:
+            return None
+        if event.key not in (pygame.K_RETURN, pygame.K_KP_ENTER, pygame.K_SPACE):
+            return None
+        if not self.is_text_complete:
+            self.skip_text_animation()
+            return None
+        if len(self.buttons) == 1:
+            self.result = self.buttons[0][1]
+            self.active = False
+            return self.result
+        return None
+
+
+def answer_dialogue(game_state: Any, answer: str) -> None:
+    """Act on the answer picked in the open dialogue: its ``on_answer`` decides
+    what follows, or else the dialogue closes and the clock runs on as before."""
+    dialogue = game_state.dialogue
+    if dialogue is not None and dialogue.on_answer is not None:
+        dialogue.on_answer(answer)
+        return
+    game_state.dialogue = None
+    game_state.time_level = game_state.previous_time_level
 
 
 # Helper function to create and show a dialogue

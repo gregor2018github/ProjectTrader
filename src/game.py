@@ -32,6 +32,7 @@ from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
+from .models.intro import Intro, SCENES, find_shop_spot
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
@@ -170,6 +171,10 @@ class Game:
         # Initial check for area
         self._update_player_market_area()
 
+        # A new game starts on the docks with the story, and the player goes to find
+        # Uncle Gared's shop (models/intro.py); a save says how far they got
+        self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
+
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise]] = []
 
@@ -272,6 +277,7 @@ class Game:
         # The crops follow the calendar, so they need nothing from the save (older saves' "fields" is ignored)
         self.game_map.tmx_map.update_crops(self.state.date)
         self.merchant_rank.load(save_data.get("merchant_rank"))
+        self.intro.load(save_data.get("intro"))
         self.restore_owned_buildings()
         self._update_player_market_area()
         self.state.sync_quicktrade_fields()  # the saved fields may predate per-market slots
@@ -531,6 +537,38 @@ class Game:
         state.time_level = 1
         state.info_window = window
 
+    def _update_intro(self) -> None:
+        """Open the intro's next scene once it is due (the harbour's at the start,
+        the shop's at its door) and nothing else has the player's attention."""
+        state = self.state
+        if (state.dialogue or state.info_window or state.minigame or state.contract_acquisition
+                or self._pending_notices or getattr(state, "menu_fade_window", None)):
+            return
+        scene = self.intro.scene_due(self.game_map.map_player.feet)
+        if scene is None:
+            return
+        self.game_map.map_player.set_movement(0.0, 0.0)
+        state.previous_time_level = state.time_level if state.time_level > 1 else 3
+        state.time_level = 1
+        self._show_intro_scene(scene)
+
+    def _show_intro_scene(self, name: str) -> None:
+        from .ui.helper_modules.dialogue import show_dialogue
+        scene = SCENES[name]
+        dialogue = show_dialogue(self.screen, self, scene.picture, scene.speaker, scene.text,
+                                 [scene.answer], scene.sound)
+        dialogue.on_answer = self._intro_answered
+        self.state.dialogue = dialogue
+
+    def _intro_answered(self, _answer: str) -> None:
+        """The scene on screen was answered: the next one, or back to the game."""
+        following = self.intro.answered()
+        if following is not None:
+            self._show_intro_scene(following)
+            return
+        self.state.dialogue = None
+        self.state.time_level = self.state.previous_time_level
+
     def run(self) -> Optional[str]:
         """Execute the main game loop, handling updates, rendering, and events."""
         running = True
@@ -662,6 +700,7 @@ class Game:
                         self._pending_notices.append(rise)
 
                 self._show_next_notice()
+                self._update_intro()
 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []
@@ -983,7 +1022,7 @@ class Game:
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
-                  merchant_rank=self.merchant_rank)
+                  merchant_rank=self.merchant_rank, intro=self.intro)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

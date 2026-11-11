@@ -277,8 +277,8 @@ MARKET_LOOPS = ("amb_town_market_A_loop", "amb_town_market_B_loop")
 # blended linearly: one house on its own comes to 1 at most, so it stays silent; it gives way to a market's crowd
 STREETS_BY_HOUSES = ((1.4, 0.0), (2.5, 0.1), (4.0, 0.18))
 MAP_START_ZOOM = 1.75                 # Initial zoom level for the map view (bigger = zoomed in)
-START_X_POSITION = 4308               # Player starting X position on the map
-START_Y_POSITION = 4553               # Player starting Y position on the map
+START_X_POSITION = 4450               # Where a new game's player stands (feet), on the harbour's docks: X
+START_Y_POSITION = 1992               # ... and Y (the intro, models/intro.py, starts there)
 FOG_REVEAL_RADIUS_TILES = 7.0         # Fog of war: land within this many tiles of the player is fully revealed
 FOG_FADE_TILES = 3.0                  # Fog of war: beyond that radius, revealing fades out over this many tiles
 FOG_CELLS_PER_TILE = 4                # Fog of war: explored cells per tile each way (finer = rounder edge)

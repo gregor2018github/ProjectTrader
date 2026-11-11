@@ -132,6 +132,7 @@ class GameState:
         self.active_dropdown: Optional['Dropdown'] = None  # Stores the currently open dropdown
         self.dropdowns: Dict[str, Any] = {}  # Stores all dropdown instances
         self.info_window: Optional['InfoWindow'] = None  # For modal dialogs like quit confirmation
+        self.dialogue: Optional[Any] = None  # A story dialogue with a portrait (ui/helper_modules/dialogue.py), e.g. the intro's
         self.warning: Optional[WarningMessage] = None      # For warning messages
         self.cursor_visible: bool = True
         self.cursor_timer: int = 0
