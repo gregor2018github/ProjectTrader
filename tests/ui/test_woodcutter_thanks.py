@@ -25,6 +25,7 @@ from src.models.statistics import Statistics
 from src.models.thanks import THANKS
 from src.ui.helper_modules.figurine_bubbles import FigurineConversation
 from src.ui.helper_modules.figurine_talks import open_thanks, waiting_thanks
+from src.ui.transaction_feedback import GoodsPopup
 
 TODAY = datetime.datetime(1500, 1, 4, 10)
 THANKS_FOR_FATHER = THANKS["woodcutter_father"]
@@ -49,7 +50,7 @@ def state(son):
     state = SimpleNamespace(date=TODAY, screen=pygame.display.get_surface(), font=pygame.font.Font(None, 20),
                             info_window=None, active_house_menu=None, is_map_visible=True,
                             menu_fade_window=None, menu_fade_timer=0, menu_fade_duration=0.2,
-                            warnings=warnings, events=events,
+                            warnings=warnings, events=events, coin_popups=[],
                             show_warning=warnings.append, log_event=lambda c, t: events.append((c, t)))
     state.game = SimpleNamespace(depot=depot, player=Player(name="Tester", cost_of_living=0),
                                  game_map=SimpleNamespace(camera=camera, map_player=player,
@@ -97,6 +98,7 @@ def test_accepting_puts_three_logs_in_the_storage_and_ends_it(state, son):
     depot = state.game.depot
     assert depot.good_stock["Wood"] == 3 and depot.money == 100
     assert state.events and state.events[0][0] == "TRADE"
+    assert [type(p) for p in state.coin_popups] == [GoodsPopup]   # "+3" and the wood, rising
     assert isinstance(state.info_window, FigurineConversation)      # his last words
     answer(state, "Farewell")
     assert state.info_window is None
@@ -109,6 +111,7 @@ def test_no_thanks_needed_takes_nothing_and_ends_it(state, son):
     answer(state, "No thanks needed!")
     assert state.game.depot.good_stock["Wood"] == 0
     assert state.game.player.reputation == THANKS_FOR_FATHER.reputation > 0
+    assert state.coin_popups == []
     assert waiting_thanks(state, son) is None
 
 
@@ -140,7 +143,7 @@ def test_without_room_for_the_logs_nothing_is_taken_and_he_asks_again(state, son
     depot.pack_slots[:] = [{"good": "Stone", "qty": 1} for _ in depot.pack_slots]
     open_thanks(state, son, THANKS_FOR_FATHER, THANKS_FOR_FATHER.first, VIEW)
     answer(state, "Accept his gift")
-    assert state.warnings and depot.good_stock["Wood"] == 0
+    assert state.warnings and depot.good_stock["Wood"] == 0 and state.coin_popups == []
     assert state.info_window is None
     assert waiting_thanks(state, son) is THANKS_FOR_FATHER
 

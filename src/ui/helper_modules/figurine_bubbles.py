@@ -14,8 +14,9 @@ from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 import pygame
 
 from ...config.colors import DARK_BROWN, BLACK, GOLD
-from ...config.constants import FONTS_PATH, PICTURES_PATH
+from ...config.constants import FONTS_PATH
 from ..text_reveal import LetterReveal
+from ..transaction_feedback import good_icon
 from .house_click_menu import is_player_near
 
 if TYPE_CHECKING:
@@ -59,21 +60,7 @@ _badge_icons: Dict[str, pygame.Surface] = {}
 
 def good_badge_icon(good_name: str) -> pygame.Surface:
     """A good's picture at badge size: its cut-out icon, or its 30px one."""
-    key = f"good:{good_name}"
-    if key not in _badge_icons:
-        image = None
-        for name in (f"{good_name.lower()}_icon.png", f"{good_name.lower()}_30.png"):
-            path = os.path.join(PICTURES_PATH, name)
-            if os.path.isfile(path):
-                image = pygame.image.load(path)
-                break
-        if image is None:
-            image = pygame.Surface((BADGE_ICON_SIZE, BADGE_ICON_SIZE), pygame.SRCALPHA)
-        w, h = image.get_size()
-        scale = BADGE_ICON_SIZE / max(w, h)
-        _badge_icons[key] = pygame.transform.smoothscale(
-            image, (max(1, round(w * scale)), max(1, round(h * scale))))
-    return _badge_icons[key]
+    return good_icon(good_name, BADGE_ICON_SIZE)
 
 
 def reputation_badge_icon() -> pygame.Surface:

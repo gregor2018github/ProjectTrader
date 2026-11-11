@@ -24,6 +24,7 @@ from ...models.thanks import Thanks, thanks_for
 from .figurine_bubbles import (
     Badge, FigurineConversation, FigurineSpeech, good_badge_icon, reputation_badge_icon,
 )
+from ..transaction_feedback import on_goods_received
 from .house_click_menu import minigame_introduced, open_woodhacking, woodhacking_available  # noqa: F401
 
 if TYPE_CHECKING:
@@ -158,7 +159,8 @@ def _earn_modesty(game_state: 'GameState', npc: 'NPC', thanks: Thanks) -> None:
 
 
 def _take_gift(game_state: 'GameState', npc: 'NPC', thanks: Thanks) -> bool:
-    """Put the gift into the player's storage or pack; False, with a warning, without room for it."""
+    """Put the gift into the player's storage or pack, with its "+3" rising over the cursor;
+    False, with a warning, without room for it."""
     depot = game_state.game.depot
     goods = list(thanks.gift.items())
     if any(depot.room_to_receive(name) < quantity for name, quantity in goods):
@@ -168,5 +170,6 @@ def _take_gift(game_state: 'GameState', npc: 'NPC', thanks: Thanks) -> bool:
     for name, quantity in goods:
         depot.receive_goods(name, quantity, game_state.date)
         game_state.log_event("TRADE", f"Received {quantity}× {name} from {npc.display_name}, a gift")
+    on_goods_received(game_state, thanks.gift)
     return True
 
