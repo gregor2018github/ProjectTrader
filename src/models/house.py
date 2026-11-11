@@ -103,6 +103,10 @@ class House:
             final_width, 
             final_height
         )
+        #: The rects that block: the collision box, or its two halves either side
+        #: of a gap one may walk through (set_collision_gap). collision_rect stays
+        #: the whole box, for distances, doors and the town plan.
+        self.collision_rects: List[pygame.Rect] = [self.collision_rect]
         self.associated_lights = []
         #: Front doors sitting in this building, filled in by TMXMap once the
         #: "Doors" layer is parsed. Whoever lives behind one lives here.
@@ -147,6 +151,25 @@ class House:
                 target_light.start_hour = hour - 0.1
                 target_light.end_hour = hour + 5.0 
                 target_light._surface_cache.clear()
+
+    def set_collision_gap(self, left_pixel: float, width_pixel: float) -> None:
+        """Open a passage through the collision box, as under an archway.
+
+        Args:
+            left_pixel: Where the gap starts, in sprite pixels from the
+                object's left edge (scaled with the sprite, as the margins are).
+            width_pixel: How wide it is, in sprite pixels. 0 leaves the box whole.
+        """
+        box = self.collision_rect
+        if width_pixel <= 0:
+            self.collision_rects = [box]
+            return
+        gap_left = round(self.x + left_pixel * self.scale)
+        gap_right = round(self.x + (left_pixel + width_pixel) * self.scale)
+        self.collision_rects = [rect for rect in (
+            pygame.Rect(box.left, box.top, gap_left - box.left, box.height),
+            pygame.Rect(gap_right, box.top, box.right - gap_right, box.height),
+        ) if rect.width > 0]
 
     def _load_image(self) -> None:
         """Load the house image from assets."""

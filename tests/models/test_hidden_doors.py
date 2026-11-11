@@ -22,13 +22,14 @@ FIGURE = (32, 54)
 
 
 class FakeHouse:
-    """What NavGrid and _light_owner read of a house: its sprite, base and collision box."""
+    """What NavGrid and _light_owner read of a house: its sprite, base and collision box (or boxes)."""
 
     def __init__(self, x, y, width, height, collision, name=''):
         self.x, self.y = x, y
         self.image = pygame.Surface((width, height), pygame.SRCALPHA)
         self.image.fill((120, 100, 80, 255))
         self.collision_rect = pygame.Rect(collision)
+        self.collision_rects = [self.collision_rect]   # no archway
         self.tile_size = TILE
         self.name = name
 

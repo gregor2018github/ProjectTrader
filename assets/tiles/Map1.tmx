@@ -12181,10 +12181,12 @@
   </object>
   <object id="1091" name="House_28" type="House_Frontal" x="3808" y="4064">
    <properties>
+    <property name="Col_gap_left_pixel" type="int" value="360"/>
+    <property name="Col_gap_width_pixel" type="int" value="68"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-70"/>
     <property name="Col_margin_right_pixel" type="int" value="-39"/>
-    <property name="Col_margin_up_pixel" type="int" value="-48"/>
+    <property name="Col_margin_up_pixel" type="int" value="-58"/>
     <property name="Collision_to_right" type="int" value="30"/>
     <property name="Collision_up" type="int" value="4"/>
     <property name="Display_name" value="The Golden Sheaf"/>

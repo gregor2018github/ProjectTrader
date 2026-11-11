@@ -127,7 +127,8 @@ class NavGrid:
             tmx_map: The loaded map.
         """
         for house in tmx_map.houses:
-            self._block_rect(house.collision_rect)
+            for rect in house.collision_rects:   # an archway's gap stays open
+                self._block_rect(rect)
         for tree in tmx_map.trees:
             self._block_rect(tree.collision_rect)
 

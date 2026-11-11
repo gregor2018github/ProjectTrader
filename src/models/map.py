@@ -667,6 +667,9 @@ class TMXMap:
                             house_class=obj_class,
                             scale=float(obj.properties.get('Scale', 1.0)),
                         )
+                    # A passage through the building (an archway): two collision boxes either side
+                    house.set_collision_gap(float(obj.properties.get('Col_gap_left_pixel', 0)),
+                                            float(obj.properties.get('Col_gap_width_pixel', 0)))
                     house.display_name = obj.properties.get('Display_name', '')
                     house.tavern_class = str(obj.properties.get('Tavern', '')).strip().lower()
                     self.houses.append(house)
@@ -1093,7 +1096,7 @@ class TMXMap:
             rect: The rectangle to test, in world pixels.
         """
         for house in self.houses:
-            if house.collision_rect.colliderect(rect):
+            if rect.collidelist(house.collision_rects) >= 0:
                 return True
         for tree in self.trees:
             if tree.collision_rect.colliderect(rect):
