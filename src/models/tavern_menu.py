@@ -3,19 +3,24 @@
 Each dish there has a class (low, middle or high: which kind of tavern serves
 it), a course, whether it has meat and its price in coins. A tavern's class is the `Tavern`
 property on its building in Tiled. Its menu is drawn anew each day from the
-dishes of its class, `MENU_COURSES` of each course, the same all day and
+dishes of its class: `MENU_SIZE` dishes (2 or 3), the first a main dish
+(`HEARTY_COURSES`) and the rest each from another course, the same all day and
 different from tavern to tavern. On fast days, every Friday and Lent (both by the
 game calendar, `game_calendar.is_fast_day`), no meat is served.
+
+A dish may have a picture, `assets/pictures/dish_<name in snake case>.png`
+(`dish_picture_path`), shown when the player orders it.
 """
 
 import csv
 import datetime
 import os
 import random
+import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from ..config.constants import MAIN_PATH
+from ..config.constants import MAIN_PATH, PICTURES_PATH
 from ..sim.calendar import is_fast_day
 
 DISHES_PATH = os.path.join(MAIN_PATH, "assets", "texts", "taverns", "dishes.csv")
@@ -31,12 +36,11 @@ COURSES: Tuple[Tuple[str, str], ...] = (
     ("drink", "To Drink"),
 )
 
-# How many dishes of each course a tavern of each class offers a day
-MENU_COURSES: Dict[str, Dict[str, int]] = {
-    "low": {"pottage": 1, "main": 1, "side": 1, "sweet": 1, "drink": 2},
-    "middle": {"pottage": 1, "main": 2, "side": 1, "sweet": 1, "drink": 2},
-    "high": {"pottage": 2, "main": 3, "side": 1, "sweet": 2, "drink": 2},
-}
+# How many dishes a tavern offers a day, drawn anew each day between the two
+MENU_SIZE: Tuple[int, int] = (2, 3)
+
+# The courses the first dish of the day comes from, the first with something on offer
+HEARTY_COURSES: Tuple[str, ...] = ("main", "pottage")
 
 
 @dataclass(frozen=True)
@@ -82,25 +86,41 @@ def all_dishes() -> List[Dish]:
     return _dishes
 
 
+def dish_key(dish: Dish) -> str:
+    """The dish's name in snake case, as its picture's file is named and the tried dishes are kept."""
+    return re.sub(r"[^a-z0-9]+", "_", dish.name.lower()).strip("_")
+
+
+def dish_picture_path(dish: Dish) -> str:
+    """Where the dish's picture would be; it need not exist."""
+    return os.path.join(PICTURES_PATH, f"dish_{dish_key(dish)}.png")
+
+
 def daily_menu(day: datetime.date, tavern_class: str, tavern_key: str,
                dishes: Optional[List[Dish]] = None) -> List[Tuple[str, List[Dish]]]:
-    """The courses a tavern offers on a day, each with its dishes, in menu order.
+    """The courses a tavern offers on a day, each with its dish, in menu order.
 
-    tavern_key tells taverns of the same class apart, so they do not all serve
-    the same. A course with fewer dishes on offer than asked for gets them all;
-    one with none is left out.
+    Between `MENU_SIZE`'s two dishes: one from the first of `HEARTY_COURSES`
+    with something on offer, the rest each from another course (never two of a
+    course). tavern_key tells taverns of the same class apart, so they do not
+    all serve the same. Fewer courses on offer than wanted give fewer dishes.
     """
     if dishes is None:
         dishes = all_dishes()
     fasting = is_fast_day(day)
     rng = random.Random(f"{day.isoformat()}:{tavern_key}")
-    menu = []
+    offers = {}
     for course, _heading in COURSES:
-        wanted = MENU_COURSES.get(tavern_class, {}).get(course, 0)
         offer = [dish for dish in dishes
                  if dish.tavern_class == tavern_class and dish.course == course
                  and not (fasting and dish.meat)]
-        chosen = rng.sample(offer, min(wanted, len(offer)))
-        if chosen:
-            menu.append((course, chosen))
-    return menu
+        if offer:
+            offers[course] = offer
+    if not offers:
+        return []
+    size = rng.randint(*MENU_SIZE)
+    hearty = next((course for course in HEARTY_COURSES if course in offers), None)
+    others = [course for course in offers if course != hearty]
+    courses = ([hearty] if hearty else []) + rng.sample(others, min(len(others), size - (1 if hearty else 0)))
+    chosen = {course: rng.choice(offers[course]) for course in courses}
+    return [(course, [chosen[course]]) for course, _heading in COURSES if course in chosen]

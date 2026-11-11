@@ -6,12 +6,10 @@ import pytest
 
 from src.models import tavern_menu
 from src.sim.calendar import EPOCH
-from src.models.tavern_menu import COURSES, TAVERN_CLASSES, Dish, daily_menu, load_dishes
-
-# Pinned so that changing how much a tavern serves does not break the tests
-MENU = {
-    "middle": {"pottage": 1, "main": 2, "side": 0, "sweet": 0, "drink": 1},
-}
+from src.models.statistics import Statistics
+from src.models.tavern_menu import (
+    COURSES, TAVERN_CLASSES, Dish, daily_menu, dish_key, dish_picture_path, load_dishes,
+)
 
 DISHES = [
     Dish("Hochepot", "middle", "pottage", True, 1.0, ""),
@@ -29,7 +27,9 @@ FRIDAY = datetime.date(1500, 1, 5)
 
 @pytest.fixture(autouse=True)
 def pinned_menu(monkeypatch):
-    monkeypatch.setattr(tavern_menu, "MENU_COURSES", MENU)
+    # Pinned so that changing how much a tavern serves does not break the tests
+    monkeypatch.setattr(tavern_menu, "MENU_SIZE", (2, 3))
+    monkeypatch.setattr(tavern_menu, "HEARTY_COURSES", ("main", "pottage"))
 
 
 def names(menu):
@@ -47,39 +47,68 @@ def test_the_dish_file_reads_and_serves_every_class_every_course():
     assert all(dish.price > 0 for dish in dishes)
 
 
+DAYS = [MONDAY + datetime.timedelta(days=n) for n in range(28)]
+
+
 def test_no_meat_in_lent_even_midweek():
     lent_thursday = EPOCH + datetime.timedelta(days=24)     # the 4th of Winter
     assert lent_thursday.weekday() == 3
     menu = daily_menu(lent_thursday, "middle", "inn", DISHES)
-    assert names(menu) == {"pottage": ["Funges"], "main": ["Eels in Green Sauce"], "drink": ["Ale"]}
-
-
-def test_a_tavern_serves_its_class_in_menu_order():
-    menu = daily_menu(MONDAY, "middle", "inn", DISHES)
-    assert [course for course, _ in menu] == ["pottage", "main", "drink"]
     served = names(menu)
-    assert len(served["pottage"]) == 1
-    assert len(served["main"]) == 2
-    assert served["drink"] == ["Ale"]
+    assert served["main"] == ["Eels in Green Sauce"]
+    assert served.get("pottage", ["Funges"]) == ["Funges"]
+
+
+def test_two_or_three_dishes_a_main_first_and_one_per_course():
+    sizes = set()
+    for day in DAYS:
+        menu = daily_menu(day, "middle", "inn", DISHES)
+        assert [course for course, _ in menu] == [c for c, _ in COURSES if c in dict(menu)]
+        assert "main" in dict(menu)
+        assert all(len(dishes) == 1 for _, dishes in menu)
+        sizes.add(len(menu))
+    assert sizes == {2, 3}
+
+
+def test_the_whole_dish_file_serves_two_or_three_a_day():
+    for tavern_class in TAVERN_CLASSES:
+        for day in DAYS:
+            assert 2 <= sum(len(d) for _, d in daily_menu(day, tavern_class, "inn")) <= 3
 
 
 def test_no_meat_on_a_fast_day():
     menu = daily_menu(FRIDAY, "middle", "inn", DISHES)
-    assert names(menu) == {"pottage": ["Funges"], "main": ["Eels in Green Sauce"], "drink": ["Ale"]}
+    assert not any(dish.meat for _, dishes in menu for dish in dishes)
+    assert names(menu)["main"] == ["Eels in Green Sauce"]
 
 
 def test_the_menu_holds_all_day_and_changes_between_days():
     noon = daily_menu(MONDAY, "middle", "inn", DISHES)
     assert daily_menu(MONDAY, "middle", "inn", DISHES) == noon
-    days = [MONDAY + datetime.timedelta(days=n) for n in range(4)]  # Monday to Thursday
-    assert len({str(names(daily_menu(day, "middle", "inn", DISHES))) for day in days}) > 1
+    assert len({str(names(daily_menu(day, "middle", "inn", DISHES))) for day in DAYS[:4]}) > 1
 
 
 def test_taverns_of_the_same_class_serve_differently():
-    days = [MONDAY + datetime.timedelta(days=n) for n in range(4)]
     assert any(daily_menu(day, "middle", "inn", DISHES) != daily_menu(day, "middle", "alehouse", DISHES)
-               for day in days)
+               for day in DAYS[:4])
 
 
 def test_an_unknown_class_serves_nothing():
     assert daily_menu(MONDAY, "royal", "inn", DISHES) == []
+
+
+def test_a_dish_picture_is_named_after_the_dish():
+    pigeons = Dish("Roast Pigeons", "middle", "main", True, 5.0, "")
+    assert dish_key(pigeons) == "roast_pigeons"
+    assert dish_picture_path(pigeons).endswith("dish_roast_pigeons.png")
+    assert dish_key(Dish("Eels in Green-Sauce!", "low", "main", False, 1.0, "")) == "eels_in_green_sauce"
+
+
+def test_the_dishes_tried_are_counted_and_saved():
+    stats = Statistics()
+    assert stats.record_dish("roast_pigeons") is True
+    assert stats.record_dish("roast_pigeons") is False
+    assert stats.record_dish("ale") is True
+    restored = Statistics.from_dict(stats.to_dict())
+    assert restored.dishes_tried == {"roast_pigeons": 2, "ale": 1}
+    assert Statistics.from_dict({}).dishes_tried == {}

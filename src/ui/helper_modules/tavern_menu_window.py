@@ -1,19 +1,24 @@
 """A tavern's bill of fare for the day, opened from its house menu ("Daily Menu").
 
-The dishes are drawn by `daily_menu()` when the window opens; each course has
-a heading, and each dish its name, its price at the right, and a short
-description under it.
+The dishes are drawn by `daily_menu()` when the window opens, 2 or 3 a day. Each
+is a box with its name, its price at the right, a short description under it
+and whether the player has eaten it before; clicking one orders it
+(`order_dish`): its price is paid, booked as cost of living, and the dish goes
+into `Statistics.dishes_tried`. A dish with a picture (`dish_picture_path`) is
+then brought to the table, `DishServedWindow`, and any click goes back to the
+bill of fare.
 """
 
 import os
 import pygame
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from .loan_dialog import _BaseDialog, _close_dialog, _load_fonts
-from ...config.colors import BLACK, DARK_BROWN, DARK_RED
+from ..transaction_feedback import on_money_spent
+from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT
 from ...sim.calendar import format_long, is_fast_day, is_lent
-from ...models.tavern_menu import COURSES, daily_menu
+from ...models.tavern_menu import Dish, daily_menu, dish_key, dish_picture_path
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -21,9 +26,14 @@ if TYPE_CHECKING:
 
 DESCRIPTION_COLOR = (90, 70, 50)
 DESCRIPTION_FONT_SIZE = 17
-COURSE_GAP = 14
-DISH_GAP = 6
-PRICE_COLUMN = 70  # room kept at each side for the prices, in pixels
+CARD_FILL = (236, 216, 178)
+CARD_HOVER_FILL = (246, 230, 196)
+CARD_MARGIN = 26        # between the panel's edge and the boxes
+CARD_PAD = 10           # inside a box
+CARD_GAP = 12           # between the boxes
+PICTURE_MAX = (560, 420)  # the largest a served dish's picture is drawn
+
+_pictures: Dict[str, Optional[pygame.Surface]] = {}
 
 
 def open_tavern_menu(game_state: 'GameState', house: 'House') -> None:
@@ -34,79 +44,141 @@ def _tavern_title(house: 'House') -> str:
     return house.display_name or "The Tavern"
 
 
+def _small_font() -> pygame.font.Font:
+    try:
+        return pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), DESCRIPTION_FONT_SIZE)
+    except Exception:
+        return pygame.font.SysFont("arial", DESCRIPTION_FONT_SIZE - 2)
+
+
+def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
+    lines, line = [], ""
+    for word in text.split():
+        trial = f"{line} {word}".strip()
+        if line and font.size(trial)[0] > width:
+            lines.append(line)
+            line = word
+        else:
+            line = trial
+    if line:
+        lines.append(line)
+    return lines
+
+
+def dish_picture(dish: Dish) -> Optional[pygame.Surface]:
+    """The dish's picture scaled to fit `PICTURE_MAX`, or None if it has none (read once)."""
+    path = dish_picture_path(dish)
+    if path not in _pictures:
+        picture = None
+        if os.path.exists(path):
+            try:
+                picture = pygame.image.load(path)
+                scale = min(1.0, PICTURE_MAX[0] / picture.get_width(), PICTURE_MAX[1] / picture.get_height())
+                size = (max(1, round(picture.get_width() * scale)), max(1, round(picture.get_height() * scale)))
+                picture = pygame.transform.smoothscale(picture.convert_alpha(), size)
+            except pygame.error as error:
+                print(f"Warning: could not read the picture of {dish.name!r}: {error}")
+                picture = None
+        _pictures[path] = picture
+    return _pictures[path]
+
+
+def order_dish(game_state: 'GameState', dish: Dish) -> bool:
+    """The player orders a dish: paid as cost of living and booked as tried. False if they cannot pay."""
+    depot = game_state.game.depot
+    if depot.money < dish.price:
+        game_state.show_warning(f"You cannot pay the {dish.price:.2f} coins for the {dish.name}.")
+        return False
+    depot.book_cost_of_living(dish.price)
+    on_money_spent(game_state, dish.price)
+    first = depot.stats.record_dish(dish_key(dish))
+    game_state.log_event("FINANCE", f"Ate {dish.name} for {dish.price:.2f}g" + (" (first time)" if first else ""))
+    return True
+
+
 class TavernMenuWindow(_BaseDialog):
     W = 640
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState', house: 'House') -> None:
-        self.house = house
+        self.house = house  # closes the menu when the player walks off (map_view)
         self.day = game_state.date.date()
         # The Tiled id would be steadier, but houses keep only their position
         key = f"{house.name}@{round(house.x)},{round(house.y)}"
-        self.menu = daily_menu(self.day, house.tavern_class, key)
+        self.dishes: List[Dish] = [dish for _course, dishes in daily_menu(self.day, house.tavern_class, key)
+                                   for dish in dishes]
         # The lines are measured before the panel's size is known
         self.title_font, self.body_font = _load_fonts()
-        try:
-            self.small_font = pygame.font.Font(os.path.join(FONTS_PATH, "Augusta.ttf"), DESCRIPTION_FONT_SIZE)
-        except Exception:
-            self.small_font = pygame.font.SysFont("arial", DESCRIPTION_FONT_SIZE - 2)
-        self.lines = self._lay_out()
-        last, last_top, _ = self.lines[-1]
-        height = min(SCREEN_HEIGHT - 40, last_top + last.get_height() + self.PAD + 6)
+        self.small_font = _small_font()
+        self.header = self._header_lines()
+        self.card_lines = [self._card_lines(dish) for dish in self.dishes]
+        y = self.HDR + self.PAD + sum(s.get_height() for s, _ in self.header) + CARD_GAP
+        self.card_tops: List[int] = []
+        self.card_heights: List[int] = []
+        for lines in self.card_lines:
+            height = 2 * CARD_PAD + sum(s.get_height() for s in lines) + self.small_font.get_linesize()
+            self.card_tops.append(y)
+            self.card_heights.append(height)
+            y += height + CARD_GAP
+        self.hint = self.small_font.render(
+            "Click a dish to order it." if self.dishes else "The kitchen is cold today.",
+            True, DESCRIPTION_COLOR if self.dishes else BLACK)
+        height = min(SCREEN_HEIGHT - 40, y + self.hint.get_height() + self.PAD + 6)
         super().__init__(screen, game_state, self.W, height)
 
-    def _wrap(self, text: str, font: pygame.font.Font, width: int) -> List[str]:
-        lines, line = [], ""
-        for word in text.split():
-            trial = f"{line} {word}".strip()
-            if line and font.size(trial)[0] > width:
-                lines.append(line)
-                line = word
-            else:
-                line = trial
-        if line:
-            lines.append(line)
-        return lines
+    # -- layout ----------------------------------------------------------------
 
-    def _lay_out(self) -> List[Tuple[pygame.Surface, int, bool]]:
-        """Each line of the menu rendered, with its top relative to the panel's top
-        and whether it goes at the right (a price) rather than in the middle."""
-        # The middle column keeps clear of the prices on both sides
-        width = self.W - 2 * self.PAD - 2 * PRICE_COLUMN
-        lines: List[Tuple[pygame.Surface, int, bool]] = []
-        y = self.HDR + self.PAD
-
-        def add(text: str, font: pygame.font.Font, color, gap_after: int = 0) -> None:
-            nonlocal y
-            for part in self._wrap(text, font, width):
-                surface = font.render(part, True, color)
-                lines.append((surface, y, False))
-                y += surface.get_height()
-            y += gap_after
-
-        add(f"Bill of fare for {format_long(self.day)}",
-            self.body_font, DARK_BROWN, 2)
-        add("All prices in coins", self.small_font, DESCRIPTION_COLOR, 2)
+    def _header_lines(self) -> List[Tuple[pygame.Surface, int]]:
+        """The lines over the boxes, each with the gap after it."""
+        lines = [(self.body_font.render(f"Bill of fare for {format_long(self.day)}", True, DARK_BROWN), 2),
+                 (self.small_font.render("All prices in coins", True, DESCRIPTION_COLOR), 2)]
         if is_fast_day(self.day):
             reason = "It is Lent" if is_lent(self.day) else "It is Friday"
-            add(f"{reason}, a fast day: no meat is served.", self.small_font, DARK_RED)
-        y += COURSE_GAP
+            lines.append((self.small_font.render(f"{reason}, a fast day: no meat is served.", True, DARK_RED), 0))
+        return [(surface, surface.get_height() + gap) for surface, gap in lines]
 
-        headings = dict(COURSES)
-        for course, dishes in self.menu:
-            add(f"~ {headings[course]} ~", self.body_font, DARK_BROWN, 4)
-            for dish in dishes:
-                lines.append((self.body_font.render(f"{dish.price:.2f}", True, DARK_BROWN), y, True))
-                add(dish.name, self.body_font, BLACK)
-                add(dish.description, self.small_font, DESCRIPTION_COLOR, DISH_GAP)
-            y += COURSE_GAP
-        if not self.menu:
-            add("The kitchen is cold today.", self.body_font, BLACK)
+    def _card_lines(self, dish: Dish) -> List[pygame.Surface]:
+        """The name and the description's lines of a dish's box (the price and the mark are drawn apart)."""
+        width = self.W - 2 * CARD_MARGIN - 2 * CARD_PAD
+        price_w = self.body_font.size(f"{dish.price:.2f}")[0] + 16
+        lines = [self.body_font.render(part, True, BLACK) for part in _wrap(dish.name, self.body_font, width - price_w)]
+        lines += [self.small_font.render(part, True, DESCRIPTION_COLOR)
+                  for part in _wrap(dish.description, self.small_font, width)]
         return lines
+
+    def card_rect(self, index: int) -> pygame.Rect:
+        return pygame.Rect(self.panel.left + CARD_MARGIN, self.panel.top + self.card_tops[index],
+                           self.W - 2 * CARD_MARGIN, self.card_heights[index])
+
+    def _dish_at(self, pos: Tuple[int, int]) -> Optional[Dish]:
+        for index, dish in enumerate(self.dishes):
+            if self.card_rect(index).collidepoint(pos):
+                return dish
+        return None
+
+    # -- input -----------------------------------------------------------------
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            _close_dialog(self.game_state)
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
         if self.close_rect.collidepoint(pos) or not self.panel.collidepoint(pos):
             _close_dialog(self.game_state)
+            return True
+        dish = self._dish_at(pos)
+        if dish is not None and order_dish(self.game_state, dish):
+            picture = dish_picture(dish)
+            if picture is not None:
+                self.game_state.info_window = DishServedWindow(self.screen, self.game_state, self, dish, picture)
         return True
+
+    # -- drawing ---------------------------------------------------------------
+
+    def _tried_mark(self, dish: Dish) -> pygame.Surface:
+        times = self.game_state.game.depot.stats.dishes_tried.get(dish_key(dish), 0)
+        if times == 0:
+            return self.small_font.render("Not tried yet", True, DARK_GREEN)
+        return self.small_font.render("Eaten once" if times == 1 else f"Eaten {times} times", True, DESCRIPTION_COLOR)
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
@@ -125,13 +197,97 @@ class TavernMenuWindow(_BaseDialog):
         self._draw_title(surf, off, _tavern_title(self.house))
 
         p = self.panel.move(*off)
-        for surface, top, at_right in self.lines:
-            if top + surface.get_height() > self.panel.height - self.PAD:
-                break
-            if at_right:
-                surf.blit(surface, surface.get_rect(right=p.right - 2 * self.PAD, top=p.top + top))
-            else:
-                surf.blit(surface, surface.get_rect(centerx=p.centerx, top=p.top + top))
+        y = p.top + self.HDR + self.PAD
+        for surface, step in self.header:
+            surf.blit(surface, surface.get_rect(centerx=p.centerx, top=y))
+            y += step
+
+        mouse_pos = pygame.mouse.get_pos() if not use_temp else (-1, -1)
+        for index, dish in enumerate(self.dishes):
+            screen_rect = self.card_rect(index)
+            rect = screen_rect.move(*off)
+            hovered = screen_rect.collidepoint(mouse_pos)
+            pygame.draw.rect(surf, CARD_HOVER_FILL if hovered else CARD_FILL, rect, border_radius=6)
+            pygame.draw.rect(surf, DARK_BROWN, rect, 2 if hovered else 1, border_radius=6)
+            price = self.body_font.render(f"{dish.price:.2f}", True, DARK_BROWN)
+            surf.blit(price, price.get_rect(right=rect.right - CARD_PAD, top=rect.top + CARD_PAD))
+            line_y = rect.top + CARD_PAD
+            for line in self.card_lines[index]:
+                surf.blit(line, (rect.left + CARD_PAD, line_y))
+                line_y += line.get_height()
+            mark = self._tried_mark(dish)
+            surf.blit(mark, mark.get_rect(right=rect.right - CARD_PAD, bottom=rect.bottom - CARD_PAD + 4))
+
+        if self.dishes:
+            y = self.card_tops[-1] + self.card_heights[-1] + CARD_GAP + p.top
+        surf.blit(self.hint, self.hint.get_rect(centerx=p.centerx, top=y))
+
+        if use_temp:
+            surf.set_alpha(int(255 * alpha_scale))
+            self.screen.blit(surf, self.panel.topleft)
+
+
+class DishServedWindow(_BaseDialog):
+    """The dish just ordered, brought to the table: its picture, name and description.
+
+    Any click, or Escape, goes back to the tavern's bill of fare.
+    """
+
+    W = PICTURE_MAX[0] + 2 * CARD_MARGIN
+
+    def __init__(self, screen: pygame.Surface, game_state: 'GameState', menu: TavernMenuWindow,
+                 dish: Dish, picture: pygame.Surface) -> None:
+        self.menu = menu
+        self.house = menu.house  # closes it when the player walks off (map_view)
+        self.dish = dish
+        self.picture = picture
+        self.title_font, self.body_font = _load_fonts()
+        self.small_font = _small_font()
+        self.lines = [self.small_font.render(part, True, DESCRIPTION_COLOR)
+                      for part in _wrap(dish.description, self.small_font, self.W - 2 * CARD_MARGIN)]
+        self.lines.append(self.small_font.render("Click to go back to the bill of fare.", True, DARK_BROWN))
+        height = (self.HDR + self.PAD + picture.get_height() + CARD_GAP
+                  + sum(line.get_height() for line in self.lines) + self.PAD + 6)
+        super().__init__(screen, game_state, self.W, min(SCREEN_HEIGHT - 40, height))
+
+    def _back(self) -> None:
+        self.game_state.info_window = self.menu
+
+    def handle_event(self, event: pygame.event.Event) -> None:
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            self._back()
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        if not self.panel.collidepoint(pos):
+            _close_dialog(self.game_state)
+        else:
+            self._back()
+        return True
+
+    def draw(self, alpha_scale: float = 1.0) -> None:
+        if alpha_scale <= 0:
+            return
+
+        use_temp = alpha_scale < 1.0
+        if use_temp:
+            surf = pygame.Surface(self.panel.size, pygame.SRCALPHA)
+            off = (-self.panel.left, -self.panel.top)
+        else:
+            surf = self.screen
+            off = (0, 0)
+
+        self._draw_panel(surf, off)
+        self._draw_close_btn(surf, off)
+        self._draw_title(surf, off, self.dish.name)
+
+        p = self.panel.move(*off)
+        frame = self.picture.get_rect(centerx=p.centerx, top=p.top + self.HDR + self.PAD)
+        surf.blit(self.picture, frame)
+        pygame.draw.rect(surf, DARK_BROWN, frame.inflate(4, 4), 2)
+        y = frame.bottom + CARD_GAP
+        for line in self.lines:
+            surf.blit(line, line.get_rect(centerx=p.centerx, top=y))
+            y += line.get_height()
 
         if use_temp:
             surf.set_alpha(int(255 * alpha_scale))

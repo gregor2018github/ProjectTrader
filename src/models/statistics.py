@@ -52,6 +52,8 @@ class Statistics:
         self.minigames_introduced: List[str] = []
         # The one-off talks over and done with: thanks given, their gift taken or turned down (models/thanks.py)
         self.talks_done: List[str] = []
+        # The tavern dishes the player has eaten, by dish_key (models/tavern_menu.py): how often
+        self.dishes_tried: Dict[str, int] = {}
         self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
         self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
         self.fish_caught: int = 0               # fish landed, all kinds
@@ -71,6 +73,12 @@ class Statistics:
             self.fishing_records[species_key] = cm
             return True
         return False
+
+    def record_dish(self, key: str) -> bool:
+        """A tavern dish eaten goes into the books; whether it is the first time."""
+        first = key not in self.dishes_tried
+        self.dishes_tried[key] = self.dishes_tried.get(key, 0) + 1
+        return first
 
     def record_woodhacking(self, score: float, date: str, streak: int, perfects: int, blocks: int) -> None:
         """A finished session of woodhacking goes into the books: ``date`` is its ISO date."""
@@ -114,6 +122,7 @@ class Statistics:
             "minigame_tips_seen": list(self.minigame_tips_seen),
             "minigames_introduced": list(self.minigames_introduced),
             "talks_done": list(self.talks_done),
+            "dishes_tried": dict(self.dishes_tried),
             "fishing_highscore": self.fishing_highscore,
             "last_fishing_day": self.last_fishing_day,
             "fish_caught": self.fish_caught,
@@ -155,6 +164,7 @@ class Statistics:
         if "minigames_introduced" not in d and (obj.last_woodhacking_day or obj.woodhacking_scores):
             obj.minigames_introduced.append("woodhacking")
         obj.talks_done = list(d.get("talks_done", []))
+        obj.dishes_tried = dict(d.get("dishes_tried", {}))
         obj.fishing_highscore = d.get("fishing_highscore", 0.0)
         obj.last_fishing_day = d.get("last_fishing_day", None)
         obj.fish_caught = d.get("fish_caught", 0)
