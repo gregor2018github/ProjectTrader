@@ -64,7 +64,7 @@ And a measure with no threshold yet, printed after them:
 - **tradability**: per good, the median over the run of ``(30-day max price −
   30-day min price) / price``, and how often that range, over a lot worth
   ``TRADE_LOT_VALUE`` at the day's price (whole units, at least 1), beats twice
-  what a round trip of that lot costs the player (two fees plus the slippage
+  what a round trip of that lot costs the player (the fee both ways plus the slippage
   of buying and selling it at that day's stock). It says whether a patient
   trader could live off a good's swings.
 
@@ -82,7 +82,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from ..config.constants import (
-    HUNGER_THRESHOLD, INITIAL_TRANSACTION_COST, MARGIN_FULL, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
+    HUNGER_THRESHOLD, MARGIN_FULL, MARKET_FEE_RATE, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
 )
 from .calendar import DAYS_PER_YEAR
 from .data import RecipeDef
@@ -621,8 +621,8 @@ def lot_units(price: float, value: float = TRADE_LOT_VALUE) -> int:
     return max(1, round(value / price))
 
 
-def round_trip_cost(row: Row, units: int, fee: float = INITIAL_TRANSACTION_COST) -> float:
-    """What buying *units* and later selling them into the same stock costs the player: two fees and the slippage.
+def round_trip_cost(row: Row, units: int, fee_rate: float = MARKET_FEE_RATE) -> float:
+    """What buying *units* and later selling them into the same stock costs the player: the fee both ways and the slippage.
 
     Both legs are priced at that day's stock: by the time a patient trader
     sells, the market has restocked, so his buying and his selling each move the
@@ -634,11 +634,11 @@ def round_trip_cost(row: Row, units: int, fee: float = INITIAL_TRANSACTION_COST)
     good.noise = math.log(float(row["price"]) / (good.outside_price * factor))
     bought = market.quote(good, units, buying=True)
     sold = market.quote(good, units, buying=False)
-    return 2 * fee + (bought - sold)
+    return fee_rate * (bought + sold) + (bought - sold)
 
 
 def tradability(goods_rows: Sequence[Row], window: int = TRADE_WINDOW_DAYS,
-                lot_value: float = TRADE_LOT_VALUE, fee: float = INITIAL_TRANSACTION_COST) -> List[Tradability]:
+                lot_value: float = TRADE_LOT_VALUE, fee_rate: float = MARKET_FEE_RATE) -> List[Tradability]:
     """Per good, how wide its prices swing over *window* days, and how often that pays for a round trip."""
     result = []
     for good, rows in _by(goods_rows, "good").items():
@@ -649,7 +649,7 @@ def tradability(goods_rows: Sequence[Row], window: int = TRADE_WINDOW_DAYS,
             price_range = max(span) - min(span)
             ranges.append(price_range / prices[i])
             units = lot_units(prices[i], lot_value)
-            if price_range * units > 2 * round_trip_cost(rows[i], units, fee):
+            if price_range * units > 2 * round_trip_cost(rows[i], units, fee_rate):
                 worth += 1
         days = len(ranges)
         result.append(Tradability(good, statistics.median(ranges) if ranges else 0.0,
@@ -674,7 +674,7 @@ def report(run_dir: str, show_tradability: bool = True) -> int:
     print(f"       {len(findings) - fails - warns} ok, {warns} warnings, {fails} failed")
     if show_tradability:
         print(f"[info] tradability: {TRADE_WINDOW_DAYS}-day price range, and the share of days it beats "
-              f"2 x the round trip of a {TRADE_LOT_VALUE:g}g lot (fees {INITIAL_TRANSACTION_COST} each, plus slippage)")
+              f"2 x the round trip of a {TRADE_LOT_VALUE:g}g lot (a fee of {MARKET_FEE_RATE:.0%} each way, plus slippage)")
         print(f"       {'good':12} {'median range':>12} {'worth it':>9}")
         for t in sorted(tradability(data.goods), key=lambda t: -t.median_range):
             print(f"       {t.good:12} {t.median_range:12.1%} {t.share_worth_it:9.1%}")

@@ -13,11 +13,12 @@ Every tradeable good has **one price**, the same at every market booth:
 ```
 price = reference × volume_factor(stock / target_stock) × noise
 reference = outside price × a running well wish's shock
+outside price = mean × season factor × slow walk × news
 ```
 
-- **The outside price** is what the good costs beyond the town. It walks slowly around a long-run mean, with a season factor on top. Merchants **import** when the town's price climbs above it plus the transport cost, and **export** when the price falls below it minus the transport cost, within a daily limit. So the local price lives between those two lines.
+- **The outside price** is what the good costs beyond the town. It moves on three time scales: a **season factor** (firewood dear in winter, corn cheap after the harvest), a **slow walk** around the long-run mean over months, and **news** that moves it at a stroke and fades over a few days. Merchants **import** when the town's price climbs above it plus the transport cost, and **export** when the price falls below it minus the transport cost, within a daily limit. So the local price lives between those two lines.
 - **The volume factor** comes from how much the market holds against its **target stock**, which is a number of days of the town's demand. When the stock is short, the price rises; when there is a glut, it falls.
-- **The noise** is a small mean-reverting wobble of a few per cent.
+- **The noise** is the day's haggling: a mean-reverting wobble of some per cent that is gone within a day.
 
 The stock changes only through trades:
 - the households buy their daily needs in hourly slices;
@@ -25,7 +26,9 @@ The stock changes only through trades:
 - the merchants import and export;
 - the player buys and sells.
 
-So **everyone's trades move the price**. The player's are priced unit by unit (**slippage**), plus a flat **transaction fee**, and profit is measured **FIFO** against what was paid.
+So **everyone's trades move the price**. The player's are priced unit by unit (**slippage**), plus the market's **fee**, a share of the trade, and profit is measured **FIFO** against what was paid.
+
+**What this is balanced for** (decided after the first playtest of P1, `p1_living_market.md`, "After the first playtest"): a small trader can live off the swings, and a large one cannot grow on them. The noise and the news give a price enough life within a day or a week to pay for a round trip of a small lot; the seasons pay whoever stocks up and waits; and slippage caps it all, since a market holds only days of a small town's demand. `python -m src.sim.trader` measures it (§10).
 
 ---
 
@@ -42,13 +45,20 @@ Each good is defined in `assets/data/goods.json` and loaded by `src/sim/data.py`
 | `import_limit`, `export_limit` | Units merchants move a day at most |
 | `target_stock_days`, `min_target_stock` | The target stock: that many days of demand, but at least that many units |
 | `noise_sigma` | The noise's step per price tick |
+| `news_chance`, `news_size`, `news_reversion` | News from outside: how often a day it arrives, how far it moves the outside price (a log; 0.2 is about a fifth, up or down), and the share of the move that fades a day. Optional; a good without `news_chance` has none. |
 
 When a town is founded (`Simulation.found_town`), each good's target is set from the households' demand, and the market holds exactly its target. Before the first frame, `Simulation.presimulate()` runs the whole economy for `MARKET_PRESIMULATION_DAYS` (224, two years) days, so the charts open with history and wages, purses and workshops have nearly settled.
 
 ## 2. The outside price and the noise
 
-- **The outside price.** `market.step_outside()` runs once a day: `x ← x·(1 − reversion) + volatility·N(0,1)` and `outside price = mean × season factor × exp(x)`, drawing from the simulation's one seeded generator. With 0.03 and 0.03 it strays about ±12 % and halves a deviation in about three weeks: trends a player can read.
-- **The noise.** `market.step_noise()` runs every price tick (`PRICE_TICK_MINUTES`, 30): `n ← n·PRICE_NOISE_PERSISTENCE + noise_sigma·N(0,1)`, clamped to ±`PRICE_NOISE_CLAMP`. The price chart gets a point after it.
+A price moves on four time scales, from the slowest to the fastest. The first three are the outside price's, so the merchants' import and export lines move with them and the town's price follows; the last is the town's own.
+
+- **The seasons.** `outside_seasons` gives a factor per season, blended smoothly between the seasons' middles. Firewood, herbs, candles, charcoal and fish are cheapest in Summer and dearest in Winter (Wood and Herbs by about half, on the town's market), corn, flour, meat and livestock cheapest in Autumn and dearest in Spring. Stocking up and waiting half a year pays: `src.sim.trader`'s hoarder gains 50–70 % on Wood, Herbs and Candles, with no losing year.
+- **The slow walk.** `market.step_outside()` runs once a day: `x ← x·(1 − reversion) + volatility·N(0,1)`, drawing from the simulation's one seeded generator. With 0.03 and 0.03 it strays about ±12 % and halves a deviation in about three weeks (most of a game year): the long lines of a chart.
+- **The news.** `market.step_news()` runs every price tick. With a chance of `news_chance` a day a piece of news arrives (a ship lost, a fat harvest abroad) and moves the outside price at a stroke by `news_size`, up or down (`NEWS_SIZE_SPREAD` more or less); `news_reversion` of what news has moved fades a day, so a jump is mostly gone in two to five days. A good gets one about every four to seven days, staples fewer and smaller ones (a tenth), fresh food and imported luxuries more and larger (a quarter). Each is reported as an `OutsideNews` event; the game shows nothing for it yet. A price that has just jumped will come back: that is the trade.
+- **The noise.** `market.step_noise()` runs every price tick (`PRICE_TICK_MINUTES`, 30): `n ← n·PRICE_NOISE_PERSISTENCE + noise_sigma·N(0,1)`, clamped to ±`PRICE_NOISE_CLAMP`. With a persistence of 0.96 it forgets half of itself in about 8 game hours; a `noise_sigma` of 0.024 lets a price stray about ±9 % within a day (0.015 for the staples, about ±5 %). The merchants ignore it; the households buy less of what it makes dear. The price chart gets a point after it.
+
+`outside price = mean × season factor × exp(slow walk + news)`.
 
 ## 3. The volume factor and the target stock
 
@@ -74,7 +84,7 @@ The market place holds no money: the stock in it belongs to the **merchants**. E
 - **Merchants** (`market.merchants`) act last in every slice. They judge by the stock, not the noise: when `reference × volume_factor` is above the **import line** (`reference + transport_cost`), they bring in enough to get back to it, at most `import_limit / 12` in the slice, paying the outside price and the transport. Below the **export line** (`reference − transport_cost`), they take the surplus out the same way, for the outside price less the transport. Between the lines nobody moves.
 - **The player** trades through `Depot.buy()` / `Depot.sell()` (`src/models/depot.py`). The amount comes from `Good.quote(quantity, buying)` (`market.quote()`), and the trade itself from `Simulation.trade_with_player()`:
   - **Slippage.** Each unit is priced at its own stock. A unit you buy is priced at the stock before it is taken, so the first one costs the shown price. A unit you sell is priced at the stock after it is added. So buying and then selling back the same units is zero-sum before fees, and a large order moves the price against the trader as it goes.
-  - **Buy:** pays `quote + transaction_cost`. **Sell:** receives `quote − transaction_cost`. `transaction_cost` is a flat fee per trade (starts at `INITIAL_TRANSACTION_COST` = 2), stored on the depot and in the save.
+  - **The fee.** `Depot.trading_fee(amount)` is `fee_rate` of what the goods come to (`MARKET_FEE_RATE`, 1 %; stored on the depot and in the save, so a council can set it later). **Buy:** pays `quote + fee`. **Sell:** receives `quote − fee`. A small lot pays little, a large one much. (Until the first playtest it was a flat 2 per trade, which ate a small lot's whole gain; saves from then get today's rate.)
   - The **unit price recorded** (purchase history, ledger, trade cycles, log) is the order's average, `quote / quantity`.
   - After the trade the stock has changed and the **latest chart point** is overwritten with the new price, so the chart reacts at once.
   - The player's trades fall between the slices, so a slice after a purchase sees the stock the player left. **Buying up the bread at ten leaves the poor short at eleven**, unless merchants can bring more in.
@@ -113,7 +123,7 @@ Both lists store the full price. They grow for the whole session and are saved i
 
 ## 8. Saving and loading
 
-The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full (stock, target, outside price and its walk, noise, shock, histories, flows), the town's books and the merchants' book, the workshops and owners, and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
+The save's `"sim"` block (`Simulation.to_dict()`, see `sim_core.md`) holds every `GoodState` in full (stock, target, outside price with its walk and news, noise, shock, histories, flows), the town's books and the merchants' book, the workshops and owners, and the random generator's state. The save's `"goods"` keeps only chart visibility and colour.
 
 Older blocks and saves migrate on loading:
 - **`sim_version` 1 (P0) and saves from before the `"sim"` block** (`SAVE_VERSION` < 3, through `save_manager._legacy_sim_block()`): each good keeps its histories, and its stock as a share of its new target (as scarce or glutted as it was against P0's normal volume, or at its target if the save had none). The outside price starts at its mean, so prices jump to the new model on the first load.
@@ -121,26 +131,47 @@ Older blocks and saves migrate on loading:
 
 ## 9. Where this is heading
 
-- **The fee.** The flat transaction fee makes cheap goods (Bread, Clay, Charcoal, Flax, Pottery) not worth trading in small lots: their swings never pay for a round trip (`python -m src.sim.health`, tradability). A percentage fee with a minimum is the likely fix (`roadmap.md`, "Known issues and loose ends").
+- **The fee** becomes a market toll the council sets (P6); it is already a rate on the depot.
+- **News you can hear.** The sim reports every piece of news (`OutsideNews`), but the player only sees the price jump. A town crier, rumours and couriers are P9's (earned information): knowing *why* a price jumped, and that it will come back, is worth money.
+- **The player as a maker.** Trading is capped by the market's depth (§10). P3 lets the player own workshops: a made good is sold into the same market, with the same slippage, but its cost is the inputs' and the wages', not a price to buy low at. The seasons then matter twice: a maker stocks his inputs when they are cheap.
 - **Hysteresis.** A workshop's capacity already grows slowly after busy spells and shrinks more slowly after losses (`production.change_capacity`). That makes flooding a market to drive out its makers a strategy once the player can own workshops (P3).
 - **Other towns.** P7 replaces the outside price's walk with the other towns' own markets, linked by the same import and export rules.
 
 ---
 
+## 10. How much trading pays, and where it stops
+
+`python -m src.sim.trader` lets a headless trader with no foresight play new games by the player's rules (money, slots of `SLOT_SIZE`, the fee, slippage, booth hours): it buys what is some per cent under its mean of the last days and sells for a few per cent more than it paid. Its gain a day, with the best of eight such rules (4 seeds, 56 days, the cost of living not counted):
+
+| Trader | Before (flat fee 2, calm prices) | Now |
+|---|---:|---:|
+| A new game: 100g, 5 slots, Wood and Stone | 0.1 g | 4.2 g (4 % of its money a day) |
+| 300g, 5 slots, 4 goods | 0.4 g | 5.0 g |
+| 1,000g, 10 slots, 8 goods | −0.1 g | 12.6 g |
+| 5,000g, 40 slots, 16 goods | 0.6 g | 103 g (2 %) |
+| 30,000g, 150 slots, 16 goods | 7.9 g | 105 g (0.35 %) |
+
+- **A small trader earns from the first day**, more than the cost of living (`INITIAL_DAILY_COST_OF_LIVING`, 2), and a player who reads the chart does better than the rule.
+- **Storage holds the middle back.** Between 300g and 1,000g the trader has more money than its slots of cheap goods can hold: the step is a warehouse and dearer goods.
+- **It stops at about 100 g a day** on 16 goods (more with every licence, but the whole market's stock is worth only about 50,000g): an order of more than a tenth of a good's stock moves its price by the whole swing, so six times the money earns nothing more. From there the money has to come from making goods (P3) and from other towns (P7).
+
+When you change the noise, the news, the fee, the volume curve or the target stocks, run it again, with `python -m src.sim.sweep` for the town's side.
+
 ## File map
 
 | What | Where |
 |---|---|
-| Price state (stock, target, outside price, noise, shock, histories, flows) | `src/sim/state.py` (`GoodState`) |
-| The price, volume factor, quote/slippage, outside walk, noise, merchants, clearing, well shock | `src/sim/systems/market.py` |
+| Price state (stock, target, outside price with its walk and news, noise, shock, histories, flows) | `src/sim/state.py` (`GoodState`) |
+| The price, volume factor, quote/slippage, outside walk, news, noise, merchants, clearing, well shock | `src/sim/systems/market.py` |
 | What the households buy and when | `src/sim/systems/households.py` |
 | What the workshops make, buy and sell | `src/sim/systems/production.py`; recipes and building types in `assets/data/recipes.json`, `buildings.json`; the home town's workshops in `assets/data/scenarios/home_town.json` |
 | The order things happen in, player trades | `src/sim/simulation.py` (`Simulation`) |
 | The view the depot and UI use (plus colours, chart visibility) | `src/models/good.py` (`Good`) |
-| Every good's outside price, transport, limits, target days, noise | `assets/data/goods.json`, loaded by `src/sim/data.py` |
+| Every good's outside price and its seasons, transport, limits, target days, noise, news | `assets/data/goods.json`, loaded by `src/sim/data.py` |
 | What each class wants, by tier | `assets/data/needs.json` |
-| Global market constants (`MARKET_VOLUME_*`, `MARKET_OPEN_HOUR`, `PRICE_NOISE_*`, `TARGET_STOCK_GLIDE`, `WELL_WISH_*`, `INITIAL_TRANSACTION_COST`) | `src/config/constants.py` |
+| Global market constants (`MARKET_VOLUME_*`, `MARKET_OPEN_HOUR`, `PRICE_NOISE_*`, `NEWS_SIZE_SPREAD`, `TARGET_STOCK_GLIDE`, `WELL_WISH_*`, `MARKET_FEE_RATE`) | `src/config/constants.py` |
 | Decades of prices without the game | `python -m src.sim.run` (`sim_core.md`) |
+| What a trader earns, by the size of his purse | `python -m src.sim.trader` (`src/sim/trader.py`) |
 | Buying, selling, fees, FIFO profit, wealth, licenses | `src/models/depot.py` (`Depot`) |
 | Can this good be traded here / now? | `src/game_state.py`, `is_good_sold_here()`, `is_good_tradable()` |
 | Booth opening hours | `src/models/institutions/market.py`, `src/models/figurines/humans/npcs/trader.py` |

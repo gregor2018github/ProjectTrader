@@ -42,7 +42,7 @@ def test_big_order_pays_more_per_unit_as_the_market_empties(depot, make_good, ga
     assert quoted > 5 * iron.price
 
     assert depot.buy(iron, 5, game_state)
-    assert depot.money == pytest.approx(10_000 - quoted - 2)
+    assert depot.money == pytest.approx(10_000 - quoted * 1.02)
     assert depot.purchase_history["Iron"][0]["price"] == pytest.approx(quoted / 5)
 
 
@@ -87,7 +87,7 @@ def test_sell_moves_money_goods_and_market(depot, wood, game_state):
 
     assert depot.sell(wood, 4, game_state)
 
-    assert depot.money == money + 40 - 2
+    assert depot.money == pytest.approx(money + 40 - 0.8)      # the fee is 2 % of the 40
     assert depot.good_stock["Wood"] == 6
     assert wood.market_quantity == 994
     assert depot.income == 40
@@ -99,10 +99,11 @@ def test_sell_moves_money_goods_and_market(depot, wood, game_state):
 def test_buying_and_selling_back_costs_only_the_fees(depot, make_good, game_state):
     # Even where each unit moves the price, the volumes cancel out
     iron = make_good("Iron", price=10, market_quantity=10)
+    quoted = iron.quote(5, buying=True)
     depot.buy(iron, 5, game_state)
     depot.sell(iron, 5, game_state)
 
-    assert depot.money == pytest.approx(10_000 - 4)
+    assert depot.money == pytest.approx(10_000 - 2 * 0.02 * quoted)
     assert iron.market_quantity == 10
 
 
@@ -150,17 +151,23 @@ def test_sell_refused_with_too_little_stock(depot, wood, game_state):
     assert game_state.warnings == ["Not enough Wood in stock."]
 
 
-def test_sell_refused_when_the_fee_cannot_be_paid(depot, make_good, game_state):
+def test_the_fee_is_a_share_of_the_trade_so_a_small_lot_pays_little(depot, make_good, game_state):
     cheap = make_good("Wood", price=0.5)
-    depot.money = 2.5
-    depot.buy(cheap, 1, game_state)    # 0.5 + 2 fee: nothing left
-    before = snapshot(depot, cheap)
+    depot.money = 0.51
+    assert depot.buy(cheap, 1, game_state)          # 0.5 and a fee of 0.01: nothing left
+    assert depot.money == pytest.approx(0.0)
+    assert depot.transaction_expenditures == pytest.approx(0.01)
 
-    # 0.5 revenue does not cover the 2 fee, and there is no money to make up for it
-    assert not depot.sell(cheap, 1, game_state)
+    # The fee comes out of the sale, so a sale never needs money of its own
+    assert depot.sell(cheap, 1, game_state)
+    assert depot.money == pytest.approx(0.49)
+    assert depot.transaction_expenditures == pytest.approx(0.02)
 
-    assert snapshot(depot, cheap) == before
-    assert game_state.warnings == ["Not enough money to cover transaction costs."]
+
+def test_a_large_lot_pays_a_large_fee(depot, wood, game_state):
+    depot.buy(wood, 100, game_state)                # 1,000 of goods
+    assert depot.transaction_expenditures == pytest.approx(20)
+    assert depot.money == pytest.approx(10_000 - 1_020)
 
 
 def test_sell_refused_without_license(depot, wood, game_state):

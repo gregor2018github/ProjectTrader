@@ -67,8 +67,16 @@ def test_a_good_entry_becomes_a_definition():
     assert (wood.name, wood.outside_price, wood.transport_cost, wood.outside_seasons) == ("Wood", 1.0, 0.3, {"Winter": 1.2})
 
 
+def test_news_is_optional_and_a_good_without_it_has_none():
+    quiet, lively = parse_goods([WOOD, {**STONE, "news_chance": 0.2, "news_size": 0.15, "news_reversion": 0.4}])
+    assert (quiet.news_chance, quiet.news_size) == (0.0, 0.0)
+    assert (lively.news_chance, lively.news_size, lively.news_reversion) == (0.2, 0.15, 0.4)
+
+
 @pytest.mark.parametrize("change, field, problem", [
     ({"outside_price": "x"}, "outside_price", "expected a number > 0, got 'x'"),
+    ({"news_chance": -0.1}, "news_chance", "expected a number >= 0"),
+    ({"news_reversion": 0}, "news_reversion", "expected a number > 0 and <= 1"),
     ({"outside_price": 0}, "outside_price", "expected a number > 0"),
     ({"outside_reversion": 1.5}, "outside_reversion", "expected a number >= 0 and <= 1"),
     ({"import_limit": -1}, "import_limit", "expected a number >= 0"),

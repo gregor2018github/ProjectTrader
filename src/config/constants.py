@@ -88,8 +88,9 @@ PRICE_TICKS_PER_DAY = 24 * 60 // PRICE_TICK_MINUTES
 # THE LIVING MARKET (src/sim/, docs/p1_living_market.md); per-good and per-class values are in assets/data/
 MARKET_OPEN_HOUR = 6                # Households, workshops and merchants trade in hourly slices from this hour...
 MARKET_CLOSE_HOUR = 18              # ...to this one (12 slices a day)
-PRICE_NOISE_PERSISTENCE = 0.98      # Share of the price noise's log kept each price tick (half-life about 17 game hours)
-PRICE_NOISE_CLAMP = 0.1             # The noise never moves a price more than this far (as a log, so about ±10 %)
+PRICE_NOISE_PERSISTENCE = 0.96      # Share of the price noise's log kept each price tick (half-life about 8 game hours)
+PRICE_NOISE_CLAMP = 0.25            # The noise never moves a price more than this far (as a log, so about -22 % to +28 %)
+NEWS_SIZE_SPREAD = 0.5              # A piece of news moves the outside price by its good's news_size, this share more or less
 TARGET_STOCK_GLIDE = 0.1            # Share of the gap to yesterday's demand the demand average closes each day (target stock follows it)
 PURSE_START_DAYS = 5                # A class's purse when a game starts, in days of its income
 SAVINGS_CAP_DAYS = 10               # A class saves at most this many days of income; the rest leaves town (rents and dues)
@@ -122,7 +123,7 @@ CALENDAR_START_YEAR = 1500          # The year of START_DATE in the game calenda
 START_TIME = "08:00"                # When the simulation time starts, format: HH:MM
 INITIAL_DAILY_COST_OF_LIVING = 2    # Initial daily cost of living for the player
 STARTING_MONEY = 100                # Starting money for the player
-INITIAL_TRANSACTION_COST = 2        # Cost per transaction at the market
+MARKET_FEE_RATE = 0.01              # The market's fee on a trade: this share of what the goods come to, on buying and on selling
 # MERCHANT RANK: titles the player climbs and can lose again, see src/models/merchant_rank.py.
 # A rank asks for all four at once: net wealth, property value (buildings at their buy price),
 # lifetime trade volume (goods bought plus goods sold, in coins) and reputation.

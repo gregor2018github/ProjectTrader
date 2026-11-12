@@ -245,18 +245,18 @@ def test_the_town_should_run_short_of_a_few_goods(monkeypatch):
 
 # -- tradability ------------------------------------------------------------------------------
 
-def test_a_round_trip_in_a_calm_market_costs_two_fees():
-    assert health.round_trip_cost(good_row(0, 10.0), units=20, fee=2.0) == pytest.approx(4.0)
+def test_a_round_trip_in_a_calm_market_costs_the_fee_both_ways():
+    assert health.round_trip_cost(good_row(0, 10.0), units=20, fee_rate=0.01) == pytest.approx(4.0)   # 1 % of 200, twice
 
 
 def test_a_round_trip_in_a_thin_market_costs_its_slippage_too():
-    assert health.round_trip_cost(good_row(0, 10.0, stock=100.0, target=100.0), units=20, fee=2.0) > 4.0
+    assert health.round_trip_cost(good_row(0, 10.0, stock=100.0, target=100.0), units=20, fee_rate=0.01) > 4.0
 
 
 def test_tradability_measures_the_window_range_against_the_price():
     flat = [good_row(d, 10.0) for d in range(40)]
     swing = [good_row(d, 10.0 if d % 2 else 12.0, good="Wine") for d in range(40)]
-    result = {t.good: t for t in health.tradability(flat + swing, window=30, lot_value=200.0, fee=2.0)}
+    result = {t.good: t for t in health.tradability(flat + swing, window=30, lot_value=200.0, fee_rate=0.01)}
     assert result["Wood"].median_range == 0.0 and result["Wood"].share_worth_it == 0.0
     assert result["Wood"].days == 11
     assert 2.0 / 12.0 <= result["Wine"].median_range <= 2.0 / 10.0            # a 2g range on 10g or 12g

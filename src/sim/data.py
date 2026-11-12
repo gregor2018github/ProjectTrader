@@ -57,6 +57,9 @@ class GoodDef:
     target_stock_days: float = 14.0     # days of the town's demand the market likes to hold
     min_target_stock: float = 50.0      # ...and at least this many units, demand or not
     noise_sigma: float = 0.004          # the price noise's log step per price tick
+    news_chance: float = 0.0            # how often a day news from outside moves its outside price at a stroke (0: never)
+    news_size: float = 0.0              # how far, as a log (0.2 is about a fifth, up or down)
+    news_reversion: float = 0.3         # share of what the news moved that fades a day
     outside_seasons: Dict[str, float] = field(default_factory=dict)   # season -> factor on the outside price
     license: str = ""                   # the licence (a guild's) it is traded under: a good's name; "" = its own
     license_fee: Optional[float] = None         # per season, set on the good whose name the licence bears
@@ -283,7 +286,8 @@ def _entries(items: List[Any], file: str, label_field: str) -> List[Tuple[_Entry
 
 GOOD_FIELDS = ("name", "color", "chart_index", "show_in_charts", "outside_price", "outside_reversion",
                "outside_volatility", "outside_seasons", "transport_cost", "import_limit", "export_limit",
-               "target_stock_days", "min_target_stock", "noise_sigma", "license", "license_fee",
+               "target_stock_days", "min_target_stock", "noise_sigma", "news_chance", "news_size", "news_reversion",
+               "license", "license_fee",
                "starting_license_seasons", "sold_at")
 
 
@@ -317,6 +321,10 @@ def parse_goods(items: List[Any], file: str = GOODS_FILE) -> List[GoodDef]:
             target_stock_days=float(_number(entry, data, "target_stock_days", 0, strict=True)),
             min_target_stock=float(_number(entry, data, "min_target_stock", 0, strict=True)),
             noise_sigma=float(_number(entry, data, "noise_sigma", 0, strict=False)),
+            news_chance=(float(_number(entry, data, "news_chance", 0, strict=False)) if "news_chance" in data else 0.0),
+            news_size=(float(_number(entry, data, "news_size", 0, strict=False)) if "news_size" in data else 0.0),
+            news_reversion=(float(_number(entry, data, "news_reversion", 0, strict=True, maximum=1))
+                            if "news_reversion" in data else 0.3),
             outside_seasons=_seasons(entry, data.get("outside_seasons", {}), "outside_seasons"),
             license=_string(entry, data, "license", optional=True),
             license_fee=(float(_number(entry, data, "license_fee", 0, strict=False))

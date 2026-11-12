@@ -24,7 +24,7 @@ START = date(1450, 3, 1)
 
 @pytest.fixture
 def unlicensed():
-    return Depot(money=0, transaction_cost=2, storage_capacity=100, goods=GOODS + ("Flour", "Bread"))
+    return Depot(money=0, fee_rate=0.02, storage_capacity=100, goods=GOODS + ("Flour", "Bread"))
 
 
 @pytest.mark.parametrize("seasons", [1, 2, 4, 12])

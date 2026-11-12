@@ -55,7 +55,8 @@ class GoodState:
     demand_avg: float = 0.0         # the town's daily demand, smoothed
     outside_base: float = 0.0       # the outside price's mean times today's season factor
     outside_dev: float = 0.0        # the outside price's log deviation from that (the slow walk)
-    outside_price: float = 0.0      # outside_base × exp(outside_dev)
+    outside_news: float = 0.0       # what news from outside has moved it by, as a log; it fades over days
+    outside_price: float = 0.0      # outside_base × exp(outside_dev + outside_news)
     noise: float = 0.0              # the price noise, as a log
     shock_factor: float = 1.0       # a running well wish's factor on the outside price
     shock_days: int = 0             # days the wish has left
@@ -77,6 +78,7 @@ class GoodState:
             demand_avg=float(data.get("demand_avg", 0.0)),
             outside_base=float(data.get("outside_base", 0.0)),
             outside_dev=float(data.get("outside_dev", 0.0)),
+            outside_news=float(data.get("outside_news", 0.0)),
             outside_price=float(data.get("outside_price", 0.0)),
             noise=float(data.get("noise", 0.0)),
             shock_factor=float(data.get("shock_factor", 1.0)),

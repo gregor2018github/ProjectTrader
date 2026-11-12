@@ -42,7 +42,7 @@ def pinned_ranks(monkeypatch):
 
 @pytest.fixture
 def depot():
-    return Depot(money=0, transaction_cost=0, storage_capacity=100, goods=GOODS)
+    return Depot(money=0, fee_rate=0.0, storage_capacity=100, goods=GOODS)
 
 
 @pytest.fixture

@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.statistics import Statistics
 
-from ..config.constants import PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
+from ..config.constants import MARKET_FEE_RATE, PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
 
 SAVE_VERSION = 3   # 2: the price chart has a point per price tick (PRICE_TICK_MINUTES), no longer per hour
                    # 3: the economy is the "sim" block (src/sim/), with its own "sim_version"; "goods" keeps only how the UI shows them
@@ -146,7 +146,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         },
         "depot": {
             "money": depot.money,
-            "transaction_cost": depot.transaction_cost,
+            "fee_rate": depot.fee_rate,
             "storage_capacity": depot.storage_capacity,
             "warehouse_count": depot.warehouse_count,
             "good_stock": dict(depot.good_stock),
@@ -467,7 +467,8 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
 
     d = data["depot"]
     depot.money = d["money"]
-    depot.transaction_cost = d["transaction_cost"]
+    # Saves from before the fee became a share of the trade hold a flat "transaction_cost": they get today's rate
+    depot.fee_rate = d.get("fee_rate", MARKET_FEE_RATE)
     depot.storage_capacity = d["storage_capacity"]
     depot.warehouse_count = d["warehouse_count"]
     depot.good_stock = d["good_stock"]

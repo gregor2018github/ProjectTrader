@@ -19,8 +19,8 @@ from typing import Dict, Optional, Tuple
 
 from ...config.constants import (
     MARKET_VOLUME_ELASTICITY, MARKET_VOLUME_FACTOR_MAX, MARKET_VOLUME_FACTOR_MIN,
-    MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_SCARCE_RATIO, PRICE_NOISE_CLAMP,
-    PRICE_NOISE_PERSISTENCE, TARGET_STOCK_GLIDE,
+    MARKET_VOLUME_GLUT_RATIO, MARKET_VOLUME_SCARCE_RATIO, NEWS_SIZE_SPREAD, PRICE_NOISE_CLAMP,
+    PRICE_NOISE_PERSISTENCE, PRICE_TICKS_PER_DAY, TARGET_STOCK_GLIDE,
     WELL_WISH_DURATION_DAYS, WELL_WISH_SHOCK_FACTOR,
 )
 from ..calendar import season_factor
@@ -94,7 +94,7 @@ def set_price(good: GoodState, value: float) -> None:
     """Make the price show *value* now, by moving the outside price (its walk carries on from there)."""
     outside = float(value) / (good.shock_factor * volume_factor(good) * math.exp(good.noise))
     good.outside_price = outside
-    good.outside_dev = math.log(outside / good.outside_base) if good.outside_base > 0 else 0.0
+    good.outside_dev = (math.log(outside / good.outside_base) - good.outside_news) if good.outside_base > 0 else 0.0
 
 
 def quote(good: GoodState, quantity: float, buying: bool) -> float:
@@ -144,7 +144,33 @@ def step_outside(good: GoodState, definition: GoodDef, moment: datetime.datetime
     good.outside_dev = (good.outside_dev * (1.0 - definition.outside_reversion)
                         + definition.outside_volatility * rng.gauss(0.0, 1.0))
     good.outside_base = definition.outside_price * season_factor(definition.outside_seasons, moment)
-    good.outside_price = good.outside_base * math.exp(good.outside_dev)
+    good.outside_price = good.outside_base * math.exp(good.outside_dev + good.outside_news)
+
+
+def step_news(good: GoodState, definition: GoodDef, rng: random.Random) -> float:
+    """A price tick of the news from outside: what it moved fades, and now and then a new piece arrives.
+
+    News (a lost ship, a good harvest abroad) moves the outside price at a
+    stroke, up or down by the good's ``news_size`` (``NEWS_SIZE_SPREAD`` more
+    or less), on average ``news_chance`` times a day; ``news_reversion`` of
+    the move fades a day. The import and export lines move with it, so the
+    town's price follows at once and comes back with it: the short swings a
+    trader lives on. A good with no ``news_chance`` draws nothing; the others
+    one draw a tick, and two more when news arrives.
+
+    Returns:
+        The move of a piece of news arriving now, as a log; 0.0 if none did.
+    """
+    if definition.news_chance <= 0:
+        return 0.0
+    good.outside_news *= (1.0 - definition.news_reversion) ** (1.0 / PRICE_TICKS_PER_DAY)
+    change = 0.0
+    if rng.random() < definition.news_chance / PRICE_TICKS_PER_DAY:
+        size = definition.news_size * (1.0 + NEWS_SIZE_SPREAD * (2.0 * rng.random() - 1.0))
+        change = size if rng.random() < 0.5 else -size
+        good.outside_news += change
+    good.outside_price = good.outside_base * math.exp(good.outside_dev + good.outside_news)
+    return change
 
 
 def close_day(good: GoodState) -> None:

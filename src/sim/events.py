@@ -23,6 +23,13 @@ class PriceShockEnded(SimEvent):
 
 
 @dataclass(frozen=True)
+class OutsideNews(SimEvent):
+    """News from outside moved a good's outside price at a stroke; it fades again over the next days."""
+    good: str
+    change: float               # the move as a log: 0.2 is about a fifth dearer, -0.2 about a fifth cheaper
+
+
+@dataclass(frozen=True)
 class PopulationChanged(SimEvent):
     """The town's head count changed at the daily migration."""
     old_total: int

@@ -4,6 +4,7 @@ import datetime
 import pytest
 
 from src.sim import TownSpec
+from src.sim.events import OutsideNews
 from src.sim.systems import market
 from tests.sim.builders import START, good_def, plain_needs, simulation
 
@@ -46,6 +47,24 @@ def test_the_player_buying_up_the_bread_leaves_the_town_short():
     assert bread.yesterday.bought < bread.yesterday.wanted / 2
     assert all(c.fulfilment["basic"] < 0.5 for c in sim.state.population.classes.values())
     assert all(c.happiness_target < 50 for c in sim.state.population.classes.values())
+
+
+def test_news_from_outside_is_reported_and_moves_the_price_at_once():
+    sim = simulation(goods=[good_def("Bread", 1.0, news_chance=4.0, news_size=0.2, news_reversion=0.5)],
+                     needs=plain_needs({"Bread": 0.5}, income=2.0), town=TOWN)
+    bread = sim.good("Bread")
+    sim.advance_to(day(3))                                    # about a dozen pieces of news by now
+    news = [e for e in sim.events.drain() if isinstance(e, OutsideNews)]
+    assert news and all(e.good == "Bread" and 0.1 <= abs(e.change) <= 0.3 for e in news)
+    assert bread.outside_news != 0.0
+    assert bread.outside_price == pytest.approx(1.0 * 2.718281828459045 ** (bread.outside_dev + bread.outside_news))
+
+
+def test_a_good_without_news_reports_none():
+    sim = bread_town()
+    sim.advance_to(day(3))
+    assert not [e for e in sim.events.drain() if isinstance(e, OutsideNews)]
+    assert sim.good("Bread").outside_news == 0.0
 
 
 def test_a_well_wish_moves_the_local_price_and_merchants_follow_it():

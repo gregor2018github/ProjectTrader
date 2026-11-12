@@ -2,7 +2,7 @@
 
 Status: **approved**, with the decisions below. P1.1 and P1.2 are built together on the branch `p1-living-market` and merged together; P1.1 alone (imports only) is a development state, not a playable one.
 
-Progress: **P1.1 to P1.5 built** (demand, the outside world, production, 30 goods in chains, the full health report over 20 seeds × 50 years, and a minimal UI; see "Built: what changed on the way" at the end). Next: a playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
+Progress: **P1.1 to P1.5 built** (demand, the outside world, production, 30 goods in chains, the full health report over 20 seeds × 50 years, and a minimal UI; see "Built: what changed on the way" at the end). The first playtest found that trading did not pay; prices and the fee were rebalanced ("After the first playtest", at the end). Next: a second playtest and the merge to `master`. The phases are numbered P1.1–P1.5 so they don't clash with the roadmap's projects. Roadmap project P1 (`roadmap.md`), built on the sim core (`sim_core.md`). It replaces the placeholder economy described in `pricing.md` §2, §3 and §9.
 
 ## Goal in one paragraph
 
@@ -227,7 +227,7 @@ The player's trades fall between ticks, when the game calls `Good.buy` / `Good.s
 | Dead workshop | any workshop at utilisation 0 for more than a year | warning |
 | Structural shortage | any good importing at its limit on more than X % of days | X = 50 (warning) |
 | Market balance | any day's `market_balance` not zero within float tolerance (the market place holds no money) | 1e-9 of the money supply |
-| Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on a 100g lot (whole units at the day's price, at least 1) beats twice its round trip (two fees plus slippage both ways) | — |
+| Tradability (warning, no threshold yet) | per good, the median over the run of (30-day max − min price) / price, and the share of days that range on a 100g lot (whole units at the day's price, at least 1) beats twice its round trip (the fee and slippage both ways) | — |
 
 **Built** (`src/sim/health.py`): every row of the table, plus the warnings for a town that should run slightly short (comfort and luxury bands, goods run short; see "Calibration target" below). How the rows were read where the table left room is under "P1.4" in "Built: what changed on the way".
 
@@ -263,7 +263,7 @@ Numbered P1.1–P1.5 so they don't clash with the roadmap's projects (P3 is plot
   - The town hall's population stats show fulfilment per class and tier.
   - The market view shows daily demand and supply per good.
 
-Then a playtest, and the branch is merged to `master`.
+Then a playtest (done: "After the first playtest"), a second one, and the branch is merged to `master`.
 
 ## Open questions
 
@@ -442,8 +442,43 @@ What-ifs (10 seeds × 50 years, in memory): a higher poor wage cap moved Wood on
 
 Seen in the runs, not decided yet (also in `roadmap.md`, "Known issues and loose ends"):
 
-- **Tradability of cheap goods.** The flat transaction fee eats a small lot's swing on a cheap good (Bread, Clay, Charcoal, Flax, Pottery never beat the round trip in the tradability measure). Later: a percentage fee with a minimum.
+- **Tradability of cheap goods.** Settled after the first playtest: the fee is a share of the trade (below).
 - **Labour.** The poor's wage sits at its `wage_cap` nearly all the time; no building hires from the middling sort.
 - **The town is always full.** Migration settles at its housing; growth needs new housing (roadmap P3, P6).
 - **Wine at its import limit** (seen by P1.4's sweep, after the Wood fix): imported at its limit on about 64 % of days. It is import-only, so only its `import_limit` or the baskets move it; not decided.
 - **The smithy** is the thinnest recipe at outside prices (+0.30 at base income) and idles for over a year on 8 of 20 seeds.
+
+## After the first playtest: trading that pays
+
+**Found.** The living market could not be traded on. Before P1 prices walked ±10 % an hour and a small trader lived well off them; now a good moved about 5 % in a day and 16 % in a week, a lot worth the starting 100g moved its own price by about 10 % there and back, and the flat fee took 2 more each way. A headless trader (`python -m src.sim.trader`, below) earned nothing at any size of purse.
+
+**Wanted** (the user's brief): a small trader can earn by buying low and selling high, as before P1. Prices are spikier in the short run and run in bigger lines in the long run. Orders that grow large move the market until they stop paying, so that the player is pushed into making goods (P3), where the real money is. Seasons one can trade on: stock up in summer, sell in winter. And the economy stays the simulation it is.
+
+**Built.** Nothing in the town's rules changed; what moves a price did.
+
+- **Four time scales** (`pricing.md` §2). The outside price already had its seasons and its slow walk. New: **news** (`market.step_news`), which moves a good's outside price at a stroke, up or down, and fades over days, per good in `goods.json` (`news_chance`, `news_size`, `news_reversion`) and reported as `OutsideNews`. And the **noise** is the day's haggling now: `PRICE_NOISE_PERSISTENCE` 0.96 (half gone in 8 hours, was 17), `PRICE_NOISE_CLAMP` 0.25, and a `noise_sigma` three to six times what it was.
+  - Why news in the outside price and not a larger noise alone: the merchants' lines move with it, so they do not trade against it, and it is what the other towns' own shortages will be (P7); it also has a cause the game can tell the player later (P9).
+  - Staples (Bread, Flour, Wheat, Beer) get the least of both, since the poor live on them; fresh food (Fish, Meat, Livestock, Herbs) and the imported luxuries (Wine, Spices) the most.
+- **Stronger seasons** on the outside prices, and seasons for more goods (Hide, Salt, Charcoal, Tallow, Salted Fish, Garments). On the town's market, Winter against Summer: Wood +56 %, Herbs +56 %, Candle +44 %, Charcoal +31 %, Fish +30 %, Wool +26 %, Salted Fish +25 %; Autumn against Spring: Wheat, Meat, Livestock and Tallow about −20 %.
+- **The fee is a share of the trade** (`MARKET_FEE_RATE`, 1 %; `Depot.trading_fee`), not a flat 2: a lot of 20g pays 0.2 instead of 2, one of 2,000g pays 20 instead of 2. This was the loose end "tradability of cheap goods".
+- **The market's depth is as it was.** It is what makes a large order unprofitable, which is wanted; a deeper market would also blunt the town's own shortages.
+
+**The headless trader** (`src/sim/trader.py`, `python -m src.sim.trader`; `pricing.md` §10 has the table): a flipper without foresight (buys a dip under the last days' mean, sells for a few per cent more than it paid) at five sizes of purse, and a hoarder who stocks up in mid Summer and sells in mid Winter.
+
+| | Before | After |
+|---|---:|---:|
+| A new game (100g, Wood and Stone), gain a day | 0.1 g | 4.2 g |
+| 1,000g, 8 goods | −0.1 g | 12.6 g |
+| 5,000g, 16 goods | 0.6 g | 103 g |
+| 30,000g, 16 goods | 7.9 g | 105 g |
+| 40 Wood, Summer to Winter | | +58 %, no losing year of 12 |
+| 40 Candles, Summer to Winter | | +69 %, no losing year |
+
+So trading pays from the first day, and stops growing at about 100 g a day whatever the money behind it: the town's whole market holds about 50,000g of goods.
+
+**The town** (`python -m src.sim.sweep`, 20 seeds × 50 years): no seed fails a check, before or after. Basic fulfilment 0.97–0.98 (was 0.98), comfort 0.93–0.94 (0.94–0.95, now inside its band on every seed), luxury within its band for every class; the worst single day's basic fulfilment is 0.81 (was 0.96), never near hunger. Wine is still imported at its limit (93 % of days; 100 % before, on today's code), and the quarry still idles.
+
+**Not changed, and to watch in the second playtest.**
+- The starting licences are the two cheapest goods and the starting storage holds 100 units, so a new game's trading is capped by storage at a few coins a day; the first step up is a dearer good's licence or a warehouse.
+- The game shows no news yet: the player sees a price jump and has to know it will come back (the townsfolk's rumours say so).
+- With the charts this lively the health report's tradability (a 30-day range of daily prices) says little; the trader is the measure now.

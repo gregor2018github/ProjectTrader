@@ -74,7 +74,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 | Project | Status |
 |---|---|
 | P0 · Sim core | **Done** |
-| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.5 built, then a playtest and the merge to `master` |
+| P1 · The living market | **In progress** on the branch `p1-living-market`: P1.1–P1.5 built, trading rebalanced after the first playtest; then a second playtest and the merge to `master` |
 | P2 · Prestige & household | **Next** |
 | P3 · Plots & workshops | Later, after P2 |
 | P4 · The dynasty, P5 · Rival dynasties | Later |
@@ -104,8 +104,9 @@ Plugs into: `Good`, `Town` and `PopulationManager` (now pass-through views of th
 - **P1.3 Goods to 30**: built.
 - **P1.4 Runner and health**: built. Every check of the design's health table is in, plus a check that every recipe can run flat out at outside prices, and 20 seeds × 50 years run clean (no seed fails). Its sweep found Wood held back by labour; hands of a short class are now shared by workers wanted × margin (a stand-in for P3's wage offers), growth and shrinking count days in a window, and the charcoal, mill and bakery recipes were fixed.
 - **P1.5 Minimal UI**: built. Need fulfilment per class and tier in the town hall's population stats, yesterday's demand and supply per good when its box in the market view is hovered.
+- **First playtest**: trading did not pay. Rebalanced (`p1_living_market.md`, "After the first playtest").
 
-Then a playtest and the merge to `master`.
+Then a second playtest and the merge to `master`.
 
 Real supply and demand in place of the placeholder random walk and `recover_volume()`.
 
@@ -113,7 +114,7 @@ Real supply and demand in place of the placeholder random walk and `recover_volu
 - Wages from the workshops flow into the class purses; the purses buy from the market; how well each tier of needs is met drives happiness; happiness drives people moving in and out. This replaces today's random happiness drift.
 - Goods grow to about 30 in this project, with real chains: wheat → flour → bread, wool → cloth → garments, hide → leather, iron → tools. Tools wear out, which keeps a steady demand for them.
 - The volume factor stays. `normal_quantity` becomes *days of demand* the market holds, so a growing town needs more stock to feel normal.
-- The random walk shrinks to a small noise on top. The player's trades keep moving the price through slippage.
+- The random walk shrinks to a noise on top, and the outside price moves with the seasons, a slow walk and news; after the first playtest these were made lively enough to trade on (`pricing.md` §2, §10). The player's trades keep moving the price through slippage.
 - Shortages and gluts are visible: empty or overflowing stalls, and remarks from the townsfolk. *Not built yet:* P1.5 only adds numbers to the town hall and the market view; the map shows nothing of the market's state (see "Known issues and loose ends").
 
 ### P2 · Prestige & household
@@ -220,7 +221,8 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 
 ## Known issues and loose ends
 
-- **Cheap goods aren't worth trading.** The transaction fee is flat (`INITIAL_TRANSACTION_COST`, 2 per trade), so on a cheap good (Bread, Clay, Charcoal, Flax, Pottery) a small lot's swings never pay for its round trip (`python -m src.sim.health`, tradability). Later: a percentage fee with a minimum.
+- **Trading after the first playtest.** The playtest found no way to earn by trading: prices were too calm for the flat fee and the slippage. Now prices move on four time scales (seasons, a slow walk, news that jumps and fades, the day's noise) and the fee is 1 % of a trade; a headless trader (`python -m src.sim.trader`) earns from the first day and stops growing at about 100 g a day, where the market's depth caps it (`pricing.md` §10). To be confirmed by a second playtest. Not touched, and to watch there: the starting licences are the two cheapest goods (Wood, Stone) and the starting storage holds 100 units, so the first step up is a dearer good's licence or a warehouse.
+- **News is not shown.** The sim reports each piece of news that moves a price (`OutsideNews`); the player sees only the jump (P9: crier, rumours).
 - **Labour.** The poor's wage sits at its cap (`wage_cap` in `needs.json`) nearly all the time, since their workshops always want more hands than there are. No building hires from the middling sort, so its labour share is never used and it lives on base income alone.
 - **Wine at its import limit.** Wine is import-only and, since the Wood fix (P1.4) left the town richer, is imported at its limit on about 64 % of days (the health sweep's structural shortage warning). Its `import_limit` or the baskets would move it; not decided.
 - **The smithy** is the thinnest recipe at outside prices (+0.30 at base income) and idles for over a year on 8 of 20 seeds of the sweep.

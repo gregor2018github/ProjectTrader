@@ -45,7 +45,7 @@ def son():
 def state(son):
     camera = SimpleNamespace(zoom=1.0, apply=lambda x, y: (x, y))
     player = SimpleNamespace(x=390.0, y=380.0, width=32, height=54)
-    depot = Depot(money=100, transaction_cost=2, storage_capacity=100, goods=("Wood", "Stone"))
+    depot = Depot(money=100, fee_rate=0.02, storage_capacity=100, goods=("Wood", "Stone"))
     warnings, events = [], []
     state = SimpleNamespace(date=TODAY, screen=pygame.display.get_surface(), font=pygame.font.Font(None, 20),
                             info_window=None, active_house_menu=None, is_map_visible=True,

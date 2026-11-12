@@ -46,7 +46,7 @@ from .ui.helper_modules.rank_up_window import RankUpWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, INITIAL_TRANSACTION_COST, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, MARKET_FEE_RATE, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
@@ -127,7 +127,7 @@ class Game:
         for d in definitions.goods:
             for market_name in d.sold_at:
                 Market.SOLD_AT.setdefault(market_name, []).append(d.name)
-        self.depot: Depot = Depot(money=STARTING_MONEY, transaction_cost=INITIAL_TRANSACTION_COST,
+        self.depot: Depot = Depot(money=STARTING_MONEY, fee_rate=MARKET_FEE_RATE,
                                   storage_capacity=INITIAL_STORAGE_CAPACITY, goods=names)
         self.depot.license_of = {d.name: d.license_name for d in definitions.goods}
         self.depot.init_starting_licenses(self.state.date, [(l.name, l.starting_seasons) for l in licenses.values()

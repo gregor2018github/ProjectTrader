@@ -5,7 +5,8 @@ and establishes its workshops, moves its clock with ``advance_to()`` and reads
 ``state``; the systems run on the scheduler's ticks in the order they are
 subscribed in ``_subscribe_systems()``:
 
-    price tick   each good: noise step (one draw), chart point
+    price tick   each good: noise step (one draw), news from outside fading
+                 and arriving (a draw, if the good has any), chart point
     hour         in market hours, a trading slice: households and workshops
                  buy (each good cleared at one price, short stock shared pro
                  rata), workshops run their share of the day's batches and
@@ -29,7 +30,7 @@ from typing import Any, Dict, Hashable, Optional, Tuple
 from ..config.constants import MARKET_CLOSE_HOUR, MARKET_OPEN_HOUR
 from . import calendar
 from .data import BuildingDef, Definitions, RecipeDef, ScenarioDef
-from .events import CapacityChanged, EventQueue, PopulationChanged, PriceShockEnded
+from .events import CapacityChanged, EventQueue, OutsideNews, PopulationChanged, PriceShockEnded
 from .rng import make_rng, state_from_json, state_to_json
 from .scheduler import Scheduler
 from .state import GoodState, MerchantFlows, OwnerState, SimState, TownMoney, TownSpec, WorkshopState
@@ -134,7 +135,11 @@ class Simulation:
 
     def _market_tick(self, moment: datetime.datetime) -> None:
         for good in self.state.goods.values():
-            market.step_noise(good, self.definitions[good.name], self.rng)
+            definition = self.definitions[good.name]
+            market.step_noise(good, definition, self.rng)
+            change = market.step_news(good, definition, self.rng)
+            if change:
+                self.events.push(OutsideNews(moment, good.name, change))
             market.record_tick(good)
 
     def _market_slice(self, moment: datetime.datetime) -> None:

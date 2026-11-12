@@ -20,20 +20,20 @@ class Depot:
     property ownership and trade statistics.
     """
     
-    def __init__(self, money: float, transaction_cost: float, storage_capacity: int,
+    def __init__(self, money: float, fee_rate: float, storage_capacity: int,
                  goods: Sequence[str] = ()) -> None:
         """Initialize the depot with starting values.
 
         Args:
             money: Initial amount of money.
-            transaction_cost: Flat cost per trade transaction.
+            fee_rate: The market's fee on a trade, as a share of what the goods come to.
             storage_capacity: Maximum number of goods units that can be stored.
             goods: The goods it keeps accounts for (goods.json's, in order).
         """
         # CURRENT STATE
 
         self.money: float = money                       # current money
-        self.transaction_cost: float = transaction_cost # cost per transaction
+        self.fee_rate: float = fee_rate                 # the market's fee, a share of each trade (see trading_fee)
         self.storage_capacity: int = storage_capacity   # maximum storage capacity
         self.warehouse_count: int = 1                   # number of warehouses owned (by default 1)
         self.starting_slots: List[Dict[str, Any]] = self.empty_slots(STARTING_STORAGE_SLOTS)  # see STORAGE SLOTS
@@ -194,6 +194,14 @@ class Depot:
             })
         return result
 
+    def trading_fee(self, amount: float) -> float:
+        """The market's fee on a trade whose goods come to *amount*: a share of it (``fee_rate``).
+
+        Paid on top of a purchase and out of a sale's revenue, so a small lot
+        pays little and a large one much.
+        """
+        return self.fee_rate * amount
+
     def buy(self, good: Any, quantity_to_buy: int, game_state: Any) -> bool:
         """Buy a quantity of a good from market to depot.
         
@@ -225,7 +233,8 @@ class Depot:
         total_cost = good.quote(quantity_to_buy, buying=True)
         unit_price = total_cost / quantity_to_buy
 
-        if self.money < total_cost + self.transaction_cost:
+        fee = self.trading_fee(total_cost)
+        if self.money < total_cost + fee:
             game_state.show_warning("Not enough money.")
             return False
 
@@ -244,11 +253,11 @@ class Depot:
                 game_state.show_warning("Not enough storage capacity.")
             return False
 
-        self.money -= (total_cost + self.transaction_cost)
+        self.money -= (total_cost + fee)
         self._store_goods(good.name, quantity_to_buy)
         self.good_stock[good.name] = self.good_stock.get(good.name, 0) + quantity_to_buy
-        self.expenditures += (total_cost + self.transaction_cost)
-        self.transaction_expenditures += self.transaction_cost
+        self.expenditures += (total_cost + fee)
+        self.transaction_expenditures += fee
         
         # Store purchase in FIFO queue with timestamp, price, and quantity
         self.purchase_history[good.name].append({
@@ -306,17 +315,13 @@ class Depot:
         total_revenue = good.quote(quantity_to_sell, buying=False)
         current_sale_price = total_revenue / quantity_to_sell
         
-        net = total_revenue - self.transaction_cost
-        if net < 0 and self.money + net < 0:
-            game_state.show_warning("Not enough money to cover transaction costs.")
-            return False
-
-        self.money += net
+        fee = self.trading_fee(total_revenue)
+        self.money += total_revenue - fee
         self._take_goods(good.name, quantity_to_sell)
         self.good_stock[good.name] -= quantity_to_sell
         self.income += total_revenue
-        self.expenditures += self.transaction_cost
-        self.transaction_expenditures += self.transaction_cost
+        self.expenditures += fee
+        self.transaction_expenditures += fee
         remaining_to_sell = quantity_to_sell
         total_cost_of_goods_sold = 0
         purchase_entries = self.purchase_history[good.name]

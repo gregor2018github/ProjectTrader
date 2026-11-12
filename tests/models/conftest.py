@@ -44,8 +44,8 @@ def game_state(monkeypatch):
 
 @pytest.fixture
 def depot(game_state):
-    """10,000g, a 2g fee per trade, the starting storage, and licenses of three years (12 seasons) for every good."""
-    depot = Depot(money=10_000, transaction_cost=2, storage_capacity=SLOT_SIZE * STARTING_STORAGE_SLOTS, goods=GOODS)
+    """10,000g, a fee of 2 % of each trade, the starting storage, and licenses of three years (12 seasons) for every good."""
+    depot = Depot(money=10_000, fee_rate=0.02, storage_capacity=SLOT_SIZE * STARTING_STORAGE_SLOTS, goods=GOODS)
     for good_name in depot.good_stock:
         depot.add_license(good_name, 12, game_state.date)
     return depot

@@ -10,16 +10,19 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
+    "Summer": 0.85,
     "Autumn": 1.05,
-    "Winter": 1.15,
-    "Summer": 0.9
+    "Winter": 1.3
    },
    "transport_cost": 0.3,
    "import_limit": 30,
    "export_limit": 200,
    "target_stock_days": 14,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 10,
    "starting_license_seasons": 8
   },
@@ -36,7 +39,10 @@
    "export_limit": 150,
    "target_stock_days": 30,
    "min_target_stock": 400,
-   "noise_sigma": 0.003,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 10,
    "starting_license_seasons": 4
   },
@@ -53,7 +59,10 @@
    "export_limit": 60,
    "target_stock_days": 30,
    "min_target_stock": 150,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 25
   },
   {
@@ -65,15 +74,18 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Summer": 0.9,
-    "Winter": 1.1
+    "Summer": 0.85,
+    "Winter": 1.15
    },
    "transport_cost": 0.4,
    "import_limit": 60,
    "export_limit": 100,
    "target_stock_days": 30,
    "min_target_stock": 300,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 25
   },
   {
@@ -84,12 +96,19 @@
    "outside_price": 4,
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
+   "outside_seasons": {
+    "Autumn": 0.9,
+    "Spring": 1.05
+   },
    "transport_cost": 0.5,
    "import_limit": 20,
    "export_limit": 40,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 25
   },
   {
@@ -101,15 +120,18 @@
    "outside_reversion": 0.05,
    "outside_volatility": 0.04,
    "outside_seasons": {
-    "Winter": 1.15,
-    "Summer": 0.95
+    "Summer": 0.9,
+    "Winter": 1.25
    },
    "transport_cost": 0.4,
    "import_limit": 100,
    "export_limit": 100,
    "target_stock_days": 14,
    "min_target_stock": 50,
-   "noise_sigma": 0.005,
+   "noise_sigma": 0.028,
+   "news_chance": 0.3,
+   "news_size": 0.24,
+   "news_reversion": 0.45,
    "license_fee": 10
   },
   {
@@ -121,16 +143,19 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Spring": 1.1,
-    "Summer": 1.05,
-    "Autumn": 0.85
+    "Spring": 1.15,
+    "Summer": 1.1,
+    "Autumn": 0.8
    },
    "transport_cost": 0.2,
    "import_limit": 250,
    "export_limit": 250,
    "target_stock_days": 14,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.015,
+   "news_chance": 0.15,
+   "news_size": 0.12,
+   "news_reversion": 0.35,
    "license_fee": 15
   },
   {
@@ -142,15 +167,18 @@
    "outside_reversion": 0.02,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Autumn": 0.95,
-    "Spring": 1.05
+    "Autumn": 0.9,
+    "Spring": 1.1
    },
    "transport_cost": 1.0,
    "import_limit": 24,
    "export_limit": 30,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.026,
+   "news_chance": 0.22,
+   "news_size": 0.26,
+   "news_reversion": 0.25,
    "license_fee": 115
   },
   {
@@ -166,7 +194,10 @@
    "export_limit": 60,
    "target_stock_days": 14,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.015,
+   "news_chance": 0.15,
+   "news_size": 0.12,
+   "news_reversion": 0.35,
    "license_fee": 45
   },
   {
@@ -178,15 +209,18 @@
    "outside_reversion": 0.04,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Autumn": 0.9,
-    "Spring": 1.1
+    "Autumn": 0.85,
+    "Spring": 1.15
    },
    "transport_cost": 0.8,
    "import_limit": 80,
    "export_limit": 60,
    "target_stock_days": 14,
    "min_target_stock": 50,
-   "noise_sigma": 0.005,
+   "noise_sigma": 0.028,
+   "news_chance": 0.3,
+   "news_size": 0.24,
+   "news_reversion": 0.45,
    "license_fee": 45
   },
   {
@@ -202,7 +236,10 @@
    "export_limit": 60,
    "target_stock_days": 30,
    "min_target_stock": 100,
-   "noise_sigma": 0.003,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license_fee": 35
   },
   {
@@ -218,7 +255,10 @@
    "export_limit": 60,
    "target_stock_days": 30,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license_fee": 35
   },
   {
@@ -230,15 +270,18 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Winter": 1.1,
-    "Summer": 0.95
+    "Summer": 0.85,
+    "Winter": 1.25
    },
    "transport_cost": 0.5,
    "import_limit": 14,
    "export_limit": 40,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license_fee": 35
   },
   {
@@ -250,15 +293,18 @@
    "outside_reversion": 0.04,
    "outside_volatility": 0.04,
    "outside_seasons": {
-    "Summer": 0.85,
-    "Winter": 1.2
+    "Summer": 0.75,
+    "Winter": 1.35
    },
    "transport_cost": 0.4,
    "import_limit": 25,
    "export_limit": 40,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.005,
+   "noise_sigma": 0.028,
+   "news_chance": 0.3,
+   "news_size": 0.24,
+   "news_reversion": 0.45,
    "license_fee": 30
   },
   {
@@ -269,12 +315,19 @@
    "outside_price": 6,
    "outside_reversion": 0.02,
    "outside_volatility": 0.02,
+   "outside_seasons": {
+    "Summer": 0.9,
+    "Winter": 1.1
+   },
    "transport_cost": 0.6,
    "import_limit": 15,
    "export_limit": 40,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.003,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license_fee": 70
   },
   {
@@ -286,15 +339,18 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Summer": 0.9,
-    "Spring": 1.1
+    "Summer": 0.85,
+    "Spring": 1.15
    },
    "transport_cost": 0.3,
    "import_limit": 40,
    "export_limit": 60,
    "target_stock_days": 30,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license": "Linen",
    "sold_at": [
     "Wool & Hide Market"
@@ -309,15 +365,18 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Autumn": 0.9,
-    "Spring": 1.1
+    "Autumn": 0.85,
+    "Spring": 1.15
    },
    "transport_cost": 1.5,
    "import_limit": 15,
    "export_limit": 15,
    "target_stock_days": 14,
    "min_target_stock": 20,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.028,
+   "news_chance": 0.3,
+   "news_size": 0.24,
+   "news_reversion": 0.45,
    "license": "Meat",
    "sold_at": [
     "Meat Market"
@@ -336,7 +395,10 @@
    "export_limit": 60,
    "target_stock_days": 30,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license": "Pottery",
    "sold_at": [
     "Pottery Market"
@@ -355,7 +417,10 @@
    "export_limit": 0,
    "target_stock_days": 60,
    "min_target_stock": 10,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.026,
+   "news_chance": 0.22,
+   "news_size": 0.26,
+   "news_reversion": 0.25,
    "license_fee": 120,
    "sold_at": [
     "Herbs Market"
@@ -370,15 +435,19 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Spring": 1.08,
-    "Autumn": 0.9
+    "Spring": 1.1,
+    "Summer": 1.05,
+    "Autumn": 0.87
    },
    "transport_cost": 0.2,
    "import_limit": 150,
    "export_limit": 150,
    "target_stock_days": 14,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.015,
+   "news_chance": 0.15,
+   "news_size": 0.12,
+   "news_reversion": 0.35,
    "license": "Wheat",
    "sold_at": [
     "Wheat Market"
@@ -393,14 +462,18 @@
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
    "outside_seasons": {
-    "Winter": 1.1
+    "Summer": 0.9,
+    "Winter": 1.25
    },
    "transport_cost": 0.6,
    "import_limit": 20,
    "export_limit": 30,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license": "Iron",
    "sold_at": [
     "Iron Market"
@@ -414,12 +487,19 @@
    "outside_price": 2.5,
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
+   "outside_seasons": {
+    "Autumn": 0.88,
+    "Spring": 1.05
+   },
    "transport_cost": 0.4,
    "import_limit": 15,
    "export_limit": 20,
    "target_stock_days": 30,
    "min_target_stock": 50,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.024,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
    "license": "Candle",
    "sold_at": [
     "Candle Market"
@@ -438,7 +518,10 @@
    "export_limit": 15,
    "target_stock_days": 30,
    "min_target_stock": 30,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Hide",
    "sold_at": [
     "Wool & Hide Market"
@@ -457,7 +540,10 @@
    "export_limit": 15,
    "target_stock_days": 30,
    "min_target_stock": 30,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Wool",
    "sold_at": [
     "Wool & Hide Market"
@@ -480,7 +566,10 @@
    "export_limit": 120,
    "target_stock_days": 5,
    "min_target_stock": 100,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.015,
+   "news_chance": 0.15,
+   "news_size": 0.12,
+   "news_reversion": 0.35,
    "license": "Wheat",
    "sold_at": [
     "Wheat Market"
@@ -494,12 +583,19 @@
    "outside_price": 5.0,
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
+   "outside_seasons": {
+    "Summer": 0.92,
+    "Winter": 1.2
+   },
    "transport_cost": 0.5,
    "import_limit": 15,
    "export_limit": 20,
    "target_stock_days": 30,
    "min_target_stock": 40,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Fish",
    "sold_at": [
     "Fish Market",
@@ -514,12 +610,19 @@
    "outside_price": 13.0,
    "outside_reversion": 0.03,
    "outside_volatility": 0.03,
+   "outside_seasons": {
+    "Summer": 0.92,
+    "Winter": 1.1
+   },
    "transport_cost": 1.0,
    "import_limit": 4,
    "export_limit": 6,
    "target_stock_days": 60,
    "min_target_stock": 10,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Wool",
    "sold_at": [
     "Wool & Hide Market"
@@ -538,7 +641,10 @@
    "export_limit": 6,
    "target_stock_days": 60,
    "min_target_stock": 10,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Hide",
    "sold_at": [
     "Wool & Hide Market"
@@ -557,7 +663,10 @@
    "export_limit": 6,
    "target_stock_days": 60,
    "min_target_stock": 10,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Iron",
    "sold_at": [
     "Iron Market"
@@ -576,7 +685,10 @@
    "export_limit": 4,
    "target_stock_days": 60,
    "min_target_stock": 5,
-   "noise_sigma": 0.004,
+   "noise_sigma": 0.022,
+   "news_chance": 0.18,
+   "news_size": 0.17,
+   "news_reversion": 0.3,
    "license": "Wood",
    "sold_at": [
     "Wood Market"

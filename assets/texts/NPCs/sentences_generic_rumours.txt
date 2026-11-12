@@ -14,6 +14,11 @@
 • [Poor, Commons] Buy up all the bread in town of a morning and by noon the price has run away and the whole street is shouting at the baker. Mind who sees you do it.
 • [Commons, Middling Sort, Traders] The booths don't all shut on the stroke. Every stallholder packs up when it suits them, so at dusk one stall is open and the next one shut.
 • [Middling Sort, Traders] When the town runs short, merchants cart the stuff in from outside. When it's drowning in it, they cart it off again. There's only so far a price can wander.
+• [Commons, Middling Sort, Traders] Firewood, herbs and candles are cheapest in high summer and dearest in the dead of winter. Whoever has a dry shed and a little patience can live off that.
+• [Middling Sort, Traders] Corn and meat are cheapest in autumn, after the harvest and the slaughter, and dearest in spring when the barns are empty.
+• [Commons, Traders] When word comes of a ship lost or a fat harvest abroad, a price leaps or drops in an hour. Give it a few days and it has mostly crept back to where it was.
+• [Middling Sort, Traders] Buy a cartload at once and you drive the price up against yourself, sell it at once and you drive it down. Small lots, often, is how the clever ones do it.
+• [Traders] The market takes its penny in every hundred, buying or selling. A big trade pays a big fee, so it had better be worth making.
 • [Middling Sort, Traders] A workshop that does well takes on more hands and grows. One that keeps losing money shrinks, and the owner wonders where it all went.
 • [Poor, Commons] When hands are short the workshops pay more, and when they're plenty the wage falls again. Funny how nobody ever calls that a miracle.
 • [Middling Sort, Traders] Whoever holds the wheat licence may deal in flour and bread as well. The town hall sells them. Iron's does for tools and charcoal, wool's for cloth and garments.

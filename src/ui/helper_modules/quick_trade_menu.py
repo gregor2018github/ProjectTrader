@@ -246,22 +246,24 @@ class TradeMenu:
         line_gap = 23
         if self.good:
             unit_price = self.good.get_price()
-            fee = self.depot.transaction_cost
+            fee_rate = self.depot.fee_rate
 
             price_surf = self.font.render(f"Price per Unit: {unit_price:.1f}", True, DARK_GRAY)
             target_surf.blit(price_surf, price_surf.get_rect(center=(body_draw_rect.centerx, info_y + price_surf.get_height() // 2)))
 
-            fee_surf = self.font.render(f"Trading Fees: {fee:.1f}", True, DARK_GRAY)
+            fee_surf = self.font.render(f"Trading Fee: {fee_rate:.1%}".replace(".0%", "%"), True, DARK_GRAY)
             target_surf.blit(fee_surf, fee_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap + fee_surf.get_height() // 2)))
 
             hovering_buy  = alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos)
             hovering_sell = alpha_scale >= 1.0 and self.buttons['sell'].collidepoint(mouse_pos)
             if hovering_buy:
-                total = self.good.quote(self.quantity, buying=True) + fee
+                goods_cost = self.good.quote(self.quantity, buying=True)
+                total = goods_cost + self.depot.trading_fee(goods_cost)
                 total_surf = self.font.render(f"Total Cost: {total:.1f}", True, DARK_BROWN)
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
             elif hovering_sell:
-                total = self.good.quote(self.quantity, buying=False) - fee
+                revenue = self.good.quote(self.quantity, buying=False)
+                total = revenue - self.depot.trading_fee(revenue)
                 total_surf = self.font.render(f"Total Income: {total:.1f}", True, DARK_BROWN)
                 target_surf.blit(total_surf, total_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap * 2 + total_surf.get_height() // 2)))
 

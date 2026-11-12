@@ -8,7 +8,7 @@ from src.persistence.save_manager import _hourly_to_ticks
 from src.sim.systems import market as market_module
 from src.sim.systems.market import (
     apply_well_shock, clear_buyers, create_good, merchants, price, quote, ratio_for_factor,
-    reference, step_outside, tick_well_shock_day, update_target, volume_factor,
+    reference, set_price, step_news, step_noise, step_outside, tick_well_shock_day, update_target, volume_factor,
 )
 from tests.sim.builders import START, good_def
 
@@ -21,7 +21,8 @@ def pinned_market(monkeypatch):
     for name, value in (("MARKET_VOLUME_SCARCE_RATIO", 0.9), ("MARKET_VOLUME_GLUT_RATIO", 1.1),
                         ("MARKET_VOLUME_ELASTICITY", 0.7), ("MARKET_VOLUME_FACTOR_MIN", 0.4),
                         ("MARKET_VOLUME_FACTOR_MAX", 3.0), ("WELL_WISH_SHOCK_FACTOR", 0.4),
-                        ("WELL_WISH_DURATION_DAYS", 5)):
+                        ("WELL_WISH_DURATION_DAYS", 5), ("PRICE_TICKS_PER_DAY", 48), ("NEWS_SIZE_SPREAD", 0.5),
+                        ("PRICE_NOISE_PERSISTENCE", 0.96), ("PRICE_NOISE_CLAMP", 0.25)):
         monkeypatch.setattr(market_module, name, value)
 
 
@@ -114,6 +115,73 @@ def test_the_outside_price_follows_the_seasons():
     mid_winter = START.replace(day=25, hour=12)             # day 24.5 of the year: Winter's middle
     step_outside(good, definition, mid_winter, random.Random(1))
     assert good.outside_price == pytest.approx(15.0)
+
+
+class Draws:
+    """A generator stand-in handing out the given draws in turn."""
+
+    def __init__(self, *values: float) -> None:
+        self.values = list(values)
+
+    def random(self) -> float:
+        return self.values.pop(0)
+
+    def gauss(self, mu: float, sigma: float) -> float:
+        return self.values.pop(0)
+
+
+def test_news_moves_the_outside_price_at_a_stroke_and_the_town_s_price_with_it():
+    good, definition = a_good(10.0, news_chance=0.48, news_size=0.2, news_reversion=0.5)
+    # The chance per tick is 0.48 / 48 = 0.01: a draw under it is news; size 0.2 x (1 + 0.5 x 0.5), sign up
+    change = step_news(good, definition, Draws(0.005, 0.75, 0.2))
+    assert change == pytest.approx(0.25)
+    assert good.outside_price == pytest.approx(10.0 * math.exp(0.25))
+    assert price(good) == pytest.approx(10.0 * math.exp(0.25))     # the stock is as it was: the reference moved
+
+
+def test_news_may_as_well_be_bad_for_the_price():
+    good, definition = a_good(10.0, news_chance=0.48, news_size=0.2, news_reversion=0.5)
+    assert step_news(good, definition, Draws(0.005, 0.5, 0.9)) == pytest.approx(-0.2)
+    assert good.outside_price == pytest.approx(10.0 * math.exp(-0.2))
+
+
+def test_what_news_moved_fades_by_its_reversion_a_day():
+    good, definition = a_good(10.0, news_chance=0.48, news_size=0.2, news_reversion=0.5)
+    good.outside_news = 0.4
+    for _ in range(48):                                              # a day of ticks, no news in any
+        assert step_news(good, definition, Draws(0.5)) == 0.0
+    assert good.outside_news == pytest.approx(0.2)
+    assert good.outside_price == pytest.approx(10.0 * math.exp(0.2))
+
+
+def test_a_good_without_news_draws_nothing():
+    good, definition = a_good(10.0)
+    assert step_news(good, definition, Draws()) == 0.0               # an empty Draws would raise on a draw
+    assert good.outside_price == pytest.approx(10.0)
+
+
+def test_the_slow_walk_keeps_what_the_news_moved():
+    good, definition = a_good(10.0, outside_reversion=0.1, outside_volatility=0.0)
+    good.outside_news = math.log(1.2)
+    step_outside(good, definition, START, random.Random(1))
+    assert good.outside_price == pytest.approx(12.0)
+
+
+def test_setting_the_price_leaves_the_news_to_fade_from_there():
+    good, _ = a_good(10.0)
+    good.outside_news = 0.3
+    set_price(good, 20.0)
+    assert price(good) == pytest.approx(20.0)
+    assert good.outside_dev + good.outside_news == pytest.approx(math.log(2.0))
+
+
+def test_the_noise_keeps_part_of_itself_each_tick_and_stays_within_its_clamp():
+    good, definition = a_good(10.0, noise_sigma=0.1)
+    good.noise = 0.1
+    step_noise(good, definition, Draws(0.5))                         # 0.1 x 0.96 + 0.1 x 0.5
+    assert good.noise == pytest.approx(0.146)
+    step_noise(good, definition, Draws(5.0))
+    assert good.noise == 0.25
 
 
 def test_a_well_wish_moves_the_outside_price_and_ends():
