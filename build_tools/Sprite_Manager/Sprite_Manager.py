@@ -233,6 +233,15 @@ after, so they all look alike (EXAMPLE_DISHES, else the type's first dish
 with a picture; Roast Pigeons for the plates, none yet for bowls and
 drinks). Clicking a type's block (or T) shows only it, M only the dishes without a
 picture, O opens assets/pictures, "GIMP" opens the chosen dish's picture.
+"Send in browser" (Ctrl+W) sends the chosen dish to the Gemini tab like any
+sheet: its type's example picture as it is, and a prompt asking for the
+same picture - the same plate, table, angle, light and pixel art - with
+only the food changed to the dish (food_sheets.py). "Send missing ... in
+browser" (Ctrl+Shift+W) sends every dish of the chosen one's type that has
+no picture and no answer waiting, one after another (again to stop).
+"Answers" (Enter) opens its answers (view_food_answers.py): accepting one
+fits it to the example's proportions and size and saves it as the dish's
+picture, keeping one it replaces in build_tools/output/food/<key>/replaced/.
 
 The code, for whoever works on it next:
 
@@ -302,6 +311,8 @@ The code, for whoever works on it next:
     view_good_answers.py  the answers for a good's picture, and writing the three files from one
     food.py            the tavern dishes: their types, pictures and each type's example
     view_food.py       the food: the dishes by type with their pictures, and the chosen one large
+    food_sheets.py     a dish's picture: its example, prompt, and the picture an answer makes
+    view_food_answers.py  the answers for a dish's picture, and saving one
 """
 
 import io
@@ -344,6 +355,7 @@ from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_goods import GoodsView  # noqa: E402
 from view_food import FoodView  # noqa: E402
+from view_food_answers import DishAnswersView  # noqa: E402
 from food import FOOD_PICTURES  # noqa: E402
 from view_good_design import GoodDesignView  # noqa: E402
 from goods import find_goods  # noqa: E402
@@ -654,6 +666,26 @@ class SpriteManager:
         """Back to the menu sprites, read again; the status line keeps what was last said."""
         self.npc = self.store = self.worker = None
         self.show(goods_view)
+
+    # --- dishes' pictures --------------------------------------------------
+
+    def open_dish_answers(self, food_view, sheet, entry=None):
+        """The answers for a dish's picture; `entry` shown first.
+
+        `entry` may come from another ReviewStore of the dish (the browser's delivery books into its own):
+        the screen gets this store's copy of it, else accepting would mark the other copy and leave the
+        answer pending on disk."""
+        self.npc = sheet.subject
+        self.store = ReviewStore(sheet.subject.out_dir)
+        if entry is not None:
+            entry = next((e for e in self.store.entries if e.image == entry.image), None)
+        self.worker = None
+        self.show(DishAnswersView(self, food_view, sheet, entry))
+
+    def close_dish(self, food_view):
+        """Back to the food, read again; the status line keeps what was last said."""
+        self.npc = self.store = self.worker = None
+        self.show(food_view)
 
     @staticmethod
     def screens():

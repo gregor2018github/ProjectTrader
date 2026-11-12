@@ -7,7 +7,14 @@ name, class, course and price. On the right, the chosen dish: its picture large 
 description, and the example its picture is drawn after.
 
 Click a row (or Up / Down) to choose a dish; clicking a type's block over the list (or T) shows only that
-type, clicking it again all of them; M shows only the dishes without a picture, O opens assets/pictures. "GIMP" beside a picture opens it in GIMP.
+type, clicking it again all of them; M shows only the dishes without a picture, O opens assets/pictures.
+"GIMP" beside a picture opens it in GIMP.
+
+Under the chosen dish, the ways to its picture (food_sheets.py): "Send in browser" (Ctrl+W) sends its
+type's example with the prompt to the Gemini tab, and the answer opens once it is in; "Send missing ...
+in browser" (Ctrl+Shift+W) sends every dish of its type with no picture and no answer waiting, one after
+another (clicking it again stops them); "Answers" (Enter) opens the dish's answers to accept one
+(view_food_answers.py).
 """
 
 import os
@@ -15,6 +22,9 @@ import sys
 
 import pygame
 
+from answers import store_web_answer
+from food_sheets import POSE, DishSubject, make_sheet
+from pose_review import PENDING, ReviewStore
 from food import CLASS_TITLES, FOOD_PICTURES, PICTURES_DIR, TYPE_TITLES, TYPES, example_of, find_dishes, tally
 from images import smooth_fit
 from theme import BAR_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, TEXT, TEXT_DIM, THUMB_BG
@@ -25,6 +35,7 @@ ROW_H = 58
 HEAD_H = 34              # a type's heading in the list
 THUMB = 50
 SUMMARY_H = 96
+BUTTON_H = 38
 TABLE_W = 470
 DETAIL_MIN_W = 320
 EXAMPLE_THUMB = 64       # the example's picture in the summary
@@ -47,6 +58,10 @@ class FoodView(View):
         self.missing_button = Button('Only missing (M)', w=170)
         self.gimp_button = Button('GIMP', h=24, w=60)
         self.gimp_button.enabled = False
+        self.send_button = Button('Send in browser (Ctrl+W)', h=BUTTON_H, w=230)
+        self.queue_button = Button('Send missing in browser', h=BUTTON_H, w=300)
+        self.answers_button = Button('Answers (Enter)', h=BUTTON_H, w=170)
+        self.answers = {}         # {dish name: (answers waiting, answers in all)}
         self.dishes = []
         self.totals = {}
         self.examples = {}        # {type key: Dish or None}
@@ -69,6 +84,11 @@ class FoodView(View):
                 image = load_picture(dish.picture)
                 if image is not None:
                     self.images[dish.name] = image
+        self.answers = {}
+        for dish in self.dishes:
+            entries = ReviewStore(DishSubject(dish).out_dir).for_pose(POSE)
+            if entries:
+                self.answers[dish.name] = (sum(e.status == PENDING for e in entries), len(entries))
         names = [d.name for d in self.dishes]
         if self.chosen not in names:
             self.chosen = names[0] if names else None
@@ -214,9 +234,12 @@ class FoodView(View):
             screen.blit(price, price.get_rect(topright=(line.right - 8, line.y + 8)))
             name = small.render(fit_text(small, dish.name, line.right - x - price.get_width() - 20), True, TEXT)
             screen.blit(name, (x, line.y + 8))
-            sub = f'{CLASS_TITLES.get(dish.tavern_class, dish.tavern_class)} tavern, {dish.course}' + \
-                  (', meat' if dish.meat else '')
-            screen.blit(small.render(fit_text(small, sub, line.right - x - 8), True, TEXT_DIM), (x, line.y + 28))
+            waiting = self.answers.get(dish.name, (0, 0))[0]
+            sub = (f'{waiting} to review' if waiting else
+                   f'{CLASS_TITLES.get(dish.tavern_class, dish.tavern_class)} tavern, {dish.course}'
+                   + (', meat' if dish.meat else ''))
+            screen.blit(small.render(fit_text(small, sub, line.right - x - 8), True, DONE_COLOR if waiting else TEXT_DIM),
+                        (x, line.y + 28))
         screen.set_clip(clip)
 
     def draw_detail(self, screen, rect, mouse):
@@ -231,6 +254,8 @@ class FoodView(View):
         clip = screen.get_clip()
         screen.set_clip(rect)
         inner = rect.inflate(-28, -24)
+        self.draw_buttons(screen, dish, inner, mouse)
+        inner.h -= BUTTON_H + 14
         title = fonts.title.render(fit_text(fonts.title, dish.name, inner.w), True, TEXT)
         screen.blit(title, inner.topleft)
         y = inner.y + title.get_height()
@@ -283,6 +308,95 @@ class FoodView(View):
             screen.blit(picture, (inner.x, y))
         screen.set_clip(clip)
 
+    def draw_buttons(self, screen, dish, inner, mouse):
+        """Along the foot of the chosen dish: send it, send its type's missing ones, its answers."""
+        font = self.app.fonts.font
+        example = self.examples.get(dish.type)
+        can_send = example is not None and example is not dish
+        x = inner.x
+        self.send_button.label = ('Redo in browser (Ctrl+W)' if dish.name in self.images
+                                  else 'Send in browser (Ctrl+W)')
+        self.send_button.enabled = can_send
+        queue_busy = self.app.web_queue_busy()
+        left = len(self.missing_of(dish.type))
+        self.queue_button.label = (f'Stop the queue ({self.app.web_queue_left()} left)' if queue_busy else
+                                   f'Send {left} missing {TYPE_TITLES[dish.type].lower()}')
+        self.queue_button.enabled = queue_busy or (example is not None and left > 0)
+        waiting, total = self.answers.get(dish.name, (0, 0))
+        self.answers_button.label = f'Answers ({waiting} new)' if waiting else f'Answers ({total})'
+        self.answers_button.enabled = total > 0 and example is not None
+        for button in (self.send_button, self.queue_button, self.answers_button):
+            button.rect.w = min(button.rect.w, max(60, inner.right - x))
+            button.rect.bottomleft = (x, inner.bottom)
+            button.draw(screen, font, mouse)
+            x = button.rect.right + 10
+
+    # --- sending ----------------------------------------------------------
+
+    def missing_of(self, dish_type):
+        """The dishes of `dish_type` without a picture and with no answer waiting: the queue's."""
+        return [d for d in self.dishes if d.type == dish_type and d.name not in self.images
+                and not self.answers.get(d.name, (0, 0))[0]]
+
+    def sheet_for(self, dish):
+        """The example and prompt for `dish`, written to its output; None (with the reason shown) if it
+        cannot be made."""
+        example = self.examples.get(dish.type)
+        if example is None:
+            self.app.set_status(f'No example for the {TYPE_TITLES[dish.type].lower()} yet', error=True)
+            return None
+        if example is dish:
+            self.app.set_status(f'{dish.name} is the example itself', error=True)
+            return None
+        try:
+            return make_sheet(DishSubject(dish), example)
+        except (pygame.error, OSError) as exc:
+            self.app.set_status(f'Cannot make the sheet for {dish.name}: {exc}', error=True)
+            return None
+
+    def delivery(self, sheet, show):
+        """deliver(path) for the browser: books the answer, and with `show` opens it if its dish is chosen."""
+        subject = sheet.subject
+        store = ReviewStore(subject.out_dir)
+
+        def deliver(path):
+            entry = store_web_answer(subject, store, sheet, path)
+            if self.app.view is self:
+                self.refresh()
+                if show and self.chosen == subject.name:
+                    self.app.open_dish_answers(self, sheet, entry)
+        return deliver
+
+    def send_web(self):
+        dish = self.chosen_dish()
+        sheet = self.sheet_for(dish) if dish else None
+        if sheet:
+            self.app.send_web(sheet, sheet.name, self.delivery(sheet, show=True))
+
+    def send_missing(self):
+        """Every dish of the chosen one's type without a picture, one after another; again to stop."""
+        if self.app.web_queue_busy():
+            self.app.stop_web_queue()
+            return
+        dish = self.chosen_dish()
+        if dish is None:
+            return
+        items = []
+        for other in self.missing_of(dish.type):
+            sheet = self.sheet_for(other)
+            if sheet is None:
+                return
+            items.append((sheet, sheet.name, self.delivery(sheet, show=False)))
+        self.app.send_web_queue(items)
+
+    def open_answers(self):
+        dish = self.chosen_dish()
+        if dish is None or not self.answers.get(dish.name):
+            return
+        sheet = self.sheet_for(dish)
+        if sheet:
+            self.app.open_dish_answers(self, sheet)
+
     # --- input ------------------------------------------------------------
 
     def click(self, pos):
@@ -296,6 +410,12 @@ class FoodView(View):
             key = next(key for block, key in self.type_blocks if block.collidepoint(pos))
             self.type_filter = None if self.type_filter == key else key
             self.keep_chosen_shown()
+        elif self.send_button.hit(pos):
+            self.send_web()
+        elif self.queue_button.hit(pos):
+            self.send_missing()
+        elif self.answers_button.hit(pos):
+            self.open_answers()
         elif self.gimp_button.hit(pos):
             dish = self.chosen_dish()
             if dish is not None:
@@ -346,7 +466,14 @@ class FoodView(View):
             self.scroll = top + ROW_H - visible
 
     def key(self, event):
-        if event.key == pygame.K_TAB:
+        ctrl = event.mod & pygame.KMOD_CTRL
+        if event.key == pygame.K_w and ctrl and event.mod & pygame.KMOD_SHIFT:
+            self.send_missing()
+        elif event.key == pygame.K_w and ctrl:
+            self.send_web()
+        elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            self.open_answers()
+        elif event.key == pygame.K_TAB:
             self.app.switch_to_next()
         elif event.key == pygame.K_m:
             self.toggle_missing()
