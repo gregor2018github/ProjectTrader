@@ -488,7 +488,7 @@ SNOW_MELT_PER_HOUR = 0.1             # How fast the snow thaws where none would 
 SNOW_RAIN_MELT_PER_HOUR = 0.25       # How much faster full rain washes it away, per game hour
 SNOW_MELT_WETS = 1.5                 # Thawing snow wets the ground by this much per unit of cover melted (puddles after a thaw)
 SNOW_FLAKES_PER_MEGAPIXEL = 900      # Flakes in the air per million pixels of map view at full snowfall
-SNOW_ROOFS_FROM = (0.08, 0.4)        # The roofs whiten from this much snow on the ground and are fully white at the second
+SNOW_ROOFS_FROM = (0.02, 0.9)        # The roofs whiten from this much snow on the ground and are fully white at the second (a little ahead of the ground)
 # How much rain hushes the birds and the crickets (0 none, 1 silent at full rain)
 RAIN_HUSHES_BIRDS = 0.9
 RAIN_HUSHES_CRICKETS = 0.7

@@ -6,8 +6,8 @@ the sprite there, turned to grey, lifted towards white and tinted like snow
 (make_cap()), so the roof's tiles and the shade of its slopes still show
 through. It is drawn just over its building in the render queue (map_view),
 as much of it as the snow covers: Weather.snow_cover between SNOW_ROOFS_FROM's
-two levels takes a roof from bare to white, so the roofs whiten with the
-first snow that lies and are white well before the ground is. Like the
+two levels takes a roof from bare to white, so the roofs keep pace with the
+ground, a little ahead of it. Like the
 ground (snow_flecks.py), a roof first takes scattered flecks in clumps, and
 the rest fills in, unevenly, only from ROOF_BLANKET_FROM on.
 
