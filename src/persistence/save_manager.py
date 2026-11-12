@@ -140,6 +140,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "name": player.name,
             "score": player.score,
             "reputation": player.reputation,
+            "tiredness": player.tiredness,
             "daily_cost_of_living": player.daily_cost_of_living,
             "position": list(player.position),
             "in_market_area": player.in_market_area,
@@ -463,6 +464,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     player.name = p["name"]
     player.score = p["score"]
     player.reputation = float(p["reputation"])
+    player.tiredness = float(p.get("tiredness", 0.0))   # a save from before tiredness: rested
     player.daily_cost_of_living = p["daily_cost_of_living"]
     player.position = tuple(p["position"])
     player.in_market_area = p["in_market_area"]

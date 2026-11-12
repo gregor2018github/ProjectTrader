@@ -51,6 +51,7 @@ RIGHT_COLUMN: List[Section] = [
         ([["Space"]], "Pause / resume"),
         ([["+"], ["-"]], "Faster / slower (map not shown)"),
         ([["F9"]], "Next weather (debug overlay on)"),
+        ([["Drag"], ["Wheel"]], "Resting: the clock's hand (Shift: 1 h)"),
     ]),
     ("Trading (at the market)", [
         ([["Left click"]], "Good below the chart: chart and trade it"),
@@ -82,7 +83,7 @@ RIGHT_COLUMN: List[Section] = [
 ]
 
 _PANEL_W = 1100
-_PANEL_H = 970
+_PANEL_H = 1000
 _ROW_H = 28
 _SECTION_GAP = 14
 _KEY_COLUMN_W = 190

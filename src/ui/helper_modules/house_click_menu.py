@@ -410,6 +410,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name == "Stomp":
         options.insert(0, "Chop Wood")
 
+    # Uncle Gared's shop, once he has been found: the player's first place to rest (models/rest.py)
+    from ...models.rest import can_rest_at
+    if can_rest_at(house, getattr(game_state.game, 'intro', None)):
+        options.insert(0, "Rest")
+
     if isinstance(house, Bank):
         options.insert(0, "Manage Loans")
         options.insert(0, "Take Out Loan")
@@ -441,6 +446,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
                                         f"Ask him first; he is about the wood shed by day.")
                 return
             open_woodhacking(game_state)
+            return
+
+        if option_text == "Rest":
+            from .rest_window import open_rest_window
+            open_rest_window(game_state)
             return
 
         if option_text == "Buy Building" and isinstance(house, Warehouse) and not house.is_owned:

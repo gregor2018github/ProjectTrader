@@ -546,7 +546,50 @@ def _draw_bottom_bar(
     town_rect = _draw_town_statistics_panel(screen, main_font, game_state)
     if town_rect:
         buttons['town_population'] = town_rect
+    _draw_tiredness_panel(screen, game_state, (town_rect.right if town_rect else 0) + 30)
     return buttons
+
+
+TIREDNESS_BAR_SIZE = (150, 16)
+
+
+def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left: int) -> None:
+    """The player's tiredness as a bar beside the population, with a tooltip saying what it is."""
+    from ..helper_modules.rest_window import draw_tiredness_bar
+    from ...models.rest import FULL_REST_HOURS, HOURS_TO_EXHAUSTION
+    game = getattr(game_state, 'game', None)
+    player = getattr(game, 'player', None)
+    if player is None:
+        return
+    font = getattr(game_state, "small_font", None) or game_state.font
+    label = font.render("Tiredness", True, BLACK)
+    centre_y = SCREEN_HEIGHT - 30
+    screen.blit(label, label.get_rect(midleft=(left, centre_y)))
+    bar = pygame.Rect(0, 0, *TIREDNESS_BAR_SIZE)
+    bar.midleft = (left + label.get_width() + 10, centre_y)
+    draw_tiredness_bar(screen, bar, player.tiredness)
+    area = pygame.Rect(left, centre_y - 20, bar.right - left, 40)
+    mouse_pos = pygame.mouse.get_pos()
+    if not area.collidepoint(mouse_pos) or getattr(game_state, 'info_window', None):
+        return
+    intro = getattr(game, 'intro', None)
+    where = ("Rest at Uncle Gared's shop to recover." if intro is not None and intro.stage == "done"
+             else "Find a roof to rest under.")
+    lines = [f"Tiredness: {player.tiredness * 100:.0f} %",
+             f"Worn out after {HOURS_TO_EXHAUSTION:.0f} hours up; {FULL_REST_HOURS:.0f} hours of rest clear it.",
+             where]
+    surfs = [font.render(line, True, BLACK) for line in lines]
+    pad = 10
+    tip = pygame.Rect(0, 0, max(s.get_width() for s in surfs) + 2 * pad,
+                      sum(s.get_height() + 4 for s in surfs) + 2 * pad - 4)
+    tip.bottomleft = (mouse_pos[0] + 14, mouse_pos[1] - 8)
+    tip.right = min(tip.right, SCREEN_WIDTH - 8)
+    pygame.draw.rect(screen, WHITE, tip)
+    pygame.draw.rect(screen, DARK_BROWN, tip, 1)
+    y = tip.top + pad
+    for surf in surfs:
+        screen.blit(surf, (tip.left + pad, y))
+        y += surf.get_height() + 4
 
 def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font, game_state: "GameState") -> None:
     """Draws the right sidebar for menu options with pictogram buttons and sub-buttons.

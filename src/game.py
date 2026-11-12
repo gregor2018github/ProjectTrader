@@ -34,6 +34,7 @@ from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
 from .models.weather import Weather
 from .models.intro import Intro, SCENES, find_shop_spot
+from .models.rest import Tiredness
 from .ui.helper_modules.address_note import AddressNote
 from .models.sound_gain import SOUND_GAIN, amplified
 from .config.constants import STROLL_RAIN_FROM
@@ -138,6 +139,8 @@ class Game:
 
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        # The player tires with the hours up and rests it off at the uncle's shop (models/rest.py)
+        self.tiredness: Tiredness = Tiredness(self.player, self.state.date)
         self.merchant_rank: MerchantRank = MerchantRank(self.depot, self.player, self.goods)
         # The town council: its offices, the notables who hold them, the player's way in (models/council.py)
         self.council: Council = Council(self.depot, self.player, self.merchant_rank, self.goods, seed=self.sim.seed)
@@ -289,6 +292,7 @@ class Game:
         self.council.load(save_data.get("council"), self.state.date, seed=self.sim.seed)
         self.depot.fee_discount = self.council.fee_discount()
         self.intro.load(save_data.get("intro"))
+        self.tiredness.restart(self.state.date)
         self.address_note.reset()
         self.restore_owned_buildings()
         self._update_player_market_area()
@@ -622,6 +626,7 @@ class Game:
                     self.last_update = current_time
                     minute_changed, _price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
+                    self.tiredness.update(self.state.date)
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.puddle_level)
 
