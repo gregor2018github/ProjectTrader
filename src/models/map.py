@@ -51,6 +51,7 @@ from .puddles import Puddles
 from .wet_ground import WetGround
 from .snow import Snowfall
 from .snow_cover import SnowCover
+from .player_silhouette import PlayerSilhouette
 from .navigation import NavGrid
 from .town_life import StreetLife
 from .water import Water, Ripple, water_tile_variant
@@ -1316,6 +1317,8 @@ class GameMap:
         # The snow in the air in winter, and lying on the ground; its kinds of ground come from the Town Plan too
         self.snow: Snowfall = Snowfall()
         self.snow_cover: SnowCover = SnowCover(self.tmx_map.width, self.tmx_map.height)
+        # A faint outline of the player while a building hides him (player_silhouette.py)
+        self.player_silhouette: PlayerSilhouette = PlayerSilhouette()
 
         # Shared clock driving the water wave flipbook animation (map_view.py).
         self.water_anim_time: float = 0.0
