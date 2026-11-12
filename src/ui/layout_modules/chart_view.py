@@ -88,7 +88,9 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset, pinned, game_state)
+    # Its hovered good's panel waits for the end, so the chart's lines are not drawn over it
+    box_tooltips: List[Tuple['Good', Tuple[int, int], Optional[str]]] = []
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset, pinned, game_state, tooltips_out=box_tooltips)
 
     # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
     closest_good, hover_idx = None, None
@@ -119,6 +121,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     if not suppress_hover:
         _draw_chart_hover(screen, chart_border, max_chart_size, max_chart_height, goods, max_price, main_font, current_date, closest_good, hover_idx, depot, view_rect.right)
 
+    _draw_box_tooltips(screen, main_font, box_tooltips, view_rect.right)
     return image_boxes
 
 def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float) -> Tuple[Optional['Good'], Optional[int]]:
@@ -520,7 +523,7 @@ def _draw_price_preview(screen: pygame.Surface, preview: 'trade_desk.Preview', l
     tip = after_y - 7 if after_y < y else after_y + 7
     pygame.draw.polygon(screen, color, [(x + 20, tip), (x + 14, after_y), (x + 26, after_y)])
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = (), game_state: Any = None) -> List[Tuple[pygame.Rect, Any]]:
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = (), game_state: Any = None, tooltips_out: Optional[list] = None) -> List[Tuple[pygame.Rect, Any]]:
     """Draw interactive toggles for individual goods (a left click shows it in the chart, a right click pins it to the top bar).
 
     Hovering one shows its name and yesterday's demand and supply in the town's
@@ -536,6 +539,8 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
         goods_images_30: mapping of icons.
         main_font: Font for tooltips.
         scroll_offset: First good shown when not all of them fit.
+        tooltips_out: If given, the hovered good's panel is added to it for the
+            caller to draw last (``_draw_box_tooltips``) instead of drawn here.
 
     Returns:
         List[Tuple[pygame.Rect, Any]]: Hitboxes, each with the Good it toggles
@@ -595,12 +600,21 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
                 warning = "No License"
             tooltips.append((good, mouse_pos, warning))
     # Render tooltips after all buttons are drawn: the good's name and yesterday's demand and supply
+    if tooltips_out is not None:
+        tooltips_out.extend(tooltips)
+    else:
+        _draw_box_tooltips(screen, main_font, tooltips, safe_right)
+
+    return image_boxes
+
+
+def _draw_box_tooltips(screen: pygame.Surface, main_font: pygame.font.Font,
+                       tooltips: List[Tuple['Good', Tuple[int, int], Optional[str]]], safe_right: int) -> None:
+    """The hovered goods' panels: each good's name and yesterday's demand and supply."""
     safe_bottom = screen.get_height() - 60  # stay above the bottom bar
     for good, pos, warning in tooltips:
         draw_flows_tooltip(screen, main_font, good.name, daily_flows(good.flows_yesterday), pos, safe_right,
                            safe_bottom, warning=warning)
-
-    return image_boxes
 
 
 def _draw_selection_arrows(screen: pygame.Surface, select_bar: pygame.Rect, arrow_width: int, scroll_offset: int, max_offset: int, mouse_pos: Tuple[int, int], suppress_hover: bool) -> List[Tuple[pygame.Rect, int]]:
