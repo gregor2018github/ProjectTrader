@@ -12,7 +12,7 @@ and a removed light's object is taken out.
 
 import re
 
-from map_scene import TMX, BuildingLight
+from map_scene import TMX, BuildingLight, write_tmx
 
 MIN_SIZE_PX = 2      # a window light keeps at least this width and height
 
@@ -121,7 +121,7 @@ class LightEdits:
                     xml = re.sub(rf' {key}="[^"]*"', f' {key}="{_fmt(value)}"', xml, count=1)
                 text = text[:element.start()] + xml + text[element.end():]
             written += 1
-        open(path, 'w', encoding='utf-8', newline='').write(text)
+        write_tmx(path, text)
         self.original.clear()
         self.removed.clear()
         return written, missing

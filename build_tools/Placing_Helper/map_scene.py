@@ -33,6 +33,25 @@ if str(ROOT) not in sys.path:
 from src.models.daylight import ambient_light  # noqa: E402
 from src.models.light import BuildingLight, BuildingLightGroup, Light  # noqa: E402
 TMX = ROOT / 'assets' / 'tiles' / 'Map1.tmx'
+
+
+def write_tmx(path, text: str) -> None:
+    """Write *text* to the map file whole, never half: the game (or Tiled) may
+    be reading it at that moment. Written beside it and swapped in; Windows
+    refuses the swap while a reader has the file open, so it waits a little."""
+    path = Path(path)
+    tmp = path.with_name(path.name + '.tmp')
+    with open(tmp, 'w', encoding='utf-8', newline='') as f:
+        f.write(text)
+    for attempt in range(50):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == 49:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(0.1)
 HOUSES_DIR = ROOT / 'assets' / 'map_sprites' / 'houses'
 TREES_DIR = ROOT / 'assets' / 'map_sprites' / 'trees'
 BUILDING_CATALOG = ROOT / 'build_tools' / 'Sprite_Manager' / 'building_catalog.json'

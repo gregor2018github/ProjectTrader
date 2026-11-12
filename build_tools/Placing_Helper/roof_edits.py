@@ -14,7 +14,7 @@ line endings are kept).
 import math
 import re
 
-from map_scene import TMX
+from map_scene import TMX, write_tmx
 
 MIN_POINTS = 3
 UNDO_DEPTH = 200
@@ -221,7 +221,7 @@ class RoofEdits:
                 written += 1
             text = text[:group.start(1)] + added + text[group.start(1):]
             text = text.replace(next_id.group(0), f'nextobjectid="{obj_id}"', 1)
-        open(path, 'w', encoding='utf-8', newline='').write(text)
+        write_tmx(path, text)
         self.original = {r.obj_id: tuple(r.points) for r in self.rings}
         self._undo.clear()
         self._redo.clear()
