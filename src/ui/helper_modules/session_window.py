@@ -16,15 +16,11 @@ import pygame
 from .council_window import FAINT_INK, GOOD_INK, arms_of, wrap
 from .info_window import _dim_overlay
 from .loan_dialog import _BaseDialog
-from .records_window import _leaf
+from .charter_style import OXBLOOD as RUBRIC, INK, charter_sheet, charter_title, draw_button, draw_leaf, draw_rule
 from ..heraldry import draw_arms
-from ...config.colors import GOLD
 from ...config.constants import FONTS_PATH
 from ...models.council import Council, PLAYER, Result, SessionReport
-from ...models.minigames.tutorial_sheet import (
-    BUTTON_SIZE, INK, RUBRIC, draw_button, framed_sheet, inked,
-)
-from ...models.minigames.woodhacking import draw_divider
+from ...models.minigames.tutorial_sheet import BUTTON_SIZE
 from ...sim.calendar import format_long
 
 if TYPE_CHECKING:
@@ -172,9 +168,9 @@ class SessionWindow(_BaseDialog):
     def _build_sheet(self) -> pygame.Surface:
         """All that does not move: the title, the seat, the candidates and the leaf the votes fall on."""
         council = self.council
-        sheet = framed_sheet((W, self.panel.height))
-        self._centred(sheet, inked("The Council Sits", self.h1_font, GOLD), TITLE_Y)
-        draw_divider(sheet, (W // 2, DIVIDER_Y), 170)
+        sheet = charter_sheet((W, self.panel.height))
+        self._centred(sheet, charter_title("The Council Sits", self.h1_font), TITLE_Y)
+        draw_rule(sheet, (W // 2, DIVIDER_Y), 170)
         self._centred(sheet, self.body_font.render(format_long(self.report.date), True, FAINT_INK), DATE_Y)
         office = council.offices[self.result.office]
         self._centred(sheet, self.name_font.render(f"The vote on the seat of {office.name}", True, INK), SEAT_Y)
@@ -187,7 +183,7 @@ class SessionWindow(_BaseDialog):
             if candidate == self.result.holder_before:
                 self._centred(sheet, self.small_font.render("holds the seat", True, FAINT_INK), CANDIDATES_TOP + 112, x)
 
-        _leaf(sheet, pygame.Rect(MARGIN, VOTES_TOP, W - 2 * MARGIN, self.votes_h))
+        draw_leaf(sheet, pygame.Rect(MARGIN, VOTES_TOP, W - 2 * MARGIN, self.votes_h))
         if not self.result.votes:
             words = "No vote was taken." if self.result.forfeited else "Nobody stood against you: no vote was needed."
             self._centred(sheet, self.body_font.render(words, True, INK), VOTES_TOP + self.votes_h // 2)
@@ -215,16 +211,15 @@ class SessionWindow(_BaseDialog):
             surf.blit(name, name.get_rect(midleft=(left + 32, y)))
         if self.result.votes:
             for candidate, count in counts.items():
-                number = inked(str(count), self.count_font, GOLD)
+                number = self.count_font.render(str(count), True, INK)
                 surf.blit(number, number.get_rect(center=(ox + self.candidate_x(candidate) + 78, oy + CANDIDATES_TOP + 40)))
 
     def _draw_verdict(self, surf: pygame.Surface, top_left: Tuple[int, int]) -> None:
         ox, oy = top_left
         centre = (ox + W // 2, oy + self.verdict_top + VERDICT_H // 2 - 8)
-        label = inked(self.verdict, self.verdict_font, GOLD) if self.good else self.verdict_font.render(
-            self.verdict, True, RUBRIC)
+        label = self.verdict_font.render(self.verdict, True, GOOD_INK if self.good else RUBRIC)
         surf.blit(label, label.get_rect(center=centre))
-        draw_divider(surf, (centre[0], centre[1] + 32), 150)
+        draw_rule(surf, (centre[0], centre[1] + 32), 150)
         y = oy + self.notes_top + NOTE_H // 2
         for line in self.note_lines:
             words = self.small_font.render(line, True, RUBRIC)

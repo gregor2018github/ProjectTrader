@@ -1,6 +1,6 @@
 """The town council's window, opened at the town hall ("Town Council").
 
-A sheet in the style of the guild's records, with three pages:
+A sheet drawn as an official charter (``charter_style.py``), with three pages:
 
 - **Offices**: the pyramid of seats, the head of the council on top, each a card with its
   holder's arms, what it pays and when it is voted on again. The card chosen is set out
@@ -22,18 +22,16 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 import pygame
 
 from .loan_dialog import _BaseDialog, _close_dialog
-from .records_window import _leaf
+from .charter_style import (
+    FAINT_INK, GOOD_INK, INK, OCHRE, OXBLOOD, SEPIA, SEPIA_DARK, cartouche, charter_sheet, charter_title,
+    draw_button, draw_close, draw_leaf, draw_lozenges, draw_rule, draw_tab,
+)
 from ..heraldry import PLAYER_ARMS, draw_arms
 from ..transaction_feedback import on_money_spent
-from ...config.colors import GOLD
 from ...config.constants import FONTS_PATH, PURSES_PER_ELECTION
 from ...models.council import (
     Council, FAVOUR_MAX, Office, Outcome, PLAYER, favour_word, session_moment,
 )
-from ...models.minigames.tutorial_sheet import (
-    BRASS, BRASS_DARK, BRASS_LIGHT, INK, RUBRIC, draw_button, draw_tab, framed_sheet, inked, plaque,
-)
-from ...models.minigames.woodhacking import draw_divider
 from ...sim.calendar import format_date, format_long
 
 if TYPE_CHECKING:
@@ -43,10 +41,8 @@ PAGE_OFFICES, PAGE_NOTABLES, PAGE_ELECTION = "Offices", "Notables", "Election"
 PAGES = (PAGE_OFFICES, PAGE_NOTABLES, PAGE_ELECTION)
 GIFT_SIZES = (0.5, 1.0, 3.0)        # the coin gifts offered, in the notable's means
 
-FAINT_INK = (120, 104, 84)
-GOOD_INK = (40, 104, 52)
-_TRACK = (120, 104, 84, 70)
-_DISABLED = ((206, 190, 156), (160, 138, 100), (140, 120, 90))   # a button that cannot be pressed: fill, edge, ink
+RUBRIC = OXBLOOD
+_TRACK = (112, 96, 76, 60)
 
 
 def open_council_window(game_state: 'GameState', house: Any = None) -> None:
@@ -88,7 +84,7 @@ def draw_favour_bar(surf: pygame.Surface, rect: pygame.Rect, value: float) -> No
             pygame.draw.rect(surf, GOOD_INK, (rect.centerx, rect.top, length, rect.height), border_radius=2)
         else:
             pygame.draw.rect(surf, RUBRIC, (rect.centerx - length, rect.top, length, rect.height), border_radius=2)
-    pygame.draw.rect(surf, BRASS_DARK, rect, 1, border_radius=3)
+    pygame.draw.rect(surf, SEPIA_DARK, rect, 1, border_radius=3)
     pygame.draw.line(surf, INK, (rect.centerx, rect.top - 2), (rect.centerx, rect.bottom + 1), 1)
 
 
@@ -128,7 +124,7 @@ class CouncilWindow(_BaseDialog):
         self._sheet: Optional[pygame.Surface] = None
         self._hot: Dict[str, Tuple[pygame.Rect, Callable[[], None]]] = {}   # what can be clicked, on the sheet
         self.close_local = pygame.Rect(0, 0, 30, 30)
-        self.close_local.center = (self.W - 19, 19)
+        self.close_local.center = (self.W - 64, self.TITLE_Y + 2)     # clear of the corner block
         tabs_w = len(PAGES) * self.TAB_W + (len(PAGES) - 1) * self.TAB_GAP
         left = (self.W - tabs_w) // 2
         self.tab_rects = {page: pygame.Rect(left + i * (self.TAB_W + self.TAB_GAP), self.TAB_TOP, self.TAB_W, self.TAB_H)
@@ -205,19 +201,13 @@ class CouncilWindow(_BaseDialog):
 
     def _button(self, surf: pygame.Surface, key: str, rect: pygame.Rect, label: str, action: Callable[[], None],
                 enabled: bool, mouse: Tuple[int, int]) -> None:
+        draw_button(surf, rect, label, self.body_font, enabled and rect.collidepoint(mouse), enabled)
         if enabled:
-            draw_button(surf, rect, label, self.body_font, rect.collidepoint(mouse))
             self._hot[key] = (rect, action)
-            return
-        fill, edge, ink = _DISABLED
-        pygame.draw.rect(surf, fill, rect, border_radius=4)
-        pygame.draw.rect(surf, edge, rect, 2, border_radius=4)
-        text = self.body_font.render(label, True, ink)
-        surf.blit(text, text.get_rect(center=rect.center))
 
     def _heading(self, surf: pygame.Surface, rect: pygame.Rect, text: str) -> None:
         self._put(surf, text, (rect.centerx, rect.top + 22), self.name_font, anchor="center")
-        draw_divider(surf, (rect.centerx, rect.top + self.LIST_HEAD - 4), 110)
+        draw_rule(surf, (rect.centerx, rect.top + self.LIST_HEAD - 4), 110)
 
     @staticmethod
     def _mark(surf: pygame.Surface, centre: Tuple[int, int], met: bool) -> None:
@@ -230,13 +220,8 @@ class CouncilWindow(_BaseDialog):
 
     @staticmethod
     def _pips(surf: pygame.Surface, centre: Tuple[int, int], count: int) -> None:
-        """An office's tier as gold lozenges in a row (the blackletter's numerals read badly)."""
-        x = centre[0] - (count - 1) * 8
-        for i in range(count):
-            cx = x + i * 16
-            points = [(cx, centre[1] - 7), (cx + 6, centre[1]), (cx, centre[1] + 7), (cx - 6, centre[1])]
-            pygame.draw.polygon(surf, GOLD, points)
-            pygame.draw.polygon(surf, BRASS_DARK, points, 1)
+        """An office's tier as lozenges in a row (the blackletter's numerals read badly)."""
+        draw_lozenges(surf, centre, count)
 
     def _holder_line(self, who: Optional[str]) -> str:
         return "Empty" if who is None else self.council.name_of(who)
@@ -259,15 +244,15 @@ class CouncilWindow(_BaseDialog):
         seat = council.seats[office.key]
         mine = seat.holder == PLAYER
         standing = council.candidacy is not None and council.candidacy.office == office.key
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         if mine:
             glow = pygame.Surface(rect.size, pygame.SRCALPHA)
-            glow.fill((*GOLD, 70))
+            glow.fill((*OCHRE, 46))
             surf.blit(glow, rect)
         if office.key == self.office_key:
-            pygame.draw.rect(surf, RUBRIC, rect, 3, border_radius=4)
+            pygame.draw.rect(surf, OXBLOOD, rect, 2)
         elif rect.collidepoint(mouse):
-            pygame.draw.rect(surf, GOLD, rect, 2, border_radius=4)
+            pygame.draw.rect(surf, SEPIA_DARK, rect, 2)
 
         arms = arms_of(council, seat.holder)
         shield = pygame.Rect(rect.left + 14, rect.top + 16, 50, 60)
@@ -284,7 +269,7 @@ class CouncilWindow(_BaseDialog):
         privileges = office.privileges()
         self._put(surf, privileges[0], (x, rect.top + 68), self.small_font, FAINT_INK)
         if standing:
-            plaque(surf, self.small_font, "Your name is down", (x + 78, rect.top + 102))
+            cartouche(surf, self.small_font, "Your name is down", (x + 78, rect.top + 102))
         elif len(privileges) > 1:
             self._put(surf, privileges[1], (x, rect.top + 90), self.small_font, FAINT_INK)
         self._hot[f"office:{office.key}"] = (rect, lambda key=office.key: self._choose_office(key))
@@ -294,7 +279,7 @@ class CouncilWindow(_BaseDialog):
         office = council.offices[self.office_key]
         seat = council.seats[office.key]
         rect = pygame.Rect(self.body.left, self.body.top + self.DETAIL_TOP, self.BODY_W, self.BODY_H - self.DETAIL_TOP)
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         x = rect.left + 20
         self._put(surf, office.name, (x, rect.top + 12), self.name_font)
         self._put(surf, office.duty, (x, rect.top + 48))
@@ -308,7 +293,7 @@ class CouncilWindow(_BaseDialog):
 
         # What it asks, at the right
         column = rect.right - 430
-        pygame.draw.line(surf, BRASS, (column - 22, rect.top + 14), (column - 22, rect.bottom - 14), 1)
+        pygame.draw.line(surf, SEPIA, (column - 22, rect.top + 14), (column - 22, rect.bottom - 14), 1)
         ranked = council.has_rank(office)
         self._mark(surf, (column + 8, rect.top + 26), ranked)
         self._put(surf, f"Asks for the rank of {council.rank_needed(office)}", (column + 26, rect.top + 14))
@@ -344,7 +329,7 @@ class CouncilWindow(_BaseDialog):
     def _draw_offices(self, surf: pygame.Surface, mouse: Tuple[int, int]) -> None:
         for tier in range(self.council.top_tier, 1, -1):       # a rule between the tiers
             y = self.body.top + (self.council.top_tier - tier) * self.ROW_STEP + self.CARD_H + 7
-            draw_divider(surf, (self.body.centerx, y), 300)
+            draw_rule(surf, (self.body.centerx, y), 300)
         for office in self.council.offices.values():
             self._draw_card(surf, office, mouse)
         self._draw_office_detail(surf, mouse)
@@ -362,13 +347,13 @@ class CouncilWindow(_BaseDialog):
     def _draw_notable_list(self, surf: pygame.Surface, mouse: Tuple[int, int]) -> None:
         council = self.council
         rect = pygame.Rect(self.body.topleft, (self.LIST_W, self.BODY_H))
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         self._heading(surf, rect, "The notables of the town")
         for index, (key, notable) in enumerate(council.notables.items()):
             row = self.notable_row_rect(index)
             if key == self.notable_key or row.collidepoint(mouse):
                 band = pygame.Surface(row.size, pygame.SRCALPHA)
-                band.fill((*GOLD, 90 if key == self.notable_key else 40))
+                band.fill((*OCHRE, 66 if key == self.notable_key else 30))
                 surf.blit(band, row)
             draw_arms(surf, pygame.Rect(row.left + 8, row.top + 4, 27, 32), notable.arms)
             self._put(surf, notable.name, (row.left + 46, row.centery), colour=RUBRIC if notable.grudge > 0 else INK,
@@ -392,7 +377,7 @@ class CouncilWindow(_BaseDialog):
         key = self.notable_key
         notable = council.notables[key]
         rect = pygame.Rect(self.body.left + self.LIST_W + 14, self.body.top, self.BODY_W - self.LIST_W - 14, self.BODY_H)
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         left = rect.left + 24
         draw_arms(surf, pygame.Rect(left, rect.top + 22, 84, 100), notable.arms)
         x = left + 104
@@ -414,7 +399,7 @@ class CouncilWindow(_BaseDialog):
         if notable.grudge > 0:
             words = "At feud with you" if council.in_feud(key) else "Still bears you a grudge"
             self._put(surf, words, (left, y + 28), colour=RUBRIC)
-        pygame.draw.line(surf, BRASS, (left, rect.top + 208), (rect.right - 24, rect.top + 208), 1)
+        pygame.draw.line(surf, SEPIA, (left, rect.top + 208), (rect.right - 24, rect.top + 208), 1)
 
         # Gifts
         y = rect.top + 220
@@ -449,7 +434,7 @@ class CouncilWindow(_BaseDialog):
 
         # Before the vote
         y = rect.top + 434
-        pygame.draw.line(surf, BRASS, (left, y - 8), (rect.right - 24, y - 8), 1)
+        pygame.draw.line(surf, SEPIA, (left, y - 8), (rect.right - 24, y - 8), 1)
         self._put(surf, "Before the vote", (left, y))
         candidacy = council.candidacy
         if candidacy is None:
@@ -489,7 +474,7 @@ class CouncilWindow(_BaseDialog):
         council = self.council
         candidacy = council.candidacy
         rect = pygame.Rect(self.body.topleft, (self.ELECTION_W, self.BODY_H))
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         left = rect.left + 22
         if candidacy is None:
             self._heading(surf, rect, "No vote of yours is called")
@@ -523,7 +508,7 @@ class CouncilWindow(_BaseDialog):
             x += 218
         if len(candidacy.candidates) == 1:
             self._put(surf, "Nobody stands against you so far.", (x + 10, rect.top + 96), colour=GOOD_INK)
-        pygame.draw.line(surf, BRASS, (left, rect.top + 146), (rect.right - 22, rect.top + 146), 1)
+        pygame.draw.line(surf, SEPIA, (left, rect.top + 146), (rect.right - 22, rect.top + 146), 1)
         self._put(surf, "Those who vote", (left, rect.top + 150), self.small_font, FAINT_INK)
 
         voters = council.electorate(office.key, candidacy.candidates)
@@ -531,7 +516,7 @@ class CouncilWindow(_BaseDialog):
             row = self.voter_row_rect(index)
             if row.collidepoint(mouse):
                 band = pygame.Surface(row.size, pygame.SRCALPHA)
-                band.fill((*GOLD, 40))
+                band.fill((*OCHRE, 30))
                 surf.blit(band, row)
             draw_arms(surf, pygame.Rect(row.left + 10, row.top + 4, 25, 30), council.notables[voter].arms)
             name = self._put(surf, council.name_of(voter), (row.left + 46, row.centery), anchor="midleft")
@@ -552,7 +537,7 @@ class CouncilWindow(_BaseDialog):
             self._hot[f"voter:{voter}"] = (row, lambda voter=voter: self.show_notable(voter))
 
         mine, undecided, against = council.forecast()
-        plaque(surf, self.body_font, f"For you {mine}     Undecided {undecided}     Against {against}",
+        cartouche(surf, self.body_font, f"For you {mine}     Undecided {undecided}     Against {against}",
                (rect.left + 220, rect.bottom - 62))
         self._put(surf, "The most votes take the seat; a tie leaves it with its holder. Click a voter to court them.",
                   (left, rect.bottom - 34), self.small_font, FAINT_INK)
@@ -564,7 +549,7 @@ class CouncilWindow(_BaseDialog):
     def _draw_minutes(self, surf: pygame.Surface) -> None:
         rect = pygame.Rect(self.body.left + self.ELECTION_W + 14, self.body.top, self.BODY_W - self.ELECTION_W - 14,
                            self.BODY_H)
-        _leaf(surf, rect)
+        draw_leaf(surf, rect)
         self._heading(surf, rect, "The council's minutes")
         y = rect.top + self.LIST_HEAD + 10
         if not self.council.minutes:
@@ -574,7 +559,7 @@ class CouncilWindow(_BaseDialog):
             lines = wrap(entry, self.small_font, rect.width - 52)
             if y + len(lines) * 21 > rect.bottom - 14:
                 break
-            surf.fill(BRASS_DARK, (rect.left + 20, y + 8, 5, 5))
+            surf.fill(SEPIA_DARK, (rect.left + 20, y + 8, 5, 5))
             for line in lines:
                 self._put(surf, line, (rect.left + 34, y), self.small_font)
                 y += 21
@@ -583,10 +568,10 @@ class CouncilWindow(_BaseDialog):
     # -- the sheet ---------------------------------------------------------
 
     def _build_sheet(self) -> pygame.Surface:
-        sheet = framed_sheet((self.W, self.H))
-        title = inked("The Town Council", self.sheet_title_font, GOLD)
+        sheet = charter_sheet((self.W, self.H))
+        title = charter_title("The Town Council", self.sheet_title_font)
         sheet.blit(title, title.get_rect(center=(self.W // 2, self.TITLE_Y)))
-        draw_divider(sheet, (self.W // 2, self.DIVIDER_Y), 190)
+        draw_rule(sheet, (self.W // 2, self.DIVIDER_Y), 190)
         return sheet
 
     def _draw_plaques(self, surf: pygame.Surface) -> None:
@@ -596,16 +581,10 @@ class CouncilWindow(_BaseDialog):
         for dx, text in ((-370, f"The council sits: {sits}"),
                          (0, f"Your office: {office.name if office else 'none'}"),
                          (330, f"Your purse: {self._depot.money:,.0f} coins")):
-            plaque(surf, self.small_font, text, (self.W // 2 + dx, self.PLAQUE_Y))
+            cartouche(surf, self.small_font, text, (self.W // 2 + dx, self.PLAQUE_Y))
 
     def _draw_close(self, surf: pygame.Surface, mouse: Tuple[int, int]) -> None:
-        rect = self.close_local
-        pygame.draw.rect(surf, (168, 52, 44) if rect.collidepoint(mouse) else RUBRIC, rect, border_radius=3)
-        pygame.draw.rect(surf, GOLD, rect, 2, border_radius=3)
-        inset = 9
-        for start, end in (((rect.left + inset, rect.top + inset), (rect.right - inset - 1, rect.bottom - inset - 1)),
-                           ((rect.left + inset, rect.bottom - inset - 1), (rect.right - inset - 1, rect.top + inset))):
-            pygame.draw.line(surf, BRASS_LIGHT, start, end, 3)
+        draw_close(surf, self.close_local, self.close_local.collidepoint(mouse))
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
@@ -618,7 +597,7 @@ class CouncilWindow(_BaseDialog):
         self._hot = {}
 
         for page, rect in self.tab_rects.items():
-            draw_tab(surf, rect, page, self.body_font, page == self.page, False, rect.collidepoint(mouse))
+            draw_tab(surf, rect, page, self.body_font, page == self.page, rect.collidepoint(mouse))
         self._draw_plaques(surf)
         if self.page == PAGE_OFFICES:
             self._draw_offices(surf, mouse)
