@@ -35,6 +35,7 @@ from .ui.view_transition import ViewTransition
 from .models.weather import Weather
 from .models.intro import Intro, SCENES, find_shop_spot
 from .ui.helper_modules.address_note import AddressNote
+from .models.sound_gain import SOUND_GAIN, amplified
 from .config.constants import STROLL_RAIN_FROM
 from .config.colors import *
 from .ui.layout_modules.depot_view import draw_depot_view
@@ -478,6 +479,9 @@ class Game:
                 sounds[sound_name] = pygame.mixer.Sound(sound_path)
             except Exception as e:
                 print(f"Failed to load sound {sound_path}: {e}")
+                continue
+            if sound_name in SOUND_GAIN:
+                sounds[sound_name] = amplified(sounds[sound_name], SOUND_GAIN[sound_name])
     
         return sounds
     

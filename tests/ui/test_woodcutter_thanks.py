@@ -52,7 +52,7 @@ def state(son):
                             menu_fade_window=None, menu_fade_timer=0, menu_fade_duration=0.2,
                             warnings=warnings, events=events, coin_popups=[],
                             show_warning=warnings.append, log_event=lambda c, t: events.append((c, t)))
-    state.game = SimpleNamespace(depot=depot, player=Player(name="Tester", cost_of_living=0),
+    state.game = SimpleNamespace(depot=depot, play_sound=lambda name: None, player=Player(name="Tester", cost_of_living=0),
                                  game_map=SimpleNamespace(camera=camera, map_player=player,
                                                           tmx_map=SimpleNamespace(npcs=[son])))
     return state
