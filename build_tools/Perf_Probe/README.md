@@ -5,6 +5,7 @@ Measures the game's frame times without a window, on a fixed walk: through the t
 ```bash
 py build_tools/Perf_Probe/perf_probe.py                          # clear midday, starting zoom
 py build_tools/Perf_Probe/perf_probe.py --hour 22 --zoom 1.0 --wet   # the heavy case
+py build_tools/Perf_Probe/perf_probe.py --save 1 --hour 22 --zoom 1.75 --snow 0.6   # snow lying and falling (a save: a new game sits paused under the intro)
 py build_tools/Perf_Probe/perf_probe.py --spikes 25              # what each frame over 25 ms did
 py build_tools/Perf_Probe/perf_probe.py --profile walk.prof      # cProfile of the whole walk
 py build_tools/Perf_Probe/perf_probe.py --zooms                  # first frame at each zoom level

@@ -15,9 +15,10 @@ water never.
 Cheap: the snow is worked out in chunks of CHUNK_TILES square, at
 DUST_PX_PER_TILE pixels a tile (a few blends on a small surface), scaled to
 the zoom without smoothing and kept (least recently used, at most
-CACHE_PIXELS) until the snow has deepened or thawed a LEVEL_STEPS step.
+CACHE_PIXELS, but never one the frame needs) until the snow has deepened
+or thawed a LEVEL_STEPS step.
 Chunks are made a few each frame within BUILD_BUDGET_S, those in view first
-and the ring around it next, and a chunk is drawn as it was until its new
+and those within RING_TILES of it next, and a chunk is drawn as it was until its new
 look is ready; drawing is one blit per chunk in view, none for a bare one.
 """
 
@@ -33,7 +34,8 @@ from . import snow_flecks
 
 PX_PER_TILE = 4             # resolution of the smooth maps (noise, kinds of ground)
 DUST_PX_PER_TILE = 16       # resolution the flecks are drawn at: 2 world px each
-CHUNK_TILES = 16
+CHUNK_TILES = 8             # small, so little more than the view is made and kept when zoomed in
+RING_TILES = 3              # chunks this near the view are made ahead
 NOISE_TILES = (5, 1.2)      # the size of the patches and drifts, large and small, in tiles
 NOISE_SHARES = (0.65, 0.35)
 NOISE_DUST = 0.4            # the noise moves where the flecks lie first by up to this much depth
@@ -139,7 +141,9 @@ class SnowCover:
         white.fill((*SNOW_COLOUR, 0), special_flags=pygame.BLEND_RGBA_ADD)
         white.fill((255, 255, 255, round(255 * SNOW_OPACITY)), special_flags=pygame.BLEND_RGBA_MULT)
         side = CHUNK_TILES * tile_px
-        return pygame.transform.scale(white, (side, side))
+        scaled = pygame.transform.scale(white, (side, side))
+        # In the screen's own pixel format, which blits faster
+        return scaled.convert_alpha() if pygame.display.get_surface() is not None else scaled
 
     def _store(self, key, step: int, surface: Optional[pygame.Surface]) -> None:
         old = self._chunks.pop(key, None)
@@ -148,8 +152,17 @@ class SnowCover:
         self._chunks[key] = [step, surface]
         if surface is not None:
             self._cached_px += surface.get_width() * surface.get_height()
-        while self._cached_px > CACHE_PIXELS and len(self._chunks) > 1:
-            _key, (_step, dropped) = self._chunks.popitem(last=False)
+
+    def _trim(self, needed) -> None:
+        """Drop the chunks used least lately while over CACHE_PIXELS, but none in *needed*."""
+        if self._cached_px <= CACHE_PIXELS:
+            return
+        for key in list(self._chunks):
+            if self._cached_px <= CACHE_PIXELS:
+                break
+            if key in needed:
+                continue
+            _step, dropped = self._chunks.pop(key)
             if dropped is not None:
                 self._cached_px -= dropped.get_width() * dropped.get_height()
 
@@ -173,10 +186,13 @@ class SnowCover:
         x1 = min(last_x, (cam_x + camera.screen_width) // chunk_px)
         y1 = min(last_y, (cam_y + camera.screen_height) // chunk_px)
 
-        # Make what is missing or out of date: in view first, then the ring around it
+        # Make what is missing or out of date: in view first, then what lies within RING_TILES of it
         in_view = [(cx, cy) for cy in range(y0, y1 + 1) for cx in range(x0, x1 + 1)]
-        ring = [(cx, cy) for cy in range(max(0, y0 - 1), min(last_y, y1 + 1) + 1)
-                for cx in range(max(0, x0 - 1), min(last_x, x1 + 1) + 1)
+        reach = RING_TILES * tile_px
+        rx0, ry0 = max(0, (cam_x - reach) // chunk_px), max(0, (cam_y - reach) // chunk_px)
+        rx1 = min(last_x, (cam_x + camera.screen_width + reach) // chunk_px)
+        ry1 = min(last_y, (cam_y + camera.screen_height + reach) // chunk_px)
+        ring = [(cx, cy) for cy in range(ry0, ry1 + 1) for cx in range(rx0, rx1 + 1)
                 if not (x0 <= cx <= x1 and y0 <= cy <= y1)]
         chunks = self._chunks
         todo = [c for c in in_view if (*c, tile_px) not in chunks]
@@ -190,6 +206,7 @@ class SnowCover:
                 self._store((cx, cy, tile_px), step, self._build(cx, cy, level, tile_px))
                 if time.perf_counter() - start > budget:
                     break
+            self._trim({(*c, tile_px) for c in in_view + ring})
 
         batch = []
         for cx, cy in in_view:

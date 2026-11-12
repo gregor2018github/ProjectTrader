@@ -46,6 +46,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hour", type=int, help="in-game hour to play at (lights, darkness)")
     parser.add_argument("--zoom", type=float, help="map zoom, e.g. 1.0 (default: the starting zoom)")
     parser.add_argument("--wet", action="store_true", help="steady rain, full cloud, fog and wet ground")
+    parser.add_argument("--snow", type=float, metavar="COVER",
+                        help="snow lying this deep (0 to 1) and falling, on the ground and the roofs")
     parser.add_argument("--spikes", type=float, metavar="MS",
                         help="profile every frame and print what each one slower than MS did")
     parser.add_argument("--profile", metavar="FILE", help="write a cProfile of the whole walk")
@@ -119,6 +121,10 @@ def set_scene(game, args) -> None:
         weather.rain, weather.clouds, weather.fog, weather.wetness, weather.storm = 0.8, 1.0, 0.6, 1.0, 0.0
         weather.update = lambda date: None
         game.game_map.puddles.update(1.0)
+    if args.snow is not None:
+        weather = game.weather
+        weather.snow, weather.snow_cover, weather.rain, weather.clouds = 0.8, args.snow, 0.0, 0.8
+        weather.update = lambda date: None
 
 
 def walk(game, args) -> None:
