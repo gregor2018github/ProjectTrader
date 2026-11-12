@@ -124,6 +124,7 @@ def draw_map_view(
             game_state.hover_last_target = None
 
     # Build render queue for Y-sorting (houses and figurines)
+    game_map.tmx_map.roof_snow.begin_frame()
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date,
                                        halos=bool(weather) and halos_show(weather.fog),
                                        roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
