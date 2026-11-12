@@ -3,7 +3,7 @@
 The crops' answers screen (view_crop_answers.CropAnswersView) for a good: left the sheet as sent, in the
 middle the answers, right the good cut out of the chosen answer as the game would show it - the painting,
 the cut-out and the 30px icon, each with the one it replaces under it. Accepting writes all three
-(goods_sheets.save_pictures, which keeps the old ones) and goes back to the menu sprites.
+(goods_sheets.save_pictures, which keeps the old ones) and goes back to the goods area.
 """
 
 import pygame
@@ -54,7 +54,7 @@ class GoodAnswersView(CropAnswersView):
         return 'Saved ' + ', '.join(written)
 
     def accept(self):
-        """Write the good's pictures from the chosen answer and go back to the menu sprites."""
+        """Write the good's pictures from the chosen answer and go back to the goods area."""
         if not (self.detail and self.detail.result):
             return
         entry = self.entry

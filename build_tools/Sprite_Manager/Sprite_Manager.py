@@ -20,7 +20,7 @@ switches to full screen.
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
    card each for the humans, the plants and the buildings, and under them the
-   crops, the animals, the menu sprites and the food, with how far they are. Click one
+   crops, the animals, the goods and the food, with how far they are. Click one
    (or 1 to 7) to go there; "Start page" or
    Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
@@ -204,7 +204,7 @@ beside the sheep's pose and the walk and grazing playing in the middle, and
 the sheet on the right, sent as for the walk frames; its answers open in
 view_animal_answers.py (the crops' answers screen with an animal's frame).
 
-Menu sprites: "Menu" on the start page (6) collects the goods' pictures for
+Goods: "Goods" on the start page (6) collects the goods' pictures for
 the game's menus (goods.py, view_goods.py): for every good of goods.json its
 30px icon, its 1024px painting, the cut-out icon made from it, the picture on
 its licence (the good toned sepia) and the snapshot of the signed licence
@@ -305,7 +305,7 @@ The code, for whoever works on it next:
     chime.py           the chimes of answers from the browser, made from sine waves
     win_window.py      snapping the window into the left half of the screen
     goods.py           the goods' menu pictures: which each good needs, where they are, placeholders
-    view_goods.py      the menu sprites: a row per good with its pictures, and the chosen one large
+    view_goods.py      the goods area: a row per good with its pictures, and the chosen one large
     goods_sheets.py    a good's sketch beside three other goods, its prompt, and the pictures an answer makes
     view_good_design.py  sketching a good's picture; its description and the goods shown for the style
     view_good_answers.py  the answers for a good's picture, and writing the three files from one
@@ -375,7 +375,7 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'),
-           ('animals', 'Animals'), ('menu', 'Menu'), ('food', 'Food'))   # Tab goes round them; the start page shows them 3 a row
+           ('animals', 'Animals'), ('menu', 'Goods'), ('food', 'Food'))   # Tab goes round them; the start page shows them 3 a row
 FPS = 30
 
 
@@ -663,7 +663,7 @@ class SpriteManager:
         self.show(GoodDesignView(self, goods_view, sketch))
 
     def close_good(self, goods_view):
-        """Back to the menu sprites, read again; the status line keeps what was last said."""
+        """Back to the goods area, read again; the status line keeps what was last said."""
         self.npc = self.store = self.worker = None
         self.show(goods_view)
 
@@ -689,7 +689,7 @@ class SpriteManager:
 
     @staticmethod
     def screens():
-        """(key, title) of humans, plants, buildings, crops, animals, the menu sprites and the food."""
+        """(key, title) of humans, plants, buildings, crops, animals, the goods and the food."""
         return SCREENS
 
     @staticmethod
@@ -715,7 +715,7 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants, the buildings, the crops, the animals, the menu sprites
+        """Show the start page, the humans, the plants, the buildings, the crops, the animals, the goods
         or the food."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')

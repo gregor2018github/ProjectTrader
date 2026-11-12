@@ -7,7 +7,7 @@ Along the top, over everything:
     Work          answers waiting for review, and unfinished new plants and buildings
 
 Under it one card per area, three to a row (four, with seven or eight areas) (humans, plants, buildings; crops,
-animals, menu sprites; food); clicking it (or 1 to 7; Tab is the humans) opens it,
+animals, goods; food); clicking it (or 1 to 7; Tab is the humans) opens it,
 and Escape there comes back here.
 
     Humans        the share of their sprites done, a bar per kind, and the figures
@@ -15,7 +15,7 @@ and Escape there comes back here.
     Buildings     the same
     Crops         the share of their stage sprites done, a bar per stage, and the ripe crops
     Animals       the share of their frames done, a bar for standing, walk and grazing, and the animals
-    Menu          the share of the goods' menu pictures there, a bar per kind, and the goods' icons
+    Goods         the share of the goods' menu pictures there, a bar per kind, and the goods' icons
     Food          the share of the tavern dishes with a picture, a bar per type, and the pictures
 
 On a wide card the bars take the left and the pictures the right; the pictures fill whatever room is
@@ -152,7 +152,7 @@ def gather_animals():
 
 
 def gather_menu():
-    """The numbers of the menu sprites' card: the goods' pictures by kind (crops counts the goods)."""
+    """The numbers of the goods' card: the goods' pictures by kind (crops counts the goods)."""
     stats = Crops()
     goods = find_goods()
     stats.crops = len(goods)

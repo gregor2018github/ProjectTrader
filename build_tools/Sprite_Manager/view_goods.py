@@ -1,4 +1,4 @@
-"""Menu sprites: every good's pictures for the game's menus, and which are still missing.
+"""Goods: every good's pictures for the game's menus, and which are still missing.
 
 On the left, one row per good of goods.json, in its order: its name and licence, and a cell per kind
 of picture (goods.py): the picture if there is one, PLACEHOLDER (the 30px stand-ins of the goods added
@@ -100,7 +100,7 @@ class GoodsView(View):
         return [g for g in self.goods if not self.only_missing or self.open_work(g)]
 
     def header(self):
-        return ('Menu sprites',
+        return ('Goods',
                 "Every good's pictures for the game's menus, and what is still missing. "
                 'Click a good (or Up / Down); M = only the missing, O = open the folder, Tab = next area.')
 

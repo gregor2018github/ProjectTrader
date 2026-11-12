@@ -43,7 +43,7 @@ CARDS = (                # (label, folder, file pattern), in the order they are 
     ('Buildings', SPRITES / 'houses', 'House_*.png'),
     ('Crops', SPRITES / 'fields', '*/*_ripe_*.png'),
     ('Animals', SPRITES / 'figurines' / 'animals', '*/*_left_static.png'),
-    ('Menu', ROOT / 'assets' / 'pictures', '*_icon.png'),     # the goods' cut-out pictures
+    ('Goods', ROOT / 'assets' / 'pictures', '*_icon.png'),     # the goods' cut-out pictures
 )
 
 

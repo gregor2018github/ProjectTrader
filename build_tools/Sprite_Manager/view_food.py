@@ -14,16 +14,19 @@ Under the chosen dish, the ways to its picture (food_sheets.py): "Send in browse
 type's example with the prompt to the Gemini tab, and the answer opens once it is in; "Send missing ...
 in browser" (Ctrl+Shift+W) sends every dish of its type with no picture and no answer waiting, one after
 another (clicking it again stops them); "Answers" (Enter) opens the dish's answers to accept one
-(view_food_answers.py).
+(view_food_answers.py). "Open image" (or a file dropped on the window) takes a picture already on disk:
+with an example, as an answer to accept like the model's; without one yet (or for the example itself),
+straight as the dish's picture, an old one kept in replaced/.
 """
 
 import os
 import sys
+from pathlib import Path
 
 import pygame
 
-from answers import store_web_answer
-from food_sheets import POSE, DishSubject, make_sheet
+from answers import AnswerError, ask_open_file, store_web_answer
+from food_sheets import POSE, DishSubject, make_sheet, save_picture
 from pose_review import PENDING, ReviewStore
 from food import CLASS_TITLES, FOOD_PICTURES, PICTURES_DIR, TYPE_TITLES, TYPES, example_of, find_dishes, tally
 from images import smooth_fit
@@ -61,6 +64,7 @@ class FoodView(View):
         self.send_button = Button('Send in browser (Ctrl+W)', h=BUTTON_H, w=230)
         self.queue_button = Button('Send missing in browser', h=BUTTON_H, w=300)
         self.answers_button = Button('Answers (Enter)', h=BUTTON_H, w=170)
+        self.open_button = Button('Open image', h=BUTTON_H, w=130)
         self.answers = {}         # {dish name: (answers waiting, answers in all)}
         self.dishes = []
         self.totals = {}
@@ -112,7 +116,7 @@ class FoodView(View):
     def header(self):
         return ('Food',
                 "The tavern dishes' pictures by type. Click a dish (or Up / Down), a type's block (or T) for only "
-                'that type; M = only the missing, O = open the folder, Tab = next area.')
+                'that type; M = only the missing, O = open the folder, drop a file = its picture, Tab = next area.')
 
     def footer(self):
         return ((self.app.home_button,) + tuple(self.switch_buttons),
@@ -325,7 +329,7 @@ class FoodView(View):
         waiting, total = self.answers.get(dish.name, (0, 0))
         self.answers_button.label = f'Answers ({waiting} new)' if waiting else f'Answers ({total})'
         self.answers_button.enabled = total > 0 and example is not None
-        for button in (self.send_button, self.queue_button, self.answers_button):
+        for button in (self.send_button, self.queue_button, self.answers_button, self.open_button):
             button.rect.w = min(button.rect.w, max(60, inner.right - x))
             button.rect.bottomleft = (x, inner.bottom)
             button.draw(screen, font, mouse)
@@ -397,6 +401,39 @@ class FoodView(View):
         if sheet:
             self.app.open_dish_answers(self, sheet)
 
+    def open_image(self):
+        path = ask_open_file()
+        if path:
+            self.drop_file(Path(path))
+
+    def drop_file(self, path):
+        """A picture from disk for the chosen dish: an answer to accept if its type has an example,
+        else (or for the example itself) its picture at once."""
+        dish = self.chosen_dish()
+        if dish is None:
+            return
+        example = self.examples.get(dish.type)
+        subject = DishSubject(dish)
+        if example is None or example is dish:
+            try:
+                status = save_picture(subject, pygame.image.load(str(path)).convert())
+            except (pygame.error, OSError) as exc:
+                self.app.set_status(f'Cannot take {path.name}: {exc}', error=True)
+                return
+            self.refresh()
+            self.app.set_status(status)
+            return
+        sheet = self.sheet_for(dish)
+        if sheet is None:
+            return
+        try:
+            entry = store_web_answer(subject, ReviewStore(subject.out_dir), sheet, path)
+        except AnswerError as exc:
+            self.app.set_status(str(exc), error=True)
+            return
+        self.refresh()
+        self.app.open_dish_answers(self, sheet, entry)
+
     # --- input ------------------------------------------------------------
 
     def click(self, pos):
@@ -416,6 +453,8 @@ class FoodView(View):
             self.send_missing()
         elif self.answers_button.hit(pos):
             self.open_answers()
+        elif self.open_button.hit(pos):
+            self.open_image()
         elif self.gimp_button.hit(pos):
             dish = self.chosen_dish()
             if dish is not None:

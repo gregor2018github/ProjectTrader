@@ -4,7 +4,7 @@ The sketch screen of the plants, buildings and crops (view_sprite_design.SketchV
 2x2 sheet (goods_sheets.GoodSketch): three other goods for the style, picked at random, and bottom right
 the red frame to sketch the new good in. Right, above the colour, what the good is (its description.txt,
 which goes into the prompt; "Edit description" opens it) and the three goods shown ("Other goods" picks
-three others). Answers open in view_good_answers.py; Back returns to the menu sprites.
+three others). Answers open in view_good_answers.py; Back returns to the goods area.
 """
 
 import os
