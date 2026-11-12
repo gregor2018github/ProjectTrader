@@ -181,7 +181,7 @@ class Game:
         # Uncle Gared's shop (models/intro.py); a save says how far they got
         self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
         # Its address, folded at the top of the map until clicked (address_note.py)
-        self.address_note: AddressNote = AddressNote()
+        self.address_note: AddressNote = AddressNote(on_unfold=self.play_sound)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []

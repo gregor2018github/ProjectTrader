@@ -15,7 +15,7 @@ click if it was drawn that frame.
 import math
 import os
 import random
-from typing import List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 
 import pygame
 
@@ -55,6 +55,8 @@ FLAP_SHADE = 0.72             # how dark a flap still standing up is
 
 FOLDED, UNFOLDING, OPEN, FOLDING = "folded", "unfolding", "open", "folding"
 
+UNFOLD_SOUNDS = ("parchment_open", "parchment_rustle_1", "parchment_rustle_2")  # one at random
+
 
 def _ease(x: float) -> float:
     x = min(1.0, max(0.0, x))
@@ -73,8 +75,10 @@ def phase_amounts(t: float) -> Tuple[float, float, float, float]:
 class AddressNote:
     """The folded address and its sheet (see the module)."""
 
-    def __init__(self, picture: str = MAP_PICTURE) -> None:
+    def __init__(self, picture: str = MAP_PICTURE,
+                 on_unfold: Optional[Callable[[str], None]] = None) -> None:
         self.picture = picture
+        self.on_unfold = on_unfold            # told the sound's name each time the sheet starts to open
         self.state: str = FOLDED
         self.t: float = 0.0                   # 0 folded, 1 open
         self.item_rect: Optional[pygame.Rect] = None
@@ -103,6 +107,8 @@ class AddressNote:
     def unfold(self) -> None:
         if self.state in (FOLDED, FOLDING):
             self.state = UNFOLDING
+            if self.on_unfold:
+                self.on_unfold(random.choice(UNFOLD_SOUNDS))
 
     def fold(self) -> None:
         if self.state in (OPEN, UNFOLDING):
