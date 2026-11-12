@@ -120,22 +120,6 @@ class Town(House):
         )
         game_state.active_house_menu = self
 
-    def open_license_view(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
-        """Opens the full contract overview showing all trading licenses.
-        
-        Args:
-            game_state: The current game state.
-            click_pos: The screen position where the user clicked.
-        """
-        from ...ui.helper_modules.contract_overview import ContractOverview
-
-        game_state.info_window = ContractOverview(
-            game_state.screen,
-            game_state,
-            house=self
-        )
-        game_state.active_house_menu = self
-
     def open_population_stats(self, game_state: 'GameState', click_pos: Tuple[int, int]) -> None:
         """Opens the population statistics overview.
 

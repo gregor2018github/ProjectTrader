@@ -21,7 +21,7 @@
 • [Traders] The market takes its penny in every hundred, buying or selling. A big trade pays a big fee, so it had better be worth making.
 • [Middling Sort, Traders] A workshop that does well takes on more hands and grows. One that keeps losing money shrinks, and the owner wonders where it all went.
 • [Poor, Commons] When hands are short the workshops pay more, and when they're plenty the wage falls again. Funny how nobody ever calls that a miracle.
-• [Middling Sort, Traders] Whoever holds the wheat licence may deal in flour and bread as well. The town hall sells them. Iron's does for tools and charcoal, wool's for cloth and garments.
+• [Middling Sort, Traders] Whoever holds the wheat licence may deal in flour and bread as well. The guildhall sells them. Iron's does for tools and charcoal, wool's for cloth and garments.
 • [Middling Sort, Traders] A trading licence runs out, you know. Forget the day and the market won't sell you a single sack, though it'll still gladly buy what you have left.
 • [Middling Sort, Traders] A warehouse is a queer thing. Put one sack of salt in a bay and that bay is salt's alone, half empty or no. Not a fleece may lie beside it.
 • [Middling Sort, Traders] Own a warehouse and you can tell it what to take and what to refuse, even bay by bay. More obedient than any apprentice I've met.

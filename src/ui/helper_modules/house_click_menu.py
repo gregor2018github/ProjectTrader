@@ -383,7 +383,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Knock")
     
     # The merchants' guild keeps the ranks: the same overview as the rank in the top bar
+    # and the trade guilds' licences
     if house.name == "Guildhall":
+        options.insert(0, "Trading Licenses")
         options.insert(0, "Records")
         options.insert(0, "Merchant Rank")
 
@@ -397,10 +399,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Donate Money")
 
     if isinstance(house, Town):
-        options.insert(0, "Town Council")
-        options.insert(0, "Population Stats")
-        options.insert(0, "Trading Licenses")
         options.insert(0, "General Statistics")
+        options.insert(0, "Population Stats")
+        options.insert(0, "Town Council")
 
     if isinstance(house, Well):
         options.insert(0, "Throw Rock")
@@ -508,8 +509,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             house.open_feast_menu(game_state)
             return
 
-        if option_text == "Trading Licenses" and isinstance(house, Town):
-            house.open_license_view(game_state, click_pos)
+        if option_text == "Trading Licenses" and house.name == "Guildhall":
+            from .contract_overview import ContractOverview
+            game_state.info_window = ContractOverview(game_state.screen, game_state, house=house)
+            game_state.active_house_menu = house
             return
 
         if option_text == "Town Council" and isinstance(house, Town):
