@@ -8,7 +8,6 @@ if TYPE_CHECKING:
     from ...game_state import GameState
 
 from ...config.colors import *
-from ..helper_modules.dropdown import Dropdown
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ...sim.calendar import format_long
 
@@ -179,44 +178,6 @@ def _draw_town_statistics_panel(
                 line_y += 8 # Add space after the stripe
 
     return panel_rect
-
-def prescan_quicktrade_hover(goods: List["Good"], input_fields: Dict[str, str], depot: "Depot", game_state: "GameState", mouse_pos: tuple) -> None:
-    """Reset good.hovered and pre-set it for any hovered non-greyed quicktrade button.
-
-    Called before the chart renders so bold-line highlighting is same-frame.
-    """
-    for good in goods:
-        good.hovered = False
-
-    if not (hasattr(game_state, 'game') and game_state.game):
-        return
-    player = getattr(game_state.game, 'player', None)
-    if player and not player.in_market_area:
-        return
-    menu_is_open = hasattr(game_state.game, 'menu') and game_state.game.menu.is_open
-    if menu_is_open:
-        return
-
-    paused = game_state.time_level == 1
-    sections = [('one', 20), ('two', 390), ('three', 760)]
-    for section, x_start in sections:
-        good_name = input_fields.get(f'good_{section}')
-        if not good_name:
-            continue
-        closed = not game_state.is_good_sold_here(good_name) or not game_state.is_good_tradable(good_name)
-        buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
-        sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
-        no_license = not depot.has_license(good_name, game_state.date)
-        no_stock = depot.good_stock.get(good_name, 0) == 0
-        buy_greyed = paused or closed or no_license
-        sell_greyed = paused or closed or no_stock
-        if (not buy_greyed and buy_rect.collidepoint(mouse_pos)) or \
-           (not sell_greyed and sell_rect.collidepoint(mouse_pos)):
-            good_obj = next((g for g in goods if g.name == good_name), None)
-            if good_obj:
-                good_obj.hovered = True
-            return
-
 
 def draw_layout(
     screen: pygame.Surface,
@@ -572,218 +533,19 @@ def _draw_bottom_bar(
     mouse_clicked_on: Optional[str],
     game_state: "GameState"
 ) -> Dict[str, pygame.Rect]:
-    """Draws the bottom bar with trading buttons.
-    
+    """Draws the bottom bar with the town's population.
+
+    Trading is done on the market view's trade desk (layout_modules/trade_desk.py).
     Time controls and sound controls are drawn separately in their own modules.
     """
     bottom_bar = pygame.Rect(0, SCREEN_HEIGHT-60, SCREEN_WIDTH, 60)
     pygame.draw.rect(screen, LIGHT_GRAY, bottom_bar)
     pygame.draw.rect(screen, DARK_GRAY, bottom_bar, 2)
-    
+
     buttons = {}
-
-    # set the hovered property of all goods to False, the chart gets rendered later and will separately check if some of the chart internal buttons trigger a hover effect
-    # for now we will check if the buy or sell buttons trigger a hover effect from this layout script
-    for good in goods:
-        good.hovered = False
-
-    # Check if trading is allowed - if not in market area, stop here (hiding buttons)
-    if hasattr(game_state, 'game') and hasattr(game_state.game, 'player') and not game_state.game.player.in_market_area:
-        town_rect = _draw_town_statistics_panel(screen, main_font, game_state)
-        if town_rect:
-            buttons['town_population'] = town_rect
-        return buttons
-    
-    # Get mouse position for hover effects
-    mouse_pos = pygame.mouse.get_pos()
-    
-    # Check if menu is open - if so, disable all hover effects on other buttons
-    menu_is_open = (
-        (hasattr(game_state, 'game') and hasattr(game_state.game, 'menu') and game_state.game.menu.is_open)
-        or bool(getattr(game_state, 'info_window', None))
-    )
-    
-    def draw_input_field(rect: pygame.Rect, text: str, is_selected: bool) -> None:
-        """Helper to draw a text input field with an optional cursor.
-        
-        Args:
-            rect: The rectangular area for the input field.
-            text: The current text content.
-            is_selected: Whether this field is currently focused.
-        """
-        pygame.draw.rect(screen, WHITE, rect)
-        pygame.draw.rect(screen, DARK_BROWN, rect, 2)
-
-        # Highlight the whole text when it is selected (double click), instead of a cursor
-        if is_selected and game_state.input_text_selected and text:
-            label_width = main_font.size("Quantity: ")[0]
-            text_width, text_height = main_font.size(text)
-            highlight = pygame.Surface((text_width + 2, text_height), pygame.SRCALPHA)
-            highlight.fill((0, 0, 0, 90))
-            screen.blit(highlight, (rect.x + 9 + label_width, rect.y + 4))
-        # Only draw the cursor if field is selected
-        elif is_selected and game_state.cursor_visible:
-            # Calculate cursor position based on text width up to cursor
-            prefix = "Quantity: " + text[:game_state.cursor_position]
-            text_width = main_font.size(prefix)[0]
-            cursor_x = rect.x + text_width + 7
-            pygame.draw.line(screen, BLACK,
-                           (cursor_x+4, rect.y + 5),
-                           (cursor_x+4, rect.y + rect.height - 5),
-                           2)
-    
-    # Helper function to check if mouse is hovering over a rect
-    def is_hovering(rect: pygame.Rect) -> bool:
-        """Check if the mouse is currently hovering over the given rect.
-        
-        Returns False if the menu is open to prevent hover effects on other buttons.
-        """
-        if menu_is_open:
-            return False
-        return rect.collidepoint(mouse_pos)
-    
-    # Draw input fields and buttons for all three trading sections
-    sections = [
-        ('one', 20, "F1", "F2"),
-        ('two', 390, "F3", "F4"),
-        ('three', 760, "F5", "F6")
-    ]
-
-    pending_tooltip: Optional[tuple] = None  # (text, rect) to draw after all sections
-
-    for section, x_start, buy_key, sell_key in sections:
-        good_name = input_fields[f'good_{section}']
-
-        # Skip this slot entirely if no good is assigned to it
-        if not good_name:
-            continue
-
-        good_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 56, 150, 25)
-        qty_rect = pygame.Rect(x_start, SCREEN_HEIGHT - 29, 150, 25)
-        buy_rect = pygame.Rect(x_start + 170, SCREEN_HEIGHT - 45, 80, 30)
-        sell_rect = pygame.Rect(x_start + 270, SCREEN_HEIGHT - 45, 80, 30)
-
-        # Store button rectangles
-        buttons[f'good_{section}'] = good_rect
-        buttons[f'quantity_{section}'] = qty_rect
-        buttons[f'buy_{section}'] = buy_rect
-        buttons[f'sell_{section}'] = sell_rect
-
-        # Create dropdown if it doesn't exist (but don't draw it)
-        if f'dropdown_{section}' not in game_state.dropdowns:
-            game_state.dropdowns[f'dropdown_{section}'] = Dropdown(
-                x_start, SCREEN_HEIGHT - 56, 150, 25,
-                game_state.available_goods, main_font
-            )
-
-        # Draw input fields and buttons (but not dropdowns)
-        # Apply hover effect to good selection dropdown buttons
-        good_bg_color = DROPDOWN_HOVER if is_hovering(good_rect) else WHITE
-        pygame.draw.rect(screen, good_bg_color, good_rect)
-        pygame.draw.rect(screen, DARK_BROWN, good_rect, 2)
-
-        draw_input_field(qty_rect, input_fields[f'quantity_{section}'],
-                        mouse_clicked_on == f'quantity_{section}')
-
-        # Draw buy button
-        paused = game_state.time_level == 1
-        not_sold_here = bool(good_name) and not game_state.is_good_sold_here(good_name)
-        closed = bool(good_name) and (not_sold_here or not game_state.is_good_tradable(good_name))
-        depot = game_state.game.depot if hasattr(game_state, 'game') and game_state.game else None
-        no_license = depot is not None and not depot.has_license(good_name, game_state.date)
-        buy_greyed = paused or closed or no_license
-        if buy_greyed:
-            buy_color = LIGHT_GRAY
-        elif is_hovering(buy_rect):
-            buy_color = BUY_BUTTON_HOVER
-            good_obj = next((g for g in goods if g.name == good_name), None)
-            if good_obj:
-                good_obj.hovered = True
-        else:
-            buy_color = BUY_BUTTON
-
-        pygame.draw.rect(screen, buy_color, buy_rect)
-        pygame.draw.rect(screen, GRAY if buy_greyed else BUY_BUTTON_BORDER, buy_rect, 2)
-
-        # Draw sell button
-        no_stock = depot is not None and depot.good_stock.get(good_name, 0) == 0
-        sell_greyed = paused or closed or no_stock
-        if sell_greyed:
-            sell_color = LIGHT_GRAY
-        elif is_hovering(sell_rect):
-            sell_color = SELL_BUTTON_HOVER
-            good_obj = next((g for g in goods if g.name == good_name), None)
-            if good_obj:
-                good_obj.hovered = True
-        else:
-            sell_color = SELL_BUTTON
-
-        pygame.draw.rect(screen, sell_color, sell_rect)
-        pygame.draw.rect(screen, GRAY if sell_greyed else SELL_BUTTON_BORDER, sell_rect, 2)
-
-        # Draw click animation overlay on buy and sell buttons if active
-        effect = game_state.button_click_effects.get(f'buy_{section}', 0)
-        if effect:
-            effect_surf = pygame.Surface((buy_rect.width, buy_rect.height), pygame.SRCALPHA)
-            effect_surf.fill((0, 0, 0, 100))
-            screen.blit(effect_surf, (buy_rect.x, buy_rect.y))
-        effect = game_state.button_click_effects.get(f'sell_{section}', 0)
-        if effect:
-            effect_surf = pygame.Surface((sell_rect.width, sell_rect.height), pygame.SRCALPHA)
-            effect_surf.fill((0, 0, 0, 100))
-            screen.blit(effect_surf, (sell_rect.x, sell_rect.y))
-
-        # Draw small triangle to indicate dropdown - make it darker on hover
-        triangle_color = DARK_GRAY if not is_hovering(good_rect) else BLACK
-        pygame.draw.polygon(screen, triangle_color, [
-            (good_rect.right - 20, good_rect.centery - 5),
-            (good_rect.right - 10, good_rect.centery - 5),
-            (good_rect.right - 15, good_rect.centery + 5)
-        ])
-
-        # Draw text
-        good_text = main_font.render(f"Good: {good_name}", True, BLACK)
-        qty_label = main_font.render("Quantity: ", True, BLACK)
-        qty_value = main_font.render(input_fields[f'quantity_{section}'], True, BLACK)
-        buy_text = main_font.render(f"Buy ({buy_key})", True, BUTTON_TEXT)
-        sell_text = main_font.render(f"Sell ({sell_key})", True, BUTTON_TEXT)
-
-        screen.blit(good_text, (good_rect.x + 10, good_rect.y + 5))
-        screen.blit(qty_label, (qty_rect.x + 10, qty_rect.y + 5))
-        screen.blit(qty_value, (qty_rect.x + 10 + qty_label.get_width(), qty_rect.y + 5))
-        screen.blit(buy_text, (buy_rect.centerx - buy_text.get_width()//2, buy_rect.centery - buy_text.get_height()//2))
-        screen.blit(sell_text, (sell_rect.centerx - sell_text.get_width()//2, sell_rect.centery - sell_text.get_height()//2))
-
-        # Collect tooltip for hovered greyed button (priority: paused > closed > no stock > no license)
-        for btn_rect, is_greyed, btn_no_stock in [
-            (buy_rect,  buy_greyed,  False),
-            (sell_rect, sell_greyed, no_stock),
-        ]:
-            if is_greyed and is_hovering(btn_rect):
-                if paused:
-                    pending_tooltip = "Game paused"
-                elif not_sold_here:
-                    pending_tooltip = "Not sold at this market"
-                elif closed:
-                    pending_tooltip = "Market closed"
-                elif btn_no_stock:
-                    pending_tooltip = "No Stock"
-                else:
-                    pending_tooltip = "No License"
-                break
-
-    # Draw tooltip on top of everything else
-    if pending_tooltip is not None:
-        tip_surf = main_font.render(pending_tooltip, True, DARK_RED)
-        tip_w = tip_surf.get_width() + 10
-        tip_h = tip_surf.get_height() + 6
-        tip_x = min(mouse_pos[0] + 12, SCREEN_WIDTH - tip_w - 2)
-        tip_y = max(mouse_pos[1] - tip_h - 6, 0)
-        tip_rect = pygame.Rect(tip_x, tip_y, tip_w, tip_h)
-        pygame.draw.rect(screen, WHITE, tip_rect)
-        pygame.draw.rect(screen, DARK_RED, tip_rect, 1)
-        screen.blit(tip_surf, (tip_x + 5, tip_y + 3))
-
+    town_rect = _draw_town_statistics_panel(screen, main_font, game_state)
+    if town_rect:
+        buttons['town_population'] = town_rect
     return buttons
 
 def draw_right_bar(screen: pygame.Surface, images: Dict[str, Any], buttons: Dict[str, pygame.Rect], main_font: pygame.font.Font, game_state: "GameState") -> None:

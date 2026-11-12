@@ -6,15 +6,21 @@ from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH, CHART
 from ..paper import CHART_PAPER_EDGE, draw_paper
 from ..pin_marker import draw_pin_corner
 from ..market_flows import daily_flows, draw_flows_tooltip
-from ...sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date
+from ...sim.calendar import DAYS_PER_SEASON, DAYS_PER_YEAR, day_number, format_date, price_tick_number
+from . import trade_desk
 
 if TYPE_CHECKING:
     from ...models.good import Good
     from ...models.depot import Depot
 
-def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = ()) -> List[Tuple[pygame.Rect, Any]]:
-    """Draw the primary price history chart and selection UI.
-    
+def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border_orig: Tuple[int, int], goods: List['Good'], goods_images_30: Dict[str, pygame.Surface], current_date: datetime.datetime, view_rect: pygame.Rect, depot: 'Depot' = None, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = (), game_state: Any = None) -> List[Tuple[pygame.Rect, Any]]:
+    """Draw the primary price history chart, the trade desk beside it and the selection UI.
+
+    The chart's right is the trade desk (``trade_desk``): a card for every
+    charted good, in the order they were chosen, joined to the end of its
+    line. The chart shows what the player holds against it: a dashed line at
+    what the stock was bought at, and a mark wherever they bought or sold.
+
     Args:
         screen: Target surface for rendering.
         main_font: Primary font used for price levels.
@@ -23,9 +29,10 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
         goods_images_30: mapping of good names to 30x30 icons.
         current_date: Current game simulation date and time.
         view_rect: The rectangle defining the module viewport area on screen.
-        
+
         scroll_offset: First good shown in the selection bar, when not all fit.
         pinned: Goods pinned to the top bar (right-click on a box), marked in their box.
+        game_state: The game state the trade desk reads and files its hitboxes in; without it there is no desk.
 
     Returns:
         List[Tuple[pygame.Rect, Any]]: Hitboxes of the selection bar, each with the
@@ -35,15 +42,16 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     # The original chart_border[0] is the left margin within the first module.
     chart_border = (view_rect.x + chart_border_orig[0], chart_border_orig[1])
 
-    # Define the chart content width (leaving 42px buffer on right for goods icons)
-    chart_content_width = view_rect.width - 42
-    
+    # The chart's width: the trade desk has the view's right
+    with_desk = game_state is not None and depot is not None
+    chart_content_width = view_rect.width - (trade_desk.DESK_WIDTH if with_desk else 42)
+
     # Draw the module background
     pygame.draw.rect(screen, BEIGE, view_rect)
     pygame.draw.rect(screen, DARK_BROWN, view_rect, 2)
-    
-    # Draw the chart content area (with border on right before the buffer)
-    chart_area = pygame.Rect(view_rect.x, view_rect.y, chart_content_width, view_rect.height)
+
+    # One sheet under the chart and the desk
+    chart_area = pygame.Rect(view_rect.x, view_rect.y, view_rect.width if with_desk else chart_content_width, view_rect.height)
     draw_paper(screen, chart_area, chart_area.topleft, base=SANDY_BROWN, edge_depth=CHART_PAPER_EDGE)
     pygame.draw.rect(screen, DARK_BROWN, chart_area, 2)
 
@@ -54,7 +62,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
 
     # Draw basic chart structure
     chart_left_bottom = (chart_border[0], chart_border[1])
-    select_bar = pygame.Rect(view_rect.x, chart_left_bottom[1] + 15, chart_content_width, 75)
+    select_bar = pygame.Rect(view_rect.x, chart_left_bottom[1] + 15, chart_area.width, 75)
     pygame.draw.rect(screen, PALE_BROWN, select_bar)
     pygame.draw.rect(screen, DARK_BROWN, select_bar, 2)
     pygame.draw.line(screen, CHART_BROWN, (chart_border[0], chart_border[1]), (chart_border[0] + max_chart_size, chart_border[1]), 1)
@@ -62,8 +70,15 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
 
     # Calculate max price using chart history instead of bookkeeping history
     visible_goods = [good for good in goods if good.show_in_charts]
+    cards = []
+    if with_desk:
+        by_name = {good.name: good for good in visible_goods}
+        desk_rect = pygame.Rect(view_rect.x + chart_content_width, view_rect.y, trade_desk.DESK_WIDTH, select_bar.top - view_rect.y)
+        cards = trade_desk.layout_cards(desk_rect, [by_name[name] for name in game_state.trade_goods() if name in by_name])
     if not visible_goods:
-        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, scroll_offset=scroll_offset, pinned=pinned)
+        if with_desk:
+            trade_desk.draw_desk(screen, cards, depot, game_state, main_font, goods_images_30, {}, suppress_hover)
+        return _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, scroll_offset=scroll_offset, pinned=pinned, game_state=game_state)
 
     max_price = max(max(good.price_history_hourly[-int(max_chart_size):]) for good in visible_goods)
     _draw_price_levels(screen, main_font, chart_border, max_chart_size, max_chart_height, max_price)
@@ -73,7 +88,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
     _draw_time_markers(screen, chart_border, max_chart_size, max_chart_height, current_date, history_len)
 
     # Store selection boxes for later use with hover effects
-    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset, pinned)
+    image_boxes = _draw_selection_boxes(screen, goods, select_bar, goods_images_30, main_font, depot, current_date, view_rect.right, suppress_hover, scroll_offset, pinned, game_state)
 
     # Check for proximity hover on the chart itself (suppressed when mouse is over a dropdown)
     closest_good, hover_idx = None, None
@@ -81,9 +96,24 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
         closest_good, hover_idx = _get_closest_good_at_mouse(pygame.mouse.get_pos(), chart_border, max_chart_size, max_chart_height, goods, max_price)
         if closest_good:
             closest_good.hovered = True
+        on_card = trade_desk.hovered_good(cards, pygame.mouse.get_pos())
+        if on_card:
+            on_card.hovered = True
+
+    # What the player holds, against the prices: what it was bought at, and where they traded
+    if depot is not None:
+        _draw_cost_lines(screen, main_font, visible_goods, depot, chart_border, max_chart_size, max_chart_height, max_price)
 
     # Draw charts for each good with hover effects
-    _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
+    line_ends = _draw_good_charts(screen, goods, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30, labels=not with_desk)
+    if depot is not None:
+        _draw_trade_marks(screen, visible_goods, depot, chart_border, max_chart_size, max_chart_height, max_price, current_date)
+
+    # The trade desk, and where the order under the pointer would leave the price
+    if with_desk:
+        preview = trade_desk.draw_desk(screen, cards, depot, game_state, main_font, goods_images_30, line_ends, suppress_hover)
+        if preview is not None and preview.good.name in line_ends:
+            _draw_price_preview(screen, preview, line_ends[preview.good.name], chart_border, max_chart_height, max_price)
 
     # Draw chart hover effects (vertical line and tooltip)
     if not suppress_hover:
@@ -93,7 +123,7 @@ def draw_chart(screen: pygame.Surface, main_font: pygame.font.Font, chart_border
 
 def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float) -> Tuple[Optional['Good'], Optional[int]]:
     """Determine which good is closest to the mouse within the chart area.
-    
+
     Args:
         mouse_pos: Current mouse coordinates.
         chart_border: Base chart coordinates.
@@ -101,7 +131,7 @@ def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[i
         max_chart_height: Chart height.
         goods: List of all goods.
         max_price: Price scaling factor.
-        
+
     Returns:
         Tuple containing the closest Good object and the history index, or (None, None).
     """
@@ -110,10 +140,10 @@ def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[i
     bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
     left_x = chart_border[0]
     right_x = chart_border[0] + int(max_chart_size)
-    
+
     if not (left_x <= mouse_pos[0] <= right_x and top_y <= mouse_pos[1] <= bottom_y):
         return None, None
-        
+
     idx = int(mouse_pos[0] - left_x)
     visible_goods = [good for good in goods if good.show_in_charts]
     if not visible_goods:
@@ -121,23 +151,23 @@ def _get_closest_good_at_mouse(mouse_pos: Tuple[int, int], chart_border: Tuple[i
 
     closest_good = None
     min_dist = float('inf')
-    
+
     for good in visible_goods:
         price_history = good.price_history_hourly[-int(max_chart_size):]
         if idx < len(price_history):
             # Calculate screen y-coordinate for this good at this index
             price_y = chart_border[1] + ((price_history[idx] / max_price) * max_chart_height)
             dist = abs(mouse_pos[1] - price_y)
-            
+
             if dist < min_dist:
                 min_dist = dist
                 closest_good = good
-                
+
     return closest_good, idx
 
 def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, goods: List['Good'], max_price: float, main_font: pygame.font.Font, current_date: datetime.datetime, closest_good: Optional['Good'] = None, idx: Optional[int] = None, depot: 'Depot' = None, safe_right: int = SCREEN_WIDTH) -> None:
     """Draw a vertical hover line and price tooltip when hovering over the chart area.
-    
+
     Args:
         screen: Target surface.
         chart_border: Base coordinates.
@@ -151,17 +181,17 @@ def _draw_chart_hover(screen: pygame.Surface, chart_border: Tuple[int, int], max
         idx: Pre-calculated history index (optional).
     """
     mouse_pos = pygame.mouse.get_pos()
-    
+
     # If not pre-calculated, determine it here (fallback)
     if closest_good is None or idx is None:
         closest_good, idx = _get_closest_good_at_mouse(mouse_pos, chart_border, max_chart_size, max_chart_height, goods, max_price)
-    
+
     if idx is not None:
         # Draw vertical hover line spanning the full height of the chart
         top_y = min(chart_border[1], chart_border[1] + int(max_chart_height))
         bottom_y = max(chart_border[1], chart_border[1] + int(max_chart_height))
         pygame.draw.line(screen, DARK_GRAY, (mouse_pos[0], top_y), (mouse_pos[0], bottom_y), 1)
-        
+
         if closest_good:
             # Get data from the closest good
             price_history = closest_good.price_history_hourly[-int(max_chart_size):]
@@ -296,7 +326,7 @@ def _draw_time_markers(screen: pygame.Surface, chart_border: Tuple[int, int], ma
 
 def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float) -> None:
     """Draw grid lines and price level labels.
-    
+
     Args:
         screen: Target surface.
         main_font: Font for labels.
@@ -307,7 +337,7 @@ def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, char
     """
     # Start with small increments for lower values (1-5)
     price_levels = [1, 2, 3, 4, 5]
-    
+
     # If max_price is small, don't add higher levels
     if max_price <= 6:
         price_levels = [level for level in price_levels if level <= max_price]
@@ -317,7 +347,7 @@ def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, char
         while current_level <= min(max_price, 50):
             price_levels.append(current_level)
             current_level += 5
-            
+
         # For higher values, use larger steps (increments of 10)
         if max_price > 50:
             current_level = 60
@@ -330,14 +360,18 @@ def _draw_price_levels(screen: pygame.Surface, main_font: pygame.font.Font, char
         y_ratio = price_level / max_price
         if 0 <= y_ratio <= 1:  # Only draw if within chart boundaries
             y = chart_border[1] + (y_ratio * max_chart_height)
-            pygame.draw.line(screen, CHART_BROWN, (chart_border[0], y), 
+            pygame.draw.line(screen, CHART_BROWN, (chart_border[0], y),
                             (chart_border[0] + max_chart_size, y), 1)
             price_text = main_font.render(str(price_level), True, CHART_BROWN)
             screen.blit(price_text, (chart_border[0] - 30, y - 10))
 
-def _draw_good_charts(screen: pygame.Surface, goods: List['Good'], chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float, main_font: pygame.font.Font, goods_images_30: Dict[str, pygame.Surface]) -> None:
+def _draw_good_charts(screen: pygame.Surface, goods: List['Good'], chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float, main_font: pygame.font.Font, goods_images_30: Dict[str, pygame.Surface], labels: bool = True) -> Dict[str, Tuple[float, float]]:
     """Render all price lines, prioritizing hovered items on top.
-    
+
+    Returns where each line ends, by the good's name. With *labels* off the
+    price, volume and icon beside that end are left out (the trade desk's
+    cards show them).
+
     Args:
         screen: Target surface.
         goods: List of goods to draw lines for.
@@ -351,18 +385,14 @@ def _draw_good_charts(screen: pygame.Surface, goods: List['Good'], chart_border:
     # First, separate goods into regular and hovered
     regular_goods = [good for good in goods if good.show_in_charts and not good.hovered]
     hovered_goods = [good for good in goods if good.show_in_charts and good.hovered]
-    
-    # Draw non-hovered goods first
-    for good in regular_goods:
-        _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
-    
-    # Then draw hovered goods on top
-    for good in hovered_goods:
-        _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30)
 
-def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float, main_font: pygame.font.Font, goods_images_30: Dict[str, pygame.Surface]) -> None:
-    """Render a single good's price history line.
-    
+    # Draw non-hovered goods first, then the hovered ones on top
+    return {good.name: _draw_good_line(screen, good, chart_border, max_chart_size, max_chart_height, max_price, main_font, goods_images_30, labels)
+            for good in regular_goods + hovered_goods}
+
+def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float, main_font: pygame.font.Font, goods_images_30: Dict[str, pygame.Surface], labels: bool = True) -> Tuple[float, float]:
+    """Render a single good's price history line; returns where it ends.
+
     Args:
         screen: Target surface.
         good: The good instance being drawn.
@@ -375,7 +405,7 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
     """
     # Use chart price history instead of bookkeeping price history
     price_history = good.price_history_hourly[-int(max_chart_size):]
-    
+
     # Draw price line: anti-aliased so its hourly 1px scroll does not shimmer;
     # a hovered good gets a thicker line, which aalines cannot draw
     points = [(chart_border[0] + i, chart_border[1] + ((price / max_price) * max_chart_height))
@@ -385,33 +415,37 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             pygame.draw.lines(screen, good.color, False, points, 3)
         else:
             pygame.draw.aalines(screen, good.color, False, points)
-    
+
+    text_y = chart_border[1] + ((price_history[-1] / max_price) * max_chart_height)
+    line_end = (chart_border[0] + len(price_history) - 1, text_y)
+    if not labels:
+        return line_end
+
     # Draw current price and quantities with different fonts
     price_text = main_font.render(str(round(price_history[-1], 2)), True, good.color)
     quantity = good.market_quantity
-    
+
     # Use smaller font for quantities
     quantity_font = pygame.font.SysFont("RomanAntique.ttf", 19)
-    quantity_text = quantity_font.render(f"V.{str(quantity if quantity < 999 else int(round(quantity/1000, 0)))}" + 
+    quantity_text = quantity_font.render(f"V.{str(quantity if quantity < 999 else int(round(quantity/1000, 0)))}" +
                                   ("" if quantity < 999 else "k"), True, good.color)
-    
-    text_y = chart_border[1] + ((price_history[-1] / max_price) * max_chart_height)
+
     screen.blit(price_text, (chart_border[0] + len(price_history) - 1, text_y))
     screen.blit(quantity_text, (chart_border[0] + len(price_history) - 1, text_y + 20))
-    
+
     if good.name in goods_images_30:
         # Make icons larger when hovered
         if good.hovered:
             # Create a larger version of the icon (1.5x size)
             original_image = goods_images_30[good.name]
-            enlarged_size = (int(original_image.get_width() * 1.4), 
+            enlarged_size = (int(original_image.get_width() * 1.4),
                            int(original_image.get_height() * 1.4))
             enlarged_image = pygame.transform.scale(original_image, enlarged_size)
-            
+
             # Calculate position adjustments to keep icon centered
             x_offset = (enlarged_size[0] - original_image.get_width()) // 2
             y_offset = (enlarged_size[1] - original_image.get_height()) // 2
-            
+
             # Positioned to stay centered relative to the original position
             screen.blit(enlarged_image, (
                 chart_border[0] + len(price_history) + 55 - x_offset,
@@ -421,8 +455,72 @@ def _draw_good_line(screen: pygame.Surface, good: 'Good', chart_border: Tuple[in
             # Normal sized icon for non-hovered goods
             screen.blit(goods_images_30[good.name],
                       (chart_border[0] + len(price_history) + 55, text_y + 10))
+    return line_end
 
-def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = ()) -> List[Tuple[pygame.Rect, Any]]:
+
+def _draw_dashed_line(screen: pygame.Surface, color: Tuple[int, int, int], start_x: float, end_x: float, y: float, dash: int = 8, gap: int = 6, width: int = 1) -> None:
+    """A dashed horizontal line."""
+    x = start_x
+    while x < end_x:
+        pygame.draw.line(screen, color, (x, y), (min(x + dash, end_x), y), width)
+        x += dash + gap
+
+
+def _draw_cost_lines(screen: pygame.Surface, main_font: pygame.font.Font, goods: List['Good'], depot: 'Depot', chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float) -> None:
+    """A dashed line across the chart at what the player's stock of each charted good was bought at.
+
+    The price above it is a profit, below it a loss. It is named while the
+    good is hovered, and left out where it lies above the chart.
+    """
+    for good in goods:
+        if depot.good_stock.get(good.name, 0) <= 0:
+            continue
+        average = depot.avg_buy_price(good.name)
+        if average is None or not 0 < average <= max_price:
+            continue
+        y = chart_border[1] + (average / max_price) * max_chart_height
+        _draw_dashed_line(screen, good.color, chart_border[0], chart_border[0] + max_chart_size, y, width=2 if good.hovered else 1)
+        if good.hovered:
+            label = main_font.render(f"Bought at {average:.2f}", True, DARK_BROWN)
+            plaque = label.get_rect(bottomleft=(chart_border[0] + 12, y - 4)).inflate(10, 4)
+            pygame.draw.rect(screen, PARCHMENT, plaque, border_radius=4)
+            pygame.draw.rect(screen, good.color, plaque, 1, border_radius=4)
+            screen.blit(label, label.get_rect(center=plaque.center))
+
+
+def _draw_trade_marks(screen: pygame.Surface, goods: List['Good'], depot: 'Depot', chart_border: Tuple[int, int], max_chart_size: float, max_chart_height: float, max_price: float, current_date: datetime.datetime) -> None:
+    """A small arrow on a charted good's line wherever the player traded it: up from below for a purchase, down from above for a sale."""
+    histories = {good.name: (good, good.price_history_hourly[-int(max_chart_size):]) for good in goods}
+    tick_now = price_tick_number(current_date)
+    for trade in reversed(depot.trades):
+        ticks_ago = tick_now - price_tick_number(trade["timestamp"])
+        if ticks_ago >= max_chart_size:
+            break       # the rest are older still
+        if trade["good"] not in histories:
+            continue
+        good, history = histories[trade["good"]]
+        idx = len(history) - 1 - ticks_ago
+        if not 0 <= idx < len(history):
+            continue
+        x = chart_border[0] + idx
+        y = chart_border[1] + (history[idx] / max_price) * max_chart_height
+        away = 1 if trade["type"] == "purchase" else -1       # a purchase's arrow is under the line
+        points = [(x, y + away * 4), (x - 5, y + away * 13), (x + 5, y + away * 13)]
+        pygame.draw.polygon(screen, good.color, points)
+        pygame.draw.polygon(screen, DARK_BROWN, points, 1)
+
+
+def _draw_price_preview(screen: pygame.Surface, preview: 'trade_desk.Preview', line_end: Tuple[float, float], chart_border: Tuple[int, int], max_chart_height: float, max_price: float) -> None:
+    """Where the order under the pointer would leave the price: an arrow up or down from the line's end."""
+    x, y = line_end
+    ratio = min(max(preview.price_after / max_price, 0.0), 1.0)
+    after_y = chart_border[1] + ratio * max_chart_height
+    color = DARK_RED if preview.buying else DARK_GREEN
+    pygame.draw.line(screen, color, (x + 20, y), (x + 20, after_y), 3)
+    tip = after_y - 7 if after_y < y else after_y + 7
+    pygame.draw.polygon(screen, color, [(x + 20, tip), (x + 14, after_y), (x + 26, after_y)])
+
+def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_bar: pygame.Rect, goods_images_30: Dict[str, pygame.Surface], main_font: pygame.font.Font, depot: 'Depot' = None, current_date: datetime.datetime = None, safe_right: int = SCREEN_WIDTH, suppress_hover: bool = False, scroll_offset: int = 0, pinned: Sequence[str] = (), game_state: Any = None) -> List[Tuple[pygame.Rect, Any]]:
     """Draw interactive toggles for individual goods (a left click shows it in the chart, a right click pins it to the top bar).
 
     Hovering one shows its name and yesterday's demand and supply in the town's
@@ -459,7 +557,7 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
     total_width = slot_width * len(shown_goods)
     start_x = (select_bar.width - total_width) // 2
     image_boxes: List[Tuple[pygame.Rect, Any]] = []
-    tooltips: List[Tuple['Good', Tuple[int, int], bool]] = []  # Collect tooltip info for later rendering
+    tooltips: List[Tuple['Good', Tuple[int, int], Optional[str]]] = []  # Collect tooltip info for later rendering
 
     if max_offset > 0:
         image_boxes += _draw_selection_arrows(screen, select_bar, arrow_width, scroll_offset, max_offset, mouse_pos, suppress_hover)
@@ -483,20 +581,24 @@ def _draw_selection_boxes(screen: pygame.Surface, goods: List['Good'], select_ba
 
         pygame.draw.rect(screen, color, image_box)
         pygame.draw.rect(screen, DARK_BROWN, image_box, 2)
-        
+
         if good.name in goods_images_30:
             screen.blit(goods_images_30[good.name], (box_x + 10, box_y + 10))
         if good.name in pinned:
             draw_pin_corner(screen, image_box, DARK_BROWN)
-        
+
         if is_hovered:
-            no_license = depot is not None and current_date is not None and not depot.has_license(good.name, current_date)
-            tooltips.append((good, mouse_pos, no_license))
+            warning = None
+            if game_state is not None and not game_state.is_good_sold_here(good.name):
+                warning = "Not sold at this market"
+            elif depot is not None and current_date is not None and not depot.has_license(good.name, current_date):
+                warning = "No License"
+            tooltips.append((good, mouse_pos, warning))
     # Render tooltips after all buttons are drawn: the good's name and yesterday's demand and supply
     safe_bottom = screen.get_height() - 60  # stay above the bottom bar
-    for good, pos, no_license in tooltips:
+    for good, pos, warning in tooltips:
         draw_flows_tooltip(screen, main_font, good.name, daily_flows(good.flows_yesterday), pos, safe_right,
-                           safe_bottom, warning="No License" if no_license else None)
+                           safe_bottom, warning=warning)
 
     return image_boxes
 

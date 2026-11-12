@@ -53,10 +53,13 @@ RIGHT_COLUMN: List[Section] = [
         ([["F9"]], "Next weather (debug overlay on)"),
     ]),
     ("Trading (at the market)", [
-        ([["F1"], ["F2"]], "Buy / sell, first row"),
-        ([["F3"], ["F4"]], "Buy / sell, second row"),
-        ([["F5"], ["F6"]], "Buy / sell, third row"),
-        ([["Double click"]], "Select a quantity's text"),
+        ([["Left click"]], "Good below the chart: chart and trade it"),
+        ([["F1"], ["F2"]], "Buy / sell, first card"),
+        ([["F3"], ["F4"]], "Buy / sell, second card"),
+        ([["F5"], ["F6"]], "Buy / sell, third card"),
+        ([["Wheel"], ["Shift", "Wheel"]], "On a card: quantity by 1 / 10"),
+        ([["Left click"]], "A card's quantity: type a new one"),
+        ([["Left click"]], "\"Max\" / \"All\": take it as the quantity"),
         ([["Enter"], ["Esc"]], "Finish typing a quantity"),
     ]),
     ("Menus & Dialogs", [

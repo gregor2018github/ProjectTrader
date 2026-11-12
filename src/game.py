@@ -6,7 +6,7 @@ import time
 from typing import Dict, List, Optional, Any, Tuple, Union
 from .game_state import GameState, quick_trade_quantity
 from .handlers.event_handler import EventHandler
-from .ui.general_layout.layout import draw_layout, draw_right_bar, prescan_quicktrade_hover
+from .ui.general_layout.layout import draw_layout, draw_right_bar
 from .models.institutions.market import Market
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
@@ -363,7 +363,19 @@ class Game:
         self.state.market_area_goods = (
             self.game_map.tmx_map.goods_at_market_area(area) if area else set()
         )
+        if area:
+            self._chart_market_goods()
         self.state.sync_quicktrade_fields()
+
+    def _chart_market_goods(self) -> None:
+        """Put the goods of the market square the player has come to in the chart, and so on the trade desk."""
+        names = [name for name in self.state.current_quicktrade_slots()[:3] if any(g.name == name for g in self.goods)]
+        if not names:
+            return
+        for good in self.goods:
+            good.show_in_charts = good.name in names
+        self.state.chart_selection_order = names
+        self.state.mouse_clicked_on = "none"
 
     def _handle_sim_events(self, events: List[SimEvent]) -> None:
         """What the simulation reported since the last update (src/sim/events.py).
@@ -729,6 +741,8 @@ class Game:
 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []
+                self.state.trade_buttons = {}
+                self.state.trade_cards = []
                 self.state.depot_chart_buttons = {}
                 for good in self.goods:
                     if hasattr(good, '_external_hover') and not good._external_hover:
@@ -857,9 +871,12 @@ class Game:
 
                 # Helper function to render a module in a specific rect
                 mouse_pos = pygame.mouse.get_pos()
-                prescan_quicktrade_hover(self.goods, self.state.input_fields, self.depot, self.state, mouse_pos)
+                for good in self.goods:
+                    good.hovered = False    # the chart and its trade desk say which one is, as they are drawn
                 suppress_chart_hover = (
                     bool(self.state.info_window)
+                    or self.menu.is_open
+                    or self.view_transition.active
                     or any(
                         d.is_open and d.dropdown_rect.collidepoint(mouse_pos)
                         for d in self.state.dropdowns.values()
@@ -874,7 +891,8 @@ class Game:
                                                           self.goods, self.images['goods_30'], self.state.date,
                                                           rect, self.depot, suppress_chart_hover,
                                                           self.state.chart_goods_offset,
-                                                          pinned=self.state.pinned_goods)
+                                                          pinned=self.state.pinned_goods,
+                                                          game_state=self.state)
                     elif mode == 'depot':
                         draw_depot_view(self.screen, self.font, self.depot, self.state, rect)
                     elif mode == 'building':
@@ -914,6 +932,7 @@ class Game:
                 buttons = draw_layout(self.screen, self.goods, self.depot, self.font, 
                                     self.state.date, self.state.input_fields, 
                                     self.state.mouse_clicked_on, self.images, self.state)
+                buttons.update(self.state.trade_buttons)
                 
                 # 5. Draw right sidebar and other overlays
                 draw_right_bar(screen=self.screen, images=self.images, buttons=buttons, main_font=self.font, game_state=self.state)

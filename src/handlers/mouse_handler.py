@@ -17,20 +17,6 @@ if TYPE_CHECKING:
 
 VIEW_MODES = ["map", "market", "depot", "politics", "trade_routes", "building"]
 
-# Max time between two clicks on an input field to count as a double click
-DOUBLE_CLICK_MS = 400
-
-
-def _cursor_index_at(x: int, rect: pygame.Rect, text: str, font: pygame.font.Font) -> int:
-    """Return the character gap in a quantity field's text closest to screen x.
-
-    Mirrors the text layout in the bottom bar: "Quantity: " label, then the value.
-    Clicks right of the text land at the end.
-    """
-    text_x = rect.x + 10 + font.size("Quantity: ")[0]
-    return min(range(len(text) + 1), key=lambda i: abs(text_x + font.size(text[:i])[0] - x))
-
-
 def set_view_fullscreen(game_state: 'GameState', name: str) -> None:
     """Show ``name`` on both sides at once (same effect as clicking its main pictogram).
 
@@ -89,39 +75,22 @@ def _toggle_chart_good(good: 'Good', goods: List['Good'], game_state: 'GameState
         if good.name not in order:
             order.append(good.name)
 
-
-def _apply_dropdown_good_change(section: str, selected: str, goods: List['Good'], game_state: 'GameState') -> None:
-    """Put the good picked in a quick-trade dropdown into that slot of the
-    player's market square. A good already in another slot is a no-op.
-    """
-    section_to_index = {'one': 0, 'two': 1, 'three': 2}
-    slot_index = section_to_index.get(section)
-    if slot_index is None:
-        return
-
-    slots = game_state.current_quicktrade_slots()
-    if selected in slots:
-        return
-    if slot_index < len(slots):
-        slots[slot_index] = selected
-    elif len(slots) < 3:
-        slots.append(selected)
-    else:
-        return
-
+    # The trade desk's cards follow the chart, and the market square the player is at remembers them
+    game_state.mouse_clicked_on = "none"
+    game_state.remember_market_goods()
     game_state.sync_quicktrade_fields()
 
 
-def handle_mouse_click(pos: Tuple[int, int], 
-                       buttons: Dict[str, pygame.Rect], 
-                       game_state: 'GameState', 
-                       goods: List['Good'], 
+def handle_mouse_click(pos: Tuple[int, int],
+                       buttons: Dict[str, pygame.Rect],
+                       game_state: 'GameState',
+                       goods: List['Good'],
                        depot: 'Depot') -> None:
     """Process left mouse button clicks on various UI elements.
-    
-    This function handles clicks for sound controls, time controls, menus, 
+
+    This function handles clicks for sound controls, time controls, menus,
     dialogues, pictograms, dropdowns, input fields, and chart toggle boxes.
-    
+
     Args:
         pos: The (x, y) coordinates of the mouse click.
         buttons: Dictionary of UI element names mapped to their hitboxes.
@@ -153,13 +122,13 @@ def handle_mouse_click(pos: Tuple[int, int],
         # The game renders modules side-by-side or full view.
         # Let's approximate: if map is left module, rect is there. If right module...
         # Better: Iterate all potential view areas.
-        
+
         # Simplified approach: Since we don't have the exact rects easily available here without passed args,
         # we can reconstruct them based on game_state layout logic or just check if the click hits any house
         # assuming the mouse pos is correct.
         # get_hovered_house checks if pos is within passed view_rect.
         # We'll try passing the screen rect as fallback or calculate properly?
-        
+
         # Let's try to find the map rect based on current layout modes
         from ..config.constants import SCREEN_HEIGHT, MODULE_WIDTH
 
@@ -175,7 +144,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 map_rects.append(left_module_rect)
             if game_state.right_side_mode == "map":
                 map_rects.append(right_module_rect)
-            
+
         for view_rect in map_rects:
             if view_rect.collidepoint(pos):
                 hovered = get_hovered_map_object(pos, game_state.game.game_map, view_rect)
@@ -248,9 +217,9 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.info_window = LoadDialog(game_state.screen, game_state.font, game_state.game)
                 return
             elif menu_action == "Quit":
-                game_state.info_window = InfoWindow(game_state.screen, 
-                                                  "Do you want to quit?", 
-                                                  ["Back", "Quit"], 
+                game_state.info_window = InfoWindow(game_state.screen,
+                                                  "Do you want to quit?",
+                                                  ["Back", "Quit"],
                                                   game_state.font,
                                                   game_state.game)  # Pass game reference
             elif menu_action == "Main Menu":
@@ -264,7 +233,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.info_window = SettingsWindow(game_state.screen, game_state.font, game_state.game)
                 return
             return
-        
+
     # Top bar goods scroll arrows: one column per click
     for key, step in (('top_bar_left', -1), ('top_bar_right', 1)):
         if key in buttons and buttons[key].collidepoint(pos):
@@ -296,7 +265,7 @@ def handle_mouse_click(pos: Tuple[int, int],
         left_key = f"picto_{name}_left"
         right_key = f"picto_{name}_right"
         main_key = f"pictogram_{name}"
-        
+
         # Handle Left Button Click
         if left_key in buttons and buttons[left_key].collidepoint(pos):
             if game_state.left_side_mode == name:
@@ -307,7 +276,7 @@ def handle_mouse_click(pos: Tuple[int, int],
                 game_state.left_side_prev_mode = game_state.left_side_mode
                 game_state.left_side_mode = name
             return
-        
+
         # Handle Right Button Click
         if right_key in buttons and buttons[right_key].collidepoint(pos):
             if game_state.right_side_mode == name:
@@ -324,67 +293,23 @@ def handle_mouse_click(pos: Tuple[int, int],
             set_view_fullscreen(game_state, name)
             return
 
-    # Handle dropdown selection first
-    if game_state.active_dropdown:
-        dropdown = game_state.dropdowns[game_state.active_dropdown]
-        selected = dropdown.handle_click(pos)
-        if selected:
-            section = game_state.active_dropdown.split('_')[1]
-            dropdown.is_open = False
-            game_state.active_dropdown = None
-            _apply_dropdown_good_change(section, selected, goods, game_state)
-            return
-        # If clicked outside, close all dropdowns
-        for dropdown in game_state.dropdowns.values():
-            dropdown.is_open = False
-        game_state.active_dropdown = None
-        return
-
-    # Handle input field clicks
+    # The trade desk's cards and whatever else has a hitbox
     for field_name, rect in buttons.items():
         if rect.collidepoint(pos):
-            if field_name.startswith('quantity_'):
+            part, _, section = field_name.rpartition('_')
+            good_name = game_state.input_fields.get(f'good_{section}', '')
+            if part == 'quantity':
+                # A click takes the field with its whole text marked, so typing replaces it
+                text = game_state.input_fields[field_name]
                 game_state.mouse_clicked_on = field_name
-                game_state.cursor_position = _cursor_index_at(pos[0], rect, game_state.input_fields[field_name], game_state.font)
-                # A second click on the same field within the interval selects the whole text
-                now = pygame.time.get_ticks()
-                last_field, last_time = game_state.last_input_click
-                is_double_click = last_field == field_name and now - last_time <= DOUBLE_CLICK_MS
-                game_state.input_text_selected = is_double_click and bool(game_state.input_fields[field_name])
-                game_state.last_input_click = ("none", 0) if is_double_click else (field_name, now)
-            if field_name.startswith('good_'):
-                # Close all other dropdowns first
-                for dropdown in game_state.dropdowns.values():
-                    dropdown.is_open = False
-                # Open clicked dropdown, filtering out goods already in other slots
-                section = field_name.split('_')[1]
-                dropdown_name = f'dropdown_{section}'
-                dropdown = game_state.dropdowns[dropdown_name]
-                this_good = game_state.input_fields.get(f'good_{section}', '')
-                other_selected = set(game_state.current_quicktrade_slots()) - ({this_good} if this_good else set())
-                filtered = [g for g in game_state.goods_sold_here() if g not in other_selected]
-                dropdown.options = filtered
-                dropdown.dropdown_height = len(filtered) * dropdown.item_height
-                dropdown.dropdown_rect.y = dropdown.rect.y - dropdown.dropdown_height
-                dropdown.dropdown_rect.height = dropdown.dropdown_height
-                dropdown.is_open = True
-                game_state.active_dropdown = dropdown_name
+                game_state.cursor_position = len(text)
+                game_state.input_text_selected = bool(text)
                 return
-            elif field_name.startswith(('buy_', 'sell_')):
-                if game_state.time_level > 1:
-                    section = field_name.split('_')[1]
-                    good_name = game_state.input_fields.get(f'good_{section}', '')
-                    if good_name and not game_state.is_good_sold_here(good_name):
-                        game_state.show_warning(game_state.not_sold_here_message(good_name))
-                        return
-                    if good_name and not game_state.is_good_tradable(good_name):
-                        game_state.show_warning(game_state.good_closed_message(good_name))
-                        return
-                    if field_name.startswith('buy_') and not depot.has_license(good_name, game_state.date):
-                        return
-                    if field_name.startswith('sell_') and depot.good_stock.get(good_name, 0) == 0:
-                        return
-                    _handle_trade_button(field_name, game_state, goods, depot)
+            game_state.mouse_clicked_on = "none"
+            if part in ('half', 'minus', 'plus', 'double', 'maxbuy', 'maxsell') and good_name:
+                _step_trade_quantity(part, section, good_name, game_state)
+            elif part in ('buy', 'sell') and good_name:
+                trade_card_order(part, section, game_state, goods, depot, quiet=True)
             else:
                 game_state.mouse_clicked_on = field_name
             return
@@ -397,7 +322,7 @@ def handle_mouse_click(pos: Tuple[int, int],
             else:
                 _toggle_chart_good(target, goods, game_state)
             return
-            
+
     # Check for clicks on Depot Chart buttons
     if hasattr(game_state, "depot_chart_buttons") and game_state.depot_chart_buttons:
         for label, rect in game_state.depot_chart_buttons.items():
@@ -427,36 +352,51 @@ def handle_mouse_click(pos: Tuple[int, int],
     # Reset mouse click if clicked elsewhere
     game_state.mouse_clicked_on = "none"
 
-def _handle_trade_button(button_name: str, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
-    """Execute a trade action when a buy or sell button is clicked.
-    
-    Args:
-        button_name: Internal name of the button (e.g., 'buy_one').
-        game_state: Current state of the game engine.
-        goods: List of all tradeable goods.
-        depot: The player's depot/inventory model.
+def _step_trade_quantity(part: str, section: str, good_name: str, game_state: 'GameState') -> None:
+    """Change a trade card's quantity with one of its steps, or take the most it could buy or sell."""
+    text = game_state.input_fields.get(f'quantity_{section}', '')
+    quantity = int(text) if text.isdigit() else 0
+    max_buy, max_sell = game_state.trade_limits.get(section, (0, 0))
+    if part == 'maxbuy' and max_buy <= 0 or part == 'maxsell' and max_sell <= 0:
+        return
+    game_state.set_trade_quantity(good_name, {
+        'half': quantity // 2,
+        'minus': quantity - 1,
+        'plus': quantity + 1,
+        'double': quantity * 2,
+        'maxbuy': max_buy,
+        'maxsell': max_sell,
+    }[part])
+
+
+def trade_card_order(action: str, section: str, game_state: 'GameState', goods: List['Good'], depot: 'Depot',
+                     quiet: bool = False) -> bool:
+    """Place a trade card's order ('buy' or 'sell'), as its button or its F key does.
+
+    Nothing is traded away from the market squares or while the game is
+    paused; whatever else stands in the way, the depot says in a warning.
+    With *quiet* (a click on the button, which is greyed and says why on its
+    card) an order that cannot be placed is dropped without that warning.
+
+    Returns:
+        Whether the trade went through.
     """
-    action, section = button_name.split('_')
-    good_name = game_state.input_fields[f'good_{section}']
-    try:
-        quantity = int(game_state.input_fields[f'quantity_{section}'])
-        for good in goods:
-            if good.name == good_name:
-                # Store the result of the trade attempt
-                trade_successful = False
-                if action == 'buy':
-                    trade_successful = depot.buy(good, quantity, game_state)
-                else:
-                    trade_successful = depot.sell(good, quantity, game_state)
-                
-                # Only trigger effects if trade was successful
-                if trade_successful:
-                    game_state.money_effect_timer = 30  # effect lasts 30 frames
-                    if action == 'buy':
-                        game_state.money_effect_color = (230, 0, 0)  # red glow for buy
-                    else:
-                        game_state.money_effect_color = (0, 180, 10)  # green glow for sell
-                    game_state.button_click_effects[f'{action}_{section}'] = 10
-                break
-    except (ValueError, Exception) as e:
-        game_state.show_message(str(e))
+    from ..models.trade_offer import MAX_QUANTITY, buy_offer, sell_offer
+
+    player = getattr(game_state.game, 'player', None)
+    if (player is not None and not player.in_market_area) or game_state.time_level == 1:
+        return False
+    good_name = game_state.input_fields.get(f'good_{section}', '')
+    good = next((g for g in goods if g.name == good_name), None)
+    text = game_state.input_fields.get(f'quantity_{section}', '')
+    if good is None or not text.isdigit():
+        return False
+    quantity = min(int(text), MAX_QUANTITY)
+    if quiet and (buy_offer if action == 'buy' else sell_offer)(good, quantity, depot, game_state).blocked:
+        return False
+    traded = depot.buy(good, quantity, game_state) if action == 'buy' else depot.sell(good, quantity, game_state)
+    if traded:
+        game_state.money_effect_timer = 30  # effect lasts 30 frames
+        game_state.money_effect_color = (230, 0, 0) if action == 'buy' else (0, 180, 10)  # red for buy, green for sell
+        game_state.button_click_effects[f'{action}_{section}'] = 10
+    return traded

@@ -105,7 +105,7 @@ class GameState:
         self.good_quantities: Dict[str, str] = {}
         self.default_good_quantities: Dict[str, str] = {}
 
-        # Input fields for quick trading at the bottom of the screen
+        # The trade desk's cards (ui/layout_modules/trade_desk.py), one per charted good: its good and quantity.
         # These are derived from chart_selection_order + good_quantities via sync_quicktrade_fields()
         self.input_fields: Dict[str, str] = {
             'good_one': "Wood",
@@ -120,10 +120,15 @@ class GameState:
         self.chart_goods_offset: int = 0    # First good shown in the market chart's selection bar
         self.market_area: Optional[str] = None  # The market square the player is in, if any
         self.market_area_goods: Set[str] = set()  # Goods with a booth on the player's market square
-        # The goods in the three quick-trade slots, per market square
+        # The goods each market square puts in the chart and on the trade desk when the player comes to it
         self.quicktrade_slots: Dict[str, List[str]] = {
             area: list(slots) for area, slots in DEFAULT_QUICKTRADE_SLOTS.items()
         }
+        # The trade desk's hitboxes, filed anew each frame it is drawn: its buttons by "<part>_<section>",
+        # its cards' rects with their section, and the most each card could buy and sell
+        self.trade_buttons: Dict[str, pygame.Rect] = {}
+        self.trade_cards: List[Tuple[pygame.Rect, str]] = []
+        self.trade_limits: Dict[str, Tuple[int, int]] = {}
 
         self.image_boxes: List[Any] = []
         self.message: Optional[str] = None
@@ -280,23 +285,35 @@ class GameState:
         return [g for g in self.available_goods if self.is_good_sold_here(g)]
 
     def current_quicktrade_slots(self) -> List[str]:
-        """The quick-trade slots of the player's market square; a square without
-        slots yet gets the first three goods it trades."""
+        """The goods the player's market square shows in the chart; a square
+        without any yet gets the first three goods it trades."""
         if not self.market_area:
             return []
         if self.market_area not in self.quicktrade_slots:
             self.quicktrade_slots[self.market_area] = self.goods_sold_here()[:3]
         return self.quicktrade_slots[self.market_area]
 
-    def sync_quicktrade_fields(self) -> None:
-        """Rebuild input_fields from the market square's quick-trade slots and good_quantities.
+    def trade_goods(self) -> List[str]:
+        """The goods on the trade desk's cards: those in the chart, in the order they were put there."""
+        return list(self.chart_selection_order[:3])
 
-        Slots without a good are cleared so the layout knows not to render them.
-        Away from every market square the fields are left as they are.
+    def remember_market_goods(self) -> None:
+        """Keep the charted goods as the ones of the player's market square, which shows them again on coming back."""
+        if self.market_area:
+            self.quicktrade_slots[self.market_area] = self.trade_goods()
+
+    def set_trade_quantity(self, good_name: str, quantity: int) -> None:
+        """Set a good's quantity on its trade card (1 to MAX_QUANTITY), and remember it for the good."""
+        from .models.trade_offer import MAX_QUANTITY
+        self.good_quantities[good_name] = str(max(1, min(int(quantity), MAX_QUANTITY)))
+        self.sync_quicktrade_fields()
+
+    def sync_quicktrade_fields(self) -> None:
+        """Rebuild input_fields from the trade desk's goods and good_quantities.
+
+        Fields without a good are cleared.
         """
-        if not self.market_area:
-            return
-        slots = self.current_quicktrade_slots()
+        slots = self.trade_goods()
         sections = ['one', 'two', 'three']
         for i, section in enumerate(sections):
             if i < len(slots):

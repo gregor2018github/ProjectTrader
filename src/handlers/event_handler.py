@@ -168,6 +168,17 @@ class EventHandler:
                         game_state.game.game_map.handle_zoom(event.y, bool(pygame.key.get_mods() & pygame.KMOD_CTRL))
                         return self.running
 
+            # Over a card of the market view's trade desk the wheel changes its quantity (by ten with Shift)
+            if not game_state.info_window:
+                for card_rect, section in getattr(game_state, 'trade_cards', []):
+                    good_name = game_state.input_fields.get(f'good_{section}', '')
+                    if card_rect.collidepoint(mouse_pos) and good_name:
+                        text = game_state.input_fields.get(f'quantity_{section}', '')
+                        step = event.y * (10 if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1)
+                        game_state.mouse_clicked_on = "none"
+                        game_state.set_trade_quantity(good_name, (int(text) if text.isdigit() else 0) + step)
+                        return self.running
+
             # Check if detail panel is visible and mouse is over it
             if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
                 game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))

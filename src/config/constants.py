@@ -236,8 +236,8 @@ UNDERPOP_BONUS_HIGH = 1             # Happiness equilibrium bonus when fill grad
 
 # The fee every license costs once, whatever its length; each licence's license_fee in goods.json adds its price per season
 BASE_CONTRACT_FEE = 50
-# The goods in the bottom bar's three quick-trade slots at each market square
-# (an "Areas" rectangle named Market_Area...) when a game starts. A square not
+# The goods each market square (an "Areas" rectangle named Market_Area...) puts in the
+# chart, and so on the trade desk's three cards, when a game starts. A square not
 # listed starts with the first three goods its booths sell.
 # The quick-trade quantity a good starts with: the units worth about QUICK_TRADE_LOT_VALUE at its
 # outside price, rounded to the nearest of QUICK_TRADE_STEPS (by ratio), at least 1

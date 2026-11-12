@@ -1,7 +1,7 @@
 import pygame
 from typing import List, Any, TYPE_CHECKING
 
-from .mouse_handler import VIEW_MODES, set_view_fullscreen
+from .mouse_handler import VIEW_MODES, set_view_fullscreen, trade_card_order
 from ..config import settings_store
 
 if TYPE_CHECKING:
@@ -29,7 +29,7 @@ def _mirror_quantity_to_memory(field: str, game_state: 'GameState') -> None:
 
 def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
     """Process pygame keyboard events for text input and hotkeys.
-    
+
     Args:
         event: The pygame event to process.
         game_state: Current state of the game engine.
@@ -75,8 +75,8 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
             game_state.cursor_position = max(0, game_state.cursor_position - 1)
         elif event.key == pygame.K_RIGHT:
             game_state.cursor_position = min(len(current_value), game_state.cursor_position + 1)
-        elif event.unicode.isnumeric():
-            # Insert number at cursor position
+        elif event.unicode.isnumeric() and len(current_value) < 3:
+            # Insert number at cursor position (an order names 999 at the most)
             game_state.input_fields[field] = (current_value[:game_state.cursor_position] +
                                             event.unicode +
                                             current_value[game_state.cursor_position:])
@@ -125,8 +125,8 @@ def handle_keyboard_input(event: pygame.event.Event, game_state: 'GameState', go
 
 
 def _handle_function_key(key: int, game_state: 'GameState', goods: List['Good'], depot: 'Depot') -> None:
-    """Dispatch actions for F1-F6 trading hotkeys.
-    
+    """Dispatch actions for F1-F6 trading hotkeys: Buy and Sell of the trade desk's first, second and third card.
+
     Args:
         key: The key code (e.g., pygame.K_F1).
         game_state: Current state of the game engine.
@@ -145,32 +145,7 @@ def _handle_function_key(key: int, game_state: 'GameState', goods: List['Good'],
         pygame.K_F5: ('three', 'buy'),
         pygame.K_F6: ('three', 'sell')
     }
-    
+
     if key in key_actions:
         section, action = key_actions[key]
-        good_name = game_state.input_fields[f'good_{section}']
-        try:
-            quantity = int(game_state.input_fields[f'quantity_{section}'])
-        except ValueError:
-            game_state.show_message("Invalid quantity input")
-            return
-        
-        for good in goods:
-            if good.name == good_name:
-                try:
-                    trade_successful = False
-                    if action == 'buy':
-                        trade_successful = depot.buy(good, quantity, game_state)
-                    else:
-                        trade_successful = depot.sell(good, quantity, game_state)
-                    
-                    if trade_successful:
-                        game_state.money_effect_timer = 30  # effect lasts 30 frames
-                        if action == 'buy':
-                            game_state.money_effect_color = (230, 0, 0)  # red glow for buy
-                        else:
-                            game_state.money_effect_color = (0, 180, 10)  # green glow for sell
-                        game_state.button_click_effects[f'{action}_{section}'] = 10
-                except Exception as e:
-                    game_state.show_message(str(e))
-                break
+        trade_card_order(action, section, game_state, goods, depot)
