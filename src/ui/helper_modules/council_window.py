@@ -330,7 +330,11 @@ class CouncilWindow(_BaseDialog):
             self._button(surf, "stand", button, "Stand for election",
                          lambda key=office.key: self._stand(key), allowed.ok, mouse)
             if not allowed.ok:
-                self._put(surf, allowed.text, (button.left - 14, button.centery), self.small_font, RUBRIC, "midright")
+                room = button.left - 14 - (column - 22 + 12)     # between the rule and the button
+                lines = wrap(allowed.text, self.small_font, max(room, 40))
+                top = button.centery - len(lines) * 11
+                for i, line in enumerate(lines):
+                    self._put(surf, line, (button.left - 14, top + i * 22 + 11), self.small_font, RUBRIC, "midright")
 
     def _stand(self, office_key: str) -> None:
         self._do(lambda: self.council.stand(office_key, self._date))
@@ -431,7 +435,7 @@ class CouncilWindow(_BaseDialog):
         button = pygame.Rect(left, y, 258, self.BUTTON_H)
         self._button(surf, "goods", button, f"Send {lot} {notable.likes}",
                      lambda: self._do(lambda: council.gift_goods(key, lot)), have >= lot, mouse)
-        self._put(surf, f"Counts for half as much again   ·   you have {have}",
+        self._put(surf, f"Worth half as much again  ·  you have {have}",
                   (button.right + 14, button.centery), self.small_font, FAINT_INK, "midleft")
 
         y = rect.top + 376
