@@ -78,7 +78,7 @@ Each project is one big system. Usually two run side by side, and any of them ca
 | P2 · Prestige & household | **Next** |
 | P3 · Plots & workshops | Later, after P2 |
 | P4 · The dynasty, P5 · Rival dynasties | Later |
-| P6 · Council & treasury | Later (the town's treasury already fills in the sim, see P6) |
+| P6 · Council & treasury | **A first piece built** ahead of its turn: offices, elections, favour and feuds (`council.md`). The treasury and the levers on the town are later (the treasury already fills in the sim, see P6) |
 | P7 · Beyond the walls, P8 · Risk & insurance | Later |
 | P9 · Earned information | Later, threaded through the others; nothing built yet |
 
@@ -156,7 +156,9 @@ Real supply and demand in place of the placeholder random walk and `recover_volu
 
 ### P6 · Council & treasury
 
-**Status: later.** A first piece is in the sim since P1: the town, as the owner of its workshops, keeps their profits in a treasury up to `TREASURY_CAP_DAYS` of its income and pays the rest to the lord as tribute (`surplus_to: treasury_with_tribute`). Nothing spends it yet. (The donations to the town still go to a separate `Town.treasury` in the game, outside the sim.)
+**Status: a first piece built, the rest later.** In the sim since P1: the town, as the owner of its workshops, keeps their profits in a treasury up to `TREASURY_CAP_DAYS` of its income and pays the rest to the lord as tribute (`surplus_to: treasury_with_tribute`). Nothing spends it yet. (The donations to the town still go to a separate `Town.treasury` in the game, outside the sim.)
+
+Built ahead of its turn, the council itself (design: `council.md`): eight offices in three tiers, opened by the merchant rank, held by the town's notables (stand-ins for P5's dynasties) and stood for by the player at the town hall. The council sits once a season; a seat is voted on by its own tier and the one above, each voter going by how well he likes the candidates. Favour is courted with gifts measured against the giver's wealth, the good a notable is fond of, and banquets; a purse may be offered and one voter kept from the session, both capped and risky. Whoever is beaten bears a grudge and carries on a feud. An office pays a stipend and gives its holder a lower market fee, cheaper licences or reputation: the holder's own privileges, until the points below give the offices levers on the town.
 
 - The town treasury collects taxes per class, market tolls, import duties and license fees. The existing trading licenses become a council policy.
 - It pays for public buildings on plots (walls, roads, well, hospital, school), the militia and upkeep.
@@ -228,4 +230,5 @@ The first plan paired P0 with P2. In the event P1 followed P0 straight away, as 
 - **The smithy** is the thinnest recipe at outside prices (+0.30 at base income) and idles for over a year on 8 of 20 seeds of the sweep.
 - **The town is always full.** Migration settles at about 100 % of the housing, so the town can't grow: that needs new housing, from plots (P3) or public building (P6).
 - **Shortages aren't visible on the map** (pillar 4). Empty or overflowing stalls and townsfolk remarks are still to come; P1.5 only shows numbers.
+- **The council is not on the map, and steers nothing yet** (`council.md`, "Loose ends"). A session is a sheet, not councillors walking to the town hall (pillar 4); the offices' privileges are personal and their stipends come from nowhere until the treasury pays them (P6); the notables are fixed characters until the dynasties take their seats (P5); the offices open at Chapman, Trader and Merchant, the ranks trading alone can reach today, and are to move up with P3.
 - **Next candidates for the sim** (`sim_core.md`): the depot's daily books (cost of living, loans, overdraft, wealth history), the weather, and the crops' growth.

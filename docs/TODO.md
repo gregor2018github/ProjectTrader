@@ -10,6 +10,7 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] show the news from outside that moves a price (the sim reports each as an `OutsideNews` event): a town crier, a ledger line or a mark on the chart
 - [ ] loose end: labour: the poor's wage sits at its cap, the middling sort is never hired (no building hires from it)
 - [ ] loose end: the town is always full (migration settles at its housing); growth needs new housing (P3 plots, P6 public building)
+- [ ] council (docs/council.md): playtest the first election; then the voters walking to the town hall on a session's morning, the player's own vote on the other seats, stipends paid from the town's treasury
 - [ ] loose end: shortages and gluts are not visible on the map yet (empty or overflowing stalls, remarks from the townsfolk)
 - [ ] next candidates for the sim: the depot's daily books (cost of living, loans, overdraft, wealth history), the weather, the crops' growth
 

@@ -311,6 +311,9 @@ class ContractOverview:
         header_h = 60
         footer_h = 50
         season_options = LICENSE_SEASON_OPTIONS
+        # An office on the council may spare its holder a share of a licence's price
+        council = getattr(self.game_state.game, 'council', None)
+        discount = council.licence_discount() if council is not None else 0.0
         panel_h = header_h + len(season_options) * row_h + footer_h
 
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
@@ -323,7 +326,7 @@ class ContractOverview:
         btn_w = panel_w - 40
         btn_h = row_h - 6
         for idx, seasons in enumerate(season_options):
-            cost = BASE_CONTRACT_FEE + seasonal_fee * seasons
+            cost = round((BASE_CONTRACT_FEE + seasonal_fee * seasons) * (1.0 - discount))
             bx = px + 20
             by = py + header_h + idx * row_h + 3
             self.term_buttons.append({

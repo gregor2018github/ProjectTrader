@@ -44,3 +44,8 @@
 • [Middling Sort, Nobility] If folk go hungry they leave town, and if there's a roof to spare, new ones come. The town hall keeps count of every soul, down to the last beggar.
 • [Commons, Middling Sort, Traders] Whatever you do all day, the living costs you. Bread, candles, a roof: it leaves your purse each night whether you've earned it or not.
 • [Poor, Commons, Middling Sort] A sheep will stand quite still for you if you give it a good pat. More than you can say for most of us.
+• [Commons, Middling Sort, Traders] The council sits once a season, on the Thursday. Whoever wants a seat must have his name down at the town hall before that day, and friends among those who vote.
+• [Middling Sort, Nobility, Traders] A councillor remembers a gift, but not for long, and the tenth coin buys less than the first. Send him what he is fond of instead: it counts for more than the silver.
+• [Poor, Commons] They say a councillor's cart lost a wheel on the very morning of a vote. Such things happen. They happen dearer when the man finds out who loosened it.
+• [Middling Sort, Nobility] Vote a man out of his seat and you have an enemy for years. He will talk in the taverns, send the wardens through your stores, and stand against you when your own seat comes up.
+• [Commons, Middling Sort] Not just anybody may stand for the council. A chapman may hope for a warden's post; the mayor's chair wants a merchant, and one who has sat on the bench below it.

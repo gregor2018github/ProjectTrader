@@ -17,6 +17,7 @@ from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
 from .models.merchant_rank import MerchantRank, RankRise
+from .models.council import Council, SessionReport, STIPEND_CATEGORY
 from .models.map import GameMap
 from .models.institutions.town import Town
 from .models.population import PopulationManager
@@ -43,6 +44,7 @@ from .ui.helper_modules.sound_control import SoundControl  # Add import for Soun
 from .ui.helper_modules.contract_acquisition import ContractView
 from .ui.helper_modules.info_window import InfoWindow
 from .ui.helper_modules.rank_up_window import RankUpWindow
+from .ui.helper_modules.session_window import SessionWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
@@ -136,6 +138,9 @@ class Game:
         # Initialize player
         self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
         self.merchant_rank: MerchantRank = MerchantRank(self.depot, self.player, self.goods)
+        # The town council: its offices, the notables who hold them, the player's way in (models/council.py)
+        self.council: Council = Council(self.depot, self.player, self.merchant_rank, self.goods, seed=self.sim.seed)
+        self.council.on_log = lambda text: self.state.log_event("COUNCIL", text)
 
         # Initialize game map (for the 2D map view)
         # Map viewport is the left half of the screen minus borders
@@ -179,7 +184,7 @@ class Game:
         self.address_note: AddressNote = AddressNote()
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
-        self._pending_notices: List[Union[str, RankRise]] = []
+        self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
 
         # Autosave — settings can only change in the main menu, so read them once
         self.autosave_enabled: bool = bool(settings_store.get("autosave_enabled"))
@@ -280,6 +285,8 @@ class Game:
         # The crops follow the calendar, so they need nothing from the save (older saves' "fields" is ignored)
         self.game_map.tmx_map.update_crops(self.state.date)
         self.merchant_rank.load(save_data.get("merchant_rank"))
+        self.council.load(save_data.get("council"), self.state.date, seed=self.sim.seed)
+        self.depot.fee_discount = self.council.fee_discount()
         self.intro.load(save_data.get("intro"))
         self.address_note.reset()
         self.restore_owned_buildings()
@@ -535,6 +542,9 @@ class Game:
         if isinstance(notice, RankRise):
             window = RankUpWindow(state.screen, state, notice)
             self.play_sound("scroll_unroll")
+        elif isinstance(notice, SessionReport):
+            window = SessionWindow(state.screen, state, notice)
+            self.play_sound("scroll_unroll")
         else:
             window = InfoWindow(state.screen, notice, ["OK"], state.font, self)
         window.restore_time_level = state.time_level
@@ -690,12 +700,23 @@ class Game:
 
                         if season_changed:
                             self.merchant_rank.new_season()
+                            # The council's season: favour drifts, feuds are carried on, a term may be up
+                            self._pending_notices.extend(self.council.new_season(self.state.date))
+                        stipend = self.council.daily_stipend()
+                        if stipend > 0:
+                            self.depot.book_labor_income(stipend, STIPEND_CATEGORY)
                         rank_change = self.merchant_rank.daily_check(self.state.date.date())
                         if rank_change:
                             ledger_line, message = rank_change
                             self.state.log_event("RANK", ledger_line)
                             if message:
                                 self._pending_notices.append(message)
+
+                    # The council sits once a season; a session the player had a part in is shown
+                    session = self.council.update(self.state.date)
+                    if session is not None and session.concerns_player:
+                        self._pending_notices.append(session)
+                    self.depot.fee_discount = self.council.fee_discount()
 
                     # Whatever raised the standing (a sale, a gift, a price), the rank follows at once
                     rise = self.merchant_rank.check_rise()
@@ -1027,7 +1048,7 @@ class Game:
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
-                  merchant_rank=self.merchant_rank, intro=self.intro)
+                  merchant_rank=self.merchant_rank, intro=self.intro, council=self.council)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

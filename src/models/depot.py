@@ -34,6 +34,7 @@ class Depot:
 
         self.money: float = money                       # current money
         self.fee_rate: float = fee_rate                 # the market's fee, a share of each trade (see trading_fee)
+        self.fee_discount: float = 0.0                  # share of that fee an office spares its holder (the council's, not saved)
         self.storage_capacity: int = storage_capacity   # maximum storage capacity
         self.warehouse_count: int = 1                   # number of warehouses owned (by default 1)
         self.starting_slots: List[Dict[str, Any]] = self.empty_slots(STARTING_STORAGE_SLOTS)  # see STORAGE SLOTS
@@ -195,12 +196,17 @@ class Depot:
         return result
 
     def trading_fee(self, amount: float) -> float:
-        """The market's fee on a trade whose goods come to *amount*: a share of it (``fee_rate``).
+        """The market's fee on a trade whose goods come to *amount*: a share of it (``effective_fee_rate``).
 
         Paid on top of a purchase and out of a sale's revenue, so a small lot
         pays little and a large one much.
         """
-        return self.fee_rate * amount
+        return self.effective_fee_rate * amount
+
+    @property
+    def effective_fee_rate(self) -> float:
+        """The fee's rate as this trader pays it: ``fee_rate`` less what an office spares (``fee_discount``)."""
+        return self.fee_rate * (1.0 - self.fee_discount)
 
     def buy(self, good: Any, quantity_to_buy: int, game_state: Any) -> bool:
         """Buy a quantity of a good from market to depot.

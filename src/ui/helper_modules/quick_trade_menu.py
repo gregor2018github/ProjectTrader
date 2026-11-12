@@ -246,12 +246,12 @@ class TradeMenu:
         line_gap = 23
         if self.good:
             unit_price = self.good.get_price()
-            fee_rate = self.depot.fee_rate
+            fee_rate = self.depot.effective_fee_rate
 
             price_surf = self.font.render(f"Price per Unit: {unit_price:.1f}", True, DARK_GRAY)
             target_surf.blit(price_surf, price_surf.get_rect(center=(body_draw_rect.centerx, info_y + price_surf.get_height() // 2)))
 
-            fee_surf = self.font.render(f"Trading Fee: {fee_rate:.1%}".replace(".0%", "%"), True, DARK_GRAY)
+            fee_surf = self.font.render(f"Trading Fee: {f'{fee_rate * 100:.2f}'.rstrip('0').rstrip('.')}%", True, DARK_GRAY)
             target_surf.blit(fee_surf, fee_surf.get_rect(center=(body_draw_rect.centerx, info_y + line_gap + fee_surf.get_height() // 2)))
 
             hovering_buy  = alpha_scale >= 1.0 and self.buttons['buy'].collidepoint(mouse_pos)
