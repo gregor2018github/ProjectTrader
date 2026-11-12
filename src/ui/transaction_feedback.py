@@ -21,7 +21,8 @@ _DURATION = 1.5   # seconds
 _RISE_PX = 90     # pixels risen by end of animation
 _PAD = 7          # padding around content inside the background pill
 _BG_COLOR = (255, 255, 255, 160)  # white, semi-transparent
-_SINGLE_COIN_SOUNDS = ("coin_flip", "coin_flip", "coin_single_1", "coin_single_2")  # flip or single, half each
+GOODS_RECEIVED_SOUND = "bubble_1"  # goods given for nothing
+_SINGLE_COIN_SOUNDS =("coin_flip", "coin_flip", "coin_single_1", "coin_single_2")  # flip or single, half each
 
 
 def _load_assets() -> tuple[pygame.Surface, pygame.font.Font]:
@@ -156,6 +157,8 @@ def on_goods_received(game_state: "GameState", goods: dict[str, int]) -> None:
     """Feedback for goods the player is given with no money changing hands (a gift, a
     quest's reward): "+3" and each good's picture rising over the cursor, one above the
     other. Not for trades, whose coins are what matters and have their own popup."""
+    if game_state.game and any(q > 0 for q in goods.values()):
+        game_state.game.play_sound(GOODS_RECEIVED_SOUND)
     pos = pygame.mouse.get_pos()
     y = pos[1]
     for good_name, quantity in goods.items():
