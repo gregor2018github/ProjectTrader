@@ -4,7 +4,6 @@
 
 See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends").
 
-- [ ] playtest the living market, then merge p1-living-market into master
 - [ ] show something for the simulation's events (price shock ended, population changed, workshop capacity changed): Game._handle_sim_events drops them so far
 - [ ] playtest again after the trading rebalance (docs/p1_living_market.md, "After the first playtest"): can a small trader live off the swings, and does trading stop paying past a few thousand coins?
 - [ ] show the news from outside that moves a price (the sim reports each as an `OutsideNews` event): a town crier, a ledger line or a mark on the chart
@@ -16,11 +15,10 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 ## High Priority
 
-- [ ] add snow animation for winter season
 - [ ] have a big warehouse close to the market area, that one will be expensive and needs higher stage to be unlocked
-- [ ] add three more houses with different designs between two marketplaces
 - [ ] have sprite manager routines for fences
 - [ ] make new sprites for the new products
+- [ ] design and add three houses that are horizontally oriented
 
 ## Medium Priority
 
@@ -63,7 +61,9 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - NA
 
 ## Finished Features
-
+- [x] add snow animation for winter season
+- [x] add three more houses with different designs between two marketplaces
+- [x] playtest the living market, then merge p1-living-market into master
 - [x] P1.4: the full health report: the remaining checks of docs/p1_living_market.md (price stuck at a clamp, price far from outside, hunger, poorly supplied, money supply, bad numbers, population, happiness range, workshop cash, dead workshop, structural shortage) and a table over 20 seeds × 50 years
 - [x] P1.5: the town hall's population stats show need fulfilment per class and tier
 - [x] P1.5: the market view shows daily demand and supply per good
