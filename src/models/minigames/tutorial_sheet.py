@@ -181,6 +181,48 @@ def _draw_band(page: pygame.Surface, theme: SheetTheme) -> None:
         page.blit(art, art.get_rect(center=centre))
 
 
+_TABLET_TOP, _TABLET_BOTTOM = 10, 84          # a title's tablet: from the band's outer rule to under the title
+_TABLET_PAD = 46                              # either side of the title
+_TABLET_CUT = 9                               # its corners cut off
+
+
+def title_tablet(page: pygame.Surface, title: pygame.Surface, centre_x: int, theme: SheetTheme = GOLD_SHEET,
+                 title_y: int = None) -> pygame.Rect:
+    """Set *title* on a tablet of the sheet's own parchment that stands over the frame's top band,
+    so no flourish of its letters runs into the waves: cut corners, edged in the frame's dark
+    colour, ruled inside, with a lozenge at each end. Returns the tablet's rect."""
+    rect = pygame.Rect(0, _TABLET_TOP, title.get_width() + 2 * _TABLET_PAD, _TABLET_BOTTOM - _TABLET_TOP)
+    rect.centerx = centre_x
+    c = _TABLET_CUT
+
+    def outline(r: pygame.Rect, cut: int) -> List[Tuple[int, int]]:
+        return [(r.left + cut, r.top), (r.right - 1 - cut, r.top), (r.right - 1, r.top + cut),
+                (r.right - 1, r.bottom - 1 - cut), (r.right - 1 - cut, r.bottom - 1), (r.left + cut, r.bottom - 1),
+                (r.left, r.bottom - 1 - cut), (r.left, r.top + cut)]
+
+    paper = pygame.Surface(rect.size, pygame.SRCALPHA)
+    draw_paper(paper, paper.get_rect(), (-rect.left, -rect.top), edge_depth=0)   # the grain carries on from the sheet
+    shape = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.polygon(shape, (255, 255, 255, 255), outline(paper.get_rect(), c))
+    paper.blit(shape, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    shadow = pygame.Surface(rect.size, pygame.SRCALPHA)
+    pygame.draw.polygon(shadow, (40, 24, 8, 60), outline(shadow.get_rect(), c))
+    page.blit(shadow, rect.move(2, 3))
+    page.blit(paper, rect)
+
+    pygame.draw.polygon(page, theme.edge_dark, outline(rect, c), 3)
+    pygame.draw.polygon(page, theme.rule, outline(rect.inflate(-10, -10), c - 3), 1)
+    for x in (rect.left, rect.right - 1):                         # a lozenge on each end, over the edge
+        y = rect.centery
+        points = [(x, y - 9), (x + 7, y), (x, y + 9), (x - 7, y)]
+        pygame.draw.polygon(page, theme.block.ornament, points)
+        pygame.draw.polygon(page, theme.edge_dark, points, 1)
+        pygame.draw.circle(page, theme.block.boss, (x, y), 2)
+    centre_y = rect.centery if title_y is None else title_y
+    page.blit(title, title.get_rect(center=(centre_x, centre_y)))
+    return rect
+
+
 def framed_sheet(size: Tuple[int, int], corner_blocks: bool = False,
                  theme: SheetTheme = GOLD_SHEET) -> pygame.Surface:
     """A blank sheet: browned parchment in a gold frame with flourishes in its corners, or with

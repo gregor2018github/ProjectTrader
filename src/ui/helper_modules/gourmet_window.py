@@ -28,13 +28,15 @@ from .loan_dialog import _BaseDialog
 from .tavern_menu_window import DishServedWindow, dish_picture
 from .charter_style import BlockColours
 from .records_window import (
-    PageTheme, RecordsWindow, _FAINT_INK, _FAINT_RULE, _divider, _leaf, _picture_frame, _plaque, _tab, _title,
+    PageTheme, RecordsWindow, _FAINT_INK, _FAINT_RULE, _leaf, _picture_frame, _plaque, _tab, _title,
 )
 from ..dish_previews import PREVIEW_SIZE, load_preview
 from ..layout_modules.effect_circles import line_pitch
 from ...config.constants import FONTS_PATH
 from ...models import meal_effects
-from ...models.minigames.tutorial_sheet import BRASS, BRASS_DARK, BRASS_LIGHT, INK, WEAVE, SheetTheme, framed_sheet
+from ...models.minigames.tutorial_sheet import (
+    BRASS, BRASS_DARK, BRASS_LIGHT, INK, WEAVE, SheetTheme, framed_sheet, title_tablet,
+)
 from ...models.tavern_menu import COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, all_dishes, dish_key, dish_picture_path
 
 if TYPE_CHECKING:
@@ -106,7 +108,7 @@ class GourmetWindow(_BaseDialog):
     CARD_W, CARD_H = 140, 172
     GAP = 10
     MARGIN = 44
-    TITLE_Y, DIVIDER_Y = 54, 88     # the title's flourishes clear of the frame's band
+    TITLE_Y = 49                 # on its tablet, which stands over the frame's band
     TAB_TOP = 100
     TAB_W, TAB_H = 200, 38
     BODY_TOP = 152
@@ -214,8 +216,7 @@ class GourmetWindow(_BaseDialog):
         sheet = framed_sheet((self.W, self.H), corner_blocks=True, theme=theme.sheet)
         whole = sheet.get_rect()
         title = _title("Gourmet Collection", self.sheet_title_font, theme)
-        sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
-        _divider(sheet, (whole.centerx, self.DIVIDER_Y), 210, theme)
+        title_tablet(sheet, title, whole.centerx, theme.sheet, self.TITLE_Y)   # over the band, clear of its waves
 
         stats = self._stats
         every = [d for dishes in self.pages.values() for d in dishes]

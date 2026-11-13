@@ -31,7 +31,7 @@ from ...models.minigames.fishing_pond import SPECIES, Species, format_kg
 from ...models.minigames.fishing_scene import fish_sprite
 from .charter_style import BlockColours
 from ...models.minigames.tutorial_sheet import (
-    BRASS, BRASS_DARK, BRASS_LIGHT, GOLD_SHEET, GRAIN, INK, RIPPLES, RUBRIC, SheetTheme, framed_sheet,
+    BRASS, BRASS_DARK, BRASS_LIGHT, GOLD_SHEET, GRAIN, INK, RIPPLES, RUBRIC, SheetTheme, framed_sheet, title_tablet,
 )
 from ...models.minigames.woodhacking import draw_laurel
 from ...models.statistics import Statistics, WOODHACKING_TOP_SCORES
@@ -388,7 +388,7 @@ class RecordsWindow(_BaseDialog):
     GAP = 10
     MARGIN = 44                  # the page's sides and foot, clear of the corner blocks
     FRAME_INSET = 13
-    TITLE_Y, DIVIDER_Y = 54, 88     # the title's flourishes clear of the frame's band
+    TITLE_Y = 49                 # on its tablet, which stands over the frame's band
     TAB_TOP = 100
     TAB_W, TAB_H = 200, 38
     BODY_TOP = 152
@@ -479,8 +479,7 @@ class RecordsWindow(_BaseDialog):
         sheet = framed_sheet((self.W, self.H), corner_blocks=True, theme=theme.sheet)
         whole = sheet.get_rect()
         title = _title("Records", self.sheet_title_font, theme)
-        sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
-        _divider(sheet, (whole.centerx, self.DIVIDER_Y), 170, theme)
+        title_tablet(sheet, title, whole.centerx, theme.sheet, self.TITLE_Y)   # over the band, clear of its waves
         return sheet
 
     def _build_page(self, page: str) -> pygame.Surface:
