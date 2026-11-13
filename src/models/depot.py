@@ -1,7 +1,7 @@
 import datetime
 from typing import Dict, Iterable, List, Optional, Any, Sequence, Tuple
 from ..config.constants import (
-    ALMS_CATEGORY, CHURCH_FEAST_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_STORAGE_SLOTS,
+    ALMS_CATEGORY, BASE_COST_CATEGORY, CHURCH_FEAST_CATEGORY, FOOD_CATEGORY, INN_ROOM_CATEGORY, PACK_SLOTS, PACK_SLOT_SIZE, SLOT_SIZE, STARTING_STORAGE_SLOTS,
 )
 from ..ui.transaction_feedback import on_money_spent, on_money_received
 from .statistics import Statistics
@@ -71,6 +71,9 @@ class Depot:
             CHURCH_FEAST_CATEGORY: 0,
         }
         self.labor_income: Dict[str, float] = {}        # minigame income subcategories (current day)
+        # Cost of living's subcategories other than the base cost (current day); the base cost is
+        # what is left of the total, so an older save's cost of living counts as base cost
+        self.cost_of_living: Dict[str, float] = {}
 
         # BOOKKEEPING
 
@@ -103,6 +106,7 @@ class Depot:
             CHURCH_FEAST_CATEGORY: [0.0],
         }
         self.labor_income_history: Dict[str, List[float]] = {}      # minigame income subcategory history for bookkeeping
+        self.cost_of_living_history: Dict[str, List[float]] = {}    # cost of living subcategory history (not the base cost)
         # FIFO queue to track purchased goods with their prices
         self.purchase_history: Dict[str, List[Dict[str, Any]]] = {good_name: [] for good_name in self.good_stock}
 
@@ -495,6 +499,8 @@ class Depot:
             self.donation_history[category].append(amount)
         for category, amount in self.labor_income.items():
             self.labor_income_history[category].append(amount)
+        for category, amount in self.cost_of_living.items():
+            self.cost_of_living_history[category].append(amount)
         self.income = 0
         self.expenditures = 0
         self.transaction_expenditures = 0
@@ -509,6 +515,8 @@ class Depot:
             self.donations[category] = 0
         for category in self.labor_income:
             self.labor_income[category] = 0.0
+        for category in self.cost_of_living:
+            self.cost_of_living[category] = 0.0
     
     def update_total_stock(self) -> int:
         """Update the total stock count history.
@@ -609,15 +617,21 @@ class Depot:
         }
         return stats
     
-    def book_cost_of_living(self, cost_of_living: float) -> None:
+    def book_cost_of_living(self, cost_of_living: float, category: str = BASE_COST_CATEGORY) -> None:
         """Book the cost of living for the current day.
         
         Args:
             cost_of_living: The amount to deduct from money and add to expenditures.
+            category: Its subcategory: the daily base cost, food at a tavern, a room at an inn.
         """
         self.money -= cost_of_living
         self.expenditures += cost_of_living
         self.cost_of_living_expenditures += cost_of_living
+        if category != BASE_COST_CATEGORY:
+            if category not in self.cost_of_living:
+                self.cost_of_living[category] = 0.0
+                self.cost_of_living_history[category] = [0.0] * len(self.cost_of_living_expenditure_history)
+            self.cost_of_living[category] += cost_of_living
 
     def book_donation(self, amount: float, category: str = "Church Donations") -> bool:
         """Book a donation as an expenditure.
@@ -1132,7 +1146,7 @@ class Depot:
         """Get a full expense breakdown for a given time period.
         
         Returns totals for three top-level categories:
-          - Cost of Living (with subcategory Food)
+          - Cost of Living (with subcategories Base Cost, Food, Inn Rooms)
           - Trading Expenses (with subcategories Transaction Cost, Good Cost)
           - Licenses (with subcategory Trading Licenses)
           - Donations (with subcategories from self.donations)
@@ -1158,6 +1172,8 @@ class Depot:
                 by_donation_cat = {}
                 for category, history in self.donation_history.items():
                     by_donation_cat[category] = sum(history[-num_history_days:]) + self.donations.get(category, 0)
+                by_col_cat = {category: sum(history[-num_history_days:]) + self.cost_of_living.get(category, 0)
+                              for category, history in self.cost_of_living_history.items()}
             else:
                 total_exp = self.expenditures
                 total_transaction = self.transaction_expenditures
@@ -1169,6 +1185,7 @@ class Depot:
                 total_misc = self.miscellaneous_expenditures
                 total_property = self.property_expenditures
                 by_donation_cat = dict(self.donations)
+                by_col_cat = dict(self.cost_of_living)
         else:
             total_exp = sum(self.expenditure_history) + self.expenditures
             total_transaction = sum(self.transaction_expenditure_history) + self.transaction_expenditures
@@ -1182,6 +1199,8 @@ class Depot:
             by_donation_cat = {}
             for category, history in self.donation_history.items():
                 by_donation_cat[category] = sum(history) + self.donations.get(category, 0)
+            by_col_cat = {category: sum(history) + self.cost_of_living.get(category, 0)
+                          for category, history in self.cost_of_living_history.items()}
 
         # Good cost = trading expenditures minus transaction fees and other known categories
         total_good_cost = (total_exp - total_transaction - total_col - total_donation
@@ -1192,7 +1211,11 @@ class Depot:
             "total": total_exp,
             "cost_of_living": {
                 "total": total_col,
-                "Food": total_col,  # Currently cost of living is only food
+                # The base cost is what the other subcategories leave of the total
+                BASE_COST_CATEGORY: total_col - sum(by_col_cat.values()),
+                FOOD_CATEGORY: by_col_cat.get(FOOD_CATEGORY, 0.0),
+                INN_ROOM_CATEGORY: by_col_cat.get(INN_ROOM_CATEGORY, 0.0),
+                **{k: v for k, v in by_col_cat.items() if k not in (FOOD_CATEGORY, INN_ROOM_CATEGORY)},
             },
             "trading_expenses": {
                 "total": total_transaction + total_good_cost,

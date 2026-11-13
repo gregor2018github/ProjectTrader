@@ -5,7 +5,7 @@ import datetime
 
 import pytest
 
-from src.config.constants import ALMS_CATEGORY
+from src.config.constants import ALMS_CATEGORY, BASE_COST_CATEGORY, FOOD_CATEGORY, INN_ROOM_CATEGORY
 from tests.fakes import fake_warehouse
 
 
@@ -24,6 +24,18 @@ def test_cost_of_living_is_charged_even_into_debt(depot):
     assert depot.money == -2
     assert depot.cost_of_living_expenditures == 5
     assert depot.expenditures == 5
+
+
+def test_cost_of_living_is_split_into_base_cost_food_and_inn_rooms(depot):
+    depot.book_cost_of_living(2)                        # the daily base cost
+    depot.book_cost_of_living(5, FOOD_CATEGORY)
+    next_day(depot)
+    depot.book_cost_of_living(2)
+    depot.book_cost_of_living(20, INN_ROOM_CATEGORY)
+    both = depot.get_expense_breakdown(None)["cost_of_living"]
+    assert both == {"total": 29, BASE_COST_CATEGORY: 4, FOOD_CATEGORY: 5, INN_ROOM_CATEGORY: 20}
+    today = depot.get_expense_breakdown(1)["cost_of_living"]
+    assert today == {"total": 22, BASE_COST_CATEGORY: 2, FOOD_CATEGORY: 0, INN_ROOM_CATEGORY: 20}
 
 
 @pytest.mark.parametrize("category", ["Church Donations", "Town Donations", ALMS_CATEGORY])

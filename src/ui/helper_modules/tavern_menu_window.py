@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 from .loan_dialog import _BaseDialog, _close_dialog, _load_fonts
 from ..transaction_feedback import on_money_spent
 from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED
-from ...config.constants import FONTS_PATH, SCREEN_HEIGHT
+from ...config.constants import FONTS_PATH, FOOD_CATEGORY, SCREEN_HEIGHT
 from ...sim.calendar import format_long, is_fast_day, is_lent
 from ...models.tavern_menu import Dish, daily_menu, dish_key, dish_picture_path
 from ...models import meal_effects
@@ -92,7 +92,7 @@ def order_dish(game_state: 'GameState', dish: Dish) -> bool:
     if depot.money < dish.price:
         game_state.show_warning(f"You cannot pay the {dish.price:.2f} coins for the {dish.name}.")
         return False
-    depot.book_cost_of_living(dish.price)
+    depot.book_cost_of_living(dish.price, FOOD_CATEGORY)
     on_money_spent(game_state, dish.price)
     first = depot.stats.record_dish(dish_key(dish))
     line = f"Ate {dish.name} for {dish.price:.2f}g" + (" (first time)" if first else "")

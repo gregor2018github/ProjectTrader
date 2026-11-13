@@ -15,6 +15,7 @@ import pygame
 from .loan_dialog import _BaseDialog, _close_dialog
 from .tavern_menu_window import CARD_FILL, CARD_GAP, CARD_HOVER_FILL, CARD_MARGIN, CARD_PAD, DESCRIPTION_COLOR, _small_font
 from ..transaction_feedback import on_money_spent
+from ...config.constants import INN_ROOM_CATEGORY
 from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED, SANDY_BROWN
 from ...models import inn_rooms
 from ...models.rest import can_rest_until
@@ -39,7 +40,7 @@ def book(game_state: 'GameState', house: 'House', stay: str) -> bool:
     if depot.money < price:
         game_state.show_warning(f"You cannot pay the {price} coins for the room.")
         return False
-    depot.book_cost_of_living(price)
+    depot.book_cost_of_living(price, INN_ROOM_CATEGORY)
     on_money_spent(game_state, price)
     until = inn_rooms.book_room(game_state.game.player, house, stay, game_state.date)
     game_state.log_event("FINANCE", f"Booked a room at {house.display_name or 'the inn'} "

@@ -68,6 +68,10 @@ CHURCH_FEASTS = [
     ("Meal for the Poor", {"Bread": 45, "Fish": 20, "Beer": 15}),
     ("Feast for the Poor", {"Bread": 45, "Meat": 30, "Wine": 15, "Beer": 48}),
 ]
+# Cost of living's subcategories: the daily base cost, meals at the taverns, rooms at the inns
+BASE_COST_CATEGORY = "Base Cost"
+FOOD_CATEGORY = "Food"
+INN_ROOM_CATEGORY = "Inn Rooms"
 CHURCH_FEAST_CATEGORY = "Church Feasts"  # Bookkeeping subcategory the goods given for them are booked under
 
 # GAME BALANCE CONSTANTS AT START OF THE GAME

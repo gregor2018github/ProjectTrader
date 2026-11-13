@@ -26,7 +26,8 @@ class FakeDepot:
         self.money = money
         self.cost_of_living = 0.0
 
-    def book_cost_of_living(self, amount):
+    def book_cost_of_living(self, amount, category="Base Cost"):
+        self.category = category
         self.money -= amount
         self.cost_of_living += amount
 
@@ -64,6 +65,7 @@ def test_a_click_on_a_stay_books_and_pays_for_it(window, state):
     window.handle_click(window.card_rect(0).center)
     assert state.game.depot.money == 350.0
     assert state.money_feedback == [("spent", 50)]
+    assert state.game.depot.category == "Inn Rooms"
     assert window.until == NOW + datetime.timedelta(hours=24)
     window.handle_click(window.card_rect(1).center)
     assert state.game.depot.money == 50.0

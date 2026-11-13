@@ -27,7 +27,8 @@ class FakeDepot:
         self.cost_of_living = 0.0
         self.stats = Statistics()
 
-    def book_cost_of_living(self, amount):
+    def book_cost_of_living(self, amount, category="Base Cost"):
+        self.category = category
         self.money -= amount
         self.cost_of_living += amount
 
@@ -68,6 +69,7 @@ def test_ordering_a_dish_pays_and_records_it_and_brings_its_picture(window, stat
     depot = state.game.depot
     assert depot.money == pytest.approx(5.0)
     assert depot.cost_of_living == pytest.approx(5.0)
+    assert depot.category == "Food"
     assert depot.stats.dishes_tried == {"roast_pigeons": 1}
     assert state.money_feedback == [("spent", 5.0)]
     served = state.info_window
