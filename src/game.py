@@ -755,6 +755,7 @@ class Game:
 
                 # Reset hover states and UI boxes at the beginning of each frame
                 self.state.image_boxes = []
+                self.state.effect_circle_rects = []   # filled again if the map draws them (effect_circles.py)
                 self.state.trade_buttons = {}
                 self.state.trade_cards = []
                 self.state.depot_chart_buttons = {}

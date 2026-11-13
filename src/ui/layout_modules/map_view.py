@@ -9,6 +9,7 @@ import pygame
 import pytmx
 import datetime
 from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
+from .effect_circles import draw_effect_circles
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import (
@@ -208,6 +209,9 @@ def draw_map_view(
 
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
+
+    # What acts on the player (a meal, the weather), as circles in the top left corner
+    draw_effect_circles(screen, map_content_rect, game_state)
 
     # The address the player is looking for, folded at the top, while they look
     note = getattr(game_state.game, "address_note", None)

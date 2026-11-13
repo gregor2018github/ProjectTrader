@@ -145,6 +145,10 @@ def handle_mouse_click(pos: Tuple[int, int],
             if game_state.right_side_mode == "map":
                 map_rects.append(right_module_rect)
 
+        # The circles of what acts on the player only show their tooltip: the map under them takes no click
+        if any(rect.collidepoint(pos) for rect in getattr(game_state, "effect_circle_rects", [])):
+            map_rects = []
+
         for view_rect in map_rects:
             if view_rect.collidepoint(pos):
                 hovered = get_hovered_map_object(pos, game_state.game.game_map, view_rect)
