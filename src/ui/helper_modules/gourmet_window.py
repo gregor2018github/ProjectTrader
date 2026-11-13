@@ -1,0 +1,350 @@
+"""The Gourmet Collection, opened at the guildhall: every tavern dish, those tasted and those not.
+
+A page each for the plates, the bowls and the drinks (`Dish.type`), on the sheet the
+guild's records are drawn on (`records_window.py`). Every dish is a card: its picture,
+its name and how often it was eaten. A dish not tasted yet is greyed out, its picture
+faded, with a question mark for its name. Hovering a card tells more: what it is, where
+it is served and what it does for the player (models/meal_effects.py); of a dish not
+tasted only where it is served. The dishes go from the plain tavern's to the fine one's,
+by course and price within each.
+
+What a dish has been eaten comes from `Statistics.dishes_tried`, by `dish_key`. The
+pictures are large, so their small copies (`thumbnail`) are made a few at a time while
+the window is drawn (`THUMB_BUDGET_S` a frame) and kept for the next time; until then a
+card shows a plain dish's outline.
+"""
+
+import os
+import time
+from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
+
+import pygame
+
+from .loan_dialog import _BaseDialog
+from .records_window import RecordsWindow, _FAINT_INK, _leaf, _picture_frame
+from ..layout_modules.effect_circles import line_pitch
+from ...config.colors import GOLD
+from ...config.constants import FONTS_PATH
+from ...models import meal_effects
+from ...models.minigames.tutorial_sheet import BRASS, BRASS_DARK, INK, draw_tab, framed_sheet, inked, plaque
+from ...models.minigames.woodhacking import draw_divider
+from ...models.tavern_menu import COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, all_dishes, dish_key, dish_picture_path
+
+if TYPE_CHECKING:
+    from ...game_state import GameState
+
+UNKNOWN_NAME = "?"
+#: The pages, a dish's type each, and their names on the tabs
+PAGE_NAMES: Dict[str, str] = {"plate": "Plates", "bowl": "Bowls", "drink": "Drinks"}
+#: Where each class of dish is served, as the cards say it
+SERVED_AT: Dict[str, str] = {"low": "a plain tavern", "middle": "a good inn", "high": "a fine tavern"}
+#: How long making the pictures' small copies may take a frame
+THUMB_BUDGET_S = 0.012
+_GREY_ALPHA = 150                # how faint the picture of a dish not tasted yet is
+_PLATE_EMPTY = (226, 214, 188)   # a card's picture still being made, or a dish with none
+
+_thumbs: Dict[Tuple[str, bool], Optional[pygame.Surface]] = {}   # (path, tasted) -> its small copy
+
+
+def open_gourmet_window(game_state: 'GameState') -> None:
+    game_state.info_window = GourmetWindow(game_state.screen, game_state)
+
+
+def dishes_of(dish_type: str, dishes: Optional[Sequence[Dish]] = None) -> List[Dish]:
+    """The dishes of a type in the order the page shows them: by tavern class, course, price, name."""
+    course_order = {course: i for i, (course, _heading) in enumerate(COURSES)}
+    chosen = [d for d in (all_dishes() if dishes is None else dishes) if d.type == dish_type]
+    return sorted(chosen, key=lambda d: (TAVERN_CLASSES.index(d.tavern_class), course_order.get(d.course, 99),
+                                         d.price, d.name))
+
+
+def times_eaten(stats, dish: Dish) -> int:
+    return stats.dishes_tried.get(dish_key(dish), 0)
+
+
+def eaten_text(times: int) -> str:
+    if times == 0:
+        return "Not yet tasted"
+    return "Eaten once" if times == 1 else f"Eaten {times} times"
+
+
+def thumbnail(dish: Dish, tasted: bool, size: Tuple[int, int]) -> Optional[pygame.Surface]:
+    """The dish's picture made small to fit `size`, greyed and faded if not tasted; None if it has none."""
+    path = dish_picture_path(dish)
+    key = (path, tasted)
+    if key not in _thumbs:
+        picture = None
+        if os.path.exists(path):
+            try:
+                big = pygame.image.load(path)
+                scale = min(size[0] / big.get_width(), size[1] / big.get_height())
+                picture = pygame.transform.smoothscale(
+                    big, (max(1, round(big.get_width() * scale)), max(1, round(big.get_height() * scale))))
+                if pygame.display.get_surface() is not None:
+                    picture = picture.convert_alpha()
+                if not tasted:
+                    picture = pygame.transform.grayscale(picture)
+                    picture.fill((255, 255, 255, _GREY_ALPHA), special_flags=pygame.BLEND_RGBA_MULT)
+            except pygame.error as error:
+                print(f"Warning: could not read the picture of {dish.name!r}: {error}")
+                picture = None
+        _thumbs[key] = picture
+    return _thumbs[key]
+
+
+def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
+    lines, line = [], ""
+    for word in text.split():
+        trial = f"{line} {word}".strip()
+        if line and font.size(trial)[0] > width:
+            lines.append(line)
+            line = word
+        else:
+            line = trial
+    if line:
+        lines.append(line)
+    return lines
+
+
+class GourmetWindow(_BaseDialog):
+    COLUMNS = 11
+    CARD_W, CARD_H = 140, 172
+    GAP = 10
+    MARGIN = 44
+    TITLE_Y, DIVIDER_Y = 46, 80
+    TAB_TOP = 94
+    TAB_W, TAB_H = 200, 38
+    BODY_TOP = 146
+    PLAQUES_H = 46
+    ROWS = 4                     # enough for the plates, the longest page
+    BODY_H = PLAQUES_H + ROWS * CARD_H + (ROWS - 1) * GAP
+    W = COLUMNS * CARD_W + (COLUMNS - 1) * GAP + 2 * MARGIN
+    H = BODY_TOP + BODY_H + MARGIN
+    PICTURE_W, PICTURE_H = 124, 88
+    TOOLTIP_W, TOOLTIP_PAD = 340, 12
+
+    def __init__(self, screen: pygame.Surface, game_state: 'GameState',
+                 dishes: Optional[Sequence[Dish]] = None) -> None:
+        super().__init__(screen, game_state, self.W, self.H)
+        self.sheet_title_font = RecordsWindow._medici(46, 36)
+        self.name_font = self._font("RomanAntique.ttf", 17)
+        self.unknown_font = RecordsWindow._medici(40, 32)
+        self.small_font = self._font("RomanAntique.ttf", 15)
+        self.tip_title_font = RecordsWindow._medici(24, 22)
+        self.pages: Dict[str, List[Dish]] = {kind: dishes_of(kind, dishes) for kind in DISH_TYPES}
+        self.page = DISH_TYPES[0]
+        self._sheets: Dict[str, pygame.Surface] = {}
+        self._waiting: Dict[str, List[int]] = {}     # the cards of a page whose pictures are still to come
+        self.close_rect = pygame.Rect(0, 0, 30, 30)
+        self.close_rect.center = (self.panel.right - 19, self.panel.top + 19)
+        tabs_w = len(DISH_TYPES) * self.TAB_W + (len(DISH_TYPES) - 1) * self.GAP
+        left = self.panel.centerx - tabs_w // 2
+        self.tab_rects = {kind: pygame.Rect(left + i * (self.TAB_W + self.GAP), self.panel.top + self.TAB_TOP,
+                                            self.TAB_W, self.TAB_H)
+                          for i, kind in enumerate(DISH_TYPES)}
+        self.body = pygame.Rect(self.panel.left + self.MARGIN, self.panel.top + self.BODY_TOP,
+                                self.W - 2 * self.MARGIN, self.BODY_H)
+
+    @staticmethod
+    def _font(name: str, size: int) -> pygame.font.Font:
+        try:
+            return pygame.font.Font(os.path.join(FONTS_PATH, name), size)
+        except Exception:
+            return pygame.font.SysFont("georgia", size)
+
+    @property
+    def _stats(self):
+        return self.game_state.game.depot.stats
+
+    def tasted(self, dish: Dish) -> bool:
+        return times_eaten(self._stats, dish) > 0
+
+    # -- where things are ---------------------------------------------------
+
+    def card_rect(self, index: int) -> pygame.Rect:
+        """Where a card of the page lies on the screen."""
+        row, column = divmod(index, self.COLUMNS)
+        return pygame.Rect(self.body.left + column * (self.CARD_W + self.GAP),
+                           self.body.top + self.PLAQUES_H + row * (self.CARD_H + self.GAP),
+                           self.CARD_W, self.CARD_H)
+
+    def picture_rect(self, card: pygame.Rect) -> pygame.Rect:
+        return pygame.Rect(card.centerx - self.PICTURE_W // 2, card.top + 10, self.PICTURE_W, self.PICTURE_H)
+
+    def hovered_dish(self, pos: Tuple[int, int]) -> Optional[Dish]:
+        for index, dish in enumerate(self.pages[self.page]):
+            if self.card_rect(index).collidepoint(pos):
+                return dish
+        return None
+
+    def _local(self, rect: pygame.Rect) -> pygame.Rect:
+        return rect.move(-self.panel.left, -self.panel.top)
+
+    # -- input --------------------------------------------------------------
+
+    def handle_click(self, pos: Tuple[int, int]) -> bool:
+        for kind, rect in self.tab_rects.items():
+            if rect.collidepoint(pos):
+                self.page = kind
+                return True
+        return super().handle_click(pos)
+
+    # -- the pages, drawn once ----------------------------------------------
+
+    def _build_page(self, kind: str) -> pygame.Surface:
+        sheet = framed_sheet((self.W, self.H))
+        whole = sheet.get_rect()
+        title = inked("Gourmet Collection", self.sheet_title_font, GOLD)
+        sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
+        draw_divider(sheet, (whole.centerx, self.DIVIDER_Y), 210)
+
+        stats = self._stats
+        every = [d for dishes in self.pages.values() for d in dishes]
+        page = self.pages[kind]
+        body = self._local(self.body)
+        tasted_all = sum(times_eaten(stats, d) > 0 for d in every)
+        meals = sum(times_eaten(stats, d) for d in every)
+        for dx, text in ((-420, f"Dishes tasted: {tasted_all} of {len(every)}"),
+                         (0, f"{PAGE_NAMES[kind]} tasted: {sum(times_eaten(stats, d) > 0 for d in page)} of {len(page)}"),
+                         (420, f"Meals eaten out: {meals:,}")):
+            plaque(sheet, self.body_font, text, (body.centerx + dx, body.top + 16))
+        for index, dish in enumerate(page):
+            self._draw_card(sheet, index, dish)
+        self._waiting[kind] = [i for i, dish in enumerate(page)
+                               if (dish_picture_path(dish), self.tasted(dish)) not in _thumbs]
+        return sheet
+
+    def _draw_card(self, sheet: pygame.Surface, index: int, dish: Dish) -> None:
+        tasted = self.tasted(dish)
+        card = self._local(self.card_rect(index))
+        _leaf(sheet, card, tasted)
+        picture = self._local(self.picture_rect(self.card_rect(index)))
+        _picture_frame(sheet, picture, tasted)
+        sheet.fill(_PLATE_EMPTY if tasted else (198, 190, 174), picture)
+        known = (dish_picture_path(dish), tasted) in _thumbs
+        thumb = _thumbs.get((dish_picture_path(dish), tasted)) if known else None
+        if thumb is not None:
+            sheet.blit(thumb, thumb.get_rect(center=picture.center))
+        else:
+            # Still being made, or no picture: the outline of a dish of its type
+            self._outline(sheet, picture, dish.type, tasted)
+
+        y = picture.bottom + 10
+        if tasted:
+            for line in _wrap(dish.name, self.name_font, card.width - 14)[:2]:
+                text = self.name_font.render(line, True, INK)
+                sheet.blit(text, text.get_rect(midtop=(card.centerx, y)))
+                y += line_pitch(self.name_font) - 4   # the font's own line size is wrong
+        else:
+            mark = self.unknown_font.render(UNKNOWN_NAME, True, _FAINT_INK)
+            sheet.blit(mark, mark.get_rect(midtop=(card.centerx, y - 6)))
+        pygame.draw.line(sheet, BRASS if tasted else (168, 150, 120),
+                         (card.left + 14, card.bottom - 26), (card.right - 14, card.bottom - 26), 1)
+        count = self.small_font.render(eaten_text(times_eaten(self._stats, dish)), True, INK if tasted else _FAINT_INK)
+        sheet.blit(count, count.get_rect(midbottom=(card.centerx, card.bottom - 7)))
+
+    @staticmethod
+    def _outline(sheet: pygame.Surface, picture: pygame.Rect, dish_type: str, tasted: bool) -> None:
+        """A plain plate, bowl or cup drawn in ink, where its picture is still to come or there is none."""
+        ink = BRASS_DARK if tasted else _FAINT_INK
+        cx, cy = picture.center
+        if dish_type == "plate":
+            pygame.draw.ellipse(sheet, ink, pygame.Rect(cx - 44, cy - 18, 88, 36), 2)
+            pygame.draw.ellipse(sheet, ink, pygame.Rect(cx - 28, cy - 10, 56, 20), 1)
+        elif dish_type == "bowl":
+            pygame.draw.ellipse(sheet, ink, pygame.Rect(cx - 36, cy - 18, 72, 16), 2)
+            pygame.draw.arc(sheet, ink, pygame.Rect(cx - 36, cy - 40, 72, 64), 3.3, 6.12, 2)
+            pygame.draw.line(sheet, ink, (cx - 12, cy + 24), (cx + 12, cy + 24), 2)
+        else:
+            pygame.draw.lines(sheet, ink, False, [(cx - 18, cy - 26), (cx - 14, cy + 24), (cx + 14, cy + 24),
+                                                  (cx + 18, cy - 26)], 2)
+            pygame.draw.arc(sheet, ink, pygame.Rect(cx + 10, cy - 14, 22, 26), -1.6, 1.6, 2)
+
+    def _make_pictures(self) -> None:
+        """Make the small copies of the shown page's pictures still to come, while time allows this frame."""
+        waiting = self._waiting.get(self.page)
+        if not waiting:
+            return
+        sheet = self._sheets[self.page]
+        page = self.pages[self.page]
+        started = time.perf_counter()
+        while waiting and time.perf_counter() - started < THUMB_BUDGET_S:
+            index = waiting.pop(0)
+            thumbnail(page[index], self.tasted(page[index]), (self.PICTURE_W, self.PICTURE_H))
+            self._draw_card(sheet, index, page[index])
+
+    # -- what changes from frame to frame -----------------------------------
+
+    def _draw_tabs(self, surf: pygame.Surface, off: Tuple[int, int], mouse: Tuple[int, int]) -> None:
+        for kind, rect in self.tab_rects.items():
+            page = self.pages[kind]
+            label = f"{PAGE_NAMES[kind]}  {sum(self.tasted(d) for d in page)}/{len(page)}"
+            draw_tab(surf, rect.move(*off), label, self.body_font, kind == self.page, False, rect.collidepoint(mouse))
+
+    def tooltip_lines(self, dish: Dish) -> List[Tuple[str, Tuple[int, int, int]]]:
+        """What hovering a card tells: all of it for a dish tasted, only where it is served otherwise."""
+        served = f"Served at {SERVED_AT.get(dish.tavern_class, 'a tavern')}"
+        if not self.tasted(dish):
+            return [("Not yet tasted", _FAINT_INK), (served, INK)]
+        effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
+        hours = meal_effects.describe_hours(meal_effects.meal_hours(dish))
+        return ([(line, (90, 70, 50)) for line in _wrap(dish.description, self.small_font,
+                                                         self.TOOLTIP_W - 2 * self.TOOLTIP_PAD)]
+                + [(f"{served}, {dish.price:.2f} coins", INK),
+                   (f"{effect}, {hours}", (40, 96, 40)),
+                   (eaten_text(times_eaten(self._stats, dish)), INK)])
+
+    def _draw_tooltip(self, surf: pygame.Surface, dish: Dish, mouse: Tuple[int, int], off: Tuple[int, int]) -> None:
+        title = self.tip_title_font.render(dish.name if self.tasted(dish) else UNKNOWN_NAME, True, INK)
+        lines = [self.small_font.render(text, True, colour) for text, colour in self.tooltip_lines(dish)]
+        pitch = line_pitch(self.small_font)
+        box = pygame.Rect(0, 0, self.TOOLTIP_W, 2 * self.TOOLTIP_PAD + title.get_height() + 6 + pitch * len(lines))
+        box.topleft = (mouse[0] + 18, mouse[1] + 18)
+        panel = self.panel.inflate(-12, -12)
+        if box.right > panel.right:
+            box.right = mouse[0] - 12
+        if box.bottom > panel.bottom:
+            box.bottom = mouse[1] - 12
+        box = box.move(*off)
+        pygame.draw.rect(surf, (250, 242, 220), box, border_radius=4)
+        pygame.draw.rect(surf, BRASS_DARK, box, 2, border_radius=4)
+        y = box.top + self.TOOLTIP_PAD
+        surf.blit(title, (box.left + self.TOOLTIP_PAD, y))
+        y += title.get_height() + 6
+        for line in lines:
+            surf.blit(line, (box.left + self.TOOLTIP_PAD, y))
+            y += pitch
+
+    def draw(self, alpha_scale: float = 1.0) -> None:
+        if alpha_scale <= 0:
+            return
+        use_temp = alpha_scale < 1.0
+        if use_temp:
+            surf = pygame.Surface((self.W, self.H), pygame.SRCALPHA)
+            off = (-self.panel.left, -self.panel.top)
+        else:
+            surf = self.screen
+            off = (0, 0)
+            shadow = pygame.Surface(self.panel.size, pygame.SRCALPHA)
+            shadow.fill((0, 0, 0, 90))
+            surf.blit(shadow, self.panel.move(6, 8))
+
+        if self.page not in self._sheets:
+            self._sheets[self.page] = self._build_page(self.page)
+        self._make_pictures()
+        surf.blit(self._sheets[self.page], self.panel.move(*off))
+
+        mouse = pygame.mouse.get_pos()
+        self._draw_tabs(surf, off, mouse)
+        RecordsWindow._draw_close(self, surf, off, mouse)
+        dish = self.hovered_dish(mouse) if not use_temp else None
+        if dish is not None:
+            index = self.pages[self.page].index(dish)
+            glow = pygame.Surface(self.card_rect(index).size, pygame.SRCALPHA)
+            glow.fill((*GOLD, 50))
+            surf.blit(glow, self.card_rect(index).move(*off))
+            self._draw_tooltip(surf, dish, mouse, off)
+
+        if use_temp:
+            surf.set_alpha(int(255 * alpha_scale))
+            self.screen.blit(surf, self.panel.topleft)

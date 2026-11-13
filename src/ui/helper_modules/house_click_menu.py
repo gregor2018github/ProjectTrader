@@ -386,6 +386,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     # and the trade guilds' licences
     if house.name == "Guildhall":
         options.insert(0, "Trading Licenses")
+        options.insert(0, "Gourmet Collection")
         options.insert(0, "Records")
         options.insert(0, "Merchant Rank")
 
@@ -503,6 +504,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Records" and house.name == "Guildhall":
             from .records_window import open_records_window
             open_records_window(game_state)
+            return
+
+        if option_text == "Gourmet Collection" and house.name == "Guildhall":
+            from .gourmet_window import open_gourmet_window
+            open_gourmet_window(game_state)
             return
 
         if option_text == "Daily Menu" and house.tavern_class:
