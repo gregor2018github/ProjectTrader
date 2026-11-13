@@ -1,0 +1,308 @@
+{
+  "about": "Every trading licence's document, keyed by the licence's name in goods.json: its title, its body (one entry per line, \"\" for a blank one; [$$contract_term$$] and [$$contract_cost$$] are filled in) and the line under the signature box.",
+  "Beer": {
+    "title": "License for the Trade of Fermented Ales and Spirits",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the frothing, double-seeing oversight of the Most Gallant Guild of Brewers, the bearer is hereby granted the sacred right to mash, boil, and dispense the amber nectar that keeps our peasantry pacified. While we encourage a sturdy head on every pour, the bearer is strictly forbidden from \"invigorating\" a weak brew with soap suds for false foam or \"stretching\" the barrels with well-water and river-silt. Go forth and quench the thirst of the masses, provided you do not incite a tavern brawl that spreads to a nationwide riot.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these sacred brewing-laws, they shall be fined three times their quarterly take. Additionally, the offender shall be \"barrel-bound\": fitted with a bottomless cask and forced to walk the town square while locals test the quality of the merchant’s own sour leftovers by \"donating\" them back to the merchant's face.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to pour your fortune and pray your head stays clearer than your brew.)"
+  },
+  "Candle": {
+    "title": "License for the Trade of Tallow and Wax Candles",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the smoke-blackened oversight of the Worshipful Guild of Chandlers and Wick-Pullers, the bearer is hereby granted the legal right to render, dip, and vend the little flames by which our townsfolk read, pray, and stumble homeward. The bearer is strictly forbidden from padding a tallow dip with kitchen grease, or from passing off mutton-fat as \"Blessed Beeswax of the Abbey.\" Go forth and hold back the darkness, provided your wares do not set the thatch of the Weaver's Quarter alight.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these luminous statutes, they shall be fined four times the weight of their stock in silver. Additionally, the offender shall be \"dipped\": lowered thrice by the ankles into a vat of cooling tallow and stood in the market square until set, the town's only candle that burns at neither end.",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to burn your coin at both ends and pray the wick outlasts the winter.)"
+  },
+  "Fish": {
+    "title": "License for the Trade of Fresh Fish",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the brine-soaked authority of the Honorable Fellowship of Fishmongers and Net-Menders, the bearer is hereby licensed to cast, haul, and hawk the silver bounty of our rivers and seas. While we celebrate the fruits of the deep, the bearer is strictly prohibited from \"rejuvenating\" a dull-eyed trout by painting its gills with beet juice or masking the scent of a three-day-old mackerel with excessive perfumes. Go forth and feed the bellies of our citizens, provided you do not store your wares in the sun long enough to summon a legion of neighborhood stray cats.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these maritime statutes, they shall forfeit their entire inventory to the town strays. Additionally, the offender shall be \"anchored\" by having their feet tied to a bucket of fish-guts and forced to stand at the low-tide mark until the water reaches their chin, as a reminder that the sea eventually claims what is hers.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to cast your net into the stinky currents of commerce.)"
+  },
+  "Herbs": {
+    "title": "License for the Trade of Herbs and Simples",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the root-stained oversight of the Venerable Sisterhood of Herbwives and Apothecaries, the bearer is hereby granted the legal right to gather, dry, and dispense the green remedies of hedgerow and gloomy wood. The bearer is strictly forbidden from bulking a bundle of sage with common hay, or from offering any tincture promising to restore a bald man's hair or a widow's youth. Go forth and tend the ailments of our citizens, provided you can tell the herb that cures a fever from the one that quietly settles an inheritance.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these botanical ordinances, they shall forfeit triple the value of every bundle sold and their drying-loft besides. Additionally, the offender shall be \"garlanded\": wreathed head to knee in wild garlic, rue, and valerian and seated at the church door for one full Sabbath, that the faithful may judge their physick by the nose as they pass.",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to stake your health on a handful of leaves and a hopeful guess.)"
+  },
+  "Hide": {
+    "title": "License for the Trade of Hides and Pelts",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the thick-skinned, scent-blind oversight of the Honorable Company of Tanners and Skinners, the bearer is hereby granted the legal right to procure, cure, and transport the outer casings of beasts across our sovereign markets. While we acknowledge that the tanning arts are a pungent necessity, the bearer is strictly forbidden from selling \"waterproof\" leather that drinks like a sponge or passing off mangy rat-skins as \"exotic marten.\" Furthermore, the merchant shall not utilize \"aromatic oils\" to mask the scent of hides that have clearly begun to return to the earth. Go forth and skin the profit from the land, provided you do not store your raw, dripping wares upwind of the Mayor’s balcony.",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these sacred hide-bound laws they shall be subject to a fine of five times the market value. In addition, the offender shall be tethered for one full day outside the tanning pits during high noon, where they may fully contemplate the \"fragrance\" of their industry while the local tanner’s apprentices use them as a stationary target for testing the flexibility of newly fashioned bullwhips.",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to confirm your skin is in the game and your gold is in our coffers.)"
+  },
+  "Iron": {
+    "title": "License for Iron Trading",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the iron-fisted oversight of the Blacksmiths’ Guild, the bearer is hereby granted the legal right to procure, barter, and haul the heavy fruits of the forge across our sovereign markets. While we acknowledge that iron is a stubborn master, the bearer is strictly forbidden from passing off rusted scrap as \"master-worked steel\" or selling \"ever-sharp blades\" that lose their edge at the mere sight of a turnip. Go forth and strike while the metal is hot, provided you do not obstruct the thoroughfares with your heavy ingots or accidentally magnetize the Captain of the Guard’s plate armor.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these holy ordinances, they shall be subject to a fine of triple the market value and shall spend one full Sabbath locked in the iron stocks, where the local children shall be permitted to test the resonance of the metal against the merchant’s head with small wooden mallets.Witness Thereto:",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to acknowledge thee cold impact of iron on your soul and wallet)"
+  },
+  "Linen": {
+    "title": "License for the Trade of Fine Linen and Textiles",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the needle-sharp, judgmental oversight of the Most Fastidious Guild of Weavers and Draperers, the bearer is hereby granted the legal right to spin, weave, and trade the supple skin of our gentlefolk. While we appreciate a fine drape, the bearer is strictly forbidden from \"whitening\" yellowed fabric with lead-based chalk. Furthermore, the merchant shall not hide moth-holes with excessive starch and prayer. Go forth and clothe our citizens in dignity, provided you do not let your flax-steeping pits turn the town’s air into a stench that could fell a plow-ox.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these textile statutes — specifically by selling a garment that shrinks to doll-size at the first drop of rain — they shall pay a fine of five times the fabric's weight in silver. Additionally, the offender shall be \"spooled\": bound tightly in their own shoddy bolts of cloth and rolled down Blackwater Hill during the noon market to demonstrate the durability (or lack thereof) of their weave.",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to spin your fortune and pray the thread of your luck doesn't snap.)"
+  },
+  "Meat": {
+    "title": "License for the Trade of Cured Meats",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the heavy-handed, cleaver-sharp oversight of the Most Worshipful Company of Butchers and Sausage-Makers, the bearer is hereby licensed to slaughter, cure, and vend the marbled sinews and savory cuts of our livestock. While we crave a hearty stew, the bearer is strictly forbidden from \"rejuvenating\" grey, weeping mutton with a splash of ox-blood or \"stretching\" the sausage-fill with sawdust, floor-sweepings, or the meat of \"unspecified roof-rabbits.\" Furthermore, the merchant shall not hide the scent of decay with excessive peppercorns and brine. Go forth and provide for the tables of our town, provided you do not let your offal-pits overflow.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these carnal statutes, they shall pay a fine of six times the value of the tainted stock. Additionally, the offender shall be \"salted and hung\": they shall be placed in the town stocks for three days with a heavy necklace of their own questionable sausages, while the locals are encouraged to toss their rotten leftovers back at the source.",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to carve out your fortune and pray your luck doesn't go to the dogs.)"
+  },
+  "Pottery": {
+    "title": "License for the Trade of Pottery and Earthenware",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the kiln-burnt, soot-stained oversight of the Most Honorable Guild of Potters and Kiln-Masters, the bearer is hereby granted the legal right to mold, fire, and vend the earthen vessels of our kitchens and cellars. While we require sturdy pots for our ale and grain, the bearer is strictly forbidden from \"mending\" a fractured amphora with wax and pig-fat, or masking a hairline crack with a thick, deceptive layer of paint. Furthermore, the merchant shall not use glazes that turn a customer’s wine into a slow-acting tonic for the grave. Go forth and furnish our tables, provided your roaring kilns do not shower the textile of the town's nobility.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these earthen statutes, they shall be fined five times the price of the vessel. Additionally, the offender shall be \"fired and glazed\": they shall be coated in wet river-silt and forced to sit perfectly still in the market square for one full day, acting as a human garden statue for the amusement of passers-by and the convenience of local pigeons.",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to throw your gold and pray your luck doesn't shatter in the kiln.)"
+  },
+  "Salt": {
+    "title": "License for the Trade of Salt and Brine",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the thrice-counting oversight of the Most Exacting Guild of Salters and Brine-Boilers, the bearer is hereby granted the coveted right to haul, weigh, and vend the white gold that keeps our winters fed and our pork from walking off the hook. As salt is reckoned dearer than the honesty of most men, the bearer is strictly forbidden from stretching a measure with ground chalk or powdered bone, or from wetting the sacks before the weighing. Go forth and preserve the larders of our citizens, provided you do not salt the Miller's field over a dispute of eleven coins.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these crystalline statutes, they shall be fined tenfold the shortfall of every measure, for the Council counts salt closely and forgets nothing. Additionally, the offender shall be \"cured\": packed to the neck in coarse brine-salt in an open barrel at the market cross for one full day, that the town may see how well the merchant's own goods preserve a thing.",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to take the Council's terms with a pinch of your own merchandise.)"
+  },
+  "Spices": {
+    "title": "License for the Trade of Spices",
+    "body": [
+      "[Placeholder text, to be written.] By the grace of the Town Council of Blackwater, the bearer is hereby granted the right to buy, weigh and sell pepper, cinnamon, cloves, saffron and every other spice brought from beyond the sea.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: [Placeholder text, to be written.]",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Placeholder: sign here.)"
+  },
+  "Stone": {
+    "title": "License for the Trade of Stone",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the heavy-handed oversight of the Order of Masons and Quarry-Masters, the bearer is hereby granted the legal right to hew, haul, and barter the very foundations of our realm. While we appreciate a sturdy wall, the bearer is strictly forbidden from passing off sun-dried river mud as \"Everlasting Granite\" or selling \"pre-weathered\" limestone that dissolves at the first hint of a summer drizzle. Go forth and profit, provided you do not drop your inventory on the Mayor’s gouty foot or cause a localized landslide within the city walls.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these holy ordinances, they shall be subject to a fine of triple the market value. Additionally, the offender shall spend one full Sabbath in the town square, tethered to a half-ton block of limestone, which they must attempt to \"smooth\" using only their forehead.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to acknowledge the load of thee heavy rocks on your back and purse)"
+  },
+  "Wheat": {
+    "title": "License for the Trade of Wheat and Grains",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the flour-dusted, hawk-eyed oversight of the Most Worshipful Guild of Bakers and Millers, the bearer is hereby granted the legal right to procure, winnow, and distribute the golden lifeblood of our fields. While we pray for a bountiful harvest, the bearer is strictly forbidden from \"extending\" their bushels with sawdust, fine sand, or \"unusually heavy\" gravel to cheat the scales. Furthermore, the merchant shall not pass off damp, sprouting grain as \"pre-malted specialty grist\". Go forth and fill the granaries of our land, provided you do not attract a plague of locusts through sheer negligence.",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these sacred grain-laws—specifically by selling flour that is more weevil than wheat—they shall be subject to a fine of four times the market value. Additionally, the offender shall be \"breaded and baked\" by being coated in wet dough and left in the midday sun for one full Sabbath.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to sow your gold and pray for a harvest that isn't just taxes.)"
+  },
+  "Wine": {
+    "title": "License for the Trade of Spirits and Fine Wines",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the purple-tongued, discerning oversight of the Venerable Order of Vintners and Cellar-Masters, the bearer is hereby granted the legal right to procure, decant, and distribute the fermented blood of the vine within our sovereign jurisdiction. While we celebrate the joy found at the bottom of a flagon, the bearer is strictly forbidden from \"baptizing\" their wine with river water to stretch the vintage. Furthermore, the merchant shall not fortify their barrels with questionable herbs that cause the drinker to see visions of three-headed saints or lose the ability to use their legs before the second glass is drained. Go forth and pour with a heavy hand, provided you do not incite a riot by running dry during a festival.",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these intoxicating statutes, they shall be subject to a fine of five times the market value. Additionally, the offender shall be sentenced to one full day in the stocks located outside the \"Drunken Boar\" tavern, where they shall be forced to drink a gallon of their own substandard \"Noble Gold\" that is actually horse-piss flavored with honey.",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here while you can still see the line and feel the weight of your purse.)"
+  },
+  "Wood": {
+    "title": "License for the Trade of Hardwoods",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the splinter-riddled, iron-grip oversight of the Order of Loggers, the bearer is hereby granted the legal right to fell, mill, and trade the sturdy bones of our ancient forests. While we require timber for hearth and hall, the bearer is strictly forbidden from passing off green, sap-weeping timber as \"expertly seasoned oak\". Furthermore, the merchant shall not stuff hollow logs with river-mud to tip the lumber-scales. Go forth and build the foundations of our realm, provided you do not clear-cut the Sacred Grove and bring a curse of dryads upon our gates.",
+      "",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these forestry statutes, they shall pay a fine of five times the shipment’s value. Additionally, the offender shall be \"staked and sapped\": coated in sticky pine-resin and forced to stand in the town square for one full day to act as a human scratching post for the local livestock.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to fell your capital and pray your profits don't splinter in your hands.)"
+  },
+  "Wool": {
+    "title": "License for the Trade of Wool and Fleece",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the soft-handed, yet ever-watchful oversight of the Guild of Weavers and Shearers, the bearer is hereby granted the legal right to procure, barter, and transport the fluffy bounty of the meadows within our sovereign borders. While we recognize that a sheep is a simple creature of God, the bearer is strictly forbidden from soaking their wool in the river to increase its weight or from passing off stray dog hair as \"Highland Fleece.\" Furthermore, the merchant shall not sell \"self-warming\" garments that achieve said warmth solely through an infestation of hyperactive fleas. Go forth and gather your flocks, provided you do not allow your livestock to \"decorate\" the steps of the Cathedral.",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these woolly ordinances—specifically by \"fleecing\" the public with moth-eaten rags—they shall be subject to a fine of quadruple the market value. Additionally, they shall be required to spend one full Sabbath in the public square, clad in a suit made entirely of unwashed, raw grease-wool, where the local peasantry may freely comment on their aroma while tossing handfuls of burrs and thistles at their person.",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to acknowledge that you are the one being fleeced in this arrangement.)"
+  }
+}

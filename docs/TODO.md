@@ -27,7 +27,6 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] also create the player running animations with the sprite manager and gemini (currently still legacy sprites)
 - [ ] have actual images of the food plates bought by the player that you see when you bought them
 - [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
-- [ ] unify the contract text parts. it should all be stored in one file instead of two per contract type
 - [ ] make new contracts for the new products (most trade under their guild's licence; Spices has its own, with placeholder contract texts)
 - [ ] add different walking sounds for different surfaces (grass, bridge, snow, etc)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
@@ -62,6 +61,7 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 ## Finished Features
 - [x] add snow animation for winter season
+- [x] unify the contract text parts: all licences in one file, assets/texts/contracts/licenses.json
 - [x] add three more houses with different designs between two marketplaces
 - [x] playtest the living market, then merge p1-living-market into master
 - [x] P1.4: the full health report: the remaining checks of docs/p1_living_market.md (price stuck at a clamp, price far from outside, hunger, poorly supplied, money supply, bad numbers, population, happiness range, workshop cash, dead workshop, structural shortage) and a table over 20 seeds × 50 years

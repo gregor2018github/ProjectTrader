@@ -6,6 +6,7 @@ contract that the player can sign, stamp, or tear up.
 
 import pygame
 import os
+import json
 import random
 import math
 from typing import Optional, List, Tuple, TYPE_CHECKING
@@ -16,6 +17,23 @@ from ...sim.calendar import describe_seasons
 
 if TYPE_CHECKING:
     from ...game import Game
+
+LICENSE_TEXTS_PATH = os.path.join(MAIN_PATH, "assets", "texts", "contracts", "licenses.json")
+
+
+def load_license_texts() -> dict:
+    """Every licence's document from ``licenses.json``, keyed by licence name.
+
+    Each is a ``title``, a ``body`` (one entry per line, ``""`` for a blank
+    one) and the ``signature`` line under the signature box.
+    """
+    try:
+        with open(LICENSE_TEXTS_PATH, "r", encoding="utf-8") as f:
+            texts = json.load(f)
+    except FileNotFoundError:
+        return {}
+    texts.pop("about", None)
+    return texts
 
 class ContractView:
     """A UI component that displays a license contract for trading specific goods.
@@ -42,12 +60,8 @@ class ContractView:
         self.contract_seasons = contract_seasons
         self.contract_cost = contract_cost
         
-        # Determine file names based on contract type
-        # "Hide" is stored internally as "Hide" but its text assets use "Hides"
-        file_type = "Hides" if contract_type == "Hide" else contract_type
-        contract_file = f"License_{file_type}.txt"
-        image_file = f"{file_type.lower()}.png"
-        extra_file = f"License_{file_type}_Bottom.txt"
+        # "Hide" is the licence's name, but its picture is "hides.png"
+        image_file = f"{'hides' if contract_type == 'Hide' else contract_type.lower()}.png"
 
         # Load Fonts
         try:
@@ -61,33 +75,21 @@ class ContractView:
             self.body_font = pygame.font.SysFont("arial", 18)
             self.drop_cap_font = pygame.font.SysFont("arial", 32)
 
-        # Load Text
-        try:
-            # Construct path to assets/texts/contracts
-            text_path = os.path.join(MAIN_PATH, "assets", "texts", "contracts", contract_file)
-            with open(text_path, 'r', encoding='utf-8') as f:
-                self.raw_text = f.readlines()
-            
-            # Replace placeholders in the loaded text
+        # Load Text: the title first, then the body's lines, and the line
+        # under the signature box
+        document = load_license_texts().get(contract_type)
+        if document:
             placeholders = {
                 "contract_term": describe_seasons(contract_seasons),
-                "contract_cost": contract_cost
+                "contract_cost": contract_cost,
             }
-            for i, line in enumerate(self.raw_text):
-                for key, value in placeholders.items():
-                    placeholder_str = f"[$${key}$$]"
-                    line = line.replace(placeholder_str, str(value))
-                self.raw_text[i] = line
-                
-        except FileNotFoundError:
+            lines = [document["title"], *document["body"]]
+            for key, value in placeholders.items():
+                lines = [line.replace(f"[$${key}$$]", str(value)) for line in lines]
+            self.raw_text = [line + "\n" for line in lines]
+            self.extra_text = document.get("signature", "").strip()
+        else:
             self.raw_text = ["Contract text not found."]
-
-        # Load extra signature acknowledgement text
-        try:
-            extra_text_path = os.path.join(MAIN_PATH, "assets", "texts", "contracts", extra_file)
-            with open(extra_text_path, 'r', encoding='utf-8') as f:
-                self.extra_text = f.read().strip()
-        except FileNotFoundError:
             self.extra_text = ""
 
         # Load Images
