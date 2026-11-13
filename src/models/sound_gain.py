@@ -7,6 +7,7 @@ import pygame
 
 SOUND_GAIN: dict[str, float] = {
     "bubble_1": 2.0,   # goods received for nothing
+    "clock_ticking": 2.5,   # the rest's clock turning
 }
 
 

@@ -162,6 +162,64 @@ def test_a_click_or_a_key_while_it_turns_wakes_at_once_at_the_chosen_moment(wind
     assert state.date == end and state.info_window is None and state.time_level == 3
 
 
+class FakeChannel:
+    def __init__(self, sound):
+        self.sound, self.volume, self.faded = sound, None, []
+
+    def set_volume(self, volume):
+        self.volume = volume
+
+    def get_sound(self):
+        return self.sound
+
+    def fadeout(self, ms):
+        self.faded.append(ms)
+
+
+class FakeSound:
+    def __init__(self):
+        self.plays = []
+        self.channel = FakeChannel(self)
+
+    def play(self, loops=0, fade_ms=0):
+        self.plays.append((loops, fade_ms))
+        return self.channel
+
+
+def test_a_clock_ticks_while_it_turns_fading_in_with_the_dark_and_out_as_the_hand_arrives(window, state):
+    clock = FakeSound()
+    state.game.sounds = {rest_window.CLOCK_SOUND: clock}
+    window.handle_click(window.buttons["rest"].center)
+    assert clock.plays == [(-1, round(rest_window.DARKEN_SECONDS * 1000))]   # looped, fading in
+    assert clock.channel.volume == rest_window.CLOCK_VOLUME
+    turn_ends = rest_window.DARKEN_SECONDS + window.turn_s
+    while window.turn_t + 1 / 60 < turn_ends - 0.02:
+        window.animate(1 / 60)
+    assert clock.channel.faded == []                                     # ticking all through the turn
+    _turn_through(window)
+    assert clock.channel.faded == [round(rest_window.CLOCK_FADE_OUT_S * 1000)]   # once, as it arrived
+
+
+def test_waking_early_lets_the_ticking_go_quickly(window, state):
+    clock = FakeSound()
+    state.game.sounds = {rest_window.CLOCK_SOUND: clock}
+    window.handle_click(window.buttons["rest"].center)
+    window.animate(0.04)
+    window.handle_click(window.buttons["rest"].center)
+    assert clock.channel.faded == [round(rest_window.CLOCK_WAKE_FADE_S * 1000)]
+
+
+def test_no_clock_sound_no_trouble(window, state):
+    state.game.sounds = {}
+    window.handle_click(window.buttons["rest"].center)
+    _turn_through(window)
+    assert state.info_window is None
+
+
+def test_the_clock_recording_is_there():
+    assert os.path.exists(os.path.join("assets", "sound", rest_window.CLOCK_SOUND + ".wav"))
+
+
 def test_a_stutter_does_not_skip_the_dark_or_the_turn(window, state):
     window.handle_click(window.buttons["rest"].center)
     window.animate(3.0)                      # one very slow frame

@@ -20,7 +20,9 @@ the gold of the rest still to come shrinking ahead of it. It rests there a
 moment (`ARRIVED_SECONDS`); then the clock is moved on and the tiredness brought
 down (`Tiredness.rest`), and the window on black dissolves into the game as it
 now is (`Game.fade_in_from`). A click or a key meanwhile wakes the player at
-once, at the chosen moment all the same. The game is
+once, at the chosen moment all the same. A clock ticks meanwhile (the recording
+`CLOCK_SOUND`, looped): it fades in as the dark falls, and out from the moment
+the hand arrives (`CLOCK_FADE_OUT_S`), or quickly when the player wakes early. The game is
 paused while the window is open; `animate(dt)` is called by the main loop.
 """
 
@@ -79,6 +81,13 @@ TURN_SECONDS_MAX = 5.0
 ARRIVED_SECONDS = 0.35
 #: The most a frame moves it on, so a stutter does not skip the dark or the turn
 MAX_FRAME_SECONDS = 0.05
+#: The clock heard ticking while it turns (a sound of assets/sound/, looped), how loud,
+#: and how long it takes to fade out once the hand has arrived, or when the player wakes early;
+#: it fades in over DARKEN_SECONDS
+CLOCK_SOUND = "clock_ticking"
+CLOCK_VOLUME = 0.7
+CLOCK_FADE_OUT_S = 0.9
+CLOCK_WAKE_FADE_S = 0.3
 HAND_SILVER = (226, 228, 234)
 
 PANEL_W = 620
@@ -149,6 +158,10 @@ class RestWindow(_BaseDialog):
         self.turn_t: Optional[float] = None
         self.turn_s = 0.0
         self._veil: Optional[pygame.Surface] = None
+        # The clock ticking while it turns, and whether it is fading out
+        self._clock: Optional[pygame.mixer.Channel] = None
+        self._clock_sound: Optional[pygame.mixer.Sound] = None
+        self._clock_fading = False
         self.big_font = _font("Medici Text.ttf", 46)
         self.caption_font = _font("Augusta.ttf", 19)
         self.small_font = _font("Augusta.ttf", 18)
@@ -290,20 +303,43 @@ class RestWindow(_BaseDialog):
         self.dragging = False
         self.turn_t = 0.0
         self.turn_s = turn_seconds(self.hours_ahead)
+        self._start_clock()
 
     def animate(self, dt: float) -> None:
         """The clock turns on (called each frame by the main loop)."""
         if self.turn_t is None:
             return
         self.turn_t += min(dt, MAX_FRAME_SECONDS)   # a slow frame does not jump the dark or the turn
+        if self.turn_t >= DARKEN_SECONDS + self.turn_s:
+            self._fade_clock(CLOCK_FADE_OUT_S)      # the hand has arrived
         if self.turn_t >= self.total_seconds:
             self.wake()
+
+    def _start_clock(self) -> None:
+        """The clock's ticking, looped, fading in as the dark falls."""
+        sounds = getattr(self.game_state.game, "sounds", None) or {}
+        sound = sounds.get(CLOCK_SOUND)
+        if sound is None:
+            return
+        channel = sound.play(loops=-1, fade_ms=round(DARKEN_SECONDS * 1000))
+        if channel is not None:
+            channel.set_volume(CLOCK_VOLUME)
+        self._clock, self._clock_sound, self._clock_fading = channel, sound, False
+
+    def _fade_clock(self, seconds: float) -> None:
+        """Let the ticking fade out over that long (once; a channel taken since by another sound is left be)."""
+        if self._clock is None or self._clock_fading:
+            return
+        self._clock_fading = True
+        if self._clock.get_sound() is self._clock_sound:
+            self._clock.fadeout(round(seconds * 1000))
 
     def wake(self) -> None:
         """Rest until the hand: the clock moves on, the tiredness falls, the picture comes back from black."""
         if self.game_state.info_window is not self:
             return
         game = self.game_state.game
+        self._fade_clock(CLOCK_WAKE_FADE_S)      # up early: the ticking goes quickly (already going if not)
         # What the game comes back from: the window with the hand at the chosen moment, on black
         self.turn_t = max(self.turn_t or 0.0, DARKEN_SECONDS + self.turn_s)
         cover = self._snapshot_on_black()
