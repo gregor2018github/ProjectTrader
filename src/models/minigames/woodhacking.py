@@ -48,6 +48,7 @@ from typing import List, Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
+from ..drowsiness import game_penalty
 from ..meal_effects import STRONG_HAND, game_bonus
 from .outdoors import Conditions
 from .woodhacking_scene import (
@@ -447,6 +448,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self.blocks_chopped = 0    # logs split, counted at the blow: the scene's pile only when they land
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
         self.strong_hand = game_bonus(self.game, STRONG_HAND)   # a meal's extra share of points on every swing
+        self.tired = game_penalty(self.game)                     # worn out: that share fewer (models/drowsiness.py)
         self.extra_swings = 0      # earned by swings perfect on both gauges
         self.notice: Optional[Tuple[str, Tuple[int, int, int], float]] = None   # text, colour, seconds left
         self._tip_in: Optional[float] = None   # seconds until the explanation opens
@@ -639,7 +641,7 @@ class WoodhackingMinigame(MinigameOverlay):
         )
         pts = 0 if (aim_miss or pow_miss) else aim_pts + pow_pts
         # The streak's bonus, and a meal's Strong Hand on every swing (models/meal_effects.py)
-        bonus = self.streak_bonus + self.strong_hand
+        bonus = self.streak_bonus + self.strong_hand - self.tired
         self.last_gain = round(pts * (1.0 + bonus), 2)
         self.score = round(self.score + self.last_gain, 2)
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
@@ -651,8 +653,8 @@ class WoodhackingMinigame(MinigameOverlay):
         outcome = swing_outcome(pts, self.power, self.opt_lo)
         popup_color = DARK_GREEN if pts >= 4 else (GREEN if pts >= 3 else (ORANGE if pts > 0 else DARK_RED))
         label = f"+{self.last_gain:g}" if pts > 0 else "miss"
-        if pts > 0 and bonus > 0:
-            label += f"  (+{round(bonus * 100)}%)"
+        if pts > 0 and round(bonus * 100) != 0:
+            label += f"  ({round(bonus * 100):+d}%)"
         flourish = 2 if (aim_perfect and pow_perfect and pts > 0) else 0
         self._play_scene_sounds(self.scene.swing(outcome, pts, popup_color, label=label, flourish=flourish))
         # The scene has the last word on what happened to the log (a second bite splits it)
@@ -884,9 +886,13 @@ class WoodhackingMinigame(MinigameOverlay):
             lost = self._inked("Streak lost", self.font_grade, RED)
             lost.set_alpha(self._streak_lost_alpha)
             surf.blit(lost, lost.get_rect(center=center))
+        below = 52
         if self.strong_hand > 0:   # a meal's, below the streak's notches
             self._plaque(surf, f"Strong Hand:  +{round(self.strong_hand * 100)}% every swing",
-                         (center[0], center[1] + 52))
+                         (center[0], center[1] + below))
+            below += 26
+        if self.tired > 0:         # worn out, under that
+            self._plaque(surf, f"Tired:  -{round(self.tired * 100)}% every swing", (center[0], center[1] + below))
 
     def _plaque(self, surf: pygame.Surface, text: str, center: Tuple[float, float]) -> None:
         """A small brass plate with engraved text, nailed on."""

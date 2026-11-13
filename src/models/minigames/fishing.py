@@ -73,6 +73,7 @@ from typing import Callable, Deque, List, Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay
+from ..drowsiness import game_penalty
 from ..meal_effects import STEADY_HAND, game_bonus
 from .fishing_pond import (
     Pond, Hook, Fish, SPECIES, format_kg, WATER_Y, BANK_EDGE, LOW_W, PX_PER_FOOT, bottom_y, in_water,
@@ -420,8 +421,11 @@ class FishingMinigame(MinigameOverlay):
         self.pond = Pond(self.rng, self.scene.hour, self.scene.season, weather.rain, weather.storm,
                          weather.snow, weather.clouds)
         self.hook = Hook()
-        # A meal's Steady Hand: a biting fish holds the bait longer (models/meal_effects.py)
-        self.hook.hold_extra = 0.0 if demo else game_bonus(game, STEADY_HAND)
+        # A meal's Steady Hand: a biting fish holds the bait longer (models/meal_effects.py);
+        # worn out, it holds it shorter and the fight's bar is smaller (models/drowsiness.py)
+        self.steady_hand = 0.0 if demo else game_bonus(game, STEADY_HAND)
+        self.tired = 0.0 if demo else game_penalty(game)
+        self.hook.hold_extra = self.steady_hand - self.tired
         self.sounds = {} if demo else _make_sounds()
         self._hum_channel: Optional[pygame.mixer.Channel] = None
 
@@ -941,6 +945,9 @@ class FishingMinigame(MinigameOverlay):
         self.hook.alluring = False
         fish.state = HOOKED
         self.fight = Fight(fish, hold, self.rng)
+        if self.tired > 0:   # worn out: the bar is smaller
+            self.fight.bar_h *= 1.0 - self.tired
+            self.fight.recentre()
         self.phase = FIGHT
         colour = _GOOD if hold >= 1.0 else (226, 226, 200) if hold >= 0.8 else _WARN
         self._popup(label, colour, (fish.x, WATER_Y - 14), big=True)
@@ -1278,8 +1285,11 @@ class FishingMinigame(MinigameOverlay):
             x, y = rect.left - 16 - i * 13, rect.centery
             pygame.draw.lines(surf, (214, 112, 112), False,
                               [(x, y + 3), (x + 3, y - 2), (x + 6, y + 2), (x + 9, y - 3)], 3)
-        if self.hook.hold_extra > 0:   # a meal's, under the worms
-            self._plaque(surf, f"Steady Hand: +{round(self.hook.hold_extra * 100)}% time to strike",
+        if self.steady_hand > 0:   # a meal's, under the worms
+            rect = self._plaque(surf, f"Steady Hand: +{round(self.steady_hand * 100)}% time to strike",
+                                (SCENE_W - 14, rect.bottom + 6))
+        if self.tired > 0:         # worn out, under that
+            self._plaque(surf, f"Tired: -{round(self.tired * 100)}% time to strike, smaller bar",
                          (SCENE_W - 14, rect.bottom + 6))
         self._draw_depth(surf)
         lore = self._inked(self.pond.lore, self.font_small, (236, 230, 206))

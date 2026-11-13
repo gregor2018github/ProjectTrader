@@ -558,6 +558,7 @@ def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left:
     Where it ends, or None when there is no player."""
     from ..helper_modules.rest_window import draw_tiredness_bar
     from ...models.rest import FULL_REST_HOURS, HOURS_TO_EXHAUSTION
+    from ...models.drowsiness import TIRED_FROM
     game = getattr(game_state, 'game', None)
     player = getattr(game, 'player', None)
     if player is None:
@@ -578,6 +579,7 @@ def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left:
              else "Find a roof to rest under.")
     lines = [f"Tiredness: {player.tiredness * 100:.0f} %",
              f"Worn out after {HOURS_TO_EXHAUSTION:.0f} hours up; {FULL_REST_HOURS:.0f} hours of rest clear it.",
+             f"From {TIRED_FROM * 100:.0f} % your eyes grow heavy: you walk slower and do worse at work.",
              where]
     _draw_tooltip(screen, font, lines, mouse_pos)
     return bar.right

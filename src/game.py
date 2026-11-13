@@ -30,6 +30,7 @@ from .config import colors
 from .models.ambience import AMBIENCE_FIRST_CHANNEL, Ambience
 from .models.lightning import Lightning
 from .models.coughs import Coughs
+from .models.drowsiness import Drowsiness, player_penalty
 from .models.owls import Owls
 from .models.dogs import Dogs
 from .ui.view_transition import ViewTransition
@@ -224,6 +225,8 @@ class Game:
         self.lightning: Lightning = Lightning(self.sounds)
         # Now and then someone out in town near the player coughs (models/coughs.py)
         self.coughs: Coughs = Coughs(self.sounds)
+        # Worn out, the player's eyes now and then fall shut (models/drowsiness.py), drawn by map_view
+        self.drowsiness: Drowsiness = Drowsiness()
         # Owls calling in the woods at night (models/owls.py)
         self.owls: Owls = Owls(self.sounds, self.ambience.trees)
         # Dogs barking in town now and then (models/dogs.py)
@@ -628,9 +631,11 @@ class Game:
                     minute_changed, _price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
                     self.tiredness.update(self.state.date)
-                    # Bad weather slows the walk, a sweet quickens it (models/weather.py, meal_effects.py)
+                    # Bad weather and being worn out slow the walk, a sweet quickens it
+                    # (models/weather.py, drowsiness.py, meal_effects.py)
                     self.game_map.map_player.speed_factor = (
                         (1.0 - self.weather.walking_slowdown())
+                        * (1.0 - player_penalty(self.player))
                         * (1.0 + meal_effects.bonus(self.player, meal_effects.LIGHT_STEP, self.state.date)))
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.puddle_level)
@@ -835,6 +840,8 @@ class Game:
                                      is_map_visible and (self.state.time_level > 1 or self.state.minigame is not None),
                                      self.weather.rain)
                 self.lightning.update(delta_time, self.weather.storm, is_map_visible and self.state.time_level > 1)
+                if is_map_visible and self.state.time_level > 1:
+                    self.drowsiness.update(delta_time, self.player.tiredness)
                 self.coughs.update(self.state.date, is_map_visible and self.state.time_level > 1,
                                    self.game_map.tmx_map.npcs, self.game_map.map_player)
                 self.owls.update(self.state.date, is_map_visible and self.state.time_level > 1,

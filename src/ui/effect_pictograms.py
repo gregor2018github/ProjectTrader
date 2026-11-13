@@ -10,6 +10,7 @@ other small icons:
 - Well Fed: a steaming bowl of stew
 - Light Step: a winged boot with speed lines
 - the weather: a rain cloud, a snowflake, or a boot sunk in mud
+- Tired: a drooping, half-shut eye with a Z rising off it
 
 They are toned down `MUTED` of the way towards grey, so they sit with the game's
 parchment and ink rather than standing out from it.
@@ -240,7 +241,41 @@ def _mud(pen: _Pen) -> None:
         pen.circle(MUD, (x, y), r, outline=2)
 
 
+SKIN = (232, 196, 160)
+EYE_WHITE = (240, 236, 226)
+IRIS = (92, 70, 48)
+
+
+def _tired_eye(pen: _Pen) -> None:
+    """Tired: an eye under a heavy lid fallen half shut, a crease over it, and two Zs rising off it."""
+    cx, cy = 42.0, 64.0
+    upper = _arc((cx, cy), 32, 22, 180, 360)
+    lower = _arc((cx, cy), 32, 14, 0, 180)
+    almond = upper + lower[1:]
+    pen.polygon(EYE_WHITE, almond, outline=3.5)
+    # The iris and pupil, looking out under the lid
+    pen.circle(IRIS, (cx, cy + 1), 11)
+    pen.circle(INK, (cx, cy + 1), 5)
+    pen.circle(FLOAT_WHITE, (cx + 4, cy + 4), 2)
+    # The lid, fallen to just above the pupil
+    lid_y = cy - 2
+    clip = pen.surf.get_clip()
+    pen.surf.set_clip(pygame.Rect(0, 0, pen.surf.get_width(), pen.p((0, lid_y))[1]))
+    pen.polygon(SKIN, almond)
+    pen.surf.set_clip(clip)
+    pen.polyline(INK, almond + [almond[0]], 3.5)
+    pen.polyline(INK, [(cx - 31, lid_y + 1), (cx, lid_y + 3), (cx + 31, lid_y + 1)], 5)
+    # The crease of the lid above the eye
+    pen.polyline(INK, _arc((cx, cy - 6), 26, 16, 205, 335, 12), 3)
+    # The Zs, the small one higher
+    for (x, y, s) in ((66, 22, 16), (84, 4, 11)):
+        z = [(x, y), (x + s, y), (x, y + s), (x + s, y + s)]
+        pen.polyline(INK, z, 7)
+        pen.polyline(FLOAT_WHITE, z, 3)
+
+
 PICTOGRAMS: Dict[str, Callable[[_Pen], None]] = {
+    "tired": _tired_eye,
     "strong_hand": _axe,
     "steady_hand": _hook,
     "well_fed": _bowl,

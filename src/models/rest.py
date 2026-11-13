@@ -2,8 +2,9 @@
 
 The player grows tired by the game hours they are up (`Player.tiredness`, 0 to
 1): from rested to worn out in `HOURS_TO_EXHAUSTION` (40) hours, more slowly
-while a meal keeps the player Well Fed (models/meal_effects.py). It does nothing
-yet. Resting brings it down by `REST_RECOVERY_PER_HOUR` an hour, so a night's
+while a meal keeps the player Well Fed (models/meal_effects.py). From 80 % on it
+tells (models/drowsiness.py): the view narrows, the walk slows, the minigames go
+worse. Resting brings it down by `REST_RECOVERY_PER_HOUR` an hour, so a night's
 `FULL_REST_HOURS` (8) clears it whatever it was.
 
 The first place to rest is Uncle Gared's shop (`intro.SHOP_HOUSE`), once he has

@@ -10,6 +10,7 @@ import pytmx
 import datetime
 from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from .effect_circles import draw_effect_circles
+from .drowsy_view import draw_drowsy_view, player_centre
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import (
@@ -210,7 +211,14 @@ def draw_map_view(
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
 
-    # What acts on the player (a meal, the weather), as circles in the top left corner
+    # Worn out, the view narrows round the player and now and then the eyes fall shut (models/drowsiness.py)
+    game = game_state.game
+    player_model = getattr(game, "player", None)
+    if player_model is not None:
+        draw_drowsy_view(screen, map_content_rect, player_centre(game_map, (offset_x, offset_y)),
+                         getattr(game, "drowsiness", None), player_model.tiredness)
+
+    # What acts on the player (a meal, the weather, tiredness), as circles in the top left corner
     draw_effect_circles(screen, map_content_rect, game_state)
 
     # The address the player is looking for, folded at the top, while they look
