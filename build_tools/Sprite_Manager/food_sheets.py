@@ -224,4 +224,21 @@ def save_picture(subject, output):
         backup.parent.mkdir(parents=True, exist_ok=True)
         backup.write_bytes(path.read_bytes())
     pygame.image.save(output, str(path))
-    return f'{"Replaced" if replaced else "Saved"} {path.name}' + (' (the old one is in replaced/)' if replaced else '')
+    message = f'{"Replaced" if replaced else "Saved"} {path.name}' + (' (the old one is in replaced/)' if replaced else '')
+    return message + _make_previews(path)
+
+
+def _make_previews(path):
+    """The Gourmet Collection's small picture and grey silhouette of a dish picture just saved
+    (the game's src/ui/dish_previews.py); what to add to the status message."""
+    try:
+        import sys
+        from theme import ROOT
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from src.ui.dish_previews import make_previews
+        make_previews(str(path))
+        return ', previews made'
+    except Exception as exc:  # the picture is saved all the same
+        return f', but its previews were not made ({exc}); run build_tools/Dish_Previews/make_dish_previews.py'
+
