@@ -99,7 +99,7 @@ def test_hovering_a_tasted_card_tells_all_and_an_untasted_one_only_where_it_is_s
     window.draw()
 
 
-def test_the_pictures_are_made_a_few_a_frame_and_greyed_for_a_dish_not_tasted(state):
+def test_the_pictures_are_made_a_few_a_frame_and_a_dish_not_tasted_shows_only_its_grey_outline(state):
     pigeons = next(d for d in all_dishes() if d.name == "Roast Pigeons")
     peacock = next(d for d in all_dishes() if d.name == "Peacock in its Feathers")
     state.game.depot.stats.dishes_tried = {"roast_pigeons": 1}
@@ -111,8 +111,48 @@ def test_the_pictures_are_made_a_few_a_frame_and_greyed_for_a_dish_not_tasted(st
     tasted = gourmet_window._thumbs[(gourmet_window.dish_picture_path(pigeons), True)]
     untasted = gourmet_window._thumbs[(gourmet_window.dish_picture_path(peacock), False)]
     assert tasted.get_width() <= GourmetWindow.PICTURE_W and tasted.get_height() <= GourmetWindow.PICTURE_H
-    r, g, b, a = untasted.get_at((untasted.get_width() // 2, untasted.get_height() // 2))
-    assert r == g == b and a < 255                        # grey and faded
+    # Only the one grey, solid in the middle, see-through at the corners: nothing of the dish but its shape
+    w, h = untasted.get_size()
+    colours = {untasted.get_at((x, y))[:3] for x in range(w) for y in range(h) if untasted.get_at((x, y)).a > 0}
+    assert colours == {gourmet_window.SILHOUETTE}
+    assert untasted.get_at((w // 2, h // 2)).a >= 250              # solid, but for the scaling's rounding
+    assert untasted.get_at((0, 0)).a == 0
+
+
+def test_the_outline_is_found_on_a_painted_background_and_comes_out_solid():
+    """A dish drawn on a wall and a table, its inside the table's colour: the shape is the whole dish."""
+    pygame.init()
+    picture = pygame.Surface((160, 120))
+    picture.fill((158, 146, 120))                                   # the wall
+    pygame.draw.rect(picture, (140, 126, 96), (0, 70, 160, 50))     # the table
+    for y in range(72, 120, 6):
+        pygame.draw.line(picture, (130, 116, 88), (0, y), (160, y))  # its grain
+    pygame.draw.ellipse(picture, (30, 24, 20), (30, 30, 100, 70))    # the dish's dark outline
+    pygame.draw.ellipse(picture, (140, 126, 96), (34, 34, 92, 62))   # filled with the table's colour
+    pygame.draw.circle(picture, (150, 120, 80), (8, 112), 2)        # a crumb by itself
+    mask = gourmet_window.dish_mask(picture)
+    assert mask.get_at((80, 65)) == 1                               # the middle is the dish, not a hole
+    assert mask.get_at((5, 5)) == 0 and mask.get_at((150, 110)) == 0
+    assert mask.get_at((8, 112)) == 0                               # the crumb is trimmed off
+    assert len(mask.connected_components()) == 1
+
+
+def test_clicking_a_tasted_dish_shows_it_large_and_a_click_comes_back(state):
+    from src.ui.helper_modules.tavern_menu_window import DishServedWindow
+    pigeons = next(d for d in all_dishes() if d.name == "Roast Pigeons")
+    peacock = next(d for d in all_dishes() if d.name == "Peacock in its Feathers")
+    state.game.depot.stats.dishes_tried = {"roast_pigeons": 2}
+    window = GourmetWindow(state.screen, state, [pigeons, peacock])
+    state.info_window = window
+    window.handle_click(window.card_rect(1).center)                 # not tasted: nothing to see
+    assert state.info_window is window
+    window.handle_click(window.card_rect(0).center)
+    served = state.info_window
+    assert isinstance(served, DishServedWindow) and served.dish is pigeons
+    assert "Click to see it larger" in [text for text, _ in window.tooltip_lines(pigeons)]
+    served.draw()
+    served.handle_click(served.panel.center)
+    assert state.info_window is window
 
 
 def test_the_guildhall_offers_it(state):

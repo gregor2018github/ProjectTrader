@@ -2,11 +2,23 @@
 
 A page each for the plates, the bowls and the drinks (`Dish.type`), on the sheet the
 guild's records are drawn on (`records_window.py`). Every dish is a card: its picture,
-its name and how often it was eaten. A dish not tasted yet is greyed out, its picture
-faded, with a question mark for its name. Hovering a card tells more: what it is, where
-it is served and what it does for the player (models/meal_effects.py); of a dish not
-tasted only where it is served. The dishes go from the plain tavern's to the fine one's,
-by course and price within each.
+its name and how often it was eaten; clicking a tasted one shows its picture large
+(the tavern's `DishServedWindow`, which comes back here). A dish not tasted yet is greyed
+out with a question mark for its name, and of its picture only its outline is shown, a
+flat grey shape (`silhouette`), so a plate is a plate and a cup a cup, but what is on it
+cannot be told. Hovering a card tells more: what it is, where it is served and what it
+does for the player (models/meal_effects.py); of a dish not tasted only where it is
+served. The dishes go from the plain tavern's to the fine one's, by course and price
+within each.
+
+The pictures have a painted wall and table behind the dish, no see-through background,
+so the outline is found from the picture: the colours along its edges are the
+background's, everything reached from the edges through such colours is background, and
+the rest is the dish (`dish_mask`). The dish's own outline is thickened before the
+background is let in and thinned after (`SILHOUETTE_CLOSE_PX`), so it does not leak in
+where food is coloured like the table, and thin bits (crumbs by a bowl) are trimmed off
+(`SILHOUETTE_TRIM_PX`). It is worked out at twice the size, its edge rounded off and
+made soft (`SILHOUETTE_ROUND`, `SILHOUETTE_FEATHER`).
 
 What a dish has been eaten comes from `Statistics.dishes_tried`, by `dish_key`. The
 pictures are large, so their small copies (`thumbnail`) are made a few at a time while
@@ -21,6 +33,7 @@ from typing import Dict, List, Optional, Sequence, Tuple, TYPE_CHECKING
 import pygame
 
 from .loan_dialog import _BaseDialog
+from .tavern_menu_window import DishServedWindow, dish_picture
 from .records_window import RecordsWindow, _FAINT_INK, _leaf, _picture_frame
 from ..layout_modules.effect_circles import line_pitch
 from ...config.colors import GOLD
@@ -40,7 +53,20 @@ PAGE_NAMES: Dict[str, str] = {"plate": "Plates", "bowl": "Bowls", "drink": "Drin
 SERVED_AT: Dict[str, str] = {"low": "a plain tavern", "middle": "a good inn", "high": "a fine tavern"}
 #: How long making the pictures' small copies may take a frame
 THUMB_BUDGET_S = 0.012
-_GREY_ALPHA = 150                # how faint the picture of a dish not tasted yet is
+#: The outline of a dish not tasted yet: its colour, the background it stands on
+SILHOUETTE = (128, 118, 104)
+SILHOUETTE_GROUND = (198, 190, 174)
+#: Finding the dish in its picture: how near a background colour a pixel must be (each channel),
+#: how far the dish's own outline is thickened while the background is let in, and how thin
+#: a bit sticking out is trimmed off; and the share of the largest shape a lone bit must have
+SILHOUETTE_TOLERANCE = 20
+SILHOUETTE_CLOSE_PX = 3
+SILHOUETTE_TRIM_PX = 2
+SILHOUETTE_KEEP_SHARE = 0.03
+#: Smoothing the outline: how much its ragged edge is rounded off, and how soft its edge is
+#: (each the times a picture is made smaller to blur it; more is smoother)
+SILHOUETTE_ROUND = 4
+SILHOUETTE_FEATHER = 6
 _PLATE_EMPTY = (226, 214, 188)   # a card's picture still being made, or a dish with none
 
 _thumbs: Dict[Tuple[str, bool], Optional[pygame.Surface]] = {}   # (path, tasted) -> its small copy
@@ -68,8 +94,87 @@ def eaten_text(times: int) -> str:
     return "Eaten once" if times == 1 else f"Eaten {times} times"
 
 
+def _grow(mask: pygame.mask.Mask, radius: int) -> pygame.mask.Mask:
+    """The mask with every set pixel spread to a disc of `radius` round it."""
+    grown = pygame.mask.Mask(mask.get_size())
+    for dx in range(-radius, radius + 1):
+        for dy in range(-radius, radius + 1):
+            if dx * dx + dy * dy <= radius * radius:
+                grown.draw(mask, (dx, dy))
+    return grown
+
+
+def _shrink(mask: pygame.mask.Mask, radius: int) -> pygame.mask.Mask:
+    """The mask with `radius` taken off its every edge."""
+    outside = mask.copy()
+    outside.invert()
+    shrunk = _grow(outside, radius)
+    shrunk.invert()
+    return shrunk
+
+
+def dish_mask(picture: pygame.Surface) -> pygame.mask.Mask:
+    """Where the dish is in its picture, as a solid shape (see the module)."""
+    w, h = picture.get_size()
+    edge = ([picture.get_at((x, y))[:3] for x in range(0, w, 3) for y in (0, 1, h - 2, h - 1)]
+            + [picture.get_at((x, y))[:3] for y in range(0, h, 3) for x in (0, 1, w - 2, w - 1)])
+    palette: List[Tuple[int, int, int]] = []
+    for colour in edge:
+        if all(sum(abs(a - b) for a, b in zip(colour, known)) > 18 for known in palette):
+            palette.append(colour)
+    tolerance = (SILHOUETTE_TOLERANCE, SILHOUETTE_TOLERANCE, SILHOUETTE_TOLERANCE, 255)
+    like_background = pygame.mask.Mask((w, h))
+    for colour in palette:
+        like_background.draw(pygame.mask.from_threshold(picture, colour, tolerance), (0, 0))
+    dish = like_background.copy()
+    dish.invert()
+    # The background is what the edges reach past the thickened dish; all else is the dish, holes filled
+    open_ground = _grow(dish, SILHOUETTE_CLOSE_PX)
+    open_ground.invert()
+    background = pygame.mask.Mask((w, h))
+    for part in open_ground.connected_components():
+        if any(r.left == 0 or r.top == 0 or r.right == w or r.bottom == h for r in part.get_bounding_rects()):
+            background.draw(part, (0, 0))
+    background = _grow(background, SILHOUETTE_CLOSE_PX)   # the thickening taken off again
+    shape = background.copy()
+    shape.invert()
+    # Thin bits trimmed off, and lone bits far smaller than the dish dropped
+    shape = _grow(_shrink(shape, SILHOUETTE_TRIM_PX), SILHOUETTE_TRIM_PX)
+    parts = shape.connected_components()
+    kept = pygame.mask.Mask((w, h))
+    if parts:
+        largest = max(part.count() for part in parts)
+        for part in parts:
+            if part.count() >= SILHOUETTE_KEEP_SHARE * largest:
+                kept.draw(part, (0, 0))
+    return kept
+
+
+def silhouette(picture: pygame.Surface, size: Tuple[int, int]) -> pygame.Surface:
+    """The dish's outline as a flat grey shape, `size` large, with smooth edges.
+
+    The shape is found at twice the size (`dish_mask`), whose edge is ragged; it is rounded
+    off by blurring it (made `SILHOUETTE_ROUND` times smaller and large again at four times
+    the size) and cutting it back to a sharp shape there, and then given a soft edge
+    (blurred again, `SILHOUETTE_FEATHER`, and kept soft as it comes down to `size`).
+    """
+    w, h = size
+    double = pygame.transform.smoothscale(picture, (w * 2, h * 2))
+    shape = dish_mask(double).to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(0, 0, 0, 255))
+    blurred = pygame.transform.smoothscale(
+        pygame.transform.smoothscale(shape, (max(1, w * 2 // SILHOUETTE_ROUND), max(1, h * 2 // SILHOUETTE_ROUND))),
+        (w * 4, h * 4))
+    rounded = pygame.mask.from_threshold(blurred, (255, 255, 255), (128, 128, 128, 255))
+    sharp = rounded.to_surface(setcolor=(255, 255, 255, 255), unsetcolor=(255, 255, 255, 0))
+    soft = pygame.transform.smoothscale(
+        pygame.transform.smoothscale(sharp, (max(1, w * 4 // SILHOUETTE_FEATHER), max(1, h * 4 // SILHOUETTE_FEATHER))),
+        size)
+    soft.fill(SILHOUETTE, special_flags=pygame.BLEND_RGB_MIN)   # white to the grey, the soft edge kept
+    return soft
+
+
 def thumbnail(dish: Dish, tasted: bool, size: Tuple[int, int]) -> Optional[pygame.Surface]:
-    """The dish's picture made small to fit `size`, greyed and faded if not tasted; None if it has none."""
+    """The dish's picture made small to fit `size`, or only its outline if not tasted; None if it has none."""
     path = dish_picture_path(dish)
     key = (path, tasted)
     if key not in _thumbs:
@@ -78,13 +183,13 @@ def thumbnail(dish: Dish, tasted: bool, size: Tuple[int, int]) -> Optional[pygam
             try:
                 big = pygame.image.load(path)
                 scale = min(size[0] / big.get_width(), size[1] / big.get_height())
-                picture = pygame.transform.smoothscale(
-                    big, (max(1, round(big.get_width() * scale)), max(1, round(big.get_height() * scale))))
+                fitted = (max(1, round(big.get_width() * scale)), max(1, round(big.get_height() * scale)))
+                if tasted:
+                    picture = pygame.transform.smoothscale(big, fitted)
+                else:
+                    picture = silhouette(big.convert() if pygame.display.get_surface() else big, fitted)
                 if pygame.display.get_surface() is not None:
                     picture = picture.convert_alpha()
-                if not tasted:
-                    picture = pygame.transform.grayscale(picture)
-                    picture.fill((255, 255, 255, _GREY_ALPHA), special_flags=pygame.BLEND_RGBA_MULT)
             except pygame.error as error:
                 print(f"Warning: could not read the picture of {dish.name!r}: {error}")
                 picture = None
@@ -187,7 +292,22 @@ class GourmetWindow(_BaseDialog):
             if rect.collidepoint(pos):
                 self.page = kind
                 return True
+        dish = self.hovered_dish(pos)
+        if dish is not None:
+            self.enlarge(dish)
+            return True
         return super().handle_click(pos)
+
+    def enlarge(self, dish: Dish) -> bool:
+        """Show a tasted dish's picture large; a click there comes back here. False if it cannot be."""
+        if not self.tasted(dish):
+            return False
+        picture = dish_picture(dish)
+        if picture is None:
+            return False
+        self.game_state.info_window = DishServedWindow(self.screen, self.game_state, self, dish, picture,
+                                                       back_hint="Click to go back to the collection.")
+        return True
 
     # -- the pages, drawn once ----------------------------------------------
 
@@ -220,7 +340,7 @@ class GourmetWindow(_BaseDialog):
         _leaf(sheet, card, tasted)
         picture = self._local(self.picture_rect(self.card_rect(index)))
         _picture_frame(sheet, picture, tasted)
-        sheet.fill(_PLATE_EMPTY if tasted else (198, 190, 174), picture)
+        sheet.fill(_PLATE_EMPTY if tasted else SILHOUETTE_GROUND, picture)
         known = (dish_picture_path(dish), tasted) in _thumbs
         thumb = _thumbs.get((dish_picture_path(dish), tasted)) if known else None
         if thumb is not None:
@@ -292,7 +412,8 @@ class GourmetWindow(_BaseDialog):
                                                          self.TOOLTIP_W - 2 * self.TOOLTIP_PAD)]
                 + [(f"{served}, {dish.price:.2f} coins", INK),
                    (f"{effect}, {hours}", (40, 96, 40)),
-                   (eaten_text(times_eaten(self._stats, dish)), INK)])
+                   (eaten_text(times_eaten(self._stats, dish)), INK)]
+                + ([("Click to see it larger", _FAINT_INK)] if os.path.exists(dish_picture_path(dish)) else []))
 
     def _draw_tooltip(self, surf: pygame.Surface, dish: Dish, mouse: Tuple[int, int], off: Tuple[int, int]) -> None:
         title = self.tip_title_font.render(dish.name if self.tasted(dish) else UNKNOWN_NAME, True, INK)

@@ -253,15 +253,17 @@ class TavernMenuWindow(_BaseDialog):
 class DishServedWindow(_BaseDialog):
     """The dish just ordered, brought to the table: its picture, name and description.
 
-    Any click, or Escape, goes back to the tavern's bill of fare.
+    Any click, or Escape, goes back to the window it was opened from: the tavern's bill of
+    fare, or the guild's Gourmet Collection (`back_hint` says which).
     """
 
     W = PICTURE_MAX[0] + 2 * CARD_MARGIN
 
-    def __init__(self, screen: pygame.Surface, game_state: 'GameState', menu: TavernMenuWindow,
-                 dish: Dish, picture: pygame.Surface) -> None:
+    def __init__(self, screen: pygame.Surface, game_state: 'GameState', menu: _BaseDialog,
+                 dish: Dish, picture: pygame.Surface,
+                 back_hint: str = "Click to go back to the bill of fare.") -> None:
         self.menu = menu
-        self.house = menu.house  # closes it when the player walks off (map_view)
+        self.house = getattr(menu, "house", None)  # closes it when the player walks off (map_view)
         self.dish = dish
         self.picture = picture
         self.title_font, self.body_font = _load_fonts()
@@ -270,7 +272,7 @@ class DishServedWindow(_BaseDialog):
                       for part in _wrap(dish.description, self.small_font, self.W - 2 * CARD_MARGIN)]
         effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
         self.lines.append(self.small_font.render(f"{effect} for {meal_effects.describe_hours(meal_effects.meal_hours(dish))}", True, EFFECT_COLOR))
-        self.lines.append(self.small_font.render("Click to go back to the bill of fare.", True, DARK_BROWN))
+        self.lines.append(self.small_font.render(back_hint, True, DARK_BROWN))
         height = (self.HDR + self.PAD + picture.get_height() + CARD_GAP
                   + sum(line.get_height() for line in self.lines) + self.PAD + 6)
         super().__init__(screen, game_state, self.W, min(SCREEN_HEIGHT - 40, height))
