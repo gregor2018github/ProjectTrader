@@ -44,12 +44,15 @@ def test_nothing_on_the_player_nothing_shown():
 
 
 def test_a_meals_ring_runs_out_with_its_hours():
+    hours = meal_effects.meal_hours(PIGEONS)
     effects = player_effects(_game(meal_at=NOON - datetime.timedelta(hours=1.5)), NOON)
     assert [e.key for e in effects] == [meal_effects.STRONG_HAND]
     meal = effects[0]
-    assert meal.share_left == pytest.approx(4.5 / 6) and not meal.harmful
+    assert meal.share_left == pytest.approx((hours - 1.5) / hours) and not meal.harmful
     assert meal.title == "Strong Hand"
-    assert "4h 30m left of 6h" in meal.lines and "From the Roast Pigeons" in meal.lines
+    left = round((hours - 1.5) * 60)
+    assert f"{left // 60}h {left % 60:02d}m left of {hours:g}h" in meal.lines
+    assert "From the Roast Pigeons" in meal.lines
 
 
 def test_the_weather_is_a_red_circle_named_after_its_worst_part():

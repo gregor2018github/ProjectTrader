@@ -35,7 +35,9 @@ def dish(course="main", meat=False, price=5.0, name="Some Dish"):
 def test_the_constants_the_tests_rely_on():
     assert (me.STRENGTH_MIN, me.STRENGTH_MAX) == (0.02, 0.15)
     assert (me.PRICE_FLOOR, me.PRICE_CEILING) == (0.25, 60.0)
-    assert me.MEAL_HOURS == 6.0
+    assert (me.MEAL_HOURS_MIN, me.MEAL_HOURS_MAX) == (6.0, 12.0)
+    assert me.COURSE_STAYING == {"main": 1.0, "pottage": 0.8, "side": 0.5, "sweet": 0.3, "drink": 0.0}
+    assert me.DURATION_WEIGHTS == (0.5, 0.3, 0.2)
     assert (weather_module.WALK_SLOW_RAIN, weather_module.WALK_SLOW_MUD,
             weather_module.WALK_SLOW_SNOW, weather_module.WALK_SLOW_MAX) == (0.06, 0.05, 0.12, 0.15)
 
@@ -74,13 +76,32 @@ def test_only_the_dearest_dishes_come_near_fifteen_percent():
 
 # ── One meal at a time ───────────────────────────────────────────────────────
 
-def test_a_meal_lasts_six_hours():
+def test_a_meal_lasts_its_hours():
     player = Player("P", 1.0)
-    eat(player, dish("sweet", price=5.0), NOON)
+    sweet = dish("sweet", price=5.0)
+    hours = me.meal_hours(sweet)
+    eat(player, sweet, NOON)
     strength = effect_strength(5.0)
-    assert bonus(player, LIGHT_STEP, NOON + datetime.timedelta(hours=5, minutes=59)) == strength
-    assert bonus(player, LIGHT_STEP, NOON + datetime.timedelta(hours=6)) == 0.0
+    assert bonus(player, LIGHT_STEP, NOON + datetime.timedelta(hours=hours) - datetime.timedelta(minutes=1)) == strength
+    assert bonus(player, LIGHT_STEP, NOON + datetime.timedelta(hours=hours)) == 0.0
     assert bonus(player, WELL_FED, NOON) == 0.0           # only its own kind
+    assert current_meal(player, NOON).share_left(NOON + datetime.timedelta(hours=hours / 2)) == pytest.approx(0.5)
+
+
+def test_the_meals_last_six_to_twelve_hours_in_half_hours_the_hearty_longest():
+    dishes = all_dishes()
+    hours = {d.name: me.meal_hours(d) for d in dishes}
+    assert all(6.0 <= h <= 12.0 and h * 2 == int(h * 2) for h in hours.values())
+    assert len(set(hours.values())) >= 8                  # they vary
+    by_course = {}
+    for d in dishes:
+        by_course.setdefault(d.course, []).append(hours[d.name])
+    mean = {course: sum(v) / len(v) for course, v in by_course.items()}
+    assert mean["main"] > mean["pottage"] > mean["side"] > mean["drink"]
+    assert mean["sweet"] > mean["drink"]
+    # A dish lasts the same every time; the price lengthens it
+    assert me.meal_hours(dish("pottage", price=0.5, name="Joutes")) == me.meal_hours(dish("pottage", price=0.5, name="Joutes"))
+    assert me.meal_hours(dish("pottage", price=15.0)) > me.meal_hours(dish("pottage", price=0.25))
 
 
 def test_a_new_meal_replaces_the_last():
@@ -92,8 +113,11 @@ def test_a_new_meal_replaces_the_last():
 
 
 def test_a_meal_is_saved_and_anything_odd_is_dropped():
-    meal = MealEffect("Roast Pigeons", STRONG_HAND, 0.09, NOON)
+    meal = MealEffect("Roast Pigeons", STRONG_HAND, 0.09, NOON, 10.5)
     assert MealEffect.from_save(meal.to_save()) == meal
+    older = meal.to_save()
+    del older["hours"]
+    assert MealEffect.from_save(older).hours == 6.0       # saved before the durations varied
     assert MealEffect.from_save(None) is None
     assert MealEffect.from_save({"kind": "flying", "dish": "x", "strength": 1, "until": NOON.isoformat()}) is None
     assert MealEffect.from_save({"kind": STRONG_HAND}) is None

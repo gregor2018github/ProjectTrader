@@ -17,13 +17,19 @@ dearest (`PRICE_CEILING`): a rye bread gives 2 %, a mid tavern's roast about 9 %
 only the high tavern's grandest mains come near 15 %. Strong Hand never comes on a
 fast day, as no meat is served then.
 
+How long it lasts (`meal_hours`) is `MEAL_HOURS_MIN` (6) to `MEAL_HOURS_MAX` (12) hours
+of game time: mostly by how filling its course is (`COURSE_STAYING`: a main dish
+the longest, a drink the shortest), then by its price, and a little by the dish
+itself (`_dish_variation`, the same for a dish every time), in half hours.
+
 The player has one meal's effect at a time (`Player.meal`, saved): a new dish
 replaces whatever the last one gave, the same dish again starts its hours afresh.
-It lasts `MEAL_HOURS` of game time. No pygame here.
+No pygame here.
 """
 
 import datetime
 import math
+import zlib
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -45,8 +51,13 @@ STRENGTH_MIN = 0.02
 STRENGTH_MAX = 0.15
 PRICE_FLOOR = 0.25
 PRICE_CEILING = 60.0
-#: Game hours a meal's effect lasts
-MEAL_HOURS = 6.0
+#: Game hours a meal's effect lasts, the shortest and the longest
+MEAL_HOURS_MIN = 6.0
+MEAL_HOURS_MAX = 12.0
+#: How filling each course is, 0 to 1: what decides most of how long a dish lasts
+COURSE_STAYING: Dict[str, float] = {"main": 1.0, "pottage": 0.8, "side": 0.5, "sweet": 0.3, "drink": 0.0}
+#: The shares of the span between the shortest and longest set by the course, the price and the dish
+DURATION_WEIGHTS = (0.5, 0.3, 0.2)
 
 
 def effect_kind(dish: Any) -> str:
@@ -60,11 +71,33 @@ def effect_kind(dish: Any) -> str:
     return WELL_FED   # pottage, side
 
 
+def _price_share(price: float) -> float:
+    """Where a price lies between `PRICE_FLOOR` and `PRICE_CEILING`, on a log scale, 0 to 1."""
+    share = math.log(max(price, PRICE_FLOOR) / PRICE_FLOOR) / math.log(PRICE_CEILING / PRICE_FLOOR)
+    return min(1.0, max(0.0, share))
+
+
 def effect_strength(price: float) -> float:
     """How strong a dish's effect is, by its price: `STRENGTH_MIN` to `STRENGTH_MAX`."""
-    share = math.log(max(price, PRICE_FLOOR) / PRICE_FLOOR) / math.log(PRICE_CEILING / PRICE_FLOOR)
-    share = min(1.0, max(0.0, share))
-    return round(STRENGTH_MIN + (STRENGTH_MAX - STRENGTH_MIN) * share, 3)
+    return round(STRENGTH_MIN + (STRENGTH_MAX - STRENGTH_MIN) * _price_share(price), 3)
+
+
+def _dish_variation(name: str) -> float:
+    """0 to 1, fixed for a dish's name: dishes of a course and price do not all last alike."""
+    return (zlib.crc32(name.encode("utf-8")) % 1000) / 999.0
+
+
+def meal_hours(dish: Any) -> float:
+    """How long a dish's effect lasts, `MEAL_HOURS_MIN` to `MEAL_HOURS_MAX`, in half hours."""
+    course_w, price_w, dish_w = DURATION_WEIGHTS
+    share = (course_w * COURSE_STAYING.get(dish.course, 0.5) + price_w * _price_share(dish.price)
+             + dish_w * _dish_variation(dish.name))
+    return round((MEAL_HOURS_MIN + (MEAL_HOURS_MAX - MEAL_HOURS_MIN) * share) * 2) / 2
+
+
+def describe_hours(hours: float) -> str:
+    """'6 hours', '7.5 hours'."""
+    return f"{hours:g} hours"
 
 
 def percent(strength: float) -> str:
@@ -83,6 +116,7 @@ class MealEffect:
     kind: str
     strength: float
     until: datetime.datetime
+    hours: float = MEAL_HOURS_MIN    # how long it lasts in all
 
     def active(self, now: datetime.datetime) -> bool:
         return now < self.until
@@ -90,12 +124,16 @@ class MealEffect:
     def hours_left(self, now: datetime.datetime) -> float:
         return max(0.0, (self.until - now).total_seconds() / 3600.0)
 
+    def share_left(self, now: datetime.datetime) -> float:
+        """How much of its time is left, 1 just eaten to 0 run out."""
+        return min(1.0, self.hours_left(now) / self.hours) if self.hours > 0 else 0.0
+
     def describe(self) -> str:
         return describe(self.kind, self.strength)
 
     def to_save(self) -> Dict[str, Any]:
         return {"dish": self.dish, "kind": self.kind, "strength": self.strength,
-                "until": self.until.isoformat()}
+                "until": self.until.isoformat(), "hours": self.hours}
 
     @classmethod
     def from_save(cls, data: Optional[Dict[str, Any]]) -> Optional["MealEffect"]:
@@ -106,16 +144,18 @@ class MealEffect:
             kind = data["kind"]
             if kind not in EFFECTS:
                 return None
+            # A save from before the durations varied: they all lasted the shortest
             return cls(str(data["dish"]), kind, float(data["strength"]),
-                       datetime.datetime.fromisoformat(data["until"]))
+                       datetime.datetime.fromisoformat(data["until"]), float(data.get("hours", MEAL_HOURS_MIN)))
         except (KeyError, TypeError, ValueError):
             return None
 
 
 def meal_effect(dish: Any, now: datetime.datetime) -> MealEffect:
     """The effect of eating `dish` at `now`."""
+    hours = meal_hours(dish)
     return MealEffect(dish.name, effect_kind(dish), effect_strength(dish.price),
-                      now + datetime.timedelta(hours=MEAL_HOURS))
+                      now + datetime.timedelta(hours=hours), hours)
 
 
 def eat(player: Any, dish: Any, now: datetime.datetime) -> MealEffect:

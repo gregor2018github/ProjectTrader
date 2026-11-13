@@ -71,9 +71,9 @@ def player_effects(game: Any, now) -> List[PlayerEffect]:
             meal.kind, info["name"],
             [info["does"].format(pct=meal_effects.percent(meal.strength)),
              f"From the {meal.dish}",
-             f"{_duration(meal.hours_left(now))} left of {meal_effects.MEAL_HOURS:.0f}h",
+             f"{_duration(meal.hours_left(now))} left of {meal.hours:g}h",
              "A new meal takes its place."],
-            min(1.0, meal.hours_left(now) / meal_effects.MEAL_HOURS), False))
+            meal.share_left(now), False))
     weather = getattr(game, "weather", None)
     if weather is not None:
         slowdown = weather.walking_slowdown()

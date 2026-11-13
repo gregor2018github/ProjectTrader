@@ -152,7 +152,7 @@ class TavernMenuWindow(_BaseDialog):
         lines += [self.small_font.render(part, True, DESCRIPTION_COLOR)
                   for part in _wrap(dish.description, self.small_font, width)]
         effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
-        lines.append(self.small_font.render(f"{effect}, {meal_effects.MEAL_HOURS:.0f} hours", True, EFFECT_COLOR))
+        lines.append(self.small_font.render(f"{effect}, {meal_effects.describe_hours(meal_effects.meal_hours(dish))}", True, EFFECT_COLOR))
         return lines
 
     def card_rect(self, index: int) -> pygame.Rect:
@@ -269,7 +269,7 @@ class DishServedWindow(_BaseDialog):
         self.lines = [self.small_font.render(part, True, DESCRIPTION_COLOR)
                       for part in _wrap(dish.description, self.small_font, self.W - 2 * CARD_MARGIN)]
         effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
-        self.lines.append(self.small_font.render(f"{effect} for {meal_effects.MEAL_HOURS:.0f} hours", True, EFFECT_COLOR))
+        self.lines.append(self.small_font.render(f"{effect} for {meal_effects.describe_hours(meal_effects.meal_hours(dish))}", True, EFFECT_COLOR))
         self.lines.append(self.small_font.render("Click to go back to the bill of fare.", True, DARK_BROWN))
         height = (self.HDR + self.PAD + picture.get_height() + CARD_GAP
                   + sum(line.get_height() for line in self.lines) + self.PAD + 6)
