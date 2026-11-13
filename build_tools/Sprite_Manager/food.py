@@ -35,7 +35,7 @@ TYPES = (
 TYPE_TITLES = {key: title for key, title, _ in TYPES}
 
 # The dish whose picture the others of its type are drawn after
-EXAMPLE_DISHES = {'plate': 'Roast Pigeons'}
+EXAMPLE_DISHES = {'plate': 'Roast Pigeons', 'drink': 'Buttermilk'}
 
 FOOD_PICTURES = 'food pictures'   # what the app's GIMP watch files a dish's picture under
 

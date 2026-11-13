@@ -1,8 +1,10 @@
 """A dish's picture: the example it is drawn after, the prompt, and the picture an answer makes.
 
 A dish is drawn after its type's example (food.example_of): the model gets the example's picture as it
-is, and a prompt asking for the very same picture - the same plate (or bowl, or cup), the same table,
-angle, framing, light and pixel art - with only the food on it changed to the dish. There is no sketch
+is, and a prompt asking for the very same picture - the same plate (or bowl), the same table, angle,
+framing, light and pixel art - with only the food on it changed to the dish. A drink's prompt is shorter
+and asks for a vessel of its own, one the tavern of its class would have poured it into then, so that
+the drinks do not all come in the example's cup. There is no sketch
 and no split image: the answer is the whole new picture.
 
 Accepting an answer (view_food_answers.py) fits it to the example's proportions (cutting off what sticks
@@ -34,7 +36,6 @@ REPLACED_DIR = 'replaced'
 VESSELS = {
     'plate': 'plate',
     'bowl': 'bowl',
-    'drink': 'cup',
 }
 
 PROMPT_TEMPLATE = """\
@@ -51,14 +52,32 @@ Change only the food. Everything else stays exactly as it is in the attached pic
 
 The new food:
 - Is clearly recognisable as {name} at a glance, as a medieval cook around 1500 would have served it.
-- Fills the {vessel} about as much as the food in the attached picture does{fill_note}.
+- Fills the {vessel} about as much as the food in the attached picture does.
 - Has nothing of the old dish left: no {example_lower}, unless the new dish has it too.
 
 No text, no labels, no frame. Output one single picture with the same proportions as the attached one.
 """
 
-DRINK_NOTE = (', in a vessel that suits the drink as the example\'s suits its own: a tankard or mug for ale, beer and '
-              'milk, a goblet for wine and mead - keep the example\'s vessel if it already suits')
+# Drinks get a shorter prompt of their own: the same scene and style as the example, but a vessel chosen
+# for the drink and the tavern, so the drinks do not all come in the example's cup
+DRINK_TEMPLATE = """\
+The attached picture is from my medieval trading game "Merchant's Rise": a drink served at a tavern, here {example} ({example_description}).
+
+Draw the same picture for another drink: {name} - {description}, served at {tavern} around 1500.
+
+Keep the same table, background, viewing angle, framing, light and shadows, and the same style: rough, chunky pixel art with big square pixels, thick black outlines, flat colours with few shades, hard edges, no gradients or fine detail.
+
+Do not copy the vessel in the attached picture. Pour the drink into what such a house would really have served it in then - for example a wooden or leather tankard, an earthenware mug or jug, a pewter cup, a horn beaker, a silver goblet or a glass roemer - so that each drink looks different. The vessel stands where the old one stood, about as big in the picture, and the drink is clearly recognisable by its colour and look.
+
+No text, no labels, no frame. Output one single picture with the same proportions as the attached one.
+"""
+
+# How a drink's prompt names the tavern, since the vessel should suit its standing
+DRINK_TAVERNS = {
+    'low': 'a poor alehouse for labourers',
+    'middle': 'a decent inn for craftsmen and travellers',
+    'high': 'a fine inn for rich merchants and nobles',
+}
 
 
 class DishSubject:
@@ -99,13 +118,18 @@ class DishSheet:
 
 def prompt_for(dish, example):
     """The prompt asking for `dish` drawn as `example` is."""
+    tavern = CLASS_TITLES.get(dish.tavern_class, dish.tavern_class).lower()
+    if dish.type == 'drink':
+        return DRINK_TEMPLATE.format(
+            example=example.name, example_lower=example.name.lower(), example_description=example.description,
+            name=dish.name, description=dish.description,
+            tavern=DRINK_TAVERNS.get(dish.tavern_class, f'a {tavern} tavern'),
+        )
     vessel = VESSELS.get(dish.type, 'plate')
-    served = {'plate': 'on a plate', 'bowl': 'in a bowl', 'drink': 'as a drink'}.get(dish.type, 'on a plate')
+    served = {'plate': 'on a plate', 'bowl': 'in a bowl'}.get(dish.type, 'on a plate')
     return PROMPT_TEMPLATE.format(
         example=example.name, example_lower=example.name.lower(), example_description=example.description,
-        name=dish.name, description=dish.description, served=served, vessel=vessel,
-        tavern=CLASS_TITLES.get(dish.tavern_class, dish.tavern_class).lower(),
-        fill_note=DRINK_NOTE if dish.type == 'drink' else '',
+        name=dish.name, description=dish.description, served=served, vessel=vessel, tavern=tavern,
     )
 
 
