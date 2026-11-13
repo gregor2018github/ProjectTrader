@@ -14,6 +14,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 from ..models.meal_effects import MealEffect
+from ..models import inn_rooms
 from ..models.statistics import Statistics
 
 from ..config.constants import MARKET_FEE_RATE, PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
@@ -143,6 +144,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
             "reputation": player.reputation,
             "tiredness": player.tiredness,
             "meal": player.meal.to_save() if getattr(player, "meal", None) is not None else None,
+            "rooms": inn_rooms.to_save(player),
             "daily_cost_of_living": player.daily_cost_of_living,
             "position": list(player.position),
             "in_market_area": player.in_market_area,
@@ -468,6 +470,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     player.reputation = float(p["reputation"])
     player.tiredness = float(p.get("tiredness", 0.0))   # a save from before tiredness: rested
     player.meal = MealEffect.from_save(p.get("meal"))    # a save from before meals' effects: none
+    player.rooms = inn_rooms.from_save(p.get("rooms"))   # a save from before the inns' rooms: none booked
     player.daily_cost_of_living = p["daily_cost_of_living"]
     player.position = tuple(p["position"])
     player.in_market_area = p["in_market_area"]

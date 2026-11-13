@@ -24,6 +24,10 @@ once, at the chosen moment all the same. A clock ticks meanwhile (the recording
 `CLOCK_SOUND`, looped): it fades in as the dark falls, and out from the moment
 the hand arrives (`CLOCK_FADE_OUT_S`), or quickly when the player wakes early. The game is
 paused while the window is open; `animate(dt)` is called by the main loop.
+
+In a room booked at an inn (models/inn_rooms.py) the window is given `until`, when
+the room is up: the hand cannot be put past it, the ring beyond it is veiled and
+marked, and "Until sunrise" becomes "Until checkout" if the sun rises later.
 """
 
 import datetime
@@ -41,7 +45,7 @@ from ...config.constants import FONTS_PATH
 from ...models.daylight import ambient_light
 from ...models.rest import (MAX_REST_HOURS, REST_STEP_MINUTES, default_end, first_step, latest_end,
                             snap_end, tiredness_after_rest)
-from ...sim.calendar import format_long
+from ...sim.calendar import format_date, format_long
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -85,18 +89,22 @@ MAX_FRAME_SECONDS = 0.05
 #: and how long it takes to fade out once the hand has arrived, or when the player wakes early;
 #: it fades in over DARKEN_SECONDS
 CLOCK_SOUND = "clock_ticking"
-CLOCK_VOLUME = 0.7
+CLOCK_VOLUME = 0.5
 CLOCK_FADE_OUT_S = 0.9
 CLOCK_WAKE_FADE_S = 0.3
 HAND_SILVER = (226, 228, 234)
+#: The ring past the end of a booked room: veiled, with a red mark where the room is up
+BOOKED_VEIL = (40, 30, 30, 150)
+BOOKED_MARK = (170, 40, 30)
 
 PANEL_W = 620
 DIAL_TOP = 66             # the dial's top, below the panel's
 BUTTON_W, BUTTON_H, BUTTON_GAP = 160, 38, 14
 
 
-def open_rest_window(game_state: 'GameState') -> None:
-    game_state.info_window = RestWindow(game_state.screen, game_state)
+def open_rest_window(game_state: 'GameState', until: Optional[datetime.datetime] = None) -> None:
+    """The clock to rest by; `until` is when a room booked at an inn is up (None: no end)."""
+    game_state.info_window = RestWindow(game_state.screen, game_state, until)
 
 
 def turn_seconds(hours: float) -> float:
@@ -147,9 +155,14 @@ class RestWindow(_BaseDialog):
     #: Keeps the map from zooming under the wheel (EventHandler skips it for a window with this)
     _max_scroll = 0
 
-    def __init__(self, screen: pygame.Surface, game_state: 'GameState') -> None:
+    def __init__(self, screen: pygame.Surface, game_state: 'GameState',
+                 until: Optional[datetime.datetime] = None) -> None:
         self.now: datetime.datetime = game_state.date
-        self.sunrise: datetime.datetime = default_end(self.now)
+        # When the room is up, for a room at an inn (models/inn_rooms.py); None at the uncle's
+        self.until: Optional[datetime.datetime] = until
+        self.sunrise: datetime.datetime = default_end(self.now, until)
+        # Whether the sun rises before the room is up (else the button rests as long as it allows)
+        self.sunrise_in_reach = self.sunrise == default_end(self.now)
         self.end: datetime.datetime = self.sunrise
         self.dragging = False
         self._drag_hours = self.hours_ahead
@@ -173,7 +186,8 @@ class RestWindow(_BaseDialog):
         self.buttons: Dict[str, pygame.Rect] = {
             key: pygame.Rect(left + i * (BUTTON_W + BUTTON_GAP), buttons_y, BUTTON_W, BUTTON_H)
             for i, key in enumerate(("sunrise", "rest", "cancel"))}
-        self.labels = {"sunrise": "Until sunrise", "rest": "Rest", "cancel": "Cancel"}
+        self.labels = {"sunrise": "Until sunrise" if self.sunrise_in_reach else "Until checkout",
+                       "rest": "Rest", "cancel": "Cancel"}
         self.dial = self._make_dial()
         # The game waits while the hand is being set
         self.restore_time_level = game_state.time_level
@@ -223,7 +237,7 @@ class RestWindow(_BaseDialog):
         return angle / (2 * math.pi) * MAX_REST_HOURS
 
     def set_end(self, end: datetime.datetime) -> None:
-        self.end = snap_end(self.now, end)
+        self.end = snap_end(self.now, end, self.until)
         self._drag_hours = self.hours_ahead
 
     def step(self, steps: int) -> None:
@@ -235,10 +249,10 @@ class RestWindow(_BaseDialog):
         raw = self.hours_at(pos)
         hours = min((raw + turn * MAX_REST_HOURS for turn in (-1, 0, 1)), key=lambda h: abs(h - self._drag_hours))
         lowest = (first_step(self.now) - self.now).total_seconds() / 3600.0
-        highest = (latest_end(self.now) - self.now).total_seconds() / 3600.0
+        highest = (latest_end(self.now, self.until) - self.now).total_seconds() / 3600.0
         hours = min(highest, max(lowest, hours))
         self._drag_hours = hours
-        self.end = snap_end(self.now, self.now + datetime.timedelta(hours=hours))
+        self.end = snap_end(self.now, self.now + datetime.timedelta(hours=hours), self.until)
 
     def on_dial(self, pos: Tuple[int, int]) -> bool:
         """Whether `pos` is on the ring (or just outside it), where a press takes the hand."""
@@ -463,6 +477,17 @@ class RestWindow(_BaseDialog):
                              max(1, k if moment.minute else 2 * k))
             moment += quarter
 
+        # Past the end of a booked room: the ring veiled, and a red mark where it is up
+        if self.until is not None:
+            booked = (self.until - self.now).total_seconds() / 3600.0
+            if booked < MAX_REST_HOURS:
+                veil = pygame.Surface(big.get_size(), pygame.SRCALPHA)
+                steps = max(2, int((MAX_REST_HOURS - booked) / MAX_REST_HOURS * RING_SEGMENTS))
+                span = [booked + (MAX_REST_HOURS - booked) * i / steps for i in range(steps + 1)]
+                pygame.draw.polygon(veil, BOOKED_VEIL, [at(h, outer) for h in span] + [at(h, inner) for h in span[::-1]])
+                big.blit(veil, (0, 0))
+                pygame.draw.line(big, BOOKED_MARK, at(booked, outer + 6 * k), at(booked, inner), 4 * k)
+
         # The inner rim and the slate, a little uneven, darker towards its edge
         pygame.draw.circle(big, RIM_DARK, c, inner)
         pygame.draw.circle(big, RIM_SILVER, c, inner - 2 * k)
@@ -594,8 +619,11 @@ class RestWindow(_BaseDialog):
             surf.blit(to_go, to_go.get_rect(center=(cx, cy + 36)))
             surf.blit(day, day.get_rect(center=(cx, cy + 62)))
             return
-        until_sunrise = self.end == self.sunrise
-        caption = self.caption_font.render("REST UNTIL SUNRISE" if until_sunrise else "REST FOR", True, TEXT_SOFT)
+        if self.end == self.sunrise:
+            words = "REST UNTIL SUNRISE" if self.sunrise_in_reach else "REST UNTIL CHECKOUT"
+        else:
+            words = "REST FOR"
+        caption = self.caption_font.render(words, True, TEXT_SOFT)
         span = self.big_font.render(describe_hours(self.end - self.now), True, TEXT_PALE)
         day = self.small_font.render(format_long(self.end), True, TEXT_SOFT)
         clock = self.caption_font.render(f"until {self.end:%H:%M}", True, TEXT_PALE)
@@ -642,8 +670,12 @@ class RestWindow(_BaseDialog):
         mouse_pos = pygame.mouse.get_pos() if not use_temp and not self.turning else (-1, -1)
         for key, rect in self.buttons.items():
             self._draw_btn(surf, rect.move(*off), self.labels[key], mouse_pos, active=False)
-        hint_text = ("Click or press a key to wake at once." if self.turning
-                     else "Drag the hand or turn the wheel; Enter rests.")
+        if self.turning:
+            hint_text = "Click or press a key to wake at once."
+        elif self.until is not None:
+            hint_text = f"The room is yours until {self.until:%H:%M}, {format_date(self.until)}."
+        else:
+            hint_text = "Drag the hand or turn the wheel; Enter rests."
         hint = self.small_font.render(hint_text, True, (90, 70, 50))
         surf.blit(hint, hint.get_rect(centerx=self.panel.centerx + off[0], bottom=self.buttons["rest"].top + off[1] - 6))
 

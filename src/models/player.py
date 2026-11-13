@@ -21,6 +21,8 @@ class Player:
         self.tiredness: float = 0.0    # 0 rested to 1 worn out: rises with the hours up, falls by resting (models/rest.py)
         # What the last meal at a tavern does for some hours (models/meal_effects.py), or None
         self.meal = None
+        # Rooms booked at the inns: the tavern's Tiled name to when the room is up (models/inn_rooms.py)
+        self.rooms = {}
         self.daily_cost_of_living: float = cost_of_living
         self.position: Tuple[int, int] = (START_X_POSITION, START_Y_POSITION)  # Starting position from constants
         self.in_market_area: bool = False

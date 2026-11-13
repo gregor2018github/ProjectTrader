@@ -391,6 +391,14 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         options.insert(0, "Merchant Rank")
 
     if house.tavern_class:
+        # A room may be booked at any inn, and rested in while it is held (models/inn_rooms.py)
+        from ...models.inn_rooms import room_until
+        from ...models.rest import can_rest_until
+        options.insert(0, "Book a Room")
+        player = getattr(game_state.game, 'player', None)
+        until = room_until(player, house, game_state.date) if player is not None else None
+        if until is not None and can_rest_until(game_state.date, until):
+            options.insert(0, "Rest in Your Room")
         options.insert(0, "Daily Menu")
 
     if isinstance(house, Church):
@@ -509,6 +517,16 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Gourmet Collection" and house.name == "Guildhall":
             from .gourmet_window import open_gourmet_window
             open_gourmet_window(game_state)
+            return
+
+        if option_text == "Book a Room" and house.tavern_class:
+            from .room_booking_window import open_room_booking
+            open_room_booking(game_state, house)
+            return
+
+        if option_text == "Rest in Your Room" and house.tavern_class:
+            from .room_booking_window import open_rest_in_room
+            open_rest_in_room(game_state, house)
             return
 
         if option_text == "Daily Menu" and house.tavern_class:

@@ -7,7 +7,9 @@ yet. Resting brings it down by `REST_RECOVERY_PER_HOUR` an hour, so a night's
 `FULL_REST_HOURS` (8) clears it whatever it was.
 
 The first place to rest is Uncle Gared's shop (`intro.SHOP_HOUSE`), once he has
-been found (the intro is done): its house menu offers "Rest", which opens the
+been found (the intro is done); the others are rooms booked at the inns, rested in
+only until the booking is up (models/inn_rooms.py, the `until` of the limits here). The house
+menu offers "Rest", which opens the
 clock (`ui/helper_modules/rest_window.py`) to choose how long, in steps of
 `REST_STEP_MINUTES`, from one step to `MAX_REST_HOURS`, at first until the next
 sunrise (`next_sunrise`). Resting moves the game's clock on at a stroke, as a
@@ -70,22 +72,30 @@ def first_step(now: datetime.datetime) -> datetime.datetime:
     return midnight + steps * datetime.timedelta(minutes=REST_STEP_MINUTES)
 
 
-def latest_end(now: datetime.datetime) -> datetime.datetime:
-    """The latest moment a rest may end: `MAX_REST_HOURS` on, down to a whole step."""
-    return first_step(now + datetime.timedelta(hours=MAX_REST_HOURS)) - datetime.timedelta(minutes=REST_STEP_MINUTES)
+def latest_end(now: datetime.datetime, until: Optional[datetime.datetime] = None) -> datetime.datetime:
+    """The latest moment a rest may end: `MAX_REST_HOURS` on, down to a whole step, and never past
+    `until` (when a room at an inn is up, models/inn_rooms.py), which may itself be off the steps."""
+    longest = first_step(now + datetime.timedelta(hours=MAX_REST_HOURS)) - datetime.timedelta(minutes=REST_STEP_MINUTES)
+    return longest if until is None else min(longest, until)
 
 
-def snap_end(now: datetime.datetime, end: datetime.datetime) -> datetime.datetime:
+def can_rest_until(now: datetime.datetime, until: Optional[datetime.datetime]) -> bool:
+    """Whether there is at least one step of rest left before `until` (None: no end)."""
+    return until is None or first_step(now) <= until
+
+
+def snap_end(now: datetime.datetime, end: datetime.datetime,
+             until: Optional[datetime.datetime] = None) -> datetime.datetime:
     """`end` put on the nearest whole step, kept between `first_step` and `latest_end`."""
     step = datetime.timedelta(minutes=REST_STEP_MINUTES)
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     steps = round((end - midnight) / step)
-    return min(latest_end(now), max(first_step(now), midnight + steps * step))
+    return min(latest_end(now, until), max(first_step(now), midnight + steps * step))
 
 
-def default_end(now: datetime.datetime) -> datetime.datetime:
-    """Where the clock's hand starts: the next sunrise, on the nearest whole step."""
-    return snap_end(now, next_sunrise(now))
+def default_end(now: datetime.datetime, until: Optional[datetime.datetime] = None) -> datetime.datetime:
+    """Where the clock's hand starts: the next sunrise, on the nearest whole step (or as late as `until` allows)."""
+    return snap_end(now, next_sunrise(now), until)
 
 
 def tiredness_after_rest(tiredness: float, hours: float) -> float:
