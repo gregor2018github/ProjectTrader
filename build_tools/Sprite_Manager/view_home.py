@@ -6,8 +6,8 @@ Along the top, over everything:
     Today         sprites new and redone today, by their file dates
     Work          answers waiting for review, and unfinished new plants and buildings
 
-Under it one card per area, three to a row (four, with seven or eight areas) (humans, plants, buildings; crops,
-animals, goods; food); clicking it (or 1 to 7; Tab is the humans) opens it,
+Under it one card per area, three to a row (four, with seven or eight areas) (humans, plants, buildings,
+crops; animals, goods, food, fences); clicking it (or 1 to 8; Tab is the humans) opens it,
 and Escape there comes back here.
 
     Humans        the share of their sprites done, a bar per kind, and the figures
@@ -17,6 +17,7 @@ and Escape there comes back here.
     Animals       the share of their frames done, a bar for standing, walk and grazing, and the animals
     Goods         the share of the goods' menu pictures there, a bar per kind, and the goods' icons
     Food          the share of the tavern dishes with a picture, a bar per type, and the pictures
+    Fences        the share of the fences' and walls' pieces drawn, a bar per style, and the longest pieces
 
 On a wide card the bars take the left and the pictures the right; the pictures fill whatever room is
 left, so a bigger window shows more.
@@ -31,6 +32,7 @@ import pose_review
 from animals import GROUPS, find_animals
 from crops import find_crops
 from daily_progress import Today, made_today
+from fences import find_styles
 from goods import KINDS as GOOD_KINDS, find_goods, tally
 import food
 from figures import TRADER_CATEGORY
@@ -197,6 +199,24 @@ def gather_food():
     return stats
 
 
+def gather_fences():
+    """The numbers of the fences' card: their pieces drawn by style (crops counts the styles)."""
+    stats = Crops()
+    paths = []
+    for style in find_styles():
+        stats.crops += 1
+        stats.stages.append((style.title, style.done(), style.needed()))
+        paths += [p.path for p in style.pieces() if p.exists()]
+        stats.waiting += len(ReviewStore(style.out_dir).pending())
+        sprite = style.thumb_sprite()
+        if sprite is not None and sprite.get_bounding_rect().w:
+            stats.pictures.append(HomeView.face(sprite.subsurface(sprite.get_bounding_rect())))
+    stats.done = sum(done for _, done, _ in stats.stages)
+    stats.needed = sum(needed for _, _, needed in stats.stages)
+    stats.today = made_today(paths)
+    return stats
+
+
 class Area:
     """One of the cards: which screen it opens, and its rect as last drawn."""
 
@@ -219,6 +239,7 @@ class HomeView(View):
         self.animals = Crops()
         self.menu = Crops()
         self.food = Crops()
+        self.fences = Crops()
 
     def refresh(self):
         app = self.app
@@ -232,10 +253,12 @@ class HomeView(View):
         self.animals = gather_animals()
         self.menu = gather_menu()
         self.food = gather_food()
+        self.fences = gather_fences()
 
     def grown(self, key):
         """The crops', the animals' or the menu's numbers, for a card of theirs; None for the other areas."""
-        return {'crops': self.crops, 'animals': self.animals, 'menu': self.menu, 'food': self.food}.get(key)
+        return {'crops': self.crops, 'animals': self.animals, 'menu': self.menu, 'food': self.food,
+                'fences': self.fences}.get(key)
 
     @staticmethod
     def face(thumb):
@@ -247,7 +270,7 @@ class HomeView(View):
 
     def header(self):
         return ('Sprite Manager',
-                'Every sprite of the game at a glance. Click an area, or press 1 to 7, to work on it; '
+                'Every sprite of the game at a glance. Click an area, or press 1 to 8, to work on it; '
                 'Escape there comes back here, and here closes the tool.')
 
     def footer(self):
@@ -280,16 +303,17 @@ class HomeView(View):
         counts = [('humans', self.humans.done)] + list(domains.items()) + [('crops', self.crops.done),
                                                                           ('animals', self.animals.done),
                                                                           ('menu', self.menu.done),
-                                                                          ('food', self.food.done)]
+                                                                          ('food', self.food.done),
+                                                                          ('fences', self.fences.done)]
         self.draw_numbers(screen, panels[0], 'All sprites', [(sum(n for _, n in counts), 'sprites', TEXT)],
                           ', '.join(f'{n} {key}' for key, n in counts))
         today = [self.humans.today, *self.today.values(), self.crops.today or Today(0, 0),
                  self.animals.today or Today(0, 0), self.menu.today or Today(0, 0),
-                 self.food.today or Today(0, 0)]
+                 self.food.today or Today(0, 0), self.fences.today or Today(0, 0)]
         new = sum(t.new for t in today)
         redone = sum(t.redone for t in today)
         self.draw_numbers(screen, panels[1], 'Today', [(new, 'new', NEW_COLOR), (redone, 'redone', DONE_COLOR)])
-        waiting = (self.humans.waiting + self.crops.waiting + self.animals.waiting
+        waiting = (self.humans.waiting + self.crops.waiting + self.animals.waiting + self.fences.waiting
                    + sum(self.stats(key).waiting for key in self.domains))
         unfinished = sum(self.stats(key).unfinished for key in self.domains)
         self.draw_numbers(screen, panels[2], 'Work',
@@ -345,6 +369,9 @@ class HomeView(View):
                             f'{crops.placeholders} placeholders')
             elif card.key == 'food':
                 subtitle = f'{crops.crops} dishes, {crops.done} with a picture'
+            elif card.key == 'fences':
+                subtitle = (f"{crops.crops} style{'' if crops.crops == 1 else 's'} of fence and wall, "
+                            f'{crops.done} of {crops.needed} pieces')
             else:
                 subtitle = (f'{crops.crops} animal{"" if crops.crops == 1 else "s"}, '
                             f'{crops.done} of {crops.needed} frames')

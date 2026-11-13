@@ -1,6 +1,7 @@
 """Sprite Manager: make and look after the walk and run animations of the NPCs and the player,
 the plant and building sprites of the map, the growth stages of the crops on the fields, the
-frames of the animals, the goods' pictures for the menus, and the tavern dishes' pictures.
+frames of the animals, the goods' pictures for the menus, the tavern dishes' pictures, and the
+pieces the fences and walls are laid out of.
 
 For every frame of a walk (or run) cycle the tool builds a 2x2 reference sheet from
 the base chibi (see sheets.py) and the prompt that goes with it. The image
@@ -20,8 +21,8 @@ switches to full screen.
 0. The start page shows every sprite at a glance (view_home.py): how many
    there are, the ones new and redone today, the answers waiting, and a big
    card each for the humans, the plants and the buildings, and under them the
-   crops, the animals, the goods and the food, with how far they are. Click one
-   (or 1 to 7) to go there; "Start page" or
+   crops, the animals, the goods, the food and the fences, with how far they are. Click one
+   (or 1 to 8) to go there; "Start page" or
    Escape there comes back, and Escape on the start page closes the tool.
 1. Pick the NPC or the player, in their groups (traders, poor, commons,
    middling sort, nobility; see figures.py). Each card
@@ -243,6 +244,32 @@ no picture and no answer waiting, one after another (again to stop).
 fits it to the example's proportions and size and saves it as the dish's
 picture, keeping one it replaces in build_tools/output/food/<key>/replaced/.
 
+Fences: "Fences" on the start page (8) lists every fence and wall style, a
+folder assets/map_sprites/houses/fences/<style>/ with a fence.json (fences.py),
+and "+" adds one, with its name, look and material: wood, stone or metal
+(city walls later). A fence is laid out of straight pieces, horizontal
+(<style>_h<n>.png, across the picture) and vertical (<style>_v<n>.png, away
+from the viewer), n tiles between the end posts, and each piece is drawn and
+saved on its raster at the game's 32 px a tile: a horizontal one (n + 1) x 2
+tiles, half a tile beyond each end post, a vertical one 2 x (n + 2) tiles, so
+pieces laid end to end meet post on post. Posts stand every posts_every
+tiles (2 for wood and metal) or, for stone, at the ends only; lengths are
+offered in those steps. On a style's screen (view_fence.py) its material,
+post spacing, raster height, description and wanted lengths on the left, its
+pieces in the middle, and on the right the chosen piece on its raster with
+its Tiled properties and, under it, every piece drawn laid together into a
+yard. "Sketch it" (Enter) opens the sketch screen (view_fence_design.py): the
+reference above the sketch for a horizontal piece, beside it for a vertical
+one, both on their rasters at one scale (fence_sheets.py); the raster, the
+foot line and the posts' rings are not sent. A piece's first sketch is drafted
+from the raster and the material (D drafts again). What it is drawn from:
+another length of the style, the style turned, or another style or the old
+hand-made walls for the look only. Its answers open in view_fence_answers.py:
+the cut onto the raster, the piece twice end to end, arrows nudging the cut;
+accepting saves the piece with its Tiled properties in the status line.
+"Assemble" (A) makes a piece of another length from one drawn, without the
+model, by laying its post-to-post segments end to end.
+
 The code, for whoever works on it next:
 
     Sprite_Manager.py  this file: the window, the main loop, shared state
@@ -313,6 +340,13 @@ The code, for whoever works on it next:
     view_food.py       the food: the dishes by type with their pictures, and the chosen one large
     food_sheets.py     a dish's picture: its example, prompt, and the picture an answer makes
     view_food_answers.py  the answers for a dish's picture, and saving one
+    fences.py          the fences and walls: styles, materials, pieces on their rasters, references, assembling
+    fence_sheets.py    a piece's sketch, draft, split image and prompt, and cutting its answer onto the raster
+    view_fences.py     the fences and walls, one card each
+    view_fence.py      one style: its settings, its pieces, the chosen one on its raster, all laid together
+    view_fence_design.py  sketching a piece and picking what it is drawn from
+    view_fence_answers.py  the answers for one piece, and accepting one
+    new_fence_dialog.py  the dialog asking for a new style's name, look and material
 """
 
 import io
@@ -351,6 +385,8 @@ from view_animal import AnimalView  # noqa: E402
 from view_animals import AnimalsView  # noqa: E402
 from view_crop import CropView  # noqa: E402
 from view_crops import CropsView  # noqa: E402
+from view_fence import FenceView  # noqa: E402
+from view_fences import FencesView  # noqa: E402
 from view_first import FirstSpriteView  # noqa: E402
 from view_frames import FramesView  # noqa: E402
 from view_goods import GoodsView  # noqa: E402
@@ -375,7 +411,8 @@ from widgets import PANEL_TITLE, Button, Fonts, Toast, fit_text, wrap_text  # no
 WINDOW_TITLE = "Merchant's Rise - Sprite Manager"
 DOMAINS = {d.key: d for d in (PLANTS, BUILDINGS)}
 SCREENS = (('humans', 'Humans'), ('plants', 'Plants'), ('buildings', 'Buildings'), ('crops', 'Crops'),
-           ('animals', 'Animals'), ('menu', 'Goods'), ('food', 'Food'))   # Tab goes round them; the start page shows them 3 a row
+           ('animals', 'Animals'), ('menu', 'Goods'), ('food', 'Food'),
+           ('fences', 'Fences'))   # Tab goes round them; the start page shows them 4 a row
 FPS = 30
 
 
@@ -646,6 +683,21 @@ class SpriteManager:
         self.set_status('')
         self.show(AnimalsView(self))
 
+    # --- fences and walls ---------------------------------------------------
+
+    def open_fence(self, styles_view, style):
+        """Work on a fence or wall style's pieces."""
+        self.npc = style
+        self.store = ReviewStore(style.out_dir)
+        self.worker = None
+        self.set_status('')
+        self.show(FenceView(self, styles_view))
+
+    def close_fence(self, styles_view):
+        self.npc = self.store = self.worker = None
+        self.set_status('')
+        self.show(styles_view)
+
     # --- goods' pictures ----------------------------------------------------
 
     def open_good(self, goods_view, good):
@@ -689,7 +741,7 @@ class SpriteManager:
 
     @staticmethod
     def screens():
-        """(key, title) of humans, plants, buildings, crops, animals, the goods and the food."""
+        """(key, title) of humans, plants, buildings, crops, animals, the goods, the food and the fences."""
         return SCREENS
 
     @staticmethod
@@ -715,8 +767,8 @@ class SpriteManager:
         self.switch_to('home')
 
     def switch_to(self, screen):
-        """Show the start page, the humans, the plants, the buildings, the crops, the animals, the goods
-        or the food."""
+        """Show the start page, the humans, the plants, the buildings, the crops, the animals, the goods,
+        the food or the fences."""
         self.npc = self.store = self.frames = self.worker = None
         self.set_status('')
         if screen == 'home':
@@ -731,6 +783,8 @@ class SpriteManager:
             self.show(GoodsView(self))
         elif screen == 'food':
             self.show(FoodView(self))
+        elif screen == 'fences':
+            self.show(FencesView(self))
         else:
             self.show(LibraryView(self, DOMAINS[screen]))
 
@@ -744,6 +798,8 @@ class SpriteManager:
             current = 'menu'
         elif isinstance(self.view, FoodView):
             current = 'food'
+        elif isinstance(self.view, FencesView):
+            current = 'fences'
         else:
             current = 'animals' if isinstance(self.view, AnimalsView) else 'humans'
         self.switch_to(keys[(keys.index(current) + 1) % len(keys)])
