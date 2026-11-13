@@ -19,9 +19,7 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] have sprite manager routines for fences
 - [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
 - [ ] design and add three houses that are horizontally oriented
-- [ ] create the first drinks for the food system
 - [ ] finish all food items
-- [ ] food must give buffs
 - [ ] unify the contract text parts. it should all be stored in one file instead of two per contract type
 - [ ] have cranes in the harbor area that can actually move
 - [ ] have an animation for farmers bringing in the harvest in autumn on the fields, also crates of products being dropped aside the field
@@ -67,6 +65,9 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - NA
 
 ## Finished Features
+
+- [x] food must give buffs (meal effects: strong hand, steady hand, well fed, light step; bad weather slows the walk)
+- [x] create the first drinks for the food system
 - [x] have actual images of the food plates bought by the player that you see when you bought them
 - [x] food in the pubs must become buyable as individual plates
 - [x] make a prototype food plate design - then set the sprite manager up for it

@@ -73,6 +73,7 @@ from typing import Callable, Deque, List, Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay
+from ..meal_effects import STEADY_HAND, game_bonus
 from .fishing_pond import (
     Pond, Hook, Fish, SPECIES, format_kg, WATER_Y, BANK_EDGE, LOW_W, PX_PER_FOOT, bottom_y, in_water,
     APPROACH, INSPECT, NIBBLE, TAKE, HOOKED,
@@ -419,6 +420,8 @@ class FishingMinigame(MinigameOverlay):
         self.pond = Pond(self.rng, self.scene.hour, self.scene.season, weather.rain, weather.storm,
                          weather.snow, weather.clouds)
         self.hook = Hook()
+        # A meal's Steady Hand: a biting fish holds the bait longer (models/meal_effects.py)
+        self.hook.hold_extra = 0.0 if demo else game_bonus(game, STEADY_HAND)
         self.sounds = {} if demo else _make_sounds()
         self._hum_channel: Optional[pygame.mixer.Channel] = None
 
@@ -1275,6 +1278,9 @@ class FishingMinigame(MinigameOverlay):
             x, y = rect.left - 16 - i * 13, rect.centery
             pygame.draw.lines(surf, (214, 112, 112), False,
                               [(x, y + 3), (x + 3, y - 2), (x + 6, y + 2), (x + 9, y - 3)], 3)
+        if self.hook.hold_extra > 0:   # a meal's, under the worms
+            self._plaque(surf, f"Steady Hand: +{round(self.hook.hold_extra * 100)}% time to strike",
+                         (SCENE_W - 14, rect.bottom + 6))
         self._draw_depth(surf)
         lore = self._inked(self.pond.lore, self.font_small, (236, 230, 206))
         surf.blit(lore, (12, 10))

@@ -546,15 +546,18 @@ def _draw_bottom_bar(
     town_rect = _draw_town_statistics_panel(screen, main_font, game_state)
     if town_rect:
         buttons['town_population'] = town_rect
-    _draw_tiredness_panel(screen, game_state, (town_rect.right if town_rect else 0) + 30)
+    right = _draw_tiredness_panel(screen, game_state, (town_rect.right if town_rect else 0) + 30)
+    if right is not None:
+        _draw_condition_panel(screen, game_state, right + 30)
     return buttons
 
 
 TIREDNESS_BAR_SIZE = (150, 16)
 
 
-def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left: int) -> None:
-    """The player's tiredness as a bar beside the population, with a tooltip saying what it is."""
+def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left: int) -> Optional[int]:
+    """The player's tiredness as a bar beside the population, with a tooltip saying what it is.
+    Where it ends, or None when there is no player."""
     from ..helper_modules.rest_window import draw_tiredness_bar
     from ...models.rest import FULL_REST_HOURS, HOURS_TO_EXHAUSTION
     game = getattr(game_state, 'game', None)
@@ -571,13 +574,66 @@ def _draw_tiredness_panel(screen: pygame.Surface, game_state: "GameState", left:
     area = pygame.Rect(left, centre_y - 20, bar.right - left, 40)
     mouse_pos = pygame.mouse.get_pos()
     if not area.collidepoint(mouse_pos) or getattr(game_state, 'info_window', None):
-        return
+        return bar.right
     intro = getattr(game, 'intro', None)
     where = ("Rest at Uncle Gared's shop to recover." if intro is not None and intro.stage == "done"
              else "Find a roof to rest under.")
     lines = [f"Tiredness: {player.tiredness * 100:.0f} %",
              f"Worn out after {HOURS_TO_EXHAUSTION:.0f} hours up; {FULL_REST_HOURS:.0f} hours of rest clear it.",
              where]
+    _draw_tooltip(screen, font, lines, mouse_pos)
+    return bar.right
+
+
+#: The weather's hindrances by name, as the bottom bar names them
+_HINDRANCE_NAMES = {"rain": "Rain", "mud": "Mud", "snow": "Snow"}
+
+
+def _draw_condition_panel(screen: pygame.Surface, game_state: "GameState", left: int) -> None:
+    """What a meal does for the player and what the weather does to their walk, beside the
+    tiredness, with a tooltip of both; nothing when there is neither."""
+    from ...models import meal_effects
+    game = getattr(game_state, 'game', None)
+    player = getattr(game, 'player', None)
+    weather = getattr(game, 'weather', None)
+    if player is None:
+        return
+    now = game_state.date
+    meal = meal_effects.current_meal(player, now)
+    hindrances = weather.walking_hindrances() if weather is not None else {}
+    slowdown = weather.walking_slowdown() if weather is not None else 0.0
+    font = getattr(game_state, "small_font", None) or game_state.font
+    centre_y = SCREEN_HEIGHT - 30
+    parts = []
+    if meal is not None:
+        name = meal_effects.EFFECTS[meal.kind]["name"]
+        parts.append((f"{name} +{meal_effects.percent(meal.strength)} ({meal.hours_left(now):.0f}h)", DARK_GREEN))
+    if slowdown >= 0.005:
+        worst = max(hindrances, key=hindrances.get)
+        parts.append((f"{_HINDRANCE_NAMES[worst]}: walking -{slowdown * 100:.0f}%", DARK_RED))
+    if not parts:
+        return
+    x = left
+    for text, colour in parts:
+        surf = font.render(text, True, colour)
+        screen.blit(surf, surf.get_rect(midleft=(x, centre_y)))
+        x += surf.get_width() + 24
+    area = pygame.Rect(left, centre_y - 20, x - 24 - left, 40)
+    mouse_pos = pygame.mouse.get_pos()
+    if not area.collidepoint(mouse_pos) or getattr(game_state, 'info_window', None):
+        return
+    lines = []
+    if meal is not None:
+        lines += [f"{meal.describe()}, from the {meal.dish}",
+                  f"{meal.hours_left(now):.1f} hours left. A new meal takes its place."]
+    if slowdown >= 0.005:
+        named = ", ".join(f"{_HINDRANCE_NAMES[k].lower()} {v * 100:.0f}%" for k, v in hindrances.items() if v >= 0.005)
+        lines.append(f"The weather slows your walk by {slowdown * 100:.0f}% ({named}).")
+    _draw_tooltip(screen, font, lines, mouse_pos)
+
+
+def _draw_tooltip(screen: pygame.Surface, font: pygame.font.Font, lines: List[str], mouse_pos: Tuple[int, int]) -> None:
+    """A white box of lines over the bottom bar, beside the pointer."""
     surfs = [font.render(line, True, BLACK) for line in lines]
     pad = 10
     tip = pygame.Rect(0, 0, max(s.get_width() for s in surfs) + 2 * pad,

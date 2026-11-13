@@ -1,10 +1,11 @@
 """A tavern's bill of fare for the day, opened from its house menu ("Daily Menu").
 
 The dishes are drawn by `daily_menu()` when the window opens, 2 or 3 a day. Each
-is a box with its name, its price at the right, a short description under it
-and whether the player has eaten it before; clicking one orders it
-(`order_dish`): its price is paid, booked as cost of living, and the dish goes
-into `Statistics.dishes_tried`. A dish with a picture (`dish_picture_path`) is
+is a box with its name, its price at the right, a short description under it,
+what it does for the player (models/meal_effects.py) and whether the player has
+eaten it before, and whether it would replace another meal's effect; clicking one
+orders it (`order_dish`): its price is paid, booked as cost of living, the dish
+goes into `Statistics.dishes_tried` and its effect becomes the player's meal. A dish with a picture (`dish_picture_path`) is
 then brought to the table, `DishServedWindow`, and any click goes back to the
 bill of fare.
 """
@@ -19,12 +20,14 @@ from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED
 from ...config.constants import FONTS_PATH, SCREEN_HEIGHT
 from ...sim.calendar import format_long, is_fast_day, is_lent
 from ...models.tavern_menu import Dish, daily_menu, dish_key, dish_picture_path
+from ...models import meal_effects
 
 if TYPE_CHECKING:
     from ...game_state import GameState
     from ...models.house import House
 
 DESCRIPTION_COLOR = (90, 70, 50)
+EFFECT_COLOR = (40, 96, 40)   # the line saying what a dish does for the player
 DESCRIPTION_FONT_SIZE = 17
 CARD_FILL = (236, 216, 178)
 CARD_HOVER_FILL = (246, 230, 196)
@@ -92,7 +95,12 @@ def order_dish(game_state: 'GameState', dish: Dish) -> bool:
     depot.book_cost_of_living(dish.price)
     on_money_spent(game_state, dish.price)
     first = depot.stats.record_dish(dish_key(dish))
-    game_state.log_event("FINANCE", f"Ate {dish.name} for {dish.price:.2f}g" + (" (first time)" if first else ""))
+    line = f"Ate {dish.name} for {dish.price:.2f}g" + (" (first time)" if first else "")
+    # What it does for the next hours, in place of the last meal's (models/meal_effects.py)
+    player = getattr(game_state.game, "player", None)
+    if player is not None:
+        line += f": {meal_effects.eat(player, dish, game_state.date).describe()}"
+    game_state.log_event("FINANCE", line)
     return True
 
 
@@ -143,6 +151,8 @@ class TavernMenuWindow(_BaseDialog):
         lines = [self.body_font.render(part, True, BLACK) for part in _wrap(dish.name, self.body_font, width - price_w)]
         lines += [self.small_font.render(part, True, DESCRIPTION_COLOR)
                   for part in _wrap(dish.description, self.small_font, width)]
+        effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
+        lines.append(self.small_font.render(f"{effect}, {meal_effects.MEAL_HOURS:.0f} hours", True, EFFECT_COLOR))
         return lines
 
     def card_rect(self, index: int) -> pygame.Rect:
@@ -173,6 +183,16 @@ class TavernMenuWindow(_BaseDialog):
         return True
 
     # -- drawing ---------------------------------------------------------------
+
+    def _replaced_mark(self, dish: Dish) -> Optional[pygame.Surface]:
+        """"Replaces your Strong Hand (3h left)", when eating it would take the place of another meal's effect."""
+        player = getattr(self.game_state.game, "player", None)
+        meal = meal_effects.current_meal(player, self.game_state.date) if player is not None else None
+        if meal is None or meal.dish == dish.name:
+            return None
+        name = meal_effects.EFFECTS[meal.kind]["name"]
+        return self.small_font.render(f"Replaces your {name} ({meal.hours_left(self.game_state.date):.0f}h left)",
+                                      True, DARK_RED)
 
     def _tried_mark(self, dish: Dish) -> pygame.Surface:
         times = self.game_state.game.depot.stats.dishes_tried.get(dish_key(dish), 0)
@@ -217,6 +237,9 @@ class TavernMenuWindow(_BaseDialog):
                 line_y += line.get_height()
             mark = self._tried_mark(dish)
             surf.blit(mark, mark.get_rect(right=rect.right - CARD_PAD, bottom=rect.bottom - CARD_PAD + 4))
+            replaced = self._replaced_mark(dish)
+            if replaced is not None:
+                surf.blit(replaced, replaced.get_rect(left=rect.left + CARD_PAD, bottom=rect.bottom - CARD_PAD + 4))
 
         if self.dishes:
             y = self.card_tops[-1] + self.card_heights[-1] + CARD_GAP + p.top
@@ -245,6 +268,8 @@ class DishServedWindow(_BaseDialog):
         self.small_font = _small_font()
         self.lines = [self.small_font.render(part, True, DESCRIPTION_COLOR)
                       for part in _wrap(dish.description, self.small_font, self.W - 2 * CARD_MARGIN)]
+        effect = meal_effects.describe(meal_effects.effect_kind(dish), meal_effects.effect_strength(dish.price))
+        self.lines.append(self.small_font.render(f"{effect} for {meal_effects.MEAL_HOURS:.0f} hours", True, EFFECT_COLOR))
         self.lines.append(self.small_font.render("Click to go back to the bill of fare.", True, DARK_BROWN))
         height = (self.HDR + self.PAD + picture.get_height() + CARD_GAP
                   + sum(line.get_height() for line in self.lines) + self.PAD + 6)

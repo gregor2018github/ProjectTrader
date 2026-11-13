@@ -1,7 +1,8 @@
 """Tiredness, and resting it off at Uncle Gared's shop.
 
 The player grows tired by the game hours they are up (`Player.tiredness`, 0 to
-1): from rested to worn out in `HOURS_TO_EXHAUSTION` (40) hours. It does nothing
+1): from rested to worn out in `HOURS_TO_EXHAUSTION` (40) hours, more slowly
+while a meal keeps the player Well Fed (models/meal_effects.py). It does nothing
 yet. Resting brings it down by `REST_RECOVERY_PER_HOUR` an hour, so a night's
 `FULL_REST_HOURS` (8) clears it whatever it was.
 
@@ -22,6 +23,7 @@ import datetime
 from typing import Any, Optional
 
 from .daylight import sun_hour
+from .meal_effects import WELL_FED, bonus
 from .intro import DONE, SHOP_HOUSE
 
 #: Hours up, from rested to worn out
@@ -101,7 +103,8 @@ class Tiredness:
         """The hours since the last call were spent up."""
         if self.counted_to is not None and now > self.counted_to:
             hours = (now - self.counted_to).total_seconds() / 3600.0
-            self.player.tiredness = min(1.0, self.player.tiredness + hours * TIRE_PER_HOUR)
+            rate = TIRE_PER_HOUR * (1.0 - bonus(self.player, WELL_FED, now))
+            self.player.tiredness = min(1.0, self.player.tiredness + hours * rate)
         self.counted_to = now
 
     def restart(self, now: datetime.datetime) -> None:

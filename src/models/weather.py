@@ -61,6 +61,14 @@ from .daylight import day_of_year, sun_hour
 
 MAX_STEP_MINUTES = 60.0   # a longer jump of the clock (loading a save) counts as this much weather
 
+# Bad weather slows the player's walk (walking_slowdown): by these shares of their pace
+# at full rain, at a ground fully wet (mud, where no snow lies over it) and at deep snow,
+# added up, but never by more than WALK_SLOW_MAX
+WALK_SLOW_RAIN = 0.06
+WALK_SLOW_MUD = 0.05
+WALK_SLOW_SNOW = 0.12
+WALK_SLOW_MAX = 0.15
+
 
 def _glide(value: float, target: float, step: float) -> float:
     """*value* moved towards *target* by at most *step*."""
@@ -224,6 +232,18 @@ class Weather:
     def puddle_level(self) -> float:
         """How wet the ground is where it shows: snow lying over it hides its puddles."""
         return self.wetness * (1.0 - self.snow_cover)
+
+    def walking_hindrances(self) -> Dict[str, float]:
+        """What slows the player's walk, each as a share of their pace: the rain falling,
+        the mud of a wet ground and the snow lying (WALK_SLOW_*)."""
+        return {"rain": WALK_SLOW_RAIN * self.rain,
+                "mud": WALK_SLOW_MUD * self.puddle_level,
+                "snow": WALK_SLOW_SNOW * self.snow_cover}
+
+    def walking_slowdown(self) -> float:
+        """How much slower the player walks in this weather, 0 to WALK_SLOW_MAX."""
+        return min(WALK_SLOW_MAX, sum(self.walking_hindrances().values()))
+
     def rain_ceiling(self) -> float:
         """As hard as it may rain or snow under the clouds there are: none below RAIN_FROM_CLOUDS of cover,
         the spell's rain once its clouds are there."""

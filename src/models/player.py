@@ -19,6 +19,8 @@ class Player:
         self.score: int = 0
         self.reputation: float = 0.0   # raised by gifts, fading each season; one of the merchant rank's conditions
         self.tiredness: float = 0.0    # 0 rested to 1 worn out: rises with the hours up, falls by resting (models/rest.py)
+        # What the last meal at a tavern does for some hours (models/meal_effects.py), or None
+        self.meal = None
         self.daily_cost_of_living: float = cost_of_living
         self.position: Tuple[int, int] = (START_X_POSITION, START_Y_POSITION)  # Starting position from constants
         self.in_market_area: bool = False

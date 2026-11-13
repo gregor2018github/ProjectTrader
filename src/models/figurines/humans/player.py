@@ -58,6 +58,8 @@ class MapPlayer(Human):
         """
         super().__init__(x, y, tile_size)
         self.speed: float = PLAYER_SPEED * TILE_SIZE / 32.0  # pixels per second
+        # Times the speed: slower in bad weather, faster after a sweet (set by Game each update)
+        self.speed_factor: float = 1.0
 
         sprite_dir = os.path.join(HUMAN_SPRITE_ROOT, 'player')
         sprite_definitions: Dict[str, Dict[str, Any]] = {
@@ -130,7 +132,7 @@ class MapPlayer(Human):
         """Debug lines for the "Inspect" window, plus movement input."""
         return super().inspect_lines(observer) + [
             "**Movement**",
-            f"Speed: {self.speed:.0f} px/s",
+            f"Speed: {self.speed * self.speed_factor:.0f} px/s (x{self.speed_factor:.2f})",
             f"Input: dx={self.vel_x:+.0f}, dy={self.vel_y:+.0f}",
         ]
 
@@ -172,7 +174,7 @@ class MapPlayer(Human):
 
         self.frame_distance_px = 0.0
         if is_moving:
-            speed = self.speed
+            speed = self.speed * self.speed_factor
             if self.vel_x != 0 and self.vel_y != 0:
                 speed *= PLAYER_DIAGONAL_SPEED_FACTOR
             move_x = self.vel_x * speed * dt

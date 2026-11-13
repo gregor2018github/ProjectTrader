@@ -199,6 +199,7 @@ class Hook:
     stir: float = 0.0              # how much it has been moved of late, in small movements: what draws a predator
     twitch_age: float = 99.0       # seconds since the player last twitched it
     engaged: Optional["Fish"] = None   # the one fish dealing with it
+    hold_extra: float = 0.0        # a Steady Hand (a meal's): a taken bait is held this share longer
 
 
 # A fish's states
@@ -437,7 +438,9 @@ class Fish:
     def _take(self, hook: Hook, events: List[tuple]) -> None:
         self.state = TAKE
         self.take_window = self.species.take_window * (REEL_TAKE_STRETCH if hook.reeling else 1.0)
-        self.timer = self.take_window
+        # A steady hand has longer to strike, but the strike is still graded on the fish's own
+        # window: the extra time only ever makes a late strike, never an easier perfect one
+        self.timer = self.take_window * (1.0 + hook.hold_extra)
         self.side = 1 if self.x >= hook.x else -1
         events.append(("take", self))
 

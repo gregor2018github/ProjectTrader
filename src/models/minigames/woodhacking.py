@@ -48,6 +48,7 @@ from typing import List, Optional, Tuple
 import pygame
 
 from .base import MinigameOverlay, score_to_coins, score_to_display
+from ..meal_effects import STRONG_HAND, game_bonus
 from .outdoors import Conditions
 from .woodhacking_scene import (
     ChoppingScene, SPLIT, BITE, WHIFF, SHORT, SCENE_W, SCENE_H, POWER_RECT, POWER_POST_FOOT, AIM_PIVOT, AIM_RADIUS,
@@ -443,6 +444,7 @@ class WoodhackingMinigame(MinigameOverlay):
         self.perfect_hits = 0      # swings perfect on both gauges
         self.blocks_chopped = 0    # logs split, counted at the blow: the scene's pile only when they land
         self.last_gain = 0.0       # points the last swing earned, its streak bonus included
+        self.strong_hand = game_bonus(self.game, STRONG_HAND)   # a meal's extra share of points on every swing
         self.extra_swings = 0      # earned by swings perfect on both gauges
         self.notice: Optional[Tuple[str, Tuple[int, int, int], float]] = None   # text, colour, seconds left
         self._tip_in: Optional[float] = None   # seconds until the explanation opens
@@ -634,7 +636,8 @@ class WoodhackingMinigame(MinigameOverlay):
             self.power, self.opt_lo, self.opt_hi
         )
         pts = 0 if (aim_miss or pow_miss) else aim_pts + pow_pts
-        bonus = self.streak_bonus
+        # The streak's bonus, and a meal's Strong Hand on every swing (models/meal_effects.py)
+        bonus = self.streak_bonus + self.strong_hand
         self.last_gain = round(pts * (1.0 + bonus), 2)
         self.score = round(self.score + self.last_gain, 2)
         self.aim_hit_text, self.aim_hit_color = aim_label, aim_color
@@ -879,6 +882,9 @@ class WoodhackingMinigame(MinigameOverlay):
             lost = self._inked("Streak lost", self.font_grade, RED)
             lost.set_alpha(self._streak_lost_alpha)
             surf.blit(lost, lost.get_rect(center=center))
+        if self.strong_hand > 0:   # a meal's, below the streak's notches
+            self._plaque(surf, f"Strong Hand:  +{round(self.strong_hand * 100)}% every swing",
+                         (center[0], center[1] + 52))
 
     def _plaque(self, surf: pygame.Surface, text: str, center: Tuple[float, float]) -> None:
         """A small brass plate with engraved text, nailed on."""

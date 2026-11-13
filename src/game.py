@@ -16,6 +16,7 @@ from .ui import cursor
 from .models.good import Good
 from .models.depot import Depot
 from .models.player import Player
+from .models import meal_effects
 from .models.merchant_rank import MerchantRank, RankRise
 from .models.council import Council, SessionReport, STIPEND_CATEGORY
 from .models.map import GameMap
@@ -627,6 +628,10 @@ class Game:
                     minute_changed, _price_tick_changed, hour_changed, day_changed, season_changed, year_changed = self.state.update()
                     self.weather.update(self.state.date)
                     self.tiredness.update(self.state.date)
+                    # Bad weather slows the walk, a sweet quickens it (models/weather.py, meal_effects.py)
+                    self.game_map.map_player.speed_factor = (
+                        (1.0 - self.weather.walking_slowdown())
+                        * (1.0 + meal_effects.bonus(self.player, meal_effects.LIGHT_STEP, self.state.date)))
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
                     self.game_map.puddles.update(self.weather.puddle_level)
 

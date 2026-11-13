@@ -17,7 +17,8 @@ from src.ui.helper_modules.tavern_menu_window import DishServedWindow, TavernMen
 from tests.fakes import FakeGameState
 
 PIGEONS = Dish("Roast Pigeons", "middle", "main", True, 5.0, "Young pigeons roasted with herbs")
-ALE = Dish("Ale", "middle", "drink", False, 0.5, "A mug of the house ale")
+# A dish no picture is made for, so the menu stays open when it is ordered
+ALE = Dish("Test Ale", "middle", "drink", False, 0.5, "A mug of the house ale")
 
 
 class FakeDepot:
@@ -79,7 +80,7 @@ def test_ordering_a_dish_pays_and_records_it_and_brings_its_picture(window, stat
 def test_a_dish_without_a_picture_keeps_the_menu_open(window, state):
     window.handle_click(window.card_rect(1).center)
     assert state.info_window is window
-    assert state.game.depot.stats.dishes_tried == {"ale": 1}
+    assert state.game.depot.stats.dishes_tried == {"test_ale": 1}
 
 
 def test_no_coins_no_dish(window, state):
@@ -88,3 +89,16 @@ def test_no_coins_no_dish(window, state):
     assert state.info_window is window
     assert state.game.depot.stats.dishes_tried == {}
     assert state.warnings
+
+
+def test_an_ordered_dish_becomes_the_players_meal_and_the_next_says_it_replaces_it(window, state):
+    from src.models.meal_effects import STRONG_HAND, current_meal, effect_strength
+    from src.models.player import Player
+    state.game.player = Player("P", 1.0)
+    assert window._replaced_mark(ALE) is None
+    window.handle_click(window.card_rect(0).center)       # the pigeons, with meat: a strong hand
+    meal = current_meal(state.game.player, state.date)
+    assert meal.kind == STRONG_HAND and meal.strength == effect_strength(PIGEONS.price)
+    assert window._replaced_mark(PIGEONS) is None           # the same dish again only starts it afresh
+    assert window._replaced_mark(ALE) is not None
+    window.draw()
