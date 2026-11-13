@@ -56,15 +56,30 @@ def test_fades_in_while_hidden_and_out_after():
     player = _Player()
     sil = PlayerSilhouette()
     hidden, clear = _queue(player, 10), _queue(player, 2)
-    sil.update(hidden, player, now_ms=0)
-    assert sil.alpha == 0.0
-    sil.update(hidden, player, now_ms=100)
+    delay_ms = round(ps.SILHOUETTE_DELAY_S * 1000)
+    for t in range(0, delay_ms + 1, 100):
+        sil.update(hidden, player, now_ms=t)
+    assert sil.alpha == 0.0                     # still waiting
+    sil.update(hidden, player, now_ms=delay_ms + 100)
     assert sil.alpha == pytest.approx(ps.SILHOUETTE_FADE_IN_PER_S * 0.1)
-    for t in range(200, 1200, 100):
+    for t in range(delay_ms + 200, delay_ms + 1200, 100):
         sil.update(hidden, player, now_ms=t)
     assert sil.alpha == 1.0
-    sil.update(clear, player, now_ms=1300)
+    sil.update(clear, player, now_ms=delay_ms + 1300)
     assert sil.alpha == pytest.approx(1.0 - ps.SILHOUETTE_FADE_OUT_PER_S * 0.1)
+
+
+def test_passing_behind_briefly_shows_nothing():
+    player = _Player()
+    sil = PlayerSilhouette()
+    hidden, clear = _queue(player, 10), _queue(player, 2)
+    half = round(ps.SILHOUETTE_DELAY_S * 500)
+    for t in range(0, half + 1, 50):
+        sil.update(hidden, player, now_ms=t)
+    sil.update(clear, player, now_ms=half + 50)   # out again: the wait starts over
+    for t in range(half + 100, 2 * half + 101, 50):
+        sil.update(hidden, player, now_ms=t)
+    assert sil.alpha == 0.0
 
 
 def test_partly_hidden_shows_nothing():
@@ -86,3 +101,18 @@ def test_draws_a_faint_outline_round_him():
     edge = screen.get_at((49, 60))       # just left of the sprite: the outline
     inside = screen.get_at((55, 60))     # inside: the fainter fill
     assert 0 < inside.r < edge.r < 255
+
+
+def test_dimmer_at_night():
+    player = _Player()
+    def edge(light):
+        sil = PlayerSilhouette()
+        sil.alpha = 1.0
+        sil.hidden_share(_queue(player, 10), player)
+        screen = pygame.Surface((200, 200))
+        screen.fill((0, 0, 0))
+        sil.draw(screen, zoom=1.0, light=light)
+        return screen.get_at((49, 60)).r
+    day, night = edge((255, 255, 255)), edge((40, 50, 90))
+    assert 0 < night < day
+    assert day == edge(None)

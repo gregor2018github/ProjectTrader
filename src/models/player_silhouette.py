@@ -14,6 +14,12 @@ import pygame
 
 # Share of the player's painted pixels that must be hidden for the silhouette to show
 SILHOUETTE_FROM = 0.9
+# He must stay hidden this long (real seconds) before the silhouette starts to fade in,
+# so it does not flash up while he only passes behind something
+SILHOUETTE_DELAY_S = 0.6
+# At night the silhouette is dimmed with the light, down to this share of its opacity in
+# the dark (it scales with the brightest channel of the map's light, 1 by full day)
+SILHOUETTE_NIGHT_FLOOR = 0.5
 # Fade speed, in full alpha ranges per real second (in about 0.4 s, out about 0.5 s)
 SILHOUETTE_FADE_IN_PER_S = 2.5
 SILHOUETTE_FADE_OUT_PER_S = 2.0
@@ -37,6 +43,7 @@ class PlayerSilhouette:
     def __init__(self) -> None:
         self.alpha: float = 0.0          # 0 (gone) to 1 (fully shown)
         self.hidden: bool = False        # whether he was hidden on the last measure
+        self.hidden_for: float = 0.0     # real seconds he has been hidden without a break
         self._last_ticks: Optional[int] = None
         self._masks: Dict[int, Tuple[pygame.Surface, pygame.Mask]] = {}
         self._outlines: Dict[Tuple[int, int], Tuple[pygame.Surface, pygame.Surface]] = {}
@@ -96,8 +103,13 @@ class PlayerSilhouette:
         self._last_ticks = now_ms
         self.hidden = self.hidden_share(render_queue, player) >= SILHOUETTE_FROM
         if self.hidden:
-            self.alpha = min(1.0, self.alpha + SILHOUETTE_FADE_IN_PER_S * dt)
+            before = self.hidden_for
+            self.hidden_for += dt
+            fading = self.hidden_for - max(before, SILHOUETTE_DELAY_S)
+            if fading > 0:
+                self.alpha = min(1.0, self.alpha + SILHOUETTE_FADE_IN_PER_S * fading)
         else:
+            self.hidden_for = 0.0
             self.alpha = max(0.0, self.alpha - SILHOUETTE_FADE_OUT_PER_S * dt)
 
     # --- drawing ---------------------------------------------------------------------
@@ -126,14 +138,19 @@ class PlayerSilhouette:
         self._outlines[key] = cached
         return cached
 
-    def draw(self, screen: pygame.Surface, zoom: float) -> None:
-        """Draw the silhouette where the player was drawn this frame, as faded in."""
+    def draw(self, screen: pygame.Surface, zoom: float,
+             light: Optional[Sequence[int]] = None) -> None:
+        """Draw the silhouette where the player was drawn this frame, as faded in, dimmed
+        by the map's *light* (its colour, 0-255 a channel) towards ``SILHOUETTE_NIGHT_FLOOR``."""
         if self.alpha <= 0.0 or self._where is None:
             return
         sprite, px, py = self._where
         thickness = max(1, round(SILHOUETTE_OUTLINE_PX * zoom))
         outline, fill = self._outline(sprite, thickness)
         fade = self.alpha * self.alpha * (3 - 2 * self.alpha)   # smoothstep, so it eases in and out
+        if light is not None:
+            bright = max(0.0, min(1.0, max(light) / 255))
+            fade *= SILHOUETTE_NIGHT_FLOOR + (1 - SILHOUETTE_NIGHT_FLOOR) * bright
         fill.set_alpha(round(SILHOUETTE_FILL_ALPHA * fade))
         screen.blit(fill, (px, py))
         outline.set_alpha(round(SILHOUETTE_OUTLINE_ALPHA * fade))

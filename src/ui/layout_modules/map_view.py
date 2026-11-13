@@ -195,7 +195,7 @@ def draw_map_view(
     silhouette = getattr(game_map, "player_silhouette", None)
     if silhouette is not None:
         silhouette.update(render_queue, game_map.map_player)
-        silhouette.draw(screen, game_map.camera.zoom)
+        silhouette.draw(screen, game_map.camera.zoom, ambient)
 
     # The falling rain and the splashes on roofs over everything, dimmed with the light rather than by the overlay
     if weather:
