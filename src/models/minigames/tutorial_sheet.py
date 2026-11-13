@@ -7,6 +7,7 @@ A minigame showing a sheet has ``font``, ``font_small``, ``font_words``, ``font_
 ``font_large``, ``font_title`` and ``_inked(text, font, colour)``.
 """
 
+import math
 from dataclasses import dataclass
 from typing import List, Sequence, Tuple
 
@@ -14,6 +15,7 @@ import pygame
 
 from .woodhacking import draw_divider, draw_flourish
 from ...config.colors import GOLD, MUTED_DARK_RED, WHITE
+from ...ui.helper_modules.charter_style import BlockColours, draw_corner_blocks
 from ...ui.paper import draw_paper
 
 INK = (44, 32, 22)
@@ -56,15 +58,69 @@ class SheetLayout:
                 for card in self.card_rects()]
 
 
-def framed_sheet(size: Tuple[int, int]) -> pygame.Surface:
-    """A blank sheet: browned parchment in a gold frame with flourishes in its corners."""
+GOLD_BLOCK = BlockColours(edge=BRASS_DARK, rule=(150, 108, 30), ornament=BRASS, boss=RUBRIC)
+_FRAME_GOLD = (150, 108, 30)
+
+# The banded frame round a sheet with corner blocks, in pixels in from the sheet's edge: a double
+# rule each side of a band of interlaced waves, the band's middle running through the blocks' middles.
+_BAND_RULES = ((10, 2), (13, 1), (35, 1), (37, 2))      # (inset, width), the heavy lines outermost
+_BAND_MIDDLE, _BAND_HALF = 24, 9                         # the waves' axis and how far they swing
+_WAVE_PERIOD = 46                                        # about this long; fitted to each side
+_WAVE_INKS = (RUBRIC, BRASS_DARK)                        # the two strands
+
+
+def _wave_strip(length: int) -> pygame.Surface:
+    """One side's band of two strands in opposite phase, crossing on the axis: a chain of eyes,
+    each with a brass bead in it, as many whole periods as fit *length*, so the strands meet the
+    corner blocks on the axis."""
+    k = _SUPERSAMPLE
+    height = 2 * _BAND_HALF + 2
+    art = pygame.Surface((length * k, height * k), pygame.SRCALPHA)
+    periods = max(1, round(length / _WAVE_PERIOD))
+    half_period = length / (2 * periods)
+    mid = height * k / 2
+    steps = length * 2
+    for strand, ink in enumerate(_WAVE_INKS):
+        sign = 1 if strand == 0 else -1
+        points = [(i / steps * length * k,
+                   mid + sign * _BAND_HALF * k * math.sin(math.pi * i / steps * length / half_period))
+                  for i in range(steps + 1)]
+        pygame.draw.lines(art, ink, False, points, int(1.6 * k))
+    for eye in range(2 * periods):                                     # a bead in every eye
+        x = (eye + 0.5) * half_period * k
+        pygame.draw.circle(art, BRASS_DARK, (x, mid), 2.4 * k)
+        pygame.draw.circle(art, BRASS, (x, mid), 1.6 * k)
+    return pygame.transform.smoothscale(art, (length, height))
+
+
+def _draw_band(page: pygame.Surface) -> None:
+    """The frame's band inside the gold edge: its double rules and the waves between them."""
+    sheet = page.get_rect()
+    for inset, width in _BAND_RULES:
+        pygame.draw.rect(page, _FRAME_GOLD, sheet.inflate(-2 * inset, -2 * inset), width)
+    block_far = 41                                   # the corner blocks' far edge, as charter_style lays them
+    across = _wave_strip(sheet.width - 2 * block_far)
+    upright = pygame.transform.rotate(_wave_strip(sheet.height - 2 * block_far), 90)
+    for art, centre in ((across, (sheet.centerx, _BAND_MIDDLE)), (across, (sheet.centerx, sheet.height - _BAND_MIDDLE)),
+                        (upright, (_BAND_MIDDLE, sheet.centery)), (upright, (sheet.width - _BAND_MIDDLE, sheet.centery))):
+        page.blit(art, art.get_rect(center=centre))
+
+
+def framed_sheet(size: Tuple[int, int], corner_blocks: bool = False) -> pygame.Surface:
+    """A blank sheet: browned parchment in a gold frame with flourishes in its corners, or with
+    *corner_blocks* a broader frame, a band of interlaced waves between double rules, meeting in
+    the council's charter's square blocks, in gold."""
     page = pygame.Surface(size)
     sheet = page.get_rect()
     draw_paper(page, sheet, sheet.topleft)
-    pygame.draw.rect(page, (150, 108, 30), sheet, 6)
+    pygame.draw.rect(page, _FRAME_GOLD, sheet, 6)
     pygame.draw.rect(page, GOLD, sheet.inflate(-4, -4), 3)
+    if corner_blocks:
+        _draw_band(page)
+        draw_corner_blocks(page, GOLD_BLOCK)
+        return page
     inner = sheet.inflate(-2 * _FRAME_INSET, -2 * _FRAME_INSET)
-    pygame.draw.rect(page, (150, 108, 30), inner, 1)
+    pygame.draw.rect(page, _FRAME_GOLD, inner, 1)
     for sx, sy, corner in ((1, 1, inner.topleft), (-1, 1, inner.topright),
                            (1, -1, inner.bottomleft), (-1, -1, inner.bottomright)):
         draw_flourish(page, corner, sx, sy)

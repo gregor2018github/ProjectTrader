@@ -113,7 +113,7 @@ class GourmetWindow(_BaseDialog):
         self.enlarged: Optional[DishServedWindow] = None   # a dish's picture shown large over the collection
         self._dim: Optional[pygame.Surface] = None
         self.close_rect = pygame.Rect(0, 0, 30, 30)
-        self.close_rect.center = (self.panel.right - 19, self.panel.top + 19)
+        self.close_rect.center = (self.panel.right - 64, self.panel.top + 60)   # below the frame's band
         tabs_w = len(DISH_TYPES) * self.TAB_W + (len(DISH_TYPES) - 1) * self.GAP
         left = self.panel.centerx - tabs_w // 2
         self.tab_rects = {kind: pygame.Rect(left + i * (self.TAB_W + self.GAP), self.panel.top + self.TAB_TOP,
@@ -191,7 +191,7 @@ class GourmetWindow(_BaseDialog):
     # -- the pages, drawn once ----------------------------------------------
 
     def _build_page(self, kind: str) -> pygame.Surface:
-        sheet = framed_sheet((self.W, self.H))
+        sheet = framed_sheet((self.W, self.H), corner_blocks=True)
         whole = sheet.get_rect()
         title = inked("Gourmet Collection", self.sheet_title_font, GOLD)
         sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))

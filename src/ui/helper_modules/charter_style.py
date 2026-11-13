@@ -5,6 +5,7 @@ for what a clerk would write in red. The town council's window and the session's
 the minigames' how-to pages and the records keep their gold (``tutorial_sheet.py``).
 """
 
+from dataclasses import dataclass
 from typing import Sequence, Tuple
 
 import pygame
@@ -41,7 +42,20 @@ def _smooth(size: Tuple[int, int], draw) -> pygame.Surface:
     return pygame.transform.smoothscale(art, size)
 
 
-def _quatrefoil(art: pygame.Surface, k: int, centre: Tuple[float, float], reach: float) -> None:
+@dataclass(frozen=True)
+class BlockColours:
+    """What a corner block is drawn in: its edge, its rules, its ornament and the boss in the middle."""
+    edge: Tuple[int, int, int] = SEPIA_DARK
+    rule: Tuple[int, int, int] = SEPIA
+    ornament: Tuple[int, int, int] = OCHRE
+    boss: Tuple[int, int, int] = OXBLOOD
+
+
+CHARTER_BLOCK = BlockColours()
+
+
+def _quatrefoil(art: pygame.Surface, k: int, centre: Tuple[float, float], reach: float,
+                colours: BlockColours = CHARTER_BLOCK) -> None:
     """Four round lobes about a point, reaching *reach* from it, in ochre ruled with sepia, a red
     boss in the middle."""
     cx, cy = centre
@@ -49,31 +63,40 @@ def _quatrefoil(art: pygame.Surface, k: int, centre: Tuple[float, float], reach:
     radius = offset * 0.7
     lobes = [(cx + dx * offset, cy + dy * offset) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))]
     for x, y in lobes:
-        pygame.draw.circle(art, SEPIA_DARK, (x, y), radius + k)
+        pygame.draw.circle(art, colours.edge, (x, y), radius + k)
     for x, y in lobes:
-        pygame.draw.circle(art, OCHRE, (x, y), radius)
-    pygame.draw.circle(art, SEPIA_DARK, (cx, cy), radius * 0.72 + k)
-    pygame.draw.circle(art, OXBLOOD, (cx, cy), radius * 0.72)
+        pygame.draw.circle(art, colours.ornament, (x, y), radius)
+    pygame.draw.circle(art, colours.edge, (cx, cy), radius * 0.72 + k)
+    pygame.draw.circle(art, colours.boss, (cx, cy), radius * 0.72)
 
 
-def _corner_block(side: int) -> pygame.Surface:
+def _corner_block(side: int, colours: BlockColours = CHARTER_BLOCK) -> pygame.Surface:
     """A square block where the borders meet: two ruled squares, a lozenge and a quatrefoil in it."""
     def draw(art: pygame.Surface, k: int) -> None:
         s = side * k
         art.fill(PAPER_DEEP)
-        pygame.draw.rect(art, SEPIA_DARK, (0, 0, s, s), 2 * k)
-        pygame.draw.rect(art, SEPIA, (4 * k, 4 * k, s - 8 * k, s - 8 * k), k)
-        inner, spur = 4 * k, 7 * k          # a small sepia spandrel in each corner of the inner square
+        pygame.draw.rect(art, colours.edge, (0, 0, s, s), 2 * k)
+        pygame.draw.rect(art, colours.rule, (4 * k, 4 * k, s - 8 * k, s - 8 * k), k)
+        inner, spur = 4 * k, 7 * k          # a small spandrel in each corner of the inner square
         for sx, sy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):
             x = inner if sx > 0 else s - inner
             y = inner if sy > 0 else s - inner
-            pygame.draw.polygon(art, SEPIA, [(x, y), (x + sx * spur, y), (x, y + sy * spur)])
+            pygame.draw.polygon(art, colours.rule, [(x, y), (x + sx * spur, y), (x, y + sy * spur)])
         c = s / 2
         r = s / 2 - 6 * k
         pygame.draw.polygon(art, PAPER_LIGHT, [(c, c - r), (c + r, c), (c, c + r), (c - r, c)])
-        pygame.draw.polygon(art, SEPIA_DARK, [(c, c - r), (c + r, c), (c, c + r), (c - r, c)], k)
-        _quatrefoil(art, k, (c, c), r * 0.74)
+        pygame.draw.polygon(art, colours.edge, [(c, c - r), (c + r, c), (c, c + r), (c - r, c)], k)
+        _quatrefoil(art, k, (c, c), r * 0.74, colours)
     return _smooth((side, side), draw)
+
+
+def draw_corner_blocks(page: pygame.Surface, colours: BlockColours = CHARTER_BLOCK) -> None:
+    """The four corner blocks over a sheet's borders, where the rules meet."""
+    sheet = page.get_rect()
+    block = _corner_block(_BLOCK[1] - _BLOCK[0], colours)
+    near, far_x, far_y = _BLOCK[0], sheet.width - _BLOCK[1], sheet.height - _BLOCK[1]
+    for x, y in ((near, near), (far_x, near), (near, far_y), (far_x, far_y)):
+        page.blit(block, (x, y))
 
 
 def _side_boss(width: int, height: int) -> pygame.Surface:
@@ -102,11 +125,7 @@ def charter_sheet(size: Tuple[int, int]) -> pygame.Surface:
     pygame.draw.rect(page, SEPIA_DARK, sheet.inflate(-2 * heavy, -2 * heavy), 2)
     pygame.draw.rect(page, SEPIA, sheet.inflate(-2 * light, -2 * light), 1)
 
-    side = _BLOCK[1] - _BLOCK[0]
-    block = _corner_block(side)
-    near, far_x, far_y = _BLOCK[0], sheet.width - _BLOCK[1], sheet.height - _BLOCK[1]
-    for x, y in ((near, near), (far_x, near), (near, far_y), (far_x, far_y)):
-        page.blit(block, (x, y))
+    draw_corner_blocks(page)
 
     middle = (heavy + light) / 2
     across = _side_boss(54, 18)

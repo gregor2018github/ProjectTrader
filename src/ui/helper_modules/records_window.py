@@ -233,7 +233,7 @@ class RecordsWindow(_BaseDialog):
     COLUMNS = 3
     CARD_W, CARD_H = 392, 132
     GAP = 10
-    MARGIN = 44                  # the page's sides and foot, clear of the frame's flourishes
+    MARGIN = 44                  # the page's sides and foot, clear of the corner blocks
     FRAME_INSET = 13
     TITLE_Y, DIVIDER_Y = 46, 80
     TAB_TOP = 94
@@ -261,7 +261,7 @@ class RecordsWindow(_BaseDialog):
         self.page = PAGE_FISHING
         self._pages: Dict[str, pygame.Surface] = {}
         self.close_rect = pygame.Rect(0, 0, 30, 30)
-        self.close_rect.center = (self.panel.right - 19, self.panel.top + 19)
+        self.close_rect.center = (self.panel.right - 64, self.panel.top + 60)   # below the frame's band
 
         tabs_w = len(PAGES) * self.TAB_W + (len(PAGES) - 1) * self.GAP
         left = self.panel.centerx - tabs_w // 2
@@ -316,8 +316,8 @@ class RecordsWindow(_BaseDialog):
     # -- the sheet ---------------------------------------------------------
 
     def _build_sheet(self) -> pygame.Surface:
-        """What every page has: the paper, the gold frame, its flourishes and the title."""
-        sheet = framed_sheet((self.W, self.H))
+        """What every page has: the paper, the gold frame, its corner blocks and the title."""
+        sheet = framed_sheet((self.W, self.H), corner_blocks=True)
         whole = sheet.get_rect()
         title = inked("Records", self.sheet_title_font, GOLD)
         sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
@@ -473,7 +473,7 @@ class RecordsWindow(_BaseDialog):
                 glyphs.chopping_stump(surf, (shown.left + 26, shown.centery + 2), 28)
 
     def _draw_close(self, surf: pygame.Surface, off: Tuple[int, int], mouse: Tuple[int, int]) -> None:
-        """Closing is a seal over the frame's corner, with a cross on it."""
+        """Closing is a red seal inside the frame, with a cross on it."""
         rect = self.close_rect.move(*off)
         pygame.draw.rect(surf, (168, 52, 44) if self.close_rect.collidepoint(mouse) else RUBRIC, rect, border_radius=3)
         pygame.draw.rect(surf, GOLD, rect, 2, border_radius=3)
