@@ -977,7 +977,9 @@ class Game:
                 if hasattr(self.state, 'dialogue') and self.state.dialogue:
                     self.state.dialogue.draw()
                 
-                # Draw info window if active
+                # Draw info window if active; one that moves by itself (the rest's clock) is moved on first
+                if self.state.info_window and hasattr(self.state.info_window, "animate"):
+                    self.state.info_window.animate(delta_time)
                 if self.state.info_window:
                     self.state.info_window.draw()
                 

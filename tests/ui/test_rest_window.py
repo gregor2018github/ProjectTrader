@@ -10,6 +10,7 @@ os.environ.setdefault("SDL_AUDIODRIVER", "dummy")
 import pygame
 import pytest
 
+from src.ui.helper_modules import rest_window
 from src.models.player import Player
 from src.models.rest import Tiredness, default_end, first_step, latest_end
 from src.ui.helper_modules.rest_window import RestWindow, describe_hours
@@ -85,11 +86,19 @@ def test_the_sunrise_button_puts_the_hand_back(window):
     assert window.end == default_end(NOW)
 
 
+def _turn_through(window):
+    """Let the clock turn all the way, a frame at a time."""
+    for _ in range(round((rest_window.DARKEN_SECONDS + rest_window.TURN_SECONDS_MAX
+                          + rest_window.ARRIVED_SECONDS) * 60) + 2):
+        window.animate(1 / 60)
+
+
 def test_resting_moves_the_clock_and_brings_the_tiredness_down(window, state):
     _press(window, pygame.K_LEFT)     # not quite to sunrise
     end = window.end
     hours = (end - NOW).total_seconds() / 3600
     window.handle_click(window.buttons["rest"].center)
+    _turn_through(window)
     assert state.date == end
     assert state.game.player.tiredness == pytest.approx(max(0.0, 0.6 - hours / 8))
     assert state.info_window is None
@@ -103,8 +112,70 @@ def test_resting_lets_the_weather_go_on_for_the_time_rested(window, state):
     state.game.weather = SimpleNamespace(advance=advanced.append)
     end = window.end
     window.handle_click(window.buttons["rest"].center)
+    _turn_through(window)
     hours = (end - NOW).total_seconds() / 3600
     assert advanced == [pytest.approx(hours - 1)]   # the game's next update gives it the last hour
+
+
+def test_it_goes_dark_then_the_clock_turns_round_to_the_chosen_moment_then_the_rest_is_taken(window, state):
+    hours = window.hours_ahead
+    seconds = rest_window.turn_seconds(hours)
+    window.handle_click(window.buttons["rest"].center)
+    assert window.turning and state.info_window is window
+    assert state.date == NOW and window.hours_turned == 0.0 and window.darkness == 0.0
+    # The dark falls first; the hand waits for it
+    frames = round(rest_window.DARKEN_SECONDS * 60)
+    for _ in range(frames // 2):
+        window.animate(1 / 60)
+    assert 0 < window.darkness < 1 and window.hours_turned == 0.0
+    window.draw()
+    for _ in range(frames - frames // 2):
+        window.animate(1 / 60)
+    assert window.darkness == pytest.approx(1.0) and window.hours_turned == pytest.approx(0.0, abs=1e-6)
+    turned = []
+    for _ in range(round(seconds * 60) - 3):
+        window.animate(1 / 60)
+        turned.append(window.hours_turned)
+        window.draw()
+    assert turned == sorted(turned) and 0 < turned[len(turned) // 2] < hours   # on round, never back
+    assert state.date == NOW and state.info_window is window                  # not there yet
+    _turn_through(window)
+    assert state.date == window.end and state.info_window is None
+    # The game comes back from the window on black, not from plain black
+    cover = state.game.faded[-1]
+    assert cover.get_at((2, 2))[:3] == (0, 0, 0)
+    assert cover.get_at(window.panel.center)[:3] != (0, 0, 0)
+
+
+def test_the_hand_cannot_be_moved_once_it_turns(window):
+    end = window.end
+    window.handle_click(window.buttons["rest"].center)
+    window.handle_event(pygame.event.Event(pygame.MOUSEWHEEL, x=0, y=3))
+    assert window.end == end
+
+
+def test_a_click_or_a_key_while_it_turns_wakes_at_once_at_the_chosen_moment(window, state):
+    end = window.end
+    window.handle_click(window.buttons["rest"].center)
+    window.animate(0.2)
+    window.handle_click(window.buttons["cancel"].center)
+    assert state.date == end and state.info_window is None and state.time_level == 3
+
+
+def test_a_stutter_does_not_skip_the_dark_or_the_turn(window, state):
+    window.handle_click(window.buttons["rest"].center)
+    window.animate(3.0)                      # one very slow frame
+    assert window.darkness < 0.5 and state.info_window is window
+
+
+def test_a_longer_rest_turns_longer_but_a_short_one_slower_for_its_share_of_the_dial():
+    assert rest_window.turn_seconds(0.25) == rest_window.TURN_SECONDS_MIN
+    assert rest_window.turn_seconds(4) < rest_window.turn_seconds(12)
+    assert rest_window.turn_seconds(24) == rest_window.TURN_SECONDS_MAX
+    # Hours of the dial turned a second: far fewer for a short rest
+    speed = lambda hours: hours / rest_window.turn_seconds(hours)
+    assert speed(1) < speed(4) < speed(12)
+    assert speed(1) < speed(12) / 4
 
 
 def test_cancel_leaves_the_clock_and_starts_the_game_again(window, state):

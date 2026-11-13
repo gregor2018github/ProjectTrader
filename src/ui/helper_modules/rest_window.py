@@ -11,8 +11,17 @@ it ends.
 The hand starts at the next sunrise (`rest.default_end`) and moves in steps of
 `REST_STEP_MINUTES`: dragged, clicked to on the ring, by the wheel (Shift: a
 whole hour) or the arrow keys (left and right a step, up and down an hour).
-"Rest" (or Enter) moves the clock on and brings the tiredness down
-(`Tiredness.rest`); the game is paused while the window is open.
+"Rest" (or Enter) first lets everything behind the window go dark
+(`DARKEN_SECONDS`), then sets the clock turning: a hand sweeps clockwise from the
+top, now, round to the chosen moment (`turn_seconds`, slow to start and to stop,
+and a short rest slower than its share of the dial would have it), the slate
+counting the hours as they pass and the tiredness bar emptying with them, and
+the gold of the rest still to come shrinking ahead of it. It rests there a
+moment (`ARRIVED_SECONDS`); then the clock is moved on and the tiredness brought
+down (`Tiredness.rest`), and the window on black dissolves into the game as it
+now is (`Game.fade_in_from`). A click or a key meanwhile wakes the player at
+once, at the chosen moment all the same. The game is
+paused while the window is open; `animate(dt)` is called by the main loop.
 """
 
 import datetime
@@ -58,6 +67,20 @@ TEXT_SOFT = (200, 200, 196)
 NUMERAL_DARK = (70, 72, 96)
 STAR = (250, 240, 200)
 
+#: How long everything behind the window takes to go dark before the clock turns
+DARKEN_SECONDS = 0.8
+#: How long the clock takes to turn to the chosen moment: a base, more by the square root of the
+#: hours (so a short rest turns slower for its share of the dial than a long one), within limits
+TURN_SECONDS_BASE = 2.2
+TURN_SECONDS_PER_ROOT_HOUR = 0.6
+TURN_SECONDS_MIN = 2.5
+TURN_SECONDS_MAX = 5.0
+#: How long the hand stays at the chosen moment before the game comes back
+ARRIVED_SECONDS = 0.35
+#: The most a frame moves it on, so a stutter does not skip the dark or the turn
+MAX_FRAME_SECONDS = 0.05
+HAND_SILVER = (226, 228, 234)
+
 PANEL_W = 620
 DIAL_TOP = 66             # the dial's top, below the panel's
 BUTTON_W, BUTTON_H, BUTTON_GAP = 160, 38, 14
@@ -65,6 +88,18 @@ BUTTON_W, BUTTON_H, BUTTON_GAP = 160, 38, 14
 
 def open_rest_window(game_state: 'GameState') -> None:
     game_state.info_window = RestWindow(game_state.screen, game_state)
+
+
+def turn_seconds(hours: float) -> float:
+    """How long the clock takes to turn through a rest of that many hours."""
+    return min(TURN_SECONDS_MAX, max(TURN_SECONDS_MIN,
+                                     TURN_SECONDS_BASE + TURN_SECONDS_PER_ROOT_HOUR * math.sqrt(max(0.0, hours))))
+
+
+def _ease(t: float) -> float:
+    """Slow to start and to stop."""
+    t = min(1.0, max(0.0, t))
+    return t * t * (3 - 2 * t)
 
 
 def describe_hours(span: datetime.timedelta) -> str:
@@ -109,6 +144,11 @@ class RestWindow(_BaseDialog):
         self.end: datetime.datetime = self.sunrise
         self.dragging = False
         self._drag_hours = self.hours_ahead
+        # The seconds since "Rest" was pressed (None till then): the dark falling, the clock
+        # turning (turn_s of it), and its pause at the chosen moment
+        self.turn_t: Optional[float] = None
+        self.turn_s = 0.0
+        self._veil: Optional[pygame.Surface] = None
         self.big_font = _font("Medici Text.ttf", 46)
         self.caption_font = _font("Augusta.ttf", 19)
         self.small_font = _font("Augusta.ttf", 18)
@@ -131,6 +171,30 @@ class RestWindow(_BaseDialog):
     @property
     def hours_ahead(self) -> float:
         return (self.end - self.now).total_seconds() / 3600.0
+
+    @property
+    def turning(self) -> bool:
+        return self.turn_t is not None
+
+    @property
+    def hours_turned(self) -> float:
+        """How far the clock has turned, in hours from now: 0 until it is set turning."""
+        if self.turn_t is None:
+            return 0.0
+        turning_for = self.turn_t - DARKEN_SECONDS
+        return self.hours_ahead * _ease(turning_for / self.turn_s if self.turn_s > 0 else 1.0)
+
+    @property
+    def darkness(self) -> float:
+        """How dark everything behind the window is, 0 to 1: falling once "Rest" is pressed."""
+        if self.turn_t is None:
+            return 0.0
+        return _ease(self.turn_t / DARKEN_SECONDS)
+
+    @property
+    def total_seconds(self) -> float:
+        """From pressing "Rest" to waking: the dark falling, the turn, the pause at its end."""
+        return DARKEN_SECONDS + self.turn_s + ARRIVED_SECONDS
 
     def angle_of(self, hours: float) -> float:
         """The angle on the dial, clockwise from its top in radians, of a moment that many hours on."""
@@ -171,6 +235,10 @@ class RestWindow(_BaseDialog):
     # -- input -----------------------------------------------------------------
 
     def handle_event(self, event: pygame.event.Event) -> None:
+        if self.turning:
+            if event.type == pygame.KEYDOWN:
+                self.wake()           # any key: up at once
+            return
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 self.close()
@@ -193,6 +261,9 @@ class RestWindow(_BaseDialog):
             self.step(event.y * (hour if pygame.key.get_mods() & pygame.KMOD_SHIFT else 1))
 
     def handle_click(self, pos: Tuple[int, int]) -> bool:
+        if self.turning:
+            self.wake()               # any click: up at once
+            return True
         if self.close_rect.collidepoint(pos) or not self.panel.collidepoint(pos):
             self.close()
             return True
@@ -213,8 +284,29 @@ class RestWindow(_BaseDialog):
         _close_dialog(self.game_state)
 
     def rest(self) -> None:
+        """Set the clock turning to the hand; the rest is taken when it gets there (`animate`)."""
+        if self.turning:
+            return
+        self.dragging = False
+        self.turn_t = 0.0
+        self.turn_s = turn_seconds(self.hours_ahead)
+
+    def animate(self, dt: float) -> None:
+        """The clock turns on (called each frame by the main loop)."""
+        if self.turn_t is None:
+            return
+        self.turn_t += min(dt, MAX_FRAME_SECONDS)   # a slow frame does not jump the dark or the turn
+        if self.turn_t >= self.total_seconds:
+            self.wake()
+
+    def wake(self) -> None:
         """Rest until the hand: the clock moves on, the tiredness falls, the picture comes back from black."""
+        if self.game_state.info_window is not self:
+            return
         game = self.game_state.game
+        # What the game comes back from: the window with the hand at the chosen moment, on black
+        self.turn_t = max(self.turn_t or 0.0, DARKEN_SECONDS + self.turn_s)
+        cover = self._snapshot_on_black()
         span = self.end - self.now
         hours = game.tiredness.rest(self.game_state, self.end)
         weather = getattr(game, "weather", None)
@@ -229,7 +321,29 @@ class RestWindow(_BaseDialog):
         self.game_state.info_window = None
         self.game_state.active_house_menu = None
         if hasattr(game, "fade_in_from"):
-            game.fade_in_from(pygame.Surface(self.screen.get_size()))   # black
+            game.fade_in_from(cover)
+
+    def _snapshot_on_black(self) -> pygame.Surface:
+        """The window as it is drawn now, on a black screen."""
+        cover = pygame.Surface(self.screen.get_size())
+        cover.fill(BLACK)
+        screen, self.screen = self.screen, cover
+        try:
+            self.draw()
+        finally:
+            self.screen = screen
+        return cover
+
+    def _draw_veil(self) -> None:
+        """Everything behind the window, darkening once "Rest" is pressed."""
+        alpha = round(255 * self.darkness)
+        if alpha <= 0:
+            return
+        if self._veil is None or self._veil.get_size() != self.screen.get_size():
+            self._veil = pygame.Surface(self.screen.get_size())
+            self._veil.fill(BLACK)
+        self._veil.set_alpha(alpha)
+        self.screen.blit(self._veil, (0, 0))
 
     # -- the dial, drawn once --------------------------------------------------
 
@@ -385,13 +499,16 @@ class RestWindow(_BaseDialog):
     def _draw_hand(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         """The gold arc from the top round to the hand, the mark at the top and the hand with its knob."""
         hours = self.hours_ahead
+        turned = self.hours_turned
         ox, oy = off
+        # The gold of the rest still to come, from where the clock has turned to round to the hand
         band_out, band_in = DIAL_RADIUS - 2, DIAL_RADIUS - 11
-        steps = max(2, int(hours / MAX_REST_HOURS * 180))
-        outer = [self.point_at(hours * i / steps, band_out) for i in range(steps + 1)]
-        inner = [self.point_at(hours * i / steps, band_in) for i in range(steps + 1)]
+        left = hours - turned
+        steps = max(2, int(left / MAX_REST_HOURS * 180))
+        outer = [self.point_at(turned + left * i / steps, band_out) for i in range(steps + 1)]
+        inner = [self.point_at(turned + left * i / steps, band_in) for i in range(steps + 1)]
         band = [(x + ox, y + oy) for x, y in outer + inner[::-1]]
-        if len(band) >= 3:
+        if left > 0.01 and len(band) >= 3:
             pygame.draw.polygon(surf, GOLD, band)
             pygame.draw.aalines(surf, GOLD_DARK, True, band)
         # The mark of now, at the top
@@ -403,16 +520,44 @@ class RestWindow(_BaseDialog):
         pygame.draw.line(surf, GOLD_DARK, (tip[0] + ox, tip[1] + oy), (foot[0] + ox, foot[1] + oy), 6)
         pygame.draw.line(surf, GOLD, (tip[0] + ox, tip[1] + oy), (foot[0] + ox, foot[1] + oy), 3)
         knob = (round(tip[0] + ox), round(tip[1] + oy))
-        hovered = math.hypot(pygame.mouse.get_pos()[0] - tip[0], pygame.mouse.get_pos()[1] - tip[1]) < 16
+        hovered = (not self.turning
+                   and math.hypot(pygame.mouse.get_pos()[0] - tip[0], pygame.mouse.get_pos()[1] - tip[1]) < 16)
         radius = 12 if (hovered or self.dragging) else 10
         pygame.gfxdraw.filled_circle(surf, *knob, radius + 2, GOLD_DARK)
         pygame.gfxdraw.aacircle(surf, *knob, radius + 2, GOLD_DARK)
         pygame.gfxdraw.filled_circle(surf, *knob, radius, GOLD)
         pygame.gfxdraw.aacircle(surf, *knob, radius, GOLD)
         pygame.gfxdraw.filled_circle(surf, knob[0] - 3, knob[1] - 3, max(2, radius // 3), GOLD_LIGHT)
+        if self.turning:
+            self._draw_turning_hand(surf, off, turned)
+
+    def _draw_turning_hand(self, surf: pygame.Surface, off: Tuple[int, int], turned: float) -> None:
+        """The clock's own hand while it turns: a silver needle from the slate across the ring."""
+        ox, oy = off
+        tip, foot = self.point_at(turned, DIAL_RADIUS + 10), self.point_at(turned, SLATE_RADIUS - 4)
+        tip, foot = (tip[0] + ox, tip[1] + oy), (foot[0] + ox, foot[1] + oy)
+        pygame.draw.line(surf, RIM_DARK, foot, tip, 7)
+        pygame.draw.line(surf, HAND_SILVER, foot, tip, 3)
+        knob = (round(foot[0]), round(foot[1]))
+        pygame.gfxdraw.filled_circle(surf, *knob, 7, RIM_DARK)
+        pygame.gfxdraw.aacircle(surf, *knob, 7, RIM_DARK)
+        pygame.gfxdraw.filled_circle(surf, *knob, 5, HAND_SILVER)
+        pygame.gfxdraw.aacircle(surf, *knob, 5, HAND_SILVER)
 
     def _draw_slate_text(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         cx, cy = self.centre[0] + off[0], self.centre[1] + off[1]
+        if self.turning:
+            # The hours going by: the clock's time, how long is still to come, and the day
+            moment = self.now + datetime.timedelta(hours=self.hours_turned)
+            caption = self.caption_font.render("RESTING", True, TEXT_SOFT)
+            clock = self.big_font.render(f"{moment:%H:%M}", True, TEXT_PALE)
+            to_go = self.caption_font.render(f"{describe_hours(self.end - moment)} to go", True, TEXT_PALE)
+            day = self.small_font.render(format_long(moment), True, TEXT_SOFT)
+            surf.blit(caption, caption.get_rect(center=(cx, cy - 66)))
+            surf.blit(clock, clock.get_rect(center=(cx, cy - 12)))
+            surf.blit(to_go, to_go.get_rect(center=(cx, cy + 36)))
+            surf.blit(day, day.get_rect(center=(cx, cy + 62)))
+            return
         until_sunrise = self.end == self.sunrise
         caption = self.caption_font.render("REST UNTIL SUNRISE" if until_sunrise else "REST FOR", True, TEXT_SOFT)
         span = self.big_font.render(describe_hours(self.end - self.now), True, TEXT_PALE)
@@ -426,8 +571,9 @@ class RestWindow(_BaseDialog):
     def _draw_tiredness(self, surf: pygame.Surface, off: Tuple[int, int]) -> None:
         """The tiredness now and after the rest, as two bars."""
         player = self.game_state.game.player
-        now = player.tiredness
-        after = tiredness_after_rest(now, self.hours_ahead)
+        # While the clock turns, the bar empties with the hours passed
+        now = tiredness_after_rest(player.tiredness, self.hours_turned)
+        after = tiredness_after_rest(player.tiredness, self.hours_ahead)
         y = self.centre[1] + DIAL_RADIUS + 26 + off[1]
         label = self.small_font.render("Tiredness", True, DARK_BROWN)
         bar_w, bar_h = 260, 14
@@ -448,6 +594,7 @@ class RestWindow(_BaseDialog):
         else:
             surf = self.screen
             off = (0, 0)
+            self._draw_veil()
 
         self._draw_panel(surf, off)
         self._draw_close_btn(surf, off)
@@ -456,10 +603,12 @@ class RestWindow(_BaseDialog):
         self._draw_hand(surf, off)
         self._draw_slate_text(surf, off)
         self._draw_tiredness(surf, off)
-        mouse_pos = pygame.mouse.get_pos() if not use_temp else (-1, -1)
+        mouse_pos = pygame.mouse.get_pos() if not use_temp and not self.turning else (-1, -1)
         for key, rect in self.buttons.items():
             self._draw_btn(surf, rect.move(*off), self.labels[key], mouse_pos, active=False)
-        hint = self.small_font.render("Drag the hand or turn the wheel; Enter rests.", True, (90, 70, 50))
+        hint_text = ("Click or press a key to wake at once." if self.turning
+                     else "Drag the hand or turn the wheel; Enter rests.")
+        hint = self.small_font.render(hint_text, True, (90, 70, 50))
         surf.blit(hint, hint.get_rect(centerx=self.panel.centerx + off[0], bottom=self.buttons["rest"].top + off[1] - 6))
 
         if use_temp:
