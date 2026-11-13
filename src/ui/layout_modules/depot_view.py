@@ -1,451 +1,302 @@
-import pygame
+"""The depot's accounts: a counting-house sheet with the figures of the chosen time frame.
+
+At the top a tab for each time frame (``PERIOD_DAYS``: Daily, Seasonal, Yearly, Total) and the
+days it covers. On the left a ledger of the period's figures, each row's value set right at the
+end of a dotted leader, gains in green and losses in red; a row marked with a lozenge opens its
+details on the right (``DepotViewDetail``), and when the depot's charts are shown beside it, turns
+them to the matching chart too (``ROW_CHARTS``). The last trade is written out in a line, and the
+goods that paid best and worst have their pictures.
+
+What can be clicked is filed each frame in ``game_state.depot_buttons`` (``"frame:<name>"``) and
+``game_state.depot_plus_rects`` (a row's detail key), and handled by ``handle_click``; the wheel
+scrolls the ledger while the pointer is over ``game_state.depot_scroll_rect``.
+"""
+
 import datetime
-from typing import TYPE_CHECKING, Tuple, Optional, Any
-from ...config.colors import *
-from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, MODULE_WIDTH
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+
+import pygame
+
+from . import ledger_style as style
 from ...sim.calendar import EPOCH, PERIOD_DAYS, format_date
 
 if TYPE_CHECKING:
-    from ...models.depot import Depot
     from ...game_state import GameState
+    from ...models.depot import Depot
 
-def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState', rect: pygame.Rect) -> None:
-    """Draw the depot view panel on the right side of the screen.
-    
-    The depot view basically only contains the left half of the data. 
-    The right half shows more detailed statistics and is handled in depot_view_detail.py.
-    
-    Args:
-        screen: The pygame surface to draw on.
-        font: Main font for text rendering.
-        depot: Reference to the player's depot model.
-        game_state: Current game state object.
-        rect: The rectangular area where the depot view should be drawn.
-    """
-    
-    # Use the passed rect for positioning and dimensions
-    width = rect.width
-    height = rect.height
-    x = rect.x
-    y = rect.y
-    
-    # The list and its detail panel were laid out for a module 825 wide; any
-    # width beyond that goes half to the panel and part to the list's labels
-    extra = max(0, width - 825)
-    value_x = 250 + extra * 3 // 8          # the list's value column
-    panel_x = 435 + extra // 2              # the detail panel, from the view's left
-    panel_w = 340 + extra // 2
+MARGIN = 52
+TABS_TOP, TAB_H, TAB_W, TAB_GAP = 100, 34, 112, 8
+CONTENT_TOP = 176
+ROW_H, HEADING_H, SECTION_GAP = 26, 38, 10
+COLUMN_GAP = 14
 
-    # Draw depot container
-    depot_rect = pygame.Rect(x, y, width, height)
-    pygame.draw.rect(screen, BEIGE, depot_rect)
-    pygame.draw.rect(screen, TAN, depot_rect, 10)
-    pygame.draw.rect(screen, DARK_BROWN, depot_rect, 2)
-    
-    # Draw heading with time frame
-    current_day = format_date(game_state.date)
+# A row whose details can be opened, and the chart it turns the depot's charts to
+ROW_CHARTS: Dict[str, Optional[str]] = {
+    "Current Wealth": "Wealth", "Wealth Start": "Wealth", "Income": "Income", "Expenses": "Expenses",
+    "Profit": "Profit", "Total Stock": "Stock", "Buy Actions": None, "Sell Actions": None, "Total Actions": None,
+}
+ROW_LABELS = {"Wealth Start": "Wealth at Start", "Total Stock": "Stock in Store"}
 
-    # Calculate start date based on time frame (the period includes today)
-    frame_days = PERIOD_DAYS.get(game_state.depot_time_frame)
-    if frame_days is None:  # "Total"
-        start_date = format_date(EPOCH)  # Game start date
-    else:
-        start_date = format_date(game_state.date - datetime.timedelta(days=frame_days - 1))
+Row = Tuple[str, str, int]          # (label, value, tone: +1 a gain, -1 a loss, 0 neither)
 
-    # Create heading text with date range
-    heading_text = f"{game_state.depot_time_frame} Depot Statistics ({start_date} - {current_day})"
 
-    title = font.render(heading_text, True, DARK_BROWN)
-    title_rect = title.get_rect(center=(x + width//2, y + 30))
-    screen.blit(title, title_rect)
-    
-    # Define button size and positions relative to title
-    btn_size = 30
-    margin = 10  # margin between title and buttons
-    left_btn_rect = pygame.Rect(title_rect.left - margin - btn_size, title_rect.centery - btn_size//2, btn_size, btn_size)
-    right_btn_rect = pygame.Rect(title_rect.right + margin, title_rect.centery - btn_size//2, btn_size, btn_size)
-    
-    # Determine availability based on current time frame index
-    current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
-    left_active = current_index > 0
-    right_active = current_index < len(game_state.depot_time_frames) - 1
+def draw_depot_view(screen: pygame.Surface, font: pygame.font.Font, depot: 'Depot', game_state: 'GameState',
+                    rect: pygame.Rect, framed: bool = True) -> None:
+    """Draw the depot's accounts into *rect* and file what can be clicked; not *framed*, on a
+    sheet already drawn (the depot's whole view, ``draw_depot_sheet``)."""
+    mouse = pygame.mouse.get_pos()
+    hover_ok = not (getattr(game_state, "info_window", None) or getattr(game_state, "dialogue", None))
+    if framed:
+        screen.blit(style.sheet(rect.size, "Accounts"), rect)
+    _draw_frames(screen, rect, game_state, mouse if hover_ok else None)
 
-    # New button design: render only available buttons with rounded rectangles and double arrows,
-    # with arrows turning white on hover
-    button_bg_color = SANDY_BROWN
-    button_border_color = DARK_BROWN
-    default_arrow_color = DARK_BROWN
-    hover_arrow_color = WHITE
-    arrow_font = pygame.font.SysFont("RomanAntique.ttf", 24)
-    mouse_pos = pygame.mouse.get_pos()
+    inner_w = rect.width - 2 * MARGIN
+    list_w = (inner_w - COLUMN_GAP) // 2
+    list_rect = pygame.Rect(rect.left + MARGIN, rect.top + CONTENT_TOP, list_w, rect.height - CONTENT_TOP - MARGIN)
+    panel_rect = pygame.Rect(list_rect.right + COLUMN_GAP, list_rect.top, inner_w - list_w - COLUMN_GAP, list_rect.height)
 
-    if left_active:
-        pygame.draw.rect(screen, button_bg_color, left_btn_rect, border_radius=5)
-        pygame.draw.rect(screen, button_border_color, left_btn_rect, 2, border_radius=5)
-        left_arrow_color = hover_arrow_color if left_btn_rect.collidepoint(mouse_pos) else default_arrow_color
-        arrow_text = arrow_font.render("<<", True, left_arrow_color)
-        arrow_rect = arrow_text.get_rect(center=left_btn_rect.center)
-        screen.blit(arrow_text, arrow_rect)
-    # Do not render left button if not active
-
-    if right_active:
-        pygame.draw.rect(screen, button_bg_color, right_btn_rect, border_radius=5)
-        pygame.draw.rect(screen, button_border_color, right_btn_rect, 2, border_radius=5)
-        right_arrow_color = hover_arrow_color if right_btn_rect.collidepoint(mouse_pos) else default_arrow_color
-        arrow_text = arrow_font.render(">>", True, right_arrow_color)
-        arrow_rect = arrow_text.get_rect(center=right_btn_rect.center)
-        screen.blit(arrow_text, arrow_rect)
-    # Do not render right button if not active
-
-    # Initialize detail panel if not already set
     if game_state.detail_panel is None:
         from .depot_view_detail import DepotViewDetail
-        game_state.detail_panel = DepotViewDetail(depot_rect, game_state)
-        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + panel_x, depot_rect.top + 60, panel_w, depot_rect.height-80)
-        # Open "Current Wealth" by default
+        game_state.detail_panel = DepotViewDetail(rect, game_state)
         game_state.detail_panel.show_for_statistic("Current Wealth")
+    game_state.detail_panel.rect = panel_rect
+
+    sections = _sections(depot, game_state)
+    _draw_ledger(screen, list_rect, sections, depot, game_state, mouse if hover_ok else None)
+
+    if game_state.detail_panel.visible:
+        game_state.detail_panel.draw(screen, font)
     else:
-        # Update detail panel position in case the view moved
-        game_state.detail_panel.rect = pygame.Rect(depot_rect.left + panel_x, depot_rect.top + 60, panel_w, depot_rect.height-80)
+        style.leaf(screen, panel_rect, lit=False)
+        hint = style.font(17).render("Choose a marked row to see its details", True, style.FAINT_INK)
+        screen.blit(hint, hint.get_rect(center=panel_rect.center))
 
-    # Prepare scrollable text area inside depot view (reserving 20px for scrollbar)
-    scroll_area = pygame.Rect(x, y + 60, width - 35, height -80)
-    # Create a temporary surface that is tall enough (estimate: current text section starts at 0)
-    content_surface = pygame.Surface((scroll_area.width, 1000), pygame.SRCALPHA)
-    content_surface.fill((0,0,0,0))
-    content_y = 0
-    
-    # Determine time frame period in days based on depot_time_frame (None: since the start)
+
+def handle_click(game_state: 'GameState', pos: Tuple[int, int]) -> bool:
+    """A click on a time frame's tab or a ledger row with details; True if it was one."""
+    for key, rect in list(game_state.depot_buttons.items()):
+        if rect.collidepoint(pos) and key.startswith("frame:"):
+            game_state.depot_time_frame = key.partition(":")[2]
+            if game_state.detail_panel is not None:
+                game_state.detail_panel.update_statistics(force=True)
+            return True
+    for label, rect in list(game_state.depot_plus_rects.items()):
+        if not rect.collidepoint(pos):
+            continue
+        panel = game_state.detail_panel
+        if panel is not None:
+            if panel.visible and panel.current_statistic == label:
+                panel.visible = False
+            else:
+                panel.show_for_statistic(label)
+                if ROW_CHARTS.get(label):
+                    game_state.depot_active_chart = ROW_CHARTS[label]
+        return True
+    return False
+
+
+# ----------------------------------------------------------------------
+# The time frames
+# ----------------------------------------------------------------------
+
+def _draw_frames(screen: pygame.Surface, rect: pygame.Rect, game_state: 'GameState',
+                 mouse: Optional[Tuple[int, int]]) -> None:
+    frames = game_state.depot_time_frames
+    total_w = len(frames) * TAB_W + (len(frames) - 1) * TAB_GAP
+    x = rect.centerx - total_w // 2
+    for name in frames:
+        tab = pygame.Rect(x, rect.top + TABS_TOP, TAB_W, TAB_H)
+        style.tab(screen, tab, name, name == game_state.depot_time_frame,
+                  mouse is not None and tab.collidepoint(mouse))
+        game_state.depot_buttons[f"frame:{name}"] = tab
+        x += TAB_W + TAB_GAP
+    days = PERIOD_DAYS.get(game_state.depot_time_frame)
+    start = EPOCH if days is None else (game_state.date - datetime.timedelta(days=days - 1)).date()
+    start = max(start, EPOCH)
+    words = format_date(game_state.date) if days == 1 else f"{format_date(start)}  to  {format_date(game_state.date)}"
+    text = style.font(18).render(words, True, style.FAINT_INK)
+    centre = (rect.centerx, rect.top + TABS_TOP + TAB_H + 18)
+    screen.blit(text, text.get_rect(center=centre))
+    half = text.get_width() // 2 + 26
+    for sign in (-1, 1):
+        x0 = centre[0] + sign * half
+        pygame.draw.line(screen, style.BRASS, (x0, centre[1]), (x0 + sign * 60, centre[1]), 1)
+
+
+# ----------------------------------------------------------------------
+# The period's figures
+# ----------------------------------------------------------------------
+
+def _sections(depot: 'Depot', game_state: 'GameState') -> List[Tuple[str, List[Row]]]:
+    """The ledger's sections and rows for the time frame chosen."""
+    goods = game_state.game.goods
     period_days = PERIOD_DAYS.get(game_state.depot_time_frame)
-
-    # Calculate live wealth and start wealth based on time frame
-    live_goods_value = sum(depot.good_stock.get(g.name, 0) * g.price for g in game_state.game.goods)
-    outstanding_loans = sum(loan.get("remaining_principal", loan.get("amount", 0.0)) for loan in depot.active_loans)
-    property_value = depot.get_property_value()
-    current_wealth = depot.money + live_goods_value + property_value - outstanding_loans
-
-    if period_days is not None:
-        # For Daily (period_days=1), start_wealth is yesterday's closing wealth (depot.wealth[-1])
-        if len(depot.wealth) >= period_days:
-            start_wealth = depot.wealth[-period_days]
-        else:
-            start_wealth = depot.wealth[0]
+    outstanding_loans = depot.outstanding_loans()
+    current_wealth = (depot.money + sum(depot.good_stock.get(g.name, 0) * g.price for g in goods)
+                      + depot.get_property_value() - outstanding_loans)
+    if period_days is not None and len(depot.wealth) >= period_days:
+        start_wealth = depot.wealth[-period_days]
     else:
         start_wealth = depot.wealth[0]
-        
-    wealth_change = current_wealth - start_wealth
+    change = current_wealth - start_wealth
 
-    # Calculate live income and expenses for the period
     if period_days is not None:
-        # num_history_days is the number of completed days to include
-        num_history_days = period_days - 1
-        if num_history_days > 0:
-            current_income = sum(depot.income_history[-num_history_days:]) + depot.income
-            current_expense = sum(depot.expenditure_history[-num_history_days:]) + depot.expenditures
-        else:
-            current_income = depot.income
-            current_expense = depot.expenditures
+        back = period_days - 1
+        income = (sum(depot.income_history[-back:]) if back > 0 else 0) + depot.income
+        expense = (sum(depot.expenditure_history[-back:]) if back > 0 else 0) + depot.expenditures
+        since = game_state.date - datetime.timedelta(days=period_days)
+        trades = [t for t in depot.trades if t["timestamp"] >= since]
+        cycles = depot.get_trade_cycle_stats(game_state.date, datetime.timedelta(days=period_days))
     else:
-        current_income = sum(depot.income_history) + depot.income
-        current_expense = sum(depot.expenditure_history) + depot.expenditures
+        income = sum(depot.income_history) + depot.income
+        expense = sum(depot.expenditure_history) + depot.expenditures
+        trades = depot.trades
+        cycles = depot.get_trade_cycle_stats(game_state.date, None)
 
-    # Filter trades by time frame for trade action stats
-    if period_days is not None:
-        delta = datetime.timedelta(days=period_days)
-        filtered_trades = [trade for trade in depot.trades if trade["timestamp"] >= game_state.date - delta]
-    else:
-        filtered_trades = depot.trades
-    buy_actions = sum(1 for trade in filtered_trades if trade["type"] == "purchase")
-    sell_actions = sum(1 for trade in filtered_trades if trade["type"] == "sale")
-    total_actions = len(filtered_trades)
-    
-    wealth_stats = [
-        ("Current Wealth", f"{current_wealth:,.2f}"),
-        ("Wealth Start", f"{start_wealth:,.2f}"),
-        ("Outstanding Loans", f"{outstanding_loans:,.2f}"),
-        ("Income", f"{current_income:,.2f}"),
-        ("Expenses", f"{current_expense:,.2f}"),
-        ("Profit", f"{wealth_change:,.2f}"),
-        ("Profit Margin", f"{(wealth_change/start_wealth*100):.1f}%" if start_wealth > 0 else "0.0%"),
-        ("Total Stock", f"{sum(depot.good_stock.values()):,} / {depot.total_capacity():,}")
+    tone = lambda v: (v > 0.005) - (v < -0.005)
+    margin = change / start_wealth * 100 if start_wealth > 0 else 0.0
+    sections = [
+        ("Wealth", [
+            ("Current Wealth", f"{current_wealth:,.2f}", 0),
+            ("Wealth Start", f"{start_wealth:,.2f}", 0),
+            ("Outstanding Loans", f"{outstanding_loans:,.2f}", -1 if outstanding_loans > 0 else 0),
+            ("Income", f"{income:,.2f}", 0),
+            ("Expenses", f"{expense:,.2f}", 0),
+            ("Profit", f"{'+' if change > 0.005 else ''}{change:,.2f}", tone(change)),
+            ("Profit Margin", f"{margin:+.1f}%" if abs(margin) >= 0.05 else "0.0%", tone(margin)),
+            ("Total Stock", f"{sum(depot.good_stock.values()):,} / {depot.total_capacity():,}", 0),
+        ]),
+        ("Trading", [
+            ("Buy Actions", f"{sum(1 for t in trades if t['type'] == 'purchase'):,}", 0),
+            ("Sell Actions", f"{sum(1 for t in trades if t['type'] == 'sale'):,}", 0),
+            ("Total Actions", f"{len(trades):,}", 0),
+        ]),
+        ("Trade Cycles", [
+            ("Completed Trades", f"{cycles['total_cycles']:,}", 0),
+            ("Successful Trades", f"{cycles['successful_cycles']:,}", 0),
+            ("Success Rate", f"{cycles['success_rate']:.1f}%", 0),
+            ("Total Trade Profit", f"{cycles['total_profit']:+,.2f}" if cycles['total_profit'] else "0.00",
+             tone(cycles['total_profit'])),
+        ]),
     ]
-    
-    trade_action_stats = [
-        ("Buy Actions", f"{buy_actions:,}"),
-        ("Sell Actions", f"{sell_actions:,}"),
-        ("Total Actions", f"{total_actions:,}")
-    ]
-    
-    # Get trade cycle statistics filtered by time frame
-    if period_days is not None:
-        delta = datetime.timedelta(days=period_days)
-        cycle_stats = depot.get_trade_cycle_stats(game_state.date, delta)
-    else:
-        cycle_stats = depot.get_trade_cycle_stats(game_state.date, None)
-    
-    # Convert cycle_stats dictionary to a list for display
-    trade_cycle_stats = [
-        ("Completed Trades", f"{cycle_stats['total_cycles']:,}"),
-        ("Successful Trades", f"{cycle_stats['successful_cycles']:,}"),
-        ("Success Rate", f"{cycle_stats['success_rate']:.1f}%"),
-        ("Total Trade Profit", f"{cycle_stats['total_profit']:,.2f}")
-    ]
+    best = [(name, p) for name, p in cycles["best_goods"][:3] if p > 0]
+    worst = [(name, p) for name, p in reversed(cycles["worst_goods"][-3:]) if p < 0]
+    if best or worst:
+        sections.append(("Goods, Profit per Unit",
+                         [(f"@{name}", f"{p:+,.2f}", 1) for name, p in best] +
+                         [(f"@{name}", f"{p:+,.2f}", -1) for name, p in worst]))
+    return sections
 
-    # Use game_state.depot_scroll_offset if it exists, otherwise default to 0
-    scroll_offset = getattr(game_state, "depot_scroll_offset", 0)
-    # Ensure offset is within bounds.
-    if scroll_offset < 0:
-        scroll_offset = 0
 
-    # Cache mouse coordinates once per frame and transform them into content-space
-    # coordinates to avoid repeated expensive calls inside row rendering.
-    mouse_pos = pygame.mouse.get_pos()
-    content_mouse_x = mouse_pos[0] - scroll_area.x
-    content_mouse_y = mouse_pos[1] - scroll_area.y + scroll_offset
-    
-    def draw_row(surf: pygame.Surface, 
-                 y_pos: int, 
-                 label: str, 
-                 value: str, 
-                 label_color: Tuple[int, int, int] = DARK_BROWN, 
-                 value_color: Tuple[int, int, int] = BLACK
-        ) -> None:
-        """Helper function to draw a single row with label and value.
-        
-        Args:
-            surf: Surface to draw the row onto.
-            y_pos: Vertical position in pixels.
-            label: Text label for the row.
-            value: Value text to display.
-            label_color: Color of the label text.
-            value_color: Color of the value text.
-        """
-        
-        #small_font = pygame.font.SysFont("RomanAntique.ttf", 19)
-        small_font = game_state.small_font
-        
-        # Check if this row is currently selected (its detail panel is open)
-        is_selected = (hasattr(game_state, "detail_panel") and 
-                     game_state.detail_panel is not None and
-                     game_state.detail_panel.visible and 
-                     game_state.detail_panel.current_statistic == label)
-        
-        # Draw a subtle gray background for the selected row
-        if is_selected:
-            row_rect = pygame.Rect(10, y_pos-4, surf.get_width()-80, 24)
-            row_separator = pygame.Rect(panel_x - 25, y_pos-4, 7, 24)
-            pygame.draw.rect(surf, LIGHT_GRAY, row_rect)
-            pygame.draw.rect(surf, BEIGE, row_separator)
-        
-        labels_without_button = ["Current Wealth", "Wealth Start", "Income", "Expenses", "Profit", "Total Stock", "Buy Actions", "Sell Actions", "Total Actions"]
-        if label in labels_without_button:
-            # Create a more visible button instead of just the text
-            button_size = 16
-            button_rect = pygame.Rect(20, y_pos, button_size, button_size)
-            
-            # Check if mouse is hovering over this button
-            button_hover = (20 <= content_mouse_x <= 20 + button_size and 
-                           y_pos <= content_mouse_y <= y_pos + button_size)
-            
-            # Draw button with plus/minus sign
-            button_bg_color = SANDY_BROWN if button_hover else TAN
-            pygame.draw.rect(surf, button_bg_color, button_rect)
-            pygame.draw.rect(surf, DARK_BROWN, button_rect, 1)
-            
-            # Check if this statistic's detail panel is currently open
-            show_minus = is_selected
-            
-            # Add plus/minus symbol centered in button with hover effect
-            button_text = "-" if show_minus else "+"
-            text_color = WHITE if button_hover else DARK_BROWN
-            plus_surf = small_font.render(button_text, True, text_color)
-            plus_rect = plus_surf.get_rect(center=button_rect.center)
-            plus_rect.y -= 3  # Shift the text up, the chosen font type is leaning to the bottom
-            surf.blit(plus_surf, plus_rect)
-            
-            # Store all button positions in a dictionary instead of just one
-            if not hasattr(game_state, "depot_plus_buttons"):
-                game_state.depot_plus_buttons = {}
-            
-            # Store button position with label as key
-            game_state.depot_plus_buttons[label] = (button_rect.x, button_rect.y, button_rect.width, button_rect.height)
-        
-        label_x = 40  # shift label right to accommodate button
-        
-        # Use bold effect for selected row
-        if is_selected:
-            # For bold text, render it twice with a small offset (simulating bold)
-            label_surf = small_font.render(label, True, label_color)
-            value_surf = small_font.render(value, True, value_color)
-            
-            # First render (offset by 1 pixel)
-            surf.blit(label_surf, (label_x+1, y_pos))
-            surf.blit(value_surf, (value_x + 1, y_pos))
-            
-            # Second render (original position)
-            surf.blit(label_surf, (label_x, y_pos))
-            surf.blit(value_surf, (value_x, y_pos))
-        else:
-            # Normal rendering for non-selected rows
-            label_surf = small_font.render(label, True, label_color)
-            value_surf = small_font.render(value, True, value_color)
-            surf.blit(label_surf, (label_x, y_pos))
-            surf.blit(value_surf, (value_x, y_pos))
-            
-        # Draw separator line after specific rows
-        if label in ["Total Stock", "Total Actions", "Total Trade Profit", "Total"]:
-            separator_y = y_pos + 20  # Position the line 20px below the text
-            pygame.draw.line(surf, PALE_BROWN, (20, separator_y), (surf.get_width()-60, separator_y), 1)
-    
-    # Draw section: Wealth Statistics
-    section_title = font.render("Wealth Statistics", True, DARK_BROWN)
-    content_surface.blit(section_title, (20, content_y))
-    content_y += 30
-    for label, value in wealth_stats:
-        draw_row(content_surface, content_y, label, value)
-        content_y += 24
-    
-    # Draw section: Trade Actions
-    content_y += 15
-    section_title = font.render("Trade Actions", True, DARK_BROWN)
-    content_surface.blit(section_title, (20, content_y))
-    content_y += 30
-    for label, value in trade_action_stats:
-        draw_row(content_surface, content_y, label, value)
-        content_y += 24
-    
-    # Draw section: Trade Cycles
-    content_y += 15
-    section_title = font.render("Trade Cycles", True, DARK_BROWN)
-    content_surface.blit(section_title, (20, content_y))
-    content_y += 30
-    for label, value in trade_cycle_stats:
-        draw_row(content_surface, content_y, label, value)
-        content_y += 24
+# ----------------------------------------------------------------------
+# The ledger, scrolled
+# ----------------------------------------------------------------------
 
-    # Draw most recent trade if available
-    if depot.trades:
-        content_y += 15
-        last_trade = depot.trades[-1]
-        section_title = font.render("Last Trade", True, DARK_BROWN)
-        content_surface.blit(section_title, (20, content_y))
-        content_y += 30
-        
-        trade_type = "Purchase" if last_trade["type"] == "purchase" else "Sale"
-        trade_color = DARK_RED if last_trade["type"] == "purchase" else DARK_GREEN
-        
-        draw_row(content_surface, content_y, "Good", last_trade["good"])
-        content_y += 24
-        draw_row(content_surface, content_y, "Type", trade_type, value_color=trade_color)
-        content_y += 24
-        draw_row(content_surface, content_y, "Quantity", f"{last_trade['quantity']:,}")
-        content_y += 24
-        draw_row(content_surface, content_y, "Price", f"{last_trade['price']:,.2f}")
-        content_y += 24
-        draw_row(content_surface, content_y, "Total", f"{last_trade['total']:,.2f}")
-        content_y += 24
-    
-    # Draw section: Best & Worst Goods
-    if cycle_stats["best_goods"] or cycle_stats["worst_goods"]:
-        content_y += 15
-        section_title = font.render("Performance by Good", True, DARK_BROWN)
-        content_surface.blit(section_title, (20, content_y))
-        content_y += 30
-    
-    # Draw best goods if available
-    if cycle_stats["best_goods"]:
-        draw_row(content_surface, content_y, "Best Performing Goods:", "Profit/Unit")
-        content_y += 24
-        for i, (good_name, profit) in enumerate(cycle_stats["best_goods"][:3]):
-            if profit > 0:
-                draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"+{profit:,.2f}")
-                content_y += 24
-    
-    # Draw worst goods if available
-    if cycle_stats["worst_goods"]:
-        content_y += 5
-        draw_row(content_surface, content_y, "Worst Performing Goods:", "Profit/Unit")
-        content_y += 24
-        for i, (good_name, profit) in enumerate(reversed(cycle_stats["worst_goods"][-3:])):
-            color = RED if profit < 0 else BLACK
-            draw_row(content_surface, content_y, f"   {i+1}. {good_name}", f"{profit:,.2f}", value_color=color)
-            content_y += 24
+def _draw_ledger(screen: pygame.Surface, list_rect: pygame.Rect, sections: List[Tuple[str, List[Row]]],
+                 depot: 'Depot', game_state: 'GameState', mouse: Optional[Tuple[int, int]]) -> None:
+    style.leaf(screen, list_rect)
+    view = list_rect.inflate(-16, -16)
+    game_state.depot_scroll_rect = list_rect
+    last_trade = depot.trades[-1] if depot.trades else None
+    height = sum(HEADING_H + len(rows) * ROW_H + SECTION_GAP for _, rows in sections)
+    height += (HEADING_H + 2 * ROW_H + SECTION_GAP) if last_trade else 0
+    content = pygame.Surface((view.width, max(height, 1)), pygame.SRCALPHA)
 
-    # add a visual closing as the last line to the content
-    pygame.draw.line(content_surface, DARK_BROWN, (20, content_y+10), (410, content_y+10), 2)
-    content_y += 20
+    max_offset = max(0, height - view.height)
+    offset = max(0, min(game_state.depot_scroll_offset, max_offset))
+    game_state.depot_scroll_offset = offset
+    local_mouse = (mouse[0] - view.left, mouse[1] - view.top + offset) if mouse and view.collidepoint(mouse) else None
 
-    # Crop the content_surface to the actual content height
-    content_surface = content_surface.subsurface(pygame.Rect(0, 0, scroll_area.width, content_y)).copy()
-    
-    # Update max_offset after content is created
-    max_offset = max(0, content_surface.get_height() - scroll_area.height)
-    if scroll_offset > max_offset:
-        scroll_offset = max_offset
-    game_state.depot_scroll_offset = scroll_offset
+    panel = game_state.detail_panel
+    selected = panel.current_statistic if panel is not None and panel.visible else None
+    icons = game_state.game.images.get('goods_30', {}) if hasattr(game_state.game, 'images') else {}
+    row_font, value_font, head_font = style.font(19), style.font(19), style.title_font(24)
+    rows_clickable: Dict[str, pygame.Rect] = {}
 
-    # Blit the visible content portion onto the screen
-    screen.set_clip(scroll_area)
-    screen.blit(content_surface, (scroll_area.x, scroll_area.y), area=pygame.Rect(0, scroll_offset, scroll_area.width, scroll_area.height))
-    screen.set_clip(None)
-    
-    # Draw scrollbar if content is taller than scroll area
-    if content_surface.get_height() > scroll_area.height:
-        scrollbar_width = 10
-        scrollbar_x = scroll_area.right
-        scrollbar_rect = pygame.Rect(scrollbar_x, scroll_area.y, scrollbar_width, scroll_area.height)
-        pygame.draw.rect(screen, LIGHT_GRAY, scrollbar_rect)  # Track
-        
-        # thumb height proportional to visible fraction
-        thumb_height = max(20, scroll_area.height * scroll_area.height / content_surface.get_height())
-        thumb_y = scroll_area.y + (scroll_offset / (content_surface.get_height() - scroll_area.height)) * (scroll_area.height - thumb_height)
-        thumb_rect = pygame.Rect(scrollbar_x, thumb_y, scrollbar_width, thumb_height)
-        pygame.draw.rect(screen, TAN, thumb_rect)
+    y = 0
+    sections_drawn = list(sections)
+    if last_trade:
+        sections_drawn.insert(1, ("Last Trade", []))
+    for title, rows in sections_drawn:
+        head = head_font.render(title, True, style.INK)
+        content.blit(head, (6, y + 4))
+        pygame.draw.line(content, style.BRASS, (6, y + HEADING_H - 6), (view.width - 6, y + HEADING_H - 6), 1)
+        pygame.draw.line(content, style.blend(style.BRASS, style.PAPER, 0.5), (6, y + HEADING_H - 4),
+                         (view.width - 6, y + HEADING_H - 4), 1)
+        y += HEADING_H
+        if title == "Last Trade":
+            _draw_last_trade(content, y, view.width, last_trade, icons)
+            y += 2 * ROW_H + SECTION_GAP
+            continue
+        for label, value, tone in rows:
+            row = pygame.Rect(0, y, view.width, ROW_H)
+            key = label if label in ROW_CHARTS else None
+            hovered = key is not None and local_mouse is not None and row.collidepoint(local_mouse)
+            if key == selected or hovered:
+                wash = pygame.Surface(row.size, pygame.SRCALPHA)
+                wash.fill((*style.BRASS, 70 if key == selected else 36))
+                content.blit(wash, row)
+                if key == selected:
+                    pygame.draw.rect(content, style.BRASS_DARK, (0, y + 3, 3, ROW_H - 6))
+            x = 10
+            if key is not None:                                   # a lozenge: its details can be opened
+                cx, cy = x + 5, y + ROW_H // 2
+                points = [(cx, cy - 6), (cx + 5, cy), (cx, cy + 6), (cx - 5, cy)]
+                pygame.draw.polygon(content, style.BRASS if key == selected else (240, 226, 190), points)
+                pygame.draw.polygon(content, style.BRASS_DARK, points, 1)
+                rows_clickable[key] = row
+            x += 18
+            name = label
+            if label.startswith("@"):                              # a good, with its picture
+                name = label[1:]
+                if name in icons:
+                    icon = pygame.transform.smoothscale(icons[name], (22, 22))
+                    content.blit(icon, (x - 16, y + 2))
+                    x += 10
+            text = row_font.render(ROW_LABELS.get(name, name), True, style.INK)
+            ink = style.GAIN_INK if tone > 0 else style.LOSS_INK if tone < 0 else style.INK
+            val = value_font.render(value, True, ink)
+            ty = y + (ROW_H - text.get_height()) // 2
+            content.blit(text, (x, ty))
+            content.blit(val, (view.width - 8 - val.get_width(), ty))
+            style.leader(content, x + text.get_width() + 8, view.width - 14 - val.get_width(), y + ROW_H - 8)
+            y += ROW_H
+        y += SECTION_GAP
 
-    # After cropping and calculating scroll offset, convert stored button positions to screen coordinates
-    if hasattr(game_state, "depot_plus_buttons"):
-        game_state.depot_plus_rects = {}  # Dictionary of clickable rectangles
-        for label, (btn_x, btn_y, btn_w, btn_h) in game_state.depot_plus_buttons.items():
-            # Only create clickable rect if button is actually visible in current scroll view
-            if btn_y >= scroll_offset and btn_y <= scroll_offset + scroll_area.height:
-                screen_y = scroll_area.y + (btn_y - scroll_offset)
-                screen_x = scroll_area.x + btn_x
-                game_state.depot_plus_rects[label] = pygame.Rect(screen_x, screen_y, btn_w, btn_h)
+    clip = screen.get_clip()
+    screen.set_clip(view)
+    screen.blit(content, view.topleft, area=pygame.Rect(0, offset, view.width, view.height))
+    screen.set_clip(clip)
 
-    # For backward compatibility, keep depot_plus_rect but set it to None
-    game_state.depot_plus_rect = None
+    game_state.depot_plus_rects = {}
+    for key, row in rows_clickable.items():
+        on_screen = row.move(view.left, view.top - offset).clip(view)
+        if on_screen.height > ROW_H // 2:
+            game_state.depot_plus_rects[key] = on_screen
 
-    # Store depot button rectangles for handling clicks externally
-    game_state.depot_buttons = {"left": left_btn_rect, "right": right_btn_rect}
+    if max_offset:                                                # a brass scrollbar in the leaf's margin
+        track = pygame.Rect(list_rect.right - 7, view.top, 4, view.height)
+        pygame.draw.rect(screen, style.RULE, track, border_radius=2)
+        thumb_h = max(24, view.height * view.height // height)
+        thumb_y = view.top + (view.height - thumb_h) * offset // max_offset
+        pygame.draw.rect(screen, style.BRASS_DARK, (track.left, thumb_y, 4, thumb_h), border_radius=2)
 
-    # After all depot rendering, draw the detail panel if toggled visible
-    if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
-        if game_state.detail_panel.visible:
-            game_state.detail_panel.draw(screen, font)
 
-def draw_stat_row(screen: pygame.Surface, 
-                  font: pygame.font.Font, 
-                  x: int, 
-                  y: int, 
-                  label: str, 
-                  value: str, 
-                  label_color: Tuple[int, int, int] = DARK_BROWN, 
-                  value_color: Tuple[int, int, int] = BLACK
-    ) -> None:
-    """Helper function to draw a row with label and value.
-    
-    Args:
-        screen: The surface to draw on.
-        font: Font for text rendering.
-        x: Horizontal starting position.
-        y: Vertical position.
-        label: Text label describing the statistic.
-        value: The statistic value.
-        label_color: Color for the label.
-        value_color: Color for the value.
-    """
-
-    label_surf = font.render(label, True, label_color)
-    value_surf = font.render(value, True, value_color)
-    screen.blit(label_surf, (x + 20, y))
-    screen.blit(value_surf, (x + 250, y))
+def _draw_last_trade(surf: pygame.Surface, y: int, width: int, trade: dict, icons: dict) -> None:
+    """The last trade in two lines: what, how many and at what, then what it came to and when."""
+    sold = trade["type"] != "purchase"
+    icon = icons.get(trade["good"])
+    x = 10
+    if icon is not None:
+        surf.blit(pygame.transform.smoothscale(icon, (34, 34)), (x, y + 8))
+        x += 44
+    verb = "Sold" if sold else "Bought"
+    first = style.font(19).render(f"{verb} {trade['quantity']:,} {trade['good']} at {trade['price']:,.2f}",
+                                  True, style.INK)
+    surf.blit(first, (x, y + 2))
+    when = trade.get("timestamp")
+    second = style.font(17).render(format_date(when) if when else "", True, style.FAINT_INK)
+    surf.blit(second, (x, y + ROW_H + 2))
+    total = style.font(19).render(f"{'+' if sold else '-'}{trade['total']:,.2f}", True,
+                                  style.GAIN_INK if sold else style.LOSS_INK)
+    surf.blit(total, (width - 8 - total.get_width(), y + ROW_H + 2))

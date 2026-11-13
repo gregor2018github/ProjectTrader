@@ -182,16 +182,9 @@ class EventHandler:
             # Check if detail panel is visible and mouse is over it
             if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None and game_state.detail_panel.visible and game_state.detail_panel.rect.collidepoint(mouse_pos):
                 game_state.detail_panel.scroll_offset = max(0, min(game_state.detail_panel.scroll_offset - event.y * scroll_speed, game_state.detail_panel.max_scroll))
-            else:
-                # Otherwise check depot view
-                screen = game_state.screen
-                width = screen.get_width() // 2 - 42
-                height = screen.get_height() - 120
-                x = screen.get_width() - width
-                y = 60
-                depot_rect = pygame.Rect(x, y, width, height)
-                if depot_rect.collidepoint(mouse_pos):
-                    game_state.depot_scroll_offset = getattr(game_state, "depot_scroll_offset", 0) - event.y * scroll_speed
+            elif game_state.depot_scroll_rect is not None and game_state.depot_scroll_rect.collidepoint(mouse_pos):
+                # The depot's accounts (draw_depot_view keeps the offset in bounds)
+                game_state.depot_scroll_offset = max(0, game_state.depot_scroll_offset - event.y * scroll_speed)
 
         return self.running
 

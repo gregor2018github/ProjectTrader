@@ -8,6 +8,8 @@ from ..ui.helper_modules.figurine_click_menu import get_hovered_map_object, show
 from ..models.figurines.figurine import Figurine
 from ..ui.helper_modules.water_click_menu import get_hovered_water, show_water_menu
 from ..ui.helper_modules.ledger_window import LedgerWindow
+from ..ui.layout_modules.depot_view_chart import handle_click as handle_depot_chart_click
+from ..ui.layout_modules.depot_view import handle_click as handle_depot_list_click
 
 if TYPE_CHECKING:
     from ..game_state import GameState
@@ -165,23 +167,6 @@ def handle_mouse_click(pos: Tuple[int, int],
                     show_water_menu(game_state, hovered_water, pos)
                     return
 
-    # Handle depot time frame button clicks
-    if hasattr(game_state, "depot_buttons") and "left" in game_state.depot_buttons:
-        depot_buttons = game_state.depot_buttons
-        current_index = game_state.depot_time_frames.index(game_state.depot_time_frame)
-        if depot_buttons["left"].collidepoint(pos) and current_index > 0:
-            game_state.depot_time_frame = game_state.depot_time_frames[current_index - 1]
-            # Force update of detail panel statistics
-            if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
-                game_state.detail_panel.update_statistics(force=True)
-            return
-        elif depot_buttons["right"].collidepoint(pos) and current_index < len(game_state.depot_time_frames) - 1:
-            game_state.depot_time_frame = game_state.depot_time_frames[current_index + 1]
-            # Force update of detail panel statistics
-            if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
-                game_state.detail_panel.update_statistics(force=True)
-            return
-
     # Reset hover states for all goods
     for good in goods:
         good.hovered = False
@@ -328,29 +313,11 @@ def handle_mouse_click(pos: Tuple[int, int],
             return
 
     # Check for clicks on Depot Chart buttons
-    if hasattr(game_state, "depot_chart_buttons") and game_state.depot_chart_buttons:
-        for label, rect in game_state.depot_chart_buttons.items():
-            if rect.collidepoint(pos):
-                game_state.depot_active_chart = label
-                return
+    if game_state.depot_chart_buttons and handle_depot_chart_click(game_state, pos):
+        return
 
-    # Check for plus button clicks in depot view detail area
-    if hasattr(game_state, "depot_plus_rects") and game_state.depot_plus_rects:
-        for label, rect in game_state.depot_plus_rects.items():
-            if rect.collidepoint(pos):
-                if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
-                    # Check if the panel is already visible for this statistic
-                    if game_state.detail_panel.visible and game_state.detail_panel.current_statistic == label:
-                        # Close the panel if already open for this statistic
-                        game_state.detail_panel.visible = False
-                    else:
-                        # Open the detail panel with the specific label
-                        game_state.detail_panel.show_for_statistic(label)
-                return
-    # For backward compatibility
-    elif hasattr(game_state, "depot_plus_rect") and game_state.depot_plus_rect and game_state.depot_plus_rect.collidepoint(pos):
-        if hasattr(game_state, "detail_panel") and game_state.detail_panel is not None:
-            game_state.detail_panel.toggle()
+    # The depot's accounts: a time frame's tab, or a row whose details open
+    if handle_depot_list_click(game_state, pos):
         return
 
     # Reset mouse click if clicked elsewhere

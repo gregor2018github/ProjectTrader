@@ -170,13 +170,15 @@ class GameState:
         self.small_font: Optional[pygame.font.Font] = None # Will be set by Game class
         self.playtime_seconds: float = 0.0
         self.depot_scroll_offset: int = 0
-        self.depot_plus_buttons: Dict[str, Tuple[int, int, int, int]] = {}
-        self.depot_plus_rects: Dict[str, pygame.Rect] = {}
-        self.depot_buttons: Dict[str, pygame.Rect] = {}
+        self.depot_plus_rects: Dict[str, pygame.Rect] = {}    # the accounts' rows whose details open
+        self.depot_buttons: Dict[str, pygame.Rect] = {}       # "frame:" + a time frame's name
+        self.depot_scroll_rect: Optional[pygame.Rect] = None  # where the wheel scrolls the accounts
         
         # State for the depot chart view
         self.depot_active_chart: str = "Wealth"
-        self.depot_chart_buttons: Dict[str, pygame.Rect] = {}
+        self.depot_chart_range: str = "All"           # how far back the depot's charts look (depot_chart_data.RANGES)
+        self.depot_chart_hidden: Dict[str, Set[str]] = {}   # per chart, the series switched off in its legend
+        self.depot_chart_buttons: Dict[str, pygame.Rect] = {}   # "chart:", "range:" or "series:" + name
         self.chart_selection_order: List[str] = []  # Tracks order in which goods were added to chart (max 3)
         self.active_house_menu = None
         # Hover glow on the map: the hovered House or Figurine, and the one fading out

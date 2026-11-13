@@ -64,10 +64,27 @@ _FRAME_GOLD = (150, 108, 30)
 
 # The banded frame round a sheet with corner blocks, in pixels in from the sheet's edge: a double
 # rule each side of a band of interlaced waves, the band's middle running through the blocks' middles.
-_BAND_RULES = ((10, 2), (13, 1), (35, 1), (37, 2))      # (inset, width), the heavy lines outermost
-_BAND_MIDDLE, _BAND_HALF = 24, 9                         # the waves' axis and how far they swing
-_WAVE_PERIOD = 46                                        # about this long; fitted to each side
-_BAND_WASH = (13, 35)                                    # the band's ground lies between these insets
+@dataclass(frozen=True)
+class FrameGeometry:
+    """How broad a framed sheet's frame is, in pixels in from the sheet's edge: its outer edge, the
+    band's rules (inset, width), the waves' axis, swing, period, stroke and beads, the band's ground
+    and the corner blocks' span."""
+    edge: Tuple[int, int] = (6, 3)                       # the dark edge's width, the light line's width
+    rules: Tuple[Tuple[int, int], ...] = ((10, 2), (13, 1), (35, 1), (37, 2))   # the heavy lines outermost
+    middle: int = 24                                     # the waves' axis
+    half: float = 9                                      # how far they swing
+    period: int = 46                                     # about this long; fitted to each side
+    stroke: float = 1.6
+    bead: float = 2.4
+    wash: Tuple[int, int] = (13, 35)                     # the band's ground lies between these insets
+    blocks: Tuple[int, int] = (7, 41)                    # a corner block spans these insets
+
+
+BROAD_FRAME = FrameGeometry()
+# A slimmer, quieter frame: single rules round a narrow band, small corner blocks (the depot's)
+SLIM_FRAME = FrameGeometry(edge=(3, 1), rules=((7, 1), (23, 1)), middle=15, half=4.5, period=30, stroke=1.2,
+                           bead=1.7, wash=(7, 23), blocks=(4, 26))
+_BAND_WASH = BROAD_FRAME.wash
 
 
 @dataclass(frozen=True)
@@ -87,15 +104,15 @@ class SheetTheme:
     texture_colour: Tuple[int, int, int, int] = (0, 0, 0, 0)
 
 
-GRAIN, RIPPLES, WEAVE = "grain", "ripples", "weave"
+GRAIN, RIPPLES, WEAVE, CHEQUER = "grain", "ripples", "weave", "chequer"
 
 
-def _texture_strip(length: int, theme: SheetTheme) -> pygame.Surface:
+def _texture_strip(length: int, theme: SheetTheme,
+                   height: int = _BAND_WASH[1] - _BAND_WASH[0]) -> pygame.Surface:
     """The band's ground along one side: wood's grain, long wavering lines with a knot now and
-    then, water's ripples, short pale curves scattered over it, or a linen's WEAVE. The same for
-    the same length."""
+    then, water's ripples, short pale curves scattered over it, a linen's WEAVE, or the CHEQUER of
+    an exchequer's counting cloth. The same for the same length."""
     k = 2
-    height = _BAND_WASH[1] - _BAND_WASH[0]
     art = pygame.Surface((length * k, height * k), pygame.SRCALPHA)
     rng = random.Random(length)
     colour = theme.texture_colour
@@ -123,6 +140,13 @@ def _texture_strip(length: int, theme: SheetTheme) -> pygame.Surface:
             pygame.draw.line(art, colour, (x * k, 0), ((x + height) * k, height * k), k)
         for x in range(-height, length + height, 6):
             pygame.draw.line(art, faint, ((x + height) * k, 0), (x * k, height * k), k)
+    elif theme.texture == CHEQUER:                                     # squares of the counting cloth, four across the band
+        side = height / 4
+        for row in range(4):
+            for col in range(int(length / side) + 1):
+                if (row + col) % 2 == 0:
+                    pygame.draw.rect(art, colour, (round(col * side * k), round(row * side * k),
+                                                   math.ceil(side * k), math.ceil(side * k)))
     return pygame.transform.smoothscale(art, (length, height))
 
 
@@ -130,54 +154,55 @@ GOLD_SHEET = SheetTheme(edge_dark=_FRAME_GOLD, edge_light=GOLD, rule=_FRAME_GOLD
                         strands=(RUBRIC, BRASS_DARK), bead_dark=BRASS_DARK, bead_light=BRASS, block=GOLD_BLOCK)
 
 
-def _wave_strip(length: int, theme: SheetTheme) -> pygame.Surface:
+def _wave_strip(length: int, theme: SheetTheme, geometry: FrameGeometry = BROAD_FRAME) -> pygame.Surface:
     """One side's band of two strands in opposite phase, crossing on the axis: a chain of eyes,
     each with a bead in it, as many whole periods as fit *length*, so the strands meet the
     corner blocks on the axis."""
     k = _SUPERSAMPLE
-    height = 2 * _BAND_HALF + 2
+    swing = geometry.half
+    height = math.ceil(2 * swing + 2)
     art = pygame.Surface((length * k, height * k), pygame.SRCALPHA)
-    periods = max(1, round(length / _WAVE_PERIOD))
+    periods = max(1, round(length / geometry.period))
     half_period = length / (2 * periods)
     mid = height * k / 2
     steps = length * 2
     for strand, ink in enumerate(theme.strands):
         sign = 1 if strand == 0 else -1
         points = [(i / steps * length * k,
-                   mid + sign * _BAND_HALF * k * math.sin(math.pi * i / steps * length / half_period))
+                   mid + sign * swing * k * math.sin(math.pi * i / steps * length / half_period))
                   for i in range(steps + 1)]
-        pygame.draw.lines(art, ink, False, points, int(1.6 * k))
+        pygame.draw.lines(art, ink, False, points, max(1, int(geometry.stroke * k)))
     for eye in range(2 * periods):                                     # a bead in every eye
         x = (eye + 0.5) * half_period * k
-        pygame.draw.circle(art, theme.bead_dark, (x, mid), 2.4 * k)
-        pygame.draw.circle(art, theme.bead_light, (x, mid), 1.6 * k)
+        pygame.draw.circle(art, theme.bead_dark, (x, mid), geometry.bead * k)
+        pygame.draw.circle(art, theme.bead_light, (x, mid), geometry.bead * 2 / 3 * k)
     return pygame.transform.smoothscale(art, (length, height))
 
 
-def _draw_band(page: pygame.Surface, theme: SheetTheme) -> None:
+def _draw_band(page: pygame.Surface, theme: SheetTheme, geometry: FrameGeometry = BROAD_FRAME) -> None:
     """The frame's band inside the edge: its ground, its double rules and the waves between them."""
     sheet = page.get_rect()
+    outer, inner = geometry.wash
     if theme.band_wash[3]:
         wash = pygame.Surface(sheet.size, pygame.SRCALPHA)
-        outer, inner = _BAND_WASH
         wash.fill(theme.band_wash, sheet.inflate(-2 * outer, -2 * outer))
         wash.fill((0, 0, 0, 0), sheet.inflate(-2 * inner, -2 * inner))
         page.blit(wash, (0, 0))
     if theme.texture:
-        outer, inner = _BAND_WASH
         middle = (outer + inner) / 2
-        across = _texture_strip(sheet.width - 2 * outer, theme)
-        upright = pygame.transform.rotate(_texture_strip(sheet.height - 2 * inner, theme), 90)
+        across = _texture_strip(sheet.width - 2 * outer, theme, inner - outer)
+        upright = pygame.transform.rotate(_texture_strip(sheet.height - 2 * inner, theme, inner - outer), 90)
         for art, centre in ((across, (sheet.centerx, middle)), (across, (sheet.centerx, sheet.height - middle)),
                             (upright, (middle, sheet.centery)), (upright, (sheet.width - middle, sheet.centery))):
             page.blit(art, art.get_rect(center=(round(centre[0]), round(centre[1]))))
-    for inset, width in _BAND_RULES:
+    for inset, width in geometry.rules:
         pygame.draw.rect(page, theme.rule, sheet.inflate(-2 * inset, -2 * inset), width)
-    block_far = 41                                   # the corner blocks' far edge, as charter_style lays them
-    across = _wave_strip(sheet.width - 2 * block_far, theme)
-    upright = pygame.transform.rotate(_wave_strip(sheet.height - 2 * block_far, theme), 90)
-    for art, centre in ((across, (sheet.centerx, _BAND_MIDDLE)), (across, (sheet.centerx, sheet.height - _BAND_MIDDLE)),
-                        (upright, (_BAND_MIDDLE, sheet.centery)), (upright, (sheet.width - _BAND_MIDDLE, sheet.centery))):
+    block_far = geometry.blocks[1]                   # the corner blocks' far edge
+    middle = geometry.middle
+    across = _wave_strip(sheet.width - 2 * block_far, theme, geometry)
+    upright = pygame.transform.rotate(_wave_strip(sheet.height - 2 * block_far, theme, geometry), 90)
+    for art, centre in ((across, (sheet.centerx, middle)), (across, (sheet.centerx, sheet.height - middle)),
+                        (upright, (middle, sheet.centery)), (upright, (sheet.width - middle, sheet.centery))):
         page.blit(art, art.get_rect(center=centre))
 
 
@@ -224,18 +249,21 @@ def title_tablet(page: pygame.Surface, title: pygame.Surface, centre_x: int, the
 
 
 def framed_sheet(size: Tuple[int, int], corner_blocks: bool = False,
-                 theme: SheetTheme = GOLD_SHEET) -> pygame.Surface:
+                 theme: SheetTheme = GOLD_SHEET, geometry: FrameGeometry = BROAD_FRAME) -> pygame.Surface:
     """A blank sheet: browned parchment in a gold frame with flourishes in its corners, or with
     *corner_blocks* a broader frame, a band of interlaced waves between double rules, meeting in
-    the council's charter's square blocks, in the colours of *theme* (gold by default)."""
+    the council's charter's square blocks, in the colours of *theme* (gold by default), as broad as
+    *geometry* says (``BROAD_FRAME``, or the quieter ``SLIM_FRAME``)."""
     page = pygame.Surface(size)
     sheet = page.get_rect()
     draw_paper(page, sheet, sheet.topleft)
     if corner_blocks:
-        pygame.draw.rect(page, theme.edge_dark, sheet, 6)
-        pygame.draw.rect(page, theme.edge_light, sheet.inflate(-4, -4), 3)
-        _draw_band(page, theme)
-        draw_corner_blocks(page, theme.block)
+        dark, light = geometry.edge
+        pygame.draw.rect(page, theme.edge_dark, sheet, dark)
+        light_inset = 4 if dark > 4 else 2 * dark
+        pygame.draw.rect(page, theme.edge_light, sheet.inflate(-light_inset, -light_inset), light)
+        _draw_band(page, theme, geometry)
+        draw_corner_blocks(page, theme.block, geometry.blocks)
         return page
     pygame.draw.rect(page, _FRAME_GOLD, sheet, 6)
     pygame.draw.rect(page, GOLD, sheet.inflate(-4, -4), 3)

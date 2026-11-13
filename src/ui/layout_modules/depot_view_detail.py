@@ -671,130 +671,79 @@ class DepotViewDetail:
         self.cached_stats["Expenses"].append("__SEPARATOR__")
 
     def draw(self, screen: pygame.Surface, font: pygame.font.Font) -> None:
-        """Draw the detail panel and its content to the screen.
-        
+        """Draw the panel on a leaf of the counting house's sheet: the statistic's name, then its
+        lines, a good's with its picture, each value set right at the end of a dotted leader.
+
         Args:
             screen: The surface to draw on.
-            font: The font to use for titles.
+            font: Unused; the panel takes the counting house's own fonts.
         """
-        if self.visible:
-            # Update statistics if needed
-            self.update_statistics()
-            
-            pygame.draw.rect(screen, WHEAT, self.rect)  # WHEAT or TAN look good
-            pygame.draw.rect(screen, DARK_BROWN, self.rect, 3)
-            
-            small_font = self.game_state.small_font
-            if hasattr(font, 'game_state') and hasattr(font.game_state, 'small_font'):
-                small_font = font.game_state.small_font
-            
-            title_text = "Wealth Details"
-            if self.current_statistic:
-                title_text = f"{self.current_statistic} - Details"
-                
-            title = font.render(title_text, True, BLACK)
-            screen.blit(title, (self.rect.x + 20, self.rect.y + 20))
-            
-            # Define the scrollable area (reserving space for scrollbar)
-            scroll_area = pygame.Rect(self.rect.x, self.rect.y + 60, self.rect.width - 15, self.rect.height - 80)
-            
-            # Set clipping to the scroll area
-            old_clip = screen.get_clip()
-            screen.set_clip(scroll_area)
-            
-            y_pos = self.rect.y + 60 - self.scroll_offset
-            line_height = 24
-            
-            # Get good icons from game instance
-            goods_images = None
-            if hasattr(self.game_state, 'game') and hasattr(self.game_state.game, 'images'):
-                goods_images = self.game_state.game.images.get('goods_30', {})
-            
-            # Use cached statistics if available
-            lines = []
-            if self.current_statistic in self.cached_stats:
-                lines = self.cached_stats[self.current_statistic]
+        if not self.visible:
+            return
+        from . import ledger_style as style
+        self.update_statistics()
+        style.leaf(screen, self.rect)
+
+        title = style.title_font(26).render(self.current_statistic or "Details", True, style.INK)
+        screen.blit(title, (self.rect.x + 16, self.rect.y + 10))
+        rule_y = self.rect.y + 48
+        pygame.draw.line(screen, style.BRASS, (self.rect.x + 14, rule_y), (self.rect.right - 14, rule_y), 1)
+        pygame.draw.line(screen, style.blend(style.BRASS, style.PAPER, 0.5), (self.rect.x + 14, rule_y + 2),
+                         (self.rect.right - 14, rule_y + 2), 1)
+
+        scroll_area = pygame.Rect(self.rect.x, rule_y + 8, self.rect.width - 10, self.rect.bottom - rule_y - 16)
+        old_clip = screen.get_clip()
+        screen.set_clip(scroll_area)
+        y_pos = scroll_area.y + 4 - self.scroll_offset
+        line_height = 24
+        body = style.font(19)
+        goods_images = self.game_state.game.images.get('goods_30', {}) if hasattr(self.game_state.game, 'images') else {}
+        left, right = self.rect.x + 16, self.rect.right - 22
+
+        for line in self.cached_stats.get(self.current_statistic, []):
+            if line == "__SEPARATOR__":
+                pygame.draw.line(screen, style.RULE, (left, y_pos - 3), (right, y_pos - 3), 1)
+                continue
+            text_color = style.INK
+            if line.lstrip().startswith("__GREEN__"):
+                text_color = style.GAIN_INK
+                line = line.replace("__GREEN__", "", 1)
+            elif line.lstrip().startswith("__RED__"):
+                text_color = style.LOSS_INK
+                line = line.replace("__RED__", "", 1)
+            indent = (len(line) - len(line.lstrip())) * 3
+            display = line.strip()
+            if not display:
+                y_pos += line_height // 2
+                continue
+            if indent == 0 and ":" not in display:                 # a heading, a good's with its picture
+                x = left
+                if display in goods_images:
+                    screen.blit(pygame.transform.smoothscale(goods_images[display], (22, 22)), (x, y_pos))
+                    x += 28
+                heading = style.title_font(21).render(display, True, style.INK)
+                screen.blit(heading, (x, y_pos))
+            elif ":" in display:
+                label, value = (part.strip() for part in display.split(":", 1))
+                label_ink = style.FAINT_INK if indent else style.INK
+                label_s = body.render(label, True, label_ink if text_color == style.INK else text_color)
+                value_s = body.render(value, True, text_color)
+                screen.blit(label_s, (left + indent, y_pos))
+                screen.blit(value_s, (right - value_s.get_width(), y_pos))
+                style.leader(screen, left + indent + label_s.get_width() + 8, right - value_s.get_width() - 6,
+                             y_pos + 15)
             else:
-                lines.extend([
-                    "Income: 1,240.00",
-                    "Expenses: 450.00",
-                    "Profit: 790.00",
-                ])
-            
-            # Render detail lines with values aligned on the right side
-            for line in lines:
-                # Check if this is a separator marker
-                if line == "__SEPARATOR__":
-                    # Draw separator line
-                    pygame.draw.line(screen, PALE_BROWN,
-                                    (self.rect.x + 20, y_pos-5),
-                                    (self.rect.x + self.rect.width - 35, y_pos-5), 1)
-                    continue  # Skip rendering this line
+                screen.blit(body.render(display, True, text_color), (left + indent, y_pos))
+            y_pos += line_height
 
-                # Extract color tag if present
-                text_color = BLACK
-                if line.lstrip().startswith("__GREEN__"):
-                    text_color = DARK_GREEN
-                    line = line.replace("__GREEN__", "", 1)
-                elif line.lstrip().startswith("__RED__"):
-                    text_color = DARK_RED
-                    line = line.replace("__RED__", "", 1)
+        content_height = (y_pos + self.scroll_offset) - (scroll_area.y + 4) + 8
+        self.max_scroll = max(0, content_height - scroll_area.height)
+        self.scroll_offset = min(self.scroll_offset, self.max_scroll)
+        screen.set_clip(old_clip)
 
-                # Calculate indentation level (number of spaces at beginning)
-                indent_level = len(line) - len(line.lstrip())
-                indent_pixels = indent_level * 8  # 8 pixels per indentation space
-
-                # Remove leading spaces for rendering
-                display_line = line.lstrip()
-
-                # Check if this line is just a good name (not indented and no colon)
-                is_good_name = indent_level == 0 and ":" not in display_line
-
-                if is_good_name and goods_images and display_line in goods_images:
-                    # Render the good icon
-                    good_icon = goods_images[display_line]
-                    # Scale down the icon slightly if needed
-                    icon_size = 24  # Slightly smaller than the original 30px
-                    if good_icon.get_width() > icon_size:
-                        good_icon = pygame.transform.scale(good_icon, (icon_size, icon_size))
-
-                    # Render good icon to the left of the name
-                    screen.blit(good_icon, (self.rect.x + 20, y_pos - 5))
-
-                    # Render the good name with extra left padding for the icon
-                    good_text = small_font.render(display_line, True, text_color)
-                    screen.blit(good_text, (self.rect.x + 50, y_pos))
-                elif ":" in display_line:
-                    parts = display_line.split(":", 1)
-                    label_part = parts[0].strip() + ":"
-                    value_part = parts[1].strip()
-                    label_surf = small_font.render(label_part, True, text_color)
-                    value_surf = small_font.render(value_part, True, text_color)
-                    screen.blit(label_surf, (self.rect.x + 20 + indent_pixels, y_pos))
-                    screen.blit(value_surf, (self.rect.x + self.rect.width - 110, y_pos))
-                else:
-                    text = small_font.render(display_line, True, text_color)
-                    screen.blit(text, (self.rect.x + 20 + indent_pixels, y_pos))
-                y_pos += line_height
-            
-            # add a visual closing as the last line to the content
-            pygame.draw.line(screen, DARK_BROWN, (self.rect.x + 20, y_pos+10), (self.rect.x + self.rect.width - 35, y_pos+10), 2)
-            
-            # Calculate max scroll
-            content_height = (y_pos + self.scroll_offset + 20) - (self.rect.y + 60)
-            self.max_scroll = max(0, content_height - scroll_area.height)
-            
-            # Reset clipping
-            screen.set_clip(old_clip)
-            
-            # Draw scrollbar if needed
-            if self.max_scroll > 0:
-                scrollbar_rect = pygame.Rect(self.rect.right - 12, self.rect.y + 60, 8, self.rect.height - 80)
-                pygame.draw.rect(screen, PALE_BROWN, scrollbar_rect)
-                
-                # Calculate handle height and position
-                handle_height = max(20, scrollbar_rect.height * (scrollbar_rect.height / content_height))
-                handle_y = scrollbar_rect.y + (self.scroll_offset / self.max_scroll) * (scrollbar_rect.height - handle_height)
-                handle_rect = pygame.Rect(scrollbar_rect.x, handle_y, scrollbar_rect.width, handle_height)
-                pygame.draw.rect(screen, DARK_BROWN, handle_rect)
-
+        if self.max_scroll > 0:                                     # a brass scrollbar in the leaf's margin
+            track = pygame.Rect(self.rect.right - 9, scroll_area.y, 4, scroll_area.height)
+            pygame.draw.rect(screen, style.RULE, track, border_radius=2)
+            handle_h = max(24, track.height * track.height // content_height)
+            handle_y = track.y + (track.height - handle_h) * self.scroll_offset // self.max_scroll
+            pygame.draw.rect(screen, style.BRASS_DARK, (track.x, handle_y, 4, handle_h), border_radius=2)

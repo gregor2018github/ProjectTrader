@@ -11,6 +11,7 @@ from .models.institutions.market import Market
 from .ui.layout_modules.chart_view import draw_chart
 from .ui.layout_modules.map_view import draw_map_view, draw_map_debug_ui
 from .ui.layout_modules.depot_view_chart import draw_depot_chart
+from .ui.layout_modules.ledger_style import draw_depot_sheet
 from .ui.layout_modules.town_plan import TownPlan
 from .ui import cursor
 from .models.good import Good
@@ -764,6 +765,9 @@ class Game:
                 self.state.trade_buttons = {}
                 self.state.trade_cards = []
                 self.state.depot_chart_buttons = {}
+                self.state.depot_buttons = {}       # the depot's hitboxes, filed again while it is drawn
+                self.state.depot_plus_rects = {}
+                self.state.depot_scroll_rect = None
                 for good in self.goods:
                     if hasattr(good, '_external_hover') and not good._external_hover:
                         good.hovered = False
@@ -929,8 +933,11 @@ class Game:
                     mode = self.state.left_side_mode
                     if mode == 'depot':
                         # Special case for Depot Full View: Chart on left, List on right
-                        draw_depot_chart(self.screen, left_module_rect, self.font, self.depot, self.state, self.population_manager, self.goods)
-                        draw_depot_view(self.screen, self.font, self.depot, self.state, right_module_rect)
+                        # One sheet over both halves, under one title
+                        charts_rect, accounts_rect = draw_depot_sheet(self.screen, full_module_rect)
+                        draw_depot_chart(self.screen, charts_rect, self.font, self.depot, self.state,
+                                         self.population_manager, self.goods, framed=False)
+                        draw_depot_view(self.screen, self.font, self.depot, self.state, accounts_rect, framed=False)
                     else:
                         # Standard full view (Map, Market, etc.)
                         render_module(mode, full_module_rect)

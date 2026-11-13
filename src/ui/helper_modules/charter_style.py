@@ -90,11 +90,13 @@ def _corner_block(side: int, colours: BlockColours = CHARTER_BLOCK) -> pygame.Su
     return _smooth((side, side), draw)
 
 
-def draw_corner_blocks(page: pygame.Surface, colours: BlockColours = CHARTER_BLOCK) -> None:
-    """The four corner blocks over a sheet's borders, where the rules meet."""
+def draw_corner_blocks(page: pygame.Surface, colours: BlockColours = CHARTER_BLOCK,
+                       span: Tuple[int, int] = _BLOCK) -> None:
+    """The four corner blocks over a sheet's borders, where the rules meet, each spanning the
+    insets *span*."""
     sheet = page.get_rect()
-    block = _corner_block(_BLOCK[1] - _BLOCK[0], colours)
-    near, far_x, far_y = _BLOCK[0], sheet.width - _BLOCK[1], sheet.height - _BLOCK[1]
+    block = _corner_block(span[1] - span[0], colours)
+    near, far_x, far_y = span[0], sheet.width - span[1], sheet.height - span[1]
     for x, y in ((near, near), (far_x, near), (near, far_y), (far_x, far_y)):
         page.blit(block, (x, y))
 
