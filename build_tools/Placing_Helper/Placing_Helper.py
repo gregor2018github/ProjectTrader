@@ -52,6 +52,7 @@ Keys:
                        right-click a point to take it away, P a new roof, H a new hole, Ctrl+Z
                        undo); saved into Map1.tmx with the lights
     G                  snap to the tile grid on / off
+    X                  the tile raster drawn over the map on / off (the panel's switch too)
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+S             save now (it saves by itself anyway)
     Escape             drop what is on the mouse, then the choice, then close
@@ -63,6 +64,7 @@ roofs and holes, their undo, and writing them into the map), roof_mode.py
 (the roof mode's input and drawing), this file (the window).
 """
 
+import math
 import os
 import sys
 from pathlib import Path
@@ -114,9 +116,11 @@ MIN_BOX_PX = 4                      # sprite px a collision box keeps at least
 FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it away
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
-KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   C collision   T night   L lights   O roofs   F figure   '
+KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   X raster   C collision   T night   L lights   O roofs   F figure   '
              'D another   Enter note   Del delete')
 LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
+RASTER_COLOUR = (255, 255, 255, 60)  # the tile raster's lines (X)
+RASTER_MIN_PX = 6                   # screen px a tile needs before its raster is drawn
 LIGHT_HOVER = (255, 225, 120)       # the window light under the pointer, ready for a right-click
 LIGHT_EDITED = (90, 220, 255)       # the one being edited, with its handles
 LIGHT_GRAB_SLACK_PX = 4             # screen px around a window light that still pick it
@@ -162,6 +166,8 @@ class PlacingHelper(RoofMode):
         self.chosen = None                # the Placement chosen
         self.snap = True
         self.show_collision = False
+        self.show_raster = False          # the tile raster over the map (X)
+        self._raster_layer = None         # its see-through surface, kept for the map area's size
         self.night = False                # the map at NIGHT_TIME, lit by its windows
         self.light_mode = 'random'        # which of them: LIGHT_MODES
         self.lit = []                     # the window lights lit now
@@ -540,6 +546,8 @@ class PlacingHelper(RoofMode):
         elif k == pygame.K_g:
             self.snap = not self.snap
             self.status = 'Snapping to the tile grid' if self.snap else 'Free placement, off the grid (--no-snap)'
+        elif k == pygame.K_x:
+            self.toggle_raster()
         elif k == pygame.K_c:
             self.show_collision = not self.show_collision
         elif k == pygame.K_t:
@@ -709,6 +717,33 @@ class PlacingHelper(RoofMode):
             edges.add('bottom')
         return edges
 
+    def toggle_raster(self):
+        self.show_raster = not self.show_raster
+        if self.show_raster and TILE * self.zoom < RASTER_MIN_PX:
+            self.status = 'Tile raster on: zoom in to see it'
+
+    def draw_raster(self, area, ox, oy):
+        """Faint lines along the tile edges over the map, at this zoom."""
+        step = TILE * self.zoom
+        if step < RASTER_MIN_PX:
+            return
+        if self._raster_layer is None or self._raster_layer.get_size() != area.size:
+            self._raster_layer = pygame.Surface(area.size, pygame.SRCALPHA)
+        layer = self._raster_layer
+        layer.fill((0, 0, 0, 0))
+        # Screen x of world x 0 is ox; the first tile edge left of the area
+        first_x = ox - area.x - math.floor((ox - area.x) / step) * step
+        first_y = oy - area.y - math.floor((oy - area.y) / step) * step
+        x = first_x
+        while x < area.w:
+            pygame.draw.line(layer, RASTER_COLOUR, (round(x), 0), (round(x), area.h))
+            x += step
+        y = first_y
+        while y < area.h:
+            pygame.draw.line(layer, RASTER_COLOUR, (0, round(y)), (area.w, round(y)))
+            y += step
+        self.screen.blit(layer, area.topleft)
+
     def set_night(self, on):
         self.night = on
         if on:
@@ -819,6 +854,8 @@ class PlacingHelper(RoofMode):
             if rect.collidepoint(pos):
                 if value == 'collision':
                     self.show_collision = not self.show_collision
+                elif value == 'raster':
+                    self.toggle_raster()
                 else:
                     self.unplaced_only[self.tab] = not self.unplaced_only[self.tab]
                     self.list_scroll = 0
@@ -887,6 +924,8 @@ class PlacingHelper(RoofMode):
                                  night=night)
 
         self.screen.set_clip(area)
+        if self.show_raster:
+            self.draw_raster(area, ox, oy)
         # Collision boxes of what is being placed: red where one overlaps
         # anything (and the box it overlaps red too), only as a warning
         new_boxes = [p.collision for p in self.placements]
@@ -1056,10 +1095,11 @@ class PlacingHelper(RoofMode):
         self.tab_chips, y = draw_chips(self.screen, self.fonts.font, TABS, lambda t: t, self.tab,
                                        x, y, panel.w - 2 * PAD, mouse)
         y += 6
-        # Two switches on one row, each lit while on
+        # Three switches on one row, each lit while on
         self.toggle_chips = []
-        for value, label, on in (('only', 'Unplaced only  (U)', self.unplaced_only[self.tab]),
-                                 ('collision', 'Collision boxes  (C)', self.show_collision)):
+        for value, label, on in (('only', 'Unplaced  (U)', self.unplaced_only[self.tab]),
+                                 ('collision', 'Collision  (C)', self.show_collision),
+                                 ('raster', 'Raster  (X)', self.show_raster)):
             chips, _ = draw_chips(self.screen, self.fonts.font, [value], lambda _, label=label: label,
                                   value if on else None, x, y, panel.right - PAD - x, mouse)
             self.toggle_chips += chips
