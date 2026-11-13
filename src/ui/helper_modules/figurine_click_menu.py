@@ -15,7 +15,7 @@ from typing import Iterator, List, Optional, Tuple, Union, TYPE_CHECKING
 import pygame
 
 from ...config import settings_store
-from ...config.constants import ALMS_CATEGORY, ALMS_COIN, SHEEP_VOLUME
+from ...config.constants import ALMS_CATEGORY, ALMS_COIN, SHEEP_PET_REPUTATION, SHEEP_VOLUME
 from ..transaction_feedback import on_money_donated
 from .figurine_bubbles import (  # noqa: F401  (figurine_screen_pos and FigurineMenu are used from here too)
     FigurineBubble, FigurineMenu, FigurineSpeech, figurine_screen_pos, figurine_screen_rect,
@@ -252,7 +252,7 @@ def _give_coin(game_state: 'GameState', npc: 'NPC') -> bool:
 
 
 def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
-    """Make the sheep bleat and stand still."""
+    """Make the sheep bleat and stand still; the day's first petting earns a little reputation."""
     game = game_state.game
     player = game.game_map.map_player
     sheep.pet(player.x + player.width / 2)
@@ -260,3 +260,9 @@ def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
         channel = random.choice(game.sheep_sounds).play()
         if channel:
             channel.set_volume(SHEEP_VOLUME)
+    stats = game.depot.stats
+    today = game_state.date.date().isoformat()
+    if stats.last_sheep_pet_day != today:
+        stats.last_sheep_pet_day = today
+        game.player.change_reputation(SHEEP_PET_REPUTATION)
+        game_state.log_event("RANK", f"Petted a sheep (reputation +{SHEEP_PET_REPUTATION:g})")

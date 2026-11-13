@@ -56,6 +56,7 @@ class Statistics:
         self.dishes_tried: Dict[str, int] = {}
         self.fishing_highscore: float = 0.0     # the most coins a fishing session brought in
         self.last_fishing_day: Optional[str] = None  # ISO date (YYYY-MM-DD) last fished, gates to once/day
+        self.last_sheep_pet_day: Optional[str] = None  # ISO date (YYYY-MM-DD) a sheep last earned reputation, gates to once/day
         self.fish_caught: int = 0               # fish landed, all kinds
         self.fishing_records: Dict[str, float] = {}  # the biggest of each kind landed, in cm, by species key
         self.fish_tally: Dict[str, Dict[str, float]] = {}  # per species key: {"count": fish landed, "kg": their weight together}
@@ -125,6 +126,7 @@ class Statistics:
             "dishes_tried": dict(self.dishes_tried),
             "fishing_highscore": self.fishing_highscore,
             "last_fishing_day": self.last_fishing_day,
+            "last_sheep_pet_day": self.last_sheep_pet_day,
             "fish_caught": self.fish_caught,
             "fishing_records": dict(self.fishing_records),
             "fish_tally": {key: dict(entry) for key, entry in self.fish_tally.items()},
@@ -167,6 +169,7 @@ class Statistics:
         obj.dishes_tried = dict(d.get("dishes_tried", {}))
         obj.fishing_highscore = d.get("fishing_highscore", 0.0)
         obj.last_fishing_day = d.get("last_fishing_day", None)
+        obj.last_sheep_pet_day = d.get("last_sheep_pet_day", None)
         obj.fish_caught = d.get("fish_caught", 0)
         obj.fishing_records = dict(d.get("fishing_records", {}))
         obj.fish_tally = {key: dict(entry) for key, entry in d.get("fish_tally", {}).items()}

@@ -61,6 +61,7 @@ KNOCK_ANSWER_CHANCE = 0.50          # Chance that a knock is answered at all
 KNOCK_ANSWER_SECONDS = 5.0          # Real seconds they stand outside before going back in
 # Giving a coin to one of the town's poor, from the figurine menu.
 ALMS_COIN = 1                       # Coins handed over per gift
+SHEEP_PET_REPUTATION = 0.2          # Reputation for petting a sheep, earned once a game day (Statistics.last_sheep_pet_day)
 ALMS_CATEGORY = "Alms"              # Bookkeeping subcategory a gift is booked under
 # Meals for the poor, given to the church in goods from the player's stock (name, goods and how many of each).
 # They are booked as donations at the goods' market price on the day.
