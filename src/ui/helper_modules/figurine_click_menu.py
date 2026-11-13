@@ -16,7 +16,7 @@ import pygame
 
 from ...config import settings_store
 from ...config.constants import ALMS_CATEGORY, ALMS_COIN, SHEEP_PET_REPUTATION, SHEEP_VOLUME
-from ..transaction_feedback import on_money_donated
+from ..transaction_feedback import on_money_donated, on_reputation_gained
 from .figurine_bubbles import (  # noqa: F401  (figurine_screen_pos and FigurineMenu are used from here too)
     FigurineBubble, FigurineMenu, FigurineSpeech, figurine_screen_pos, figurine_screen_rect,
 )
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
 
 # Label of the alms option, used both to offer it and to recognise the choice
 GIVE_COIN_OPTION = "Give a Coin"
+PET_SHEEP_OPTION = "Pet Sheep"
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -149,7 +150,7 @@ def show_figurine_menu(
         if figurine.SOCIAL_CLASS == "Poor":
             options.append(GIVE_COIN_OPTION)
     if isinstance(figurine, Sheep):
-        options.append("Pet Sheep")
+        options.append(PET_SHEEP_OPTION)
     # Inspect is a debugging aid, only offered with the debug overlay on
     if settings_store.get("show_map_debug"):
         options.append("Inspect")
@@ -185,8 +186,8 @@ def show_figurine_menu(
         if introduction is not None and option_text == introduction.lend_option:
             lend_a_hand(game_state, figurine, map_content_rect)
             return
-        if option_text == "Pet Sheep" and isinstance(figurine, Sheep):
-            _pet_sheep(game_state, figurine)
+        if option_text == PET_SHEEP_OPTION and isinstance(figurine, Sheep):
+            _pet_sheep(game_state, figurine, map_content_rect)
         if option_text == GIVE_COIN_OPTION and isinstance(figurine, NPC):
             if _give_coin(game_state, figurine):
                 # As with a chat, the bubble takes the menu's place; the coin's
@@ -251,8 +252,14 @@ def _give_coin(game_state: 'GameState', npc: 'NPC') -> bool:
     return True
 
 
-def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
-    """Make the sheep bleat and stand still; the day's first petting earns a little reputation."""
+def sheep_pet_pays(game_state: 'GameState') -> bool:
+    """Whether petting a sheep still earns reputation today (once a game day)."""
+    return game_state.game.depot.stats.last_sheep_pet_day != game_state.date.date().isoformat()
+
+
+def _pet_sheep(game_state: 'GameState', sheep: 'Sheep', map_content_rect: pygame.Rect) -> None:
+    """Make the sheep bleat and stand still; the day's first petting earns a little reputation,
+    shown as "+0.2" and the laurel rising from the player's head."""
     game = game_state.game
     player = game.game_map.map_player
     sheep.pet(player.x + player.width / 2)
@@ -260,9 +267,9 @@ def _pet_sheep(game_state: 'GameState', sheep: 'Sheep') -> None:
         channel = random.choice(game.sheep_sounds).play()
         if channel:
             channel.set_volume(SHEEP_VOLUME)
-    stats = game.depot.stats
-    today = game_state.date.date().isoformat()
-    if stats.last_sheep_pet_day != today:
-        stats.last_sheep_pet_day = today
+    if sheep_pet_pays(game_state):
+        game.depot.stats.last_sheep_pet_day = game_state.date.date().isoformat()
         game.player.change_reputation(SHEEP_PET_REPUTATION)
         game_state.log_event("RANK", f"Petted a sheep (reputation +{SHEEP_PET_REPUTATION:g})")
+        head = figurine_screen_rect(player, game.game_map.camera, map_content_rect).midtop
+        on_reputation_gained(game_state, SHEEP_PET_REPUTATION, head)

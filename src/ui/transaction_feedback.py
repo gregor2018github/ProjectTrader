@@ -1,4 +1,5 @@
 from __future__ import annotations
+import math
 import os
 import random
 import pygame
@@ -8,11 +9,13 @@ if TYPE_CHECKING:
     from ..game_state import GameState
 
 from ..config.constants import PICTURES_PATH, FONTS_PATH
-from ..config.colors import DARK_RED, DARK_GREEN
+from ..config.colors import DARK_RED, DARK_GREEN, GOLD
 
 _coin_img: Optional[pygame.Surface] = None
 _popup_font: Optional[pygame.font.Font] = None
 _good_icons: dict[tuple[str, int], pygame.Surface] = {}
+_laurels: dict[int, pygame.Surface] = {}
+LAUREL_GOLD_DARK = (150, 110, 20)      # the wreath's outline
 
 _COIN_W = 36
 _GOOD_ICON_SIZE = 36
@@ -54,6 +57,34 @@ def good_icon(good_name: str, size: int) -> pygame.Surface:
         _good_icons[key] = pygame.transform.smoothscale(
             image, (max(1, round(w * scale)), max(1, round(h * scale))))
     return _good_icons[key]
+
+
+def laurel_icon(size: int) -> pygame.Surface:
+    """Reputation's sign: a small gold laurel wreath, open at the top, `size` square, kept once made."""
+    if size not in _laurels:
+        # Drawn at 80 px and smoothed down, so the little leaves stay soft
+        big = 80
+        surf = pygame.Surface((big, big), pygame.SRCALPHA)
+        cx, cy, radius = big / 2, big / 2 + 2, big * 0.36
+        for side in (-1, 1):
+            stem = [(cx + side * radius * math.sin(math.radians(a)), cy + radius * math.cos(math.radians(a)))
+                    for a in range(20, 150, 10)]
+            pygame.draw.lines(surf, LAUREL_GOLD_DARK, False, stem, 4)
+            for i in range(1, len(stem), 2):
+                (px, py), (qx, qy) = stem[i], stem[i - 1]
+                tx, ty = px - qx, py - qy
+                n = math.hypot(tx, ty) or 1
+                tx, ty = tx / n, ty / n
+                for flip in (-1, 1):            # a leaf each side of the stem, pointing along it
+                    nx, ny = -ty * flip, tx * flip
+                    tip = (px + tx * 18 + nx * 14, py + ty * 18 + ny * 14)
+                    mid = ((px + tip[0]) / 2, (py + tip[1]) / 2)
+                    leaf = [(px, py), (mid[0] - ny * 6 * flip, mid[1] + nx * 6 * flip), tip,
+                            (mid[0] + ny * 6 * flip, mid[1] - nx * 6 * flip)]
+                    pygame.draw.polygon(surf, GOLD, leaf)
+                    pygame.draw.polygon(surf, LAUREL_GOLD_DARK, leaf, 3)
+        _laurels[size] = pygame.transform.smoothscale(surf, (size, size))
+    return _laurels[size]
 
 
 class FloatingPopup:
@@ -126,6 +157,24 @@ class GoodsPopup(FloatingPopup):
     def __init__(self, screen: pygame.Surface, pos: tuple[int, int], good_name: str, quantity: int) -> None:
         super().__init__(screen, pos, good_icon(good_name, _GOOD_ICON_SIZE), f"+{quantity}", DARK_GREEN,
                          icon_first=False)
+
+
+class ReputationPopup(FloatingPopup):
+    """Reputation earned: "+0.2" and the laurel, rising and fading like the coins."""
+
+    def __init__(self, screen: pygame.Surface, pos: tuple[int, int], amount: float) -> None:
+        super().__init__(screen, pos, laurel_icon(_GOOD_ICON_SIZE), f"+{amount:g}", DARK_GREEN,
+                         icon_first=False)
+
+
+def on_reputation_gained(game_state: "GameState", amount: float, pos: tuple[int, int]) -> None:
+    """Feedback for reputation earned by a deed (petting a sheep): "+0.2" and the laurel
+    rising from `pos`, the top of the player's head on screen."""
+    if amount <= 0:
+        return
+    if game_state.game:
+        game_state.game.play_sound(GOODS_RECEIVED_SOUND)
+    game_state.coin_popups.append(ReputationPopup(game_state.screen, pos, amount))
 
 
 def on_money_spent(game_state: "GameState", amount: float = 0.0) -> None:

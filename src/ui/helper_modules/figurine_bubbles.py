@@ -7,16 +7,15 @@ bubbles are used for lives elsewhere: the click menu in figurine_click_menu.py,
 the scripted talks in figurine_talks.py.
 """
 
-import math
 import os
 from typing import Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import pygame
 
-from ...config.colors import DARK_BROWN, BLACK, GOLD
+from ...config.colors import DARK_BROWN, BLACK
 from ...config.constants import FONTS_PATH
 from ..text_reveal import LetterReveal
-from ..transaction_feedback import good_icon
+from ..transaction_feedback import good_icon, laurel_icon
 from .house_click_menu import is_player_near
 
 if TYPE_CHECKING:
@@ -51,11 +50,9 @@ ANSWER_MARK = "\u00bb "                # Before each of the player's answers
 BADGE_GAP = 10                         # Between an answer and what it brings
 BADGE_ICON_SIZE = 20                   # The icon of what an answer brings, square
 BADGE_TEXT_COLOR = (46, 104, 46)       # A gain, "+3": a muted green on the parchment
-LAUREL_GOLD_DARK = (150, 110, 20)      # The wreath's outline
 
 #: An answer's badge: what it brings, as its amount ("+3") and an icon
 Badge = Tuple[str, pygame.Surface]
-_badge_icons: Dict[str, pygame.Surface] = {}
 
 
 def good_badge_icon(good_name: str) -> pygame.Surface:
@@ -65,30 +62,7 @@ def good_badge_icon(good_name: str) -> pygame.Surface:
 
 def reputation_badge_icon() -> pygame.Surface:
     """Reputation at badge size: a small gold laurel wreath, open at the top."""
-    if "reputation" not in _badge_icons:
-        # Drawn at four times the size and smoothed down, so the little leaves stay soft
-        big = BADGE_ICON_SIZE * 4
-        surf = pygame.Surface((big, big), pygame.SRCALPHA)
-        cx, cy, radius = big / 2, big / 2 + 2, big * 0.36
-        for side in (-1, 1):
-            stem = [(cx + side * radius * math.sin(math.radians(a)), cy + radius * math.cos(math.radians(a)))
-                    for a in range(20, 150, 10)]
-            pygame.draw.lines(surf, LAUREL_GOLD_DARK, False, stem, 4)
-            for i in range(1, len(stem), 2):
-                (px, py), (qx, qy) = stem[i], stem[i - 1]
-                tx, ty = px - qx, py - qy
-                n = math.hypot(tx, ty) or 1
-                tx, ty = tx / n, ty / n
-                for flip in (-1, 1):            # a leaf each side of the stem, pointing along it
-                    nx, ny = -ty * flip, tx * flip
-                    tip = (px + tx * 18 + nx * 14, py + ty * 18 + ny * 14)
-                    mid = ((px + tip[0]) / 2, (py + tip[1]) / 2)
-                    leaf = [(px, py), (mid[0] - ny * 6 * flip, mid[1] + nx * 6 * flip), tip,
-                            (mid[0] + ny * 6 * flip, mid[1] - nx * 6 * flip)]
-                    pygame.draw.polygon(surf, GOLD, leaf)
-                    pygame.draw.polygon(surf, LAUREL_GOLD_DARK, leaf, 3)
-        _badge_icons["reputation"] = pygame.transform.smoothscale(surf, (BADGE_ICON_SIZE, BADGE_ICON_SIZE))
-    return _badge_icons["reputation"]
+    return laurel_icon(BADGE_ICON_SIZE)
 
 
 def figurine_screen_pos(figurine: 'Figurine', camera: 'Camera') -> Tuple[int, int]:
