@@ -17,16 +17,23 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 - [ ] have a big warehouse close to the market area, that one will be expensive and needs higher stage to be unlocked
 - [ ] have sprite manager routines for fences
-- [ ] make new sprites for the new products
+- [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
 - [ ] design and add three houses that are horizontally oriented
+- [ ] create the first drinks for the food system
+- [ ] finish all food items
+- [ ] food must give buffs
+- [ ] unify the contract text parts. it should all be stored in one file instead of two per contract type
+- [ ] have cranes in the harbor area that can actually move
+- [ ] have an animation for farmers bringing in the harvest in autumn on the fields, also crates of products being dropped aside the field
 
 ## Medium Priority
 
-- [ ] food in the pubs must become buyable as individual plates
-- [ ] make a prototype food plate design - then set the sprite manager up for it
+- [ ] add effects for tiredness
 - [ ] also create the player running animations with the sprite manager and gemini (currently still legacy sprites)
-- [ ] have actual images of the food plates bought by the player that you see when you bought them
-- [ ] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
+- [ ] make new contract for the new products
+- [ ] have an actual boat visual for the one where the player arrives with
+- [ ] make more ground tiles for the inner city... patches of stone, find a workway to do it... automate as much as possible
+- [ ] make new markets for the new products
 - [ ] make new contracts for the new products (most trade under their guild's licence; Spices has its own, with placeholder contract texts)
 - [ ] add different walking sounds for different surfaces (grass, bridge, snow, etc)
 - [ ] add a second player type (female) - create a big sprite that holds all the frames for the player
@@ -60,8 +67,11 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - NA
 
 ## Finished Features
+- [x] have actual images of the food plates bought by the player that you see when you bought them
+- [x] food in the pubs must become buyable as individual plates
+- [x] make a prototype food plate design - then set the sprite manager up for it
+- [x] make new sprites for the new products
 - [x] add snow animation for winter season
-- [x] unify the contract text parts: all licences in one file, assets/texts/contracts/licenses.json
 - [x] add three more houses with different designs between two marketplaces
 - [x] playtest the living market, then merge p1-living-market into master
 - [x] P1.4: the full health report: the remaining checks of docs/p1_living_market.md (price stuck at a clamp, price far from outside, hunger, poorly supplied, money supply, bad numbers, population, happiness range, workshop cash, dead workshop, structural shortage) and a table over 20 seeds × 50 years
