@@ -1,7 +1,9 @@
 """The Gourmet Collection, opened at the guildhall: every tavern dish, those tasted and those not.
 
 A page each for the plates, the bowls and the drinks (`Dish.type`), on the sheet the
-guild's records are drawn on (`records_window.py`). Every dish is a card: its picture,
+guild's records are drawn on (`records_window.py`), in a table's colours of its own
+(`GOURMET_PAGE`): saffron and honey gold on cream, umber for what is dark, a linen's
+weave in the frame's band, and the pictures in their gold frames. Every dish is a card: its picture,
 its name and how often it was eaten; clicking a tasted one shows its picture large over
 the collection (the tavern's `DishServedWindow`, kept in `enlarged`, the collection dimmed
 behind it), and a click or Escape puts it away again. A dish not tasted yet is greyed
@@ -24,14 +26,15 @@ import pygame
 
 from .loan_dialog import _BaseDialog
 from .tavern_menu_window import DishServedWindow, dish_picture
-from .records_window import RecordsWindow, _FAINT_INK, _leaf, _picture_frame
+from .charter_style import BlockColours
+from .records_window import (
+    PageTheme, RecordsWindow, _FAINT_INK, _FAINT_RULE, _divider, _leaf, _picture_frame, _plaque, _tab, _title,
+)
 from ..dish_previews import PREVIEW_SIZE, load_preview
 from ..layout_modules.effect_circles import line_pitch
-from ...config.colors import GOLD
 from ...config.constants import FONTS_PATH
 from ...models import meal_effects
-from ...models.minigames.tutorial_sheet import BRASS, BRASS_DARK, INK, draw_tab, framed_sheet, inked, plaque
-from ...models.minigames.woodhacking import draw_divider
+from ...models.minigames.tutorial_sheet import BRASS, BRASS_DARK, BRASS_LIGHT, INK, WEAVE, SheetTheme, framed_sheet
 from ...models.tavern_menu import COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, all_dishes, dish_key, dish_picture_path
 
 if TYPE_CHECKING:
@@ -44,6 +47,21 @@ PAGE_NAMES: Dict[str, str] = {"plate": "Plates", "bowl": "Bowls", "drink": "Drin
 SERVED_AT: Dict[str, str] = {"low": "a plain tavern", "middle": "a good inn", "high": "a fine tavern"}
 _PLATE_EMPTY = (226, 214, 188)       # behind a tasted dish's picture
 SILHOUETTE_GROUND = (198, 190, 174)  # behind an untasted one's outline
+
+# Saffron and honey on cream, umber for the dark: a laid table. The pictures keep their brass
+# frames (``accent``), what was red elsewhere is umber or a burnt sienna here.
+_UMBER, _UMBER_DEEP, _OLD_GOLD, _SAFFRON = (104, 72, 38), (76, 50, 24), (150, 110, 40), (204, 152, 52)
+_SIENNA, _CREAM = (146, 78, 38), (246, 234, 204)
+GOURMET_PAGE = PageTheme(
+    sheet=SheetTheme(edge_dark=_OLD_GOLD, edge_light=(226, 188, 96), rule=(150, 110, 40),
+                     band_wash=(232, 204, 132, 90), strands=(_SAFFRON, _UMBER), bead_dark=_UMBER,
+                     bead_light=_CREAM,
+                     block=BlockColours(edge=_UMBER_DEEP, rule=_OLD_GOLD, ornament=(214, 170, 82), boss=_SIENNA),
+                     texture=WEAVE, texture_colour=(150, 110, 40, 46)),
+    title=((246, 214, 128), (150, 96, 26)), accent=BRASS, accent_dark=BRASS_DARK, accent_light=BRASS_LIGHT,
+    leaf_fill=(255, 250, 232, 130),
+    tab_current=(_UMBER, (226, 188, 96), _CREAM), tab_other=((228, 204, 146), (240, 220, 170), _OLD_GOLD, INK),
+    seal=(_SIENNA, _UMBER_DEEP, _CREAM), laurel=(_SAFFRON, _UMBER, _SIENNA), glow=(240, 196, 96))
 
 
 def open_gourmet_window(game_state: 'GameState') -> None:
@@ -83,14 +101,15 @@ def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
 
 
 class GourmetWindow(_BaseDialog):
+    theme = GOURMET_PAGE         # read by the records' close button too
     COLUMNS = 11
     CARD_W, CARD_H = 140, 172
     GAP = 10
     MARGIN = 44
-    TITLE_Y, DIVIDER_Y = 46, 80
-    TAB_TOP = 94
+    TITLE_Y, DIVIDER_Y = 54, 88     # the title's flourishes clear of the frame's band
+    TAB_TOP = 100
     TAB_W, TAB_H = 200, 38
-    BODY_TOP = 146
+    BODY_TOP = 152
     PLAQUES_H = 46
     ROWS = 4                     # enough for the plates, the longest page
     BODY_H = PLAQUES_H + ROWS * CARD_H + (ROWS - 1) * GAP
@@ -191,11 +210,12 @@ class GourmetWindow(_BaseDialog):
     # -- the pages, drawn once ----------------------------------------------
 
     def _build_page(self, kind: str) -> pygame.Surface:
-        sheet = framed_sheet((self.W, self.H), corner_blocks=True)
+        theme = self.theme
+        sheet = framed_sheet((self.W, self.H), corner_blocks=True, theme=theme.sheet)
         whole = sheet.get_rect()
-        title = inked("Gourmet Collection", self.sheet_title_font, GOLD)
+        title = _title("Gourmet Collection", self.sheet_title_font, theme)
         sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
-        draw_divider(sheet, (whole.centerx, self.DIVIDER_Y), 210)
+        _divider(sheet, (whole.centerx, self.DIVIDER_Y), 210, theme)
 
         stats = self._stats
         every = [d for dishes in self.pages.values() for d in dishes]
@@ -206,7 +226,7 @@ class GourmetWindow(_BaseDialog):
         for dx, text in ((-420, f"Dishes tasted: {tasted_all} of {len(every)}"),
                          (0, f"{PAGE_NAMES[kind]} tasted: {sum(times_eaten(stats, d) > 0 for d in page)} of {len(page)}"),
                          (420, f"Meals eaten out: {meals:,}")):
-            plaque(sheet, self.body_font, text, (body.centerx + dx, body.top + 16))
+            _plaque(sheet, self.body_font, text, (body.centerx + dx, body.top + 16), theme)
         for index, dish in enumerate(page):
             self._draw_card(sheet, index, dish)
         return sheet
@@ -214,9 +234,9 @@ class GourmetWindow(_BaseDialog):
     def _draw_card(self, sheet: pygame.Surface, index: int, dish: Dish) -> None:
         tasted = self.tasted(dish)
         card = self._local(self.card_rect(index))
-        _leaf(sheet, card, tasted)
+        _leaf(sheet, card, tasted, self.theme)
         picture = self._local(self.picture_rect(self.card_rect(index)))
-        _picture_frame(sheet, picture, tasted)
+        _picture_frame(sheet, picture, tasted, self.theme)
         sheet.fill(_PLATE_EMPTY if tasted else SILHOUETTE_GROUND, picture)
         preview = load_preview(dish_key(dish), tasted)
         if preview is not None:
@@ -234,7 +254,7 @@ class GourmetWindow(_BaseDialog):
         else:
             mark = self.unknown_font.render(UNKNOWN_NAME, True, _FAINT_INK)
             sheet.blit(mark, mark.get_rect(midtop=(card.centerx, y - 6)))
-        pygame.draw.line(sheet, BRASS if tasted else (168, 150, 120),
+        pygame.draw.line(sheet, BRASS if tasted else _FAINT_RULE,
                          (card.left + 14, card.bottom - 26), (card.right - 14, card.bottom - 26), 1)
         count = self.small_font.render(eaten_text(times_eaten(self._stats, dish)), True, INK if tasted else _FAINT_INK)
         sheet.blit(count, count.get_rect(midbottom=(card.centerx, card.bottom - 7)))
@@ -262,7 +282,7 @@ class GourmetWindow(_BaseDialog):
         for kind, rect in self.tab_rects.items():
             page = self.pages[kind]
             label = f"{PAGE_NAMES[kind]}  {sum(self.tasted(d) for d in page)}/{len(page)}"
-            draw_tab(surf, rect.move(*off), label, self.body_font, kind == self.page, False, rect.collidepoint(mouse))
+            _tab(surf, rect.move(*off), label, self.body_font, kind == self.page, rect.collidepoint(mouse), self.theme, 0)
 
     def tooltip_lines(self, dish: Dish) -> List[Tuple[str, Tuple[int, int, int]]]:
         """What hovering a card tells: all of it for a dish tasted, only where it is served otherwise."""
@@ -291,7 +311,8 @@ class GourmetWindow(_BaseDialog):
             box.bottom = mouse[1] - 12
         box = box.move(*off)
         pygame.draw.rect(surf, (250, 242, 220), box, border_radius=4)
-        pygame.draw.rect(surf, BRASS_DARK, box, 2, border_radius=4)
+        pygame.draw.rect(surf, _UMBER, box, 2, border_radius=4)
+        pygame.draw.rect(surf, BRASS, box.inflate(-6, -6), 1, border_radius=3)
         y = box.top + self.TOOLTIP_PAD
         surf.blit(title, (box.left + self.TOOLTIP_PAD, y))
         y += title.get_height() + 6
@@ -324,7 +345,7 @@ class GourmetWindow(_BaseDialog):
         if dish is not None:
             index = self.pages[self.page].index(dish)
             glow = pygame.Surface(self.card_rect(index).size, pygame.SRCALPHA)
-            glow.fill((*GOLD, 50))
+            glow.fill((*self.theme.glow, 50))
             surf.blit(glow, self.card_rect(index).move(*off))
             self._draw_tooltip(surf, dish, mouse, off)
 

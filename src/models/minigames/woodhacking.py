@@ -340,15 +340,17 @@ def draw_divider(surf: pygame.Surface, centre: Tuple[int, int], half: int) -> No
         pygame.draw.circle(surf, GOLD, (x + dx, y), 3)
 
 
-def draw_laurel(surf: pygame.Surface, centre: Tuple[int, int], radius: int) -> None:
-    """A laurel wreath round a point: two leafy branches rising from a bow at the bottom."""
+def draw_laurel(surf: pygame.Surface, centre: Tuple[int, int], radius: int, leaf_colour=GOLD,
+                edge_colour=_GOLD_DARK, bow_colour=DARK_RED) -> None:
+    """A laurel wreath round a point: two leafy branches rising from a bow at the bottom, gilded
+    unless other colours are given."""
     cx, cy = centre
     for side in (-1, 1):
         stem = []
         for i in range(15):
             a = math.radians(16 + 124 * i / 14)     # from below the middle, round the side, towards the top
             stem.append((cx + side * radius * math.sin(a), cy + radius * math.cos(a)))
-        pygame.draw.lines(surf, _GOLD_DARK, False, stem, 2)
+        pygame.draw.lines(surf, edge_colour, False, stem, 2)
         for i, (px, py) in enumerate(stem[1:], 1):
             tx, ty = px - stem[i - 1][0], py - stem[i - 1][1]
             n = math.hypot(tx, ty) or 1
@@ -360,15 +362,15 @@ def draw_laurel(surf: pygame.Surface, centre: Tuple[int, int], radius: int) -> N
                 mid = ((base[0] + tip[0]) / 2, (base[1] + tip[1]) / 2)
                 leaf = [base, (mid[0] - ny * 3 * flip, mid[1] + nx * 3 * flip), tip,
                         (mid[0] + ny * 3 * flip, mid[1] - nx * 3 * flip)]
-                pygame.draw.polygon(surf, GOLD, leaf)
-                pygame.draw.polygon(surf, _GOLD_DARK, leaf, 1)
+                pygame.draw.polygon(surf, leaf_colour, leaf)
+                pygame.draw.polygon(surf, edge_colour, leaf, 1)
     # The bow where the branches meet
     bx, by = cx, cy + radius
     for side in (-1, 1):
-        pygame.draw.polygon(surf, DARK_RED, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)])
-        pygame.draw.polygon(surf, _GOLD_DARK, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)], 1)
-        pygame.draw.line(surf, DARK_RED, (bx, by), (bx + side * 10, by + 16), 3)
-    pygame.draw.circle(surf, _GOLD_DARK, (bx, by), 4)
+        pygame.draw.polygon(surf, bow_colour, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)])
+        pygame.draw.polygon(surf, edge_colour, [(bx, by), (bx + side * 16, by - 7), (bx + side * 16, by + 7)], 1)
+        pygame.draw.line(surf, bow_colour, (bx, by), (bx + side * 10, by + 16), 3)
+    pygame.draw.circle(surf, edge_colour, (bx, by), 4)
 
 
 class WoodhackingMinigame(MinigameOverlay):

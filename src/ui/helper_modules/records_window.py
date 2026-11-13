@@ -1,8 +1,8 @@
 """The guild's records of the player's successes, opened at the guildhall.
 
-So far the minigames', a page each, on a sheet like the minigames' how-to pages and
-their certificate: browned parchment in a gold frame with flourishes in its corners,
-leaves ruled in brass, seals in red ink, brass plaques.
+So far the minigames', a page each, on browned parchment in a broad frame of interlaced
+waves meeting in square corner blocks, each page in colours of its own (``PageTheme``):
+the fishing's woad blue and pewter, the woodhacking's walnut, oak and leaf green.
 
 Fishing: a card for every kind of fish with its portrait in a framed bit of water, its
 name, how many were landed, their weight together and the biggest one; a kind never
@@ -29,10 +29,11 @@ from ...config.colors import GOLD, GRAY, PARCHMENT
 from ...config.constants import FONTS_PATH
 from ...models.minigames.fishing_pond import SPECIES, Species, format_kg
 from ...models.minigames.fishing_scene import fish_sprite
+from .charter_style import BlockColours
 from ...models.minigames.tutorial_sheet import (
-    BRASS, BRASS_DARK, BRASS_LIGHT, INK, RUBRIC, draw_tab, framed_sheet, inked, plaque,
+    BRASS, BRASS_DARK, BRASS_LIGHT, GOLD_SHEET, GRAIN, INK, RIPPLES, RUBRIC, SheetTheme, framed_sheet,
 )
-from ...models.minigames.woodhacking import draw_divider, draw_laurel
+from ...models.minigames.woodhacking import draw_laurel
 from ...models.statistics import Statistics, WOODHACKING_TOP_SCORES
 from ...sim.calendar import format_date
 
@@ -58,6 +59,70 @@ _FAINT_INK = (120, 104, 84)      # labels and what has no value yet
 _GOLD_DARK = (150, 108, 30)      # the frame's outer edge, as on the minigames' sheets
 _WATER = ((104, 142, 140), (36, 66, 80))      # a caught fish's bit of water, top and bottom
 _NO_WATER = ((158, 152, 140), (112, 106, 98))  # a kind not caught yet
+
+
+# ----------------------------------------------------------------------
+# Each page's colours
+# ----------------------------------------------------------------------
+
+Colour = Tuple[int, int, int]
+
+
+@dataclass(frozen=True)
+class PageTheme:
+    """A page's colours: its frame, its title (a gradient, top to bottom), the metal of its rules,
+    plaques and dots (``accent`` with a dark and a light shade), its leaves' wash, its tab (the
+    page shown, and otherwise), its seals, its wreath and the glow over a hovered row."""
+    sheet: SheetTheme
+    title: Tuple[Colour, Colour]
+    accent: Colour
+    accent_dark: Colour
+    accent_light: Colour
+    leaf_fill: Tuple[int, int, int, int]
+    tab_current: Tuple[Colour, Colour, Colour]              # fill, edge, ink
+    tab_other: Tuple[Colour, Colour, Colour, Colour]        # fill, hovered fill, edge, ink
+    seal: Tuple[Colour, Colour, Colour]                     # fill, edge, ink
+    laurel: Tuple[Colour, Colour, Colour]                   # leaves, their edge, the bow
+    glow: Colour
+
+
+GOLD_PAGE = PageTheme(
+    sheet=GOLD_SHEET, title=(BRASS_LIGHT, (170, 118, 30)), accent=BRASS, accent_dark=BRASS_DARK,
+    accent_light=BRASS_LIGHT, leaf_fill=(255, 248, 226, 110),
+    tab_current=(RUBRIC, GOLD, BRASS_LIGHT), tab_other=(BRASS, BRASS_LIGHT, BRASS_DARK, INK),
+    seal=(RUBRIC, GOLD, BRASS_LIGHT), laurel=(GOLD, _GOLD_DARK, RUBRIC), glow=GOLD)
+
+# Woad and indigo, pewter and a touch of verdigris: the river's page.
+_INDIGO, _INDIGO_DEEP, _PEWTER, _PEWTER_LIGHT = (44, 68, 100), (30, 46, 70), (112, 142, 166), (204, 218, 228)
+_LAPIS, _VERDIGRIS = (38, 76, 140), (66, 132, 128)
+FISHING_PAGE = PageTheme(
+    sheet=SheetTheme(edge_dark=_INDIGO_DEEP, edge_light=(128, 158, 182), rule=(52, 78, 108),
+                     band_wash=(140, 176, 202, 84), strands=(_LAPIS, _VERDIGRIS),
+                     bead_dark=_INDIGO, bead_light=_PEWTER_LIGHT,
+                     block=BlockColours(edge=_INDIGO_DEEP, rule=(74, 102, 132), ornament=(140, 170, 194), boss=_LAPIS),
+                     texture=RIPPLES, texture_colour=(246, 252, 255, 150)),
+    title=((150, 192, 222), (34, 66, 112)), accent=_PEWTER, accent_dark=_INDIGO, accent_light=_PEWTER_LIGHT,
+    leaf_fill=(242, 248, 248, 120),
+    tab_current=(_INDIGO, (140, 170, 194), (226, 236, 242)),
+    tab_other=((178, 198, 212), (200, 216, 228), (52, 78, 108), INK),
+    seal=(_LAPIS, _PEWTER_LIGHT, (226, 236, 242)), laurel=((150, 180, 202), _INDIGO, _LAPIS), glow=(120, 170, 214))
+
+# Walnut and oak and the green of the wood: the woodcutter's page.
+_WALNUT, _WALNUT_DEEP, _OAK, _OAK_LIGHT = (96, 60, 32), (62, 38, 20), (162, 114, 64), (218, 178, 122)
+_LEAF_GREEN, _WAX = (70, 104, 58), (124, 40, 32)
+WOODHACKING_PAGE = PageTheme(
+    sheet=SheetTheme(edge_dark=_WALNUT_DEEP, edge_light=(170, 120, 68), rule=(98, 62, 34),
+                     band_wash=(178, 126, 72, 92), strands=(_WALNUT, _LEAF_GREEN),
+                     bead_dark=_WALNUT, bead_light=_OAK_LIGHT,
+                     block=BlockColours(edge=_WALNUT_DEEP, rule=(116, 76, 42), ornament=(188, 140, 84), boss=_LEAF_GREEN),
+                     texture=GRAIN, texture_colour=(110, 70, 36, 70)),
+    title=((226, 176, 108), (104, 60, 28)), accent=_OAK, accent_dark=_WALNUT, accent_light=_OAK_LIGHT,
+    leaf_fill=(252, 240, 216, 120),
+    tab_current=(_WALNUT, (188, 140, 84), (242, 224, 190)),
+    tab_other=((200, 164, 114), (218, 186, 138), (98, 62, 34), INK),
+    seal=(_WAX, _WALNUT_DEEP, (242, 224, 190)), laurel=((104, 140, 74), (48, 72, 36), _WAX), glow=(204, 156, 96))
+
+PAGE_THEMES = {PAGE_FISHING: FISHING_PAGE, PAGE_WOODHACKING: WOODHACKING_PAGE}
 
 _portraits = {}                  # (species key, caught) -> the portrait
 _waters = {}                     # (size, caught) -> the water behind it
@@ -171,44 +236,132 @@ def overall_lines(stats: Statistics) -> List[Tuple[str, str]]:
 # Small things drawn
 # ----------------------------------------------------------------------
 
-def _leaf(surf: pygame.Surface, rect: pygame.Rect, lit: bool = True) -> None:
-    """A paler leaf ruled in brass, as the how-to pages' cards; a duller one for what is still to come."""
+_FAINT_RULE = (168, 150, 120)
+
+
+def _leaf(surf: pygame.Surface, rect: pygame.Rect, lit: bool = True, theme: PageTheme = GOLD_PAGE) -> None:
+    """A paler leaf ruled twice in the page's metal, with a bracket in each corner on a themed
+    page; a duller, bare one for what is still to come."""
     leaf = pygame.Surface(rect.size, pygame.SRCALPHA)
-    leaf.fill((255, 248, 226, 110) if lit else (120, 104, 84, 38))
+    leaf.fill(theme.leaf_fill if lit else (120, 104, 84, 38))
     surf.blit(leaf, rect)
-    pygame.draw.rect(surf, BRASS_DARK if lit else _FAINT_INK, rect, 2, border_radius=4)
-    pygame.draw.rect(surf, BRASS if lit else (168, 150, 120), rect.inflate(-6, -6), 1, border_radius=3)
+    pygame.draw.rect(surf, theme.accent_dark if lit else _FAINT_INK, rect, 2, border_radius=4)
+    pygame.draw.rect(surf, theme.accent if lit else _FAINT_RULE, rect.inflate(-6, -6), 1, border_radius=3)
+    if not lit or theme is GOLD_PAGE:
+        return
+    inner = rect.inflate(-6, -6)
+    arm = 9
+    for (x, y), (sx, sy) in ((inner.topleft, (1, 1)), ((inner.right - 1, inner.top), (-1, 1)),
+                             ((inner.left, inner.bottom - 1), (1, -1)),
+                             ((inner.right - 1, inner.bottom - 1), (-1, -1))):
+        pygame.draw.line(surf, theme.accent_dark, (x, y), (x + sx * arm, y), 2)
+        pygame.draw.line(surf, theme.accent_dark, (x, y), (x, y + sy * arm), 2)
+        pygame.draw.rect(surf, theme.accent_dark, (x + sx * 4 - 1, y + sy * 4 - 1, 3, 3))
 
 
-def _picture_frame(surf: pygame.Surface, picture: pygame.Rect, lit: bool = True) -> None:
-    """The frame round a picture, as on the how-to pages."""
+def _picture_frame(surf: pygame.Surface, picture: pygame.Rect, lit: bool = True,
+                   theme: PageTheme = GOLD_PAGE) -> None:
+    """The frame round a picture, as on the how-to pages, in the page's metal."""
     pygame.draw.rect(surf, INK if lit else _FAINT_INK, picture.inflate(8, 8), border_radius=3)
-    pygame.draw.rect(surf, BRASS if lit else (168, 150, 120), picture.inflate(6, 6), 2, border_radius=3)
-    pygame.draw.rect(surf, BRASS_DARK if lit else _FAINT_INK, picture.inflate(2, 2), 1)
+    pygame.draw.rect(surf, theme.accent if lit else _FAINT_RULE, picture.inflate(6, 6), 2, border_radius=3)
+    pygame.draw.rect(surf, theme.accent_dark if lit else _FAINT_INK, picture.inflate(2, 2), 1)
 
 
-def _seal(surf: pygame.Surface, rect: pygame.Rect, text: str, font: pygame.font.Font, lit: bool = True) -> None:
-    """A red seal with a gold edge and a numeral on it; a pale one for a place not taken yet."""
-    pygame.draw.rect(surf, RUBRIC if lit else (206, 190, 156), rect, border_radius=3)
-    pygame.draw.rect(surf, GOLD if lit else (168, 150, 120), rect, 2, border_radius=3)
-    label = font.render(text, True, BRASS_LIGHT if lit else _FAINT_INK)
+def _seal(surf: pygame.Surface, rect: pygame.Rect, text: str, font: pygame.font.Font, lit: bool = True,
+          theme: PageTheme = GOLD_PAGE) -> None:
+    """A seal with a numeral on it, in the page's wax; a pale one for a place not taken yet."""
+    fill, edge, ink = theme.seal if lit else ((206, 190, 156), _FAINT_RULE, _FAINT_INK)
+    pygame.draw.rect(surf, fill, rect, border_radius=5)
+    pygame.draw.rect(surf, edge, rect, 2, border_radius=5)
+    if lit:
+        pygame.draw.rect(surf, edge, rect.inflate(-8, -8), 1, border_radius=3)
+    label = font.render(text, True, ink)
     surf.blit(label, label.get_rect(center=rect.center))
 
 
-def _leader(surf: pygame.Surface, x0: int, x1: int, y: int) -> None:
+def _leader(surf: pygame.Surface, x0: int, x1: int, y: int, theme: PageTheme = GOLD_PAGE) -> None:
     """A ledger's dotted line from a label to its value."""
     for x in range(x0, x1, 7):
-        surf.fill(BRASS, (x, y, 2, 2))
+        surf.fill(theme.accent, (x, y, 2, 2))
 
 
-def _icon(surf: pygame.Surface, kind: str, center: Tuple[int, int]) -> None:
-    """A streak's brass notches, a perfect hit's gold lozenge, or a sawn log's end."""
+def _divider(surf: pygame.Surface, centre: Tuple[int, int], half: int, theme: PageTheme) -> None:
+    """A double rule with a lozenge in its middle and a smaller one at each end, under a heading."""
+    x, y = centre
+    for dy, colour, inset in ((-1, theme.accent_dark, 12), (2, theme.accent, 16)):
+        pygame.draw.line(surf, colour, (x - half, y + dy), (x - inset, y + dy), 1)
+        pygame.draw.line(surf, colour, (x + inset, y + dy), (x + half, y + dy), 1)
+    for cx, r in ((x, 7), (x - half - 6, 4), (x + half + 6, 4)):
+        points = [(cx, y + 1 - r), (cx + r, y + 1), (cx, y + 1 + r), (cx - r, y + 1)]
+        pygame.draw.polygon(surf, theme.accent, points)
+        pygame.draw.polygon(surf, theme.accent_dark, points, 1)
+    pygame.draw.circle(surf, theme.seal[0], (x, y + 1), 2)
+
+
+def _title(text: str, font: pygame.font.Font, theme: PageTheme) -> pygame.Surface:
+    """A title in a metal running from light at its top to dark at its foot, edged in ink and
+    standing a little off the page on its shadow."""
+    mask = font.render(text, True, (255, 255, 255))
+    w, h = mask.get_size()
+    top, bottom = theme.title
+    gradient = pygame.Surface((w, h), pygame.SRCALPHA)
+    for y in range(h):
+        k = min(1.0, max(0.0, (y - h * 0.18) / (h * 0.64)))     # the font's own space above and below kept flat
+        gradient.fill(tuple(round(a + (b - a) * k) for a, b in zip(top, bottom)) + (255,), (0, y, w, 1))
+    face = mask.copy()
+    face.blit(gradient, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+    edge = font.render(text, True, INK)
+    shadow = font.render(text, True, (0, 0, 0))
+    shadow.set_alpha(70)
+    label = pygame.Surface((w + 4, h + 5), pygame.SRCALPHA)
+    label.blit(shadow, (3, 4))
+    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+        label.blit(edge, (dx, dy))
+    label.blit(face, (1, 1))
+    return label
+
+
+def _plaque(surf: pygame.Surface, font: pygame.font.Font, text: str, center: Tuple[float, float],
+            theme: PageTheme) -> pygame.Rect:
+    """A small plate of the page's metal with engraved text, a nail at each end."""
+    label = font.render(text, True, INK)
+    rect = label.get_rect(center=center).inflate(36, 8)
+    pygame.draw.rect(surf, theme.accent_light, rect, border_radius=3)
+    pygame.draw.line(surf, (250, 246, 236), (rect.left + 4, rect.top + 2), (rect.right - 5, rect.top + 2), 1)
+    pygame.draw.rect(surf, theme.accent_dark, rect, 2, border_radius=3)
+    pygame.draw.rect(surf, theme.accent, rect.inflate(-6, -6), 1, border_radius=2)
+    for x in (rect.left + 10, rect.right - 11):
+        pygame.draw.circle(surf, theme.accent_dark, (x, rect.centery), 3)
+        pygame.draw.circle(surf, theme.accent_light, (x - 1, rect.centery - 1), 1)
+    surf.blit(label, label.get_rect(center=rect.center))
+    return rect
+
+
+def _tab(surf: pygame.Surface, rect: pygame.Rect, label: str, font: pygame.font.Font, current: bool,
+         hovered: bool, theme: PageTheme, text_shift: int = 10) -> None:
+    """A page's tab in its own page's colours: dark and edged twice for the page shown. Its label
+    sits *text_shift* right of the middle, clear of a picture at its left."""
+    if current:
+        fill, edge, ink = theme.tab_current
+    else:
+        fill, hover, edge, ink = theme.tab_other
+        fill = hover if hovered else fill
+    pygame.draw.rect(surf, fill, rect, border_radius=4)
+    pygame.draw.rect(surf, edge, rect, 2, border_radius=4)
+    if current:
+        pygame.draw.rect(surf, edge, rect.inflate(-8, -8), 1, border_radius=3)
+    text = font.render(label, True, ink)
+    surf.blit(text, text.get_rect(center=(rect.centerx + text_shift, rect.centery)))
+
+
+def _icon(surf: pygame.Surface, kind: str, center: Tuple[int, int], theme: PageTheme = GOLD_PAGE) -> None:
+    """A streak's notches in the page's metal, a perfect hit's gold lozenge, or a sawn log's end."""
     x, y = center
     if kind == STREAK:
         for i, height in enumerate((8, 13, 18)):
             rect = pygame.Rect(x - 10 + i * 8, y + 9 - height, 5, height)
-            pygame.draw.rect(surf, BRASS, rect, border_radius=1)
-            pygame.draw.rect(surf, BRASS_DARK, rect, 1, border_radius=1)
+            pygame.draw.rect(surf, theme.accent, rect, border_radius=1)
+            pygame.draw.rect(surf, theme.accent_dark, rect, 1, border_radius=1)
     elif kind == PERFECT:
         points = [(x, y - 10), (x + 9, y), (x, y + 10), (x - 9, y)]
         pygame.draw.polygon(surf, GOLD, points)
@@ -235,14 +388,15 @@ class RecordsWindow(_BaseDialog):
     GAP = 10
     MARGIN = 44                  # the page's sides and foot, clear of the corner blocks
     FRAME_INSET = 13
-    TITLE_Y, DIVIDER_Y = 46, 80
-    TAB_TOP = 94
+    TITLE_Y, DIVIDER_Y = 54, 88     # the title's flourishes clear of the frame's band
+    TAB_TOP = 100
     TAB_W, TAB_H = 200, 38
-    BODY_TOP = 146
+    BODY_TOP = 152
     PLAQUES_H = 46               # the fishing page's plaques, over the cards
     BODY_H = PLAQUES_H + 3 * CARD_H + 2 * GAP
+    FOOT_H = 24                  # under the body, clear of the frame's band: the woodhacking's hint
     W = COLUMNS * CARD_W + (COLUMNS - 1) * GAP + 2 * MARGIN
-    H = BODY_TOP + BODY_H + MARGIN
+    H = BODY_TOP + BODY_H + FOOT_H + MARGIN
 
     PICTURE_W, PICTURE_H = 140, 108
     SCORES_W = 540               # the top scores' leaf; the overall figures have the rest
@@ -309,6 +463,10 @@ class RecordsWindow(_BaseDialog):
                 return index
         return None
 
+    @property
+    def theme(self) -> PageTheme:
+        return PAGE_THEMES[self.page]
+
     def _local(self, rect: pygame.Rect) -> pygame.Rect:
         """A rect on the screen, as it lies on the page's own sheet."""
         return rect.move(-self.panel.left, -self.panel.top)
@@ -316,12 +474,13 @@ class RecordsWindow(_BaseDialog):
     # -- the sheet ---------------------------------------------------------
 
     def _build_sheet(self) -> pygame.Surface:
-        """What every page has: the paper, the gold frame, its corner blocks and the title."""
-        sheet = framed_sheet((self.W, self.H), corner_blocks=True)
+        """What every page has, in its own colours: the paper, the frame, its corner blocks and the title."""
+        theme = self.theme
+        sheet = framed_sheet((self.W, self.H), corner_blocks=True, theme=theme.sheet)
         whole = sheet.get_rect()
-        title = inked("Records", self.sheet_title_font, GOLD)
+        title = _title("Records", self.sheet_title_font, theme)
         sheet.blit(title, title.get_rect(center=(whole.centerx, self.TITLE_Y)))
-        draw_divider(sheet, (whole.centerx, self.DIVIDER_Y), 170)
+        _divider(sheet, (whole.centerx, self.DIVIDER_Y), 170, theme)
         return sheet
 
     def _build_page(self, page: str) -> pygame.Surface:
@@ -341,16 +500,17 @@ class RecordsWindow(_BaseDialog):
             surf.blit(name, (x0, y))
             right = shown.get_rect(topright=(x1, y))
             surf.blit(shown, right)
-            _leader(surf, x0 + name.get_width() + 6, right.left - 5, y + name.get_height() - 7)
+            _leader(surf, x0 + name.get_width() + 6, right.left - 5, y + name.get_height() - 7, self.theme)
             y += step
 
     # -- the fishing page --------------------------------------------------
 
     def _draw_card(self, surf: pygame.Surface, rect: pygame.Rect, record: FishRecord) -> None:
-        _leaf(surf, rect, record.caught)
+        theme = self.theme
+        _leaf(surf, rect, record.caught, theme)
         picture = pygame.Rect(rect.left + 12, 0, self.PICTURE_W, self.PICTURE_H)
         picture.centery = rect.centery
-        _picture_frame(surf, picture, record.caught)
+        _picture_frame(surf, picture, record.caught, theme)
         surf.blit(_water(picture.size, record.caught), picture)
         fish = portrait(record.species, record.caught)
         surf.blit(fish, fish.get_rect(center=picture.center))
@@ -359,7 +519,7 @@ class RecordsWindow(_BaseDialog):
         font = self.name_font if record.caught else self.score_font   # a lone question mark is small
         name = font.render(record.name, True, INK if record.caught else _FAINT_INK)
         surf.blit(name, name.get_rect(midleft=(x0, rect.top + 26)))
-        pygame.draw.line(surf, BRASS if record.caught else (168, 150, 120), (x0, rect.top + 44), (x1, rect.top + 44), 1)
+        pygame.draw.line(surf, theme.accent if record.caught else _FAINT_RULE, (x0, rect.top + 44), (x1, rect.top + 44), 1)
         self._rows(surf, record.rows(), x0, x1, rect.top + 50, 25, record.caught)
 
     def _draw_fishing(self, surf: pygame.Surface) -> None:
@@ -370,7 +530,7 @@ class RecordsWindow(_BaseDialog):
         for dx, text in ((-320, f"Fish caught: {stats.fish_caught:,}"),
                          (0, f"Kinds found: {known} of {len(records)}"),
                          (320, f"Best day's fishing: {stats.fishing_highscore:,.2f} coins")):
-            plaque(surf, self.body_font, text, (body.centerx + dx, body.top + 16))
+            _plaque(surf, self.body_font, text, (body.centerx + dx, body.top + 16), self.theme)
         y = body.top + self.PLAQUES_H
         for index, record in enumerate(records):
             row, column = divmod(index, self.COLUMNS)
@@ -383,21 +543,21 @@ class RecordsWindow(_BaseDialog):
     def _heading(self, surf: pygame.Surface, rect: pygame.Rect, text: str) -> None:
         label = self.name_font.render(text, True, INK)
         surf.blit(label, label.get_rect(center=(rect.centerx, rect.top + 24)))
-        draw_divider(surf, (rect.centerx, rect.top + self.HEAD_H - 6), 110)
+        _divider(surf, (rect.centerx, rect.top + self.HEAD_H - 6), 110, self.theme)
 
     def _draw_score_row(self, surf: pygame.Surface, index: int, entry: Optional[Dict[str, Any]]) -> None:
         row = self._local(self.score_row_rect(index))
         seal = pygame.Rect(row.left + 16, 0, 38, 38)
         seal.centery = row.centery
-        _seal(surf, seal, ROMAN[index], self.body_font, entry is not None)
+        _seal(surf, seal, ROMAN[index], self.body_font, entry is not None, self.theme)
         date = self.body_font.render(date_text(entry) if entry else NOT_TRACKED, True, INK if entry else _FAINT_INK)
         score = score_text(entry) if entry else NOT_TRACKED
         if index == 0 and entry:
             centre = (seal.right + 80, row.centery - 4)
-            draw_laurel(surf, centre, 44)
+            draw_laurel(surf, centre, 44, *self.theme.laurel)
             shown = self.best_font.render(score, True, INK)
             surf.blit(shown, shown.get_rect(center=(centre[0], centre[1] - 2)))
-            best = self.name_font.render("Your best", True, RUBRIC)
+            best = self.name_font.render("Your best", True, self.theme.seal[0])
             surf.blit(best, best.get_rect(bottomright=(row.right - 18, row.centery - 2)))
             surf.blit(date, date.get_rect(topright=(row.right - 18, row.centery + 4)))
         else:
@@ -407,36 +567,37 @@ class RecordsWindow(_BaseDialog):
 
     def _draw_scores(self, surf: pygame.Surface) -> None:
         rect = self._local(self.scores_rect)
-        _leaf(surf, rect)
+        _leaf(surf, rect, theme=self.theme)
         self._heading(surf, rect, f"Top {WOODHACKING_TOP_SCORES} scores")
         scores = self._stats.woodhacking_scores
         for index in range(WOODHACKING_TOP_SCORES):
             self._draw_score_row(surf, index, scores[index] if index < len(scores) else None)
             if index:
                 top = self._local(self.score_row_rect(index)).top
-                pygame.draw.line(surf, BRASS, (rect.left + 14, top), (rect.right - 14, top), 1)
+                pygame.draw.line(surf, self.theme.accent, (rect.left + 14, top), (rect.right - 14, top), 1)
 
     def _draw_overall(self, surf: pygame.Surface) -> None:
         rect = self._local(self.overall_rect)
-        _leaf(surf, rect)
+        _leaf(surf, rect, theme=self.theme)
         self._heading(surf, rect, "Overall")
         y = rect.top + self.HEAD_H
         for (label, value), kind in zip(overall_lines(self._stats), _OVERALL_ICONS):
             middle = y + self.OVERALL_ROW_H // 2
-            _icon(surf, kind, (rect.left + 34, middle))
+            _icon(surf, kind, (rect.left + 34, middle), self.theme)
             name = self.body_font.render(label, True, INK)
             surf.blit(name, name.get_rect(midleft=(rect.left + 58, middle)))
             shown = self.score_font.render(value, True, INK if value != NOT_TRACKED else _FAINT_INK)
             right = shown.get_rect(midright=(rect.right - 22, middle))
             surf.blit(shown, right)
-            _leader(surf, rect.left + 58 + name.get_width() + 8, right.left - 8, middle + 7)
+            _leader(surf, rect.left + 58 + name.get_width() + 8, right.left - 8, middle + 7, self.theme)
             y += self.OVERALL_ROW_H
 
     def _draw_woodhacking(self, surf: pygame.Surface) -> None:
         self._draw_scores(surf)
         self._draw_overall(surf)
         hint = self.body_font.render(_HOVER_HINT, True, _FAINT_INK)
-        surf.blit(hint, hint.get_rect(center=(self.W // 2, self.H - self.MARGIN // 2 - 5)))
+        foot = self._local(self.body).bottom + (self.FOOT_H + self.MARGIN - 38) // 2   # between the leaves and the band
+        surf.blit(hint, hint.get_rect(center=(self.W // 2, foot)))
 
     def _draw_score_tooltip(self, surf: pygame.Surface, entry: Dict[str, Any], mouse: Tuple[int, int],
                             off: Tuple[int, int]) -> None:
@@ -449,12 +610,12 @@ class RecordsWindow(_BaseDialog):
         shadow.fill((0, 0, 0, 80))
         surf.blit(shadow, box.move(4, 5))
         pygame.draw.rect(surf, PARCHMENT, box, border_radius=4)
-        pygame.draw.rect(surf, BRASS_DARK, box, 2, border_radius=4)
-        pygame.draw.rect(surf, BRASS, box.inflate(-6, -6), 1, border_radius=3)
+        pygame.draw.rect(surf, self.theme.accent_dark, box, 2, border_radius=4)
+        pygame.draw.rect(surf, self.theme.accent, box.inflate(-6, -6), 1, border_radius=3)
         y = box.top + self.TOOLTIP_PAD
         for (label, value), kind in zip(details, _DETAIL_ICONS):
             middle = y + self.TOOLTIP_LINE_H // 2
-            _icon(surf, kind, (box.left + 24, middle))
+            _icon(surf, kind, (box.left + 24, middle), self.theme)
             name = self.body_font.render(label, True, INK)
             surf.blit(name, name.get_rect(midleft=(box.left + 44, middle)))
             shown = self.body_font.render(value, True, INK)
@@ -466,21 +627,24 @@ class RecordsWindow(_BaseDialog):
     def _draw_tabs(self, surf: pygame.Surface, off: Tuple[int, int], mouse: Tuple[int, int]) -> None:
         for page, rect in self.tab_rects.items():
             shown = rect.move(*off)
-            draw_tab(surf, shown, page, self.body_font, page == self.page, False, rect.collidepoint(mouse))
+            _tab(surf, shown, page, self.body_font, page == self.page, rect.collidepoint(mouse), PAGE_THEMES[page])
             if page == PAGE_FISHING:
                 glyphs.fish(surf, (shown.left + 26, shown.centery), 26)
             else:
                 glyphs.chopping_stump(surf, (shown.left + 26, shown.centery + 2), 28)
 
     def _draw_close(self, surf: pygame.Surface, off: Tuple[int, int], mouse: Tuple[int, int]) -> None:
-        """Closing is a red seal inside the frame, with a cross on it."""
+        """Closing is a seal inside the frame in the page's colours, with a cross on it."""
         rect = self.close_rect.move(*off)
-        pygame.draw.rect(surf, (168, 52, 44) if self.close_rect.collidepoint(mouse) else RUBRIC, rect, border_radius=3)
-        pygame.draw.rect(surf, GOLD, rect, 2, border_radius=3)
+        fill, edge, _ = self.theme.tab_current
+        if self.close_rect.collidepoint(mouse):
+            fill = tuple(min(255, c + 28) for c in fill)
+        pygame.draw.rect(surf, fill, rect, border_radius=3)
+        pygame.draw.rect(surf, edge, rect, 2, border_radius=3)
         inset = 9
         for start, end in (((rect.left + inset, rect.top + inset), (rect.right - inset - 1, rect.bottom - inset - 1)),
                            ((rect.left + inset, rect.bottom - inset - 1), (rect.right - inset - 1, rect.top + inset))):
-            pygame.draw.line(surf, BRASS_LIGHT, start, end, 3)
+            pygame.draw.line(surf, self.theme.accent_light, start, end, 3)
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
@@ -509,7 +673,7 @@ class RecordsWindow(_BaseDialog):
         if hovered is not None:
             row = self.score_row_rect(hovered).move(*off).inflate(-8, 0)
             glow = pygame.Surface(row.size, pygame.SRCALPHA)
-            glow.fill((*GOLD, 70))
+            glow.fill((*self.theme.glow, 70))
             surf.blit(glow, row)
             self._draw_score_tooltip(surf, self._stats.woodhacking_scores[hovered], mouse, off)
 
