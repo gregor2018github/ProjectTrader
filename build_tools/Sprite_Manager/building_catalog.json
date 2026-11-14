@@ -1132,6 +1132,27 @@
     "Col_margin_left_pixel": -5,
     "Col_margin_right_pixel": -20
    }
+  },
+  "houses/House_46.png": {
+   "kind": "warehouse",
+   "subcategory": "Hanseatic brick warehouse",
+   "atlas": "houses",
+   "rect": [
+    2752,
+    2764,
+    984,
+    1108
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_46.png",
+    "Tiles_to_right": 31,
+    "Tiles_up": 35,
+    "Collision_to_right": 31,
+    "Collision_up": 10,
+    "Col_margin_left_pixel": -18,
+    "Col_margin_right_pixel": -25
+   }
   }
  },
  "motifs": {}
