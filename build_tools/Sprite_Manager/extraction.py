@@ -131,13 +131,15 @@ def find_cells(image, layout=None):
 
     Args:
         image: The image the model returned.
-        layout: '1x2', '2x1' or '2x2' when the caller knows which sheet was
+        layout: '1x2', '2x1' or '2x2' (or 'model', a 2x2) when the caller knows which sheet was
             sent. The cells are then separated even where the model drew no
             frame line, which happens in small answers. None guesses the
             layout from the frame lines alone. '2x1' is a split image with
             its cells above each other, the reference on top; it is never
             guessed.
     """
+    if layout == 'model':  # sheets.MODEL_LAYOUT: the 2x2 grid, another figure on top
+        layout = '2x2'
     w, h = image.get_size()
     dark = dark_lines(image)
     if layout == '2x1':

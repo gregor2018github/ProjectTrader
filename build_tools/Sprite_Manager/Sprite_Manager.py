@@ -58,7 +58,11 @@ switches to full screen.
    sprite faces the frame's way: down, up, left, right. "Sheet:" under it
    (L) chooses the layout: the 2x2 grid (the default), or "Two cells, red
    ghost", only the figure beside the pose as a red ghost, with its own
-   prompt, for when the model keeps copying the standing pose. Then either
+   prompt, for when the model keeps copying the standing pose, or "Model
+   figure on top", the grid with a figure whose walk is done (Bartholomew
+   at first; "Model:" under it, or K, chooses another) standing and in the
+   same frame in the top row, the grey mannequin still in the red frame
+   (a frame the model lacks falls back to the grid). Then either
    - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
      has the Gemini tab in Firefox (profile "ProjectTrader") open a new
      chat, set the thinking level to High, and send sheet and prompt
@@ -495,6 +499,11 @@ class SpriteManager:
         for npc in self.npcs:
             if npc.name not in self.npc_thumbs:
                 self.npc_thumbs[npc.name] = make_thumb(npc.base_path, NPC_THUMB_SIZE)
+
+    def model_figure(self):
+        """The WalkNpc chosen as the model of the "Model figure on top" sheets, or None if it is gone."""
+        name = self.settings.model_figure
+        return next((n for n in self.npcs if n.name == name), None)
 
     def player_references(self):
         """({pose: path}, {pose: mask}) of the player, which a first sprite is scaled against."""

@@ -4,8 +4,10 @@ Left the directions and the walk as the game plays it, in the middle the
 frames of the chosen direction, right the chosen frame's sheet with the
 buttons that get an answer for it. Above a frame's sheet, Free / Locked
 chooses whether the figure's own head is put into the red frame (H), and
-under it the sheet's layout: the 2x2 grid, or only the figure beside a red
-ghost (L).
+under it the sheet's layout: the 2x2 grid, only the figure beside a red
+ghost, or the grid with a finished figure on top instead of the mannequin
+(L goes round them); with that one, "Model:" names the figure, and a click
+on it (or K) chooses another.
 """
 
 import time
@@ -23,10 +25,11 @@ from export_dialog import GIF, ExportDialog
 from frame_picker import FramePicker
 from gif_export import PIL_ERROR, gif_bytes
 from gimp import ENV_GIMP, FileWatcher, find_gimp, open_in_gimp
+from model_picker import ModelPicker
 from images import fitted, is_blank, load_frame, pixel_fit, save_copy, smooth_fit, trim
 from sheets import (
-    GRID_LAYOUT, PAIR_LAYOUT, SHEET_ERRORS, can_make_standing, lock_head_possible, write_sheets,
-    write_standing_sheet,
+    GRID_LAYOUT, MODEL_LAYOUT, PAIR_LAYOUT, SHEET_ERRORS, can_make_standing, lock_head_possible,
+    write_sheets, write_standing_sheet,
 )
 from theme import (
     BG, CARD_BG, CARD_HOVER, CARD_SELECTED, DONE_COLOR, ERROR_COLOR, PANEL_GAP, STATUS_COLORS, TEXT,
@@ -51,7 +54,8 @@ PREVIEW_MIN_H = 60
 PREVIEW_MAX_ZOOM = 2.0
 COMPARE_SHARE = 0.36     # share of the sheet panel the comparison takes, when shown
 HEAD_CHOICES = ((False, 'Free'), (True, 'Locked'))   # the head in the red frame: the model's, or the figure's own
-LAYOUT_CHOICES = ((GRID_LAYOUT, '2x2 grid'), (PAIR_LAYOUT, 'Two cells, red ghost'))
+LAYOUT_CHOICES = ((GRID_LAYOUT, '2x2 grid'), (PAIR_LAYOUT, 'Two cells, red ghost'),
+                  (MODEL_LAYOUT, 'Model figure on top'))
 
 COLOUR_BACKUPS = 'colour_backups'   # under the output folder: frames as they were before evening out
 
@@ -76,6 +80,7 @@ class FramesView(View):
         self.motion_chips = []        # [(rect, motion)] as last drawn, for the player
         self.head_chips = []          # [(rect, locked)] as last drawn, above a frame's sheet
         self.layout_chips = []        # [(rect, layout)] as last drawn, under the head chips
+        self.model_chip = None        # the "Model:" chip as last drawn, with the model layout
         self.preview_checker = Checker()
         self.standing_checker = Checker()
         self.gimp = find_gimp()
@@ -178,7 +183,7 @@ class FramesView(View):
         self.app.last_direction = direction
         try:
             self.sheets = write_sheets(self.npc, direction, lock_head=self.app.settings.lock_head,
-                                       layout=self.app.settings.sheet_layout)
+                                       layout=self.app.settings.sheet_layout, model=self.app.model_figure())
         except SHEET_ERRORS as exc:
             self.sheets = []
             self.app.set_status(f'Cannot build the {direction.title} sheets: {exc}', error=True)
@@ -217,7 +222,8 @@ class FramesView(View):
             else:
                 fresh = self.sheets[self.current] = write_sheets(self.npc, sheet.direction, [sheet.frame],
                                                                  self.app.settings.lock_head,
-                                                                 self.app.settings.sheet_layout)[0]
+                                                                 self.app.settings.sheet_layout,
+                                                                 self.app.model_figure())[0]
         except SHEET_ERRORS as exc:
             self.app.set_status(f'Cannot rebuild the sheet: {exc}', error=True)
             return sheet
@@ -248,8 +254,35 @@ class FramesView(View):
         app.settings = app.settings.with_values(sheet_layout=layout)
         app.settings.save()
         self.select_direction(self.direction, self.current)
-        app.set_status('Sheet: only the figure beside a red ghost of the pose' if layout == PAIR_LAYOUT else
-                       'Sheet: the 2x2 grid with the mannequin above')
+        if layout == MODEL_LAYOUT:
+            model = app.model_figure()
+            app.set_status(f'Sheet: {model.display_name if model else "no model figure"} above, '
+                           'the grey mannequin in the red frame - click "Model:" (K) to choose another')
+        else:
+            app.set_status('Sheet: only the figure beside a red ghost of the pose' if layout == PAIR_LAYOUT else
+                           'Sheet: the 2x2 grid with the mannequin above')
+
+    def next_sheet_layout(self):
+        """L: the next of the layouts."""
+        keys = [key for key, _ in LAYOUT_CHOICES]
+        layout = self.app.settings.sheet_layout
+        index = keys.index(layout) if layout in keys else 0
+        self.set_sheet_layout(keys[(index + 1) % len(keys)])
+
+    def open_model_picker(self):
+        """Choose the figure whose walk the model layout shows on top."""
+        self.app.dialog = ModelPicker(self.app.npcs, self.npc, self.direction, self.count(),
+                                      self.app.settings.model_figure, self.app.fonts, self.set_model)
+
+    def set_model(self, figure):
+        """Make a figure the model of every model-layout sheet, and rebuild this direction's."""
+        app = self.app
+        app.settings = app.settings.with_values(model_figure=figure.name)
+        app.settings.save()
+        self.select_direction(self.direction, self.current)
+        fallback = sum(s.layout != MODEL_LAYOUT for s in self.sheets)
+        note = f' - {fallback} frame(s) it lacks stay on the grid' if fallback else ''
+        app.set_status(f'Model figure: {figure.display_name}{note}')
 
     def refresh(self):
         """Cards, comparison and preview, after answers or frames on disk changed."""
@@ -613,8 +646,8 @@ class FramesView(View):
         return (f'2. {motions} frames for "{self.npc.name}"',
                 f'{switch}Up/Down = direction, Left/Right = frame. Ctrl+W = send in browser, Ctrl+Shift+W = send missing in browser, '
                 'Ctrl+C = copy sheet, '
-                'Ctrl+Shift+C = copy prompt, Ctrl+V or drop a file = answer from the web view, H = lock head, E = even out colours, '
-                'S = settings.')
+                'Ctrl+Shift+C = copy prompt, Ctrl+V or drop a file = answer from the web view, H = lock head, '
+                'L = sheet layout, K = model figure, E = even out colours, S = settings.')
 
     def footer(self):
         app = self.app
@@ -740,7 +773,7 @@ class FramesView(View):
             title = 'Sheet'
         draw_panel(screen, app.fonts, rect, title)
         area = self.place_sheet_buttons(rect)
-        self.head_chips, self.layout_chips = [], []   # only a frame's sheet shows them
+        self.head_chips, self.layout_chips, self.model_chip = [], [], None   # only a frame's sheet shows them
         if sheet and not sheet.standing:
             area = self.draw_head_choice(screen, area, mouse)
             area = self.draw_layout_choice(screen, area, mouse)
@@ -804,12 +837,30 @@ class FramesView(View):
         screen.blit(label, (area.x, area.y + 4))
         x = area.x + label.get_width() + 10
         layout = self.app.settings.sheet_layout
-        self.layout_chips, bottom = draw_chips(screen, small, [key for key, _ in LAYOUT_CHOICES],
-                                               dict(LAYOUT_CHOICES).get,
-                                               layout if layout == PAIR_LAYOUT else GRID_LAYOUT,
+        choices = dict(LAYOUT_CHOICES)
+        self.layout_chips, bottom = draw_chips(screen, small, list(choices), choices.get,
+                                               layout if layout in choices else GRID_LAYOUT,
                                                x, area.y, area.right - x, mouse)
         top = bottom + BUTTON_GAP
+        if layout == MODEL_LAYOUT:
+            top = self.draw_model_choice(screen, pygame.Rect(area.x, top, area.w, area.bottom - top), mouse)
         return pygame.Rect(area.x, top, area.w, area.bottom - top)
+
+    def draw_model_choice(self, screen, area, mouse):
+        """Model: <figure> under the layout chips, a click choosing another; returns the y under it."""
+        small = self.app.fonts.small
+        label = small.render('Model:', True, TEXT_DIM)
+        screen.blit(label, (area.x, area.y + 4))
+        x = area.x + label.get_width() + 10
+        model = self.app.model_figure()
+        sheet = self.current_sheet()
+        name = model.display_name if model else 'none chosen'
+        if sheet and sheet.layout != MODEL_LAYOUT:
+            name += '  (lacks this frame: grid)'
+        chips, bottom = draw_chips(screen, small, ['model'], lambda _: f'{name}  - change...',
+                                   None, x, area.y, area.right - x, mouse)
+        self.model_chip = chips[0][0]
+        return bottom + BUTTON_GAP
 
     def draw_standing(self, screen, area):
         """The direction's standing sprite, large, on a checkerboard."""
@@ -846,6 +897,9 @@ class FramesView(View):
             if chip.collidepoint(pos):
                 self.set_sheet_layout(layout)
                 return
+        if self.model_chip and self.model_chip.collidepoint(pos):
+            self.open_model_picker()
+            return
         for row, direction in self.dir_rows:
             if row.collidepoint(pos):
                 self.select_direction(direction)
@@ -893,7 +947,9 @@ class FramesView(View):
         elif event.key == pygame.K_h and self.can_lock_head():
             self.set_head_lock(not self.app.settings.lock_head)
         elif event.key == pygame.K_l and self.layout_chips:
-            self.set_sheet_layout(GRID_LAYOUT if self.app.settings.sheet_layout == PAIR_LAYOUT else PAIR_LAYOUT)
+            self.next_sheet_layout()
+        elif event.key == pygame.K_k and self.model_chip:
+            self.open_model_picker()
         elif event.key == pygame.K_f and not self.npc.is_player:
             self.app.redo_first_sprite()
 
