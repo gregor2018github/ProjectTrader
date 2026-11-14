@@ -1216,6 +1216,69 @@
     "Col_margin_left_pixel": -3,
     "Col_margin_right_pixel": -13
    }
+  },
+  "houses/House_50.png": {
+   "kind": "warehouse",
+   "subcategory": "stepped-gable warehouse with a loading dock",
+   "atlas": "houses_2",
+   "rect": [
+    2176,
+    1171,
+    1138,
+    1165
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_50.png",
+    "Tiles_to_right": 36,
+    "Tiles_up": 37,
+    "Collision_to_right": 36,
+    "Collision_up": 11,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -14
+   }
+  },
+  "houses/House_51.png": {
+   "kind": "warehouse",
+   "subcategory": "stepped-gable guild warehouse",
+   "atlas": "houses_2",
+   "rect": [
+    32,
+    1308,
+    1001,
+    1092
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_51.png",
+    "Tiles_to_right": 32,
+    "Tiles_up": 35,
+    "Collision_to_right": 32,
+    "Collision_up": 10,
+    "Col_margin_left_pixel": -3,
+    "Col_margin_right_pixel": -25
+   }
+  },
+  "houses/House_52.png": {
+   "kind": "warehouse",
+   "subcategory": "stepped-gable warehouse with shops",
+   "atlas": "houses_2",
+   "rect": [
+    1088,
+    1310,
+    999,
+    1090
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_52.png",
+    "Tiles_to_right": 32,
+    "Tiles_up": 35,
+    "Collision_to_right": 32,
+    "Collision_up": 10,
+    "Col_margin_left_pixel": -1,
+    "Col_margin_right_pixel": -25
+   }
   }
  },
  "motifs": {}

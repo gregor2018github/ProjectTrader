@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="56" nextobjectid="1283">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="63" nextobjectid="1572">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3101,6 +3101,27 @@
  </imagelayer>
  <imagelayer id="55" name="Preview House_35" offsetx="2208" offsety="3614">
   <image source="previews/House_27_x0.5.png" width="224" height="194"/>
+ </imagelayer>
+ <imagelayer id="56" name="Preview Speicher_1" offsetx="3424" offsety="2935">
+  <image source="previews/House_51_x0.36.png" width="360" height="393"/>
+ </imagelayer>
+ <imagelayer id="57" name="Preview Speicher_2" offsetx="3776" offsety="2914">
+  <image source="previews/House_52_x0.38.png" width="380" height="414"/>
+ </imagelayer>
+ <imagelayer id="58" name="Preview Speicher_3" offsetx="4256" offsety="2973">
+  <image source="previews/House_50_x0.36.png" width="410" height="419"/>
+ </imagelayer>
+ <imagelayer id="59" name="Preview Speicher_4" offsetx="4640" offsety="2971">
+  <image source="previews/House_46_x0.38.png" width="374" height="421"/>
+ </imagelayer>
+ <imagelayer id="60" name="Preview Speicher_5" offsetx="5440" offsety="2595">
+  <image source="previews/House_49_x0.38.png" width="374" height="413"/>
+ </imagelayer>
+ <imagelayer id="61" name="Preview Speicher_6" offsetx="5792" offsety="2562">
+  <image source="previews/House_48_x0.38.png" width="388" height="446"/>
+ </imagelayer>
+ <imagelayer id="62" name="Preview Speicher_7" offsetx="6144" offsety="2577">
+  <image source="previews/House_47_x0.36.png" width="391" height="431"/>
  </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
@@ -11164,6 +11185,27 @@
   <object id="1236" name="down" x="2263.5" y="3800.5">
    <point/>
   </object>
+  <object id="1284" name="down" x="3604.0" y="3307.48">
+   <point/>
+  </object>
+  <object id="1322" name="down" x="3966.0" y="3318.5">
+   <point/>
+  </object>
+  <object id="1346" name="down" x="4461.2" y="3381.2">
+   <point/>
+  </object>
+  <object id="1375" name="down" x="4826.96" y="3387.06">
+   <point/>
+  </object>
+  <object id="1411" name="down" x="5626.58" y="3003.06">
+   <point/>
+  </object>
+  <object id="1431" name="down" x="5985.8" y="3003.06">
+   <point/>
+  </object>
+  <object id="1453" name="down" x="6339.12" y="3003.32">
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="3584" y="4608">
@@ -12314,6 +12356,111 @@
    </properties>
    <point/>
   </object>
+  <object id="1283" name="Speicher_1" type="House_Frontal" x="3424" y="3328">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-25"/>
+    <property name="Col_margin_up_pixel" type="int" value="0"/>
+    <property name="Collision_to_right" type="int" value="32"/>
+    <property name="Collision_up" type="int" value="10"/>
+    <property name="File_name" value="House_51.png"/>
+    <property name="Scale" type="float" value="0.36"/>
+    <property name="Tiles_to_right" type="int" value="32"/>
+    <property name="Tiles_up" type="int" value="35"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1321" name="Speicher_2" type="House_Frontal" x="3776" y="3328">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-1"/>
+    <property name="Col_margin_right_pixel" type="int" value="-25"/>
+    <property name="Col_margin_up_pixel" type="int" value="-5"/>
+    <property name="Collision_to_right" type="int" value="32"/>
+    <property name="Collision_up" type="int" value="10"/>
+    <property name="File_name" value="House_52.png"/>
+    <property name="Scale" type="float" value="0.38"/>
+    <property name="Tiles_to_right" type="int" value="32"/>
+    <property name="Tiles_up" type="int" value="35"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1345" name="Speicher_3" type="House_Frontal" x="4256" y="3392">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-14"/>
+    <property name="Col_margin_up_pixel" type="int" value="-33"/>
+    <property name="Collision_to_right" type="int" value="36"/>
+    <property name="Collision_up" type="int" value="11"/>
+    <property name="File_name" value="House_50.png"/>
+    <property name="Scale" type="float" value="0.36"/>
+    <property name="Tiles_to_right" type="int" value="36"/>
+    <property name="Tiles_up" type="int" value="37"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1374" name="Speicher_4" type="House_Frontal" x="4640" y="3392">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-18"/>
+    <property name="Col_margin_right_pixel" type="int" value="-25"/>
+    <property name="Col_margin_up_pixel" type="int" value="0"/>
+    <property name="Collision_to_right" type="int" value="31"/>
+    <property name="Collision_up" type="int" value="10"/>
+    <property name="File_name" value="House_46.png"/>
+    <property name="Scale" type="float" value="0.38"/>
+    <property name="Tiles_to_right" type="int" value="31"/>
+    <property name="Tiles_up" type="int" value="35"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1410" name="Speicher_5" type="House_Frontal" x="5440" y="3008">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-13"/>
+    <property name="Col_margin_up_pixel" type="int" value="0"/>
+    <property name="Collision_to_right" type="int" value="31"/>
+    <property name="Collision_up" type="int" value="10"/>
+    <property name="File_name" value="House_49.png"/>
+    <property name="Scale" type="float" value="0.38"/>
+    <property name="Tiles_to_right" type="int" value="31"/>
+    <property name="Tiles_up" type="int" value="34"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1430" name="Speicher_6" type="House_Frontal" x="5792" y="3008">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-29"/>
+    <property name="Col_margin_right_pixel" type="int" value="-31"/>
+    <property name="Col_margin_up_pixel" type="int" value="0"/>
+    <property name="Collision_to_right" type="int" value="32"/>
+    <property name="Collision_up" type="int" value="11"/>
+    <property name="File_name" value="House_48.png"/>
+    <property name="Scale" type="float" value="0.38"/>
+    <property name="Tiles_to_right" type="int" value="32"/>
+    <property name="Tiles_up" type="int" value="37"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1452" name="Speicher_7" type="House_Frontal" x="6144" y="3008">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-2"/>
+    <property name="Col_margin_up_pixel" type="int" value="0"/>
+    <property name="Collision_to_right" type="int" value="34"/>
+    <property name="Collision_up" type="int" value="11"/>
+    <property name="File_name" value="House_47.png"/>
+    <property name="Scale" type="float" value="0.36"/>
+    <property name="Tiles_to_right" type="int" value="34"/>
+    <property name="Tiles_up" type="int" value="38"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="28" name="Special">
   <object id="318" name="Mill_Blades" x="4280.45" y="5246.36">
@@ -12677,6 +12824,78 @@
   </object>
   <object id="1282" name="House_7" type="Hole" x="5488" y="4780">
    <polygon points="0,0 -3,0 -17,18 -17,41 13,41 13,17"/>
+  </object>
+  <object id="1548" name="Speicher_1" x="3477.64" y="2934.88">
+   <polygon points="0,0 18,0 18.36,2.52 0.72,3.24 -0.72,2.52"/>
+  </object>
+  <object id="1549" name="Speicher_1" x="3594.28" y="2934.88">
+   <polygon points="0,0 19.44,0 19.8,2.52 1.8,3.24 0,2.52"/>
+  </object>
+  <object id="1550" name="Speicher_1" x="3712" y="2934.88">
+   <polygon points="0,0 18.72,0 19.08,2.52 0.36,2.88"/>
+  </object>
+  <object id="1551" name="Speicher_1" x="3438.04" y="2970.16">
+   <polygon points="0,0 25.92,0 27,6.12 26.28,12.6 13.32,13.68 13.68,36 1.08,37.44 -0.36,61.2 -14.04,61.56 -14.04,59.4 -12.24,58.68 -0.72,58.32"/>
+  </object>
+  <object id="1552" name="Speicher_1" x="3511.48" y="2970.16">
+   <polygon points="0,0 70.56,0.72 70.2,12.96 57.96,14.04 57.24,36.36 46.44,36.72 44.64,38.16 43.2,60.48 23.04,60.48 22.68,38.16 9.72,36.36 9,14.76 -3.24,12.96 -3.6,0.72"/>
+  </object>
+  <object id="1553" name="Speicher_1" x="3627.4" y="2970.16">
+   <polygon points="0,0 72,0 72.36,12.96 61.56,13.32 59.76,15.12 59.4,36.72 49.32,37.08 46.08,38.88 45.72,57.6 43.92,60.84 26.64,60.84 24.48,56.52 24.48,38.52 11.52,36.72 10.44,14.4 -1.8,12.6 -2.16,1.8"/>
+  </object>
+  <object id="1554" name="Speicher_1" x="3745.12" y="2970.16">
+   <polygon points="0,0 24.48,0.72 24.12,49.68 23.76,38.16 11.16,35.64 10.8,14.04 0,12.96 -1.8,10.44 -1.8,1.08"/>
+  </object>
+  <object id="1555" name="Speicher_1" x="3745.12" y="3110.56">
+   <polygon points="0,0 29.52,20.88 -30.96,21.6 -30.96,20.16"/>
+  </object>
+  <object id="1556" name="Speicher_2" x="3831.48" y="2913.8">
+   <polygon points="0,0 20.52,0 21.28,2.66 2.28,3.04 0.76,2.66"/>
+  </object>
+  <object id="1557" name="Speicher_2" x="3955.74" y="2913.8">
+   <polygon points="0,0 22.04,0 22.42,1.14 20.14,3.04 0.38,3.04"/>
+  </object>
+  <object id="1558" name="Speicher_2" x="3885.44" y="2951.04">
+   <polygon points="0,0 57,0 58.14,1.52 57,13.68 46.36,13.68 44.46,14.82 43.32,38.38 32.68,38.76 30.02,40.66 30.02,58.9 28.12,63.84 8.36,64.22 7.22,40.66 -7.22,38.38 -7.98,14.82 -20.14,13.3 -19.76,0.76"/>
+  </object>
+  <object id="1559" name="Speicher_2" x="4004.76" y="2951.04">
+   <polygon points="0,0 61.94,0.76 61.18,13.68 50.54,14.44 49.02,16.34 48.26,38.38 34.58,39.9 34.2,64.22 13.68,63.84 11.78,57.76 11.78,40.28 -1.14,38.76 -1.9,15.2 -4.18,13.68 -14.06,13.68 -14.44,4.56 -14.06,0.76"/>
+  </object>
+  <object id="1560" name="Speicher_3" x="4295.6" y="3029.84">
+   <polygon points="0,0 25.2,0 25.2,12.24 13.32,12.96 12.96,36 4.32,36.36 1.44,37.8 1.08,56.52 -1.08,60.84 -11.88,61.2 -12.96,59.04 -11.52,57.96 -0.36,57.6 -0.36,31.68 1.08,29.52 0,8.64 0.72,7.56 4.68,9.36 6.48,6.84 5.76,3.24 0,3.96"/>
+  </object>
+  <object id="1561" name="Speicher_3" x="4365.08" y="3029.84">
+   <polygon points="0,0 61.2,0.36 61.2,26.28 60.48,27.72 49.68,28.08 48.96,56.16 47.52,56.88 47.16,59.4 47.16,37.08 46.44,35.64 42.12,34.56 27.72,34.56 25.56,35.64 25.92,55.08 24.48,56.52 23.76,38.52 20.88,36.72 12.24,36.36 11.52,14.76 9,12.96 -0.72,12.24 -1.44,6.48"/>
+  </object>
+  <object id="1562" name="Speicher_3" x="4498.28" y="3029.84">
+   <polygon points="0,0 58.32,0.36 58.32,12.6 46.08,13.32 45.36,37.08 35.28,37.08 33.48,38.88 33.48,56.16 32.04,58.32 32.04,35.28 11.88,34.92 10.44,35.64 11.16,60.84 10.08,60.48 10.08,58.32 7.92,56.16 7.56,28.8 -3.96,27 -3.96,1.8"/>
+  </object>
+  <object id="1563" name="Speicher_3" x="4603.76" y="3029.84">
+   <polygon points="0,0 21.6,0.36 21.96,57.24 33.48,58.32 33.84,60.48 27.36,59.76 21.6,60.84 20.16,59.76 19.8,38.16 17.64,36.72 8.28,36 6.84,13.68 -4.68,12.24 -5.04,1.44"/>
+  </object>
+  <object id="1564" name="Speicher_4" x="4711.06" y="2970.96">
+   <polygon points="0,0 2.28,0 4.94,6.08 21.28,20.14 60.42,50.92 64.98,49.02 75.62,40.66 74.86,44.08 77.9,44.08 77.9,42.56 80.18,41.42 80.18,39.14 78.66,38.76 79.8,36.48 108.68,11.78 115.14,2.28 117.8,3.8 124.26,14.44 168.34,50.54 171.38,50.54 223.82,7.98 229.14,0 231.42,0 300.96,140.6 299.44,141.36 296.78,139.84 231.04,9.5 227.24,11.02 195.7,75.62 171,121.98 148.2,77.14 117.42,11.02 114.38,10.64 113.24,12.16 67.64,107.54 55.48,109.06 55.1,112.1 57.38,112.86 59.28,120.08 48.26,101.46 26.6,55.86 1.9,8.74 -1.14,9.5 -66.5,141.36 -71.06,140.6 -69.54,140.22"/>
+  </object>
+  <object id="1565" name="Speicher_5" x="5494.72" y="2594.56">
+   <polygon points="0,0 19.76,0 19.76,1.52 18.62,2.66 1.14,3.04"/>
+  </object>
+  <object id="1566" name="Speicher_5" x="5616.32" y="2594.56">
+   <polygon points="0,0 20.52,0 20.9,1.52 19.76,3.04 0.76,3.04"/>
+  </object>
+  <object id="1567" name="Speicher_5" x="5737.54" y="2594.56">
+   <polygon points="0,0 20.52,0 20.9,1.52 19,3.04 1.52,3.04"/>
+  </object>
+  <object id="1568" name="Speicher_5" x="5541.84" y="2631.8">
+   <polygon points="0,0 62.32,0.38 62.32,13.3 51.3,14.06 49.02,15.58 48.64,38.38 36.86,39.14 34.96,40.66 34.2,64.22 13.3,63.84 12.16,39.52 -0.76,38.76 -1.9,15.2 -14.82,13.68 -14.82,0.76"/>
+  </object>
+  <object id="1569" name="Speicher_5" x="5659.26" y="2631.8">
+   <polygon points="0,0 66.12,0.38 66.5,13.3 55.48,14.06 52.82,15.58 53.2,38.38 39.52,39.9 38.38,64.22 18.24,64.22 16.72,59.66 16.72,39.9 3.8,38.76 2.28,15.2 -10.26,13.3 -9.88,0.38"/>
+  </object>
+  <object id="1570" name="Speicher_6" x="5893.84" y="2562.26">
+   <polygon points="0,0 2.28,0 4.56,3.42 26.6,17.86 35.34,25.46 39.14,26.6 91.58,63.46 93.86,63.46 125.78,40.66 126.92,40.66 127.3,43.7 129.58,43.7 130.72,42.18 130.72,39.9 128.82,38.76 129.96,37.24 184.3,0 263.34,127.68 284.24,160.36 285.76,160.74 285.76,163.02 281.2,163.02 278.54,161.12 261.44,131.48 185.06,9.88 180.5,11.78 94.24,151.24 91.2,152 88.92,150.86 3.8,11.78 1.52,9.88 -0.76,10.26 -92.72,157.32 -96.14,162.26 -101.46,163.02 -28.88,48.26"/>
+  </object>
+  <object id="1571" name="Speicher_7" x="6338.76" y="2579.24">
+   <polygon points="0,0 1.8,0.72 28.44,52.2 127.08,51.48 142.2,74.52 144,76.68 146.16,76.68 158.76,37.8 172.8,83.88 162.72,82.44 150.48,82.8 145.44,84.24 146.52,111.24 145.08,119.88 143.64,121.32 140.04,119.16 133.56,118.44 129.6,120.6 127.08,115.92 119.88,116.28 118.44,121.32 107.64,120.96 107.28,100.8 102.24,100.08 79.92,100.8 77.4,117.36 78.12,120.96 74.52,120.96 75.96,120.6 75.96,118.44 73.8,115.92 71.64,115.92 66.96,121.68 38.16,121.32 37.08,120.24 37.08,83.52 38.16,79.2 1.8,7.56 -1.08,7.56 -37.44,78.84 -36,82.8 -36,116.64 -37.08,118.8 -39.24,119.88 -48.6,118.8 -51.12,121.32 -55.44,121.32 -59.76,119.16 -60.48,120.96 -64.08,120.96 -66.24,118.44 -74.52,117 -77.76,120.96 -77.76,100.8 -104.4,100.44 -105.48,101.88 -106.56,120.96 -138.96,121.68 -144,120.6 -144.72,84.96 -151.2,82.44 -172.08,83.88 -158.76,38.52 -156.6,41.4 -154.8,51.48 -153.36,52.56 -148.68,70.56 -145.08,78.48 -142.92,78.48 -136.08,66.24 -125.28,51.48 -27.36,51.84"/>
   </object>
  </objectgroup>
  <objectgroup id="14" name="Lights">
@@ -13047,5 +13266,221 @@
   <object id="1229" name="Light_rectangle" x="4167.54" y="3722" width="16.46" height="22.94"/>
   <object id="1230" name="Light_rectangle" x="4206.74" y="3722" width="16.26" height="22.94"/>
   <object id="1237" name="Light_rectangle" x="2334" y="3758" width="24" height="24"/>
+  <object id="1285" name="Light_rectangle" x="3447.4" y="3064.48" width="10.8" height="32.4"/>
+  <object id="1286" name="Light_rectangle" x="3447.4" y="3129.28" width="10.8" height="32.4"/>
+  <object id="1287" name="Light_rectangle" x="3447.4" y="3194.08" width="10.8" height="32.4"/>
+  <object id="1288" name="Light_rectangle" x="3466.12" y="3064.48" width="11.16" height="32.4"/>
+  <object id="1289" name="Light_rectangle" x="3466.12" y="3129.28" width="11.16" height="32.4"/>
+  <object id="1290" name="Light_rectangle" x="3466.12" y="3194.08" width="11.16" height="32.4"/>
+  <object id="1291" name="Light_rectangle" x="3518.32" y="3064.48" width="10.8" height="32.4"/>
+  <object id="1292" name="Light_rectangle" x="3518.32" y="3129.28" width="10.8" height="32.4"/>
+  <object id="1293" name="Light_rectangle" x="3518.32" y="3194.08" width="10.8" height="32.4"/>
+  <object id="1294" name="Light_rectangle" x="3536.68" y="3064.48" width="11.52" height="32.4"/>
+  <object id="1295" name="Light_rectangle" x="3536.68" y="3129.28" width="11.52" height="32.4"/>
+  <object id="1296" name="Light_rectangle" x="3536.68" y="3194.08" width="11.52" height="32.4"/>
+  <object id="1297" name="Light_rectangle" x="3658.0" y="3064.48" width="11.52" height="32.4"/>
+  <object id="1298" name="Light_rectangle" x="3658.0" y="3129.28" width="11.52" height="32.4"/>
+  <object id="1299" name="Light_rectangle" x="3658.0" y="3194.08" width="11.52" height="32.4"/>
+  <object id="1300" name="Light_rectangle" x="3677.08" y="3064.48" width="11.52" height="32.4"/>
+  <object id="1301" name="Light_rectangle" x="3677.08" y="3129.28" width="11.52" height="32.4"/>
+  <object id="1302" name="Light_rectangle" x="3677.08" y="3194.08" width="11.52" height="32.4"/>
+  <object id="1303" name="Light_rectangle" x="3729.28" y="3064.48" width="11.52" height="32.4"/>
+  <object id="1304" name="Light_rectangle" x="3748.0" y="3064.48" width="11.52" height="32.4"/>
+  <object id="1305" name="Light_rectangle" x="3730.72" y="3134.68" width="10.08" height="28.8"/>
+  <object id="1306" name="Light_rectangle" x="3749.8" y="3134.68" width="10.8" height="28.8"/>
+  <object id="1307" name="Light_rectangle" x="3730.72" y="3192.28" width="10.08" height="34.2"/>
+  <object id="1308" name="Light_rectangle" x="3749.8" y="3192.28" width="10.8" height="34.2"/>
+  <object id="1309" name="Light_rectangle" x="3453.52" y="3267.88" width="20.16" height="32.4"/>
+  <object id="1310" name="Light_rectangle" x="3512.2" y="3267.88" width="19.8" height="32.4"/>
+  <object id="1311" name="Light_rectangle" x="3676.72" y="3267.88" width="20.16" height="32.4"/>
+  <object id="1312" name="Light_rectangle" x="3735.4" y="3267.88" width="19.8" height="32.4"/>
+  <object id="1313" name="Light_rectangle" x="3463.6" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1314" name="Light_rectangle" x="3483.4" y="2987.08" width="5.4" height="21.6"/>
+  <object id="1315" name="Light_rectangle" x="3503.2" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1316" name="Light_rectangle" x="3580.6" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1317" name="Light_rectangle" x="3622.0" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1318" name="Light_rectangle" x="3698.32" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1319" name="Light_rectangle" x="3718.48" y="2987.08" width="5.4" height="21.6"/>
+  <object id="1320" name="Light_rectangle" x="3738.64" y="3003.28" width="5.4" height="21.6"/>
+  <object id="1323" name="Light_rectangle" x="3804.5" y="3052.5" width="28.5" height="36.1"/>
+  <object id="1324" name="Light_rectangle" x="3804.5" y="3120.9" width="28.5" height="36.1"/>
+  <object id="1325" name="Light_rectangle" x="3804.5" y="3189.3" width="28.5" height="36.1"/>
+  <object id="1326" name="Light_rectangle" x="3878.6" y="3052.5" width="28.5" height="36.1"/>
+  <object id="1327" name="Light_rectangle" x="3878.6" y="3120.9" width="28.5" height="36.1"/>
+  <object id="1328" name="Light_rectangle" x="3878.6" y="3189.3" width="28.5" height="36.1"/>
+  <object id="1329" name="Light_rectangle" x="4026.8" y="3052.5" width="30.4" height="36.1"/>
+  <object id="1330" name="Light_rectangle" x="4026.8" y="3120.9" width="30.4" height="36.1"/>
+  <object id="1331" name="Light_rectangle" x="4026.8" y="3189.3" width="30.4" height="36.1"/>
+  <object id="1332" name="Light_rectangle" x="4102.8" y="3052.5" width="28.5" height="36.1"/>
+  <object id="1333" name="Light_rectangle" x="4102.8" y="3120.9" width="28.5" height="36.1"/>
+  <object id="1334" name="Light_rectangle" x="4102.8" y="3189.3" width="28.5" height="36.1"/>
+  <object id="1335" name="Light_rectangle" x="3796.9" y="3269.1" width="55.1" height="32.3"/>
+  <object id="1336" name="Light_rectangle" x="3872.9" y="3269.1" width="55.1" height="32.3"/>
+  <object id="1337" name="Light_rectangle" x="4007.04" y="3269.1" width="55.86" height="32.3"/>
+  <object id="1338" name="Light_rectangle" x="4083.04" y="3269.1" width="55.86" height="32.3"/>
+  <object id="1339" name="Light_rectangle" x="3817.8" y="2984.1" width="5.7" height="22.8"/>
+  <object id="1340" name="Light_rectangle" x="3838.7" y="2967.0" width="5.7" height="22.8"/>
+  <object id="1341" name="Light_rectangle" x="3859.6" y="2984.1" width="5.7" height="22.8"/>
+  <object id="1342" name="Light_rectangle" x="4066.32" y="2984.1" width="5.7" height="22.8"/>
+  <object id="1343" name="Light_rectangle" x="4086.84" y="2967.0" width="5.7" height="22.8"/>
+  <object id="1344" name="Light_rectangle" x="4108.12" y="2984.1" width="5.7" height="22.8"/>
+  <object id="1347" name="Light_rectangle" x="4301.0" y="3123.8" width="37.08" height="34.2"/>
+  <object id="1348" name="Light_rectangle" x="4301.0" y="3188.6" width="37.08" height="34.2"/>
+  <object id="1349" name="Light_rectangle" x="4301.0" y="3253.4" width="37.08" height="34.2"/>
+  <object id="1350" name="Light_rectangle" x="4371.2" y="3123.8" width="37.8" height="34.2"/>
+  <object id="1351" name="Light_rectangle" x="4371.2" y="3188.6" width="37.8" height="34.2"/>
+  <object id="1352" name="Light_rectangle" x="4371.2" y="3253.4" width="37.8" height="34.2"/>
+  <object id="1353" name="Light_rectangle" x="4513.4" y="3123.8" width="37.8" height="34.2"/>
+  <object id="1354" name="Light_rectangle" x="4513.4" y="3188.6" width="37.8" height="34.2"/>
+  <object id="1355" name="Light_rectangle" x="4513.4" y="3253.4" width="37.8" height="34.2"/>
+  <object id="1356" name="Light_rectangle" x="4583.6" y="3123.8" width="36.0" height="34.2"/>
+  <object id="1357" name="Light_rectangle" x="4583.6" y="3188.6" width="36.0" height="34.2"/>
+  <object id="1358" name="Light_rectangle" x="4583.6" y="3253.4" width="36.0" height="34.2"/>
+  <object id="1359" name="Light_rectangle" x="4364.0" y="3316.4" width="21.6" height="23.4"/>
+  <object id="1360" name="Light_rectangle" x="4536.08" y="3316.4" width="22.32" height="23.4"/>
+  <object id="1361" name="Light_rectangle" x="4593.68" y="3316.4" width="22.32" height="23.4"/>
+  <object id="1362" name="Light_rectangle" x="4320.08" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1363" name="Light_rectangle" x="4339.52" y="3046.4" width="6.48" height="23.4"/>
+  <object id="1364" name="Light_rectangle" x="4358.6" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1365" name="Light_rectangle" x="4396.4" y="3068.0" width="7.92" height="12.6"/>
+  <object id="1366" name="Light_rectangle" x="4436.72" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1367" name="Light_rectangle" x="4476.32" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1368" name="Light_rectangle" x="4515.92" y="3068.0" width="7.92" height="12.6"/>
+  <object id="1369" name="Light_rectangle" x="4554.08" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1370" name="Light_rectangle" x="4573.52" y="3046.4" width="6.48" height="23.4"/>
+  <object id="1371" name="Light_rectangle" x="4593.68" y="3064.4" width="6.48" height="19.8"/>
+  <object id="1372" name="Light_rectangle" x="4393.88" y="3309.2" width="4.32" height="9.36"/>
+  <object id="1373" name="Light_rectangle" x="4518.44" y="3314.6" width="5.76" height="15.84"/>
+  <object id="1376" name="Light_rectangle" x="4744.12" y="3007.44" width="3.04" height="12.16"/>
+  <object id="1377" name="Light_rectangle" x="4766.54" y="3041.64" width="6.84" height="15.96"/>
+  <object id="1378" name="Light_rectangle" x="4708.4" y="3061.02" width="8.36" height="29.64"/>
+  <object id="1379" name="Light_rectangle" x="4849.76" y="3061.4" width="7.98" height="29.26"/>
+  <object id="1380" name="Light_rectangle" x="4936.78" y="3061.4" width="8.36" height="29.64"/>
+  <object id="1381" name="Light_rectangle" x="4963.38" y="3061.4" width="8.36" height="29.64"/>
+  <object id="1382" name="Light_rectangle" x="4681.8" y="3061.78" width="8.36" height="29.26"/>
+  <object id="1383" name="Light_rectangle" x="4735.38" y="3061.78" width="7.98" height="29.26"/>
+  <object id="1384" name="Light_rectangle" x="4796.18" y="3061.78" width="8.36" height="29.26"/>
+  <object id="1385" name="Light_rectangle" x="4910.18" y="3061.78" width="7.98" height="29.26"/>
+  <object id="1386" name="Light_rectangle" x="4879.78" y="3120.3" width="9.88" height="37.62"/>
+  <object id="1387" name="Light_rectangle" x="4674.58" y="3120.68" width="9.88" height="37.24"/>
+  <object id="1388" name="Light_rectangle" x="4695.48" y="3120.68" width="9.88" height="37.62"/>
+  <object id="1389" name="Light_rectangle" x="4742.98" y="3120.68" width="9.88" height="37.62"/>
+  <object id="1390" name="Light_rectangle" x="4763.88" y="3120.68" width="9.88" height="37.24"/>
+  <object id="1391" name="Light_rectangle" x="4900.3" y="3120.68" width="10.26" height="37.24"/>
+  <object id="1392" name="Light_rectangle" x="4948.18" y="3120.68" width="9.88" height="37.62"/>
+  <object id="1393" name="Light_rectangle" x="4969.08" y="3120.68" width="9.88" height="37.24"/>
+  <object id="1394" name="Light_rectangle" x="4948.18" y="3188.32" width="9.88" height="38.38"/>
+  <object id="1395" name="Light_rectangle" x="4674.58" y="3188.7" width="9.88" height="37.62"/>
+  <object id="1396" name="Light_rectangle" x="4695.48" y="3188.7" width="9.88" height="38.0"/>
+  <object id="1397" name="Light_rectangle" x="4742.98" y="3188.7" width="9.88" height="38.0"/>
+  <object id="1398" name="Light_rectangle" x="4763.88" y="3188.7" width="9.88" height="37.62"/>
+  <object id="1399" name="Light_rectangle" x="4879.4" y="3188.7" width="10.26" height="38.0"/>
+  <object id="1400" name="Light_rectangle" x="4900.3" y="3188.7" width="9.88" height="37.62"/>
+  <object id="1401" name="Light_rectangle" x="4969.08" y="3188.7" width="9.88" height="37.62"/>
+  <object id="1402" name="Light_rectangle" x="4763.88" y="3256.72" width="9.88" height="37.62"/>
+  <object id="1403" name="Light_rectangle" x="4900.68" y="3256.72" width="9.5" height="37.62"/>
+  <object id="1404" name="Light_rectangle" x="4674.58" y="3257.1" width="9.88" height="37.24"/>
+  <object id="1405" name="Light_rectangle" x="4695.48" y="3257.1" width="9.88" height="37.24"/>
+  <object id="1406" name="Light_rectangle" x="4743.36" y="3257.1" width="9.5" height="37.62"/>
+  <object id="1407" name="Light_rectangle" x="4879.78" y="3257.1" width="9.88" height="37.62"/>
+  <object id="1408" name="Light_rectangle" x="4948.18" y="3257.1" width="9.88" height="37.62"/>
+  <object id="1409" name="Light_rectangle" x="4969.08" y="3257.1" width="9.88" height="37.24"/>
+  <object id="1412" name="Light_rectangle" x="5462.04" y="2737.06" width="34.96" height="36.1"/>
+  <object id="1413" name="Light_rectangle" x="5462.04" y="2805.46" width="34.96" height="36.1"/>
+  <object id="1414" name="Light_rectangle" x="5462.04" y="2873.86" width="34.96" height="36.1"/>
+  <object id="1415" name="Light_rectangle" x="5534.24" y="2737.06" width="36.86" height="36.1"/>
+  <object id="1416" name="Light_rectangle" x="5534.24" y="2805.46" width="36.86" height="36.1"/>
+  <object id="1417" name="Light_rectangle" x="5534.24" y="2873.86" width="36.86" height="36.1"/>
+  <object id="1418" name="Light_rectangle" x="5678.26" y="2737.06" width="41.04" height="36.1"/>
+  <object id="1419" name="Light_rectangle" x="5678.26" y="2805.46" width="41.04" height="36.1"/>
+  <object id="1420" name="Light_rectangle" x="5678.26" y="2873.86" width="41.04" height="36.1"/>
+  <object id="1421" name="Light_rectangle" x="5751.6" y="2737.06" width="39.9" height="36.1"/>
+  <object id="1422" name="Light_rectangle" x="5751.6" y="2805.46" width="39.9" height="36.1"/>
+  <object id="1423" name="Light_rectangle" x="5751.6" y="2873.86" width="39.9" height="36.1"/>
+  <object id="1424" name="Light_rectangle" x="5500.8" y="2647.76" width="8.36" height="24.7"/>
+  <object id="1425" name="Light_rectangle" x="5479.9" y="2681.2" width="8.36" height="26.6"/>
+  <object id="1426" name="Light_rectangle" x="5521.7" y="2681.2" width="8.36" height="26.6"/>
+  <object id="1427" name="Light_rectangle" x="5744.76" y="2647.76" width="8.36" height="24.7"/>
+  <object id="1428" name="Light_rectangle" x="5723.86" y="2681.2" width="8.36" height="26.6"/>
+  <object id="1429" name="Light_rectangle" x="5764.9" y="2681.2" width="8.36" height="26.6"/>
+  <object id="1432" name="Light_rectangle" x="5824.3" y="2733.26" width="20.9" height="36.1"/>
+  <object id="1433" name="Light_rectangle" x="5824.3" y="2801.66" width="20.9" height="36.1"/>
+  <object id="1434" name="Light_rectangle" x="5824.3" y="2870.06" width="20.9" height="36.1"/>
+  <object id="1435" name="Light_rectangle" x="5945.9" y="2733.26" width="20.9" height="36.1"/>
+  <object id="1436" name="Light_rectangle" x="5945.9" y="2801.66" width="20.9" height="36.1"/>
+  <object id="1437" name="Light_rectangle" x="5945.9" y="2870.06" width="20.9" height="36.1"/>
+  <object id="1438" name="Light_rectangle" x="6006.7" y="2733.26" width="20.9" height="36.1"/>
+  <object id="1439" name="Light_rectangle" x="6006.7" y="2801.66" width="20.9" height="36.1"/>
+  <object id="1440" name="Light_rectangle" x="6006.7" y="2870.06" width="20.9" height="36.1"/>
+  <object id="1441" name="Light_rectangle" x="6128.3" y="2733.26" width="20.9" height="36.1"/>
+  <object id="1442" name="Light_rectangle" x="6128.3" y="2801.66" width="20.9" height="36.1"/>
+  <object id="1443" name="Light_rectangle" x="6128.3" y="2870.06" width="20.9" height="36.1"/>
+  <object id="1444" name="Light_rectangle" x="5832.66" y="2681.96" width="7.6" height="19.0"/>
+  <object id="1445" name="Light_rectangle" x="5852.8" y="2647.76" width="11.4" height="62.7"/>
+  <object id="1446" name="Light_rectangle" x="5925.0" y="2647.76" width="11.4" height="62.7"/>
+  <object id="1447" name="Light_rectangle" x="5947.8" y="2681.96" width="7.6" height="19.0"/>
+  <object id="1448" name="Light_rectangle" x="6016.2" y="2681.96" width="7.6" height="19.0"/>
+  <object id="1449" name="Light_rectangle" x="6035.2" y="2647.76" width="11.4" height="62.7"/>
+  <object id="1450" name="Light_rectangle" x="6107.4" y="2647.76" width="11.4" height="62.7"/>
+  <object id="1451" name="Light_rectangle" x="6130.96" y="2681.96" width="7.6" height="19.0"/>
+  <object id="1454" name="Light_rectangle" x="6335.88" y="2627.84" width="3.24" height="7.92"/>
+  <object id="1455" name="Light_rectangle" x="6495.36" y="2678.24" width="5.04" height="18.72"/>
+  <object id="1456" name="Light_rectangle" x="6178.56" y="2678.6" width="5.04" height="17.28"/>
+  <object id="1457" name="Light_rectangle" x="6242.28" y="2684.72" width="9.0" height="16.92"/>
+  <object id="1458" name="Light_rectangle" x="6427.68" y="2685.44" width="8.64" height="16.2"/>
+  <object id="1459" name="Light_rectangle" x="6242.28" y="2715.32" width="8.64" height="35.64"/>
+  <object id="1460" name="Light_rectangle" x="6285.48" y="2715.68" width="7.92" height="34.92"/>
+  <object id="1461" name="Light_rectangle" x="6385.2" y="2715.68" width="8.64" height="35.28"/>
+  <object id="1462" name="Light_rectangle" x="6399.6" y="2715.68" width="7.92" height="34.92"/>
+  <object id="1463" name="Light_rectangle" x="6199.8" y="2716.04" width="7.92" height="34.92"/>
+  <object id="1464" name="Light_rectangle" x="6185.4" y="2716.4" width="8.64" height="34.92"/>
+  <object id="1465" name="Light_rectangle" x="6470.52" y="2716.4" width="8.28" height="34.2"/>
+  <object id="1466" name="Light_rectangle" x="6442.44" y="2716.76" width="7.92" height="33.84"/>
+  <object id="1467" name="Light_rectangle" x="6484.92" y="2716.76" width="8.28" height="33.84"/>
+  <object id="1468" name="Light_rectangle" x="6271.8" y="2717.12" width="7.2" height="33.84"/>
+  <object id="1469" name="Light_rectangle" x="6427.68" y="2717.12" width="9.0" height="33.48"/>
+  <object id="1470" name="Light_rectangle" x="6228.96" y="2717.48" width="7.2" height="33.12"/>
+  <object id="1471" name="Light_rectangle" x="6470.16" y="2775.44" width="9.0" height="35.64"/>
+  <object id="1472" name="Light_rectangle" x="6399.24" y="2775.8" width="8.28" height="35.64"/>
+  <object id="1473" name="Light_rectangle" x="6427.68" y="2775.8" width="7.92" height="35.64"/>
+  <object id="1474" name="Light_rectangle" x="6484.56" y="2775.8" width="9.0" height="35.64"/>
+  <object id="1475" name="Light_rectangle" x="6442.08" y="2776.16" width="8.64" height="35.28"/>
+  <object id="1476" name="Light_rectangle" x="6185.4" y="2776.88" width="8.64" height="34.2"/>
+  <object id="1477" name="Light_rectangle" x="6199.44" y="2776.88" width="9.0" height="34.2"/>
+  <object id="1478" name="Light_rectangle" x="6285.12" y="2776.88" width="8.64" height="34.2"/>
+  <object id="1479" name="Light_rectangle" x="6384.84" y="2776.88" width="9.0" height="34.2"/>
+  <object id="1480" name="Light_rectangle" x="6241.92" y="2777.6" width="9.0" height="33.48"/>
+  <object id="1481" name="Light_rectangle" x="6228.24" y="2777.96" width="7.56" height="32.76"/>
+  <object id="1482" name="Light_rectangle" x="6270.72" y="2778.32" width="9.0" height="32.76"/>
+  <object id="1483" name="Light_rectangle" x="6470.16" y="2835.2" width="8.64" height="37.08"/>
+  <object id="1484" name="Light_rectangle" x="6185.04" y="2835.92" width="8.64" height="36.0"/>
+  <object id="1485" name="Light_rectangle" x="6228.24" y="2835.92" width="7.56" height="35.64"/>
+  <object id="1486" name="Light_rectangle" x="6442.08" y="2835.92" width="8.64" height="36.36"/>
+  <object id="1487" name="Light_rectangle" x="6199.8" y="2836.28" width="8.64" height="35.64"/>
+  <object id="1488" name="Light_rectangle" x="6399.24" y="2836.28" width="8.64" height="35.64"/>
+  <object id="1489" name="Light_rectangle" x="6427.68" y="2836.28" width="7.92" height="35.64"/>
+  <object id="1490" name="Light_rectangle" x="6484.56" y="2836.28" width="7.92" height="36.0"/>
+  <object id="1491" name="Light_rectangle" x="6285.12" y="2836.64" width="9.0" height="35.28"/>
+  <object id="1492" name="Light_rectangle" x="6242.28" y="2837.0" width="8.64" height="34.92"/>
+  <object id="1493" name="Light_rectangle" x="6385.2" y="2837.0" width="8.64" height="34.92"/>
+  <object id="1494" name="Light_rectangle" x="6271.08" y="2838.08" width="8.64" height="33.84"/>
+  <object id="1495" name="Light_rectangle" x="6242.64" y="2896.4" width="8.28" height="36.0"/>
+  <object id="1496" name="Light_rectangle" x="6399.24" y="2896.4" width="8.64" height="36.0"/>
+  <object id="1497" name="Light_rectangle" x="6185.4" y="2896.76" width="8.64" height="35.64"/>
+  <object id="1498" name="Light_rectangle" x="6199.8" y="2896.76" width="8.64" height="35.64"/>
+  <object id="1499" name="Light_rectangle" x="6427.68" y="2896.76" width="8.64" height="35.64"/>
+  <object id="1500" name="Light_rectangle" x="6442.08" y="2896.76" width="8.64" height="36.0"/>
+  <object id="1501" name="Light_rectangle" x="6470.52" y="2896.76" width="7.92" height="35.64"/>
+  <object id="1502" name="Light_rectangle" x="6228.24" y="2897.12" width="7.56" height="35.28"/>
+  <object id="1503" name="Light_rectangle" x="6285.12" y="2897.12" width="7.92" height="35.64"/>
+  <object id="1504" name="Light_rectangle" x="6271.08" y="2897.48" width="8.64" height="35.28"/>
+  <object id="1505" name="Light_rectangle" x="6385.2" y="2897.84" width="8.64" height="34.92"/>
+  <object id="1506" name="Light_rectangle" x="6484.92" y="2897.84" width="7.56" height="34.56"/>
+  <object id="1507" name="Light_rectangle" x="6430.2" y="2961.56" width="17.28" height="26.64"/>
+  <object id="1508" name="Light_rectangle" x="6471.6" y="2961.56" width="18.36" height="27.72"/>
+  <object id="1509" name="Light_rectangle" x="6187.2" y="2961.92" width="18.36" height="26.64"/>
+  <object id="1510" name="Light_rectangle" x="6230.4" y="2962.64" width="17.28" height="25.2"/>
+  <object id="1511" name="Light_rectangle" x="6272.88" y="2963.36" width="17.64" height="24.84"/>
+  <object id="1512" name="Light_rectangle" x="6388.8" y="2963.36" width="15.84" height="24.48"/>
  </objectgroup>
 </map>
