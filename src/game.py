@@ -188,7 +188,7 @@ class Game:
         # Uncle Gared's shop (models/intro.py); a save says how far they got
         self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
         # Its address, folded at the top of the map until clicked (address_note.py)
-        self.address_note: AddressNote = AddressNote(on_unfold=self.play_sound)
+        self.address_note: AddressNote = AddressNote(on_sound=self.play_sound)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -538,18 +538,22 @@ class Game:
                 channel.set_volume(DOOR_VOLUME * (1.0 - dist / DOOR_SOUND_MAX_DISTANCE))
                 channel.play(random.choice(self.door_sounds))
 
-    def play_sound(self, sound_name: str) -> Optional[pygame.mixer.Channel]:
+    def play_sound(self, sound_name: str, volume: float = 1.0) -> Optional[pygame.mixer.Channel]:
         """Play a sound effect by name.
         
         Args:
             sound_name: The key of the sound in self.sounds.
+            volume: This playing's share of the sound's own volume (its channel's).
             
         Returns:
             The Channel object the sound is playing on, or None if it failed.
         """
         if sound_name in self.sounds:
             try:
-                return self.sounds[sound_name].play()
+                channel = self.sounds[sound_name].play()
+                if channel is not None and volume != 1.0:
+                    channel.set_volume(volume)
+                return channel
             except Exception as e:
                 print(f"Failed to play sound {sound_name}: {e}")
                 return None

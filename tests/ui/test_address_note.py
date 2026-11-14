@@ -88,3 +88,16 @@ def test_the_item_is_the_parcel_picture_cut_to_its_shape():
     _drawn(note)
     assert note.item_rect.height == mod.ITEM_HEIGHT
     assert note.item_rect.width < 2 * mod.ITEM_HEIGHT     # the stray speck in its corner left out
+
+
+def test_a_rustle_sounds_on_unfolding_and_on_folding_again_a_quarter_softer():
+    heard = []
+    note = AddressNote(on_sound=lambda name, volume: heard.append((name, volume)))
+    _drawn(note)
+    note.handle_click(note.item_rect.center)
+    note.update(mod.UNFOLD_S)
+    _drawn(note)
+    note.handle_click((10, 900))
+    assert len(heard) == 2
+    assert all(name in mod.UNFOLD_SOUNDS and volume == mod.SOUND_VOLUME == 0.75
+               for name, volume in heard)

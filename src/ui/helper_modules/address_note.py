@@ -56,6 +56,7 @@ FLAP_SHADE = 0.72             # how dark a flap still standing up is
 FOLDED, UNFOLDING, OPEN, FOLDING = "folded", "unfolding", "open", "folding"
 
 UNFOLD_SOUNDS = ("parchment_open", "parchment_rustle_1", "parchment_rustle_2")  # one at random
+SOUND_VOLUME = 0.75            # on unfolding and on folding again, a quarter softer than as recorded
 
 
 def _ease(x: float) -> float:
@@ -76,9 +77,9 @@ class AddressNote:
     """The folded address and its sheet (see the module)."""
 
     def __init__(self, picture: str = MAP_PICTURE,
-                 on_unfold: Optional[Callable[[str], None]] = None) -> None:
+                 on_sound: Optional[Callable[[str, float], None]] = None) -> None:
         self.picture = picture
-        self.on_unfold = on_unfold            # told the sound's name each time the sheet starts to open
+        self.on_sound = on_sound              # told a sound's name and volume each time the sheet starts to open or fold
         self.state: str = FOLDED
         self.t: float = 0.0                   # 0 folded, 1 open
         self.item_rect: Optional[pygame.Rect] = None
@@ -107,12 +108,16 @@ class AddressNote:
     def unfold(self) -> None:
         if self.state in (FOLDED, FOLDING):
             self.state = UNFOLDING
-            if self.on_unfold:
-                self.on_unfold(random.choice(UNFOLD_SOUNDS))
+            self._rustle()
 
     def fold(self) -> None:
         if self.state in (OPEN, UNFOLDING):
             self.state = FOLDING
+            self._rustle()
+
+    def _rustle(self) -> None:
+        if self.on_sound:
+            self.on_sound(random.choice(UNFOLD_SOUNDS), SOUND_VOLUME)
 
     def reset(self) -> None:
         """Folded, as in a new game or a loaded one."""
