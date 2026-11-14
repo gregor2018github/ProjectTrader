@@ -168,7 +168,7 @@ SOLID_ALPHA = 128   # a pixel of the foot this opaque counts for the collision m
 
 def building_files():
     """Every building, decoration and floor plate sprite; by name, so a stall's closed sprite follows its open one."""
-    return (sorted(p for p in HOUSES_DIR.glob('*.png') if p.name != HOUSES_ATLAS.name)
+    return (sorted(p for p in HOUSES_DIR.glob('*.png') if not HOUSES_ATLAS.is_collection_file(p))
             + sorted(FLOOR_DIR.glob('*.png')))
 
 

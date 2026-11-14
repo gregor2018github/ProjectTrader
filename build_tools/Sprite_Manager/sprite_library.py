@@ -13,6 +13,13 @@ live in two places at once, and a new sprite is written to both:
   build_tools/output/<domain>/atlas_backups/. The GIMP file it is exported
   from (Trees.xcf, Houses.xcf, ...) does not get the new sprite.
 
+  When a collection has no room left, the sprite goes into the next one of
+  its series, Houses_2.png, Houses_3.png ... (Atlas.series()), and when
+  they are all full a new one is started, as big as the first and empty,
+  with a tileset of its own (Houses_2.tsx beside the map) that is added to
+  Map1.tmx, so Tiled offers it at once (start_overflow()). The game loads
+  every tileset of the map, so the new files must be committed with it.
+
 Which kind a sprite is cannot always be told from the files - the small
 plants only exist inside non_collision_deco.png - so each domain has a
 catalog next to this file (plant_catalog.json, building_catalog.json): per
@@ -26,6 +33,8 @@ in the catalog yet shows up as unsorted, to be given a kind in the tool
 
 import json
 import math
+import os
+import re
 import shutil
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -37,6 +46,8 @@ import pygame
 from theme import OUTPUT_DIR, ROOT
 
 MAP_SPRITES = ROOT / 'assets' / 'map_sprites'
+TILED_DIR = ROOT / 'assets' / 'tiles'
+MAP_FILE = TILED_DIR / 'Map1.tmx'
 TILE = 32
 
 UNSORTED = 'unsorted'     # a motif or file the catalog does not know yet
@@ -57,6 +68,28 @@ class Atlas:
     path: Path
     tileset: str          # its name in Tiled
     source: str           # the GIMP file it is exported from
+
+    def overflow(self, number):
+        """The `number`th collection of this one's series (2, 3 ...): Houses_2.png, tileset Houses_2.
+
+        It has no GIMP file: the tool writes it directly.
+        """
+        return Atlas(f'{self.key}_{number}', self.path.with_name(f'{self.path.stem}_{number}{self.path.suffix}'),
+                     f'{self.tileset}_{number}', '')
+
+    def series(self):
+        """This collection and the overflow ones after it that exist on disk, in order."""
+        found, number = [self], 2
+        while (nxt := self.overflow(number)).path.is_file():
+            found.append(nxt)
+            number += 1
+        return found
+
+    def is_collection_file(self, path):
+        """Whether `path` is this collection or one of its overflow ones (not a single sprite)."""
+        path = Path(path)
+        return path.parent == self.path.parent and re.fullmatch(
+            rf'{re.escape(self.path.stem)}(_\d+)?{re.escape(self.path.suffix)}', path.name) is not None
 
     @property
     def name(self):
@@ -106,7 +139,10 @@ class Domain:
 
     @property
     def atlases(self):
-        found = {k.atlas.key: k.atlas for k in self.kinds}
+        """{key: Atlas} of every collection, each kind's overflow ones included."""
+        found = {}
+        for kind in self.kinds:
+            found.update((a.key, a) for a in kind.atlas.series())
         found.update((a.key, a) for a in self.motif_atlases)
         return found
 
@@ -358,10 +394,13 @@ class AddedSprite:
     rect: pygame.Rect
     tiled: dict = field(default_factory=dict)   # the Tiled properties to give its object
     backup: Optional[Path] = None
+    started: bool = False   # the collection was started for it, the others being full
 
     def summary(self):
         """One line for the status bar."""
         text = f'Saved {self.path.name}, placed in {self.atlas.name} at {self.rect.x},{self.rect.y}'
+        if self.started:
+            text += f' (a new collection, tileset {self.atlas.tileset} added to {MAP_FILE.name})'
         if self.tiled:
             text += ' - Tiled: ' + ', '.join(f'{name} {value}' for name, value in self.tiled.items())
         return text
@@ -437,28 +476,90 @@ def add_sprite(domain, sprite, kind, subcategory, catalog=None):
     """
     catalog = catalog or Catalog(domain.catalog_path)
     sprite = sprite.subsurface(sprite.get_bounding_rect()).copy()
-    atlas = kind.atlas
-    atlas_image = pygame.image.load(str(atlas.path)).convert_alpha()
-    spot = free_place(atlas_image, sprite.get_size())
-    if spot is None:
-        raise ValueError(f'No room left in {atlas.name}')
+    series = kind.atlas.series()
+    atlas = spot = atlas_image = None
+    for atlas in series:
+        atlas_image = pygame.image.load(str(atlas.path)).convert_alpha()
+        spot = free_place(atlas_image, sprite.get_size())
+        if spot is not None:
+            break
+    started = spot is None
+    if started:   # every collection of the series is full: start the next one, as big as the first
+        size = pygame.image.load(str(kind.atlas.path)).get_size()
+        atlas = kind.atlas.overflow(len(series) + 1)
+        atlas_image = pygame.Surface(size, pygame.SRCALPHA)
+        atlas_image.fill((0, 0, 0, 0))
+        spot = free_place(atlas_image, sprite.get_size())
+        if spot is None:
+            raise ValueError(f'{sprite.get_width()} x {sprite.get_height()} is too big for a collection '
+                             f'of {size[0]} x {size[1]}')
 
     path = next_free_file(kind)
     path.parent.mkdir(parents=True, exist_ok=True)
     pygame.image.save(sprite, str(path))
 
-    backups = domain.output / 'atlas_backups'
-    backups.mkdir(parents=True, exist_ok=True)
-    backup = backups / f'{atlas.path.stem}_{datetime.now():%Y%m%d_%H%M%S}.png'
-    shutil.copy2(atlas.path, backup)
+    backup = None
+    if not started:
+        backups = domain.output / 'atlas_backups'
+        backups.mkdir(parents=True, exist_ok=True)
+        backup = backups / f'{atlas.path.stem}_{datetime.now():%Y%m%d_%H%M%S}.png'
+        shutil.copy2(atlas.path, backup)
     atlas_image.blit(sprite, spot)
     pygame.image.save(atlas_image, str(atlas.path))
+    if started:
+        start_overflow(atlas, atlas_image.get_size())
 
     rect = pygame.Rect(spot, sprite.get_size())
     tiled = domain.tiled_properties(kind, sprite, path)
+    if tiled.get('tileset') == kind.atlas.tileset:   # a floor plate, painted from the collection it went into
+        tiled['tileset'] = atlas.tileset
     entry = {'kind': kind.key, 'subcategory': subcategory, 'atlas': atlas.key, 'rect': list(rect)}
     if tiled:
         entry['tiled'] = tiled
     catalog.files[catalog.file_key(path)] = entry
     catalog.save()
-    return AddedSprite(path, atlas, rect, tiled, backup)
+    return AddedSprite(path, atlas, rect, tiled, backup, started)
+
+
+def start_overflow(atlas, size, map_file=None):
+    """Make a new collection known to Tiled: its .tsx beside the map, and the map's tileset list.
+
+    The tileset is appended after the map's last one, its first gid after
+    the highest any tileset uses, so no tile already painted changes. A map
+    naming it already is left alone.
+    """
+    map_file = Path(map_file or MAP_FILE)
+    tiled_dir = map_file.parent
+    tsx = tiled_dir / f'{atlas.tileset}.tsx'
+    columns, rows = size[0] // TILE, size[1] // TILE
+    image = Path(os.path.relpath(atlas.path, tiled_dir)).as_posix()
+    tsx.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        f'<tileset version="1.10" tiledversion="1.11.2" name="{atlas.tileset}" tilewidth="{TILE}" '
+        f'tileheight="{TILE}" tilecount="{columns * rows}" columns="{columns}">\n'
+        f' <image source="{image}" width="{size[0]}" height="{size[1]}"/>\n'
+        '</tileset>\n', encoding='utf-8')
+
+    with open(map_file, encoding='utf-8', newline='') as file:   # its line endings kept as they are
+        text = file.read()
+    if f'source="{tsx.name}"' in text:
+        return
+    tilesets = list(re.finditer(r'<tileset\b[^>]*?/>|<tileset\b[^>]*?[^/]>.*?</tileset>', text, re.DOTALL))
+    if not tilesets:
+        raise ValueError(f'{map_file.name} has no tilesets to add {tsx.name} after')
+    next_gid = max(_tileset_end(m.group(0), tiled_dir) for m in tilesets)
+    end = tilesets[-1].end()
+    newline = '\r\n' if '\r\n' in text else '\n'
+    line = f'{newline} <tileset firstgid="{next_gid}" source="{tsx.name}"/>'
+    with open(map_file, 'w', encoding='utf-8', newline='') as file:
+        file.write(text[:end] + line + text[end:])
+
+
+def _tileset_end(tag, tiled_dir):
+    """The first gid after a map's tileset: its firstgid plus its tile count (read from its .tsx if external)."""
+    first = int(re.search(r'firstgid="(\d+)"', tag).group(1))
+    count = re.search(r'tilecount="(\d+)"', tag)
+    if count is None:
+        source = re.search(r'source="([^"]+)"', tag).group(1)
+        count = re.search(r'tilecount="(\d+)"', (tiled_dir / source).read_text(encoding='utf-8'))
+    return first + int(count.group(1))

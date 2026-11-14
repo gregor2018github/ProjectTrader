@@ -85,7 +85,7 @@ DECORATION_KINDS = {'decoration', 'wall_fence'}
 #: Catalog kinds that are not put on the Houses layer as they are
 NOT_PLACEABLE_KINDS = {'reference', 'bridge', 'floor_plate'}
 #: Pictures the game loads beside another one, or atlases
-NOT_PLACEABLE_FILES = re.compile(r'(_closed|_front)\.png$|^(Houses|Trees)\.png$|^Bridge_')
+NOT_PLACEABLE_FILES = re.compile(r'(_closed|_front)\.png$|^(Houses|Trees)(_\d+)?\.png$|^Bridge_')
 
 
 def natural_key(text):

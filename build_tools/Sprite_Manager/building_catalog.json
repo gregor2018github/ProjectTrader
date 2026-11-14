@@ -1153,6 +1153,69 @@
     "Col_margin_left_pixel": -18,
     "Col_margin_right_pixel": -25
    }
+  },
+  "houses/House_47.png": {
+   "kind": "warehouse",
+   "subcategory": "Speicherstadt warehouse with a hoist bay",
+   "atlas": "houses_2",
+   "rect": [
+    32,
+    52,
+    1086,
+    1196
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_47.png",
+    "Tiles_to_right": 34,
+    "Tiles_up": 38,
+    "Collision_to_right": 34,
+    "Collision_up": 11,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -2
+   }
+  },
+  "houses/House_48.png": {
+   "kind": "warehouse",
+   "subcategory": "Hanseatic warehouse with two wide gables",
+   "atlas": "houses_2",
+   "rect": [
+    1152,
+    43,
+    1021,
+    1173
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_48.png",
+    "Tiles_to_right": 32,
+    "Tiles_up": 37,
+    "Collision_to_right": 32,
+    "Collision_up": 11,
+    "Col_margin_left_pixel": -29,
+    "Col_margin_right_pixel": -31
+   }
+  },
+  "houses/House_49.png": {
+   "kind": "warehouse",
+   "subcategory": "Hanseatic warehouse with stepped gables",
+   "atlas": "houses_2",
+   "rect": [
+    2208,
+    32,
+    983,
+    1088
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_49.png",
+    "Tiles_to_right": 31,
+    "Tiles_up": 34,
+    "Collision_to_right": 31,
+    "Collision_up": 10,
+    "Col_margin_left_pixel": -3,
+    "Col_margin_right_pixel": -13
+   }
   }
  },
  "motifs": {}
