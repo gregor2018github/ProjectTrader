@@ -56,7 +56,7 @@ FLAP_SHADE = 0.72             # how dark a flap still standing up is
 FOLDED, UNFOLDING, OPEN, FOLDING = "folded", "unfolding", "open", "folding"
 
 UNFOLD_SOUNDS = ("parchment_open", "parchment_rustle_1", "parchment_rustle_2")  # one at random
-SOUND_VOLUME = 0.75            # on unfolding and on folding again, a quarter softer than as recorded
+SOUND_VOLUME = 0.525           # on unfolding and on folding again, about half as loud as recorded
 
 
 def _ease(x: float) -> float:
