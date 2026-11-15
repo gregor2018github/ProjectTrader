@@ -6,15 +6,19 @@ class Warehouse(House):
 
     It stores goods in buy_slots slots of buy_slot_size units each, every slot
     holding one good only (Tiled properties Buy_slots and Buy_slot_size).
+    Which of RANK_UNLOCKS lets the player buy it is its Tiled Buy_unlock,
+    "buy_buildings" (Hawker) unless it says otherwise.
     """
 
     def __init__(self, *args, buy_price: int = 0, buy_slots: int = 0, buy_slot_size: int = 0,
-                 buy_type: str = "Warehouse", tmx_id: int = 0, **kwargs):
+                 buy_type: str = "Warehouse", tmx_id: int = 0, buy_unlock: str = "buy_buildings",
+                 **kwargs):
         super().__init__(*args, **kwargs)
         self.buy_price: int = buy_price
         self.buy_slots: int = buy_slots
         self.buy_slot_size: int = buy_slot_size
         self.buy_type: str = buy_type
+        self.buy_unlock: str = buy_unlock
         self.tmx_id: int = tmx_id
         self.is_owned: bool = False
 

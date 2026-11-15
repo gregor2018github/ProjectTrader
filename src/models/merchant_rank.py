@@ -35,6 +35,7 @@ CONDITION_LABELS = {
 }
 UNLOCK_TEXTS = {                 # how each of RANK_UNLOCKS reads after "you may now"
     "buy_buildings": "buy buildings",
+    "buy_great_warehouses": "buy the great warehouses",
 }
 
 

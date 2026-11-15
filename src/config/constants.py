@@ -147,6 +147,7 @@ MERCHANT_RANKS = (
 RANK_GRACE_DAYS = 14                # Days a rank's conditions may stay unmet before it is lost
 RANK_UNLOCKS = {                    # What a rank opens, by the rank first reaching it; never taken away again
     "buy_buildings": "Hawker",
+    "buy_great_warehouses": "Merchant",   # the Hanseatic warehouses north of town (their Tiled Buy_unlock)
 }
 REPUTATION_SEASONAL_DECAY = 0.025   # Share of the reputation that fades at the start of each season (about 10% a 30 days, as before)
 DONATION_REPUTATION_SCALE = 100.0   # Reputation for giving away as much as one's wealth (ln 2 of it, see MerchantRank)

@@ -41,7 +41,7 @@ class BuyBuildingDialog(_BaseDialog):
         if self.buy_btn.collidepoint(pos):
             depot = self.game_state.game.depot
             if not self._rank_allows():
-                self.game_state.show_warning(f"Only a {RANK_UNLOCKS['buy_buildings']} or higher may buy buildings.")
+                self.game_state.show_warning(f"Only a {self._rank_needed()} or higher may buy this building.")
             elif depot.money >= self.warehouse.buy_price:
                 depot.buy_warehouse(self.warehouse, self.game_state)
                 _close_dialog(self.game_state)
@@ -49,8 +49,16 @@ class BuyBuildingDialog(_BaseDialog):
                 self.game_state.show_warning("Not enough money to purchase this building.")
         return True
 
+    def _unlock(self) -> str:
+        """Which of RANK_UNLOCKS this building asks for (an unknown name in Tiled: the plain one)."""
+        unlock = getattr(self.warehouse, "buy_unlock", "buy_buildings")
+        return unlock if unlock in RANK_UNLOCKS else "buy_buildings"
+
+    def _rank_needed(self) -> str:
+        return RANK_UNLOCKS[self._unlock()]
+
     def _rank_allows(self) -> bool:
-        return self.game_state.game.merchant_rank.has_unlocked("buy_buildings")
+        return self.game_state.game.merchant_rank.has_unlocked(self._unlock())
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
@@ -84,7 +92,7 @@ class BuyBuildingDialog(_BaseDialog):
         ]
         if not rank_allows:
             # Takes the place of the money line, so the panel needs no more room
-            lines[-1] = (f"Only a {RANK_UNLOCKS['buy_buildings']} or higher may buy", DARK_RED)
+            lines[-1] = (f"Only a {self._rank_needed()} or higher may buy", DARK_RED)
         for text, color in lines:
             y = self._text(surf, text, cx, y, color=color, center=True) + 4
 

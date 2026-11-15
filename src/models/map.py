@@ -656,6 +656,7 @@ class TMXMap:
                                 'Buy_slots', int(obj.properties.get('Buy_storage', 0)) // SLOT_SIZE)),
                             buy_slot_size=int(obj.properties.get('Buy_slot_size', SLOT_SIZE)),
                             buy_type=str(obj.properties.get('Buy_type', 'Warehouse')),
+                            buy_unlock=str(obj.properties.get('Buy_unlock', 'buy_buildings')),
                             tmx_id=int(obj.id),
                             scale=float(obj.properties.get('Scale', 1.0)),
                         )

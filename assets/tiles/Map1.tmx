@@ -12362,6 +12362,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="15"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Guild Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-3"/>
@@ -12382,6 +12383,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="10"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Merchants&apos; Row Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-1"/>
@@ -12402,6 +12404,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="20"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Dockside Storehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
@@ -12422,6 +12425,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="12"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Three Gables Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-18"/>
@@ -12442,6 +12446,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="14"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Stepped Gable Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-3"/>
@@ -12462,6 +12467,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="18"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Twin Gables Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-29"/>
@@ -12482,6 +12488,7 @@
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="16"/>
     <property name="Buy_type" value="Warehouse"/>
+    <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Hoist Tower Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>

@@ -277,3 +277,23 @@ def test_a_save_without_a_rank_starts_at_the_first(rank):
     rank.level = rank.highest = 2
     rank.load(None)
     assert (rank.level, rank.highest, rank.grace_since) == (0, 0, None)
+
+
+def test_a_building_may_ask_for_a_later_unlock(rank, depot, player, monkeypatch):
+    """The great warehouses ask for their own unlock, opened a rank after buying buildings at all."""
+    monkeypatch.setattr(rank_module, "RANK_UNLOCKS", {"buy_buildings": "Second", "buy_great_warehouses": "Third"})
+    meet_second(depot, player)
+    rise = rank.check_rise()
+    assert rise.opened == (rank_module.UNLOCK_TEXTS["buy_buildings"],)
+    assert rank.has_unlocked("buy_buildings")
+    assert not rank.has_unlocked("buy_great_warehouses")
+
+
+def test_the_real_unlocks_have_words_and_ranks():
+    """Every unlock names a rank of the ladder and reads after "you may now"."""
+    from src.config import constants
+    names = {r[0] for r in constants.MERCHANT_RANKS}
+    for unlock, rank_name in constants.RANK_UNLOCKS.items():
+        assert rank_name in names
+        assert unlock in rank_module.UNLOCK_TEXTS
+    assert constants.RANK_UNLOCKS["buy_great_warehouses"] == "Merchant"
