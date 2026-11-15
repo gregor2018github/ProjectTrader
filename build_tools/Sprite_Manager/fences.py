@@ -11,7 +11,7 @@ fence.json and its pieces, so adding one is adding the folder (create_style()):
      "lengths": {"h": [2, 4, 6], "v": [2, 4]}}  # the pieces wanted, in tiles
 
 A piece is a straight run of the fence, horizontal (h, across the picture) or
-vertical (v, away from the viewer), so many tiles long between its end posts:
+vertical (v, down the picture, north to south), so many tiles long between its end posts:
 <style>_h4.png, <style>_v2.png. The game loads it like any building, by
 File_name, as fences/<style>/<style>_h4.png (house.py joins it to houses/).
 
@@ -34,7 +34,10 @@ end post, the run half a tile above its foot. A vertical one is 2 x (length +
 height) tiles: the run down its middle, the first post's foot height - 1/2
 tiles from the top (room for the post to rise), half a tile below the last.
 Posts stand at both ends and every posts_every tiles between; a stone wall
-(posts_every 0) has pillars at its ends only, where it turns a corner.
+(posts_every 0) has pillars at its ends only, where it turns a corner or
+opens for a gate, and only on its horizontal pieces: a vertical piece of it
+is plain wall, its ends running in under the corner pillars of the
+horizontal pieces it meets, as the old yard's walls do.
 
 The pieces of a style are the lengths wanted plus any piece on disk, so one
 taken off the list but drawn is still shown.
@@ -71,6 +74,7 @@ ORIENTATIONS = (HORIZONTAL, VERTICAL)
 ORIENTATION_TITLES = {HORIZONTAL: 'Horizontal', VERTICAL: 'Vertical'}
 VERTICAL_WIDTH = 2                    # tiles a vertical raster is wide
 COLLISION_THICKNESS = 0.5             # tiles, across the run
+END_POST_HALF = 0.3                   # tiles a horizontal piece's end posts stand out beyond its run
 
 
 @dataclass(frozen=True)
@@ -157,9 +161,15 @@ class Raster:
         posts = list(range(0, self.length, every))
         return posts + [self.length]
 
+    @property
+    def pillared(self):
+        """False for a vertical piece of a wall with pillars at its ends only: its corners' pillars belong to
+        the horizontal pieces it meets, and its own ends are plain wall that runs in under them."""
+        return not (self.orientation == VERTICAL and self.posts_every <= 0)
+
     def posts(self):
-        """Each post's foot, in tiles on the raster."""
-        return [self.along(d) for d in self.post_distances()]
+        """Each post's foot, in tiles on the raster; none for a piece that is not pillared."""
+        return [self.along(d) for d in self.post_distances()] if self.pillared else []
 
     def end(self):
         return self.along(self.length)
@@ -169,11 +179,14 @@ class Raster:
         return self.posts_every if self.posts_every > 0 else 1
 
     def collision(self):
-        """The blocking box (x, y, w, h) in tiles on the raster: a band of COLLISION_THICKNESS along the run."""
+        """The blocking box (x, y, w, h) in tiles on the raster: a band of COLLISION_THICKNESS along the run.
+
+        A horizontal piece's band takes in the half of each end post beyond its run (END_POST_HALF), so a
+        gate between two pieces is no wider than it looks; a vertical one's ends lie under those posts."""
         half = COLLISION_THICKNESS / 2
         x, y = self.start
         if self.orientation == HORIZONTAL:
-            return x, y - half, self.length, COLLISION_THICKNESS
+            return x - END_POST_HALF, y - half, self.length + 2 * END_POST_HALF, COLLISION_THICKNESS
         return x - half, y, COLLISION_THICKNESS, self.length
 
     def tiled_properties(self):
@@ -278,6 +291,12 @@ class Piece:
         return f'Tiled: a Fence_Frontal point at its bottom-left corner, File_name {self.file_name}, {listed}'
 
 
+def _tiles(value):
+    """A number of tiles from fence.json, whole if it is."""
+    value = float(value)
+    return int(value) if value.is_integer() else value
+
+
 _PIECE_FILE = re.compile(r'^(?P<style>.+)_(?P<o>[hv])(?P<n>\d+)$')
 
 
@@ -297,6 +316,13 @@ class FenceStyle:
         self.posts_every = max(0, int(data.get('posts_every', self.material.posts_every)))
         height = int(data.get('height', DEFAULT_HEIGHT))
         self.height = height if height >= 2 else DEFAULT_HEIGHT
+        # The draft's colours, which name the fence's colours in the prompt: its own, else its material's
+        colours = data.get('colours') or {}
+        self.own_colours = {k: tuple(colours[k]) for k in ('post', 'body') if k in colours}
+        # Where its pieces go, for the style screen's picture: [[orientation, length, x, y]], each piece's first
+        # post in tiles (a layout to judge them by; the map itself is laid out in Tiled)
+        self.plan = [(str(o), int(n), _tiles(x), _tiles(y)) for o, n, x, y in data.get('plan', ())
+                     if o in ORIENTATIONS]
         lengths = data.get('lengths') or self.material.lengths
         self.lengths = {o: sorted({int(n) for n in lengths.get(o, ()) if 0 < int(n) <= MAX_LENGTH})
                         for o in ORIENTATIONS}
@@ -349,10 +375,23 @@ class FenceStyle:
 
     # --- changing it ----------------------------------------------------------
 
+    @property
+    def post_colour(self):
+        return self.own_colours.get('post', self.material.post_colour)
+
+    @property
+    def body_colour(self):
+        return self.own_colours.get('body', self.material.body_colour)
+
     def to_dict(self):
-        return {'title': self.title, 'material': self.material.key, 'description': self.description,
+        data = {'title': self.title, 'material': self.material.key, 'description': self.description,
                 'posts_every': self.posts_every, 'height': self.height,
                 'lengths': {o: list(self.lengths[o]) for o in ORIENTATIONS}}
+        if self.own_colours:
+            data['colours'] = {k: list(v) for k, v in self.own_colours.items()}
+        if self.plan:
+            data['plan'] = [[o, n, x, y] for o, n, x, y in self.plan]
+        return data
 
     def save(self):
         """Write fence.json.
@@ -427,22 +466,38 @@ MODE_TITLES = {SAME_RUN: 'Another length of this style',
 
 @dataclass(frozen=True)
 class OldReference:
-    """A cut of one of the walls drawn by hand before the pieces, for a first piece's style."""
+    """A cut of the walls drawn by hand before the pieces, for a first piece's look.
+
+    `parts` are sprite files of houses/ put together as they stand on the map, each at its offset; the cut is
+    taken out of them and put on the reference's raster at `at`, so that its corner or gate end stands where
+    a piece's end post would."""
 
     key: str
     title: str
-    file: str
+    parts: tuple          # ((file, (x, y)), ...)
     orientation: str
     length: int
-    cut: tuple            # (x, y, w, h) of the sprite file
+    cut: tuple            # (x, y, w, h) of the parts put together
     at: tuple             # where the cut goes on the raster
+    what: str = ''        # what it shows, for the prompt and the tool
     material: str = 'stone'
     description: str = 'a low wall of rough grey fieldstones'
+    rank: int = 0         # the lower, the sooner it is offered: the yard's walls before the field wall
 
 
+# The yard north of the market: Fence_4 (its top wall, corners and a gate) over Fence_3 (its long sides)
+_OLD_YARD = (('Fence_4.png', (0, 0)), ('Fence_3.png', (0, 192)))
 OLD_REFERENCES = (
-    OldReference('old_wall_h', 'Old stone wall', 'Fence_2.png', HORIZONTAL, 4, (16, 8, 160, 56), (0, 0)),
-    OldReference('old_wall_v', 'Old stone wall', 'Fence_3.png', VERTICAL, 4, (0, 0, 64, 176), (0, 16)),
+    OldReference('yard_corner_gate', 'Yard wall', _OLD_YARD, HORIZONTAL, 5, (17, 0, 192, 56), (0, 8),
+                 'the top wall of a walled yard from its corner on the left to a gate opening on the right'),
+    OldReference('yard_gate_corner', 'Yard wall', _OLD_YARD, HORIZONTAL, 9, (265, 0, 320, 56), (0, 8),
+                 'the top wall of a walled yard from a gate opening on the left to its corner on the right'),
+    OldReference('yard_side', 'Yard wall', _OLD_YARD, VERTICAL, 11, (1, 38, 64, 400), (0, 16),
+                 'the side wall of a walled yard, running straight down the picture, with no pillars'),
+    OldReference('old_wall_h', 'Old stone wall', (('Fence_2.png', (0, 0)),), HORIZONTAL, 4, (16, 8, 160, 56),
+                 (0, 0), 'a stretch of a field wall', rank=1),
+    OldReference('old_wall_v', 'Old stone wall', (('Fence_3.png', (0, 0)),), VERTICAL, 4, (0, 0, 64, 176),
+                 (0, 16), 'a stretch of a side wall, with no pillars', rank=1),
 )
 
 
@@ -490,7 +545,12 @@ class Reference:
 
     @property
     def path(self):
-        return HOUSES_DIR / self.old.file if self.old else self.piece.path
+        return HOUSES_DIR / self.old.parts[0][0] if self.old else self.piece.path
+
+    @property
+    def what(self):
+        """What the reference shows beyond a straight run, for the prompt; '' for a piece of a style."""
+        return self.old.what if self.old else ''
 
     def label(self):
         """'Horizontal 4', or 'Old stone wall h4'."""
@@ -509,9 +569,12 @@ class Reference:
             if sprite is None:
                 raise OSError(f'{self.piece.path.name} is gone')
             return sprite
-        image = pygame.image.load(str(self.path)).convert_alpha()
+        x, y, w, h = self.old.cut
+        source = pygame.Surface((w, h), pygame.SRCALPHA)
+        for file, (px, py) in self.old.parts:
+            source.blit(pygame.image.load(str(HOUSES_DIR / file)).convert_alpha(), (px - x, py - y))
         canvas = pygame.Surface(self.raster.pixels, pygame.SRCALPHA)
-        canvas.blit(image, self.old.at, pygame.Rect(self.old.cut))
+        canvas.blit(source, self.old.at)
         return canvas
 
 
@@ -526,8 +589,8 @@ def reference_options(piece, styles=()):
     """{mode: [Reference]} of every piece `piece` can be drawn from, the modes that have one.
 
     This style's other lengths, the nearest first; this style turned, the
-    nearest length first; then the other styles' pieces running the same way,
-    those of the same material first, and the old walls.
+    nearest length first; then the other styles' pieces running the same way
+    and the old walls, those of the same material first.
     """
     style = piece.style
 
@@ -541,16 +604,20 @@ def reference_options(piece, styles=()):
     other_way = VERTICAL if piece.orientation == HORIZONTAL else HORIZONTAL
     turned = sorted((p for p in style.pieces(other_way) if p.exists()), key=nearest)
     others = []
-    for other in sorted(styles, key=lambda s: (s.material.key != style.material.key, s.title.lower())):
+    for other in styles:
         if other.name == style.name:
             continue
         drawn = [p for p in other.pieces(piece.orientation) if p.exists()]
         if drawn:
-            others.append(min(drawn, key=nearest))
-    old = [Reference(old=o) for o in OLD_REFERENCES if o.orientation == piece.orientation]
+            others.append(Reference(min(drawn, key=nearest)))
+    others += [Reference(old=o) for o in OLD_REFERENCES if o.orientation == piece.orientation]
+    # Those of the same material first (a stone wall looks to the old stone walls before a wooden fence),
+    # then the nearest in length
+    others.sort(key=lambda r: (r.material.key != style.material.key, r.old.rank if r.old else 0,
+                               abs(r.length - piece.length), r.style_title.lower()))
     options = {SAME_RUN: [Reference(p) for p in same],
                TURNED: [Reference(p) for p in turned],
-               OTHER_STYLE: [Reference(p) for p in others] + old}
+               OTHER_STYLE: others}
     return {mode: refs for mode, refs in options.items() if refs}
 
 

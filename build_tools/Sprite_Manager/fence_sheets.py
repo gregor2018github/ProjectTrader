@@ -49,6 +49,7 @@ from sprite_job import CLEAR, SketchCanvas, colour_name, hex_colour
 
 LAYOUTS = {HORIZONTAL: '2x1', 'v': '1x2'}   # stacked, the reference on top; or side by side, it on the left
 CELL_TARGET = 960            # the longer side of the larger raster is blown up by whole pixels to about this
+MIN_FACTOR = 3               # a long piece is still blown up this much, so its sketch is not too coarse to read
 PAD_TILES = 0.5              # white from the cell's corner to its raster
 GRID_COLOR = (205, 205, 215)
 FOOT_COLOR = (150, 150, 150)
@@ -69,7 +70,9 @@ RAIL_W = 0.11
 BAR_W = 0.07
 BAR_EVERY = 0.25
 FOOT_DEPTH = 0.12            # how far below the foot line a post's foot shows
-VERTICAL_BODY_W = 0.5        # a vertical wall's or railing's strip
+VERTICAL_BODY_W = 0.62       # a vertical wall's or railing's strip
+COPING_H = 0.1               # a stone wall's coping and a pillar's capstone
+CAP_OVERHANG = 0.04
 
 PROMPT_TEMPLATE = """\
 The attached picture is a split view for my medieval trading game "Merchant's Rise", a pixel-art game seen from above at a slant, the way old 16-bit role-playing games show their towns. Its fences and walls are put together from straight pieces laid end to end on the map's tile grid.
@@ -80,12 +83,13 @@ Inside the red frame in the {target_place} cell is a rough sketch in flat colour
 - Follow the sketch closely: the piece keeps its outline, length, height and place in the frame exactly. Do not make it longer or shorter and do not move it.
 - {run_rule}
 - {post_rule}
-- Both ends finish in a {post} cut off cleanly where the sketch ends, nothing beyond it, so that pieces laid end to end meet {post} on {post} without a seam.
+- {ends_rule}
 - {colour_rule}
 - {rule}
 
 It must look like it comes from the exact same game as the {ref_noun} in the {ref_place} cell:
 - Copy its art style exactly: the same size of pixels (not finer), the same outline, the same way of shading with few shades per colour, the same amount of detail, the same viewing angle and the same light from the same side.
+- No perspective at all: the game is drawn from above at one fixed slant, with no vanishing point. Nothing grows smaller or narrower towards the top of the picture, and every edge that runs along the piece is a straight line, as in the {ref_place} cell.
 - Plain white background. No ground, grass, shadow or plants around it: only the {noun}.
 
 Draw nothing outside the red frame and leave the {ref_place} cell exactly as it is. Output the full split image.
@@ -94,14 +98,24 @@ Draw nothing outside the red frame and leave the {ref_place} cell exactly as it 
 RUN_RULES = {
     HORIZONTAL: 'The piece runs straight across the picture from left to right, seen from the front: the {posts} stand '
                 'side by side with {body} between them along its whole length.',
-    'v': 'The piece runs straight away from the viewer, from the back (the top of the picture) to the front (the '
-         'bottom): seen from above at a slant it is a narrow upright strip, the {posts} one behind the other down it, '
-         'with {body} between them seen end-on and foreshortened. Only the front end shows its face.',
+    'v': 'The piece runs straight down the picture, from top to bottom (on the map, from north to south). It is drawn '
+         'as a straight upright band of the same width all the way down, exactly like the one in the other cell: the '
+         '{posts} one under the other down the band, with {body} between them, seen from above at the slant of the game.',
 }
+PLAIN_RUN_RULE = ('The piece runs straight down the picture, from top to bottom (on the map, from north to south). It is '
+                  'drawn as a straight upright band of the same width all the way down, exactly like the one in the '
+                  'other cell: the top of {body} seen from above at the slant of the game, a column of capping stones down '
+                  'the band, and beside it a thin strip of its side face, both edges straight and parallel.')
 BODIES = {'wood': 'the rails', 'stone': 'the wall', 'metal': 'the railing\'s bars'}
 POSTS_RULE = ('It has {count} {posts}: at both ends and every {every} tile{s} between, evenly spaced, exactly where the '
               'sketch has them - no more and no fewer.')
 ENDS_RULE = 'It has a {post} at each end only, where the sketch has them, and none between: the {noun} runs on unbroken.'
+NO_POSTS_RULE = ('It has no {post}s at all, not even at its ends: it is plain {noun} from end to end. The {post}s at '
+                 'its corners belong to the horizontal pieces it meets.')
+POST_ENDS_RULE = ('Both ends finish in a {post} cut off cleanly where the sketch ends, nothing beyond it, so that '
+                  'pieces laid end to end meet {post} on {post} without a seam.')
+PLAIN_ENDS_RULE = ('Both ends are cut off cleanly and straight where the sketch ends, nothing beyond them: there the '
+                   '{noun} runs in under the corner {post}s of the horizontal pieces it meets.')
 ONE_COLOUR_RULE = ('The flat colour of the sketch, {name} ({hex}), is the {noun}\'s main colour. Shade it with darker and '
                    'lighter tones of that colour.')
 COLOURS_RULE = ('The sketch is painted in flat colours: {listed}. They show which part goes where ({post}s, {body}); '
@@ -114,9 +128,13 @@ AGAIN_RULE = ('It is the same piece of {noun} as in the {ref_place} cell, drawn 
               '{body} and colours drawn like those there.')
 TURNED_RULE = ('It is the same {noun} as in the {ref_place} cell, which runs {ref_way}, only this piece of it runs '
                '{way}: its {posts}, {body}, materials and colours are the same, only seen from that side.')
+OLD_WALL_RULE = ('The {ref_place} cell shows how a {noun} like this is drawn in the game, and the piece must be drawn '
+                 'the same way: the same thickness and height of {noun}, the same size of stones and the same way of '
+                 'laying them, the same top and the same outline, at the same scale. Only what it is built of is '
+                 'different: it is {what}.')
 OTHER_STYLE_RULE = ('Only the style and the scale come from the {ref_place} cell, which shows another fence of the game. '
                     'The piece itself is {what}, and it has to look like that.')
-WAYS = {HORIZONTAL: 'across the picture from left to right', 'v': 'away from the viewer, from the back to the front'}
+WAYS = {HORIZONTAL: 'across the picture from left to right', 'v': 'straight down the picture, from top to bottom'}
 
 
 def plural(n, word):
@@ -206,11 +224,11 @@ class FenceSketch(SketchCanvas):
         self.example = reference.load()
         self.layout = LAYOUTS[piece.orientation]
         span = [max(a, b) for a, b in zip(self.raster.pixels, reference.raster.pixels)]
-        self.factor = max(1, CELL_TARGET // max(span))
+        self.factor = max(MIN_FACTOR, CELL_TARGET // max(span))
         self.pad = round(PAD_TILES * TILE * self.factor)
         self.cell_size = (span[0] * self.factor + 2 * self.pad, span[1] * self.factor + 2 * self.pad)
         state = load_state(self.style)
-        self.colour = tuple(state.get('colour', self.style.material.body_colour))
+        self.colour = tuple(state.get('colour', self.style.body_colour))
         self.palette = [tuple(c) for c in state.get('palette', [self.colour])]
         self.sketch = self._load_sketch()
         self._start_canvas()
@@ -311,6 +329,10 @@ class FenceSketch(SketchCanvas):
         start, end = self.to_sheet(sketch_cell, raster.start), self.to_sheet(sketch_cell, raster.end())
         self._dashed(sheet, start, end, FOOT_COLOR, 3)
         radius = max(3, round(TILE * self.factor * 0.09))
+        if not raster.pillared:          # its ends, where it runs in under the horizontal pieces' pillars
+            half = round(TILE * self.factor * 0.3)
+            for x, y in (start, end):
+                pygame.draw.line(sheet, POST_COLOR, (x - half, y), (x + half, y), 3)
         top = self.to_sheet(sketch_cell, (raster.start[0], 0))
         for index, post in enumerate(raster.posts()):
             foot = self.to_sheet(sketch_cell, post)
@@ -351,11 +373,11 @@ class FenceSketch(SketchCanvas):
 
     def draft(self):
         """Paint a first sketch over the raster: the posts where they stand, and between them the rails, the
-        wall or the bars, in the material's two colours. Undo takes it back."""
+        wall or the bars, in the style's two colours (its material's, unless it has its own). Undo takes it back."""
         self.begin_stroke()
         self.sketch.fill(CLEAR)
         material = self.style.material
-        post, body = material.post_colour, material.body_colour
+        post, body = self.style.post_colour, self.style.body_colour
         self._painting_with(body)
         self._painting_with(post)
         rise = self.raster.height - 0.5 - 0.15          # how tall a post stands above its foot, in tiles
@@ -377,8 +399,11 @@ class FenceSketch(SketchCanvas):
         (x0, foot), (x1, _) = posts[0], posts[-1]
         if material == 'stone':
             self._box(x0, foot - rise * 0.8, x1 - x0, rise * 0.8 + FOOT_DEPTH, body)
+            self._box(x0, foot - rise * 0.8, x1 - x0, COPING_H, post)          # the coping along its top
             for x, _ in posts:
                 self._box(x - WALL_PILLAR_W / 2, foot - rise, WALL_PILLAR_W, rise + FOOT_DEPTH, post)
+                self._box(x - WALL_PILLAR_W / 2 - CAP_OVERHANG, foot - rise, WALL_PILLAR_W + 2 * CAP_OVERHANG,
+                          COPING_H, post)                                       # its capstone
             return
         if material == 'metal':
             for y in (foot - rise * 0.85, foot - rise * 0.15):
@@ -393,11 +418,13 @@ class FenceSketch(SketchCanvas):
             self._box(x - POST_W / 2, foot - rise, POST_W, rise + FOOT_DEPTH, post)
 
     def _draft_away(self, material, posts, rise, post, body):
-        (x, top), (_, bottom) = posts[0], posts[-1]
+        (x, top), (_, bottom) = self.raster.start, self.raster.end()
         width = VERTICAL_BODY_W if material == 'stone' else RAIL_W * 1.6
-        # The run seen end-on: its top runs down from the far post's top to the near one's
+        # The run seen end-on: its top runs down from the far end's top to the near one's
         self._box(x - width / 2, top - rise * 0.8, width, bottom - top + rise * 0.8 - (0 if material == 'stone'
                                                                                          else rise * 0.2), body)
+        if not posts:                    # plain wall: its corners' pillars are on the horizontal pieces
+            return
         post_w = WALL_PILLAR_W if material == 'stone' else POST_W
         for _, y in posts:
             self._box(x - post_w / 2, y - rise, post_w, rise + FOOT_DEPTH, post)
@@ -424,13 +451,19 @@ class FenceSketch(SketchCanvas):
         about = f' ({style.description})' if style.description else ''
         what = f'{style.title.lower()}{about}, {material.words}'
         way = WAYS[piece.orientation]
-        target = (f'a straight piece of {what}, {plural(piece.length, "tile")} long between its end {post}s, running '
-                  f'{way}')
+        between = f' between its end {post}s' if self.raster.pillared else ''
+        target = f'a straight piece of {what}, {plural(piece.length, "tile")} long{between}, running {way}'
         ref_way = WAYS[ref.orientation]
-        reference = (f'a straight piece of {ref.style_title.lower()} ({ref.description}), already in the game, '
-                     f'{plural(ref.length, "tile")} long, running {ref_way}')
+        if ref.what:
+            reference = (f'{ref.what}: {ref.description}, already in the game, about {plural(ref.length, "tile")} '
+                         f'long')
+        else:
+            reference = (f'a straight piece of {ref.style_title.lower()} ({ref.description}), already in the game, '
+                         f'{plural(ref.length, "tile")} long, running {ref_way}')
         raster = self.raster
-        if raster.posts_every > 0:
+        if not raster.pillared:
+            post_rule = NO_POSTS_RULE.format(post=post, noun=noun)
+        elif raster.posts_every > 0:
             post_rule = POSTS_RULE.format(count=len(raster.posts()), posts=f'{post}s', every=raster.posts_every,
                                           s='' if raster.posts_every == 1 else 's')
         else:
@@ -446,13 +479,17 @@ class FenceSketch(SketchCanvas):
         elif self.mode == TURNED:
             rule = TURNED_RULE.format(noun=noun, ref_place=ref_place, ref_way=ref_way, way=way, posts=f'{post}s',
                                       body=body.replace('the ', ''))
+        elif ref.old and ref.material.key == material.key:
+            rule = OLD_WALL_RULE.format(ref_place=ref_place, noun=noun, what=what)
         else:
             rule = OTHER_STYLE_RULE.format(ref_place=ref_place, what=what)
         return PROMPT_TEMPLATE.format(
             ref_place=ref_place, target_place=target_place, reference=reference, target=target,
-            run_rule=RUN_RULES[piece.orientation].format(posts=f'{post}s', body=body), post_rule=post_rule, post=post,
+            run_rule=(RUN_RULES[piece.orientation] if raster.pillared else PLAIN_RUN_RULE).format(
+                posts=f'{post}s', body=body), post_rule=post_rule, post=post,
             colour_rule=self.colour_rule(noun, post, body), rule=rule,
-            ref_noun='piece' if self.mode != OTHER_STYLE else 'fence', noun=noun)
+            ends_rule=(POST_ENDS_RULE if raster.pillared else PLAIN_ENDS_RULE).format(post=post, noun=noun),
+            ref_noun='piece' if self.mode != OTHER_STYLE else (noun if ref.old else 'fence'), noun=noun)
 
     # --- writing it -------------------------------------------------------------
 

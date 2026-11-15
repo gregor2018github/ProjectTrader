@@ -1,0 +1,89 @@
+---
+name: paint-pixel-sprite
+description: Paint a map sprite for Merchant's Rise by code, pixel by pixel, instead of asking the image model, e.g. fence and wall pieces (build_tools/Sprite_Manager/stone_wall_painter.py), and later other regular, repetitive sprites (paving, railings, crates, roofs' details). Use when the user asks Claude to draw/design/paint a sprite itself, when Gemini's answers for a sprite keep coming back crooked, in perspective or inconsistent, or when a new fence/wall style should get painted pieces.
+---
+
+# Paint a sprite by code
+
+Gemini is good at organic, one-off things (people, trees, houses). It is bad at
+long, regular, exactly aligned ones: walls drift into perspective, courses
+wander, pieces don't join. Those are better painted here, deterministic and on
+the exact raster. The working example is
+`build_tools/Sprite_Manager/stone_wall_painter.py` (the churchyard wall); read
+it first and extend it rather than starting over.
+
+## Workflow
+
+1. **Measure a reference the user likes, don't guess.** Load it with pygame and
+   print, per row, the first/last opaque x and the colour at a couple of
+   columns; per column, the first/last opaque y. That gives the heights (coping
+   top, course and mortar rows, base line), widths and the palette. Write those
+   numbers down as constants relative to a geometric anchor (for fences: the
+   run's foot line, `Raster.start`), never as absolute pixels.
+2. **Paint on the real canvas.** Use the same size and anchor the game and the
+   Sprite Manager use (`Piece.raster.pixels`; `Piece.save` writes on it). Then
+   pieces line up by construction: no cutting, no nudging.
+3. **Preview at 1x laid out as in the game, then crop at 5x.** Compose the
+   pieces as placed (the style's `plan`) and sort them as the game sorts
+   buildings: lower bottom edge drawn later. Look at the whole at 2x for
+   proportion, and at the corners/joins at 5x for pixel faults. Use the Read
+   tool on the PNG to see it.
+4. **Write with backups**: `--write` copies what it replaces to
+   `build_tools/output/fences/<style>/replaced/`. Check that a second run is
+   byte-identical (seed from the style and piece name with `zlib.crc32`, never
+   `hash()`, which changes per process) and delete backups of your own output.
+5. **Check the tool's own view**: `view_fence.yard(style)` renders what the
+   user sees under "As planned"; render it headless (SDL dummy driver) and look.
+
+## Tricks that make it look hand-drawn
+
+- **Colour = palette colour × shade.** Keep a small palette (stone, coping,
+  pillar, mortar, outline, an accent such as lichen) and get every pixel by
+  multiplying with a factor. Light from the upper left: top row of a stone
+  ×1.10, bottom row ×0.94, left column ×1.06, right ×0.90.
+- **Per-element variation, small.** Each stone gets its own brightness
+  (×0.92 to 1.06) and a warm/cool tint of a few levels (`jitter`); about 1 in 8
+  is darker (weathered). More than that reads as noise.
+- **Speckle sparingly**: ~5 % of pixels ×0.92, ~3 % ×1.05. It gives stone grain
+  without blurring the joints.
+- **Stagger courses**: random joint spacing within a range (13 to 20 px for
+  ashlar), and push a joint that comes within 3 px of one in the course above.
+- **Ambient occlusion by depth**: the row under an overhang (coping, cap) in
+  shadow (×0.70, lightening downwards); courses darker towards the ground
+  (×1.0 to 0.87). A dark outline along the ground line seats it.
+- **Cast shadows**: what stands proud (a pillar) darkens the wall to its right
+  with a 4 px falloff (×0.74 to 0.93). Do it before painting the proud thing.
+  A free-standing run casts a few pixels of translucent dark on the grass
+  (alpha 62, 46, 30).
+- **Small details sell it**: a chipped corner (one mortar pixel), a 3-pixel
+  lichen spot on the lowest courses, a lit edge on the left of each slab, a
+  shaded arris on the right.
+- **Noble = proud pillars**: plinth wider than the shaft, a cap overhanging it,
+  the shadow under the cap, a low pyramid on top lit on its left half.
+
+## The game's projection (no perspective!)
+
+The map is drawn from above at one fixed slant, with no vanishing point:
+
+- An east–west wall shows its **front face** (courses) under a thin band of its
+  top (the coping).
+- A north–south wall shows **only its top**: a straight band of even width
+  running down the picture, plus at most a 2 to 3 px shaded strip of side face
+  for readability. Its top is drawn `TOP_TO_GROUND` (34 px) above the ground
+  under it.
+- Something standing south of something else is in front of it: a vertical
+  wall starting at a corner pillar comes out of the pillar's front face and is
+  drawn over it. Keep the band narrower than the pillar so the pillar's edges
+  still show.
+- Where a vertical wall goes **behind** the pillar at its far end, stop it
+  where the pillar's cap begins and leave out the pixels of the cap's pyramid
+  (`Canvas.skip`). Then it looks right whichever sprite the game draws last,
+  since pieces whose bottom edges tie are sorted by x only.
+
+## Adding a new kind
+
+Give it a `paint_<kind>(raster, rng, pal)` next to the wall's, sharing
+`Canvas`, `shade`, `jitter`, `_speckle` and `_joints`, and select it in
+`paint()` by the style's material. Metal railings or wooden fences follow the
+same rules: measure a reference, paint on the raster, post centres from
+`raster.posts()`.

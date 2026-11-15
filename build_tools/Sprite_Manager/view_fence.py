@@ -19,7 +19,7 @@ import sys
 import pygame
 
 import pose_review
-from fence_sheets import FOOT_COLOR, POST_COLOR, chosen_reference
+from fence_sheets import FOOT_COLOR, POST_COLOR, SKETCH_DIR, chosen_reference
 from fences import (
     HEIGHTS, HORIZONTAL, MATERIALS, ORIENTATION_TITLES, ORIENTATIONS, TILE, VERTICAL, can_assemble, assemble,
     default_reference, find_styles, lengths_offered, reference_options,
@@ -43,6 +43,7 @@ GRASS_LINE = (84, 112, 64)
 GRID_LINE = (200, 200, 210)
 POSTS_CHOICES = (0, 1, 2, 3, 4)
 MAX_ZOOM = 6
+SKETCH_ALPHA = 150         # a piece not drawn yet, in the plan, as its sketch
 
 
 def draw_toggles(screen, font, values, labels, chosen, x, y, width, mouse):
@@ -65,50 +66,71 @@ def draw_toggles(screen, font, values, labels, chosen, x, y, width, mouse):
 
 
 def yard(style):
-    """Every piece drawn, laid together at the game's scale: the horizontal ones end to end along the top and
-    the bottom, the vertical ones down both sides; a surface on grass, or None if nothing is drawn."""
-    drawn = {o: [p for p in style.pieces(o) if p.exists()] for o in ORIENTATIONS}
-    across = sorted(drawn[HORIZONTAL], key=lambda p: -p.length)
-    down = sorted(drawn[VERTICAL], key=lambda p: -p.length)
-    if not across and not down:
-        return None
-    width = sum(p.length for p in across)
-    depth = sum(p.length for p in down)
+    """The style's pieces laid together at the game's scale, on grass; None if there is nothing to show.
+
+    With a plan in fence.json (FenceStyle.plan: each piece's first post in tiles) the pieces are laid as
+    planned, a piece not drawn yet standing in as its sketch, pale (fence_sheets.SKETCH_DIR). Without one,
+    every piece drawn: the horizontal ones end to end along the top and the bottom, the vertical ones down
+    both sides."""
     placed = []                                   # [(piece, first post's foot in tiles)]
+    if style.plan:
+        placed = [(style.piece(o, n), (x, y)) for o, n, x, y in style.plan]
+    else:
+        drawn = {o: [p for p in style.pieces(o) if p.exists()] for o in ORIENTATIONS}
+        across = sorted(drawn[HORIZONTAL], key=lambda p: -p.length)
+        down = sorted(drawn[VERTICAL], key=lambda p: -p.length)
+        width = sum(p.length for p in across)
+        depth = sum(p.length for p in down)
 
-    def run(pieces, start, step):
-        x, y = start
-        for piece in pieces:
-            placed.append((piece, (x, y)))
-            x, y = x + step[0] * piece.length, y + step[1] * piece.length
+        def run(pieces, start, step):
+            x, y = start
+            for piece in pieces:
+                placed.append((piece, (x, y)))
+                x, y = x + step[0] * piece.length, y + step[1] * piece.length
 
-    run(across, (0, 0), (1, 0))
-    if down:
-        run(down, (0, 0), (0, 1))
-        if across:
-            run(down, (width, 0), (0, 1))
-            run(across, (0, depth), (1, 0))
-    rise = style.height - 0.5                     # from a run's line up to its raster's top
-    margin = 0.5                                  # grass round the yard, in tiles
-    sprites = []
+        run(across, (0, 0), (1, 0))
+        if down:
+            run(down, (0, 0), (0, 1))
+            if across:
+                run(down, (width, 0), (0, 1))
+                run(across, (0, depth), (1, 0))
+    sprites = []                                  # [(left, top) in game pixels, sprite]
     for piece, (x, y) in placed:
-        left = x - (0.5 if piece.orientation == HORIZONTAL else 1)
-        sprite = piece.sprite()
-        if sprite is not None:
-            # A raster's top lies `rise` above its run, and the topmost run lies `rise` below the yard's top
-            sprites.append((round((left + 1 + margin) * TILE), round((y + margin) * TILE), sprite))
-    w = round((width + 2 + 2 * margin) * TILE)
-    h = round((rise + depth + 0.5 + 2 * margin) * TILE)
+        sprite = piece.sprite() if piece.exists() else _sketch_of(piece)
+        if sprite is None:
+            continue
+        start = piece.raster.start                # where the first post stands on its raster
+        sprites.append(((round((x - start[0]) * TILE), round((y - start[1]) * TILE)), sprite))
+    if not sprites:
+        return None
+    margin = TILE // 2                            # grass round it
+    left = min(at[0] for at, _ in sprites) - margin
+    top = min(at[1] for at, _ in sprites) - margin
+    right = max(at[0] + s.get_width() for at, s in sprites) + margin
+    bottom = max(at[1] + s.get_height() for at, s in sprites) + margin
+    w, h = right - left, bottom - top
     surface = pygame.Surface((w, h))
     surface.fill(GRASS)
-    for gx in range(0, w, TILE):
+    for gx in range(-left % TILE, w, TILE):
         pygame.draw.line(surface, GRASS_LINE, (gx, 0), (gx, h))
-    for gy in range(0, h, TILE):
+    for gy in range(-top % TILE, h, TILE):
         pygame.draw.line(surface, GRASS_LINE, (0, gy), (w, gy))
     # As the game draws buildings: whatever stands lower in the picture in front
-    for x, y, sprite in sorted(sprites, key=lambda s: (s[1] + s[2].get_height(), s[0])):
-        surface.blit(sprite, (x, y))
+    for (x, y), sprite in sorted(sprites, key=lambda e: (e[0][1] + e[1].get_height(), e[0][0])):
+        surface.blit(sprite, (x - left, y - top))
     return surface
+
+
+def _sketch_of(piece):
+    """A piece not drawn yet as its sketch, pale; None if it has none."""
+    try:
+        sketch = pygame.image.load(str(piece.style.out_dir / SKETCH_DIR / f'{piece.pose}.png')).convert_alpha()
+    except (pygame.error, OSError):
+        return None
+    if sketch.get_size() != piece.raster.pixels:
+        return None                               # sketched for another raster height
+    sketch.fill((255, 255, 255, SKETCH_ALPHA), special_flags=pygame.BLEND_RGBA_MULT)
+    return sketch
 
 
 class FenceView(View):
@@ -351,8 +373,8 @@ class FenceView(View):
 
     def thumb(self, piece):
         if piece not in self.thumbs:
-            sprite = piece.sprite() if piece.exists() else None
-            if sprite is None:
+            sprite = piece.sprite() if piece.exists() else _sketch_of(piece)   # a sketch shows pale
+            if sprite is None or not sprite.get_bounding_rect().w:
                 tile = pygame.Surface(ROW_THUMB)
                 tile.fill(CARD_BG)
                 pygame.draw.rect(tile, TEXT_DIM, tile.get_rect(), 1)
@@ -368,7 +390,8 @@ class FenceView(View):
         top = pygame.Rect(rect.x, rect.y, rect.w, rect.h * 55 // 100)
         bottom = pygame.Rect(rect.x, top.bottom + PANEL_GAP, rect.w, rect.bottom - top.bottom - PANEL_GAP)
         draw_panel(screen, fonts, top, piece.name if piece else 'No piece')
-        draw_panel(screen, fonts, bottom, 'Laid together, as on the map')
+        draw_panel(screen, fonts, bottom, 'As planned (pale: still a sketch)' if self.style.plan
+                   else 'Laid together, as on the map')
         inner = top.inflate(-20, -20)
 
         # Along the foot: the buttons, the Tiled properties over them
@@ -408,8 +431,9 @@ class FenceView(View):
         rect.center = area.center
         self.checker.draw(screen, rect)
         sprite = piece.sprite() if piece.exists() else None
-        if sprite is not None:
-            screen.blit(pygame.transform.scale(sprite, rect.size), rect)
+        shown = sprite or _sketch_of(piece)       # not drawn yet: its sketch, pale
+        if shown is not None:
+            screen.blit(pygame.transform.scale(shown, rect.size), rect)
         unit = TILE * factor
         tiles_w, tiles_h = raster.size
         for x in range(tiles_w + 1):
@@ -424,7 +448,8 @@ class FenceView(View):
         for post in raster.posts():
             pygame.draw.circle(screen, POST_COLOR, at(post), max(3, unit // 10), 2)
         if sprite is None:
-            text = self.app.fonts.font.render('not drawn yet', True, ERROR_COLOR)
+            words = 'not drawn yet - its sketch' if shown is not None else 'not drawn yet'
+            text = self.app.fonts.font.render(words, True, ERROR_COLOR)
             screen.blit(text, text.get_rect(midbottom=(rect.centerx, rect.y - 6)))
 
     def draw_yard(self, screen, area):

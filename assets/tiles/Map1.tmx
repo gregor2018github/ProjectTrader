@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="63" nextobjectid="1572">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="63" nextobjectid="1578">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -12500,6 +12500,90 @@
     <property name="Scale" type="float" value="0.36"/>
     <property name="Tiles_to_right" type="int" value="34"/>
     <property name="Tiles_up" type="int" value="38"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1572" name="Fence_Churchyard" type="Fence_Frontal" x="5856" y="4384">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="6"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_h5.png"/>
+    <property name="Tiles_to_right" type="int" value="6"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1573" name="Fence_Churchyard" type="Fence_Frontal" x="6080" y="4384">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="7"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_h6.png"/>
+    <property name="Tiles_to_right" type="int" value="7"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1574" name="Fence_Churchyard" type="Fence_Frontal" x="5840" y="4544">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="5"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_v5.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="7"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1575" name="Fence_Churchyard" type="Fence_Frontal" x="6256" y="4736">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="11"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_v11.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="13"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1576" name="Fence_Churchyard" type="Fence_Frontal" x="5920" y="4736">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="6"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_h5.png"/>
+    <property name="Tiles_to_right" type="int" value="6"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1577" name="Fence_Churchyard" type="Fence_Frontal" x="6144" y="4736">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="5"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/churchyard_wall/churchyard_wall_h4.png"/>
+    <property name="Tiles_to_right" type="int" value="5"/>
+    <property name="Tiles_up" type="int" value="2"/>
    </properties>
    <point/>
   </object>

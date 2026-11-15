@@ -1,0 +1,68 @@
+{
+ "title": "Churchyard wall",
+ "material": "stone",
+ "description": "a low churchyard wall of the same pale grey-beige dressed stone as the church beside it, laid in neat mortared courses, with a coping of flat stones along its top",
+ "posts_every": 0,
+ "height": 2,
+ "lengths": {
+  "h": [
+   4,
+   5,
+   6
+  ],
+  "v": [
+   5,
+   11
+  ]
+ },
+ "colours": {
+  "post": [
+   118,
+   108,
+   92
+  ],
+  "body": [
+   158,
+   146,
+   124
+  ]
+ },
+ "plan": [
+  [
+   "h",
+   5,
+   0,
+   0
+  ],
+  [
+   "h",
+   6,
+   7,
+   0
+  ],
+  [
+   "v",
+   5,
+   0,
+   0
+  ],
+  [
+   "v",
+   11,
+   13,
+   0
+  ],
+  [
+   "h",
+   5,
+   2,
+   11
+  ],
+  [
+   "h",
+   4,
+   9,
+   11
+  ]
+ ]
+}
