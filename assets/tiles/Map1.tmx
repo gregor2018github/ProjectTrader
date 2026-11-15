@@ -12358,6 +12358,11 @@
   </object>
   <object id="1283" name="Speicher_1" type="House_Frontal" x="3424" y="3328">
    <properties>
+    <property name="Buy_price" type="int" value="11000"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="15"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Guild Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-3"/>
     <property name="Col_margin_right_pixel" type="int" value="-25"/>
@@ -12373,6 +12378,11 @@
   </object>
   <object id="1321" name="Speicher_2" type="House_Frontal" x="3776" y="3328">
    <properties>
+    <property name="Buy_price" type="int" value="5000"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="10"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Merchants&apos; Row Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-1"/>
     <property name="Col_margin_right_pixel" type="int" value="-25"/>
@@ -12388,6 +12398,11 @@
   </object>
   <object id="1345" name="Speicher_3" type="House_Frontal" x="4256" y="3392">
    <properties>
+    <property name="Buy_price" type="int" value="15000"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="20"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Dockside Storehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
     <property name="Col_margin_right_pixel" type="int" value="-14"/>
@@ -12403,6 +12418,11 @@
   </object>
   <object id="1374" name="Speicher_4" type="House_Frontal" x="4640" y="3392">
    <properties>
+    <property name="Buy_price" type="int" value="7500"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="12"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Three Gables Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-18"/>
     <property name="Col_margin_right_pixel" type="int" value="-25"/>
@@ -12418,6 +12438,11 @@
   </object>
   <object id="1410" name="Speicher_5" type="House_Frontal" x="5440" y="3008">
    <properties>
+    <property name="Buy_price" type="int" value="9000"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="14"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Stepped Gable Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-3"/>
     <property name="Col_margin_right_pixel" type="int" value="-13"/>
@@ -12433,6 +12458,11 @@
   </object>
   <object id="1430" name="Speicher_6" type="House_Frontal" x="5792" y="3008">
    <properties>
+    <property name="Buy_price" type="int" value="13500"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="18"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Twin Gables Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="-29"/>
     <property name="Col_margin_right_pixel" type="int" value="-31"/>
@@ -12448,6 +12478,11 @@
   </object>
   <object id="1452" name="Speicher_7" type="House_Frontal" x="6144" y="3008">
    <properties>
+    <property name="Buy_price" type="int" value="12000"/>
+    <property name="Buy_slot_size" type="int" value="100"/>
+    <property name="Buy_slots" type="int" value="16"/>
+    <property name="Buy_type" value="Warehouse"/>
+    <property name="Display_name" value="Hoist Tower Warehouse"/>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
     <property name="Col_margin_right_pixel" type="int" value="-2"/>
