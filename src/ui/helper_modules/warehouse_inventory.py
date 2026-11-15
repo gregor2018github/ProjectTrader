@@ -30,6 +30,7 @@ WAREHOUSE, PACK = "warehouse", "pack"
 # The settings strip, over the warehouse's slots (panel coordinates)
 PRIORITY_Y = FIRST_SECTION_Y
 ACCEPTS_Y = PRIORITY_Y + 36
+MAX_SLOT_ROWS = 4            # a warehouse's slots in at most this many rows (more columns instead), to fit the screen
 SETTINGS_RULE_Y = ACCEPTS_Y + 40
 SETTINGS_BUTTON_H = 28
 ARROW_BUTTON_W = 34
@@ -63,7 +64,8 @@ class WarehouseInventory(InventoryWindow):
         slot_count = len(entry.get("slots", [])) or warehouse.buy_slots
         slot_size = entry.get("slot_size", warehouse.buy_slot_size)
         warehouse_section = SlotSection(WAREHOUSE, slot_count, slot_size, SETTINGS_RULE_Y + 14,
-                                        "Slots in use", "Stored", reservations=True)
+                                        "Slots in use", "Stored", reservations=True,
+                                        max_rows=MAX_SLOT_ROWS)
         pack_section = SlotSection(PACK, len(self.depot.pack_slots), PACK_SLOT_SIZE,
                                    warehouse_section.bottom + 34, "Carried by hand", "Carrying")
         self._place_panel([warehouse_section, pack_section])

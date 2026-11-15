@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from ...game_state import GameState
 
 
-COLS = 5
+COLS = 5                     # columns of big slots; a section with max_rows takes more rather than run off the screen
 BOX_W = 104                  # a slot's box, with the good's picture, name and amount
 BOX_H = 116
 BAR_W = 12                   # the slot's fill bar, right of its box
@@ -75,7 +75,8 @@ class SlotSection:
     """
 
     def __init__(self, kind: str, slot_count: int, slot_size: int, top: int,
-                 label: str, amount_label: str, reservations: bool = False) -> None:
+                 label: str, amount_label: str, reservations: bool = False,
+                 max_rows: Optional[int] = None) -> None:
         """
         Args:
             kind: Which section this is, as the window names it.
@@ -85,6 +86,8 @@ class SlotSection:
             label: The heading's left text ("Slots in use" gets the count added).
             amount_label: The heading's right text, before the units held.
             reservations: Whether its slots can be reserved for one good.
+            max_rows: At most this many rows of big slots: more columns than COLS
+                instead, and the window widens to them.
         """
         self.kind = kind
         self.reservations = reservations
@@ -93,7 +96,12 @@ class SlotSection:
         self.label = label
         self.amount_label = amount_label
         self.by_hand = slot_size == 1
-        self.cols = max(1, slot_count) if self.by_hand else COLS
+        if self.by_hand:
+            self.cols = max(1, slot_count)
+        elif max_rows:
+            self.cols = max(COLS, -(-slot_count // max_rows))
+        else:
+            self.cols = COLS
         self.box_w, self.box_h = (HAND_BOX, HAND_BOX) if self.by_hand else (BOX_W, BOX_H)
         self.cell_w = HAND_BOX if self.by_hand else CELL_W
         self.col_gap = HAND_GAP if self.by_hand else COL_GAP
@@ -104,6 +112,12 @@ class SlotSection:
         self.bottom = self.grid_y + rows * self.box_h + (rows - 1) * ROW_GAP
         self.slot_rects: List[Tuple[pygame.Rect, pygame.Rect]] = []
         self.bar_rect = pygame.Rect(0, 0, 0, 0)
+
+    @property
+    def width(self) -> int:
+        """How wide a panel its widest row of slots needs, side padding included."""
+        cols = min(self.cols, max(1, self.slot_count))
+        return cols * self.cell_w + (cols - 1) * self.col_gap + 2 * SIDE_PAD
 
     def place(self, panel: pygame.Rect) -> None:
         """Lay the slots out on the panel, now that it has its place on screen."""
@@ -196,8 +210,9 @@ class InventoryWindow:
         panel_h = self.footer_y + 44
 
         total_w = SCREEN_WIDTH + SIDEBAR_WIDTH
+        panel_w = max([PANEL_W] + [section.width for section in sections])
         self.panel_rect = pygame.Rect(
-            (total_w - PANEL_W) // 2, (SCREEN_HEIGHT - panel_h) // 2, PANEL_W, panel_h
+            (total_w - panel_w) // 2, (SCREEN_HEIGHT - panel_h) // 2, panel_w, panel_h
         )
         self.sections = {section.kind: section for section in sections}
         for section in sections:

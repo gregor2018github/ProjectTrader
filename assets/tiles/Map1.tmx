@@ -12358,9 +12358,9 @@
   </object>
   <object id="1283" name="Speicher_1" type="House_Frontal" x="3424" y="3328">
    <properties>
-    <property name="Buy_price" type="int" value="11000"/>
-    <property name="Buy_slot_size" type="int" value="100"/>
-    <property name="Buy_slots" type="int" value="15"/>
+    <property name="Buy_price" type="int" value="13500"/>
+    <property name="Buy_slot_size" type="int" value="50"/>
+    <property name="Buy_slots" type="int" value="30"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Guild Warehouse"/>
@@ -12400,7 +12400,7 @@
   </object>
   <object id="1345" name="Speicher_3" type="House_Frontal" x="4256" y="3392">
    <properties>
-    <property name="Buy_price" type="int" value="15000"/>
+    <property name="Buy_price" type="int" value="12000"/>
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="20"/>
     <property name="Buy_type" value="Warehouse"/>
@@ -12421,9 +12421,9 @@
   </object>
   <object id="1374" name="Speicher_4" type="House_Frontal" x="4640" y="3392">
    <properties>
-    <property name="Buy_price" type="int" value="7500"/>
-    <property name="Buy_slot_size" type="int" value="100"/>
-    <property name="Buy_slots" type="int" value="12"/>
+    <property name="Buy_price" type="int" value="10000"/>
+    <property name="Buy_slot_size" type="int" value="50"/>
+    <property name="Buy_slots" type="int" value="24"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Three Gables Warehouse"/>
@@ -12442,9 +12442,9 @@
   </object>
   <object id="1410" name="Speicher_5" type="House_Frontal" x="5440" y="3008">
    <properties>
-    <property name="Buy_price" type="int" value="9000"/>
-    <property name="Buy_slot_size" type="int" value="100"/>
-    <property name="Buy_slots" type="int" value="14"/>
+    <property name="Buy_price" type="int" value="12000"/>
+    <property name="Buy_slot_size" type="int" value="50"/>
+    <property name="Buy_slots" type="int" value="28"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Stepped Gable Warehouse"/>
@@ -12463,7 +12463,7 @@
   </object>
   <object id="1430" name="Speicher_6" type="House_Frontal" x="5792" y="3008">
    <properties>
-    <property name="Buy_price" type="int" value="13500"/>
+    <property name="Buy_price" type="int" value="10500"/>
     <property name="Buy_slot_size" type="int" value="100"/>
     <property name="Buy_slots" type="int" value="18"/>
     <property name="Buy_type" value="Warehouse"/>
@@ -12484,9 +12484,9 @@
   </object>
   <object id="1452" name="Speicher_7" type="House_Frontal" x="6144" y="3008">
    <properties>
-    <property name="Buy_price" type="int" value="12000"/>
-    <property name="Buy_slot_size" type="int" value="100"/>
-    <property name="Buy_slots" type="int" value="16"/>
+    <property name="Buy_price" type="int" value="15000"/>
+    <property name="Buy_slot_size" type="int" value="50"/>
+    <property name="Buy_slots" type="int" value="32"/>
     <property name="Buy_type" value="Warehouse"/>
     <property name="Buy_unlock" value="buy_great_warehouses"/>
     <property name="Display_name" value="Hoist Tower Warehouse"/>
