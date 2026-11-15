@@ -63,17 +63,19 @@ THANKS: Dict[str, Thanks] = {
         first="thanks",
         pages={
             "thanks": Page(
-                "So you're the one who's been splitting logs for my father! He's talked of nothing else. "
-                "His back isn't what it was, and he's far too proud to ask me. Here, three logs from my "
-                "stack, for your trouble.",
+                "So you're the one who's been splitting logs for my father! What did he tell you, that "
+                "he's bored of it? Too busy? Last week it was business with the miller. Truth is, his back "
+                "can't take it any more, and he's far too proud to say so. Here, three logs from my stack, "
+                "for your trouble.",
                 (Answer("Accept his gift", "accepted", accepts=True),
                  Answer("No thanks needed!", "declined", declines=True))),
             "accepted": Page(
-                "They're yours, I've had them put with your goods. And look in on the old man now and "
-                "then, would you? He likes the company more than he lets on.",
+                "They're yours, I've had them put with your goods. And not a word to him about his "
+                "back, mind. Just look in on him now and then. He likes the company more than he lets on.",
                 (Answer("Farewell"),)),
             "declined": Page(
-                "Ha! You're as stubborn as he is. Then at least know you've a friend at the wood market.",
+                "Ha! You're as stubborn as he is. Then at least know you've a friend at the wood market. "
+                "And don't tell him I told you.",
                 (Answer("Farewell"),)),
         },
     ),

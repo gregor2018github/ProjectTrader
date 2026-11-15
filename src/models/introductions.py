@@ -10,7 +10,9 @@ too, or says ``done_today`` once it has been played that day. The pieces of a
 talk are in talks.py.
 
 So far there is the woodhacking, introduced by Osric, the old woodcutter by the
-wood shed: too old to split logs all day, he is glad of a hand. The texts are
+wood shed, who wants a hand at the stump and never quite says why: he is
+bored of it, busy, giving the player a chance to learn. Only his son tells
+the truth (thanks.py). The texts are
 not voiced.
 """
 
@@ -42,24 +44,26 @@ INTRODUCTIONS: Dict[str, Introduction] = {
         first="greeting",
         pages={
             "greeting": Page(
-                "Ah, a young pair of arms! Forgive an old man for staring. Forty winters I split logs "
-                "at that stump, and now my back creaks louder than the shed door.",
+                "Ah, a young pair of arms! Forty winters I've split logs at that stump, and I could split "
+                "forty more. Only it's grown dull, you see. There's no log in this yard left that can "
+                "surprise me.",
                 (Answer("Go on", "ask"),)),
             "ask": Page(
-                "My son sells the wood at the market, but the logs still want splitting, and these old "
-                "hands won't do a day of it any more. Would you lend me a hand at the stump? I pay for "
-                "every clean blow.",
+                "And a man has more important things to do than chop all day. My son's stock wants "
+                "counting, the shed roof wants seeing to... So I thought, why not give a young one the "
+                "chance to learn it properly? Take the stump for me. I pay for every clean blow.",
                 (Answer("I'll lend a hand", "advice", agrees=True), Answer("Not now", "later"))),
             "advice": Page(
-                "Bless you! It's not the strong arm that splits a log, it's the steady one: mind the "
-                "swing and the aim, and land them together. Once a day is all a back can stand, so come "
-                "by whenever you like.",
+                "Good! You'll thank me for the lesson. It's not the strong arm that splits a log, it's "
+                "the steady one: mind the swing and the aim, and land them together. Once a day, mind. "
+                "I won't have you wearing out my stump.",
                 (Answer("Hand me the axe", starts=True), Answer("Another time"))),
             "later": Page(
-                "No matter. I'm out here every day, by the shed or under the trees. The logs will wait "
-                "for you, they're good at that.",
+                "No matter, I'd only have done them myself anyway. Later. Once I've sorted the "
+                "kindling. I'm out here every day, by the shed or under the trees.",
                 (Answer("Farewell"),)),
         },
-        done_today="That's enough for one day, friend. Come back tomorrow, the logs aren't going anywhere.",
+        done_today="That's enough for one day, friend. I'd finish the rest myself, only I've business "
+                   "this afternoon. Come back tomorrow.",
     ),
 }

@@ -36,7 +36,7 @@
 • [Commons, Middling Sort] Cast deep and let the line sink too far, and you'll hook the bottom of the river. It fights poorly and tastes worse.
 • [Poor, Commons] In winter the fish are as slow and sullen as the rest of us. Save your worms for the summer.
 • [Poor, Commons] They fish at the Wide River, the River Fork and off the Harbor Pier. Once a day is plenty. The fish start to recognise you.
-• [Poor, Commons] Old Osric out by the wood shed pays anyone who splits his logs for him. It takes a good four hours, and once a day is all a back can stand.
+• [Poor, Commons] Old Osric out by the wood shed pays anyone who splits his logs for him. It takes a good four hours, and he'll only have you once a day.
 • [Poor, Commons] At the chopping stump it's not the strong arm that pays, it's the steady one. Land blow after clean blow and the coins start to add up.
 • [Commons, Middling Sort, Traders] The Grey Griffin writes a new menu every day. Only don't ask for meat on a Friday or in Lent, whatever you offer the cook.
 • Thunder only ever comes in summer hereabouts. Autumn gives us the rain and the fog instead, thick enough to lose a cow in.
