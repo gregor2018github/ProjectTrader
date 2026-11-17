@@ -455,6 +455,9 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name == "Stomp":
         options.insert(0, "Chop Wood")
 
+    if house.epitaph:
+        options.insert(0, "Read")
+
     # Uncle Gared's shop, once he has been found: the player's first place to rest (models/rest.py)
     from ...models.rest import can_rest_at
     if can_rest_at(house, getattr(game_state.game, 'intro', None)):
@@ -491,6 +494,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
                                         f"Ask him first; he is about the wood shed by day.")
                 return
             open_woodhacking(game_state)
+            return
+
+        if option_text == "Read" and house.epitaph:
+            from .gravestone_window import open_gravestone
+            open_gravestone(game_state, house)
             return
 
         if option_text == "Rest":

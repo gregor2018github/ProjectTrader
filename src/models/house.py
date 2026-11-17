@@ -56,6 +56,9 @@ class House:
         self.display_name: str = ""
         #: "low", "middle" or "high" for a tavern (its `Tavern` property in Tiled), else ""
         self.tavern_class: str = ""
+        #: A gravestone's inscription, the key of one of models/epitaphs.py's EPITAPHS (its `Epitaph`
+        #: property in Tiled), else ""
+        self.epitaph: str = ""
         self.house_class = house_class
         self.max_inhabitants = max(0, int(max_inhabitants))
         self.has_max_inhabitants_property = bool(has_max_inhabitants_property)

@@ -707,6 +707,9 @@ class TMXMap:
                                             float(obj.properties.get('Col_gap_width_pixel', 0)))
                     house.display_name = obj.properties.get('Display_name', '')
                     house.tavern_class = str(obj.properties.get('Tavern', '')).strip().lower()
+                    house.epitaph = str(obj.properties.get('Epitaph', '')).strip()
+                    if house.epitaph and not house.display_name:
+                        house.display_name = 'Gravestone'
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

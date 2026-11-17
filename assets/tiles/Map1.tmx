@@ -12653,6 +12653,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-19"/>
     <property name="Collision_to_right" type="int" value="2"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="guild_clerk"/>
     <property name="File_name" value="Deco_17.png"/>
     <property name="Scale" type="float" value="1.12"/>
     <property name="Tiles_to_right" type="int" value="2"/>
@@ -12668,6 +12669,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-17"/>
     <property name="Collision_to_right" type="int" value="1"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="sweat"/>
     <property name="File_name" value="Deco_16.png"/>
     <property name="Scale" type="float" value="1.48"/>
     <property name="Tiles_to_right" type="int" value="1"/>
@@ -12683,6 +12685,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-20"/>
     <property name="Collision_to_right" type="int" value="1"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="sacristan"/>
     <property name="File_name" value="Deco_18.png"/>
     <property name="Scale" type="float" value="2.06"/>
     <property name="Tiles_to_right" type="int" value="1"/>
@@ -12698,6 +12701,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-23"/>
     <property name="Collision_to_right" type="int" value="1"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="knight"/>
     <property name="File_name" value="Deco_21.png"/>
     <property name="Scale" type="float" value="2.52"/>
     <property name="Tiles_to_right" type="int" value="1"/>
@@ -12713,6 +12717,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-23"/>
     <property name="Collision_to_right" type="int" value="1"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="herb_wife"/>
     <property name="File_name" value="Deco_19.png"/>
     <property name="Scale" type="float" value="1.62"/>
     <property name="Tiles_to_right" type="int" value="1"/>
@@ -12728,6 +12733,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-19"/>
     <property name="Collision_to_right" type="int" value="2"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="alderman"/>
     <property name="File_name" value="Deco_20.png"/>
     <property name="Scale" type="float" value="2.2"/>
     <property name="Tiles_to_right" type="int" value="2"/>
@@ -12743,6 +12749,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-23"/>
     <property name="Collision_to_right" type="int" value="1"/>
     <property name="Collision_up" type="int" value="1"/>
+    <property name="Epitaph" value="wool_merchant"/>
     <property name="File_name" value="Deco_22.png"/>
     <property name="Scale" type="float" value="1.66"/>
     <property name="Tiles_to_right" type="int" value="1"/>
@@ -12758,6 +12765,7 @@
     <property name="Col_margin_up_pixel" type="int" value="-48"/>
     <property name="Collision_to_right" type="int" value="3"/>
     <property name="Collision_up" type="int" value="2"/>
+    <property name="Epitaph" value="woodcutter"/>
     <property name="File_name" value="Deco_23.png"/>
     <property name="Scale" type="float" value="1.06"/>
     <property name="Tiles_to_right" type="int" value="3"/>
