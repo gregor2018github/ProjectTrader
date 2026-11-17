@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.10
-// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level, image and prompt, send, then download the answer's image.
+// @version      1.13
+// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level (or else the Pro or Thinking model), image and prompt, send, then download the answer's image.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -25,6 +25,8 @@
     const STORE_KEY = 'spriteManagerJob';      // the sheet taken, kept over the reload into a new chat
     const THINKING = /^thinking level/i;       // the model menu entry opening the levels
     const LEVEL = /^high$/i;                   // the level to choose
+    // Without a thinking level in the menu, the model that thinks the most, by its entry's first line
+    const MODEL_PREFERENCE = [/^(gemini\s+[\d.]+\s+)?pro\b/i, /^(gemini\s+[\d.]+\s+)?thinking\b/i];
     const MODEL_BUTTON = /\b(auto|pro|flash|fast|thinking)\b/i;   // the button opening the model menu ("Gemini Auto")
     const EDITOR = 'rich-textarea [contenteditable="true"], div[contenteditable="true"][role="textbox"], .ql-editor[contenteditable="true"]';
     const SEND = 'button.send-button, button[aria-label*="Send" i], [data-test-id="send-button"]';
@@ -87,7 +89,9 @@
     }
 
     const visible = (el) => el && el.getClientRects().length > 0;
-    const firstLine = (el) => (el.innerText || '').trim().split('\n')[0].trim();
+    // An element's first line of text; its textContent or label while it is still fading in (innerText empty)
+    const firstLine = (el) => [el.innerText, el.textContent, el.getAttribute('aria-label')]
+        .map((t) => (t || '').trim().split('\n')[0].trim()).find(Boolean) || '';
 
     function click(el) {
         for (const type of ['pointerdown', 'mousedown', 'pointerup', 'mouseup']) {
@@ -150,18 +154,30 @@
         return `buttons by the chat box: ${names.length ? names.map((n) => `"${n.slice(0, 30)}"`).join(', ') : 'none'}`;
     }
 
+    // What a menu entry may be: the mode picker's are no menu items any more, so options and plain
+    // buttons count too, and only those that came up after the button was clicked (staleItems):
+    // the upload menu's ("Upload files") stay in the page all the time
+    const ENTRIES = `${MENU_ITEMS}, [role="option"], [role="radio"], button, [role="button"]`;
+    let staleItems = new Set();
+
     function openMenuItems() {
-        return [...document.querySelectorAll(MENU_ITEMS)].filter(visible);
+        return [...document.querySelectorAll(ENTRIES)].filter((el) => visible(el) && !staleItems.has(el));
     }
 
     async function openModelMenu() {
         const button = await waitFor(modelButton, 10000, 'The model button').catch((e) => {
             throw new Error(`${e.message} (${describeInputArea()})`);
         });
+        modelButtonName = buttonNames(button);
+        staleItems = new Set();
+        staleItems = new Set(openMenuItems());
         click(button);
         await waitFor(() => openMenuItems().length > 0, 4000, 'The model menu');
+        // The entries come in before their labels: wait a little for some text
+        await waitFor(() => openMenuItems().some((i) => firstLine(i)), 2000, 'labels').catch(() => {});
         return openMenuItems();
     }
+    let modelButtonName = '';   // the button last clicked to open the model menu, for the reports
 
     async function closeMenu() {
         document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}));
@@ -178,13 +194,33 @@
             || !!item.querySelector('mat-icon[fonticon="check"], .check-icon, [data-mat-icon-name="check"]');
     }
 
+    // The menu's entries, for fixing the names when neither a thinking level nor a model is found
+    const describeMenu = (items) => `opened by the button "${modelButtonName.slice(0, 40)}", menu entries: ${items.length
+        ? items.slice(0, 12).map((i) => `"${firstLine(i).slice(0, 30)}"`).join(', ') : 'none'}`;
+
+    // A menu without a thinking level: take the model that thinks the most instead
+    async function chooseModel(job, items) {
+        for (const pattern of MODEL_PREFERENCE) {
+            const model = items.find((i) => pattern.test(firstLine(i)));
+            if (!model) continue;
+            const name = firstLine(model);
+            if (!isOn(model)) {
+                click(model);
+                await sleep(300);
+                report(job, `model set to ${name}`);
+            }
+            await closeMenu();
+            return `model ${name}`;
+        }
+        await closeMenu();
+        throw new Error(`no "Thinking level" entry and no Pro or Thinking model in the model menu (${describeMenu(items)})`);
+    }
+
+    // Returns what was chosen, for the status line
     async function chooseThinkingLevel(job) {
         const items = await openModelMenu();
         const thinking = items.find((i) => THINKING.test(firstLine(i)));
-        if (!thinking) {
-            await closeMenu();
-            throw new Error('no "Thinking level" entry in the model menu');
-        }
+        if (!thinking) return chooseModel(job, items);
         // The levels are a submenu of their own, opened by hovering or clicking the entry
         thinking.dispatchEvent(new MouseEvent('mouseenter', {bubbles: true}));
         click(thinking);
@@ -201,6 +237,7 @@
             report(job, 'thinking level set to High');
         }
         await closeMenu();
+        return 'thinking High';
     }
 
     function imageFile(job) {
@@ -326,8 +363,9 @@
             await settledChatBox();
             step = 'the thinking level';
             let modelProblem = '';
+            let chosen = '';
             try {
-                await chooseThinkingLevel(job);
+                chosen = await chooseThinkingLevel(job);
             } catch (e) {
                 modelProblem = e.message;
             }
@@ -337,13 +375,13 @@
             await typePrompt(job.prompt);
             if (modelProblem) {
                 // The answer is still downloaded once it is sent by hand
-                report(job, `could not set the thinking level to High (${modelProblem}) - image and prompt are in, set it and send by hand`,
+                report(job, `could not set the thinking level or model (${modelProblem}) - image and prompt are in, set it and send by hand`,
                     true, {waiting: true});
             } else {
                 step = 'sending';
                 const button = await waitFor(() => sendButton(inputArea()), 60000, 'An enabled send button');
                 click(button);
-                report(job, `${job.label} sent, thinking High - waiting for the image`);
+                report(job, `${job.label} sent, ${chosen} - waiting for the image`);
             }
             step = 'waiting for the answer';
             await downloadAnswer(job);
