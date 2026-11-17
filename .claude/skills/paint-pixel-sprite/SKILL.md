@@ -80,6 +80,21 @@ The map is drawn from above at one fixed slant, with no vanishing point:
   (`Canvas.skip`). Then it looks right whichever sprite the game draws last,
   since pieces whose bottom edges tie are sorted by x only.
 
+## Things that move: the gate
+
+`build_tools/Sprite_Manager/iron_gate_painter.py` paints the churchyard's iron
+gate, shut and open. An open leaf is the flat leaf turned about its hinge:
+each column `u` goes to `x = hinge ± u·cos θ` and down (towards the viewer)
+or up the picture by `u·sin θ`, since a step north or south on the ground is
+the same step in the picture. Lay the farther columns first. A leaf only
+half open (50°) still stands in the gateway and the walker passing through
+overlaps it: check the room left against the player's 32 px. The churchyard
+gate swings 80°, nearly back against the wall, so each leaf reaches 4 px in
+and shows as a thin dark sliver, which reads right from this angle. Leave
+ornament (rings, short bars) off a slanted leaf. Don't span a gateway
+overhead (an arch, a sign): it is drawn over whoever walks under it as soon
+as they are a step behind the wall line, and cuts them off.
+
 ## Adding a new kind
 
 Give it a `paint_<kind>(raster, rng, pal)` next to the wall's, sharing

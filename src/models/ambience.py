@@ -62,7 +62,7 @@ from .daylight import sun_hour
 LOOP_GLIDE_PER_S = 0.5         # how fast a loop's volume may change, per second (1.0 is all of it)
 AMBIENCE_FIRST_CHANNEL = 1      # channel 0 is the player's footsteps'
 #: Objects on the houses' layer that do not make a place a town: fences, decorations, bare collision boxes, stumps
-NOT_TOWN_BUILDINGS = ('Fence', 'Deco', 'Collision Box', 'Stomp')
+NOT_TOWN_BUILDINGS = ('Fence', 'Gate', 'Deco', 'Collision Box', 'Stomp')
 #: Water is open - sea - where at least SEA_OPENNESS of the square SEA_REACH tiles around a tile is water;
 #: narrower water is river. Water within SEA_REACH of open water is sea too: its shores and the harbour.
 SEA_REACH = 6

@@ -110,6 +110,12 @@ def get_hovered_house(
             sprite.get_width(),
             sprite.get_height()
         )
+        # A gate's picture is mostly empty canvas: only what is drawn of it is hit
+        hit_box = house.hit_box() if hasattr(house, "hit_box") else None
+        if hit_box is not None:
+            zoom = sprite.get_width() / max(1, house.image.get_width())
+            sprite_rect = pygame.Rect(round(draw_x + hit_box.x * zoom), round(draw_y + hit_box.y * zoom),
+                                      max(1, round(hit_box.w * zoom)), max(1, round(hit_box.h * zoom)))
         
         # Check if mouse is over this house's sprite
         if sprite_rect.collidepoint(mouse_pos):
@@ -356,6 +362,36 @@ def inject_hover_effect_into_queue(
     }
     
     render_queue.insert(target_index, glow_entry)
+
+
+def use_gate(game_state: 'GameState', gate) -> bool:
+    """Open a gate the player clicked, or shut it if nobody stands in the gateway, with its sound if it has one.
+
+    Args:
+        game_state: The current game state.
+        gate: The clicked models.gate.Gate.
+
+    Returns:
+        True if it moved.
+    """
+    from ...models.gate import GATE_VOLUME
+    game = game_state.game
+    tmx_map = game.game_map.tmx_map
+    half = tmx_map.tile_size / 2
+    feet_height = tmx_map.tile_size / 2 - 2      # the box TMXMap.is_standable() tests
+
+    def feet_box(figure) -> pygame.Rect:
+        x, y = figure.feet
+        return pygame.Rect(round(x - half), round(y - feet_height), round(2 * half), round(feet_height))
+
+    bodies = [feet_box(game.game_map.map_player)]
+    bodies += [feet_box(npc) for npc in tmx_map.npcs if not getattr(npc, "is_hidden", False)]
+    if not gate.toggle(bodies):
+        return False
+    sound = gate.sound(game.sounds)
+    if sound is not None:
+        game.play_sound(sound, GATE_VOLUME)
+    return True
 
 
 def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[int, int]) -> None:

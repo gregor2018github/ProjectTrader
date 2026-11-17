@@ -3,7 +3,8 @@ import random
 from typing import List, Dict, Any, Optional, Tuple, TYPE_CHECKING
 from ..ui.helper_modules.info_window import InfoWindow
 from ..ui.helper_modules.contract_acquisition import ContractView
-from ..ui.helper_modules.house_click_menu import show_house_menu
+from ..ui.helper_modules.house_click_menu import show_house_menu, use_gate
+from ..models.gate import Gate
 from ..ui.helper_modules.figurine_click_menu import get_hovered_map_object, show_figurine_menu
 from ..models.figurines.figurine import Figurine
 from ..ui.helper_modules.water_click_menu import get_hovered_water, show_water_menu
@@ -157,6 +158,9 @@ def handle_mouse_click(pos: Tuple[int, int],
                 if isinstance(hovered, Figurine):
                     # Figurines without options still absorb the click; don't click through them
                     show_figurine_menu(game_state, hovered, view_rect)
+                    return
+                if isinstance(hovered, Gate):
+                    use_gate(game_state, hovered)        # no menu: a click opens or shuts it
                     return
                 if hovered is not None:
                     show_house_menu(game_state, hovered, pos)

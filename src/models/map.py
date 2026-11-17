@@ -13,6 +13,7 @@ from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
 from ..config.constants import SLOT_SIZE, TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
+from .gate import Gate
 from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
@@ -518,7 +519,28 @@ class TMXMap:
                     max_inhabitants = int(obj.properties.get('Max_inhabitants', 0))
                     obj_class = getattr(obj, 'type', "") or ""
                     
-                    if obj.name.startswith("Church"):
+                    if obj_class == "Gate":
+                        # A gate in a wall, opened and shut with a click (gate.py)
+                        house = Gate(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            name=obj.name,
+                            house_class=obj_class,
+                            open_file_name=obj.properties.get('Open_file_name', ''),
+                            opens=obj.properties.get('Opens', 'down'),
+                            sort_up_pixel=float(obj.properties.get('Sort_up_pixel', 0)),
+                        )
+                    elif obj.name.startswith("Church"):
                         house = Church(
                             x=obj.x,
                             y=obj.y,
