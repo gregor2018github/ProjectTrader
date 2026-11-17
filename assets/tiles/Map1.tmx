@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="63" nextobjectid="1598">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="71" nextobjectid="1606">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3122,6 +3122,30 @@
  </imagelayer>
  <imagelayer id="62" name="Preview Speicher_7" offsetx="6144" offsety="2577">
   <image source="previews/House_47_x0.36.png" width="391" height="431"/>
+ </imagelayer>
+ <imagelayer id="63" name="Preview Deco_17" offsetx="6112" offsety="4399">
+  <image source="previews/Deco_17_x1.12.png" width="44" height="49"/>
+ </imagelayer>
+ <imagelayer id="64" name="Preview Deco_16" offsetx="5888" offsety="4383">
+  <image source="previews/Deco_16_x1.48.png" width="47" height="65"/>
+ </imagelayer>
+ <imagelayer id="65" name="Preview Deco_18" offsetx="6208" offsety="4462">
+  <image source="previews/Deco_18_x2.06.png" width="45" height="82"/>
+ </imagelayer>
+ <imagelayer id="66" name="Preview Deco_21" offsetx="5920" offsety="4487">
+  <image source="previews/Deco_21_x2.52.png" width="78" height="121"/>
+ </imagelayer>
+ <imagelayer id="67" name="Preview Deco_19" offsetx="6208" offsety="4404">
+  <image source="previews/Deco_19_x1.62.png" width="34" height="44"/>
+ </imagelayer>
+ <imagelayer id="68" name="Preview Deco_20" offsetx="6080" offsety="4501">
+  <image source="previews/Deco_20_x2.2.png" width="97" height="75"/>
+ </imagelayer>
+ <imagelayer id="69" name="Preview Deco_22" offsetx="5984" offsety="4400">
+  <image source="previews/Deco_22_x1.66.png" width="53" height="48"/>
+ </imagelayer>
+ <imagelayer id="70" name="Preview Deco_23" offsetx="6176" offsety="4595">
+  <image source="previews/Deco_23_x1.06.png" width="69" height="77"/>
  </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
@@ -12617,6 +12641,126 @@
     <property name="Opens" value="up"/>
     <property name="Sort_up_pixel" type="int" value="16"/>
     <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1598" name="Deco_17" type="Deco" x="6112" y="4448">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-25"/>
+    <property name="Col_margin_up_pixel" type="int" value="-19"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_17.png"/>
+    <property name="Scale" type="float" value="1.12"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1599" name="Deco_16" type="Deco" x="5888" y="4448">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="0"/>
+    <property name="Col_margin_up_pixel" type="int" value="-17"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_16.png"/>
+    <property name="Scale" type="float" value="1.48"/>
+    <property name="Tiles_to_right" type="int" value="1"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1600" name="Deco_18" type="Deco" x="6208" y="4544">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-10"/>
+    <property name="Col_margin_up_pixel" type="int" value="-20"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_18.png"/>
+    <property name="Scale" type="float" value="2.06"/>
+    <property name="Tiles_to_right" type="int" value="1"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1601" name="Deco_21" type="Deco" x="5920" y="4608">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-1"/>
+    <property name="Col_margin_up_pixel" type="int" value="-23"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_21.png"/>
+    <property name="Scale" type="float" value="2.52"/>
+    <property name="Tiles_to_right" type="int" value="1"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1602" name="Deco_19" type="Deco" x="6208" y="4448">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-11"/>
+    <property name="Col_margin_up_pixel" type="int" value="-23"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_19.png"/>
+    <property name="Scale" type="float" value="1.62"/>
+    <property name="Tiles_to_right" type="int" value="1"/>
+    <property name="Tiles_up" type="int" value="1"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1603" name="Deco_20" type="Deco" x="6080" y="4576">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-20"/>
+    <property name="Col_margin_up_pixel" type="int" value="-19"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_20.png"/>
+    <property name="Scale" type="float" value="2.2"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1604" name="Deco_22" type="Deco" x="5984" y="4448">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="0"/>
+    <property name="Col_margin_up_pixel" type="int" value="-23"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="Deco_22.png"/>
+    <property name="Scale" type="float" value="1.66"/>
+    <property name="Tiles_to_right" type="int" value="1"/>
+    <property name="Tiles_up" type="int" value="1"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1605" name="Deco_23" type="Deco" x="6176" y="4672">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="0"/>
+    <property name="Col_margin_right_pixel" type="int" value="-31"/>
+    <property name="Col_margin_up_pixel" type="int" value="-48"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="File_name" value="Deco_23.png"/>
+    <property name="Scale" type="float" value="1.06"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
     <property name="Tiles_up" type="int" value="3"/>
    </properties>
    <point/>

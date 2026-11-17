@@ -1279,6 +1279,174 @@
     "Col_margin_left_pixel": -1,
     "Col_margin_right_pixel": -25
    }
+  },
+  "houses/Deco_16.png": {
+   "kind": "decoration",
+   "subcategory": "large headstone with grave mound",
+   "atlas": "houses",
+   "rect": [
+    928,
+    52,
+    32,
+    44
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_16.png",
+    "Tiles_to_right": 1,
+    "Tiles_up": 2,
+    "Collision_to_right": 1,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": 0
+   }
+  },
+  "houses/Deco_17.png": {
+   "kind": "decoration",
+   "subcategory": "small square headstone",
+   "atlas": "houses",
+   "rect": [
+    992,
+    52,
+    39,
+    44
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_17.png",
+    "Tiles_to_right": 2,
+    "Tiles_up": 2,
+    "Collision_to_right": 2,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -25
+   }
+  },
+  "houses/Deco_18.png": {
+   "kind": "decoration",
+   "subcategory": "small stone grave cross",
+   "atlas": "houses",
+   "rect": [
+    2464,
+    56,
+    22,
+    40
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_18.png",
+    "Tiles_to_right": 1,
+    "Tiles_up": 2,
+    "Collision_to_right": 1,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -10
+   }
+  },
+  "houses/Deco_19.png": {
+   "kind": "decoration",
+   "subcategory": "small rounded headstone",
+   "atlas": "houses",
+   "rect": [
+    480,
+    37,
+    21,
+    27
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_19.png",
+    "Tiles_to_right": 1,
+    "Tiles_up": 1,
+    "Collision_to_right": 1,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -11
+   }
+  },
+  "houses/Deco_20.png": {
+   "kind": "decoration",
+   "subcategory": "stone chest tomb",
+   "atlas": "houses",
+   "rect": [
+    3840,
+    62,
+    44,
+    34
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_20.png",
+    "Tiles_to_right": 2,
+    "Tiles_up": 2,
+    "Collision_to_right": 2,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -20
+   }
+  },
+  "houses/Deco_21.png": {
+   "kind": "decoration",
+   "subcategory": "tall Celtic stone cross",
+   "atlas": "houses",
+   "rect": [
+    2784,
+    48,
+    31,
+    48
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_21.png",
+    "Tiles_to_right": 1,
+    "Tiles_up": 2,
+    "Collision_to_right": 1,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -1
+   }
+  },
+  "houses/Deco_22.png": {
+   "kind": "decoration",
+   "subcategory": "shouldered headstone",
+   "atlas": "houses",
+   "rect": [
+    1088,
+    35,
+    32,
+    29
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_22.png",
+    "Tiles_to_right": 1,
+    "Tiles_up": 1,
+    "Collision_to_right": 1,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": 0
+   }
+  },
+  "houses/Deco_23.png": {
+   "kind": "decoration",
+   "subcategory": "rounded headstone",
+   "atlas": "houses",
+   "rect": [
+    3872,
+    151,
+    65,
+    73
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_23.png",
+    "Tiles_to_right": 3,
+    "Tiles_up": 3,
+    "Collision_to_right": 3,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -31
+   }
   }
  },
  "motifs": {}
