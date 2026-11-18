@@ -141,6 +141,19 @@ class RoofEdits:
     def remove(self, ring):
         self.rings.remove(ring)
 
+    def shift(self, ring, dx, dy):
+        """Move a ring with its building (object_moves.py), without a checkpoint: its place on the
+        map and in the undo history move along, so it stays changed or unchanged as it was and an
+        undo does not tear it off the building."""
+        def moved(points):
+            return tuple((x + dx, y + dy) for x, y in points)
+        ring.points = list(moved(ring.points))
+        if ring.obj_id in self.original:
+            self.original[ring.obj_id] = moved(self.original[ring.obj_id])
+        for history in (self._undo, self._redo):
+            for i, state in enumerate(history):
+                history[i] = [(r, moved(p) if r is ring else p) for r, p in state]
+
     def remove_point(self, ring, index):
         """Take a point out of a ring; False if that would leave fewer than MIN_POINTS."""
         if len(ring.points) <= MIN_POINTS:

@@ -40,6 +40,19 @@ class LightEdits:
     def set_geometry(self, light, x, y, width, height):
         """Move a light, and resize it if it is a rectangle (a shaped window only moves)."""
         self.original.setdefault(light.obj_id, geometry(light))
+        self._place(light, x, y, width, height)
+
+    def shift(self, light, dx, dy):
+        """Move a light with its building (object_moves.py): not a change of its own, so its place
+        before any change of its own moves along and it stays changed or unchanged as it was."""
+        if light.obj_id in self.original:
+            x, y, w, h = self.original[light.obj_id]
+            self.original[light.obj_id] = (x + dx, y + dy, w, h)
+        x, y, w, h = geometry(light)
+        self._place(light, x + dx, y + dy, w, h)
+
+    @staticmethod
+    def _place(light, x, y, width, height):
         if isinstance(light, BuildingLight):
             dx, dy = x - light.bbox_x, y - light.bbox_y
             light.x += dx

@@ -45,12 +45,15 @@ Run from the repo root. Subcommands:
       also stamped into the first "Trees N" tile layer with room, so Tiled
       shows it; scaled or off the grid it shows only in the game.
 
-  move ID X Y [--dry-run]
+  move ID X Y [--no-snap] [--dry-run]
       Move a Houses object to a new X,Y (snapped to tiles) with what belongs
       to it: Doors points inside its collision rect, the Light_rectangles the
-      game hands to it (nearest base below, as TMXMap._load_lights does),
-      Smoke_<name>[_k], and its Tiled preview cells. Check the "moved" list:
-      lights it takes at the old spot are the ones the game gave it there.
+      game hands to it (painted frontmost, as TMXMap._light_owner does), the
+      shaped windows and Smoke_<name>[_k] on its sprite, its roofs and holes,
+      and its Tiled preview cells (on another "Houses N" layer where they are
+      taken; off the grid, an image-layer preview instead). Check the "moved"
+      list: lights it takes at the old spot are the ones the game gave it
+      there. The Placing Helper moves buildings with the same move_object().
 
   roof ID [--seed SX,SY ...] [--points "SX,SY SX,SY ..." ...] [--tolerance N]
        [--band F] [--show OUT.png] [--dry-run]
@@ -98,13 +101,18 @@ def load_tmx():
     return text, layers
 
 
-def save_tmx(text, layers):
+def layers_into_text(text, layers):
+    """The TMX text with the tile layers' CSV written back from `layers`."""
     nl = '\r\n' if '\r\n' in text else '\n'
 
     def rep(m):
         rows = layers[m.group(2)]
         return m.group(1) + (',' + nl).join(','.join(map(str, r)) for r in rows) + m.group(6)
-    open(TMX, 'w', encoding='utf-8', newline='').write(LAYER_RE.sub(rep, text))
+    return LAYER_RE.sub(rep, text)
+
+
+def save_tmx(text, layers):
+    open(TMX, 'w', encoding='utf-8', newline='').write(layers_into_text(text, layers))
 
 
 def _typed(value):
@@ -164,8 +172,9 @@ def _image_preview(text, name, sprite, x, y, scale, write_png=True):
     if write_png:
         os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
         import pygame
-        pygame.init()
-        pygame.display.set_mode((1, 1))
+        if pygame.display.get_surface() is None:   # not when called from a tool with its own window
+            pygame.init()
+            pygame.display.set_mode((1, 1))
         image = pygame.image.load(f'assets/map_sprites/houses/{sprite}').convert_alpha()
         if scale != 1:
             image = pygame.transform.smoothscale(image, (sw, sh))
@@ -205,7 +214,7 @@ def _clear_old_preview(obj_xml, cat, layers):
         m = re.search(rf'<property name="{key}"[^>]*value="([^"]*)"', obj_xml)
         return m and m.group(1)
     entry = cat.get(f'houses/{prop("File_name")}')
-    if not entry or not prop('Tiles_to_right'):
+    if not entry or 'rect' not in entry or not prop('Tiles_to_right'):
         return
     cols, rows_up = int(prop('Tiles_to_right')), int(prop('Tiles_up'))
     x = int(float(re.search(r' x="([^"]+)"', obj_xml).group(1))) // TILE
@@ -251,19 +260,33 @@ def _shift_object(text, xml, dx, dy):
 
 # ------------------------------------------------------------------ commands
 
-def _attached(text, obj_id):
-    """XML of the Doors, Lights and Smoke objects that belong to a building.
+_MASKS = {}     # {sprite path: pygame.Mask}, kept across calls (the Placing Helper asks often)
+
+
+class MoveError(Exception):
+    """A move that cannot be written; nothing has been changed."""
+
+
+def attachments(text, obj_id):
+    """(group, XML) of the Doors, Lights and Smoke objects that belong to a building.
 
     Doors: points inside its collision rect. Lights: the ones the game gives
     it (TMXMap._load_lights): of the buildings whose zone -- x within the
     collision rect, y up to 5 tiles above it -- holds the light, the one with
     the nearest base, and polygons named after it. Smoke: Smoke_<name>[_k].
+    Polygons and smoke go by the name, so with two buildings of one name
+    only those on or near (a tile) its own sprite count.
     """
+    obj_id = int(obj_id)
     xml = re.search(rf' <object id="{obj_id}" [^>]*>.*?</object>', text, re.S).group(0)
     name = re.search(r'name="([^"]*)"', xml).group(1)
     ox = float(re.search(r' x="([^"]+)"', xml).group(1))
     oy = float(re.search(r' y="([^"]+)"', xml).group(1))
     left, top, right, bottom = _collision_rect(ox, oy, _obj_props(xml))
+    box = _sprite_rect(xml)
+
+    def near_sprite(px, py):
+        return box is None or (box[0] - TILE <= px <= box[2] + TILE and box[1] - TILE <= py <= box[3] + TILE)
 
     houses_grp = re.search(r'<objectgroup [^>]*name="Houses"[^>]*>(.*?)</objectgroup>', text, re.S).group(1)
     rects, sprites = {}, {}
@@ -275,15 +298,14 @@ def _attached(text, obj_id):
         path = f'assets/map_sprites/houses/{hp.get("File_name")}'
         if hp.get('File_name') and os.path.exists(path):
             sprites[int(h.group(1))] = (path, hx, hy, float(hp.get('Scale', 1)))
-    masks = {}
 
     def painted(i, cx, cy):
         path, hx, hy, s = sprites[i]
-        if path not in masks:
+        if path not in _MASKS:
             os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
             import pygame
-            masks[path] = pygame.mask.from_surface(pygame.image.load(path), 1)
-        mask = masks[path]
+            _MASKS[path] = pygame.mask.from_surface(pygame.image.load(path), 1)
+        mask = _MASKS[path]
         w, h = mask.get_size()
         sx, sy = int((cx - hx) / s), int((cy - (hy - h * s)) / s)
         return 0 <= sx < w and 0 <= sy < h and mask.get_at((sx, sy))
@@ -300,6 +322,8 @@ def _attached(text, obj_id):
     found = []
     for group in ('Doors', 'Lights', 'Smoke'):
         grp = re.search(rf'<objectgroup [^>]*name="{group}"[^>]*>(.*?)</objectgroup>', text, re.S)
+        if not grp:
+            continue
         for o in re.finditer(r'<object id="\d+" name="([^"]*)" x="([^"]+)" y="([^"]+)"(?: width="([^"]+)" height="([^"]+)")?[^>]*?/?>(?:\s*<point/>\s*</object>)?', grp.group(1)):
             oname, px, py = o.group(1), float(o.group(2)), float(o.group(3))
             cx, cy = px + float(o.group(4) or 0) / 2, py + float(o.group(5) or 0) / 2
@@ -308,53 +332,103 @@ def _attached(text, obj_id):
             elif group == 'Lights':
                 # Rectangles by the game's rule; polygons (shaped windows) by
                 # the building's name, which is their group's
-                hit = (oname == 'Light_rectangle' and light_owner(cx, cy) == obj_id) or oname == name
+                hit = ((oname == 'Light_rectangle' and light_owner(cx, cy) == obj_id)
+                       or (oname == name and near_sprite(px, py)))
             else:
-                hit = re.fullmatch(rf'Smoke_{re.escape(name)}(_\d+)?', oname) is not None
+                hit = re.fullmatch(rf'Smoke_{re.escape(name)}(_\d+)?', oname) is not None and near_sprite(px, py)
             if hit:
-                found.append(o.group(0))
+                found.append((group, o.group(0)))
     return found
 
 
-def cmd_move(a):
-    cat = json.load(open(CATALOG, encoding='utf-8'))['files']
-    text, layers = load_tmx()
-    m = re.search(rf' <object id="{a.id}" name="([^"]*)"[^>]*>.*?</object>', text, re.S)
+def _attached(text, obj_id):
+    """XML of the Doors, Lights and Smoke objects that belong to a building (attachments())."""
+    return [xml for _, xml in attachments(text, obj_id)]
+
+
+def _preview_name(text, obj_id, name):
+    """The image-layer preview's name for a building: "Preview <name>", with its id if the name is not unique."""
+    houses_grp = re.search(r'<objectgroup [^>]*name="Houses"[^>]*>(.*?)</objectgroup>', text, re.S).group(1)
+    if len(re.findall(rf'<object id="\d+" name="{re.escape(name)}"', houses_grp)) > 1:
+        return f'{name} {obj_id}'
+    return name
+
+
+def move_object(text, layers, obj_id, x, y, attached=None, write_png=True, log=print):
+    """The TMX text with Houses object `obj_id` moved to x, y (taken as they are) and what belongs to it.
+
+    `attached` is the XML of the objects to move along (doors, lights, smoke,
+    roofs and holes); by default attachments() and _roofs_of() on `text`.
+    Its Tiled preview cells move on their "Houses N" layer, or on another one
+    where they are taken; off the grid, or with no layer free, it gets an
+    image-layer preview instead. An image-layer preview moves with it.
+    `layers` (load_tmx's) is changed in place. Raises MoveError.
+    """
+    obj_id = int(obj_id)
+    m = re.search(rf' <object id="{obj_id}" name="([^"]*)"[^>]*>.*?</object>', text, re.S)
     if not m:
-        sys.exit(f'no object with id {a.id}')
+        raise MoveError(f'no object with id {obj_id}')
     xml, name = m.group(0), m.group(1)
     props = _obj_props(xml)
     ox = float(re.search(r' x="([^"]+)"', xml).group(1))
     oy = float(re.search(r' y="([^"]+)"', xml).group(1))
+    dx, dy = x - ox, y - oy
+    if attached is None:
+        attached = _attached(text, obj_id) + _roofs_of(text, obj_id)
+    for o in attached:
+        if o not in text:
+            raise MoveError(f'object {obj_id}: an attached object is no longer in the map: {o[:60]}')
+        text = _shift_object(text, o, dx, dy)
+        log(f'moved {o.split(" x=")[0].strip()}')
+    text = _shift_object(text, xml, dx, dy)
+
+    cat = json.load(open(CATALOG, encoding='utf-8'))['files']
+    preview = _preview_name(text, obj_id, name)
+    preview_layers = _clear_old_preview(xml, cat, layers) or []
+    if preview_layers:
+        entry = cat[f'houses/{props["File_name"]}']
+        gids = _atlas_gids(entry['rect'], int(props['Tiles_to_right']), int(props['Tiles_up']))
+        stamped = None
+        if x % TILE == 0 and y % TILE == 0:
+            t, l = int(y) // TILE - len(gids), int(x) // TILE
+            others = sorted((n for n in layers if re.fullmatch(r'Houses \d+', n) and n not in preview_layers),
+                            key=lambda n: int(n.split()[1]))
+            for lname in preview_layers + others:
+                grid = layers[lname]
+                fits = 0 <= t and t + len(gids) <= len(grid) and 0 <= l and l + len(gids[0]) <= len(grid[0]) and all(
+                    grid[t + r][l + c] in (0, gid) for r, row in enumerate(gids) for c, gid in enumerate(row))
+                if fits:
+                    for r, row in enumerate(gids):
+                        for c, gid in enumerate(row):
+                            grid[t + r][l + c] = gid
+                    stamped = lname
+                    break
+        if stamped:
+            log(f'preview moved on "{stamped}"')
+        else:
+            log('preview tiles taken off: ' + ('off the tile grid' if x % TILE or y % TILE else
+                                                'no "Houses N" layer free there') + ', an image-layer preview instead')
+            text = _image_preview(text, preview, props['File_name'], x, y, float(props.get('Scale', 1)),
+                                  write_png=write_png)
+    elif f'name="Preview {preview}"' in text:
+        text = _image_preview(text, preview, props['File_name'], x, y, float(props.get('Scale', 1)),
+                              write_png=write_png)
+    log(f'object {obj_id} "{name}" ({ox:g},{oy:g}) -> ({x:g},{y:g}), {len(attached)} attached objects with it')
+    return text
+
+
+def cmd_move(a):
+    text, layers = load_tmx()
     x, y = round(a.x / TILE) * TILE, round(a.y / TILE) * TILE
     if a.no_snap:
         x, y = round(a.x, 2), round(a.y, 2)
-    dx, dy = x - ox, y - oy
-    if not dx and not dy:
+    m = re.search(rf' <object id="{a.id}" [^>]* x="([^"]+)" y="([^"]+)"', text)
+    if m and (float(m.group(1)), float(m.group(2))) == (x, y):
         sys.exit('already there')
-    moving = _attached(text, a.id) + _roofs_of(text, a.id)
-    for o in moving:
-        text = _shift_object(text, o, dx, dy)
-        print(f'moved {o.split(" x=")[0].strip()}')
-    text = _shift_object(text, xml, dx, dy)
-
-    preview_layers = _clear_old_preview(xml, cat, layers)
-    if preview_layers and (x % TILE or y % TILE):
-        sys.exit('it has Tiled preview tiles, which need a tile-aligned spot; drop --no-snap')
-    entry = cat.get(f'houses/{props.get("File_name")}')
-    for lname in preview_layers:
-        gids = _atlas_gids(entry['rect'], int(props['Tiles_to_right']), int(props['Tiles_up']))
-        t, l = y // TILE - len(gids), x // TILE
-        for r, row in enumerate(gids):
-            for c, gid in enumerate(row):
-                if layers[lname][t + r][l + c] not in (0, gid):
-                    sys.exit(f'{lname} cell ({l + c},{t + r}) is taken at the new spot; nothing written')
-                layers[lname][t + r][l + c] = gid
-        print(f'preview moved on "{lname}"')
-    if f'name="Preview {name}"' in text:
-        text = _image_preview(text, name, props['File_name'], x, y, float(props.get('Scale', 1)),
-                              write_png=not a.dry_run)
-    print(f'object {a.id} "{name}" ({ox:g},{oy:g}) -> ({x},{y}), {len(moving)} attached objects with it')
+    try:
+        text = move_object(text, layers, a.id, x, y, write_png=not a.dry_run)
+    except MoveError as error:
+        sys.exit(str(error))
     if a.dry_run:
         print('dry run, nothing written')
     else:

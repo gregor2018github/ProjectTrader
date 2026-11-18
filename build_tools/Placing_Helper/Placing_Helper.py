@@ -1,4 +1,5 @@
-"""Placing Helper: put sprites that are not on the map yet onto it, freely, and hand the spots over.
+"""Placing Helper: put sprites that are not on the map yet onto it, freely, and hand the spots over;
+and move buildings and decorations already on it, with their doors, lights, smoke and roofs.
 
 Run from anywhere:
 
@@ -24,17 +25,27 @@ object's x, y and Scale, its drawn and collision boxes, what it overlaps,
 the note, and a first command for the place-building skill's script. When
 it starts, the helper drops the placements it finds on the map by then.
 
+A building or decoration already on the map (the Houses layer) is chosen
+with a click and then dragged, or nudged with the arrows. What the game ties
+to it moves along and is shown while it is chosen: its doors (blue dots),
+window lights (yellow), chimney smoke (cyan) and roofs (outlined), and its
+preview in Tiled. R puts it back. The moves go into Map1.tmx with "Save to
+map", like the light and roof changes (object_moves.py, by the place-building
+skill's own `move`); paths on the Movements layer, painted ground and fields
+stay where they are.
+
 Keys:
     Mouse wheel        zoom (towards the pointer); Ctrl+wheel scales the held or chosen sprite
     Drag (left on empty ground, right or middle anywhere)   pan; arrows pan too
     [ / ]              scale down / up by 0.05 (Shift: 0.01), 0 back to 1
     Arrows             with a placement chosen: nudge it a tile (a pixel with G off)
-    D                  another of the chosen placement on the mouse
+    D                  another of the chosen placement (or building on the map) on the mouse
     Enter or N         write the chosen placement's note
     Delete             delete the chosen placement
     White handles      on the chosen building's collision box: drag an edge or corner to fit it
                        to the walls (in the sprite's pixels, so it moves and scales with it)
-    R                  its collision box back to the catalog's
+    R                  its collision box back to the catalog's; a building on the map: back where it was
+    Click a building or decoration on the map: choose it; drag it once chosen, arrows nudge it
     F                  put a figure down at the pointer for scale (again on it: take it away)
     C                  collision boxes of what is on the map (white; also the panel's switch)
     T                  day or night (the panel's switch too): 22:00 on the 1st of Spring, darkened
@@ -58,7 +69,8 @@ Keys:
     Escape             drop what is on the mouse, then the choice, then close
 
 The code: map_scene.py (the map, its chunks and objects, the sprites),
-placements.py (a placement and the file), light_edits.py (window lights
+placements.py (a placement and the file), object_moves.py (buildings on the
+map moved with what belongs to them, and writing that into the map), light_edits.py (window lights
 moved, resized, removed, and writing them into the map), roof_edits.py (the
 roofs and holes, their undo, and writing them into the map), roof_mode.py
 (the roof mode's input and drawing), this file (the window).
@@ -79,6 +91,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(HERE.parent / 'Sprite_Manager'))   # its theme and widgets, as the Sound Manager does
 from light_edits import LightEdits, geometry  # noqa: E402
 from map_scene import LIGHT_MODES, TABS, TILE, BuildingLight, Scene, boxes_overlap, draw_box  # noqa: E402
+from object_moves import ObjectMoves  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from roof_mode import ROOF_KEYS_HINT, RoofMode  # noqa: E402
 from theme import (  # noqa: E402
@@ -117,7 +130,7 @@ FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it 
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
 KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   X raster   C collision   T night   L lights   O roofs   F figure   '
-             'D another   Enter note   Del delete')
+             'D another   Enter note   Del delete   Click a building on the map: move it')
 LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
 RASTER_COLOUR = (255, 255, 255, 60)  # the tile raster's lines (X)
 RASTER_MIN_PX = 6                   # screen px a tile needs before its raster is drawn
@@ -125,6 +138,13 @@ LIGHT_HOVER = (255, 225, 120)       # the window light under the pointer, ready 
 LIGHT_EDITED = (90, 220, 255)       # the one being edited, with its handles
 LIGHT_GRAB_SLACK_PX = 4             # screen px around a window light that still pick it
 DIALOG_W = 520
+MOVED_LINE = (230, 120, 255)        # a building on the map moved, not written into the map yet
+ORIGIN_LINE = (200, 200, 200)       # where it stands in the map file
+DOOR_COLOUR = (60, 140, 255)        # what moves with the chosen building: its doors,
+SMOKE_COLOUR = (0, 255, 255)        # its chimney smoke,
+ATTACHED_LIGHT = (255, 230, 0)      # its window lights
+ROOF_OUTLINE = (60, 200, 255)       # and its roofs (holes in HOLE_OUTLINE)
+HOLE_OUTLINE = (255, 150, 40)
 
 
 class PlacingHelper(RoofMode):
@@ -182,6 +202,10 @@ class PlacingHelper(RoofMode):
         self.dialog_buttons = [Button('Save', w=140, h=40), Button('Discard', w=140, h=40),
                                Button('Keep editing', w=160, h=40)]
         self.init_roofs()                 # the roof mode's (roof_mode.py)
+        self.moves = ObjectMoves(self.scene, self.edits, self.roof_edits)   # buildings on the map moved
+        self.chosen_thing = None          # the building or decoration on the map chosen (a map_scene.Thing)
+        self.put_back_button = Button('Put back  (R)', w=124, h=34)
+        self.another_button = Button('Another  (D)', w=116, h=34)
         self.roof_chips = []
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
@@ -277,9 +301,43 @@ class PlacingHelper(RoofMode):
         if self.note_field.focused:
             self.finish_note()
         self.chosen = placement
+        self.chosen_thing = None
         if placement:
             self.note_field.text = placement.note
             self.edit_light = None
+
+    def choose_thing(self, thing):
+        """Choose a building or decoration on the map, to move it with what belongs to it."""
+        self.choose(None)
+        self.edit_light = None
+        if thing is None:
+            return
+        first = thing.obj_id not in self.moves.moves
+        if first:
+            self.status = f'Looking up what belongs to {thing.label} ...'
+            self._status_frame()
+        try:
+            move = self.moves.record(thing)
+        except (OSError, ValueError, AttributeError) as error:
+            self.status = f'Could not read what belongs to {thing.label}: {error}'
+            return
+        self.chosen_thing = thing
+        self.status = f'{thing.label} (id {thing.obj_id}): drag it or nudge it with the arrows; with it go {move.summary()}'
+
+    def another_of_thing(self, thing):
+        """Its sprite on the mouse, to put down a new one like it."""
+        sprite = self.scene.sprite(f'houses/{thing.file_name}')
+        if sprite is None:
+            self.status = f'{thing.file_name} cannot be placed anew from here (not in the sprite list)'
+            return
+        self.ghost, self.ghost_scale = sprite, thing.scale
+        self.choose(None)
+        self.status = f'{sprite.stem} on the mouse: click on the map to put down a new one'
+
+    def _status_frame(self):
+        """Draw once now, so a status line shows before something slow."""
+        self.draw()
+        pygame.display.flip()
 
     def finish_note(self):
         self.note_field.focus(False)
@@ -412,8 +470,8 @@ class PlacingHelper(RoofMode):
         return None
 
     def unsaved(self):
-        """Changes to window lights and roofs not written into the map yet."""
-        return self.edits.count + self.roof_edits.count
+        """Buildings moved, and changes to window lights and roofs, not written into the map yet."""
+        return self.moves.count + self.edits.count + self.roof_edits.count
 
     def dialog_event(self, event):
         """The question on closing with changes to the map not saved: Save, Discard or Keep editing."""
@@ -437,6 +495,16 @@ class PlacingHelper(RoofMode):
         """Write the window light and roof changes into Map1.tmx; False if that failed."""
         count = self.unsaved()
         done, missing = [], []
+        moved = self.moves.count
+        try:
+            # The moves first: they shift what moves along by as much, and the light and roof edits
+            # then put what was changed by hand where it is now
+            self.moves.save()
+        except (OSError, ValueError) as error:
+            self.status = f'Could not write the map, nothing written: {error}'
+            return False
+        if moved:
+            done.append(f'{moved} building{"s" if moved != 1 else ""} moved')
         try:
             for edits, what in ((self.edits, 'window lights'), (self.roof_edits, 'roofs and holes')):
                 if edits.count:
@@ -446,6 +514,8 @@ class PlacingHelper(RoofMode):
         except (OSError, ValueError) as error:
             self.status = f'Could not write the map: {error}'
             return False
+        finally:
+            self.moves.forget()
         self.status = (' and '.join(done) + ' written to Map1.tmx' if done else 'Nothing to save') + (
             f'; not found any more: {", ".join(map(str, missing))}' if missing else '')
         if count:
@@ -529,7 +599,7 @@ class PlacingHelper(RoofMode):
         if k == pygame.K_ESCAPE:
             if self.ghost:
                 self.ghost = None
-            elif self.chosen:
+            elif self.chosen or self.chosen_thing:
                 self.choose(None)
             else:
                 return 'quit'
@@ -562,6 +632,8 @@ class PlacingHelper(RoofMode):
         elif k == pygame.K_u:
             self.unplaced_only[self.tab] = not self.unplaced_only[self.tab]
             self.list_scroll = 0
+        elif self.chosen_thing and self.thing_key(event):
+            pass
         elif k == pygame.K_d and self.chosen:
             self.ghost, self.ghost_scale = self.chosen.sprite, self.chosen.scale
             self.choose(None)
@@ -584,6 +656,29 @@ class PlacingHelper(RoofMode):
                 self.cam_y += dy * PAN_KEY_PX / self.zoom
                 self.clamp_camera()
         return None
+
+    def thing_key(self, event):
+        """A key while a building on the map is chosen; True if it was its."""
+        k, thing = event.key, self.chosen_thing
+        if k in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
+            step = TILE if self.snap else 1
+            dx = (k == pygame.K_RIGHT) - (k == pygame.K_LEFT)
+            dy = (k == pygame.K_DOWN) - (k == pygame.K_UP)
+            self.moves.shift(thing, dx * step, dy * step)
+        elif k == pygame.K_r:
+            self.put_back(thing)
+        elif k == pygame.K_d:
+            self.another_of_thing(thing)
+        elif k == pygame.K_DELETE:
+            self.status = 'Buildings on the map are not deleted here: do that in Tiled'
+        else:
+            return False
+        return True
+
+    def put_back(self, thing):
+        if self.moves.is_moved(thing):
+            self.moves.put_back(thing)
+            self.status = f'{thing.label} back where it was, with what belongs to it'
 
     def wheel(self, event):
         mouse = pygame.mouse.get_pos()
@@ -634,14 +729,24 @@ class PlacingHelper(RoofMode):
         if hit:
             self.choose(hit)
             self.drag = ('move', hit, wx - hit.x, wy - hit.y)
+            return
+        thing = self.map_thing_at(wx, wy)
+        if thing is not None and thing is self.chosen_thing:
+            # Only the chosen one is dragged, so a drag meant to pan over the town moves nothing
+            self.drag = ('thing', thing, wx, wy, thing.x, thing.y)
         else:
-            self.drag = ('maybe', pos, (self.cam_x, self.cam_y), 1)
+            self.drag = ('maybe', pos, (self.cam_x, self.cam_y), 1, thing)
+
+    def map_thing_at(self, wx, wy):
+        """The building or decoration on the map drawn frontmost at a world point (not trees)."""
+        thing = self.scene.thing_at(wx, wy)
+        return thing if thing is not None and thing.layer == 'Houses' else None
 
     def mouse_move(self, event):
         if not self.drag:
             return
         if self.drag[0] == 'maybe':
-            _, start, cam, button = self.drag
+            _, start, cam, button = self.drag[:4]     # a left click also carries the building under it
             if abs(event.pos[0] - start[0]) + abs(event.pos[1] - start[1]) > DRAG_THRESHOLD:
                 self.drag = ('pan', start, cam, button)
         if self.drag[0] == 'pan':
@@ -651,6 +756,16 @@ class PlacingHelper(RoofMode):
             self.clamp_camera()
         elif self.drag[0] in ('vertex', 'ring'):
             self.roof_mouse_move(event.pos)
+        elif self.drag[0] == 'thing':
+            # By whole tiles from where the drag began with the grid on, so one off the grid stays as far off it
+            _, thing, sx, sy, x0, y0 = self.drag
+            wx, wy = self.to_world(event.pos)
+            dx, dy = wx - sx, wy - sy
+            if self.snap:
+                dx, dy = round(dx / TILE) * TILE, round(dy / TILE) * TILE
+            else:
+                dx, dy = round(dx), round(dy)
+            self.moves.shift(thing, x0 + dx - thing.x, y0 + dy - thing.y)
         elif self.drag[0] == 'move':
             _, p, gx, gy = self.drag
             wx, wy = self.to_world(event.pos)
@@ -767,7 +882,7 @@ class PlacingHelper(RoofMode):
         if cursor != getattr(self, '_cursor', None):
             self._cursor = cursor
             try:
-                pygame.mouse.set_system_cursor(cursor)
+                pygame.mouse.set_cursor(cursor)
             except pygame.error:
                 pass
 
@@ -778,6 +893,10 @@ class PlacingHelper(RoofMode):
             return
         if self.drag and self.drag[0] in ('edge', 'light'):
             edges = self.drag[2]
+        elif (self.drag and self.drag[0] == 'thing') or (
+                not self.drag and self.chosen_thing and not self.ghost and self.map_area().collidepoint(mouse)
+                and self.map_thing_at(*self.to_world(mouse)) is self.chosen_thing):
+            edges = {'move'}
         else:
             edges = self.light_edges_at(mouse) or self.collision_edges_at(mouse)
         if edges == {'move'}:
@@ -786,7 +905,7 @@ class PlacingHelper(RoofMode):
             if cursor != getattr(self, '_cursor', None):
                 self._cursor = cursor
                 try:
-                    pygame.mouse.set_system_cursor(cursor)
+                    pygame.mouse.set_cursor(cursor)
                 except pygame.error:
                     pass
             return
@@ -803,7 +922,7 @@ class PlacingHelper(RoofMode):
         if cursor != getattr(self, '_cursor', None):
             self._cursor = cursor
             try:
-                pygame.mouse.set_system_cursor(cursor)
+                pygame.mouse.set_cursor(cursor)
             except pygame.error:
                 pass
 
@@ -828,6 +947,8 @@ class PlacingHelper(RoofMode):
                 self.status = (f'Editing window light {light.obj_id}: drag it'
                                + ('' if isinstance(light, BuildingLight) else ' or its edges')
                                + ', arrows nudge, Del removes, R resets, Esc done')
+            elif self.drag[3] == 1 and len(self.drag) > 4 and self.drag[4] is not None:
+                self.choose_thing(self.drag[4])     # a click on a building on the map: choose it
             elif self.drag[3] in (1, 3):
                 self.choose(None)
                 self.edit_light = None
@@ -885,6 +1006,16 @@ class PlacingHelper(RoofMode):
         if self.unsaved() and self.save_lights_button.hit(pos):
             self.save_map()
             return
+        if self.chosen_thing:
+            thing = self.chosen_thing
+            if self.put_back_button.hit(pos):
+                self.put_back(thing)
+            elif self.goto_button.hit(pos):
+                left, top, right, bottom = self.thing_rect(thing)
+                self.centre_on((left + right) / 2, (top + bottom) / 2)
+            elif self.another_button.hit(pos):
+                self.another_of_thing(thing)
+            return
         if self.chosen:
             if self.note_field.rect.collidepoint(pos):
                 self.note_field.focus(True)
@@ -897,8 +1028,13 @@ class PlacingHelper(RoofMode):
         else:
             for rect, p in self.pending_rows:
                 if rect.collidepoint(pos):
-                    self.choose(p)
-                    self.centre_on(p.x + p.size[0] / 2, p.y - p.size[1] / 2)
+                    if isinstance(p, Placement):
+                        self.choose(p)
+                        self.centre_on(p.x + p.size[0] / 2, p.y - p.size[1] / 2)
+                    else:
+                        self.choose_thing(p)        # a building on the map, moved
+                        left, top, right, bottom = self.thing_rect(p)
+                        self.centre_on((left + right) / 2, (top + bottom) / 2)
                     return
 
     # ----- drawing
@@ -926,19 +1062,28 @@ class PlacingHelper(RoofMode):
         self.screen.set_clip(area)
         if self.show_raster:
             self.draw_raster(area, ox, oy)
-        # Collision boxes of what is being placed: red where one overlaps
-        # anything (and the box it overlaps red too), only as a warning
+        # Collision boxes of what is being placed or moved: red where one
+        # overlaps anything (and the box it overlaps red too), only as a warning
         new_boxes = [p.collision for p in self.placements]
+        owners = [None] * len(new_boxes)           # the map's Thing a box is of, so it never clashes with itself
         if ghost_point:
             new_boxes.append(Placement(0, self.ghost, ghost_point[0], ghost_point[1], self.ghost_scale).collision)
+            owners.append(None)
+        moved_things = [m.thing for m in self.moves.moved()]
+        if self.chosen_thing and self.chosen_thing not in moved_things:
+            moved_things.append(self.chosen_thing)
+        for thing in moved_things:
+            new_boxes.append(thing.collision)
+            owners.append(thing)
         clashing = set()
         for t in self.scene.things:
-            if t.collision and any(boxes_overlap(t.collision, b) for b in new_boxes):
+            hits = [i for i, b in enumerate(new_boxes) if owners[i] is not t and boxes_overlap(t.collision, b)]
+            if t.collision and hits:
                 draw_box(self.screen, t.collision, ox, oy, self.zoom, OVERLAP_COLLISION, 2)
-                clashing.update(i for i, b in enumerate(new_boxes) if boxes_overlap(t.collision, b))
+                clashing.update(hits)
         for i, a in enumerate(new_boxes):
             for j in range(i + 1, len(new_boxes)):
-                if boxes_overlap(a, new_boxes[j]):
+                if (owners[i] is None or owners[i] is not owners[j]) and boxes_overlap(a, new_boxes[j]):
                     clashing.update((i, j))
         for i, box in enumerate(new_boxes):
             if box:
@@ -965,6 +1110,7 @@ class PlacingHelper(RoofMode):
             lx, ly = ox + round(p.x * self.zoom), oy + round(p.y * self.zoom) + 2
             pygame.draw.rect(self.screen, (0, 0, 0), (lx, ly, label.get_width() + 6, label.get_height()))
             self.screen.blit(label, (lx + 3, ly))
+        self.draw_moved_things(ox, oy)
         if not self.roof_mode:
             self.draw_light_marks(mouse)
         self.screen.set_clip(None)
@@ -978,6 +1124,50 @@ class PlacingHelper(RoofMode):
         if self.dialog:
             self.draw_dialog(mouse)
         self.toast.draw(self.screen, self.fonts)
+
+    def thing_rect(self, thing, x=None, y=None):
+        """(left, top, right, bottom) of a map building's drawn sprite, at its place or at x, y."""
+        w, h = self.scene.source(thing.path).get_size()
+        x = thing.x if x is None else x
+        y = thing.y if y is None else y
+        return x, y - h * thing.scale, x + w * thing.scale, y
+
+    def draw_moved_things(self, ox, oy):
+        """Buildings on the map moved (outlined, with where they stand in the map file) and the chosen
+        one with what moves along with it: doors, smoke, window lights and roofs."""
+        z = self.zoom
+
+        def screen(x, y):
+            return ox + round(x * z), oy + round(y * z)
+
+        for move in self.moves.moved():
+            thing = move.thing
+            old = self.thing_rect(thing, move.x0, move.y0)
+            draw_box(self.screen, old, ox, oy, z, ORIGIN_LINE, 1)
+            pygame.draw.line(self.screen, MOVED_LINE, screen((old[0] + old[2]) / 2, old[3]),
+                             screen(thing.x + (old[2] - old[0]) / 2, thing.y), 2)
+            if thing is not self.chosen_thing:
+                draw_box(self.screen, self.thing_rect(thing), ox, oy, z, MOVED_LINE, 2)
+        thing = self.chosen_thing
+        if not thing:
+            return
+        draw_box(self.screen, self.thing_rect(thing), ox, oy, z, CHOSEN_LINE, 2)
+        move = self.moves.moves.get(thing.obj_id)
+        if not move:
+            return
+        for ring in move.rings:
+            if ring in self.roof_edits.rings and len(ring.points) > 2:
+                pygame.draw.polygon(self.screen, HOLE_OUTLINE if ring.hole else ROOF_OUTLINE,
+                                    [screen(x, y) for x, y in ring.points], 1)
+        for light in move.lights:
+            if light in self.scene.all_lights():
+                pygame.draw.rect(self.screen, ATTACHED_LIGHT, self.light_screen_rect(light), 1)
+        for x, y, w, h in self.moves.smoke(move):
+            sx, sy = screen(x, y)
+            pygame.draw.rect(self.screen, SMOKE_COLOUR, (sx, sy - 1, max(2, round(w * z)), max(3, round(h * z))))
+        for x, y, _ in self.moves.doors(move):
+            pygame.draw.circle(self.screen, (0, 0, 0), screen(x, y), max(4, round(4 * z)) + 1)
+            pygame.draw.circle(self.screen, DOOR_COLOUR, screen(x, y), max(4, round(4 * z)))
 
     def draw_light_marks(self, mouse):
         """The window light under the pointer outlined (lit or not), and the edited one with its handles."""
@@ -1016,7 +1206,7 @@ class PlacingHelper(RoofMode):
         title = self.fonts.title.render('Save your changes to the map?', True, TEXT)
         self.screen.blit(title, (box.x + 24, y))
         y += 46
-        lines = [f'{self.edits.count} window lights moved, resized or removed; '
+        lines = [f'{self.moves.count} buildings moved; {self.edits.count} window lights moved, resized or removed; '
                  f'{self.roof_edits.count} roofs or holes changed, added or deleted.',
                  'Save writes them into assets/tiles/Map1.tmx (close Tiled first if it has the map open).']
         for line in lines:
@@ -1069,6 +1259,8 @@ class PlacingHelper(RoofMode):
                     shown = thing.props.get('Display_name') or thing.name
                     tip = f'{shown}  (id {thing.obj_id}, {thing.file_name}' \
                           + (f', Scale {thing.scale:g}' if thing.scale != 1 else '') + ')'
+                    if thing.layer == 'Houses':
+                        tip += '   drag to move' if thing is self.chosen_thing else '   click to move it'
                     text = self.fonts.small.render(tip, True, TEXT)
                     tx = min(mouse[0] + 16, area.right - text.get_width() - 12)
                     ty = max(area.y, mouse[1] - 30)
@@ -1179,14 +1371,20 @@ class PlacingHelper(RoofMode):
             self.screen.blit(note, note.get_rect(midleft=(self.save_lights_button.rect.right + 10,
                                                           self.save_lights_button.rect.centery)))
             box = pygame.Rect(box.x, box.y, box.w, box.h - 44)
+        if self.chosen_thing:
+            self.draw_thing_detail(box, mouse)
+            return
         p = self.chosen
         if not p:
-            head = self.fonts.font.render(f'{len(self.placements)} placements waiting', True, TEXT)
+            moved = self.moves.moved()
+            head = self.fonts.font.render(f'{len(self.placements)} placements waiting'
+                                          + (f', {len(moved)} moved on the map' if moved else ''), True, TEXT)
             self.screen.blit(head, (box.x, y))
             y += 28
-            if not self.placements:
+            if not self.placements and not moved:
                 for line in wrap_text(small, 'Pick a sprite above, then click on the map. '
-                                             'Everything goes to placements.json for Claude.', box.w, 3):
+                                             'Everything goes to placements.json for Claude. '
+                                             'Click a building on the map to move it.', box.w, 3):
                     self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
                     y += 20
             for q in self.placements:
@@ -1202,6 +1400,17 @@ class PlacingHelper(RoofMode):
                     line += f'  - {q.note}'
                 self.screen.blit(small.render(fit_text(small, line, box.w - 8), True, TEXT), (box.x + 4, y + 1))
                 self.pending_rows.append((row, q))
+                y += 23
+            for m in moved:
+                if y > box.bottom - 22:
+                    break
+                row = pygame.Rect(box.x, y, box.w, 21)
+                if row.collidepoint(mouse):
+                    pygame.draw.rect(self.screen, CARD_HOVER, row, border_radius=4)
+                dx, dy = m.offset
+                line = f'moved  {m.thing.label}  by {dx:+g}, {dy:+g}'
+                self.screen.blit(small.render(fit_text(small, line, box.w - 8), True, MOVED_LINE), (box.x + 4, y + 1))
+                self.pending_rows.append((row, m.thing))
                 y += 23
             return
 
@@ -1242,6 +1451,46 @@ class PlacingHelper(RoofMode):
         tips = ('Drag it on the map, its collision box by the white handles. '
                 '[ ] or Ctrl+wheel scale, arrows nudge, D another one.')
         for line in wrap_text(small, tips, box.w, 3):
+            self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
+            y += 19
+
+    def draw_thing_detail(self, box, mouse):
+        """The chosen building on the map: where it stands and stood, and what moves with it."""
+        thing, small = self.chosen_thing, self.fonts.small
+        move = self.moves.moves.get(thing.obj_id)
+        y = box.y + 4
+        head = self.fonts.font.render(fit_text(self.fonts.font, f'{thing.label}  (on the map)', box.w), True, TEXT)
+        self.screen.blit(head, (box.x, y))
+        y += 26
+        lines = [(f'id {thing.obj_id}   {thing.file_name}' + (f'   Scale {thing.scale:g}' if thing.scale != 1 else ''),
+                  TEXT_DIM),
+                 (f'Object point {thing.x:g}, {thing.y:g}   tile {int(thing.x // TILE)}, {int(thing.y // TILE)}', TEXT)]
+        if move and move.moved:
+            dx, dy = move.offset
+            lines.append((f'Moved by {dx:+g}, {dy:+g} from {move.x0:g}, {move.y0:g}: not in the map yet', MOVED_LINE))
+        if move:
+            lines.append((f'With it: {move.summary()}', TEXT))
+        if 'market' in thing.name.lower():
+            lines.append(('A market booth: its traders\' paths on Movements stay put', ERROR_COLOR))
+        for text, colour in lines:
+            for part in wrap_text(small, text, box.w, 2):
+                self.screen.blit(small.render(part, True, colour), (box.x, y))
+                y += 20
+        y += 6
+        self.put_back_button.rect.topleft = (box.x, y)
+        self.goto_button.rect.topleft = (self.put_back_button.rect.right + 8, y)
+        self.another_button.rect.topleft = (self.goto_button.rect.right + 8, y)
+        self.put_back_button.enabled = bool(move and move.moved)
+        self.another_button.enabled = self.scene.sprite(f'houses/{thing.file_name}') is not None
+        for button in (self.put_back_button, self.goto_button, self.another_button):
+            button.draw(self.screen, small, mouse)
+        self.another_button.enabled = True
+        y += 44
+        tips = ('Drag it on the map, arrows nudge it (a tile, a pixel with G off). Doors, window lights, '
+                'smoke and roofs move with it. Paths, painted ground and fields stay. "Save to map" writes it.')
+        for line in wrap_text(small, tips, box.w, 4):
+            if y > box.bottom - 18:
+                break
             self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
             y += 19
 

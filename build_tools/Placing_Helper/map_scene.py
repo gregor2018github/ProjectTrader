@@ -163,6 +163,19 @@ class Thing:
         self.path = path
         self.x, self.y = float(obj.x), float(obj.y)
         self.scale = float(self.props.get('Scale', 1.0) or 1.0)
+        self._set_collision()
+
+    def move_to(self, x, y):
+        """Put its object point at x, y (object_moves.py moves it with what belongs to it)."""
+        self.x, self.y = x, y
+        self._set_collision()
+
+    @property
+    def label(self):
+        return self.props.get('Display_name') or self.name or self.file_name
+
+    def _set_collision(self):
+        layer = self.layer
         if layer == 'Trees':
             self.collision = tree_collision(self.x, self.y, self.scale, self.props)
         elif 'Collision_to_right' in self.props:

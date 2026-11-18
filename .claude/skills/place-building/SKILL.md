@@ -163,9 +163,14 @@ when it starts, but only where they were not moved.
    Town houses: 15–35 inhabitants.
 
    To **move** a building that is already placed, use
-   `place_building.py move ID X Y [--dry-run]`: it carries its door, its
+   `place_building.py move ID X Y [--no-snap] [--dry-run]`: it carries its door, its
    lights (the ones the game gives it: painted on its sprite, frontmost), its
-   smoke and its preview along. Read the "moved" list. Compare per-house light counts before and after (load `TMXMap` on `git show
+   smoke, roofs and preview along (the preview tiles onto another `Houses N`
+   layer where they are taken, or an image-layer preview off the grid). The
+   user can also move buildings and decorations themselves in the Placing
+   Helper (click one, drag it, "Save to map"), which writes the moves into
+   `Map1.tmx` with the same `move_object()`; nothing of that comes through
+   `placements.json`. Read the "moved" list. Compare per-house light counts before and after (load `TMXMap` on `git show
    HEAD:assets/tiles/Map1.tmx` written to a temp file inside `assets/tiles/`,
    so its tileset paths resolve).
 
