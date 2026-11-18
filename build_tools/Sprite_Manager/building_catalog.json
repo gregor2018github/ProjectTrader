@@ -1447,6 +1447,69 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -31
    }
+  },
+  "houses/Deco_24.png": {
+   "kind": "decoration",
+   "subcategory": "old broken headstone",
+   "atlas": "houses",
+   "rect": [
+    1472,
+    407,
+    65,
+    73
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_24.png",
+    "Tiles_to_right": 3,
+    "Tiles_up": 3,
+    "Collision_to_right": 3,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -31
+   }
+  },
+  "houses/Deco_25.png": {
+   "kind": "decoration",
+   "subcategory": "gabled headstone",
+   "atlas": "houses",
+   "rect": [
+    1824,
+    407,
+    65,
+    73
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_25.png",
+    "Tiles_to_right": 3,
+    "Tiles_up": 3,
+    "Collision_to_right": 3,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -31
+   }
+  },
+  "houses/Deco_26.png": {
+   "kind": "decoration",
+   "subcategory": "narrow flat-topped headstone",
+   "atlas": "houses",
+   "rect": [
+    2016,
+    407,
+    65,
+    73
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_26.png",
+    "Tiles_to_right": 3,
+    "Tiles_up": 3,
+    "Collision_to_right": 3,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -31
+   }
   }
  },
  "motifs": {}

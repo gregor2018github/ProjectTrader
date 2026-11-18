@@ -3,7 +3,8 @@
 The stone is drawn once when the window opens, in the shape of the gravestone
 on the map: each sprite has a design (`DESIGNS`, by its file name; a stone not
 listed is a rounded slab): a rounded slab or a domed one, a square slab with
-chipped corners leaning a little, a headstone with shoulders, a Gothic one with
+chipped corners leaning a little, a headstone with shoulders, a gabled one with a
+cross in its gable, a tall narrow tablet with a flat top, a Gothic one with
 a pointed arch over the grave's mound, a grave cross with the name across its
 arms and the rest down its shaft, a Celtic cross with its ring, a boss and
 knotwork, and a chest tomb, its name on the lid's edge and the rest in the
@@ -46,6 +47,9 @@ DESIGNS: Dict[str, str] = {
     'Deco_21.png': 'celtic',
     'Deco_22.png': 'shouldered',
     'Deco_23.png': 'rounded',
+    'Deco_24.png': 'slab',
+    'Deco_25.png': 'gabled',
+    'Deco_26.png': 'tablet',
 }
 DEFAULT_DESIGN = 'rounded'
 
@@ -406,6 +410,37 @@ def _shouldered(ins: Epitaph, pal: Palette) -> Stone:
     return s
 
 
+def _gabled(ins: Epitaph, pal: Palette) -> Stone:
+    """A headstone with a gable, straight slopes to a point, a cross carved in the gable over a rule."""
+    w, margin = 540, 62
+    rise = int(w * 0.27)
+    width = w - 2 * margin
+    lines = _heading(ins, width, 37, 23) + [_gap(14)] + _body(ins, width, 24, 19)
+    text_top = rise + 46
+    h = text_top + _height(lines) + 72
+    s = Stone(w, h, ins.key, pal)
+    s.polygon([(0, rise), (w / 2, 0), (w, rise), (w, h), (0, h)])
+    s.cut_cross(w / 2, rise * 0.3, 54)
+    s.cut_rect((margin, rise + 18, width, 3))
+    s.lines(lines, w / 2, text_top)
+    return s
+
+
+def _tablet(ins: Epitaph, pal: Palette) -> Stone:
+    """A tall narrow tablet with a flat top and rounded corners, the inscription in an incised frame."""
+    w, frame = 440, 24
+    width = w - 2 * (frame + 22)
+    # Its lines wrapped rather than carved small: the tablet is narrow
+    lines = _heading(ins, width, 38, 24) + [_gap(16)] + _body(ins, width, 27, 23)
+    h = max(60 + _height(lines) + 84, int(w * 1.15))
+    s = Stone(w, h, ins.key, pal)
+    s.rect((0, 0, w, h), border_top_left_radius=34, border_top_right_radius=34)
+    frame_h = h - frame - 52
+    s.cut_rect((frame, frame, w - 2 * frame, frame_h), 2)
+    s.lines(lines, w / 2, frame + max(34, (frame_h - _height(lines)) / 2))   # in the middle of its frame
+    return s
+
+
 def _arch_points(x0: float, width: float, spring: float, centre_share: float = 0.72, steps: int = 18):
     """A pointed arch from (x0, spring) over to (x0 + width, spring): two arcs meeting at its apex."""
     r = centre_share * width
@@ -527,6 +562,8 @@ BUILDERS: Dict[str, Callable[[Epitaph, Palette], Stone]] = {
     'dome': lambda ins, pal: _rounded(ins, pal, dome=True),
     'slab': _slab,
     'shouldered': _shouldered,
+    'gabled': _gabled,
+    'tablet': _tablet,
     'gothic': _gothic,
     'cross': _cross,
     'celtic': lambda ins, pal: _cross(ins, pal, celtic=True),

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="71" nextobjectid="1606">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="74" nextobjectid="1609">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3146,6 +3146,15 @@
  </imagelayer>
  <imagelayer id="70" name="Preview Deco_23" offsetx="6176" offsety="4595">
   <image source="previews/Deco_23_x1.06.png" width="69" height="77"/>
+ </imagelayer>
+ <imagelayer id="71" name="Preview Deco_26" offsetx="5824" offsety="4397">
+  <image source="previews/Deco_26_x2.02.png" width="131" height="147"/>
+ </imagelayer>
+ <imagelayer id="72" name="Preview Deco_25" offsetx="5984" offsety="4538">
+  <image source="previews/Deco_25_x1.84.png" width="120" height="134"/>
+ </imagelayer>
+ <imagelayer id="73" name="Preview Deco_24" offsetx="5920" offsety="4564">
+  <image source="previews/Deco_24_x1.48.png" width="96" height="108"/>
  </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
@@ -12768,6 +12777,54 @@
     <property name="Epitaph" value="woodcutter"/>
     <property name="File_name" value="Deco_23.png"/>
     <property name="Scale" type="float" value="1.06"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1606" name="Deco_26" type="Deco" x="5824" y="4544">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-17"/>
+    <property name="Col_margin_right_pixel" type="int" value="-50"/>
+    <property name="Col_margin_up_pixel" type="int" value="-49"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="Epitaph" value="fisherman"/>
+    <property name="File_name" value="Deco_26.png"/>
+    <property name="Scale" type="float" value="2.02"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1607" name="Deco_25" type="Deco" x="5984" y="4672">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-17"/>
+    <property name="Col_margin_right_pixel" type="int" value="-48"/>
+    <property name="Col_margin_up_pixel" type="int" value="-51"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="Epitaph" value="widow"/>
+    <property name="File_name" value="Deco_25.png"/>
+    <property name="Scale" type="float" value="1.84"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1608" name="Deco_24" type="Deco" x="5920" y="4672">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="0"/>
+    <property name="Col_margin_left_pixel" type="int" value="-16"/>
+    <property name="Col_margin_right_pixel" type="int" value="-46"/>
+    <property name="Col_margin_up_pixel" type="int" value="-50"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="Epitaph" value="fleming"/>
+    <property name="File_name" value="Deco_24.png"/>
+    <property name="Scale" type="float" value="1.48"/>
     <property name="Tiles_to_right" type="int" value="3"/>
     <property name="Tiles_up" type="int" value="3"/>
    </properties>
