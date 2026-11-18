@@ -1,6 +1,8 @@
 """Reading a gravestone: "Read" in its menu, the stone opening with its inscription, and putting it away."""
 
 import os
+import re
+from pathlib import Path
 from types import SimpleNamespace
 
 os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
@@ -12,7 +14,15 @@ import pytest
 from src.config.constants import SCREEN_HEIGHT
 from src.models.epitaphs import BY_KEY, EPITAPHS
 from src.ui.helper_modules import house_click_menu
-from src.ui.helper_modules.gravestone_window import SLAB_WIDTH, GravestoneWindow, open_gravestone
+from src.ui.helper_modules.gravestone_window import (
+    BUILDERS, DEFAULT_DESIGN, DESIGNS, STONE_BRIGHTNESS, GravestoneWindow, _font, open_gravestone,
+    sprite_stone_colour,
+)
+
+ROOT = Path(__file__).resolve().parents[2]
+MAP = ROOT / 'assets' / 'tiles' / 'Map1.tmx'
+SPRITES = ROOT / 'assets' / 'map_sprites' / 'houses'
+SMALLEST_TEXT = 18   # the smallest point size a design carves in
 
 
 @pytest.fixture(autouse=True)
@@ -73,11 +83,43 @@ def test_an_unknown_inscription_cannot_be_read():
     assert state.info_window is None and state.warnings
 
 
+@pytest.mark.parametrize('design', sorted(BUILDERS))
 @pytest.mark.parametrize('inscription', EPITAPHS, ids=[e.key for e in EPITAPHS])
-def test_every_inscription_fits_its_stone(inscription):
-    window = GravestoneWindow(_state().screen, _state(), None, inscription)
-    assert window.stone.get_width() == SLAB_WIDTH
+def test_every_inscription_fits_every_stone(design, inscription):
+    window = GravestoneWindow(_state().screen, _state(), None, inscription, design=design)
+    built = window.built
     assert window.stone.get_height() + 60 < SCREEN_HEIGHT
-    carved = [text for _, text in window.text_lines() if text]
-    assert any(inscription.name.upper().startswith(t) for t in carved)
-    assert all(font.size(text)[0] <= SLAB_WIDTH - 100 for font, text in window.text_lines())
+    assert window.stone.get_width() < 1000
+    smallest = _font(SMALLEST_TEXT).size("Mg")[1]
+    for font, text, rect in built.texts:   # every line carved wholly on the stone, none off its edge
+        assert built.mask.overlap_area(pygame.mask.Mask(rect.size, fill=True), rect.topleft) == rect.w * rect.h, text
+        assert font.size("Mg")[1] >= smallest, f'too small to read: {text}'
+    carved = " ".join(window.carved_text())
+    for word in " ".join((inscription.name.upper(),) + inscription.lines).split():
+        assert word in carved
+
+
+def test_each_gravestone_on_the_map_has_its_design():
+    text = MAP.read_text(encoding='utf-8')
+    for block in re.findall(r'<object [^>]*>.*?</object>', text, re.S):
+        if 'name="Epitaph"' in block:
+            name = re.search(r'<property name="File_name" value="([^"]*)"', block).group(1)
+            assert name in DESIGNS, name
+    assert set(DESIGNS.values()) <= set(BUILDERS)
+
+
+def test_a_stone_takes_its_sprites_colour_made_readable():
+    assert sprite_stone_colour(None) is None
+    low, high = STONE_BRIGHTNESS
+    for name in DESIGNS:
+        image = pygame.image.load(str(SPRITES / name))
+        colour = sprite_stone_colour(image)
+        assert colour is not None, name
+        assert low - 1 <= 0.3 * colour[0] + 0.59 * colour[1] + 0.11 * colour[2] <= high + 1, name
+    teal = sprite_stone_colour(pygame.image.load(str(SPRITES / 'Deco_16.png')))
+    assert teal[2] > teal[0] + 20          # the Gothic stone stays blue-green
+
+
+def test_a_stone_not_listed_is_a_rounded_slab():
+    house = SimpleNamespace(file_name='Deco_99.png', image=None)
+    assert GravestoneWindow(_state().screen, _state(), house, BY_KEY['knight']).design == DEFAULT_DESIGN
