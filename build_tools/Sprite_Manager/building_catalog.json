@@ -24,7 +24,8 @@
     7,
     879,
     345
-   ]
+   ],
+   "resolution": 2.0
   },
   "houses/House_11.png": {
    "kind": "dwelling",
@@ -72,7 +73,8 @@
     0,
     224,
     352
-   ]
+   ],
+   "resolution": 2.0
   },
   "houses/House_12.png": {
    "kind": "workshop",
@@ -105,7 +107,8 @@
     413,
     448,
     419
-   ]
+   ],
+   "resolution": 2.0
   },
   "houses/House_9.png": {
    "kind": "public",
@@ -116,7 +119,8 @@
     179,
     576,
     653
-   ]
+   ],
+   "resolution": 2.0
   },
   "houses/House_14.png": {
    "kind": "public",
@@ -942,7 +946,8 @@
     "Collision_up": 2,
     "Col_margin_left_pixel": -7,
     "Col_margin_right_pixel": -16
-   }
+   },
+   "resolution": 2.0
   },
   "houses/House_37.png": {
    "kind": "dwelling",

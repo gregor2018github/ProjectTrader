@@ -11243,13 +11243,14 @@
  <objectgroup id="2" name="Houses">
   <object id="53" name="House_2" type="House_Frontal" x="3584" y="4608">
    <properties>
-    <property name="Col_margin_right_pixel" type="int" value="-12"/>
-    <property name="Collision_to_right" type="int" value="7"/>
-    <property name="Collision_up" type="int" value="3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-24"/>
+    <property name="Collision_to_right" type="int" value="14"/>
+    <property name="Collision_up" type="int" value="6"/>
     <property name="File_name" value="House_2.png"/>
     <property name="Max_inhabitants" type="int" value="35"/>
     <property name="Tiles_to_right" type="int" value="7"/>
     <property name="Tiles_up" type="int" value="11"/>
+    <property name="Scale" type="float" value="0.5"/>
    </properties>
    <point/>
   </object>
@@ -11267,16 +11268,17 @@
   </object>
   <object id="56" name="House_3" type="House_Frontal" x="4512" y="4384">
    <properties>
-    <property name="Col_margin_left_pixel" type="int" value="-14"/>
-    <property name="Col_margin_right_pixel" type="int" value="-16"/>
-    <property name="Collision_to_right" type="int" value="7"/>
-    <property name="Collision_up" type="int" value="3"/>
+    <property name="Col_margin_left_pixel" type="int" value="-28"/>
+    <property name="Col_margin_right_pixel" type="int" value="-32"/>
+    <property name="Collision_to_right" type="int" value="14"/>
+    <property name="Collision_up" type="int" value="6"/>
     <property name="Display_name" value="The Grey Griffin Inn"/>
     <property name="File_name" value="House_2.png"/>
     <property name="Max_inhabitants" type="int" value="35"/>
     <property name="Tavern" value="middle"/>
     <property name="Tiles_to_right" type="int" value="7"/>
     <property name="Tiles_up" type="int" value="11"/>
+    <property name="Scale" type="float" value="0.5"/>
    </properties>
    <point/>
   </object>
@@ -11389,28 +11391,30 @@
   </object>
   <object id="193" name="Townhall" type="House_Frontal" x="4800" y="4384">
    <properties>
-    <property name="Col_margin_down_pixel" type="int" value="-4"/>
-    <property name="Col_margin_left_pixel" type="int" value="-3"/>
-    <property name="Col_margin_right_pixel" type="int" value="-17"/>
-    <property name="Collision_to_right" type="int" value="14"/>
-    <property name="Collision_up" type="int" value="5"/>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-34"/>
+    <property name="Collision_to_right" type="int" value="28"/>
+    <property name="Collision_up" type="int" value="10"/>
     <property name="File_name" value="House_8.png"/>
     <property name="Tiles_to_right" type="int" value="14"/>
     <property name="Tiles_up" type="int" value="14"/>
+    <property name="Scale" type="float" value="0.5"/>
    </properties>
    <point/>
   </object>
   <object id="194" name="Church" type="House_Profile" x="5344" y="4704">
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
-    <property name="Col_margin_left_pixel" type="int" value="-10"/>
+    <property name="Col_margin_left_pixel" type="int" value="-20"/>
     <property name="Col_margin_right_pixel" type="int" value="0"/>
-    <property name="Col_margin_up_pixel" type="int" value="16"/>
-    <property name="Collision_to_right" type="int" value="18"/>
-    <property name="Collision_up" type="int" value="6"/>
+    <property name="Col_margin_up_pixel" type="int" value="32"/>
+    <property name="Collision_to_right" type="int" value="36"/>
+    <property name="Collision_up" type="int" value="12"/>
     <property name="File_name" value="House_9.png"/>
     <property name="Tiles_to_right" type="int" value="18"/>
     <property name="Tiles_up" type="int" value="21"/>
+    <property name="Scale" type="float" value="0.5"/>
    </properties>
    <point/>
   </object>
@@ -11539,15 +11543,16 @@
   </object>
   <object id="234" name="House_10" type="House_Profile" x="4512" y="5088">
    <properties>
-    <property name="Col_margin_left_pixel" type="int" value="-58"/>
-    <property name="Col_margin_right_pixel" type="int" value="-40"/>
+    <property name="Col_margin_left_pixel" type="int" value="-116"/>
+    <property name="Col_margin_right_pixel" type="int" value="-80"/>
     <property name="Col_margin_up_pixel" type="int" value="0"/>
-    <property name="Collision_to_right" type="int" value="28"/>
-    <property name="Collision_up" type="int" value="4"/>
+    <property name="Collision_to_right" type="int" value="56"/>
+    <property name="Collision_up" type="int" value="8"/>
     <property name="File_name" value="House_10.png"/>
     <property name="Max_inhabitants" type="int" value="100"/>
     <property name="Tiles_to_right" type="int" value="28"/>
     <property name="Tiles_up" type="int" value="11"/>
+    <property name="Scale" type="float" value="0.5"/>
    </properties>
    <point/>
   </object>
@@ -12332,13 +12337,13 @@
   </object>
   <object id="1202" name="House_32" type="House_Frontal" x="2464" y="3168">
    <properties>
-    <property name="Col_margin_left_pixel" type="int" value="-19"/>
-    <property name="Col_margin_right_pixel" type="int" value="-28"/>
-    <property name="Collision_to_right" type="int" value="6"/>
-    <property name="Collision_up" type="int" value="2"/>
+    <property name="Col_margin_left_pixel" type="int" value="-38"/>
+    <property name="Col_margin_right_pixel" type="int" value="-56"/>
+    <property name="Collision_to_right" type="int" value="12"/>
+    <property name="Collision_up" type="int" value="4"/>
     <property name="File_name" value="House_36.png"/>
     <property name="Max_inhabitants" type="int" value="15"/>
-    <property name="Scale" type="float" value="1.28"/>
+    <property name="Scale" type="float" value="0.64"/>
     <property name="Tiles_to_right" type="int" value="6"/>
     <property name="Tiles_up" type="int" value="7"/>
    </properties>
