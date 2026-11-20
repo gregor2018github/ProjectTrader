@@ -63,6 +63,26 @@ each tree the free layer with the fewest wrong overlaps, and prints how many
 cells still came out wrong. Those only show in Tiled; the game sorts trees by
 their bottom edge itself.
 
+## Painted ground: paths and uneven grass
+
+`paint_ground.py` gives a place ground of its own, the way a wood has its
+floor: paths trodden into the grass (worn to dirt in the middle, thinning at
+the sides, the main ways strong and the side ways faint) and uneven grass
+round about (lusher and drier patches, greener over the graves, moss at the
+foot of a wall, small tufts, clover and flowers). Each place is an entry of
+`GROUNDS` at the top of the script; so far the churchyard. It paints onto
+`Ground_High_Plus` and `Ground_Flowers_Mushrooms` like the broadleaf woods,
+into its own tileset, `painted_ground`, after every other one.
+`python build_tools/Forest_Builder/paint_ground.py --preview` writes
+`build_tools/output/ground/<name>.png` and leaves the map alone; without
+`--preview` it writes (Tiled closed). Painting an entry twice lays it twice;
+undo the map and `painted_ground.png`/`.tsx` with git to redo one.
+
+`woodland_floor` is full: `bank_diagonals` starts straight after it, so a new
+tile there would take a river bank's gid. `FloorPainter` refuses to grow a
+tileset into the next one's gids; give a new broadleaf patch's
+`painted_floor` a `tileset` of its own.
+
 ## Steps
 
 1. **Close Tiled.** If it still has the map open, its next save overwrites the

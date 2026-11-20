@@ -119,6 +119,10 @@ class FloorPainter:
         else:
             self.first_gid = max([t.first_gid + t.count for t in self.reader.tilesets]
                                  + [baker.mix_first_gid + len(baker.mix_tiles)]) + MIX_HEADROOM
+        # The next tileset's first gid: growing past it would take that tileset's gids (woodland_floor
+        # has bank_diagonals straight after it, so it cannot grow at all)
+        self.limit = min([t.first_gid for t in self.reader.tilesets if t.first_gid > self.first_gid],
+                         default=None)
         self.known: Dict[bytes, int] = {pygame.image.tobytes(t, "RGBA"): i for i, t in enumerate(self.tiles)}
         self.added = 0
         self._motifs: Optional[List[dict]] = None
@@ -268,6 +272,10 @@ class FloorPainter:
     def _gid(self, block: np.ndarray) -> int:
         key = block.tobytes()
         if key not in self.known:
+            if self.limit is not None and self.first_gid + len(self.tiles) >= self.limit:
+                raise RuntimeError(f"The {self.name} tileset is full: its next tile would take gid "
+                                   f"{self.first_gid + len(self.tiles)}, which another tileset starts at. "
+                                   f"Paint into a new tileset (a patch's painted_floor 'tileset').")
             self.tiles.append(pygame.image.frombytes(key, (self.ts, self.ts), "RGBA"))
             self.known[key] = len(self.tiles) - 1
             self.added += 1
