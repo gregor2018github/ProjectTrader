@@ -112,6 +112,19 @@ class Sprite:
             self.tab = 'Buildings'
         self.on_map = 0                           # objects on the map using it
         self.size = (0, 0)
+        self.entry = entry
+        #: How many of the PNG's pixels make one of the catalog's (2 for a sprite upscaled twice):
+        #: the catalog's Tiled numbers are in its own pixels, so they are multiplied by this
+        self.resolution = 1.0
+
+    def set_size(self, size):
+        """The PNG's size, and with it its resolution against the catalog's atlas rect (or its "resolution")."""
+        self.size = size
+        rect = self.entry.get('rect')
+        if rect and rect[2]:
+            self.resolution = round(size[0] / rect[2], 2)
+        else:
+            self.resolution = float(self.entry.get('resolution', 1) or 1)
 
     @property
     def stem(self):
@@ -203,6 +216,9 @@ class Scene:
         self.lights = []                         # the game's Light: one window each
         self.light_groups = {}                   # {building name: BuildingLightGroup}, the shaped windows
         self.roofs = []                          # (obj_id, building name, is a hole, world points) of the Roofs layer
+        #: Pictures drawn in another's place, {path: (path, factor)}: an upscaled candidate
+        #: shown instead of its sprite, at 1/factor of the scale (upscaling.py)
+        self.swaps = {}
         self._load_objects()
         self.sprites = self._load_sprites()
         self.figure = pygame.image.load(str(FIGURE)).convert_alpha()
@@ -289,7 +305,7 @@ class Scene:
                     continue
                 sprite = Sprite(folder, path.name, entry)
                 sprite.on_map = used.get((sprite.layer, path.name), 0)
-                sprite.size = self.source(sprite.path).get_size()
+                sprite.set_size(self.source(sprite.path).get_size())
                 sprites.append(sprite)
         return sprites
 
@@ -297,6 +313,19 @@ class Scene:
         return next((s for s in self.sprites if s.key == key), None)
 
     # ----- pictures
+
+    def shown(self, path, scale):
+        """The picture drawn for a sprite at a scale: itself, or the candidate shown in its place."""
+        swap = self.swaps.get(path)
+        return (swap[0], scale / swap[1]) if swap else (path, scale)
+
+    def forget_picture(self, path):
+        """Drop what is kept of a picture (it was replaced on disk)."""
+        self.sources.pop(path, None)
+        self.masks.pop(path, None)
+        for key in [k for k in self.scaled if k[0] == path]:
+            image = self.scaled.pop(key)
+            self.scaled_pixels -= image.get_width() * image.get_height()
 
     def source(self, path):
         image = self.sources.get(path)
@@ -440,7 +469,8 @@ class Scene:
             if is_extra:
                 item(screen, ox, oy, zoom)
             else:
-                image = self.image(item.path, item.scale * zoom)
+                path, scale = self.shown(item.path, item.scale)
+                image = self.image(path, scale * zoom)
                 screen.blit(image, (ox + round(item.x * zoom), oy + round(item.y * zoom) - image.get_height()))
         if night is not None:
             self._darken(screen, area, lit)

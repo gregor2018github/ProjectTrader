@@ -34,6 +34,14 @@ map", like the light and roof changes (object_moves.py, by the place-building
 skill's own `move`); paths on the Movements layer, painted ground and fields
 stay where they are.
 
+A chosen placement or building on the map can be upscaled twice by Upscayl
+(Ctrl+U or "Upscale x2", upscaling.py). The result is drawn in the old
+picture's place wherever that sprite is used, as large as before; V switches
+between old and new. "Accept" puts it in: the PNG twice as large (the old one
+kept in build_tools/output/upscaled/replaced/), every object drawn from it
+at half its Scale and its collision numbers doubled in Map1.tmx at once,
+and the placements of it likewise. "Discard" drops it.
+
 Keys:
     Mouse wheel        zoom (towards the pointer); Ctrl+wheel scales the held or chosen sprite
     Drag (left on empty ground, right or middle anywhere)   pan; arrows pan too
@@ -65,11 +73,14 @@ Keys:
     G                  snap to the tile grid on / off
     X                  the tile raster drawn over the map on / off (the panel's switch too)
     Tab, U             next tab, only sprites not on the map on / off
+    Ctrl+U             upscale the chosen placement's or building's sprite twice with Upscayl
+    V                  with an upscaled one ready: show the old or the new picture
     Ctrl+S             save now (it saves by itself anyway)
     Escape             drop what is on the mouse, then the choice, then close
 
 The code: map_scene.py (the map, its chunks and objects, the sprites),
-placements.py (a placement and the file), object_moves.py (buildings on the
+placements.py (a placement and the file), upscaling.py (a sprite upscaled by
+Upscayl, compared and put in), object_moves.py (buildings on the
 map moved with what belongs to them, and writing that into the map), light_edits.py (window lights
 moved, resized, removed, and writing them into the map), roof_edits.py (the
 roofs and holes, their undo, and writing them into the map), roof_mode.py
@@ -79,6 +90,7 @@ roofs and holes, their undo, and writing them into the map), roof_mode.py
 import math
 import os
 import sys
+import time
 from pathlib import Path
 
 os.environ.setdefault('SDL_MOUSE_FOCUS_CLICKTHROUGH', '1')
@@ -94,6 +106,7 @@ from map_scene import LIGHT_MODES, TABS, TILE, BuildingLight, Scene, boxes_overl
 from object_moves import ObjectMoves  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from roof_mode import ROOF_KEYS_HINT, RoofMode  # noqa: E402
+from upscaling import FACTOR, MODEL, Upscaler  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
     TEXT, TEXT_DIM, THUMB_BG,
@@ -107,7 +120,7 @@ PANEL_W = 380
 PAD = 14
 ROW_H = 84
 THUMB = 72
-DETAIL_H = 290
+DETAIL_H = 330
 FOOTER_H = 30
 FPS = 60
 ZOOMS = (0.125, 0.1875, 0.25, 0.375, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0)
@@ -206,6 +219,11 @@ class PlacingHelper(RoofMode):
         self.chosen_thing = None          # the building or decoration on the map chosen (a map_scene.Thing)
         self.put_back_button = Button('Put back  (R)', w=124, h=34)
         self.another_button = Button('Another  (D)', w=116, h=34)
+        self.upscaler = Upscaler(self.scene)  # sprites upscaled by Upscayl, to compare and accept
+        self.upscale_button = Button(f'Upscale x{FACTOR}  (Ctrl+U)', w=176, h=32)
+        self.compare_button = Button('Old / New  (V)', w=128, h=32)
+        self.accept_upscale_button = Button('Accept', w=84, h=32)
+        self.discard_upscale_button = Button('Discard', w=88, h=32)
         self.roof_chips = []
         self.drag = None                  # ('pan', start, cam) or ('move', placement, grab dx, dy) or ('maybe', start, cam)
         self.dirty_at = None
@@ -334,6 +352,97 @@ class PlacingHelper(RoofMode):
         self.choose(None)
         self.status = f'{sprite.stem} on the mouse: click on the map to put down a new one'
 
+    # ----- upscaling (upscaling.py)
+
+    def chosen_picture(self):
+        """(file name, path, layer) of the chosen placement's or building's sprite, or None."""
+        if self.chosen:
+            s = self.chosen.sprite
+            return s.file_name, s.path, s.layer
+        if self.chosen_thing:
+            t = self.chosen_thing
+            return t.file_name, t.path, t.layer
+        return None
+
+    def chosen_candidate(self):
+        picture = self.chosen_picture()
+        return self.upscaler.candidates.get(picture[0]) if picture else None
+
+    def start_upscale(self):
+        picture = self.chosen_picture()
+        if not picture:
+            self.status = 'Choose a placement or a building on the map to upscale it'
+            return
+        file_name, path, layer = picture
+        refusal = self.upscaler.refusal(file_name, layer)
+        if refusal:
+            self.status = f'{file_name} is not upscaled here: {refusal}'
+            return
+        c = self.upscaler.candidates.get(file_name)
+        if c and c.state == 'running':
+            return
+        try:
+            self.upscaler.start(file_name, path)
+        except OSError as error:
+            self.status = f'Could not start Upscayl: {error}'
+            return
+        self.status = f'Upscaling {file_name} with Upscayl ...'
+
+    def compare_upscale(self):
+        c = self.chosen_candidate()
+        self.upscaler.toggle(c)
+        self.status = f'{c.stem}: showing the {"new, upscaled" if c.showing_new else "old"} picture'
+
+    def upscale_click(self, pos):
+        """A click on the upscaling strip's buttons; True if it was one."""
+        if not self.chosen_picture():
+            return False
+        c = self.chosen_candidate()
+        if (c is None or c.state == 'failed') and self.upscale_button.hit(pos):
+            self.start_upscale()
+        elif c and c.state == 'ready' and self.compare_button.hit(pos):
+            self.compare_upscale()
+        elif c and c.state == 'ready' and self.accept_upscale_button.hit(pos):
+            self.accept_upscale(c)
+        elif c and c.state == 'ready' and self.discard_upscale_button.hit(pos):
+            self.upscaler.discard(c.file_name)
+            self.status = f'The upscaled {c.stem} was discarded'
+        else:
+            return False
+        return True
+
+    def accept_upscale(self, c):
+        """Put the upscaled picture in: the PNG, the map's objects and the placements drawn from it."""
+        try:
+            changed, backup = self.upscaler.accept(c)
+        except (OSError, ValueError) as error:
+            self.status = f'Could not put the upscaled {c.stem} in: {error}'
+            return
+        new_props = dict(changed)
+        for t in self.scene.things:
+            if t.obj_id in new_props and t.layer == 'Houses':
+                t.props.update(new_props[t.obj_id])
+                t.scale = float(new_props[t.obj_id]['Scale'])
+                t.move_to(t.x, t.y)                     # its collision box again, from the new numbers
+        sprite = self.scene.sprite(f'houses/{c.file_name}')
+        if sprite:
+            if not sprite.entry.get('rect'):
+                sprite.entry['resolution'] = sprite.resolution * FACTOR
+            sprite.set_size(c.new_size)
+            for p in self.placements:
+                if p.sprite is sprite:
+                    p.scale = round(p.scale / FACTOR, 4)
+                    if p.collision_box:
+                        p.collision_box = tuple(v * FACTOR for v in p.collision_box)
+            getattr(self, '_thumbs', {}).pop(sprite.key, None)
+        self.moves.forget()                             # the map file changed
+        self.mark_dirty()
+        placed = sum(1 for p in self.placements if p.sprite is sprite)
+        self.status = (f'{c.stem} is upscaled: {len(changed)} on the map at half their Scale'
+                       + (f', {placed} placements too' if placed else '')
+                       + f'; the old picture is kept as output/upscaled/replaced/{backup.name}')
+        self.toast.show(f'{c.stem} upscaled for good')
+
     def _status_frame(self):
         """Draw once now, so a status line shows before something slow."""
         self.draw()
@@ -438,10 +547,18 @@ class PlacingHelper(RoofMode):
                 elif result in ('quit', 'quit now'):
                     self.finish_note()
                     self.save_now()
+                    self.upscaler.discard_all()
                     pygame.quit()
                     return
             if self.dirty_at is not None and pygame.time.get_ticks() - self.dirty_at > AUTOSAVE_MS:
                 self.save_now()
+            for c in self.upscaler.poll():
+                if c.state == 'ready':
+                    self.status = (f'{c.stem} upscaled, {c.old_size[0]} x {c.old_size[1]} to {c.new_size[0]} x '
+                                   f'{c.new_size[1]} px: shown on the map now; V the old one, then Accept or Discard')
+                    self.toast.show(f'{c.stem} upscaled')
+                else:
+                    self.status = f'Upscaling {c.stem} failed: {c.error}'
             self.draw()
             pygame.display.flip()
             self.clock.tick(FPS)
@@ -596,6 +713,12 @@ class PlacingHelper(RoofMode):
             return None
         k, mods = event.key, event.mod
         shift = mods & pygame.KMOD_SHIFT
+        if k == pygame.K_u and mods & pygame.KMOD_CTRL:
+            self.start_upscale()
+            return None
+        if k == pygame.K_v and self.chosen_candidate() and self.chosen_candidate().state == 'ready':
+            self.compare_upscale()
+            return None
         if k == pygame.K_ESCAPE:
             if self.ghost:
                 self.ghost = None
@@ -1006,6 +1129,8 @@ class PlacingHelper(RoofMode):
         if self.unsaved() and self.save_lights_button.hit(pos):
             self.save_map()
             return
+        if self.upscale_click(pos):
+            return
         if self.chosen_thing:
             thing = self.chosen_thing
             if self.put_back_button.hit(pos):
@@ -1221,13 +1346,15 @@ class PlacingHelper(RoofMode):
 
     def _placement_drawer(self, p):
         def draw(screen, ox, oy, zoom):
-            image = self.scene.image(p.sprite.path, p.scale * zoom)
+            path, scale = self.scene.shown(p.sprite.path, p.scale)   # an upscaled one, if shown
+            image = self.scene.image(path, scale * zoom)
             screen.blit(image, (ox + round(p.x * zoom), oy + round(p.y * zoom) - image.get_height()))
         return draw
 
     def _ghost_drawer(self, point):
         def draw(screen, ox, oy, zoom):
-            image = self.scene.image(self.ghost.path, self.ghost_scale * zoom).copy()
+            path, scale = self.scene.shown(self.ghost.path, self.ghost_scale)
+            image = self.scene.image(path, scale * zoom).copy()
             image.set_alpha(GHOST_ALPHA)
             screen.blit(image, (ox + round(point[0] * zoom), oy + round(point[1] * zoom) - image.get_height()))
         return draw
@@ -1447,10 +1574,12 @@ class PlacingHelper(RoofMode):
         self.goto_button.draw(self.screen, small, mouse)
         if s.layer == 'Houses':
             self.reset_box_button.draw(self.screen, small, mouse)
-        y += 44
+        y = self.draw_upscale_strip(box, y + 44, mouse)
         tips = ('Drag it on the map, its collision box by the white handles. '
                 '[ ] or Ctrl+wheel scale, arrows nudge, D another one.')
         for line in wrap_text(small, tips, box.w, 3):
+            if y > box.bottom - 18:
+                break
             self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
             y += 19
 
@@ -1485,7 +1614,7 @@ class PlacingHelper(RoofMode):
         for button in (self.put_back_button, self.goto_button, self.another_button):
             button.draw(self.screen, small, mouse)
         self.another_button.enabled = True
-        y += 44
+        y = self.draw_upscale_strip(box, y + 44, mouse)
         tips = ('Drag it on the map, arrows nudge it (a tile, a pixel with G off). Doors, window lights, '
                 'smoke and roofs move with it. Paths, painted ground and fields stay. "Save to map" writes it.')
         for line in wrap_text(small, tips, box.w, 4):
@@ -1493,6 +1622,50 @@ class PlacingHelper(RoofMode):
                 break
             self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
             y += 19
+
+    def draw_upscale_strip(self, box, y, mouse):
+        """Upscaling the chosen sprite: the button, the work going on, or old / new, Accept and Discard."""
+        small, picture = self.fonts.small, self.chosen_picture()
+        if not picture:
+            return y
+        file_name, _, layer = picture
+        c = self.upscaler.candidates.get(file_name)
+        buttons = []
+        if c is None or c.state == 'failed':
+            refusal = self.upscaler.refusal(file_name, layer)
+            if refusal:
+                for line in wrap_text(small, f'Upscaling: not here, {refusal}', box.w, 2):
+                    self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
+                    y += 19
+                return y + 6
+            if c is not None:
+                text = small.render(fit_text(small, f'Upscaling failed: {c.error}', box.w), True, ERROR_COLOR)
+                self.screen.blit(text, (box.x, y))
+                y += 20
+            buttons = [self.upscale_button]
+            note = f'with Upscayl ({MODEL})'
+        elif c.state == 'running':
+            seconds = int(time.monotonic() - c.started)
+            text = small.render(f'Upscaling {c.stem} with Upscayl ...  {seconds} s', True, DONE_COLOR)
+            self.screen.blit(text, (box.x, y + 8))
+            return y + 40
+        else:
+            shown = 'the new one' if c.showing_new else 'the old one'
+            line = f'{c.old_size[0]} x {c.old_size[1]} to {c.new_size[0]} x {c.new_size[1]} px, showing {shown}'
+            self.screen.blit(small.render(fit_text(small, line, box.w), True, DONE_COLOR if c.showing_new else TEXT),
+                             (box.x, y))
+            y += 22
+            buttons = [self.compare_button, self.accept_upscale_button, self.discard_upscale_button]
+            note = ''
+        x = box.x
+        for button in buttons:
+            button.rect.topleft = (x, y)
+            button.draw(self.screen, small, mouse)
+            x = button.rect.right + 8
+        if note and x + 20 < box.right:
+            text = small.render(fit_text(small, note, box.right - x), True, TEXT_DIM)
+            self.screen.blit(text, text.get_rect(midleft=(x, self.upscale_button.rect.centery)))
+        return y + 42
 
     def draw_light_detail(self, box, mouse):
         light, small = self.edit_light, self.fonts.small
