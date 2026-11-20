@@ -81,6 +81,11 @@ Keys:
                        has its keys: click a roof, drag its points, click an edge for a new one,
                        right-click a point to take it away, P a new roof, H a new hole, Ctrl+Z
                        undo); saved into Map1.tmx with the lights
+    W                  fence mode: draw where fences and walls are to go, for Claude to design
+                       (fence_mode.py has its keys: a click per post, runs across or down,
+                       right-click or Enter ends a line, G gates, [ ] their width, 1 2 3
+                       wood, stone, metal, N a new fence, a description per fence typed in the
+                       panel); saved as you go to fence_plans.json (fence_plans.py has the format)
     G                  snap to the tile grid on / off
     X                  the tile raster drawn over the map on / off (the panel's switch too)
     Tab, U             next tab, only sprites not on the map on / off
@@ -96,7 +101,9 @@ Upscayl, compared and put in), object_moves.py (buildings on the
 map moved with what belongs to them, and writing that into the map), light_edits.py (window lights
 moved, resized, removed, and writing them into the map), roof_edits.py (the
 roofs and holes, their undo, and writing them into the map), roof_mode.py
-(the roof mode's input and drawing), this file (the window).
+(the roof mode's input and drawing), fence_plans.py (the fences drawn, their
+pieces and the file), fence_mode.py (the fence mode's input and drawing),
+this file (the window).
 """
 
 import json
@@ -119,6 +126,7 @@ from map_scene import LIGHT_MODES, TABS, TILE, BuildingLight, Scene, boxes_overl
 from object_moves import ObjectMoves  # noqa: E402
 from placements import Placement, load, save  # noqa: E402
 from roof_mode import ROOF_KEYS_HINT, RoofMode  # noqa: E402
+from fence_mode import FENCE_KEYS_HINT, FenceMode  # noqa: E402
 from upscaling import FACTOR, MODEL, Upscaler  # noqa: E402
 from theme import (  # noqa: E402
     BAR_BG, BG, CARD_BG, CARD_HOVER, CARD_SELECTED, CHIP_HEIGHT, DIALOG_LINE, DONE_COLOR, ERROR_COLOR,
@@ -129,6 +137,7 @@ from widgets import Button, Fonts, TextField, Toast, draw_chips, fit_text, wrap_
 WINDOW_TITLE = "Merchant's Rise - Placing Helper"
 WINDOW_SIZE = (1600, 940)
 PLACEMENTS_FILE = HERE / 'placements.json'
+FENCE_PLANS_FILE = HERE / 'fence_plans.json'
 PANEL_W = 380
 PAD = 14
 ROW_H = 84
@@ -160,7 +169,7 @@ MIN_BOX_PX = 4                      # sprite px a collision box keeps at least
 FIGURE_GRAB_PX = 18              # world px around a figure's feet that take it away
 #: Which tabs show only the sprites not on the map at first; trees are planted again and again
 UNPLACED_ONLY = {'Buildings': True, 'Decoration': True, 'Trees': False}
-KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   X raster   C collision   T night   L lights   O roofs   F figure   '
+KEYS_HINT = ('Wheel zoom   [ ] scale   G grid   X raster   C collision   T night   L lights   O roofs   W fences   F figure   '
              'D another   Enter note   Del delete   Click a building on the map: move it')
 LIGHT_LABELS = {'none': 'No lights', 'random': 'As in game  (L)', 'all': 'All lights'}
 RASTER_COLOUR = (255, 255, 255, 60)  # the tile raster's lines (X)
@@ -178,7 +187,7 @@ ROOF_OUTLINE = (60, 200, 255)       # and its roofs (holes in HOLE_OUTLINE)
 HOLE_OUTLINE = (255, 150, 40)
 
 
-class PlacingHelper(RoofMode):
+class PlacingHelper(RoofMode, FenceMode):
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode(WINDOW_SIZE, pygame.RESIZABLE)
@@ -240,6 +249,7 @@ class PlacingHelper(RoofMode):
         self.dialog_buttons = [Button('Save', w=140, h=40), Button('Discard', w=140, h=40),
                                Button('Keep editing', w=160, h=40)]
         self.init_roofs()                 # the roof mode's (roof_mode.py)
+        self.init_fences(FENCE_PLANS_FILE)   # the fence mode's (fence_mode.py)
         self.moves = ObjectMoves(self.scene, self.edits, self.roof_edits)   # buildings on the map moved
         self.chosen_thing = None          # the building or decoration on the map chosen (a map_scene.Thing)
         self.put_back_button = Button('Put back  (R)', w=124, h=34)
@@ -611,6 +621,7 @@ class PlacingHelper(RoofMode):
                     self.dialog = True        # ask first: save the changes to the map?
                 elif result in ('quit', 'quit now'):
                     self.finish_note()
+                    self.commit_fence_desc()
                     self.save_now()
                     self.upscaler.discard_all()
                     pygame.quit()
@@ -638,6 +649,9 @@ class PlacingHelper(RoofMode):
             return None
         if event.type == pygame.TEXTINPUT and self.note_field.focused:
             self.note_field.type(event.text)
+            return None
+        if event.type == pygame.TEXTINPUT and self.fence_desc.focused:
+            self.fence_desc.type(event.text)
             return None
         if event.type == pygame.KEYDOWN:
             return self.key(event)
@@ -770,10 +784,20 @@ class PlacingHelper(RoofMode):
             if self.note_field.key(event) == 'done':
                 self.finish_note()
             return None
+        if self.fence_mode and self.fence_desc.focused:
+            self.fence_key(event)
+            return None
         if event.key == pygame.K_o and not event.mod & pygame.KMOD_CTRL:
+            if not self.roof_mode and self.fence_mode:
+                self.set_fence_mode(False)
             self.set_roof_mode(not self.roof_mode)
             return None
+        if event.key == pygame.K_w and not event.mod & pygame.KMOD_CTRL:
+            self.set_fence_mode(not self.fence_mode)
+            return None
         if self.roof_mode and self.roof_key(event):
+            return None
+        if self.fence_mode and self.fence_key(event):
             return None
         if self.edit_light and self.edit_key(event):
             return None
@@ -899,6 +923,9 @@ class PlacingHelper(RoofMode):
             return
         if self.roof_mode:
             self.roof_mouse_down(pos)
+            return
+        if self.fence_mode:
+            self.fence_mouse_down(pos)
             return
         if self.ghost:
             self.put_down(pos, keep=bool(pygame.key.get_mods() & pygame.KMOD_SHIFT))
@@ -1082,6 +1109,9 @@ class PlacingHelper(RoofMode):
         if self.roof_mode:
             self.set_cursor(self.roof_cursor(mouse))
             return
+        if self.fence_mode:
+            self.set_cursor(self.fence_cursor(mouse))
+            return
         if self.drag and self.drag[0] in ('edge', 'light'):
             edges = self.drag[2]
         elif (self.drag and self.drag[0] == 'thing') or (
@@ -1125,6 +1155,9 @@ class PlacingHelper(RoofMode):
         elif self.drag[0] == 'maybe' and self.roof_mode:
             if self.drag[3] == 3:
                 self.roof_right_click(event.pos)
+        elif self.drag[0] == 'maybe' and self.fence_mode:
+            if self.drag[3] == 3:
+                self.fence_right_click(event.pos)
         elif self.drag[0] == 'maybe':
             # A click without a drag: on empty ground it lets go of the choice,
             # with the right button it also drops what is on the mouse
@@ -1164,7 +1197,13 @@ class PlacingHelper(RoofMode):
                 return
         for rect, _ in self.roof_chips:
             if rect.collidepoint(pos):
+                if not self.roof_mode and self.fence_mode:
+                    self.set_fence_mode(False)
                 self.set_roof_mode(not self.roof_mode)
+                return
+        for rect, _ in self.fence_chips:
+            if rect.collidepoint(pos):
+                self.set_fence_mode(not self.fence_mode)
                 return
         for rect, value in self.toggle_chips:
             if rect.collidepoint(pos):
@@ -1180,6 +1219,8 @@ class PlacingHelper(RoofMode):
             if rect.collidepoint(pos):
                 if self.roof_mode:
                     self.set_roof_mode(False)
+                if self.fence_mode:
+                    self.set_fence_mode(False)
                 self.ghost = sprite
                 self.ghost_scale = 1.0
                 self.choose(None)
@@ -1187,6 +1228,9 @@ class PlacingHelper(RoofMode):
                 return
         if self.roof_mode:
             self.roof_panel_click(pos)
+            return
+        if self.fence_mode:
+            self.fence_panel_click(pos)
             return
         if self.edit_light:
             if self.remove_light_button.hit(pos):
@@ -1312,11 +1356,13 @@ class PlacingHelper(RoofMode):
             pygame.draw.rect(self.screen, (0, 0, 0), (lx, ly, label.get_width() + 6, label.get_height()))
             self.screen.blit(label, (lx + 3, ly))
         self.draw_moved_things(ox, oy)
-        if not self.roof_mode:
+        if not self.roof_mode and not self.fence_mode:
             self.draw_light_marks(mouse)
         self.screen.set_clip(None)
         if self.roof_mode:
             self.draw_roofs(area, mouse)
+        if self.fence_mode or self.fence_plans.fences:
+            self.draw_fences(area, mouse)
 
         self.update_cursor(mouse)
         self.draw_overlay(area, mouse, ghost_point)
@@ -1493,7 +1539,7 @@ class PlacingHelper(RoofMode):
         pygame.draw.rect(self.screen, BAR_BG, bar)
         status = self.fonts.small.render(fit_text(self.fonts.small, self.status, area.w // 2 - 20), True, TEXT)
         self.screen.blit(status, status.get_rect(midleft=(bar.x + 10, bar.centery)))
-        keys = ROOF_KEYS_HINT if self.roof_mode else KEYS_HINT
+        keys = ROOF_KEYS_HINT if self.roof_mode else FENCE_KEYS_HINT if self.fence_mode else KEYS_HINT
         hint = self.fonts.small.render(fit_text(self.fonts.small, keys, area.w // 2 - 20), True, TEXT_DIM)
         self.screen.blit(hint, hint.get_rect(midright=(bar.right - 10, bar.centery)))
 
@@ -1532,9 +1578,11 @@ class PlacingHelper(RoofMode):
         y += 6
         self.game_chips, _ = draw_chips(self.screen, self.fonts.font, ['game'], lambda _: 'Game look  (M)',
                                         'game' if self.game_look else None, x, y, panel.w - 2 * PAD, mouse)
-        note = (f'zoom {self.game_zoom:g}, frame x{self.stretch:.2f}' if self.game_look
-                else 'as sharp and large as in the game')
-        gx = self.game_chips[0][0].right + 10
+        fx = self.game_chips[0][0].right + 8
+        self.fence_chips, _ = draw_chips(self.screen, self.fonts.font, ['fences'], lambda _: 'Fence mode  (W)',
+                                         'fences' if self.fence_mode else None, fx, y, panel.right - PAD - fx, mouse)
+        note = f'zoom {self.game_zoom:g}, frame x{self.stretch:.2f}' if self.game_look else ''
+        gx = self.fence_chips[0][0].right + 10
         text = self.fonts.small.render(fit_text(self.fonts.small, note, panel.right - PAD - gx), True, TEXT_DIM)
         self.screen.blit(text, text.get_rect(midleft=(gx, self.game_chips[0][0].centery)))
         self.draw_list(mouse)
@@ -1586,6 +1634,9 @@ class PlacingHelper(RoofMode):
         y = box.y + 4
         small = self.fonts.small
         self.pending_rows = []
+        if self.fence_mode:
+            self.draw_fence_detail(box, mouse)
+            return
         if self.roof_mode:
             self.draw_roof_detail(box, mouse)
             return

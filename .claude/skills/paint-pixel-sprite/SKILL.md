@@ -1,6 +1,6 @@
 ---
 name: paint-pixel-sprite
-description: Paint a map sprite for Merchant's Rise by code, pixel by pixel, instead of asking the image model, e.g. fence and wall pieces (build_tools/Sprite_Manager/stone_wall_painter.py), and later other regular, repetitive sprites (paving, railings, crates, roofs' details). Use when the user asks Claude to draw/design/paint a sprite itself, when Gemini's answers for a sprite keep coming back crooked, in perspective or inconsistent, or when a new fence/wall style should get painted pieces.
+description: Paint a map sprite for Merchant's Rise by code, pixel by pixel, instead of asking the image model, e.g. fence and wall pieces (build_tools/Sprite_Manager/stone_wall_painter.py) and gates, and later other regular, repetitive sprites (paving, railings, crates, roofs' details). Also how to design and lay the fences the user drew in the Placing Helper's fence mode (build_tools/Placing_Helper/fence_plans.json). Use when the user asks to build, design or place the fences they drew, when the user asks Claude to draw/design/paint a sprite itself, when Gemini's answers for a sprite keep coming back crooked, in perspective or inconsistent, or when a new fence/wall style should get painted pieces.
 ---
 
 # Paint a sprite by code
@@ -11,6 +11,30 @@ wander, pieces don't join. Those are better painted here, deterministic and on
 the exact raster. The working example is
 `build_tools/Sprite_Manager/stone_wall_painter.py` (the churchyard wall); read
 it first and extend it rather than starting over.
+
+## Fences the user drew (Placing Helper, fence mode)
+
+The user draws fences in the Placing Helper (W) and leaves them in
+`build_tools/Placing_Helper/fence_plans.json`. Per fence: `material`,
+`description` (how it is to look, in their words: follow it), `plan` (the
+pieces between corners and gates, `[orientation, tiles, x, y]` from the
+top-left post), `gate_plan` and `origin_px` (that post's foot). To build one:
+
+1. Make a style for it with the Sprite Manager's fences code
+   (`fences.create_style`, or a folder `assets/map_sprites/houses/fences/<style>/`
+   with a `fence.json`: material, `posts_every`, height, the description, the
+   `lengths` the plan needs per orientation, and the `plan` copied over).
+2. Paint every piece the plan names (below; `stone_wall_painter.py` for a stone
+   wall with pillars at its ends, a painter of its own for anything else),
+   preview the whole plan laid out, show it to the user.
+3. A gate gap of 2 tiles in a row gets a `Gate`; paint its three pictures
+   (shut, open down, open up) like `iron_gate_painter.py`. A gap in a vertical
+   run has no gate yet (the game's Gate only swings up or down the picture).
+4. Lay it: `python build_tools/Sprite_Manager/place_fence.py <style> <origin x> <origin y>
+   --name <Name> [--gate <pictures>]` (`--dry-run` first), render the spot
+   with the place-building skill's `render`, load the map headless, and check
+   the gates on the `NavGrid`.
+5. Take the fence out of `fence_plans.json` once it is on the map (or ask).
 
 ## Workflow
 

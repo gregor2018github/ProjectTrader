@@ -69,6 +69,9 @@ build_tools/output/
 # Placements waiting to be put on the map (build_tools/Placing_Helper)
 build_tools/Placing_Helper/placements.json
 build_tools/Placing_Helper/placements.tmp
+# Fences drawn in its fence mode, for Claude to design
+build_tools/Placing_Helper/fence_plans.json
+build_tools/Placing_Helper/fence_plans.tmp
 
 # Release builds (build_tools/Release)
 /release/
