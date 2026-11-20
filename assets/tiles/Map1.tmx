@@ -12706,13 +12706,13 @@
    <properties>
     <property name="Col_margin_down_pixel" type="int" value="0"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
-    <property name="Col_margin_right_pixel" type="int" value="-1"/>
-    <property name="Col_margin_up_pixel" type="int" value="-23"/>
-    <property name="Collision_to_right" type="int" value="1"/>
-    <property name="Collision_up" type="int" value="1"/>
+    <property name="Col_margin_right_pixel" type="int" value="-2"/>
+    <property name="Col_margin_up_pixel" type="int" value="-46"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="2"/>
     <property name="Epitaph" value="knight"/>
     <property name="File_name" value="Deco_21.png"/>
-    <property name="Scale" type="float" value="2.52"/>
+    <property name="Scale" type="float" value="1.26"/>
     <property name="Tiles_to_right" type="int" value="1"/>
     <property name="Tiles_up" type="int" value="2"/>
    </properties>
