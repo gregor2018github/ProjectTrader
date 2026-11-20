@@ -218,6 +218,11 @@ class Scene:
         self.lights = []                         # the game's Light: one window each
         self.light_groups = {}                   # {building name: BuildingLightGroup}, the shaped windows
         self.roofs = []                          # (obj_id, building name, is a hole, world points) of the Roofs layer
+        #: Drawn as the game draws it (the Placing Helper's "Game look"): each picture made at its
+        #: Scale first and then for the zoom (game_picture), the ground tile by tile
+        self.game_look = False
+        self.game_pictures = OrderedDict()       # {(path, scale, zoom): Surface}, as `scaled`
+        self.game_pixels = 0
         #: Pictures drawn in another's place, {path: (path, factor)}: an upscaled candidate
         #: shown instead of its sprite, at 1/factor of the scale (upscaling.py)
         self.swaps = {}
@@ -328,6 +333,40 @@ class Scene:
         for key in [k for k in self.scaled if k[0] == path]:
             image = self.scaled.pop(key)
             self.scaled_pixels -= image.get_width() * image.get_height()
+        for key in [k for k in self.game_pictures if k[0] == path]:
+            image = self.game_pictures.pop(key)
+            self.game_pixels -= image.get_width() * image.get_height()
+
+    def picture(self, path, scale, zoom):
+        """A sprite drawn at its Scale and the zoom: as the game makes it with the game look on."""
+        return self.game_picture(path, scale, zoom) if self.game_look else self.image(path, scale * zoom)
+
+    def game_picture(self, path, scale, zoom):
+        """A sprite as the game makes it (House._load_picture and get_scaled_sprite, Tree likewise):
+        smoothed to its size on the map at its Scale, then blown up pixel by pixel for a zoom that
+        enlarges it, or smoothed down, or, below a Scale of 1, smoothed from the full-size PNG."""
+        scale, zoom = round(scale, 4), round(zoom, 3)
+        key = (path, scale, zoom)
+        image = self.game_pictures.get(key)
+        if image is not None:
+            self.game_pictures.move_to_end(key)
+            return image
+        src = self.source(path)
+        world = src if scale == 1 else self.image(path, scale) if scale < 1 else pygame.transform.smoothscale(
+            src, (max(1, round(src.get_width() * scale)), max(1, round(src.get_height() * scale))))
+        size = (max(1, int(round(world.get_width() * zoom))), max(1, int(round(world.get_height() * zoom))))
+        if scale < 1:
+            image = pygame.transform.smoothscale(src, size)
+        elif size[0] >= world.get_width() or size[1] >= world.get_height():
+            image = pygame.transform.scale(world, size)
+        else:
+            image = pygame.transform.smoothscale(world, size)
+        self.game_pictures[key] = image
+        self.game_pixels += size[0] * size[1]
+        while self.game_pixels > SPRITE_CACHE_PIXELS and len(self.game_pictures) > 1:
+            _, old = self.game_pictures.popitem(last=False)
+            self.game_pixels -= old.get_width() * old.get_height()
+        return image
 
     def source(self, path):
         image = self.sources.get(path)
@@ -380,6 +419,8 @@ class Scene:
     # ----- ground
 
     def _make_chunk(self, zoom, cx, cy):
+        if self.game_look:
+            return self._make_game_chunk(zoom, cx, cy)
         surface = pygame.Surface((CHUNK_PX, CHUNK_PX))
         surface.fill(MISSING_GROUND)
         images = self.tmx.images
@@ -399,12 +440,49 @@ class Scene:
             surface = pygame.transform.smoothscale(surface, (size, size))
         elif zoom > 1:
             surface = pygame.transform.scale(surface, (size, size))
-        self.chunks[(zoom, cx, cy)] = surface
-        self.chunk_pixels += size * size
+        return self._keep_chunk((zoom, cx, cy), surface)
+
+    def _keep_chunk(self, key, surface):
+        self.chunks[key] = surface
+        self.chunk_pixels += surface.get_width() * surface.get_height()
         while self.chunk_pixels > CHUNK_CACHE_PIXELS and len(self.chunks) > 1:
             _, old = self.chunks.popitem(last=False)
             self.chunk_pixels -= old.get_width() * old.get_height()
         return surface
+
+    def _game_tile(self, gid, zoom):
+        """A tile as TMXMap._get_scaled_tile makes it: blown up pixel by pixel, or smoothed down."""
+        cache = self.__dict__.setdefault('_game_tiles', {})
+        key = (gid, zoom)
+        if key not in cache:
+            image = self.tmx.images[gid]
+            if image is None:
+                cache[key] = None
+            else:
+                size = (max(1, int(round(image.get_width() * zoom))), max(1, int(round(image.get_height() * zoom))))
+                cache[key] = (pygame.transform.scale(image, size)
+                              if size[0] >= image.get_width() or size[1] >= image.get_height()
+                              else pygame.transform.smoothscale(image, size))
+        return cache[key]
+
+    def _make_game_chunk(self, zoom, cx, cy):
+        """A ground chunk as the game's GroundChunks lays it: each tile scaled on its own, laid on
+        whole scaled tiles, aligned to the bottom-left of its cell as Tiled does."""
+        scaled = round(TILE * zoom)
+        surface = pygame.Surface((CHUNK_TILES * scaled, CHUNK_TILES * scaled))
+        surface.fill(MISSING_GROUND)
+        x0, y0 = cx * CHUNK_TILES, cy * CHUNK_TILES
+        for layer in self.ground:
+            data = layer.data
+            for ty in range(y0, min(y0 + CHUNK_TILES, self.tmx.height)):
+                row = data[ty]
+                for tx in range(x0, min(x0 + CHUNK_TILES, self.tmx.width)):
+                    gid = row[tx]
+                    if gid:
+                        image = self._game_tile(gid, zoom)
+                        if image is not None:
+                            surface.blit(image, ((tx - x0) * scaled, (ty - y0) * scaled - (image.get_height() - scaled)))
+        return self._keep_chunk(('game', zoom, cx, cy), surface)
 
     # ----- drawing
 
@@ -423,12 +501,12 @@ class Scene:
         oy = area.y - round(cam_y * zoom)
         view = (cam_x, cam_y, cam_x + area.w / zoom, cam_y + area.h / zoom)
 
-        size = round(CHUNK_PX * zoom)
+        size = round(TILE * zoom) * CHUNK_TILES if self.game_look else round(CHUNK_PX * zoom)
         deadline = time.perf_counter() + CHUNK_BUDGET_S
         missing = 0
         for cy in range(max(0, int(view[1] // CHUNK_PX)), min(math.ceil(self.height / CHUNK_PX), int(view[3] // CHUNK_PX) + 1)):
             for cx in range(max(0, int(view[0] // CHUNK_PX)), min(math.ceil(self.width / CHUNK_PX), int(view[2] // CHUNK_PX) + 1)):
-                key = (zoom, cx, cy)
+                key = ('game', zoom, cx, cy) if self.game_look else (zoom, cx, cy)
                 chunk = self.chunks.get(key)
                 if chunk is not None:
                     self.chunks.move_to_end(key)
@@ -472,7 +550,7 @@ class Scene:
                 item(screen, ox, oy, zoom)
             else:
                 path, scale = self.shown(item.path, item.scale)
-                image = self.image(path, scale * zoom)
+                image = self.picture(path, scale, zoom)
                 screen.blit(image, (ox + round(item.x * zoom), oy + round(item.y * zoom) - image.get_height()))
         if night is not None:
             self._darken(screen, area, lit)

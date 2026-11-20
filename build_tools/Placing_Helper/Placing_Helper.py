@@ -45,6 +45,14 @@ and put in with it: a market booth's closed picture, a gate's open ones, a
 mill's blades. A tree on the map is chosen with a click too, to be upscaled
 (not moved). "Discard" drops it.
 
+M (or the "Game look" switch) shows the map as the game draws it: only the
+game's zoom steps (GAME_ZOOMS), each sprite made as the game makes it (first
+smoothed to its size at its Scale, then for the zoom: blown up pixel by
+pixel, so a sprite drawn larger than its PNG is soft, or smoothed down), the
+ground tile by tile, and the whole stretched as the game's 1920 x 1080 frame
+is stretched onto this screen (settings.json's "resolution"), so things are
+as large and as sharp here as there.
+
 Keys:
     Mouse wheel        zoom (towards the pointer); Ctrl+wheel scales the held or chosen sprite
     Drag (left on empty ground, right or middle anywhere)   pan; arrows pan too
@@ -78,6 +86,7 @@ Keys:
     Tab, U             next tab, only sprites not on the map on / off
     Ctrl+U             upscale the chosen placement's or building's sprite twice with Upscayl
     V                  with an upscaled one ready: show the old or the new picture
+    M                  game look on / off: the game's zoom steps, sharpness and size on this screen
     Ctrl+S             save now (it saves by itself anyway)
     Escape             drop what is on the mouse, then the choice, then close
 
@@ -90,6 +99,7 @@ roofs and holes, their undo, and writing them into the map), roof_mode.py
 (the roof mode's input and drawing), this file (the window).
 """
 
+import json
 import math
 import os
 import sys
@@ -128,6 +138,11 @@ FOOTER_H = 30
 FPS = 60
 ZOOMS = (0.125, 0.1875, 0.25, 0.375, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0)
 START_ZOOM = 4
+#: The game's own zoom steps (GameMap.zoom_levels in src/models/map.py), and where it starts
+GAME_ZOOMS = (0.5, 0.75, 1.0, 1.25, 1.5, 1.75)
+GAME_START_ZOOM = 5                 # MAP_START_ZOOM, 1.75
+GAME_FRAME = (1920, 1080)           # the game's frame, stretched to fit the screen (main.py)
+SETTINGS_FILE = HERE.parents[1] / 'settings.json'
 SCALE_STEP, SCALE_FINE = 0.05, 0.01
 WHEEL_SCALE_STEP = 0.02
 MIN_SCALE, MAX_SCALE = 0.1, 4.0
@@ -183,6 +198,13 @@ class PlacingHelper(RoofMode):
         self.placements = placements
         self.figures = list(figures)
         self.next_id = max((p.id for p in placements), default=0) + 1
+        self.game_look = False            # drawn as the game draws it (M)
+        self._zoom_index = START_ZOOM
+        self._game_zoom_index = GAME_START_ZOOM
+        self.stretch = 1.0                # how much the game's frame is stretched onto this screen
+        self.stretch_note = ''
+        self._game_frame = None           # the map drawn at the game's pixels, before the stretch
+        self.game_chips = []
         self.zoom_index = START_ZOOM
         self.cam_x, self.cam_y = self._town_centre()
         if view:
@@ -242,8 +264,43 @@ class PlacingHelper(RoofMode):
     # ----- geometry
 
     @property
+    def zoom_steps(self):
+        return GAME_ZOOMS if self.game_look else ZOOMS
+
+    @property
+    def zoom_index(self):
+        return self._game_zoom_index if self.game_look else self._zoom_index
+
+    @zoom_index.setter
+    def zoom_index(self, index):
+        if self.game_look:
+            self._game_zoom_index = index
+        else:
+            self._zoom_index = index
+
+    @property
     def zoom(self):
-        return ZOOMS[self.zoom_index]
+        """Screen pixels per world pixel: with the game look, the game's zoom stretched as its frame is."""
+        if self.game_look:
+            return GAME_ZOOMS[self._game_zoom_index] * self.stretch
+        return ZOOMS[self._zoom_index]
+
+    @property
+    def game_zoom(self):
+        """The zoom the scene is drawn at: the game's own with the game look (before the stretch)."""
+        return GAME_ZOOMS[self._game_zoom_index] if self.game_look else self.zoom
+
+    def set_game_look(self, on):
+        """The game look on or off, keeping the middle of the view where it is."""
+        area = self.map_area()
+        mid = self.to_world(area.center)
+        if on:
+            self.stretch, self.stretch_note = game_stretch()
+        self.game_look = on
+        self.scene.game_look = on
+        self.centre_on(*mid)
+        self.status = (f'Game look: zoom {self.game_zoom:g} as in the game, its frame {self.stretch_note}'
+                       if on else 'Game look off: every zoom step, sprites scaled straight from their PNG')
 
     def map_area(self):
         w, h = self.screen.get_size()
@@ -276,7 +333,7 @@ class PlacingHelper(RoofMode):
         self.cam_y = min(max(self.cam_y, -margin), self.scene.height + margin - area.h / self.zoom)
 
     def set_zoom(self, index, around):
-        index = min(len(ZOOMS) - 1, max(0, index))
+        index = min(len(self.zoom_steps) - 1, max(0, index))
         if index == self.zoom_index:
             return
         wx, wy = self.to_world(around)
@@ -309,7 +366,7 @@ class PlacingHelper(RoofMode):
         self.dirty_at = pygame.time.get_ticks()
 
     def save_now(self):
-        view = {'x': round(self.cam_x), 'y': round(self.cam_y), 'zoom_index': self.zoom_index}
+        view = {'x': round(self.cam_x), 'y': round(self.cam_y), 'zoom_index': self._zoom_index}
         try:
             save(PLACEMENTS_FILE, self.scene, self.placements, self.figures, view)
         except OSError as error:
@@ -526,7 +583,7 @@ class PlacingHelper(RoofMode):
 
     def list_rect(self):
         panel = self.panel_rect()
-        top = PAD + 40 + CHIP_HEIGHT * 4 + 36     # under the tabs and the three rows of switches
+        top = PAD + 40 + CHIP_HEIGHT * 5 + 42     # under the tabs and the four rows of switches
         return pygame.Rect(panel.x + PAD, top, panel.w - 2 * PAD, panel.h - top - DETAIL_H - PAD)
 
     def thumb(self, sprite):
@@ -750,6 +807,8 @@ class PlacingHelper(RoofMode):
             self.status = 'Snapping to the tile grid' if self.snap else 'Free placement, off the grid (--no-snap)'
         elif k == pygame.K_x:
             self.toggle_raster()
+        elif k == pygame.K_m:
+            self.set_game_look(not self.game_look)
         elif k == pygame.K_c:
             self.show_collision = not self.show_collision
         elif k == pygame.K_t:
@@ -1095,6 +1154,10 @@ class PlacingHelper(RoofMode):
             if rect.collidepoint(pos):
                 self.set_night(value == 'night')
                 return
+        for rect, _ in self.game_chips:
+            if rect.collidepoint(pos):
+                self.set_game_look(not self.game_look)
+                return
         for rect, mode in self.light_chips:
             if rect.collidepoint(pos):
                 self.set_light_mode(mode)
@@ -1190,8 +1253,12 @@ class PlacingHelper(RoofMode):
         if self.night:
             # The window being edited is shown lit, whichever are lit tonight
             night = self.lit + ([self.edit_light] if self.edit_light and self.edit_light not in self.lit else [])
-        ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra, self.show_collision,
-                                 night=night)
+        if self.game_look:
+            self.draw_game_frame(area, extra, night)
+            ox, oy = area.x - round(self.cam_x * self.zoom), area.y - round(self.cam_y * self.zoom)
+        else:
+            ox, oy = self.scene.draw(self.screen, area, self.cam_x, self.cam_y, self.zoom, extra,
+                                     self.show_collision, night=night)
 
         self.screen.set_clip(area)
         if self.show_raster:
@@ -1303,6 +1370,20 @@ class PlacingHelper(RoofMode):
             pygame.draw.circle(self.screen, (0, 0, 0), screen(x, y), max(4, round(4 * z)) + 1)
             pygame.draw.circle(self.screen, DOOR_COLOUR, screen(x, y), max(4, round(4 * z)))
 
+    def draw_game_frame(self, area, extra, night):
+        """The map as the game shows it: drawn at the game's zoom into a frame of the game's pixels,
+        then stretched smoothly onto the map area as SDL stretches the game's frame onto the screen."""
+        size = (max(1, math.ceil(area.w / self.stretch)), max(1, math.ceil(area.h / self.stretch)))
+        if self._game_frame is None or self._game_frame.get_size() != size:
+            self._game_frame = pygame.Surface(size).convert()
+        frame = self._game_frame
+        self.scene.draw(frame, frame.get_rect(), self.cam_x, self.cam_y, self.game_zoom, extra,
+                        self.show_collision, night=night)
+        if size == area.size:
+            self.screen.blit(frame, area)
+        else:
+            self.screen.blit(pygame.transform.smoothscale(frame, area.size), area)
+
     def draw_light_marks(self, mouse):
         """The window light under the pointer outlined (lit or not), and the edited one with its handles."""
         area = self.map_area()
@@ -1356,20 +1437,22 @@ class PlacingHelper(RoofMode):
     def _placement_drawer(self, p):
         def draw(screen, ox, oy, zoom):
             path, scale = self.scene.shown(p.sprite.path, p.scale)   # an upscaled one, if shown
-            image = self.scene.image(path, scale * zoom)
+            image = self.scene.picture(path, scale, zoom)
             screen.blit(image, (ox + round(p.x * zoom), oy + round(p.y * zoom) - image.get_height()))
         return draw
 
     def _ghost_drawer(self, point):
         def draw(screen, ox, oy, zoom):
             path, scale = self.scene.shown(self.ghost.path, self.ghost_scale)
-            image = self.scene.image(path, scale * zoom).copy()
+            image = self.scene.picture(path, scale, zoom).copy()
             image.set_alpha(GHOST_ALPHA)
             screen.blit(image, (ox + round(point[0] * zoom), oy + round(point[1] * zoom) - image.get_height()))
         return draw
 
     def draw_overlay(self, area, mouse, ghost_point):
-        lines = [f'Zoom {self.zoom:g}   Grid {"on" if self.snap else "off"}'
+        zoom = (f'Game look   zoom {self.game_zoom:g}   frame x{self.stretch:.2f}' if self.game_look
+                else f'Zoom {self.zoom:g}')
+        lines = [f'{zoom}   Grid {"on" if self.snap else "off"}'
                  + ('   Collision shown' if self.show_collision else '')]
         if area.collidepoint(mouse):
             wx, wy = self.to_world(mouse)
@@ -1443,9 +1526,17 @@ class PlacingHelper(RoofMode):
         self.roof_chips, y = draw_chips(self.screen, self.fonts.font, ['roofs'], lambda _: 'Roof mode  (O)',
                                         'roofs' if self.roof_mode else None, rx, y, panel.right - PAD - rx, mouse)
         y += 6
-        self.light_chips, _ = draw_chips(self.screen, self.fonts.font, LIGHT_MODES,
+        self.light_chips, y = draw_chips(self.screen, self.fonts.font, LIGHT_MODES,
                                          lambda m: LIGHT_LABELS[m], self.light_mode if self.night else None,
                                          x, y, panel.w - 2 * PAD, mouse)
+        y += 6
+        self.game_chips, _ = draw_chips(self.screen, self.fonts.font, ['game'], lambda _: 'Game look  (M)',
+                                        'game' if self.game_look else None, x, y, panel.w - 2 * PAD, mouse)
+        note = (f'zoom {self.game_zoom:g}, frame x{self.stretch:.2f}' if self.game_look
+                else 'as sharp and large as in the game')
+        gx = self.game_chips[0][0].right + 10
+        text = self.fonts.small.render(fit_text(self.fonts.small, note, panel.right - PAD - gx), True, TEXT_DIM)
+        self.screen.blit(text, text.get_rect(midleft=(gx, self.game_chips[0][0].centery)))
         self.draw_list(mouse)
         self.draw_detail(mouse)
 
@@ -1736,6 +1827,31 @@ class PlacingHelper(RoofMode):
         self.screen.blit(text, text.get_rect(center=self.screen.get_rect().center))
         pygame.display.flip()
         pygame.event.pump()
+
+
+def game_stretch():
+    """(factor, words): how much the game's 1920 x 1080 frame is stretched onto the screen, by
+    settings.json's "resolution" ("Fullscreen" fills this desktop, "W x H" a window that size;
+    main.py keeps the frame's proportions, with bars beside it)."""
+    res = 'Fullscreen'
+    try:
+        res = json.loads(SETTINGS_FILE.read_text(encoding='utf-8')).get('resolution', res) or res
+    except (OSError, ValueError):
+        pass
+    if res == 'Fullscreen':
+        try:
+            w, h = pygame.display.get_desktop_sizes()[0]
+        except (pygame.error, IndexError):
+            w, h = GAME_FRAME
+        where = f'on this {w} x {h} screen (Fullscreen)'
+    else:
+        try:
+            w, h = (int(v) for v in str(res).lower().split('x'))
+        except ValueError:
+            w, h = GAME_FRAME
+        where = f'in a {w} x {h} window'
+    factor = min(w / GAME_FRAME[0], h / GAME_FRAME[1])
+    return factor, f'stretched x{factor:.2f} {where}'
 
 
 def main():
