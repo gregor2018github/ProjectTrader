@@ -40,7 +40,10 @@ picture's place wherever that sprite is used, as large as before; V switches
 between old and new. "Accept" puts it in: the PNG twice as large (the old one
 kept in build_tools/output/upscaled/replaced/), every object drawn from it
 at half its Scale and its collision numbers doubled in Map1.tmx at once,
-and the placements of it likewise. "Discard" drops it.
+and the placements of it likewise. What goes with the picture is upscaled
+and put in with it: a market booth's closed picture, a gate's open ones, a
+mill's blades. A tree on the map is chosen with a click too, to be upscaled
+(not moved). "Discard" drops it.
 
 Keys:
     Mouse wheel        zoom (towards the pointer); Ctrl+wheel scales the held or chosen sprite
@@ -330,6 +333,10 @@ class PlacingHelper(RoofMode):
         self.edit_light = None
         if thing is None:
             return
+        if thing.layer == 'Trees':
+            self.chosen_thing = thing
+            self.status = f'{thing.file_name} (tree, id {thing.obj_id}): it can be upscaled here, not moved'
+            return
         first = thing.obj_id not in self.moves.moves
         if first:
             self.status = f'Looking up what belongs to {thing.label} ...'
@@ -344,7 +351,7 @@ class PlacingHelper(RoofMode):
 
     def another_of_thing(self, thing):
         """Its sprite on the mouse, to put down a new one like it."""
-        sprite = self.scene.sprite(f'houses/{thing.file_name}')
+        sprite = self.scene.sprite(f'{thing.path.parent.name}/{thing.file_name}')
         if sprite is None:
             self.status = f'{thing.file_name} cannot be placed anew from here (not in the sprite list)'
             return
@@ -373,20 +380,20 @@ class PlacingHelper(RoofMode):
         if not picture:
             self.status = 'Choose a placement or a building on the map to upscale it'
             return
-        file_name, path, layer = picture
-        refusal = self.upscaler.refusal(file_name, layer)
-        if refusal:
-            self.status = f'{file_name} is not upscaled here: {refusal}'
-            return
+        file_name, _, layer = picture
         c = self.upscaler.candidates.get(file_name)
         if c and c.state == 'running':
             return
         try:
-            self.upscaler.start(file_name, path)
+            c = self.upscaler.start(file_name, layer)
+        except ValueError as error:
+            self.status = f'{file_name} is not upscaled: {error}'
+            return
         except OSError as error:
             self.status = f'Could not start Upscayl: {error}'
             return
-        self.status = f'Upscaling {file_name} with Upscayl ...'
+        with_it = f', with {", ".join(c.plan.companions)}' if c.plan.companions else ''
+        self.status = f'Upscaling {file_name}{with_it} with Upscayl ...'
 
     def compare_upscale(self):
         c = self.chosen_candidate()
@@ -412,19 +419,19 @@ class PlacingHelper(RoofMode):
         return True
 
     def accept_upscale(self, c):
-        """Put the upscaled picture in: the PNG, the map's objects and the placements drawn from it."""
+        """Put the upscaled pictures in: the PNGs, the map's objects and the placements drawn from it."""
         try:
-            changed, backup = self.upscaler.accept(c)
+            new_props, backups = self.upscaler.accept(c)
         except (OSError, ValueError) as error:
             self.status = f'Could not put the upscaled {c.stem} in: {error}'
             return
-        new_props = dict(changed)
-        for t in self.scene.things:
-            if t.obj_id in new_props and t.layer == 'Houses':
-                t.props.update(new_props[t.obj_id])
-                t.scale = float(new_props[t.obj_id]['Scale'])
-                t.move_to(t.x, t.y)                     # its collision box again, from the new numbers
-        sprite = self.scene.sprite(f'houses/{c.file_name}')
+        changed = [t for t in self.scene.things if t.layer == c.plan.layer and t.obj_id in new_props]
+        for t in changed:
+            t.props.update(new_props[t.obj_id])
+            t.scale = float(new_props[t.obj_id]['Scale'])
+            t.move_to(t.x, t.y)                         # its collision box again, from the new numbers
+        sprite = self.scene.sprite(f'{c.plan.folder.name}/{c.file_name}')
+        backup = backups[c.file_name]
         if sprite:
             if not sprite.entry.get('rect'):
                 sprite.entry['resolution'] = sprite.resolution * FACTOR
@@ -440,7 +447,8 @@ class PlacingHelper(RoofMode):
         placed = sum(1 for p in self.placements if p.sprite is sprite)
         self.status = (f'{c.stem} is upscaled: {len(changed)} on the map at half their Scale'
                        + (f', {placed} placements too' if placed else '')
-                       + f'; the old picture is kept as output/upscaled/replaced/{backup.name}')
+                       + (f', with {", ".join(c.plan.companions)}' if c.plan.companions else '')
+                       + f'; the old pictures are kept in output/upscaled/replaced/ ({backup.name})')
         self.toast.show(f'{c.stem} upscaled for good')
 
     def _status_frame(self):
@@ -617,6 +625,7 @@ class PlacingHelper(RoofMode):
             # The moves first: they shift what moves along by as much, and the light and roof edits
             # then put what was changed by hand where it is now
             self.moves.save()
+            self.upscaler.forget_plans()
         except (OSError, ValueError) as error:
             self.status = f'Could not write the map, nothing written: {error}'
             return False
@@ -783,7 +792,7 @@ class PlacingHelper(RoofMode):
     def thing_key(self, event):
         """A key while a building on the map is chosen; True if it was its."""
         k, thing = event.key, self.chosen_thing
-        if k in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
+        if k in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN) and thing.layer == 'Houses':
             step = TILE if self.snap else 1
             dx = (k == pygame.K_RIGHT) - (k == pygame.K_LEFT)
             dy = (k == pygame.K_DOWN) - (k == pygame.K_UP)
@@ -854,16 +863,16 @@ class PlacingHelper(RoofMode):
             self.drag = ('move', hit, wx - hit.x, wy - hit.y)
             return
         thing = self.map_thing_at(wx, wy)
-        if thing is not None and thing is self.chosen_thing:
+        if thing is not None and thing is self.chosen_thing and thing.layer == 'Houses':
             # Only the chosen one is dragged, so a drag meant to pan over the town moves nothing
             self.drag = ('thing', thing, wx, wy, thing.x, thing.y)
         else:
             self.drag = ('maybe', pos, (self.cam_x, self.cam_y), 1, thing)
 
     def map_thing_at(self, wx, wy):
-        """The building or decoration on the map drawn frontmost at a world point (not trees)."""
-        thing = self.scene.thing_at(wx, wy)
-        return thing if thing is not None and thing.layer == 'Houses' else None
+        """The building, decoration or tree on the map drawn frontmost at a world point
+        (a tree is chosen to be upscaled, not moved)."""
+        return self.scene.thing_at(wx, wy)
 
     def mouse_move(self, event):
         if not self.drag:
@@ -1388,6 +1397,8 @@ class PlacingHelper(RoofMode):
                           + (f', Scale {thing.scale:g}' if thing.scale != 1 else '') + ')'
                     if thing.layer == 'Houses':
                         tip += '   drag to move' if thing is self.chosen_thing else '   click to move it'
+                    elif thing is not self.chosen_thing:
+                        tip += '   click to choose it (to upscale it)'
                     text = self.fonts.small.render(tip, True, TEXT)
                     tx = min(mouse[0] + 16, area.right - text.get_width() - 12)
                     ty = max(area.y, mouse[1] - 30)
@@ -1610,7 +1621,7 @@ class PlacingHelper(RoofMode):
         self.goto_button.rect.topleft = (self.put_back_button.rect.right + 8, y)
         self.another_button.rect.topleft = (self.goto_button.rect.right + 8, y)
         self.put_back_button.enabled = bool(move and move.moved)
-        self.another_button.enabled = self.scene.sprite(f'houses/{thing.file_name}') is not None
+        self.another_button.enabled = self.scene.sprite(f'{thing.path.parent.name}/{thing.file_name}') is not None
         for button in (self.put_back_button, self.goto_button, self.another_button):
             button.draw(self.screen, small, mouse)
         self.another_button.enabled = True
@@ -1632,12 +1643,16 @@ class PlacingHelper(RoofMode):
         c = self.upscaler.candidates.get(file_name)
         buttons = []
         if c is None or c.state == 'failed':
-            refusal = self.upscaler.refusal(file_name, layer)
-            if refusal:
-                for line in wrap_text(small, f'Upscaling: not here, {refusal}', box.w, 2):
+            plan = self.upscaler.plan(file_name, layer)
+            if plan.problem:
+                for line in wrap_text(small, f'Upscaling: not here, {plan.problem}', box.w, 2):
                     self.screen.blit(small.render(line, True, TEXT_DIM), (box.x, y))
                     y += 19
                 return y + 6
+            if plan.companions:
+                line = f'Upscaled with it: {", ".join(os.path.basename(n) for n in plan.companions)}'
+                self.screen.blit(small.render(fit_text(small, line, box.w), True, TEXT_DIM), (box.x, y))
+                y += 20
             if c is not None:
                 text = small.render(fit_text(small, f'Upscaling failed: {c.error}', box.w), True, ERROR_COLOR)
                 self.screen.blit(text, (box.x, y))
@@ -1646,7 +1661,11 @@ class PlacingHelper(RoofMode):
             note = f'with Upscayl ({MODEL})'
         elif c.state == 'running':
             seconds = int(time.monotonic() - c.started)
-            text = small.render(f'Upscaling {c.stem} with Upscayl ...  {seconds} s', True, DONE_COLOR)
+            part = os.path.basename(c.running_part or c.file_name)
+            done = len(c.plan.parts) - len(c.queue)
+            count = f' ({done + 1} of {len(c.plan.parts)})' if len(c.plan.parts) > 1 else ''
+            text = small.render(fit_text(small, f'Upscaling {part}{count} with Upscayl ...  {seconds} s', box.w),
+                                True, DONE_COLOR)
             self.screen.blit(text, (box.x, y + 8))
             return y + 40
         else:

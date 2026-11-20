@@ -139,7 +139,9 @@ class Sprite:
         if not self.tiled:
             return None
         if self.layer == 'Trees':
-            return tree_collision(x, y, scale, self.tiled)
+            # The catalog's stem is in its atlas pixels' tiles: as many times more in a larger PNG
+            stem = {k: float(self.tiled.get(k, 0) or 0) * self.resolution for k in ('Stem_Position', 'Stem_Thick')}
+            return tree_collision(x, y, scale, stem)
         if 'Collision_to_right' not in self.tiled:
             return None
         return house_collision(x, y, scale, self.tiled)

@@ -81,9 +81,9 @@ when it starts, but only where they were not moved.
    Sprites are usually right at native size. If not, add `--prop Scale=<f>`
    ("one tile smaller" = `(width - 32) / width`; the Old Barn is 0.92). The
    collision box and margins scale with it, so keep the catalog's values.
-   Plain `House` and `Warehouse` objects honour `Scale`; `Mill`, `Well`,
-   `Bank`, `Church`, `Town` and `Market` don't pass it on, so add it in
-   `map.py` first if one of those needs it. Tile-stamped Tiled previews are
+   Every kind honours `Scale`, with all its pictures (`House._load_picture`:
+   a booth's `_closed` one, a gate's open ones; a mill's blades go by the
+   `Scale` of the `Mill_Blades` point on `Special`). Tile-stamped Tiled previews are
    native size on whole tiles, so a scaled or off-grid building instead gets
    an image layer `Preview <name>` (just before `Houses 1`, so most houses
    overlap it) showing a scaled copy from `assets/tiles/previews/`; `place`

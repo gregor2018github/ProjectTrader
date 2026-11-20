@@ -179,29 +179,37 @@ class House:
         if not self.file_name:
             return
 
-        path = os.path.join('assets', 'map_sprites', 'houses', self.file_name)
-        
-        # Try finding the file, add extension if missing
+        image, source = self._load_picture(self.file_name)
+        if image is not None:
+            self.image, self.source_image = image, source
+
+    def _load_picture(self, file_name: str):
+        """One of its pictures in houses/, at its Scale: (picture, full-resolution source or None).
+
+        A sprite drawn at a higher resolution than its world size (Scale below
+        1, as an upscaled one is) keeps its source as well, so zooming in
+        scales it straight to the screen and its detail shows. (None, None)
+        if it cannot be loaded. Every picture of a building (a booth's closed
+        one, a gate's open one) goes through here, so they all follow its Scale.
+        """
+        path = os.path.join('assets', 'map_sprites', 'houses', file_name)
+        if not os.path.exists(path) and os.path.exists(path + '.png'):
+            path = path + '.png'
         if not os.path.exists(path):
-            if os.path.exists(path + '.png'):
-                path = path + '.png'
-        if os.path.exists(path):
-            try:
-                self.image = pygame.image.load(path).convert_alpha()
-                if self.scale != 1.0:
-                    # A sprite drawn at a higher resolution than its world
-                    # size is kept as well, so zooming in scales it straight
-                    # to the screen and its detail shows
-                    if self.scale < 1.0:
-                        self.source_image = self.image
-                    self.image = pygame.transform.smoothscale(self.image, (
-                        max(1, round(self.image.get_width() * self.scale)),
-                        max(1, round(self.image.get_height() * self.scale)),
-                    ))
-            except pygame.error as e:
-                print(f"Failed to load house image: {path} - {e}")
-        else:
-             print(f"House image not found: {path} (original name: {self.file_name})")
+            print(f"House image not found: {path} (original name: {file_name})")
+            return None, None
+        try:
+            image = pygame.image.load(path).convert_alpha()
+        except pygame.error as e:
+            print(f"Failed to load house image: {path} - {e}")
+            return None, None
+        if self.scale == 1.0:
+            return image, None
+        scaled = pygame.transform.smoothscale(image, (
+            max(1, round(image.get_width() * self.scale)),
+            max(1, round(image.get_height() * self.scale)),
+        ))
+        return scaled, image if self.scale < 1.0 else None
 
     def get_scaled_sprite(self, zoom: float) -> Optional[pygame.Surface]:
         """Get the scaled sprite for the current zoom level."""

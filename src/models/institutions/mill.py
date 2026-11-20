@@ -13,13 +13,16 @@ class Mill(House):
     """A mill building with animated rotating blades.
 
     The blade pivot point (world coordinates) is set after the TMX
-    'Special' layer has been parsed, via ``set_blade_pivot()``.
+    'Special' layer has been parsed, via ``set_blade_pivot()``, with the
+    blades' own scale: the `Scale` of the `Mill_Blades` point, as a house's
+    (below 1 when Mill_Blades.png was drawn or upscaled larger than it stands).
     """
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.blade_angle: float = 0.0
         self.blade_pivot: Optional[Tuple[float, float]] = None
+        self.blade_scale: float = 1.0
         self._blade_orig: Optional[pygame.Surface] = None
         self._blade_scaled_cache: Dict[float, pygame.Surface] = {}
         self._load_blade_image()
@@ -36,9 +39,11 @@ class Mill(House):
             except Exception as e:
                 print(f"Failed to load Mill_Blades.png: {e}")
 
-    def set_blade_pivot(self, world_x: float, world_y: float) -> None:
-        """Set the world-space center point around which the blades rotate."""
+    def set_blade_pivot(self, world_x: float, world_y: float, scale: float = 1.0) -> None:
+        """Set the world-space center point around which the blades rotate, and their scale."""
         self.blade_pivot = (world_x, world_y)
+        self.blade_scale = scale if scale > 0 else 1.0
+        self._blade_scaled_cache.clear()
 
     # ------------------------------------------------------------------
     # Animation
@@ -54,7 +59,8 @@ class Mill(House):
         if self._blade_orig is None:
             return 0.0
         width, height = self._blade_orig.get_size()
-        return math.hypot(width * zoom, height * zoom) / 2 + 2
+        size = zoom * self.blade_scale
+        return math.hypot(width * size, height * size) / 2 + 2
 
     def get_blade_sprite(self, zoom: float) -> Optional[pygame.Surface]:
         """Return the rotated blade surface for the current angle and zoom.
@@ -67,8 +73,8 @@ class Mill(House):
 
         zoom_key = round(zoom, 3)
         if zoom_key not in self._blade_scaled_cache:
-            w = round(self._blade_orig.get_width() * zoom)
-            h = round(self._blade_orig.get_height() * zoom)
+            w = round(self._blade_orig.get_width() * zoom * self.blade_scale)
+            h = round(self._blade_orig.get_height() * zoom * self.blade_scale)
             if w > 0 and h > 0:
                 self._blade_scaled_cache[zoom_key] = pygame.transform.smoothscale(
                     self._blade_orig, (w, h)

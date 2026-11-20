@@ -63,7 +63,10 @@ class Market(House):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.open_image: Optional[pygame.Surface] = self.image
-        self.closed_image: Optional[pygame.Surface] = self._load_closed_image()
+        self._open_source: Optional[pygame.Surface] = self.source_image
+        self.closed_image: Optional[pygame.Surface] = None
+        self._closed_source: Optional[pygame.Surface] = None
+        self._load_closed_image()
         self.open_image_cache: Dict[float, pygame.Surface] = self.scaled_image_cache
         self.closed_image_cache: Dict[float, pygame.Surface] = {}
         self.is_closed_sprite: bool = False
@@ -73,18 +76,13 @@ class Market(House):
         #: Hours kept by a booth nobody has been drawn in for.
         self.hours = MarketHours()
 
-    def _load_closed_image(self) -> Optional[pygame.Surface]:
-        """Load the booth's closed sprite; None if the booth has none (it keeps its open sprite)."""
+    def _load_closed_image(self) -> None:
+        """Load the booth's closed sprite at its Scale, as the open one; without one it keeps its open sprite."""
         if not self.file_name:
-            return None
-        stem = os.path.splitext(self.file_name)[0]
-        path = os.path.join('assets', 'map_sprites', 'houses', f"{stem}_closed.png")
-        if os.path.exists(path):
-            try:
-                return pygame.image.load(path).convert_alpha()
-            except pygame.error as e:
-                print(f"Failed to load closed market image: {path} - {e}")
-        return None
+            return
+        closed = f"{os.path.splitext(self.file_name)[0]}_closed.png"
+        if os.path.exists(os.path.join('assets', 'map_sprites', 'houses', closed)):
+            self.closed_image, self._closed_source = self._load_picture(closed)
 
     def is_closed_at(self, current_time: datetime.datetime) -> bool:
         """Whether the booth is shut at the given time.
@@ -108,6 +106,7 @@ class Market(House):
         if closed != self.is_closed_sprite:
             self.is_closed_sprite = closed
             self.image = self.closed_image if closed else self.open_image
+            self.source_image = self._closed_source if closed else self._open_source
             self.scaled_image_cache = self.closed_image_cache if closed else self.open_image_cache
 
     def get_trade_options(self) -> List[str]:

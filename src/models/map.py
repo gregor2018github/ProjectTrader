@@ -518,6 +518,8 @@ class TMXMap:
                     has_max_inhabitants_property = 'Max_inhabitants' in obj.properties
                     max_inhabitants = int(obj.properties.get('Max_inhabitants', 0))
                     obj_class = getattr(obj, 'type', "") or ""
+                    # Every kind draws itself (and its other pictures) at its Scale
+                    scale = float(obj.properties.get('Scale', 1.0))
                     
                     if obj_class == "Gate":
                         # A gate in a wall, opened and shut with a click (gate.py)
@@ -539,6 +541,7 @@ class TMXMap:
                             open_file_name=obj.properties.get('Open_file_name', ''),
                             opens=obj.properties.get('Opens', 'down'),
                             sort_up_pixel=float(obj.properties.get('Sort_up_pixel', 0)),
+                            scale=scale,
                         )
                     elif obj.name.startswith("Church"):
                         house = Church(
@@ -557,7 +560,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                     elif obj.name.startswith("Townhall"):
                         house = Town(
@@ -576,7 +580,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                     elif "Market" in obj.name:
                         house = Market(
@@ -595,7 +600,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                     elif obj.name.startswith("Mill"):
                         house = Mill(
@@ -614,7 +620,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                         self.mills.append(house)
                     elif obj.name.startswith("Well"):
@@ -634,7 +641,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                     elif obj.name.startswith("Bank"):
                         house = Bank(
@@ -653,7 +661,8 @@ class TMXMap:
                             max_inhabitants=max_inhabitants,
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
-                            house_class=obj_class
+                            house_class=obj_class,
+                            scale=scale
                         )
                     elif obj.properties.get('Buy_type') is not None:
                         house = Warehouse(
@@ -680,7 +689,7 @@ class TMXMap:
                             buy_type=str(obj.properties.get('Buy_type', 'Warehouse')),
                             buy_unlock=str(obj.properties.get('Buy_unlock', 'buy_buildings')),
                             tmx_id=int(obj.id),
-                            scale=float(obj.properties.get('Scale', 1.0)),
+                            scale=scale,
                         )
                     else:
                         house = House(
@@ -700,7 +709,7 @@ class TMXMap:
                             has_max_inhabitants_property=has_max_inhabitants_property,
                             name=obj.name,
                             house_class=obj_class,
-                            scale=float(obj.properties.get('Scale', 1.0)),
+                            scale=scale,
                         )
                     # A passage through the building (an archway): two collision boxes either side
                     house.set_collision_gap(float(obj.properties.get('Col_gap_left_pixel', 0)),
@@ -879,7 +888,7 @@ class TMXMap:
                 for obj in layer:
                     if obj.name == "Mill_Blades":
                         for mill in self.mills:
-                            mill.set_blade_pivot(obj.x, obj.y)
+                            mill.set_blade_pivot(obj.x, obj.y, float(obj.properties.get('Scale', 1.0)))
 
     def _load_doors(self) -> None:
         """Parse the "Doors" object layer into :class:`Door` objects.

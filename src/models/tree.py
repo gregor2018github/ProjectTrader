@@ -37,6 +37,8 @@ class Tree:
         self.y_sort = self.y
         
         self.image: Optional[pygame.Surface] = None
+        #: The sprite file at full resolution, when it is bigger than drawn (as a House's)
+        self.source_image: Optional[pygame.Surface] = None
         self.scaled_image_cache: Dict[float, pygame.Surface] = {}
         
         self._load_image()
@@ -80,6 +82,8 @@ class Tree:
             try:
                 self.image = pygame.image.load(path).convert_alpha()
                 if self.scale != 1.0:
+                    if self.scale < 1.0:
+                        self.source_image = self.image   # zooming in scales it straight from here
                     self.image = pygame.transform.smoothscale(self.image, (
                         max(1, round(self.image.get_width() * self.scale)),
                         max(1, round(self.image.get_height() * self.scale)),
@@ -102,7 +106,10 @@ class Tree:
             target_width = max(1, int(round(original_width * zoom)))
             target_height = max(1, int(round(original_height * zoom)))
             
-            if target_width >= original_width or target_height >= original_height:
+            if self.source_image is not None:
+                self.scaled_image_cache[zoom_key] = pygame.transform.smoothscale(
+                    self.source_image, (target_width, target_height))
+            elif target_width >= original_width or target_height >= original_height:
                 self.scaled_image_cache[zoom_key] = pygame.transform.scale(self.image, (target_width, target_height))
             else:
                 self.scaled_image_cache[zoom_key] = pygame.transform.smoothscale(self.image, (target_width, target_height))

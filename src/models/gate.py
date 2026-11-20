@@ -48,17 +48,14 @@ class Gate(House):
         self.sort_up_pixel = float(sort_up_pixel)
         self.is_open = False
         self.closed_image = self.image
+        self._closed_source = self.source_image
         self._closed_cache = self.scaled_image_cache
         self._open_cache: dict = {}
         self.open_image: pygame.Surface | None = None
+        self._open_source: pygame.Surface | None = None
         if open_file_name:
-            shut = self.file_name
-            self.file_name = open_file_name
-            self.image = None
-            self._load_image()
-            self.open_image = self.image
-            self.file_name = shut
-            self.image = self.closed_image
+            # At its Scale like the shut one, each with its own full-resolution source
+            self.open_image, self._open_source = self._load_picture(open_file_name)
         self._blocking = list(self.collision_rects)
 
     @property
@@ -76,13 +73,15 @@ class Gate(House):
 
     def set_open(self, is_open: bool) -> None:
         self.is_open = bool(is_open)
-        if self.is_open:
-            self.image = self.open_image or self.closed_image
+        if self.is_open and self.open_image is not None:
+            self.image, self.source_image = self.open_image, self._open_source
             self.scaled_image_cache = self._open_cache
+        else:
+            self.image, self.source_image = self.closed_image, self._closed_source
+            self.scaled_image_cache = self._closed_cache
+        if self.is_open:
             self.collision_rects = []
         else:
-            self.image = self.closed_image
-            self.scaled_image_cache = self._closed_cache
             self.collision_rects = list(self._blocking)
 
     def toggle(self, bodies: Iterable[pygame.Rect] = ()) -> bool:

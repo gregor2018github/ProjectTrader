@@ -552,9 +552,12 @@ def cmd_tree(a):
     path = f'assets/map_sprites/trees/{a.sprite}'
     w, h = _png_size(path)
     kind = 'Broadleaf_Tree' if entry.get('kind') == 'broadleaf_tree' else 'Pine_Tree'
+    # The catalog's stem is in its atlas rect's pixels; a PNG upscaled since is that many times larger
+    rect = entry.get('rect')
+    resolution = w / rect[2] if rect and rect[2] else float(entry.get('resolution', 1) or 1)
     props = {'File_name': a.sprite,
-             'Stem_Position': float(tiled['Stem_Position']),
-             'Stem_Thick': float(tiled['Stem_Thick']),
+             'Stem_Position': round(float(tiled['Stem_Position']) * resolution, 4),
+             'Stem_Thick': round(float(tiled['Stem_Thick']) * resolution, 4),
              'Tiles_to_right': -(-w // TILE)}
     if a.scale != 1:
         props['Scale'] = float(a.scale)
