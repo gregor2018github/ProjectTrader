@@ -39,7 +39,7 @@ class Introduction:
 
 INTRODUCTIONS: Dict[str, Introduction] = {
     WOODHACKING: Introduction(
-        talk_option="Talk",
+        talk_option="Need a hand with the wood?",
         lend_option="Lend a Hand",
         first="greeting",
         pages={

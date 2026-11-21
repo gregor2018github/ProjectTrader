@@ -43,9 +43,9 @@ if TYPE_CHECKING:
 
 #: Flip's option while he is to be brought home
 COAX_OPTION = "Coax Flip Home"
-#: The shepherdess's option while she has a talk for the player: "Talk" at first, and once she has
-#: told them his name, "About Flip..." (talk_option)
-TALK_OPTION = "Talk"
+#: The shepherdess's option while she has a talk for the player: asking what is wrong at first, and
+#: once she has told them his name, "About Flip..." (talk_option)
+TALK_OPTION = "Do you need help?"
 ABOUT_FLIP_OPTION = "About Flip..."
 
 
@@ -81,7 +81,8 @@ def shepherdess_talk(game_state: 'GameState', figurine: 'Figurine') -> Optional[
 
 
 def talk_option(game_state: 'GameState') -> str:
-    """The label of her option in her menu: "About Flip..." once the player knows him by name."""
+    """The label of her option in her menu: "Do you need help?", and "About Flip..." once the player
+    knows him by name."""
     on_map = _quest_map(game_state)
     return ABOUT_FLIP_OPTION if on_map is not None and on_map.quest.flip_named else TALK_OPTION
 
