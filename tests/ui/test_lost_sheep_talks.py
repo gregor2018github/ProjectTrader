@@ -1,7 +1,7 @@
 """The quest for Flip in the UI (lost_sheep_talks.py): the shepherdess's talks and coaxing Flip.
 
 At the fold she offers "Talk" while she has something to say: lying costs 3
-reputation and owning up half a point, each shown in red beside its answer;
+reputation and owning up half a point, neither shown beside its answer;
 she gives her bread once the player has found Flip won't come without it;
 coaxing him without bread has the player say so, with it uses one Bread and
 puts him on the leash, after which the buildings are closed to the player; her
@@ -86,11 +86,11 @@ def test_her_marker_waits_till_she_is_on_her_round_in_the_fold(world):
     assert talks.has_news(world.state, world.her)
 
 
-def test_lying_costs_three_shown_in_red(world):
+def test_lying_costs_three_not_shown_till_answered(world):
     bubble = talk(world)
     assert isinstance(bubble, FigurineConversation)
     lie, confess = bubble.answers
-    assert bubble.badges[lie][0][0] == "-3" and bubble.badges[confess][0][0] == "-0.5"
+    assert lie not in bubble.badges and confess not in bubble.badges
     bubble.on_answer(lie)
     assert world.state.game.player.reputation == pytest.approx(-3.0)
     assert world.quest.stage == ls.SEARCHING

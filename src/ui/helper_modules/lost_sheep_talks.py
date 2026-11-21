@@ -8,7 +8,7 @@ is what the player does with it:
   (its marker and glow, ``has_news``, only once she is on her round there), in
   her speech bubble (figurine_bubbles.FigurineConversation), pages of
   ``lost_sheep.PAGES``; an answer's ``does`` lies or owns up (reputation lost,
-  shown in red beside it and rising from the player's head), takes her bread,
+  not shown beforehand, only rising from the player's head once answered), takes her bread,
   or takes or turns down her thanks;
 * ``coax_flip`` -- "Coax Flip Home" in Flip's menu: with a Bread he follows on
   the leash, one Bread used up; without, he shies away from the player along
@@ -103,14 +103,14 @@ def can_coax(game_state: 'GameState', figurine: 'Figurine') -> bool:
 # ── The shepherdess ──────────────────────────────────────────────────────────
 
 def talk_badges(page: Page) -> Dict[str, List[Badge]]:
-    """What each answer on a page brings or costs, by its label."""
+    """What each answer on a page brings or costs, by its label.
+
+    Lying and owning up show nothing: what honesty costs is not to be weighed
+    beforehand, and is only seen once answered (rising from the player's head).
+    """
     badges: Dict[str, List[Badge]] = {}
     for answer in page.answers:
-        if answer.does == "lie":
-            badges[answer.label] = [(f"{lost_sheep.LIE_REPUTATION:g}", reputation_badge_icon())]
-        elif answer.does == "confess":
-            badges[answer.label] = [(f"{lost_sheep.CONFESS_REPUTATION:g}", reputation_badge_icon())]
-        elif answer.does == "bread":
+        if answer.does == "bread":
             badges[answer.label] = [(f"+{n}", good_badge_icon(name)) for name, n in lost_sheep.BREAD_GIFT.items()]
         elif answer.does == "accept":
             badges[answer.label] = [(f"+{n}", good_badge_icon(name)) for name, n in lost_sheep.THANKS_GIFT.items()]
