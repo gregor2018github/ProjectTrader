@@ -13,7 +13,11 @@ from typing import List, Dict, Set, Tuple, Any, Optional, Union
 
 from ..config.constants import SLOT_SIZE, TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
-from .gate import Gate
+from .gate import Gate, feet_box
+from .gate_ways import GateWays
+from .harvest import Harvest, shock_thresholds
+from .harvest_crew import HarvestCrew
+from .shock import Shock
 from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
@@ -27,7 +31,7 @@ from .fishing_spot import FishingSpot
 from .ground_chunks import GroundChunks
 from .map_warmup import MapWarmup
 from .spatial_index import SpatialIndex
-from .field import Field
+from .field import Field, _inside
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 from .figurines.animals.sheep import Sheep
@@ -244,6 +248,40 @@ class TMXMap:
         # decision to send them out is StreetLife's.
         self.npcs.extend(townsfolk)
         self.npcs.extend(self.homebodies)
+        self._load_harvest(townsfolk)
+
+    def _load_harvest(self, townsfolk) -> None:
+        """The fields' harvest (harvest.py), its shocks, and the crew who cut them (harvest_crew.py)."""
+        #: The shocks of sheaves on the fields, hidden until the harvest reaches them
+        self.shocks: List[Shock] = [house for house in self.houses if isinstance(house, Shock)]
+        sown = [field for field in self.fields if field.growth is not None and field.plants]
+        self.harvest: Harvest = Harvest((field.tmx_id, [(cx, by) for cx, by, _, _ in field.plants])
+                                        for field in sown)
+        for field in sown:
+            field.harvest = self.harvest.fields[field.tmx_id]
+        self._assign_shocks(sown)
+        gates = [house for house in self.houses if isinstance(house, Gate)]
+        self.harvest_crew: HarvestCrew = HarvestCrew(self.harvest, sown, self.shocks, townsfolk,
+                                                     GateWays(self.nav, gates))
+
+    def _assign_shocks(self, fields: List[Field]) -> None:
+        """Give each shock the field it stands on (or the nearest), and how far its harvest must have got."""
+        if not fields:
+            return
+        for shock in self.shocks:
+            left, top, right, bottom = shock.picture_box()
+            foot = ((left + right) / 2, bottom - 2)
+            on = [field for field in fields if _inside(field.outline, *foot)]
+            field = on[0] if on else min(fields, key=lambda f: math.dist(
+                foot, (min(max(foot[0], f.x), f.x + f.width), min(max(foot[1], f.y), f.y + f.height))))
+            shock.field_id = field.tmx_id
+        for field in fields:
+            mine = [shock for shock in self.shocks if shock.field_id == field.tmx_id]
+            field_harvest = self.harvest.fields[field.tmx_id]
+            thresholds = shock_thresholds(field_harvest.plants, field_harvest.order,
+                                          [shock.picture_box() for shock in mine])
+            for shock, threshold in zip(mine, thresholds):
+                shock.threshold = threshold
 
     def _index_for_drawing(self) -> None:
         """File the trees, crop sprites and window lights by where they are
@@ -541,6 +579,25 @@ class TMXMap:
                             open_file_name=obj.properties.get('Open_file_name', ''),
                             opens=obj.properties.get('Opens', 'down'),
                             sort_up_pixel=float(obj.properties.get('Sort_up_pixel', 0)),
+                            scale=scale,
+                        )
+                    elif obj_class == "Shock":
+                        # A shock of sheaves, standing only from the harvest until it is cleared (shock.py)
+                        house = Shock(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            name=obj.name,
+                            house_class=obj_class,
                             scale=scale,
                         )
                     elif obj.name.startswith("Church"):
@@ -1117,6 +1174,7 @@ class TMXMap:
     def update_npcs(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all human NPCs (call once per frame when not paused)."""
         self.street_life.update(dt, current_time)
+        self.harvest_crew.update(current_time)
         for npc in self.npcs:
             npc.update(dt, current_time)
 
@@ -1129,6 +1187,7 @@ class TMXMap:
         """Let the crops grow to where the calendar has them at `now` (on starting or loading, then once a game hour)."""
         for field in self.fields:
             field.update_growth(now)
+        self.harvest_crew.refresh_shocks(now)
 
     def update_smoke(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all smoke emitters (call once per frame when not paused)."""
@@ -1364,6 +1423,15 @@ class GameMap:
 
         # Scales and bakes what the view draws before it is needed (map_warmup.py)
         self.warmup: MapWarmup = MapWarmup(self)
+        # A harvest worker shuts a gate behind him only when nobody stands in it
+        self.tmx_map.harvest_crew.bodies = self.gateway_bodies
+
+    def gateway_bodies(self) -> List[pygame.Rect]:
+        """The feet boxes of the player and of everyone out on the map: who may stand in a gateway."""
+        tile = self.tmx_map.tile_size
+        bodies = [feet_box(self.map_player, tile)]
+        bodies += [feet_box(npc, tile) for npc in self.tmx_map.npcs if not getattr(npc, "is_hidden", False)]
+        return bodies
 
     def reveal_around_player(self) -> None:
         """Explore the fog of war around the player's centre."""

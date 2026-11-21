@@ -90,6 +90,8 @@ class NPC(Human):
         #: Set when the NPC goes through a front door, in or out; game.py
         #: plays the door sound and clears it again.
         self.wants_door_sound: bool = False
+        #: A gate (gate.Gate) they just opened or shut, to be heard (Game._play_door_sounds); else None
+        self.wants_gate_sound = None
 
     # ------------------------------------------------------------------
     # Setup helpers

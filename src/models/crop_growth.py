@@ -11,7 +11,9 @@ sown on the 1st of Spring and harvested at the end of Autumn.
 Which stage a field is at is worked out from the date alone, so nothing needs
 saving: a loaded game shows what the calendar says. Each field's sow and
 harvest days are moved by up to FIELD_SEASON_JITTER_DAYS (the same for that
-field every game, from its Tiled id), so no two fields keep step.
+field every game, from its Tiled id), so no two fields keep step. The harvest
+day is the same for all: the reapers cut the ripe crop over the last days
+before it (harvest.py), and on that day whatever still stands is cleared.
 
 The field as a whole is at one stage, from `since` until `ends`. Its plants
 are not all there at once: each has an offset of up to half of
@@ -40,13 +42,15 @@ _DAY = datetime.timedelta(days=1)
 def field_season(field_id: int, properties: Optional[Dict[str, Any]] = None) -> Tuple[float, float]:
     """A field's sow and harvest days of the year (0 = the 1st of Spring).
 
-    Its Tiled object's Sow_day and Harvest_day if it has them; otherwise FIELD_SOW_DAY and
-    FIELD_HARVEST_DAY, each moved by up to FIELD_SEASON_JITTER_DAYS, the same every game for that field.
+    Its Tiled object's Sow_day and Harvest_day if it has them; otherwise FIELD_SOW_DAY moved by up to
+    FIELD_SEASON_JITTER_DAYS, the same every game for that field, and FIELD_HARVEST_DAY: the harvest
+    is the reapers' work (harvest.py), who take the ripe crop when they get to it, so its end is the
+    same for every field.
     """
     properties = properties or {}
     rng = random.Random(f"field-season-{field_id}")
     sow = FIELD_SOW_DAY + rng.uniform(-FIELD_SEASON_JITTER_DAYS, FIELD_SEASON_JITTER_DAYS)
-    harvest = FIELD_HARVEST_DAY + rng.uniform(-FIELD_SEASON_JITTER_DAYS, FIELD_SEASON_JITTER_DAYS)
+    harvest = FIELD_HARVEST_DAY
     if 'Sow_day' in properties:
         sow = float(properties['Sow_day'])
     if 'Harvest_day' in properties:

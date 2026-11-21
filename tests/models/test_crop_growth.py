@@ -95,12 +95,12 @@ def test_needs_stages():
 
 # A FIELD'S SEASON
 
-def test_each_field_keeps_its_own_season_within_the_jitter(monkeypatch):
+def test_each_field_keeps_its_own_sowing_within_the_jitter_and_all_are_harvested_alike(monkeypatch):
     monkeypatch.setattr(crop_growth_module, "FIELD_SOW_DAY", 0.0)
     monkeypatch.setattr(crop_growth_module, "FIELD_HARVEST_DAY", 21.0)
     monkeypatch.setattr(crop_growth_module, "FIELD_SEASON_JITTER_DAYS", 1.0)
     seasons = [field_season(field_id) for field_id in range(20)]
-    assert all(-1 <= sow <= 1 and 20 <= harvest <= 22 for sow, harvest in seasons)
+    assert all(-1 <= sow <= 1 and harvest == 21.0 for sow, harvest in seasons)
     assert len(set(seasons)) == 20
     assert field_season(7) == field_season(7)     # the same every game
 

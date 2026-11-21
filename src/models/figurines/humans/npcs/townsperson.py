@@ -194,6 +194,9 @@ class Townsperson(NPC):
         self.rest_left: float = 0.0
         #: Real seconds left standing in the doorway after answering a knock.
         self._answer_left: float = 0.0
+        #: The day's work they were given, a harvest_crew.HarvestJob, or None. While they have one
+        #: and are indoors or out on it, it runs their frames, and StreetLife leaves them be.
+        self.job = None
 
     # ------------------------------------------------------------------
     # Properties
@@ -207,7 +210,13 @@ class Townsperson(NPC):
     @property
     def is_available(self) -> bool:
         """Whether they are in, rested, and could be sent out again."""
-        return self.state == AT_HOME and self.rest_left <= 0.0 and self.home_door is not None
+        return (self.state == AT_HOME and self.rest_left <= 0.0 and self.home_door is not None
+                and self.job is None)
+
+    @property
+    def on_job(self) -> bool:
+        """Whether the day's work runs them now (see job): StreetLife does not count or move them."""
+        return self.job is not None and (self.state == AT_HOME or self.job.state != self.job.WAITING)
 
     # ------------------------------------------------------------------
     # Outings
@@ -282,7 +291,7 @@ class Townsperson(NPC):
             no door, or their doorstep is right in the doorway and so leaves
             them nowhere to step.
         """
-        if self.state != AT_HOME or self.home_door is None:
+        if self.state != AT_HOME or self.home_door is None or self.job is not None:
             return False
         path = PatrolPath([self.home_door.entry, self.home_door.step], closed=False)
         if not path:
@@ -386,6 +395,9 @@ class Townsperson(NPC):
                 keeps no hours of their own; :class:`StreetLife` decides when
                 they go out.
         """
+        if self.on_job:
+            self.job.update(dt, current_time)
+            return
         if self.state == STROLLING:
             if self._hold_for_talk(dt):
                 # Their walk is on hold; a doorway fade is not theirs to hold up.
@@ -443,6 +455,8 @@ class Townsperson(NPC):
         """Debug lines for the "Inspect" window, plus the outing."""
         lines = super().inspect_lines(observer)
         lines.append(f"Doing: {self.state}")
+        if self.job is not None:
+            lines += self.job.inspect_lines()
         lines.append(f"Home door: {self.home_door.id if self.home_door else 'none'}")
         lines.append(f"Heading for door: {self.target_door.id if self.target_door else 'none'}")
         if self.state == AT_THE_DOOR:

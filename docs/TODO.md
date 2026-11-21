@@ -18,6 +18,10 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] design and add three houses that are horizontally oriented
 - [ ] have cranes in the harbor area that can actually move
 - [ ] have an animation for farmers bringing in the harvest in autumn on the fields, also crates of products being dropped aside the field
+  - [x] the harvest itself (models/harvest.py, harvest_crew.py): one of the Poor or Commons per field a day on the last three days of Autumn, out through any gate (opened and shut behind), cutting plant by plant, shocks standing up as they go, home in the evening, held up by heavy rain
+  - [ ] a reaping animation for the worker while he cuts (he only stands so far), and a sound for the field gate (`gate_open` / `gate_close`, see gate.py)
+  - [ ] the shocks are carted off rather than gone at once three days into Winter; the crates of products set down beside the field
+  - [ ] future idea: let the harvest feed the economy (a field cut brings its wheat to the market, the town's grain in the sim; the workers paid a wage); marked TODO (economy) in models/harvest.py
 
 ## Medium Priority
 

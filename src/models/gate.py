@@ -103,3 +103,11 @@ class Gate(House):
         family = OPEN_SOUND if self.is_open else CLOSE_SOUND
         takes = sorted(name for name in available if name == family or name.startswith(family + "_"))
         return (rng or random).choice(takes) if takes else None
+
+
+def feet_box(figure, tile_size: int) -> pygame.Rect:
+    """The feet box (world rect) a figure stands on, as TMXMap.is_standable() tests it: who is in a gateway."""
+    half = tile_size / 2
+    feet_height = tile_size / 2 - 2
+    x, y = figure.feet
+    return pygame.Rect(round(x - half), round(y - feet_height), round(2 * half), round(feet_height))

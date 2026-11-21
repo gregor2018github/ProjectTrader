@@ -173,7 +173,7 @@ class StreetLife:
         if rested:
             return random.choice(rested)
         indoors = [person for person in self.townsfolk
-                   if not person.is_out and person.home_door is not None]
+                   if not person.is_out and person.home_door is not None and person.job is None]
         return min(indoors, key=lambda person: person.rest_left) if indoors else None
 
     def _send_someone_out(self) -> Generator[None, None, bool]:
@@ -194,7 +194,7 @@ class StreetLife:
             route = yield from self._route_between(home, target)
             # While it was worked out they may have answered a knock or been
             # sent in at another door
-            if person.is_out or person.home_door is not home:
+            if person.is_out or person.home_door is not home or person.job is not None:
                 return False
             if route and person.begin_outing(route, target):
                 return True
@@ -211,7 +211,7 @@ class StreetLife:
         """
         door_ids = {door.id for door in getattr(house, "doors", ())}
         return [person for person in self.townsfolk
-                if not person.is_out and person.home_door is not None
+                if not person.is_out and person.home_door is not None and person.job is None
                 and person.home_door.id in door_ids]
 
     def answer_knock(self, house: 'House') -> bool:
@@ -256,12 +256,13 @@ class StreetLife:
             # than have them teleport on, walk them in through the nearest door
             # they were headed for and let the streets fill again.
             for person in self.townsfolk:
-                if person.is_out:
+                if person.is_out and not person.on_job:
                     person.go_indoors(person.target_door or person.home_door)
             self._release_left = 0.0
         self.last_update_time = current_time
 
-        out_count = sum(1 for person in self.townsfolk if person.is_out)
+        # Those out at the day's work (a harvest) are not strollers
+        out_count = sum(1 for person in self.townsfolk if person.is_out and not person.on_job)
         target = self.target_count(current_time)
         self._release_left -= dt
         if self._sending is None and out_count < target and self._release_left <= 0.0:

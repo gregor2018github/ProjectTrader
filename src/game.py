@@ -21,6 +21,8 @@ from .models import meal_effects
 from .models.merchant_rank import MerchantRank, RankRise
 from .models.council import Council, SessionReport, STIPEND_CATEGORY
 from .models.map import GameMap
+from .models.gate import GATE_VOLUME
+from .models.harvest import HARVEST_RAIN_FROM
 from .models.institutions.town import Town
 from .models.population import PopulationManager
 from .sim import DataError, GoodDef, Simulation, load_definitions, load_scenario
@@ -291,7 +293,9 @@ class Game:
         self.game_map.map_player.y = self.player.position[1]
         self.game_map.restore_map_fog(save_data.get("fog"))
         self.weather.load(save_data.get("weather"))
-        # The crops follow the calendar, so they need nothing from the save (older saves' "fields" is ignored)
+        # The crops follow the calendar, so they need nothing from the save (older saves' "fields" is ignored),
+        # but for how far the harvest has got (a save without it has nothing cut)
+        self.game_map.tmx_map.harvest.load(save_data.get("harvest"))
         self.game_map.tmx_map.update_crops(self.state.date)
         self.merchant_rank.load(save_data.get("merchant_rank"))
         self.council.load(save_data.get("council"), self.state.date, seed=self.sim.seed)
@@ -513,6 +517,15 @@ class Game:
         
         return music_paths
         
+    def _advance_harvest(self) -> None:
+        """The fields' harvest (harvest.py) up to the clock: what was cut while nobody watched, and the rain."""
+        tmx_map = self.game_map.tmx_map
+        crew = tmx_map.harvest_crew
+        crew.heavy_rain = self.weather.rain >= HARVEST_RAIN_FROM
+        changed = tmx_map.harvest.update(self.state.date, crew.live_fields(), crew.heavy_rain)
+        if changed:
+            crew.refresh(self.state.date, changed)
+
     def _play_door_sounds(self) -> None:
         """Play a door for every NPC that went in or out of a house this frame.
 
@@ -523,6 +536,14 @@ class Game:
         px = player.x + player.width / 2
         py = player.y + player.height / 2
         for npc in self.game_map.tmx_map.npcs:
+            gate, npc.wants_gate_sound = npc.wants_gate_sound, None
+            if gate is not None:
+                # A gate a harvest worker opened or shut, if it has a sound (gate.py)
+                name = gate.sound(self.sounds)
+                gx, gy = gate.collision_rect.center
+                dist = ((px - gx) ** 2 + (py - gy) ** 2) ** 0.5
+                if name is not None and dist < DOOR_SOUND_MAX_DISTANCE:
+                    self.play_sound(name, GATE_VOLUME * (1.0 - dist / DOOR_SOUND_MAX_DISTANCE))
             if not npc.wants_door_sound:
                 continue
             npc.wants_door_sound = False
@@ -643,6 +664,7 @@ class Game:
                         * (1.0 - player_penalty(self.player))
                         * (1.0 + meal_effects.bonus(self.player, meal_effects.LIGHT_STEP, self.state.date)))
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
+                    self._advance_harvest()
                     self.game_map.puddles.update(self.weather.puddle_level)
 
                     # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
@@ -1102,7 +1124,8 @@ class Game:
         save_game(slot, self.state, self.player, self.depot, self.goods,
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
-                  merchant_rank=self.merchant_rank, intro=self.intro, council=self.council)
+                  merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
+                  harvest=self.game_map.tmx_map.harvest)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

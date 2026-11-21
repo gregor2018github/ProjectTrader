@@ -133,6 +133,8 @@ class Field:
         with_sprites = [sprites for sprites in self.stage_sprites if sprites]
         self.still_sprites = frozenset(i for sprites in with_sprites[:FIELD_STILL_STAGES] for i in sprites)
         self.growth: Optional[CropGrowth] = None
+        #: Its harvest (harvest.FieldHarvest), set by the map: the ripe crop then stands until it is cut
+        self.harvest: Optional[Any] = None
         if self.images:
             self.growth = CropGrowth(stages, *field_season(tmx_id, properties))
             self._generate_placements()
@@ -226,9 +228,37 @@ class Field:
 
     def _place_plants(self, now: datetime.datetime) -> None:
         growth = self.growth
-        self.sprite_placements = [(cx, by, self._variant(growth.plant_stage(now, offset), pick))
-                                  for cx, by, offset, pick in self.plants]
-        self.furrow_alpha = growth.furrows(now, FIELD_PLANT_SPREAD_DAYS)
+        if self.harvest is None:
+            self.sprite_placements = [(cx, by, self._variant(growth.plant_stage(now, offset), pick))
+                                      for cx, by, offset, pick in self.plants]
+            self.furrow_alpha = growth.furrows(now, FIELD_PLANT_SPREAD_DAYS)
+            return
+        # Harvested by hand (harvest.py): while the field is ripe a plant stands until it is cut, even one
+        # a little ahead of it, and once the harvest's time is over none stands, even one a little behind
+        last = len(self.stage_sprites) - 1
+        cut = self.harvest.cut_plants(now)
+        placements = []
+        for number, (cx, by, offset, pick) in enumerate(self.plants):
+            stage = growth.plant_stage(now, offset)
+            if growth.index == last:
+                stage = 0 if number in cut else (last if stage == 0 else stage)
+            elif growth.index == 0 and stage == last:
+                stage = 0
+            placements.append((cx, by, self._variant(stage, pick)))
+        self.sprite_placements = placements
+        if growth.index == last:
+            self.furrow_alpha = self.harvest.share(now)     # the furrows show where it is cut
+        elif growth.index == 0:
+            self.furrow_alpha = 1.0
+        else:
+            self.furrow_alpha = growth.furrows(now, FIELD_PLANT_SPREAD_DAYS)
+
+    def mark_cut(self, number: int, now: datetime.datetime) -> None:
+        """A plant has just been cut: it no longer shows, and the furrows show a little more."""
+        cx, by, _ = self.sprite_placements[number]
+        self.sprite_placements[number] = (cx, by, None)
+        if self.harvest is not None:
+            self.furrow_alpha = self.harvest.share(now)
 
     def furrow_overlay(self, zoom: float) -> Optional[Tuple[pygame.Surface, float, float]]:
         """The furrows over the inner tiles at `zoom`, see-through as far as they have faded, with the

@@ -447,7 +447,7 @@ WEATHER_WIND_TURN_CHANCE = 0.2        # Chance a new spell's wind blows from the
 # and Harvest_day; otherwise each field is sown and harvested a little earlier or later than the others.
 FIELD_SOW_DAY = 0.0                  # Sown on the 1st of Spring; the sprouts come up from here
 FIELD_HARVEST_DAY = 21.0             # Harvested at the end of Autumn, so the field lies bare all Winter
-FIELD_SEASON_JITTER_DAYS = 1.0       # Each field is sown and harvested up to this many days earlier or later, the same every game
+FIELD_SEASON_JITTER_DAYS = 1.0       # Each field is sown up to this many days earlier or later, the same every game (the reapers stagger the harvest, harvest.py)
 FIELD_PLANT_SPREAD_DAYS = 2.0        # The plants of a field change stage within this many days of each other; the furrows fade over as long
 FIELD_STILL_STAGES = 2               # The first stages with sprites (sprouts, young) stand still in the wind
 RAIN_DROPS_PER_MEGAPIXEL = 520        # Drops in the air per million pixels of map view at full rain

@@ -1516,6 +1516,69 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -31
    }
+  },
+  "houses/Deco_27.png": {
+   "kind": "decoration",
+   "subcategory": "small slender wheat shock",
+   "atlas": "houses",
+   "rect": [
+    2112,
+    410,
+    43,
+    70
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_27.png",
+    "Tiles_to_right": 2,
+    "Tiles_up": 3,
+    "Collision_to_right": 2,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -23
+   }
+  },
+  "houses/Deco_28.png": {
+   "kind": "decoration",
+   "subcategory": "round wheat shock",
+   "atlas": "houses",
+   "rect": [
+    2208,
+    410,
+    56,
+    70
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_28.png",
+    "Tiles_to_right": 2,
+    "Tiles_up": 3,
+    "Collision_to_right": 2,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -8
+   }
+  },
+  "houses/Deco_29.png": {
+   "kind": "decoration",
+   "subcategory": "wheat shock with a cap sheaf",
+   "atlas": "houses",
+   "rect": [
+    2720,
+    406,
+    58,
+    74
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_29.png",
+    "Tiles_to_right": 2,
+    "Tiles_up": 3,
+    "Collision_to_right": 2,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -6
+   }
   }
  },
  "motifs": {}

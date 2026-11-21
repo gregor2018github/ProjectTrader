@@ -376,17 +376,7 @@ def use_gate(game_state: 'GameState', gate) -> bool:
     """
     from ...models.gate import GATE_VOLUME
     game = game_state.game
-    tmx_map = game.game_map.tmx_map
-    half = tmx_map.tile_size / 2
-    feet_height = tmx_map.tile_size / 2 - 2      # the box TMXMap.is_standable() tests
-
-    def feet_box(figure) -> pygame.Rect:
-        x, y = figure.feet
-        return pygame.Rect(round(x - half), round(y - feet_height), round(2 * half), round(feet_height))
-
-    bodies = [feet_box(game.game_map.map_player)]
-    bodies += [feet_box(npc) for npc in tmx_map.npcs if not getattr(npc, "is_hidden", False)]
-    if not gate.toggle(bodies):
+    if not gate.toggle(game.game_map.gateway_bodies()):
         return False
     sound = gate.sound(game.sounds)
     if sound is not None:
