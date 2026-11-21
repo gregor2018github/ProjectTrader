@@ -99,6 +99,24 @@ def test_on_the_leash_he_follows_and_blocks_nobody():
     assert hand[0] < player[0] and neck[0] < hand[0]
 
 
+def test_led_at_a_steady_pace_his_walk_runs_on_and_goes_up_and_down_too():
+    quest, on_map, flip, gate = setup()
+    lead(quest, on_map)
+    player = (200.0, 3000.0)
+    moving, frames_seen = [], set()
+    for step in range(360):
+        # Right, then straight down
+        player = (player[0] + 2.0, player[1]) if step < 180 else (player[0], player[1] + 2.0)
+        on_map.step_leash(1 / 60, player, 120.0)
+        flip.update(1 / 60)
+        if step > 30:
+            moving.append(flip.is_moving)
+        if step > 250:
+            frames_seen.add(flip.animator.current_frame_index)
+    assert all(moving)                                   # never stopped and started afresh
+    assert len(frames_seen) > 1 and flip.direction == "right"   # going down, still walking
+
+
 def test_led_into_the_fold_he_goes_back_to_his_strip_and_by_day_she_was_there():
     her = SimpleNamespace(at_fold=True, is_hidden=False, keeps_fold=None)
     quest, on_map, flip, gate = setup()

@@ -143,7 +143,7 @@ class LostSheepOnMap:
             return
         self.leash.record(player_feet)
         feet, walked = self.leash.step(flip.feet, player_feet, player_speed, dt)
-        flip.move_led(feet, walked)
+        flip.move_led(feet, walked, dt)
 
     # ------------------------------------------------------------------
     # The rope's ends

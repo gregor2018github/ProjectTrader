@@ -28,6 +28,8 @@ EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 HEART_DURATION = 1.4        # seconds the heart floats up after petting
 WALK_HOME_SPEED = 48.0      # pixels per second at tile_size 32, back to its zone off the leash
+LED_WALK_HOLD = 0.25        # seconds a led sheep keeps walking through a stop
+LED_TURN_SHARE = 0.35       # a led sheep turns only when this share of its step is sideways
 SHY_DISTANCE = 3.0          # tiles a shy sheep backs away from an empty hand along its zone
 SHY_MIN_DISTANCE = 0.5      # tiles; with less room than this it only turns its back
 
@@ -59,6 +61,7 @@ class Sheep(Animal):
         self.walk_target: Optional[Tuple[float, float]] = None
         #: Led on a leash: it follows whoever holds it and takes no notice of them in its way
         self.leashed: bool = False
+        self._led_still: float = 0.0
         self.sprite_width = int(1.5 * tile_size)  # 48 px at base zoom
 
         # Each wool has its own sprite folder, the files named after it
@@ -209,6 +212,7 @@ class Sheep(Animal):
     def lead(self) -> None:
         """Put it on the leash: it stops grazing and follows (update_led)."""
         self.leashed = True
+        self._led_still = LED_WALK_HOLD
         self.walk_target = None
         self.eating = False
         self.is_blocked = False
@@ -286,18 +290,29 @@ class Sheep(Animal):
     # Update
     # ------------------------------------------------------------------
 
-    def move_led(self, feet: Tuple[float, float], walked: bool) -> None:
+    def move_led(self, feet: Tuple[float, float], walked: bool, dt: float = 0.0) -> None:
         """On the leash: stand at `feet` now (leash.Leash.step), facing the way it went.
+
+        Its walk goes on through stops of up to LED_WALK_HOLD (at a steady pace it is a
+        step behind and caught up by turns), so the animation is not started afresh
+        every frame; it walks the same way up and down, the way it last faced. It turns
+        only when it goes mostly sideways.
 
         Args:
             feet: Where its feet are to be, world pixels.
-            walked: Whether it walked this frame (else it stands, its walk not animated).
+            walked: Whether it walked this frame.
+            dt: Seconds of the frame.
         """
-        old_x = self.feet[0]
+        old_x, old_y = self.feet
         self.place_feet(*feet)
-        if abs(feet[0] - old_x) > 0.05:
-            self.direction = "right" if feet[0] > old_x else "left"
-        self.is_moving = walked
+        dx, dy = feet[0] - old_x, feet[1] - old_y
+        if abs(dx) > 0.05 and abs(dx) >= LED_TURN_SHARE * math.hypot(dx, dy):
+            self.direction = "right" if dx > 0 else "left"
+        if walked:
+            self._led_still = 0.0
+        else:
+            self._led_still += dt
+        self.is_moving = self._led_still < LED_WALK_HOLD
 
     def _walk_to_target(self, dt: float) -> None:
         """Walking back to its zone (walk_home): straight there, then a rest before it grazes."""

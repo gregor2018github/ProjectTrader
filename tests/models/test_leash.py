@@ -33,7 +33,11 @@ def test_the_target_lies_behind_the_player_along_their_trail_round_a_corner():
 
 
 def test_only_the_last_stretch_of_trail_is_kept():
-    trail = walked([(0.0, 0.0), (2000.0, 0.0)])
+    trail = Leash()
+    trail.reset((0.0, 0.0))
+    trail.progress = 1900.0                  # the sheep has kept up: nothing behind it is needed
+    for i in range(1, 1001):
+        trail.record((2.0 * i, 0.0))
     kept = sum(math.dist(a, b) for a, b in zip(list(trail.trail), list(trail.trail)[1:]))
     assert leash.TRAIL_KEEP <= kept <= leash.TRAIL_KEEP + 2 * leash.TRAIL_STEP
 
@@ -79,6 +83,29 @@ def test_ahead_of_its_spot_it_waits_rather_than_backing_off():
     trail = walked([(0.0, 0.0), (300.0, 0.0)])
     ahead = (300.0 - leash.FOLLOW_GAP + 3, 0.0)
     assert trail.step(ahead, (300.0, 0.0), SPEED, FRAME) == (ahead, False)
+
+
+def test_the_trail_it_still_has_to_walk_is_never_forgotten():
+    trail = walked([(0.0, 0.0), (2000.0, 0.0)])
+    assert trail.trail[0] == (0.0, 0.0)
+
+
+def test_where_the_trail_doubles_back_it_neither_jumps_nor_shakes():
+    # Out to the right and back past the sheep: it must not hop between the two legs
+    trail = Leash()
+    sheep, player = (0.0, 0.0), (50.0, 0.0)
+    trail.reset(player, sheep)
+    path = [(50.0 + 2 * i, 0.0) for i in range(1, 60)] + [(168.0 - 2 * i, 4.0) for i in range(1, 140)]
+    last, steps = sheep, []
+    for player in path:
+        trail.record(player)
+        sheep, _ = trail.step(sheep, player, SPEED, FRAME)
+        steps.append(sheep[0] - last[0])
+        assert math.dist(sheep, last) <= SPEED * leash.TAUT_CATCH_UP * FRAME + leash.SHORTCUT + 0.01
+        last = sheep
+    # No back-and-forth: once it turned round to follow, it never turned again
+    turns = sum(1 for a, b in zip(steps, steps[1:]) if a * b < 0 and abs(a) > 0.01 and abs(b) > 0.01)
+    assert turns <= 1
 
 
 def test_the_rope_runs_from_hand_to_neck():
