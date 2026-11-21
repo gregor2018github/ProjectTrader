@@ -43,7 +43,7 @@ Only `tests/sim/test_run.py` is marked `slow` (it loads the real map). `docs/tes
 
 ## Architecture Overview
 
-**Merchant's Rise** is a medieval trading simulation built with Pygame. Games are saved to numbered slots and an autosave (`src/persistence/save_manager.py`, `SAVE_VERSION` 3: a compressed, HMAC-signed blob per slot in `saves/`, with the simulation's own `"sim"` block inside).
+**Merchant's Rise** is a medieval trading simulation built with Pygame. Games are saved to numbered slots and an autosave (`src/persistence/save_manager.py`, `SAVE_VERSION` 3: a compressed, HMAC-signed blob per slot in `saves/`, with the simulation's own `"sim"` block inside; the autosave is written in the background, `save_game(..., background=True)`: the game is copied on the main thread with `marshal` in a few ms and a thread encodes, compresses and writes it, every other save function first waiting for it, `wait_for_save()`; tested in `tests/persistence/test_background_save.py`).
 
 ### Core Object Graph
 

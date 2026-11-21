@@ -58,7 +58,7 @@ from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_
 from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, MARKET_FEE_RATE, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
-    AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, thumbnail_path,
+    AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, take_save_error, thumbnail_path,
 )
 
 HOME_TOWN_SCENARIO = "home_town"   # assets/data/scenarios/<name>.json: the workshops a new game starts with
@@ -1105,10 +1105,12 @@ class Game:
         return None
 
     def write_save(self, slot: int, save_name: str,
-                   screenshot: Optional[pygame.Surface]) -> None:
+                   screenshot: Optional[pygame.Surface], background: bool = False) -> None:
         """Write the current game to *slot*, with *screenshot* as its thumbnail.
 
-        Raises whatever save_game raises; a failed thumbnail is ignored.
+        Raises whatever save_game raises; a failed thumbnail is ignored. With
+        *background* the file is written by a thread (save_game), so the game
+        does not stutter; its errors are reported by _tick_autosave.
         """
         if screenshot is not None:
             try:
@@ -1125,7 +1127,7 @@ class Game:
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
-                  harvest=self.game_map.tmx_map.harvest)
+                  harvest=self.game_map.tmx_map.harvest, background=background)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""
@@ -1137,6 +1139,9 @@ class Game:
         When due while a dialog or exclusive overlay is open, the save waits
         until it closes so the thumbnail shows the game itself.
         """
+        error = take_save_error()
+        if error is not None:
+            self.state.show_warning(f"Autosave failed: {error}")
         if not self.autosave_enabled:
             return
         self._autosave_elapsed += delta_time
@@ -1146,7 +1151,7 @@ class Game:
             return
         self._autosave_elapsed = 0.0
         try:
-            self.write_save(AUTOSAVE_SLOT, AUTOSAVE_NAME, self.screen.copy())
+            self.write_save(AUTOSAVE_SLOT, AUTOSAVE_NAME, self.screen, background=True)
             self.save_indicator.show()
         except Exception as e:
             self.state.show_warning(f"Autosave failed: {e}")
