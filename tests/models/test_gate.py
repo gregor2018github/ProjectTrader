@@ -90,10 +90,13 @@ def map_gates():
 
 
 def test_the_map_has_its_gates_with_both_pictures(map_gates):
-    assert set(map_gates) == {"Gate_Churchyard_North", "Gate_Churchyard_South", "Gate_Farm_Field_North"}
+    assert set(map_gates) == {"Gate_Churchyard_North", "Gate_Churchyard_South", "Gate_Farm_Field_North",
+                              "Gate_Sheep_Yard_North", "Gate_Sheep_Yard_South"}
     assert map_gates["Gate_Churchyard_North"]["Opens"] == "down"   # into the yard, south of it
     assert map_gates["Gate_Churchyard_South"]["Opens"] == "up"     # into the yard, north of it
     assert map_gates["Gate_Farm_Field_North"]["Opens"] == "down"   # into the field
+    assert map_gates["Gate_Sheep_Yard_North"]["Opens"] == "down"   # into the sheep's yard
+    assert map_gates["Gate_Sheep_Yard_South"]["Opens"] == "up"
     for props in map_gates.values():
         for key in ("File_name", "Open_file_name"):
             assert (HOUSES / props[key]).is_file(), props[key]

@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import pygame
 
+from .pixels import screen_pixel
+
 # Share of the player's painted pixels that must be hidden for the silhouette to show
 SILHOUETTE_FROM = 0.9
 # He must stay hidden this long (real seconds) before the silhouette starts to fade in,
@@ -73,7 +75,7 @@ class PlayerSilhouette:
             return 0.0
         entry = render_queue[index]
         sprite = entry['sprite']
-        px, py = round(entry['pos'][0]), round(entry['pos'][1])
+        px, py = screen_pixel(entry['pos'])
         self._where = (sprite, px, py)
         own = self._mask(sprite)
         painted = own.count()
@@ -89,7 +91,7 @@ class PlayerSilhouette:
             if owner is not None and hasattr(owner, '_get_scaled_sprite'):
                 continue   # another figure walking in front
             other = obj['sprite']
-            ox, oy = round(obj['pos'][0]), round(obj['pos'][1])
+            ox, oy = screen_pixel(obj['pos'])
             if not box.colliderect(pygame.Rect(ox, oy, *other.get_size())):
                 continue
             cover.draw(self._mask(other), (ox - px, oy - py))

@@ -18,6 +18,7 @@ from ..helper_modules.house_click_menu import (
     minigame_introduced, woodhacking_available,
 )
 from ...models.introductions import WOODHACKING
+from ...models.pixels import screen_pixel
 from ..helper_modules.figurine_talks import waiting_thanks
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ..helper_modules.water_click_menu import fishing_available
@@ -174,9 +175,8 @@ def draw_map_view(
         game_map.rain.draw_ground(screen, game_map.camera, offset_x, offset_y, weather.wind)
         game_map.snow.draw_ground(screen, game_map.camera, offset_x, offset_y)
     for obj in render_queue:
-        # Use round() for consistent pixel alignment during movement
         flags = obj.get('flags', 0)
-        screen.blit(obj['sprite'], (round(obj['pos'][0]), round(obj['pos'][1])), special_flags=flags)
+        screen.blit(obj['sprite'], screen_pixel(obj['pos']), special_flags=flags)
     
     # Apply day/night cycle lighting (passing rendered Map info to punch holes if needed),
     # darkened further under cloud
@@ -342,7 +342,7 @@ def _apply_lighting(
              # The sprite in render_queue is already scaled.
              
              # Position logic is same as used in blit
-             pos = (round(obj['pos'][0]), round(obj['pos'][1]))
+             pos = screen_pixel(obj['pos'])
              
              # Determine offset from rect (screen is relative to window, but rect is view_rect)
              # Note: screen passed here IS the main screen. 

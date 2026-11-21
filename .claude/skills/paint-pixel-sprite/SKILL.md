@@ -138,6 +138,17 @@ many: posts ±2 px tall, 1 in 5 leaning a pixel, rails sagging or askew by one,
 about 1 in 14 slipped off its nail at one end, cracks and knots, some boards
 weathered grey.
 
+## A gate in a gap that is already there
+
+`board_gate_painter.py` hangs gates in openings of walls that were drawn by
+hand (the sheep's yard): measure each gap from the sprites' opaque pixels and
+the objects' collision boxes (stone edge to stone edge, the wall's foot row),
+cut the gate to it on a canvas of whole tiles, let each leaf reach one pixel
+under the stone at both ends and sort the gate a pixel or two before the walls
+(`Sort_up_pixel`), so the stone is drawn over the joint. Render it shut and
+open (copy the open picture over the shut one for the render, then put it
+back) with a figure in the gateway, zoomed 4x, before calling it done.
+
 ## Adding a new kind
 
 Give it a `paint_<kind>(raster, rng, pal)` next to the wall's, sharing

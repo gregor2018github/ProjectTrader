@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="84" nextobjectid="1631">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="84" nextobjectid="1633">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -13184,6 +13184,40 @@
     <property name="Scale" type="float" value="0.94"/>
     <property name="Tiles_to_right" type="int" value="2"/>
     <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1631" name="Gate_Sheep_Yard_North" type="Gate" x="4512" y="5408">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-53"/>
+    <property name="Col_margin_left_pixel" type="int" value="-22"/>
+    <property name="Col_margin_right_pixel" type="int" value="15"/>
+    <property name="Col_margin_up_pixel" type="int" value="37"/>
+    <property name="Collision_to_right" type="int" value="3"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="gates/sheep_gate_north_closed.png"/>
+    <property name="Open_file_name" value="gates/sheep_gate_north_open.png"/>
+    <property name="Opens" value="down"/>
+    <property name="Sort_up_pixel" type="int" value="65"/>
+    <property name="Tiles_to_right" type="int" value="4"/>
+    <property name="Tiles_up" type="int" value="4"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1632" name="Gate_Sheep_Yard_South" type="Gate" x="4544" y="5984">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-30"/>
+    <property name="Col_margin_left_pixel" type="int" value="-32"/>
+    <property name="Col_margin_right_pixel" type="int" value="11"/>
+    <property name="Col_margin_up_pixel" type="int" value="14"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="gates/sheep_gate_south_closed.png"/>
+    <property name="Open_file_name" value="gates/sheep_gate_south_open.png"/>
+    <property name="Opens" value="up"/>
+    <property name="Sort_up_pixel" type="int" value="42"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
+    <property name="Tiles_up" type="int" value="4"/>
    </properties>
    <point/>
   </object>
