@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="74" nextobjectid="1609">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="74" nextobjectid="1617">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -12832,6 +12832,121 @@
     <property name="File_name" value="Deco_24.png"/>
     <property name="Scale" type="float" value="1.48"/>
     <property name="Tiles_to_right" type="int" value="3"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1609" name="Fence_Farm_Field" type="Fence_Frontal" x="4096" y="6080">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="10"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/field_fence/field_fence_h9.png"/>
+    <property name="Tiles_to_right" type="int" value="10"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1610" name="Fence_Farm_Field" type="Fence_Frontal" x="4448" y="6080">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="14"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/field_fence/field_fence_h13.png"/>
+    <property name="Tiles_to_right" type="int" value="14"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1611" name="Fence_Farm_Field" type="Fence_Frontal" x="4848" y="6496">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="13"/>
+    <property name="File_name" value="fences/field_fence/field_fence_v13.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="15"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1612" name="Fence_Farm_Field" type="Fence_Frontal" x="4576" y="6496">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="10"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/field_fence/field_fence_h9.png"/>
+    <property name="Tiles_to_right" type="int" value="10"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1613" name="Fence_Farm_Field" type="Fence_Frontal" x="4080" y="6752">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="21"/>
+    <property name="File_name" value="fences/field_fence/field_fence_v21.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="23"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1614" name="Fence_Farm_Field" type="Fence_Frontal" x="4560" y="6752">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="8"/>
+    <property name="File_name" value="fences/field_fence/field_fence_v8.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="10"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1615" name="Fence_Farm_Field" type="Fence_Frontal" x="4096" y="6752">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="16"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/field_fence/field_fence_h15.png"/>
+    <property name="Tiles_to_right" type="int" value="16"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1616" name="Gate_Farm_Field_North" type="Gate" x="4400" y="6096">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-24"/>
+    <property name="Col_margin_left_pixel" type="int" value="-9"/>
+    <property name="Col_margin_right_pixel" type="int" value="22"/>
+    <property name="Col_margin_up_pixel" type="int" value="8"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="gates/field_gate_closed.png"/>
+    <property name="Open_file_name" value="gates/field_gate_open_down.png"/>
+    <property name="Opens" value="down"/>
+    <property name="Sort_up_pixel" type="int" value="16"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
     <property name="Tiles_up" type="int" value="3"/>
    </properties>
    <point/>

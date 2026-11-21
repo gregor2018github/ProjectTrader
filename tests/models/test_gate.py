@@ -82,23 +82,24 @@ def test_without_pictures_it_has_no_hit_box():
 
 
 @pytest.fixture(scope="module")
-def churchyard_gates():
+def map_gates():
     root = ET.parse(ROOT / "assets" / "tiles" / "Map1.tmx").getroot()
     houses = next(g for g in root.iter("objectgroup") if g.get("name") == "Houses")
     return {obj.get("name"): {p.get("name"): p.get("value") for p in obj.iter("property")}
             for obj in houses.iter("object") if obj.get("type") == "Gate"}
 
 
-def test_the_churchyard_has_its_two_gates_with_both_pictures(churchyard_gates):
-    assert set(churchyard_gates) == {"Gate_Churchyard_North", "Gate_Churchyard_South"}
-    assert churchyard_gates["Gate_Churchyard_North"]["Opens"] == "down"   # into the yard, south of it
-    assert churchyard_gates["Gate_Churchyard_South"]["Opens"] == "up"     # into the yard, north of it
-    for props in churchyard_gates.values():
+def test_the_map_has_its_gates_with_both_pictures(map_gates):
+    assert set(map_gates) == {"Gate_Churchyard_North", "Gate_Churchyard_South", "Gate_Farm_Field_North"}
+    assert map_gates["Gate_Churchyard_North"]["Opens"] == "down"   # into the yard, south of it
+    assert map_gates["Gate_Churchyard_South"]["Opens"] == "up"     # into the yard, north of it
+    assert map_gates["Gate_Farm_Field_North"]["Opens"] == "down"   # into the field
+    for props in map_gates.values():
         for key in ("File_name", "Open_file_name"):
             assert (HOUSES / props[key]).is_file(), props[key]
 
 
-def test_a_gate_is_never_named_as_something_the_map_loads_otherwise(churchyard_gates):
-    for name in churchyard_gates:
+def test_a_gate_is_never_named_as_something_the_map_loads_otherwise(map_gates):
+    for name in map_gates:
         assert not name.startswith(("Church", "Townhall", "Mill", "Well", "Bank", "Fence"))
         assert "Market" not in name

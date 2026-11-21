@@ -1,0 +1,20 @@
+{
+ "title": "Field fence",
+ "material": "wood",
+ "description": "classical wood fence around a field, not always perfect: split-rail posts and two rails, painted by wood_fence_painter.py",
+ "posts_every": 2,
+ "height": 2,
+ "lengths": {
+  "h": [9],
+  "v": [8]
+ },
+ "plan": [
+  ["h", 9, 0, 0],
+  ["h", 13, 11, 0],
+  ["v", 13, 24, 0],
+  ["h", 9, 15, 13],
+  ["v", 21, 0, 0],
+  ["v", 8, 15, 13],
+  ["h", 15, 0, 21]
+ ]
+}

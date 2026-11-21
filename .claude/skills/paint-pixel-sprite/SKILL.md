@@ -25,8 +25,11 @@ top-left post), `gate_plan` and `origin_px` (that post's foot). To build one:
    with a `fence.json`: material, `posts_every`, height, the description, the
    `lengths` the plan needs per orientation, and the `plan` copied over).
 2. Paint every piece the plan names (below; `stone_wall_painter.py` for a stone
-   wall with pillars at its ends, a painter of its own for anything else),
-   preview the whole plan laid out, show it to the user.
+   wall with pillars at its ends, `wood_fence_painter.py` for a wooden rail
+   fence, a painter of its own for anything else), preview the whole plan laid
+   out, show it to the user. Check the plan is closed where it should be: a
+   run the user forgot to draw (a missing corner side) leaves a gap; add it to
+   the style's plan and say so.
 3. A gate gap of 2 tiles in a row gets a `Gate`; paint its three pictures
    (shut, open down, open up) like `iron_gate_painter.py`. A gap in a vertical
    run has no gate yet (the game's Gate only swings up or down the picture).
@@ -118,6 +121,22 @@ and shows as a thin dark sliver, which reads right from this angle. Leave
 ornament (rings, short bars) off a slanted leaf. Don't span a gateway
 overhead (an arch, a sign): it is drawn over whoever walks under it as soon
 as they are a step behind the wall line, and cuts them off.
+
+## Wooden fences
+
+`wood_fence_painter.py` paints the field fence (`field_fence`, round the field
+south-west of town) and its farm gate (`--gate field_gate`, two leaves of three
+rails and a brace, swung like the iron gate with its `place_leaf`). Posts stand
+evenly about every 2 tiles, so any length works; the corner and gate posts are
+the horizontal pieces' end posts, upright at exactly `POST_TOP`, so the
+vertical pieces and gates know where they are. Seen from above, a north-south
+run's two rails fall on one line: draw them as one narrow band (lit top, a
+pixel of side face, its shadow east of it on the grass) and the posts **over**
+it, whole, or the run reads as a plank. Keep it off the corner posts' pixels at
+both ends (`Canvas.skip`). "Not always perfect" is a few small faults, not
+many: posts ±2 px tall, 1 in 5 leaning a pixel, rails sagging or askew by one,
+about 1 in 14 slipped off its nail at one end, cracks and knots, some boards
+weathered grey.
 
 ## Adding a new kind
 
