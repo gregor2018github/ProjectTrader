@@ -83,7 +83,7 @@ BREAD_GIFT: Dict[str, int] = {"Bread": 1}
 #: What luring him uses up
 LURE_GOODS: Dict[str, int] = {"Bread": 1}
 #: Her thanks: her wool, or this reputation for turning it down
-THANKS_GIFT: Dict[str, int] = {"Wool": 2}
+THANKS_GIFT: Dict[str, int] = {"Wool": 3}
 THANKS_REPUTATION = 1.0
 #: How much slower the player walks with Flip on the leash
 LEASH_SLOWDOWN = 0.2
@@ -143,11 +143,11 @@ PAGES: Dict[str, Page] = {
         (Answer("Accept the wool", "accepted", does="accept"),
          Answer("Keep it, it was my doing", "declined", does="decline"))),
     "accepted": Page(
-        "And mind the gate next time, eh? Flip and I will be back at the market tomorrow.",
+        "And mind the gate next time, eh? I'll sleep easier tonight, knowing he's back with the others.",
         (Answer("Farewell"),)),
     "declined": Page(
-        "Then I'll tell everyone at the market how you set it right. Flip and I will be back there "
-        "tomorrow.",
+        "Then I'll tell everyone at the market how you set it right. Not everyone would have gone "
+        "looking for him.",
         (Answer("Farewell"),)),
 }
 

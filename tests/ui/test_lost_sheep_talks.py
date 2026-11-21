@@ -164,7 +164,7 @@ def test_her_option_is_talk_till_she_has_named_him(world):
 
 
 @pytest.mark.parametrize("answer, wool, reputation", [
-    ("Accept the wool", 2, 0.0),
+    ("Accept the wool", 3, 0.0),
     ("Keep it, it was my doing", 0, 1.0),
 ])
 def test_her_thanks_gives_wool_or_reputation_and_ends_it(world, answer, wool, reputation):
