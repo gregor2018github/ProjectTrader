@@ -27,7 +27,7 @@ from typing import Any, Optional
 
 from .daylight import sun_hour
 from .meal_effects import WELL_FED, bonus
-from .intro import DONE, SHOP_HOUSE
+from .intro import is_found_shop
 
 #: Hours up, from rested to worn out
 HOURS_TO_EXHAUSTION = 40.0
@@ -47,7 +47,7 @@ _SUNRISE_SEARCH_MINUTES = 5
 
 def can_rest_at(house: Any, intro: Optional[Any]) -> bool:
     """Whether the player may rest in this building: the uncle's shop, once he has been found."""
-    return getattr(house, "name", None) == SHOP_HOUSE and intro is not None and intro.stage == DONE
+    return is_found_shop(house, intro)
 
 
 def next_sunrise(now: datetime.datetime) -> datetime.datetime:

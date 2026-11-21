@@ -32,6 +32,7 @@ from .style import (
 )
 from .terrain import Ground
 from ....config import settings_store
+from ....models.intro import SHOP_NAME, is_found_shop
 
 #: How long a fishing spot's mark is drawn, in screen pixels at every zoom level
 FISH_MARK_LENGTH = 20
@@ -303,7 +304,10 @@ class TownPlan:
         self._draw_ornaments(screen, inner, taken)
 
         if hovered is not None:
-            ornaments.tooltip(screen, mouse, hovered.name, hovered.describe(), inner)
+            if self._is_shop_storage(hovered, game_state):
+                ornaments.tooltip(screen, mouse, SHOP_NAME, "Your storage", inner)
+            else:
+                ornaments.tooltip(screen, mouse, hovered.name, hovered.describe(), inner)
         elif hovered_mark is not None:
             ornaments.tooltip(screen, mouse, *hovered_mark, inner)
 
@@ -380,6 +384,11 @@ class TownPlan:
         cover.blit(blank_paper, (inner.x - pos[0], inner.y - pos[1]), special_flags=pygame.BLEND_RGB_MULT)
         screen.blit(cover, pos)
 
+    @staticmethod
+    def _is_shop_storage(building: PlanBuilding, game_state) -> bool:
+        """Whether this is the uncle's shop, found: the player's first storage."""
+        return is_found_shop(building.house, getattr(getattr(game_state, "game", None), "intro", None))
+
     def _draw_live_buildings(self, screen: pygame.Surface, game_state, hovered: Optional[PlanBuilding]) -> None:
         """What changes while playing: closed stalls, property owned, hover."""
         for building in self._marks.buildings:
@@ -389,7 +398,8 @@ class TownPlan:
                 glyphs.wash_rect(screen, PAPER, 150, r)
                 pygame.draw.line(screen, INK_FADED, r.topleft, r.bottomright)
                 pygame.draw.line(screen, INK_FADED, r.bottomleft, r.topright)
-            elif building.kind == "warehouse" and getattr(building.house, "is_owned", False):
+            elif ((building.kind == "warehouse" and getattr(building.house, "is_owned", False))
+                  or self._is_shop_storage(building, game_state)):
                 pygame.draw.rect(screen, GOLD_INK, r.inflate(6, 6), 2)
         if hovered is not None:
             r = self._rect_to_screen(hovered.footprint).inflate(6, 6)

@@ -469,6 +469,12 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if isinstance(house, Warehouse) and house.is_owned:
         options.insert(0, "Manage Inventory")
 
+    # The uncle's shop holds the player's first storage, the depot's starting one
+    from ...models.intro import is_found_shop
+    shop_storage = is_found_shop(house, getattr(game_state.game, 'intro', None))
+    if shop_storage:
+        options.insert(0, "Manage Inventory")
+
     if not options:
         return
 
@@ -504,6 +510,12 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Manage Inventory" and isinstance(house, Warehouse) and house.is_owned:
             from .warehouse_inventory import open_warehouse_inventory
             open_warehouse_inventory(game_state, house)
+            return
+
+        if option_text == "Manage Inventory" and shop_storage:
+            from ...models.depot import START
+            from .warehouse_inventory import open_warehouse_inventory
+            open_warehouse_inventory(game_state, house, START)
             return
 
         if option_text == "Throw Coin" and isinstance(house, Well):

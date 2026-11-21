@@ -72,6 +72,16 @@ OPENING_SCENE = {ARRIVAL: "harbour", FIND_SHOP: "shop"}
 STAGE_AFTER = {ARRIVAL: FIND_SHOP, FIND_SHOP: DONE}
 
 
+#: The shop's name once found: the player's first storage, the depot's starting one
+SHOP_NAME = "Uncle Gared's Shop"
+
+
+def is_found_shop(house: Any, intro: Optional[Any]) -> bool:
+    """Whether this building is the uncle's shop and he has been found (the intro done):
+    then the player rests there and keeps their first storage in it."""
+    return getattr(house, "name", None) == SHOP_HOUSE and intro is not None and intro.stage == DONE
+
+
 def find_shop_spot(doors: Iterable[Any]) -> Tuple[float, float]:
     """Where the player is to arrive: the doorstep of the shop's door, the door
     on the "Doors" layer nearest ``SHOP_POINT`` (within ``SHOP_DOOR_SEARCH_TILES``);

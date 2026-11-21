@@ -1,6 +1,7 @@
 """Inventory of an owned warehouse, and what the player carries by hand.
 
-Opened from the house menu of a warehouse the player owns: the building's
+Opened from the house menu of a warehouse the player owns, or of Uncle Gared's
+shop once he has been found, which holds the starting storage: the building's
 storage slots over the player's hands (see inventory_window). Clicking a
 slot moves as much of its goods across as fits, a right-click one.
 
@@ -13,8 +14,9 @@ import pygame
 from typing import Any, Dict, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from ...config.colors import BEIGE, DARK_BROWN, DARK_GRAY, LIGHT_GRAY, SANDY_BROWN
-from ...config.constants import PACK_SLOT_SIZE
+from ...config.constants import PACK_SLOT_SIZE, SLOT_SIZE
 from ...models.depot import START
+from ...models.intro import SHOP_NAME
 from ..ui_utils import draw_mouse_tooltip
 from .goods_picker import GoodsPicker
 from .inventory_window import FIRST_SECTION_Y, SIDE_PAD, InventoryWindow, SlotSection, draw_funnel
@@ -35,11 +37,13 @@ SETTINGS_RULE_Y = ACCEPTS_Y + 40
 SETTINGS_BUTTON_H = 28
 ARROW_BUTTON_W = 34
 CHOOSE_BUTTON_W = 150
-STARTING_STORAGE_NAME = "Starting storage"
+STARTING_STORAGE_NAME = SHOP_NAME  # the starting storage is kept in the uncle's shop
 
 
-def open_warehouse_inventory(game_state: 'GameState', warehouse: 'Warehouse') -> None:
-    game_state.info_window = WarehouseInventory(game_state.screen, game_state, warehouse)
+def open_warehouse_inventory(game_state: 'GameState', warehouse: Any, key: Any = None) -> None:
+    """Open a storage's inventory: an owned warehouse's, or with key START the
+    starting storage's, in the building given (the uncle's shop)."""
+    game_state.info_window = WarehouseInventory(game_state.screen, game_state, warehouse, key)
     game_state.active_house_menu = warehouse  # walking away closes it, as with the house menu
 
 
@@ -47,9 +51,10 @@ class WarehouseInventory(InventoryWindow):
     """A centred overlay showing one warehouse's settings and slots, and the player's hands."""
 
     def __init__(self, screen: pygame.Surface, game_state: 'GameState',
-                 warehouse: 'Warehouse') -> None:
+                 warehouse: Any, key: Any = None) -> None:
         super().__init__(screen, game_state)
         self.house = warehouse  # map_view closes the window once the player walks off
+        self.key = warehouse.tmx_id if key is None else key  # the storage's key in the depot
         self.goods = list(self.depot.good_stock)
         self.picker: Optional[GoodsPicker] = None
 
@@ -60,9 +65,12 @@ class WarehouseInventory(InventoryWindow):
             if isinstance(house, WarehouseHouse):
                 self.storage_names[house.tmx_id] = house.display_name or (house.name or "Warehouse").split('_')[0]
 
-        entry = self.depot.warehouse_entry(warehouse.tmx_id) or {}
-        slot_count = len(entry.get("slots", [])) or warehouse.buy_slots
-        slot_size = entry.get("slot_size", warehouse.buy_slot_size)
+        if self.key == START:
+            slot_count, slot_size = len(self.depot.starting_slots), SLOT_SIZE
+        else:
+            entry = self.depot.warehouse_entry(self.key) or {}
+            slot_count = len(entry.get("slots", [])) or warehouse.buy_slots
+            slot_size = entry.get("slot_size", warehouse.buy_slot_size)
         warehouse_section = SlotSection(WAREHOUSE, slot_count, slot_size, SETTINGS_RULE_Y + 14,
                                         "Slots in use", "Stored", reservations=True,
                                         max_rows=MAX_SLOT_ROWS)
@@ -83,20 +91,19 @@ class WarehouseInventory(InventoryWindow):
     # ------------------------------------------------------------------
 
     def _accepts(self) -> Optional[List[str]]:
-        entry = self.depot.warehouse_entry(self.house.tmx_id) or {}
-        return entry.get("accepts")
+        return self.depot.storage_accepts(self.key)
 
     def _titles(self) -> Tuple[str, str]:
-        return self.storage_names.get(self.house.tmx_id, "Warehouse"), "Warehouse Inventory"
+        return self.storage_names.get(self.key, "Warehouse"), "Warehouse Inventory"
 
     def _read_slots(self) -> Dict[str, List[Dict[str, Any]]]:
         return {
-            WAREHOUSE: self.depot.warehouse_slots(self.house.tmx_id),
+            WAREHOUSE: self.depot.warehouse_slots(self.key),
             PACK: [dict(slot) for slot in self.depot.pack_slots],
         }
 
     def _footer(self, slots: Dict[str, List[Dict[str, Any]]]) -> str:
-        return f"Value in this warehouse:  {self._worth(slots[WAREHOUSE]):,.0f}g"
+        return f"Value stored here:  {self._worth(slots[WAREHOUSE]):,.0f}g"
 
     def _extra_key(self) -> tuple:
         accepts = self._accepts()
@@ -128,7 +135,7 @@ class WarehouseInventory(InventoryWindow):
         w = self.panel_rect.width
         off = (-self.panel_rect.x, -self.panel_rect.y)
         order = self.depot.storage_priority()
-        place = order.index(self.house.tmx_id) if self.house.tmx_id in order else -1
+        place = order.index(self.key) if self.key in order else -1
 
         # Priority: the whole list, this warehouse picked out, and the buttons moving it
         label = self.body_font.render("Priority:", True, DARK_BROWN)
@@ -239,9 +246,9 @@ class WarehouseInventory(InventoryWindow):
         if self.close_rect.collidepoint(pos) or not self.panel_rect.collidepoint(pos):
             return super().handle_click(pos)
         if self.earlier_button.collidepoint(pos):
-            self.depot.move_in_priority(self.house.tmx_id, -1)
+            self.depot.move_in_priority(self.key, -1)
         elif self.later_button.collidepoint(pos):
-            self.depot.move_in_priority(self.house.tmx_id, 1)
+            self.depot.move_in_priority(self.key, 1)
         elif self.choose_button.collidepoint(pos):
             self._open_accepts_picker()
         elif (index := self.sections[WAREHOUSE].filter_button_at(pos)) is not None:
@@ -255,16 +262,16 @@ class WarehouseInventory(InventoryWindow):
         chosen: Set[str] = set(self.goods) if accepts is None else set(accepts)
 
         def changed(goods: Optional[Set[str]]) -> None:
-            self.depot.set_accepted_goods(self.house.tmx_id, goods)
+            self.depot.set_accepted_goods(self.key, goods)
 
         self.picker = GoodsPicker(self, "Goods this warehouse accepts", self.goods, self.choose_button,
                                   chosen=chosen, on_change=changed)
 
     def _open_reservation_picker(self, index: int) -> None:
-        slot = self.depot.warehouse_slots(self.house.tmx_id)[index]
+        slot = self.depot.warehouse_slots(self.key)[index]
 
         def picked(good: Optional[str]) -> None:
-            self.depot.set_slot_reservation(self.house.tmx_id, index, good)
+            self.depot.set_slot_reservation(self.key, index, good)
 
         anchor = self.sections[WAREHOUSE].slot_rects[index][0]
         self.picker = GoodsPicker(self, "Keep this slot for", self.goods, anchor,
@@ -276,16 +283,16 @@ class WarehouseInventory(InventoryWindow):
             index = section.slot_at(pos)
             if index is None:
                 continue
-            slot = (self.depot.warehouse_slots(self.house.tmx_id) if kind == WAREHOUSE
+            slot = (self.depot.warehouse_slots(self.key) if kind == WAREHOUSE
                     else self.depot.pack_slots)[index]
             if slot["good"] is None:
                 return
             good_name, wanted = slot["good"], 1 if one else slot["qty"]
             if kind == WAREHOUSE:
-                if self.depot.carry_from_warehouse(self.house.tmx_id, index, wanted) == 0:
+                if self.depot.carry_from_warehouse(self.key, index, wanted) == 0:
                     self.game_state.show_warning(f"Your hands are full: there is no room for {good_name}.")
-            elif self.depot.store_in_warehouse(self.house.tmx_id, index, wanted) == 0:
-                if self.depot.room_in_warehouse(self.house.tmx_id, good_name, filtered=False) > 0:
+            elif self.depot.store_in_warehouse(self.key, index, wanted) == 0:
+                if self.depot.room_in_warehouse(self.key, good_name, filtered=False) > 0:
                     self.game_state.show_warning(
                         f"No room for {good_name} here: this warehouse's free slots are reserved for other goods.")
                 else:
