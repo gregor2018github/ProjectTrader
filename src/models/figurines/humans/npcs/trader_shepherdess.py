@@ -5,15 +5,16 @@ take turns at it, so she names the weaver's shapes on the Tiled "Movements"
 layer: the same walk around the stall, the same way home, and the same door
 for whichever of them the rota sends out that morning.
 
-While her black sheep Flip is lost (lost_sheep.py) she keeps the fold
-instead, every day from the morning she finds him gone to the day she has
-thanked the player for bringing him back: the rota passes her over
-(``kept_away``), and she walks from her door through the fold's gate, opening
-and shutting it behind her, to her round in it (the ``Shepherdess_Fold``
+On the days the rota sends one of the others to the stall she keeps her
+flock in the fold instead (``at_fold_on``), and while her black sheep Flip is
+lost (lost_sheep.py) she does so every day, from the morning she finds him
+gone to the day she has thanked the player for bringing him back: the rota
+then passes her over (``kept_away``). At the fold she walks from her door
+through the fold's gate, opening and shutting it behind her, to her round in it (the ``Shepherdess_Fold``
 polygon, ``set_fold``), where she stands about as at a stall, and home again
 in the evening, by the daylight (``FOLD_OUT_WINDOW``, ``FOLD_IN_WINDOW``). She
 changes between the two only while indoors, or while the map is not shown.
-Which days are fold days the game tells her (``keeps_fold``).
+Which days the quest keeps her there the game tells her (``keeps_fold``).
 
 Otherwise all of her behaviour comes from :class:`~.trader.Trader`.
 """
@@ -98,9 +99,16 @@ class TraderShepherdess(Trader):
             # Behind the same door either way: only her way out of it is another
             self.set_path(self.homeway, self.homeway.length)
 
+    def at_fold_on(self, current_time: datetime.datetime) -> bool:
+        """Whether she keeps the fold today: every day Flip is lost, and any day the rota sends
+        someone else to the stall."""
+        if self.keeps_fold(current_time.date()):
+            return True
+        return self.rota is not None and self.rota.whose_turn(current_time) is not self
+
     def update(self, dt: float, current_time: datetime.datetime) -> None:
         if self.fold_round is not None and self.talking_to is None:
-            wanted = self.keeps_fold(current_time.date())
+            wanted = self.at_fold_on(current_time)
             if wanted != self.at_fold and (self.state == AT_HOME or self._is_unseen(current_time)):
                 self._move_post(wanted)
         super().update(dt, current_time)

@@ -194,5 +194,19 @@ def test_she_changes_over_only_at_home_and_keeps_the_folds_hours():
     assert not her.at_fold and her.stall_path is not her.fold_round and not her.passes_gates
 
 
+def test_on_the_days_another_minds_the_stall_she_keeps_the_fold():
+    her = shepherdess()
+    weaver = TraderWeaver(0.0, 0.0, TILE)
+    rota = StallRota([her, weaver])
+    noon = DAY.replace(hour=12)
+    rota.on_duty, rota.last_draw_date = weaver, DAY.strftime("%Y-%m-%d")
+    assert her.at_fold_on(noon)
+    her.update(1 / 30, noon)                            # unseen till now: placed at once
+    assert her.at_fold and her.stall_path is her.fold_round and not her._off_duty(noon)
+    # Her own turn at the stall: she minds it
+    rota.on_duty = her
+    assert not her.at_fold_on(noon)
+
+
 def test_other_traders_are_never_kept_away():
     assert not Trader.kept_away(TraderWeaver(0.0, 0.0, TILE), DAY)
