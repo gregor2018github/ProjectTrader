@@ -21,6 +21,7 @@ import pytest
 from src.models import lost_sheep as ls
 from src.models.depot import Depot
 from src.models.figurines.animals.sheep import Sheep
+from src.models.figurines.humans.npcs.trader import WALKING_TO_WORK, WORKING
 from src.models.figurines.humans.npcs.trader_shepherdess import TraderShepherdess
 from src.models.lost_sheep import LostSheep
 from src.models.player import Player
@@ -37,7 +38,7 @@ def world():
     pygame.init()
     pygame.display.set_mode((1920, 1080))
     her = TraderShepherdess(400.0, 400.0, 32)
-    her.opacity, her.at_fold = 1.0, True
+    her.opacity, her.at_fold, her.state = 1.0, True, WORKING
     flip = Sheep(380.0, 380.0, 200, 32, 32, "dark", ls.FLIP)
     quest = LostSheep()
     quest.load({"stage": ls.ESCAPED, "missed_on": TODAY.date().isoformat()})
@@ -77,6 +78,14 @@ def test_she_has_news_at_the_fold_only(world):
     assert talks.shepherdess_talk(world.state, world.her) is None
 
 
+def test_her_marker_waits_till_she_is_on_her_round_in_the_fold(world):
+    world.her.state = WALKING_TO_WORK
+    assert not talks.has_news(world.state, world.her)
+    assert talks.shepherdess_talk(world.state, world.her) == ls.MISSING     # she can still be spoken to
+    world.her.state = WORKING
+    assert talks.has_news(world.state, world.her)
+
+
 def test_lying_costs_three_shown_in_red(world):
     bubble = talk(world)
     assert isinstance(bubble, FigurineConversation)
@@ -99,15 +108,27 @@ def test_owning_up_costs_half_a_point(world):
 
 def test_without_bread_the_player_says_so_and_she_gives_hers_once(world):
     talk(world).on_answer("It might have been me...")
+    world.flip.x = 420.0                                     # right of the player, room to his right
     talks.coax_flip(world.state, world.flip, VIEW)
     assert isinstance(world.state.info_window, FigurineSpeech)
     assert world.state.info_window.figurine is world.state.game.game_map.map_player
     assert world.quest.needs_bread and not world.flip.leashed
+    # No heart for an empty hand: he turns his back and walks off along his strip
+    assert world.flip.heart_age is None
+    assert world.flip.direction == "right" and world.flip.walk_target is not None
+    assert world.flip.walk_target[0] > world.flip.feet[0]
     bubble = talk(world)
     assert bubble.answers == ["Take the bread"] and bubble.badges["Take the bread"][0][0] == "+1"
     bubble.on_answer("Take the bread")
     assert world.depot.good_stock["Bread"] == 1 and world.quest.bread_given
     assert not talks.has_news(world.state, world.her)        # she has nothing new to say now
+
+
+def test_with_no_room_to_back_away_he_only_turns_his_back(world):
+    world.flip.x = world.flip.zone_right                      # at the end of his strip, the player left of him
+    world.flip.shy_away(world.flip.zone_right - 100.0)
+    assert world.flip.walk_target is None and not world.flip.is_moving
+    assert world.flip.direction == "right" and world.flip.heart_age is None
 
 
 def test_with_bread_he_follows_and_the_buildings_wait(world):
@@ -116,6 +137,7 @@ def test_with_bread_he_follows_and_the_buildings_wait(world):
     assert talks.can_coax(world.state, world.flip)
     talks.coax_flip(world.state, world.flip, VIEW)
     assert world.quest.leading and world.flip.leashed and world.leashed
+    assert world.flip.heart_age == 0.0                      # the bread wins him over
     assert world.depot.good_stock["Bread"] == 1
     assert talks.blocks_buildings(world.state)
     assert not talks.can_coax(world.state, world.flip)

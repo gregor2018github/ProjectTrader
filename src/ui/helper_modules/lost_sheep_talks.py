@@ -4,14 +4,16 @@ The quest itself is models/lost_sheep.py (its stages, texts and numbers) and
 models/lost_sheep_map.py (Flip, the fold and the shepherdess on the map); here
 is what the player does with it:
 
-* ``shepherdess_talk`` / ``open_shepherdess_talk`` -- her talk at the fold, in
+* ``shepherdess_talk`` / ``open_shepherdess_talk`` -- her talk at the fold
+  (its marker and glow, ``has_news``, only once she is on her round there), in
   her speech bubble (figurine_bubbles.FigurineConversation), pages of
   ``lost_sheep.PAGES``; an answer's ``does`` lies or owns up (reputation lost,
   shown in red beside it and rising from the player's head), takes her bread,
   or takes or turns down her thanks;
 * ``coax_flip`` -- "Coax Flip Home" in Flip's menu: with a Bread he follows on
-  the leash, one Bread used up; without, the player says so in their own
-  bubble (``player_says``);
+  the leash, one Bread used up; without, he shies away from the player along
+  his strip and the player says what they lack in their own bubble
+  (``player_says``);
 * ``blocks_buildings`` -- while he is on the leash no building is to be used
   (house_click_menu.show_house_menu warns instead).
 
@@ -26,6 +28,7 @@ import pygame
 
 from ...config.constants import MODULE_WIDTH, SCREEN_HEIGHT, SHEEP_VOLUME
 from ...models import lost_sheep
+from ...models.figurines.humans.npcs.trader import WORKING
 from ...models.talks import Page
 from ..transaction_feedback import on_goods_received, on_reputation_gained, on_reputation_lost
 from .figurine_bubbles import (
@@ -76,7 +79,12 @@ def shepherdess_talk(game_state: 'GameState', figurine: 'Figurine') -> Optional[
 
 
 def has_news(game_state: 'GameState', figurine: 'Figurine') -> bool:
-    """Whether she has news for the player at the fold: a marker over her head, and a glow."""
+    """Whether she has news for the player at the fold: a marker over her head, and a glow.
+
+    Only once she is on her round in the fold, not on her way out to it or home.
+    """
+    if getattr(figurine, "state", None) != WORKING:
+        return False
     talk = shepherdess_talk(game_state, figurine)
     return talk is not None and talk in lost_sheep.NEWS
 
@@ -194,10 +202,12 @@ def coax_flip(game_state: 'GameState', flip: 'Sheep', map_content_rect: pygame.R
     game = game_state.game
     quest, on_map = game.lost_sheep, game.lost_sheep_map
     player = game.game_map.map_player
-    flip.pet(player.x + player.width / 2)
     if not quest.lure(has_bread(game_state)):
+        # Nothing to offer: he shies away from the empty hand
+        flip.shy_away(player.x + player.width / 2)
         player_says(game_state, lost_sheep.SAY_NO_BREAD, map_content_rect)
         return
+    flip.pet(player.x + player.width / 2)
     game.depot.use_goods(lost_sheep.LURE_GOODS)
     game_state.log_event("TRADE", "Fed a piece of Bread to Flip, the shepherdess's black sheep")
     on_map.put_on_leash(player.feet)

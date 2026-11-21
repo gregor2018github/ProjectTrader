@@ -28,6 +28,8 @@ EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 HEART_DURATION = 1.4        # seconds the heart floats up after petting
 WALK_HOME_SPEED = 48.0      # pixels per second at tile_size 32, back to its zone off the leash
+SHY_DISTANCE = 3.0          # tiles a shy sheep backs away from an empty hand along its zone
+SHY_MIN_DISTANCE = 0.5      # tiles; with less room than this it only turns its back
 
 # Wool colour -> sprite folder (and file prefix) under ANIMAL_SPRITE_ROOT
 WOOLS = {"brown": "sheep", "white": "white_sheep", "dark": "dark_sheep"}
@@ -236,12 +238,33 @@ class Sheep(Animal):
         self.sound_timer = random.uniform(SOUND_MIN_INTERVAL, SOUND_MAX_INTERVAL)
         self.heart_age = 0.0
 
+    def shy_away(self, player_center_x: float) -> None:
+        """Back away from the player along its zone (no heart): turn away and walk off
+        SHY_DISTANCE tiles, as far as its zone allows; with no room that way it only turns its back.
+
+        Args:
+            player_center_x: World X of the player's centre, to get away from.
+        """
+        center = self.x + self.sprite_width / 2
+        away = 1.0 if center >= player_center_x else -1.0
+        self.direction = "right" if away > 0 else "left"
+        self.eating = False
+        self.is_blocked = False
+        self.heart_age = None
+        goal_x = min(max(self.x + away * SHY_DISTANCE * self.tile_size, self.zone_left),
+                     max(self.zone_left, self.zone_right))
+        if abs(goal_x - self.x) >= SHY_MIN_DISTANCE * self.tile_size:
+            self.walk_target = (goal_x + self.sprite_width / 2.0, self.zone_foot_y)
+        else:
+            self.is_moving = False
+            self.stop_timer = random.uniform(STOP_MIN_DURATION / 2, STOP_MIN_DURATION)
+
     def inspect_lines(self, observer=None) -> List[str]:
         """Debug lines for the "Inspect" window, plus the grazing behaviour."""
         if self.leashed:
             state = "on the leash"
         elif self.walk_target is not None:
-            state = "walking back to its zone"
+            state = "walking to a spot of its zone"
         elif self.is_blocked:
             state = "blocked by you"
         elif self.is_moving:
