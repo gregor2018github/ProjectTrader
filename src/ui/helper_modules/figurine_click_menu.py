@@ -26,7 +26,7 @@ from .figurine_talks import (
 )
 from .house_click_menu import get_hovered_house, is_player_near
 from .lost_sheep_talks import (
-    COAX_OPTION, TALK_OPTION, can_coax, coax_flip, open_shepherdess_talk, shepherdess_talk,
+    COAX_OPTION, can_coax, coax_flip, open_shepherdess_talk, shepherdess_talk, talk_option,
 )
 
 if TYPE_CHECKING:
@@ -150,8 +150,9 @@ def show_figurine_menu(
         options.append(thanks.talk_option)
     # The quest for the shepherdess's black sheep (lost_sheep_talks.py)
     quest_talk = shepherdess_talk(game_state, figurine)
-    if quest_talk is not None:
-        options.append(TALK_OPTION)
+    quest_option = talk_option(game_state) if quest_talk is not None else None
+    if quest_option is not None:
+        options.append(quest_option)
     if isinstance(figurine, Sheep) and can_coax(game_state, figurine):
         options.append(COAX_OPTION)
     if isinstance(figurine, NPC):
@@ -187,7 +188,7 @@ def show_figurine_menu(
                                                     game_state, map_content_rect)
             game_state.active_house_menu = None
             return
-        if quest_talk is not None and option_text == TALK_OPTION:
+        if quest_option is not None and option_text == quest_option:
             open_shepherdess_talk(game_state, figurine, quest_talk, map_content_rect)
             return
         if option_text == COAX_OPTION and isinstance(figurine, Sheep):

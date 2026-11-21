@@ -151,7 +151,16 @@ def test_flips_menu_offers_to_coax_him_only_while_he_is_to_be_found(world):
     show_figurine_menu(world.state, world.flip, VIEW)
     assert talks.COAX_OPTION in world.state.info_window.options
     show_figurine_menu(world.state, world.her, VIEW)
+    assert world.state.info_window.options[0] == talks.ABOUT_FLIP_OPTION
+
+
+def test_her_option_is_talk_till_she_has_named_him(world):
+    world.state.game.game_map.map_player.x, world.state.game.game_map.map_player.y = 400.0, 400.0
+    show_figurine_menu(world.state, world.her, VIEW)
     assert world.state.info_window.options[0] == talks.TALK_OPTION
+    world.quest.answer_missing(confess=True)
+    show_figurine_menu(world.state, world.her, VIEW)
+    assert world.state.info_window.options[0] == talks.ABOUT_FLIP_OPTION
 
 
 @pytest.mark.parametrize("answer, wool, reputation", [
