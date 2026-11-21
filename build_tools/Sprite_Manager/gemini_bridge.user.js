@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Sprite Manager -> Gemini
 // @namespace    merchants-rise
-// @version      1.13
-// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, high thinking level (or else the Pro or Thinking model), image and prompt, send, then download the answer's image.
+// @version      1.14
+// @description  Takes sheets from the Sprite Manager (web_bridge.py): new chat, (the thinking level, while CHOOSE_MODEL is on), image and prompt, send, then download the answer's image.
 // @match        https://gemini.google.com/*
 // @grant        GM_xmlhttpRequest
 // @connect      127.0.0.1
@@ -23,6 +23,10 @@
     const SERVER = 'http://127.0.0.1:47613';
     const POLL_MS = 1000;
     const STORE_KEY = 'spriteManagerJob';      // the sheet taken, kept over the reload into a new chat
+    // Setting the thinking level (or else the Pro or Thinking model) is off: Gemini's model menu
+    // no longer has the entries (Nov 2026), so the sheet is sent with whatever model is chosen.
+    // Kept, not deleted: set true again if the menu comes back (and check the names below).
+    const CHOOSE_MODEL = false;
     const THINKING = /^thinking level/i;       // the model menu entry opening the levels
     const LEVEL = /^high$/i;                   // the level to choose
     // Without a thinking level in the menu, the model that thinks the most, by its entry's first line
@@ -363,11 +367,13 @@
             await settledChatBox();
             step = 'the thinking level';
             let modelProblem = '';
-            let chosen = '';
-            try {
-                chosen = await chooseThinkingLevel(job);
-            } catch (e) {
-                modelProblem = e.message;
+            let chosen = 'model as chosen';
+            if (CHOOSE_MODEL) {
+                try {
+                    chosen = await chooseThinkingLevel(job);
+                } catch (e) {
+                    modelProblem = e.message;
+                }
             }
             step = 'the image';
             await attachImage(job);

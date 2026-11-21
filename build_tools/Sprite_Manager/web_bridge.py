@@ -4,7 +4,8 @@ A small HTTP server on this machine only (127.0.0.1:PORT) holds the sheet
 waiting to go out. The userscript gemini_bridge.user.js, installed in
 Violentmonkey or Tampermonkey in Firefox's FIREFOX_PROFILE profile, asks it
 for work from every open Gemini tab once a second. The tab that takes a sheet
-opens a new chat, sets the thinking level to High, pastes the image and the
+opens a new chat (setting the thinking level is off for now, CHOOSE_MODEL in
+the userscript), pastes the image and the
 prompt and presses send, telling the server how far it got; the tool shows
 that in its status line.
 

@@ -65,7 +65,8 @@ switches to full screen.
    (a frame the model lacks falls back to the grid). Then either
    - for free, through the Gemini web view: "Send in browser" (Ctrl+W)
      has the Gemini tab in Firefox (profile "ProjectTrader") open a new
-     chat, set the thinking level to High, and send sheet and prompt
+     chat and send sheet and prompt (setting the thinking level is off
+     for now, CHOOSE_MODEL in the userscript)
      and, once Gemini has drawn it, download the image, which the tool
      takes in by itself as if opened, with a short chime to say it is in,
      or a falling one if it did not come through (web_bridge.py and the userscript gemini_bridge.user.js; to install
