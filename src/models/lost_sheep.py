@@ -152,7 +152,7 @@ PAGES: Dict[str, Page] = {
 }
 
 #: What the player says to themselves, in their own speech bubble
-SAY_NO_BREAD = "He won't come near me. With a piece of bread I could lure him home much more easily."
+SAY_NO_BREAD = "He won't come near me. If only I had something with me he likes to eat..."
 SAY_LEASHED = "There's a good lad. Come on, Flip, let's get you home."
 SAY_HOME_DAY = "Back with the others, little one. Now to tell the shepherdess."
 SAY_HOME_NIGHT = "Back with the flock, little one. I'll tell the shepherdess in the morning."
