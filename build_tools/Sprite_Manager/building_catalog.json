@@ -1621,6 +1621,27 @@
     "Col_margin_left_pixel": -255,
     "Col_margin_right_pixel": 0
    }
+  },
+  "houses/House_55.png": {
+   "kind": "public",
+   "subcategory": "Hanseatic gate crane of Danzig",
+   "atlas": "houses_2",
+   "rect": [
+    2144,
+    2383,
+    1083,
+    1169
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_55.png",
+    "Tiles_to_right": 34,
+    "Tiles_up": 37,
+    "Collision_to_right": 34,
+    "Collision_up": 11,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -217
+   }
   }
  },
  "motifs": {}
