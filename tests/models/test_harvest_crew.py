@@ -1,4 +1,4 @@
-"""The harvest's workers (models/harvest_crew.py) and their ways through gates (models/gate_ways.py),
+"""The harvest's workers (models/harvest_crew.py) and their ways through gates (models/gate_passing.py),
 on a made-up map: a pen fenced in on a 20 x 20 tile map, a gate in its north side, three plants in
 it and a door outside. Also the shocks (models/shock.py), a field's plants while it is cut, and the
 real map's shocks and gate.
@@ -21,7 +21,8 @@ from src.models import harvest_crew as crew_module
 from src.models.field import Field
 from src.models.figurines.humans.npcs.townsperson import AT_HOME, Townsperson
 from src.models.gate import Gate
-from src.models.gate_ways import GateWays, Through, Walk
+from src.models.gate_passing import GateKeeper, gate_stops
+from src.models.gate_ways import GateWays, Walk
 from src.models.harvest import FieldHarvest, Harvest
 from src.models.harvest_crew import (
     AT_GATE, CUTTING, DONE, GOING_IN, HarvestCrew, SHUTTING_GATE, WAITING, WALKING, WALKING_HOME,
@@ -33,8 +34,8 @@ from src.sim.calendar import EPOCH
 TILE = 32
 FRAME = 1 / 60
 MINUTES_PER_FRAME = 3.0 * FRAME          # normal speed: a game day in 8 real minutes
-# The pen: walls from x 160 to 480 and y 320 to 496, its north side open at x 304..336 for the gate
-WALLS = [pygame.Rect(160, 320, 144, 16), pygame.Rect(336, 320, 144, 16), pygame.Rect(160, 480, 320, 16),
+# The pen: walls from x 160 to 480 and y 320 to 496, its north side open at x 320..352 for the gate
+WALLS = [pygame.Rect(160, 320, 160, 16), pygame.Rect(352, 320, 128, 16), pygame.Rect(160, 480, 320, 16),
          pygame.Rect(160, 320, 16, 176), pygame.Rect(464, 320, 16, 176)]
 PLANTS = [(240.0, 448.0), (272.0, 448.0), (304.0, 448.0)]
 
@@ -55,8 +56,8 @@ def day(number, hour=0.0):
 
 
 def make_gate():
-    # Its gateway the pen's gap: (304, 320) 32 x 16
-    return Gate(304, 336, "", 1, 1, 1, 1, TILE, name="Gate_Pen", house_class="Gate", col_margin_up_pixel=-16)
+    # Its gateway the pen's gap: (320, 320) 32 x 16
+    return Gate(320, 336, "", 1, 1, 1, 1, TILE, name="Gate_Pen", house_class="Gate", col_margin_up_pixel=-16)
 
 
 def make_nav(gate):
@@ -72,7 +73,9 @@ class World:
     def __init__(self, plants=PLANTS):
         self.gate = make_gate()
         self.nav = make_nav(self.gate)
-        self.ways = GateWays(self.nav, [self.gate])
+        self.ways = GateWays(self.nav)
+        self.bodies = []
+        self.keeper = GateKeeper([self.gate], lambda: self.bodies)
         self.door = SimpleNamespace(id=1, entry=(240.0, 200.0), step=(240.0, 212.0),
                                     facing_in="back", facing_out="front")
         self.harvest = Harvest([(1, plants)])
@@ -82,10 +85,9 @@ class World:
                                      mark_cut=lambda plant, now: self.cut.append(plant))
         self.person = Townsperson("poor_roland", "Roland", TILE, "male")
         self.person.speed = 52.0                                    # pinned: each person's own pace is drawn
+        self.person.gate_keeper = self.keeper
         self.person.go_indoors(self.door)
         self.crew = HarvestCrew(self.harvest, [self.field], [], [self.person], self.ways)
-        self.bodies = []
-        self.crew.bodies = lambda: self.bodies
         self.gate_events = []
         self.states = []
 
@@ -119,27 +121,19 @@ class World:
 # ---------------------------------------------------------------------------
 # Ways through gates
 
-def test_the_pen_is_an_area_of_its_own_joined_to_the_rest_by_its_gate():
+def test_the_grid_takes_no_notice_of_the_gate_so_the_way_into_the_pen_runs_through_it():
     world = World()
-    assert world.ways.area_at((240, 200)) != world.ways.area_at((240, 450))
-    [crossing] = world.ways.crossings
-    assert crossing.gate is world.gate
-    assert {crossing.area_a, crossing.area_b} == {world.ways.area_at((240, 200)), world.ways.area_at((240, 450))}
+    assert not world.gate.is_open and world.nav.is_free_at(336, 328)          # the gateway, shut
+    [leg] = world.ways.plan((240.0, 212.0), (240.0, 454.0))
+    assert isinstance(leg, Walk) and leg.points[0] == (240.0, 212.0) and leg.points[-1] == (240.0, 454.0)
+    [stop] = gate_stops(leg.points, [world.gate])
+    assert stop.gate is world.gate and 0 < stop.lo < stop.hi
 
 
-def test_a_way_into_the_pen_walks_to_the_gate_goes_through_and_walks_on():
+def test_a_way_past_the_pen_meets_no_gate():
     world = World()
-    legs = world.ways.plan((240.0, 212.0), (240.0, 454.0))
-    assert [type(leg) for leg in legs] == [Walk, Through, Walk]
-    through = legs[1]
-    assert through.before[1] < 320 < 336 < through.after[1]          # from north of the gateway to south of it
-    assert legs[0].points[-1] == through.before and legs[2].points[0] == through.after
-    assert world.ways.plan((240.0, 212.0), (400.0, 212.0)) and len(world.ways.plan((240.0, 212.0), (400.0, 212.0))) == 1
-
-
-def test_without_its_gate_there_is_no_way_in():
-    world = World()
-    assert GateWays(world.nav, []).plan((240.0, 212.0), (240.0, 454.0)) is None
+    [leg] = world.ways.plan((240.0, 212.0), (400.0, 212.0))
+    assert gate_stops(leg.points, [world.gate]) == []
 
 
 # ---------------------------------------------------------------------------
@@ -158,16 +152,16 @@ def test_he_waits_indoors_for_his_hour_walks_through_the_gate_shutting_it_cuts_a
     assert world.states[-3:] == [WALKING_HOME, GOING_IN, WAITING] or world.states[-1] == DONE
 
 
-def test_a_gate_he_finds_open_he_leaves_open():
+def test_a_gate_he_finds_open_he_shuts_behind_him_all_the_same():
     world = World()
     world.gate.set_open(True)
     world.run(day(18, 5.9), 45, until=lambda w: w.job.state == CUTTING)
-    assert world.job.state == CUTTING and world.gate.is_open and world.gate_events == []
+    assert world.job.state == CUTTING and not world.gate.is_open and world.gate_events == ["shut"]
 
 
 def test_he_does_not_shut_the_gate_on_someone_in_the_gateway():
     world = World()
-    world.bodies = [pygame.Rect(304, 322, 32, 14)]                 # somebody stands in it
+    world.bodies = [pygame.Rect(320, 322, 32, 14)]                 # somebody stands in it
     world.run(day(18, 5.9), 30, until=lambda w: w.job.state == SHUTTING_GATE)
     world.run(day(18, 6.2), 3)
     assert world.gate.is_open and world.job.state == SHUTTING_GATE
@@ -293,6 +287,5 @@ def test_the_maps_shocks_belong_to_its_two_fields_and_the_fenced_one_is_reached_
     assert sorted(by_field) == [305, 763] and all(min(t) == 1 for t in by_field.values())
     gate = next(house for house in tmx.houses if house.name == "Gate_Farm_Field_North")
     field = next(field for field in tmx.fields if field.tmx_id == 763)
-    ways = tmx.harvest_crew.ways
-    inside = ways.area_at(crew_module.stand_spot(field, field.harvest.order[0]))
-    assert any(crossing.gate is gate and inside in (crossing.area_a, crossing.area_b) for crossing in ways.crossings)
+    [leg] = tmx.harvest_crew.ways.plan((4432.0, 5990.0), crew_module.stand_spot(field, field.harvest.order[0]))
+    assert [stop.gate for stop in gate_stops(leg.points, tmx.gate_keeper.gates)] == [gate]

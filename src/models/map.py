@@ -14,6 +14,7 @@ from typing import List, Dict, Set, Tuple, Any, Optional, Union
 from ..config.constants import SLOT_SIZE, TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .gate import Gate, feet_box
+from .gate_passing import GateKeeper
 from .gate_ways import GateWays
 from .harvest import Harvest, shock_thresholds
 from .harvest_crew import HarvestCrew
@@ -248,6 +249,12 @@ class TMXMap:
         # decision to send them out is StreetLife's.
         self.npcs.extend(townsfolk)
         self.npcs.extend(self.homebodies)
+        # Every NPC opens the gates on their way and shuts them behind them (gate_passing.py); the
+        # NavGrid takes no notice of gates, so their routes run through them
+        self.gate_keeper: GateKeeper = GateKeeper([house for house in self.houses if isinstance(house, Gate)])
+        for npc in self.npcs:
+            if hasattr(npc, "gate_passing"):
+                npc.gate_keeper = self.gate_keeper
         self._load_harvest(townsfolk)
 
     def _load_harvest(self, townsfolk) -> None:
@@ -260,9 +267,8 @@ class TMXMap:
         for field in sown:
             field.harvest = self.harvest.fields[field.tmx_id]
         self._assign_shocks(sown)
-        gates = [house for house in self.houses if isinstance(house, Gate)]
         self.harvest_crew: HarvestCrew = HarvestCrew(self.harvest, sown, self.shocks, townsfolk,
-                                                     GateWays(self.nav, gates))
+                                                     GateWays(self.nav))
 
     def _assign_shocks(self, fields: List[Field]) -> None:
         """Give each shock the field it stands on (or the nearest), and how far its harvest must have got."""
@@ -1423,8 +1429,8 @@ class GameMap:
 
         # Scales and bakes what the view draws before it is needed (map_warmup.py)
         self.warmup: MapWarmup = MapWarmup(self)
-        # A harvest worker shuts a gate behind him only when nobody stands in it
-        self.tmx_map.harvest_crew.bodies = self.gateway_bodies
+        # An NPC shuts a gate behind him only when nobody stands in it
+        self.tmx_map.gate_keeper.bodies = self.gateway_bodies
 
     def gateway_bodies(self) -> List[pygame.Rect]:
         """The feet boxes of the player and of everyone out on the map: who may stand in a gateway."""

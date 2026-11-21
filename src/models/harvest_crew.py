@@ -8,9 +8,10 @@ it, Townsperson.update hands his frames to the job, and StreetLife leaves him
 alone. Someone out strolling when picked finishes the walk first.
 
 A HarvestJob is his day: at his hour (harvest.work_day) he steps out of his
-door and walks to the field, through any gate on the way (gate_ways.py): he
-stops at it, opens it if it is shut, walks through, turns and shuts it behind
-him once nobody stands in the gateway (one he found open he leaves open).
+door and walks to the field, through any gate on the way, as every NPC does
+(gate_passing.py): he stops at it, opens it if it is shut, walks through,
+turns and shuts it behind him once nobody stands in the gateway, open as he
+found it or not.
 At the field he goes from plant to plant in the harvest's order, stands below
 each for HARVEST_MINUTES_PER_PLANT of game time and cuts it (the plant goes,
 and a shock may stand up), until his hours are over, heavy rain sends him in,
@@ -25,14 +26,13 @@ where his day has got to: at the next plant, or indoors.
 
 import datetime
 import time
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generator, List, Optional, Sequence
-
-import pygame
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Sequence
 
 from ..sim.calendar import day_number
 from .figurines.humans.npcs.townsperson import AT_HOME
 from .figurines.patrol_path import PatrolPath
-from .gate_ways import GateWays, Leg, Through, Walk
+from .gate_passing import SHUT, SHUTTING, THROUGH, WAITING as AT_THE_GATE
+from .gate_ways import GateWays, Leg, Walk
 from .harvest import (
     CATCH_UP_MINUTES, HARVEST_CLASSES, HARVEST_MINUTES_PER_PLANT, Harvest, FieldHarvest, WorkDay,
     is_harvest_day, pick_workers, shocks_standing_after_harvest, work_day,
@@ -45,8 +45,6 @@ if TYPE_CHECKING:
 
 #: World px below a plant's base a reaper stands to cut it, so he is drawn in front of it
 STAND_BELOW_PX = 6.0
-#: Real seconds he stands at a gate before opening it, and after shutting it
-GATE_PAUSE_S = 0.6
 #: Time a frame may spend working out the workers' ways (as StreetLife's ROUTE_BUDGET_S)
 ROUTE_BUDGET_S = 0.002
 #: How long the fade at his door takes, in real seconds (as a townsperson's)
@@ -70,7 +68,10 @@ DONE = "Done with the harvest for today"
 OUT_STATES = (STEPPING_OUT, WALKING, WALKING_HOME, AT_GATE, THROUGH_GATE, SHUTTING_GATE, TO_PLANT, CUTTING,
               GOING_IN)
 #: The states that walk a path, picked up again after a word with the player
-WALKING_STATES = (WALKING, WALKING_HOME, THROUGH_GATE, TO_PLANT)
+WALKING_STATES = (WALKING, WALKING_HOME, TO_PLANT)
+#: At a gate on his way (gate_passing.py), its phase in his words
+GATE_STATES = (AT_GATE, THROUGH_GATE, SHUTTING_GATE)
+GATE_STATES_BY_PHASE = {AT_THE_GATE: AT_GATE, THROUGH: THROUGH_GATE, SHUTTING: SHUTTING_GATE, SHUT: SHUTTING_GATE}
 
 FIELD, HOME = "field", "home"
 
@@ -106,8 +107,6 @@ class HarvestJob:
         self.legs: List[Leg] = []
         self.leg = 0
         self._planning: Optional[Generator[None, None, Optional[List[Leg]]]] = None
-        self._gate_wait = 0.0
-        self._opened_gate: Optional[Any] = None
         #: Game minutes still to cut the plant he stands at
         self.work_left = 0.0
         self.last_now: Optional[datetime.datetime] = None
@@ -181,11 +180,6 @@ class HarvestJob:
         """Set off on the next leg of the way, or arrive."""
         while self.leg < len(self.legs):
             leg = self.legs[self.leg]
-            if isinstance(leg, Through):
-                self._gate_wait = GATE_PAUSE_S
-                self.person.stop()
-                self._set_state(AT_GATE)
-                return
             path = PatrolPath(leg.points, closed=False)
             if path:
                 self.person.set_path(path, 0.0)
@@ -215,54 +209,6 @@ class HarvestJob:
         return True
 
     # ------------------------------------------------------------------
-    # Gates
-    # ------------------------------------------------------------------
-
-    def _gate_step(self, dt: float) -> None:
-        leg: Through = self.legs[self.leg]
-        gate = leg.gate
-        if self.state == AT_GATE:
-            self.person._animate(dt, False, _facing(leg.after[0] - leg.before[0], leg.after[1] - leg.before[1]))
-            self._gate_wait -= dt
-            if self._gate_wait > 0:
-                return
-            if not gate.is_open:
-                gate.set_open(True)
-                self.person.wants_gate_sound = gate
-                self._opened_gate = gate
-            path = PatrolPath([self.person.feet, leg.after], closed=False)
-            if path:
-                self.person.set_path(path, 0.0)
-                self.person.walk_to_distance(path.length)
-                self._set_state(THROUGH_GATE)
-            else:
-                self._set_state(SHUTTING_GATE)
-                self._gate_wait = GATE_PAUSE_S
-            return
-        # Shutting it behind him: turned back to it, once nobody is in the gateway
-        self.person._animate(dt, False, _facing(leg.before[0] - leg.after[0], leg.before[1] - leg.after[1]))
-        self._gate_wait -= dt
-        if self._gate_wait > 0:
-            return
-        if self._opened_gate is gate and gate.is_open:
-            if not gate.can_close(self.crew.bodies()):
-                return
-            gate.set_open(False)
-            self.person.wants_gate_sound = gate
-            self._opened_gate = None
-            self._gate_wait = GATE_PAUSE_S
-            return
-        self._opened_gate = None
-        self.leg += 1
-        self._start_leg()
-
-    def _shut_gate_left_open(self) -> None:
-        """A gate he opened and was put away from before shutting: shut it if nobody is in it."""
-        gate, self._opened_gate = self._opened_gate, None
-        if gate is not None and gate.is_open and gate.can_close(self.crew.bodies()):
-            gate.set_open(False)
-
-    # ------------------------------------------------------------------
     # The work
     # ------------------------------------------------------------------
 
@@ -290,7 +236,7 @@ class HarvestJob:
         """Time ran on unseen: put him where his day has got to."""
         if self.state in (WAITING, DONE):
             return
-        self._shut_gate_left_open()
+        self.person._leave_gate()
         self._planning = None
         plant = self.field_harvest.next_plant()
         if self.wants_work(now) and plant is not None:
@@ -350,10 +296,6 @@ class HarvestJob:
             person._animate(dt, False)
             self._run_planning()
             return
-        if self.state in (AT_GATE, SHUTTING_GATE):
-            self._gate_step(dt)
-            return
-
         if self.state in (TO_PLANT, CUTTING) and not self.wants_work(now):
             self._go_home()
             person._animate(dt, False)
@@ -371,15 +313,18 @@ class HarvestJob:
         # Walking: a word with the player leaves the walk without a target, so pick it up again
         if self.state in WALKING_STATES and person.path is not None and person.path_target is None:
             person.walk_to_distance(person.path.length)
+        if self.state in GATE_STATES or self.state in (WALKING, WALKING_HOME):
+            if person._pass_gates(dt):
+                self._set_state(GATE_STATES_BY_PHASE[person.gate_passing.phase])
+                return
+            if self.state in GATE_STATES:
+                self._set_state(WALKING if self.heading == FIELD else WALKING_HOME)
         is_moving = person._follow_path(dt)
         if is_moving:
             person._animate(dt, True)
             return
         if self.state == TO_PLANT:
             self._start_cutting()
-        elif self.state == THROUGH_GATE:
-            self._set_state(SHUTTING_GATE)
-            self._gate_wait = GATE_PAUSE_S
         else:
             self.leg += 1
             self._start_leg()
@@ -408,8 +353,6 @@ class HarvestCrew:
         self.yesterday: List[str] = []
         #: Set by the game from the weather: too wet to work
         self.heavy_rain = False
-        #: Feet boxes (world rects) of everyone who could stand in a gateway; set by the GameMap
-        self.bodies: Callable[[], List[pygame.Rect]] = lambda: []
         self.deadline = 0.0
 
     def live_fields(self) -> List[int]:
@@ -433,8 +376,7 @@ class HarvestCrew:
             names.append(job.person.name)
             if job.person.job is job:
                 if job.is_out:
-                    job._shut_gate_left_open()
-                    job.person.go_indoors(job.home)
+                    job.person.go_indoors(job.home)       # shutting a gate he opened, if he was at one
                 job.person.job = None
         self.yesterday = names
         self.jobs = {}

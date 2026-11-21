@@ -231,6 +231,7 @@ class Townsperson(NPC):
         Args:
             door: The door they live behind from now on.
         """
+        self._leave_gate()
         self.home_door = door
         self.target_door = None
         self.rest_left = random.uniform(REST_SECONDS_MIN, REST_SECONDS_MAX)
@@ -429,6 +430,8 @@ class Townsperson(NPC):
             self._animate(dt, False)
             return
 
+        if self._pass_gates(dt):
+            return                       # at a gate on the way: opening, passing or shutting it
         is_moving = self._follow_path(dt)
 
         if not is_moving:

@@ -32,6 +32,8 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence
 
 import pygame
 
+from .gate import Gate
+
 if TYPE_CHECKING:
     from .map import TMXMap
 
@@ -127,6 +129,8 @@ class NavGrid:
             tmx_map: The loaded map.
         """
         for house in tmx_map.houses:
+            if isinstance(house, Gate):
+                continue                         # walked through: opened and shut on the way (gate_passing.py)
             for rect in house.collision_rects:   # an archway's gap stays open
                 self._block_rect(rect)
         for tree in tmx_map.trees:
@@ -153,7 +157,8 @@ class NavGrid:
         # door's way out may run through those (open_way_out)
         self.solid: bytearray = bytearray(self.blocked)
         # Last, because it only ever looks at cells the collision left free
-        self._block_occluders(list(tmx_map.houses) + list(tmx_map.trees))
+        self._block_occluders([house for house in tmx_map.houses if not isinstance(house, Gate)]
+                              + list(tmx_map.trees))
 
     def _block_occluders(self, occluders: Sequence[Any]) -> None:
         """Block the cells a walker would stand all but hidden in.

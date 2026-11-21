@@ -11,8 +11,8 @@ its point, the walls' own base line), and open towards the viewer a little
 lower, as its leaves then reach out in front of the wall.
 
 Nothing of it is saved: the gates are shut when a game starts or is loaded.
-The townsfolk's ways (NavGrid) are worked out once with the gates shut, so
-they never walk through one.
+The townsfolk's ways (NavGrid) take no notice of the gates: an NPC opens one on
+their way and shuts it behind them (gate_passing.py).
 """
 
 import random

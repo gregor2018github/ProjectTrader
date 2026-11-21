@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import pygame
 
+from ....gate_passing import GatePassing
 from ...patrol_path import PatrolPath
 from ..human import Human, HUMAN_SPRITE_ROOT
 from .sentences import ALMS_THANKS_FILE, RUMOUR_CHANCE, for_speaker, load_sentences, rumours_for, sentences_for
@@ -92,6 +93,10 @@ class NPC(Human):
         self.wants_door_sound: bool = False
         #: A gate (gate.Gate) they just opened or shut, to be heard (Game._play_door_sounds); else None
         self.wants_gate_sound = None
+        #: The map's gates (gate_passing.GateKeeper), set by the map; with them, a gate on their path is
+        #: opened, passed and shut behind them (_pass_gates)
+        self.gate_keeper = None
+        self.gate_passing: GatePassing = GatePassing()
 
     # ------------------------------------------------------------------
     # Setup helpers
@@ -268,6 +273,18 @@ class NPC(Human):
         """Abandon the current walk target and stand still."""
         self.path_target = None
         self.set_movement(0.0, 0.0)
+
+    def _pass_gates(self, dt: float) -> bool:
+        """Whether a gate on their path holds them this frame (gate_passing.py): they stop at it, open it,
+        go through and shut it behind them. Call it before following the path; while it is True, the
+        frame is the gate's."""
+        return self.gate_keeper is not None and self.gate_passing.step(self, dt, self.gate_keeper)
+
+    def _leave_gate(self) -> None:
+        """Put away (indoors, or where time had got them) while at a gate: shut what they opened if they
+        can, and forget it."""
+        if self.gate_keeper is not None and self.gate_passing.active:
+            self.gate_passing.abandon(self.gate_keeper)
 
     def _follow_path(self, dt: float) -> bool:
         """Advance along the path towards the current target.

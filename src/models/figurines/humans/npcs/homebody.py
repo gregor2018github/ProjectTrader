@@ -285,6 +285,7 @@ class Homebody(NPC):
 
     def go_indoors(self) -> None:
         """Put him behind his door at once, out of sight."""
+        self._leave_gate()
         self.state = INDOORS
         self._walk = None
         self.idle_until = None
@@ -306,6 +307,7 @@ class Homebody(NPC):
 
     def _catch_up(self, current_time: datetime.datetime) -> None:
         """Put him straight where he belongs after time ran on unseen."""
+        self._leave_gate()
         if self.is_out_time(current_time):
             self._put_in_yard(current_time, stagger=True)
             self.fade_in(0.0)
@@ -466,6 +468,8 @@ class Homebody(NPC):
                 else:
                     self._move_on(current_time)
 
+        if self._pass_gates(dt):
+            return                       # at a gate on his way: opening, passing or shutting it
         is_moving = self._follow_path(dt)
         if not is_moving and self.path_target is None:
             if self.state == IN_YARD and self.was_moving:

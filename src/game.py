@@ -538,7 +538,7 @@ class Game:
         for npc in self.game_map.tmx_map.npcs:
             gate, npc.wants_gate_sound = npc.wants_gate_sound, None
             if gate is not None:
-                # A gate a harvest worker opened or shut, if it has a sound (gate.py)
+                # A gate an NPC opened or shut on their way, if it has a sound (gate.py)
                 name = gate.sound(self.sounds)
                 gx, gy = gate.collision_rect.center
                 dist = ((px - gx) ** 2 + (py - gy) ** 2) ** 0.5
