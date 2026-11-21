@@ -378,6 +378,10 @@ def use_gate(game_state: 'GameState', gate) -> bool:
     game = game_state.game
     if not gate.toggle(game.game_map.gateway_bodies()):
         return False
+    # The sheep fold's gate left open may let a sheep out (models/lost_sheep.py)
+    quest_map = getattr(game, "lost_sheep_map", None)
+    if quest_map is not None:
+        quest_map.player_opened(gate)
     sound = gate.sound(game.sounds)
     if sound is not None:
         game.play_sound(sound, GATE_VOLUME)
@@ -392,6 +396,7 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         house: The clicked house.
     """
     from .info_window import InfoWindow
+    from .lost_sheep_talks import blocks_buildings
     from .rank_window import open_rank_window
     from ...models.institutions.church import Church
     from ...models.institutions.town import Town
@@ -400,6 +405,12 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     from ...models.institutions.well import Well
     from ...models.institutions.warehouse import Warehouse
     
+    # With the shepherdess's sheep on the leash, the buildings wait (models/lost_sheep.py)
+    if blocks_buildings(game_state):
+        from ...models.lost_sheep import WARN_BUILDINGS
+        game_state.show_warning(WARN_BUILDINGS)
+        return
+
     # Create an info window styled as a menu. Inspect is a debugging aid,
     # only offered with the debug overlay on
     options = ["Inspect"] if settings_store.get("show_map_debug") else []

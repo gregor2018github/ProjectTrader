@@ -50,6 +50,7 @@ ANSWER_MARK = "\u00bb "                # Before each of the player's answers
 BADGE_GAP = 10                         # Between an answer and what it brings
 BADGE_ICON_SIZE = 20                   # The icon of what an answer brings, square
 BADGE_TEXT_COLOR = (46, 104, 46)       # A gain, "+3": a muted green on the parchment
+BADGE_LOSS_COLOR = (150, 40, 30)       # A loss, "-3": a muted red
 
 #: An answer's badge: what it brings, as its amount ("+3") and an icon
 Badge = Tuple[str, pygame.Surface]
@@ -462,8 +463,9 @@ class FigurineConversation(FigurineSpeech):
         self.answer_rows: List[Tuple[pygame.Rect, str]] = []
         self.text_bottom: Optional[int] = None
         super().__init__(screen, figurine, text, game_state, map_content_rect)
-        self.badge_surfs = {label: [(self.text_font.render(amount, True, BADGE_TEXT_COLOR), icon)
-                                     for amount, icon in items]
+        self.badge_surfs = {label: [(self.text_font.render(
+                                        amount, True, BADGE_LOSS_COLOR if amount.startswith("-") else BADGE_TEXT_COLOR),
+                                     icon) for amount, icon in items]
                             for label, items in self.badges.items()}
         answer_width = max((self._answer_width(answer) + 2 * BUBBLE_PADDING for answer in self.answers), default=0)
         self.width = max(self.width, answer_width + 2 * BUBBLE_PADDING)

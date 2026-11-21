@@ -11,6 +11,8 @@ import datetime
 from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from .effect_circles import draw_effect_circles
 from .drowsy_view import draw_drowsy_view, player_centre
+from .leash_view import leash_entry
+from .quest_marker import draw_quest_marker
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
 from ..helper_modules.house_click_menu import (
@@ -20,6 +22,7 @@ from ..helper_modules.house_click_menu import (
 from ...models.introductions import WOODHACKING
 from ...models.pixels import screen_pixel
 from ..helper_modules.figurine_talks import waiting_thanks
+from ..helper_modules.lost_sheep_talks import can_coax, has_news
 from ..helper_modules.figurine_click_menu import get_hovered_map_object, iter_figurines, figurine_screen_pos
 from ..helper_modules.water_click_menu import fishing_available
 from ..paper import draw_paper
@@ -145,6 +148,21 @@ def draw_map_view(
     for npc in game_map.tmx_map.npcs:
         if npc is not hovered and not npc.is_hidden and waiting_thanks(game_state, npc) is not None:
             inject_available_glow_into_queue(render_queue, npc, game_map.camera)
+    # And in the quest for her black sheep (models/lost_sheep.py): the shepherdess while she has news,
+    # Flip while he is to be coaxed home; the rope while he is led
+    quest_map = getattr(game_state.game, "lost_sheep_map", None)
+    marked = None
+    if quest_map is not None and quest_map.ready:
+        her = quest_map.shepherdess
+        if her is not None and not her.is_hidden and has_news(game_state, her):
+            marked = her
+            if her is not hovered:
+                inject_available_glow_into_queue(render_queue, her, game_map.camera)
+        if quest_map.flip is not hovered and can_coax(game_state, quest_map.flip):
+            inject_available_glow_into_queue(render_queue, quest_map.flip, game_map.camera)
+        rope = leash_entry(game_map, quest_map, offset_x, offset_y, pygame.time.get_ticks() / 1000.0)
+        if rope is not None:
+            render_queue.append(rope)
 
     # Inject hover effect into the queue (before sorting) for proper z-ordering
     inject_hover_effect_into_queue(render_queue, hovered, game_map.camera, offset_x, offset_y)
@@ -210,6 +228,12 @@ def draw_map_view(
 
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
+    # So does the marker over someone with news for the player (quest_marker.py)
+    if marked is not None:
+        head = figurine_screen_pos(marked, game_map.camera)
+        width = marked._get_scaled_sprite(game_map.camera.zoom).get_width()
+        draw_quest_marker(screen, (head[0] + width // 2 + offset_x, head[1] + offset_y),
+                          game_map.camera.zoom, pygame.time.get_ticks() / 1000.0)
 
     # Worn out, the view narrows round the player and now and then the eyes fall shut (models/drowsiness.py)
     game = game_state.game

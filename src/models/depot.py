@@ -687,19 +687,7 @@ class Depot:
         value = sum(quantity * prices.get(name, 0.0) for name, quantity in needed.items())
 
         for name, quantity in needed.items():
-            self._take_goods(name, quantity)
-            self.good_stock[name] -= quantity
-            remaining = quantity
-            entries = self.purchase_history.get(name, [])
-            while remaining > 0 and entries:
-                oldest = entries[0]
-                if oldest["quantity"] <= remaining:
-                    remaining -= oldest["quantity"]
-                    entries.pop(0)
-                else:
-                    oldest["quantity"] -= remaining
-                    oldest["total_cost"] = oldest["price"] * oldest["quantity"]
-                    remaining = 0
+            self._remove_stock(name, quantity)
 
         self.expenditures += value
         self.donation_expenditures += value
@@ -711,6 +699,38 @@ class Depot:
         self.stats.goods_donated += sum(needed.values())
         self.stats.goods_donated_value += value
         return value
+
+    def use_goods(self, needed: Dict[str, int]) -> bool:
+        """Use goods up (a piece of bread held out to a sheep): out of the slots and the oldest
+        purchases, like a gift, but booked as nothing at all.
+
+        Args:
+            needed: Good name -> units used.
+
+        Returns:
+            True if they were taken, False (and nothing taken) if the stock lacks any of them.
+        """
+        if self.missing_goods(needed):
+            return False
+        for name, quantity in needed.items():
+            self._remove_stock(name, quantity)
+        return True
+
+    def _remove_stock(self, name: str, quantity: int) -> None:
+        """Take goods out of the slots and the stock, the oldest purchases first, with nothing booked."""
+        self._take_goods(name, quantity)
+        self.good_stock[name] -= quantity
+        remaining = quantity
+        entries = self.purchase_history.get(name, [])
+        while remaining > 0 and entries:
+            oldest = entries[0]
+            if oldest["quantity"] <= remaining:
+                remaining -= oldest["quantity"]
+                entries.pop(0)
+            else:
+                oldest["quantity"] -= remaining
+                oldest["total_cost"] = oldest["price"] * oldest["quantity"]
+                remaining = 0
 
     def book_labor_income(self, amount: float, category: str) -> None:
         """Book income earned directly from a minigame (e.g. woodhacking).

@@ -160,11 +160,12 @@ class GoodsPopup(FloatingPopup):
 
 
 class ReputationPopup(FloatingPopup):
-    """Reputation earned: "+0.2" and the laurel, rising and fading like the coins."""
+    """Reputation earned: "+0.2" and the laurel, rising and fading like the coins; lost: "-3", in red."""
 
     def __init__(self, screen: pygame.Surface, pos: tuple[int, int], amount: float) -> None:
-        super().__init__(screen, pos, laurel_icon(_GOOD_ICON_SIZE), f"+{amount:g}", DARK_GREEN,
-                         icon_first=False)
+        label = f"+{amount:g}" if amount > 0 else f"{amount:g}"
+        super().__init__(screen, pos, laurel_icon(_GOOD_ICON_SIZE), label,
+                         DARK_GREEN if amount > 0 else DARK_RED, icon_first=False)
 
 
 def on_reputation_gained(game_state: "GameState", amount: float, pos: tuple[int, int]) -> None:
@@ -175,6 +176,14 @@ def on_reputation_gained(game_state: "GameState", amount: float, pos: tuple[int,
     if game_state.game:
         game_state.game.play_sound(GOODS_RECEIVED_SOUND)
     game_state.coin_popups.append(ReputationPopup(game_state.screen, pos, amount))
+
+
+def on_reputation_lost(game_state: "GameState", amount: float, pos: tuple[int, int]) -> None:
+    """Feedback for reputation lost by a deed (a lie found out): "-3" and the laurel, in red,
+    rising from `pos`, without a sound. `amount` is how much was lost, as a positive number."""
+    if amount <= 0:
+        return
+    game_state.coin_popups.append(ReputationPopup(game_state.screen, pos, -amount))
 
 
 def on_money_spent(game_state: "GameState", amount: float = 0.0) -> None:

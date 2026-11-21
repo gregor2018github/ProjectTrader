@@ -48,3 +48,16 @@ def test_selling_a_gift_is_all_profit(depot, wood, game_state):
     depot.receive_goods("Wood", 3, game_state.date)
     assert depot.sell(wood, 3, game_state)
     assert depot.good_stock["Wood"] == 0 and depot.purchase_history["Wood"] == []
+
+
+def test_goods_used_up_leave_the_stock_with_nothing_booked(depot, game_state):
+    """Depot.use_goods: a piece of bread held out to a sheep (lost_sheep.py)."""
+    depot.receive_goods("Wood", 3, game_state.date)
+    money, spent = depot.money, depot.expenditures
+    assert depot.use_goods({"Wood": 1})
+    assert depot.good_stock["Wood"] == 2 and pack_held(depot, "Wood") == 2
+    assert depot.purchase_history["Wood"][-1]["quantity"] == 2
+    assert depot.money == money and depot.expenditures == spent
+    assert not any(depot.donations.values())
+    assert not depot.use_goods({"Wood": 5})
+    assert depot.good_stock["Wood"] == 2

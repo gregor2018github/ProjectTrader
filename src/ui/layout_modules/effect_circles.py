@@ -1,8 +1,9 @@
 """What is acting on the player, as small circles in the top left corner of the Explore map.
 
 One circle per effect (`player_effects`): the meal's (models/meal_effects.py),
-being worn out (from `drowsiness.TIRED_FROM` of tiredness on) and the weather's
-slowing of the walk (`Weather.walking_slowdown`). Each is a
+being worn out (from `drowsiness.TIRED_FROM` of tiredness on), leading Flip on
+the leash (models/lost_sheep.py) and the weather's slowing of the walk
+(`Weather.walking_slowdown`). Each is a
 pictogram (`ui/effect_pictograms.py`) on a parchment disc in a ring. A meal's ring
 is gold and runs out as its hours do: the part left starts at the top and grows
 shorter clockwise. The weather's ring is red and whole, as it lasts as long as the
@@ -21,7 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import pygame
 
 from ...config.colors import BLACK, DARK_BROWN, WHITE
-from ...models import drowsiness, meal_effects
+from ...models import drowsiness, lost_sheep, meal_effects
 from ..effect_pictograms import pictogram
 
 #: A circle's size, its ring's width and the pictogram's box inside it
@@ -82,6 +83,14 @@ def player_effects(game: Any, now) -> List[PlayerEffect]:
             [f"Tiredness {player.tiredness * 100:.0f}%: your eyes keep falling shut",
              f"Walk {pct}% slower, minigames {pct}% worse",
              "Rest to recover; a filling meal slows it."],
+            1.0, True))
+    quest = getattr(game, "lost_sheep", None)
+    if quest is not None and quest.leading:
+        effects.append(PlayerEffect(
+            "leash", "Leading Flip",
+            [f"Walk {lost_sheep.LEASH_SLOWDOWN * 100:.0f}% slower, no buildings",
+             "The shepherdess's black sheep, on the leash",
+             "Until he is back in the fold."],
             1.0, True))
     weather = getattr(game, "weather", None)
     if weather is not None:

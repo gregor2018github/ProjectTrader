@@ -48,6 +48,7 @@ from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.humans.npcs.homebody import Homebody, discover_homebodies
 from .figurines.patrol_path import PatrolPath
 from .door import Door
+from .lost_sheep import SHEPHERDESS_ROUND
 from .map_fog import FogOfWar
 from .rain import Rainfall
 from .fog import Fog, HALO_GROW
@@ -241,6 +242,7 @@ class TMXMap:
         self.nav: NavGrid = NavGrid(self, figure_size)
         self._load_doors()
         self._load_homebodies()
+        self._settle_shepherdess()
         # A homebody's door is his: nobody else is sent out of it or into it
         taken = {homebody.door.id for homebody in self.homebodies}
         self.street_life: StreetLife = StreetLife([door for door in self.doors if door.id not in taken],
@@ -998,6 +1000,26 @@ class TMXMap:
             homebody.settle(doors[0], yard, walks, self._homebody_route)
             self.homebodies.append(homebody)
 
+    def _settle_shepherdess(self) -> None:
+        """Give the shepherdess her round in the fold and her way there from her door, for the days
+        she keeps the flock instead of her stall (lost_sheep.py): the ``Shepherdess_Fold`` polygon on
+        the "Movements" layer, and a way from it to where her way home ends, worked out on the grid
+        once (through the fold's gate, which she opens and shuts behind her)."""
+        shepherdess = next((npc for npc in self.npcs if isinstance(npc, TraderShepherdess)), None)
+        round_obj = self._movement_objects.get(SHEPHERDESS_ROUND)
+        if shepherdess is None or round_obj is None or shepherdess.homeway is None:
+            return
+        fold_round = self._movement_path(round_obj)
+        if fold_round is None:
+            return
+        door = shepherdess.homeway.points[-1]
+        start = fold_round.position_at(fold_round.closest_distance(door))
+        route = self._homebody_route(start, door)
+        if not route:
+            print("The shepherdess: no way from the fold to her door; she keeps her stall")
+            return
+        shepherdess.set_fold(fold_round, PatrolPath([start] + list(route[1:]), closed=False))
+
     def _homebody_route(self, start: Tuple[float, float],
                         goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
         """A homebody's way between two points: straight where it is clear, else
@@ -1067,7 +1089,8 @@ class TMXMap:
         """Load NPC movement zones from the 'Movements' object layer.
 
         Sheep take a rectangle (they only wander left and right inside it),
-        and an optional ``Wool`` property (``brown``, ``white`` or ``dark``).
+        an optional ``Wool`` property (``brown``, ``white`` or ``dark``) and
+        an optional ``Name`` (the black one is Flip, of lost_sheep.py).
         Traders take a polygon or polyline around their stall, which they walk
         along, plus an optional way home. Where several traders name the same
         shapes they are put on one rota, which sends one of them out a day.
@@ -1081,8 +1104,9 @@ class TMXMap:
                         # second sheep is white, so the flock is not all alike
                         default = "white" if len(self.sheep) % 2 else "brown"
                         wool = str(obj.properties.get("Wool", default)).lower()
+                        name = str(obj.properties.get("Name", "") or "")
                         self.sheep.append(
-                            Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size, wool)
+                            Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size, wool, name)
                         )
                     elif obj.name:
                         objects_by_name[obj.name] = obj
@@ -1235,13 +1259,26 @@ class TMXMap:
                 house.update_sprite(current_time)
 
     def check_object_collision(self, rect: pygame.Rect) -> bool:
-        """Check if the given rect collides with any map objects (houses, trees, sheep, or water)."""
+        """Check if the given rect collides with any map objects (houses, trees, sheep, or water).
+
+        A sheep on the leash does not block: it is right behind whoever leads it."""
         if self.check_scenery_collision(rect):
             return True
         for sheep in self.sheep:
-            if sheep.collision_rect.colliderect(rect):
+            if not sheep.leashed and sheep.collision_rect.colliderect(rect):
                 return True
         return False
+
+    def sheep_named(self, name: str) -> Optional[Sheep]:
+        """The sheep with this name (its Tiled "Name"), or None."""
+        return next((sheep for sheep in self.sheep if sheep.name == name), None)
+
+    def movement_rect(self, name: str) -> Optional[pygame.Rect]:
+        """A rectangle of the "Movements" layer by its name, in world pixels, or None."""
+        obj = self._movement_objects.get(name)
+        if obj is None or not getattr(obj, "width", 0) or not getattr(obj, "height", 0):
+            return None
+        return pygame.Rect(round(obj.x), round(obj.y), round(obj.width), round(obj.height))
 
     def check_scenery_collision(self, rect: pygame.Rect) -> bool:
         """Check the given rect against everything on the map that never moves.
@@ -1437,6 +1474,8 @@ class GameMap:
         tile = self.tmx_map.tile_size
         bodies = [feet_box(self.map_player, tile)]
         bodies += [feet_box(npc, tile) for npc in self.tmx_map.npcs if not getattr(npc, "is_hidden", False)]
+        # A sheep on the leash is walked through the gates behind the player
+        bodies += [feet_box(sheep, tile) for sheep in self.tmx_map.sheep if sheep.leashed]
         return bodies
 
     def reveal_around_player(self) -> None:

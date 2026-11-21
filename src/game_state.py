@@ -330,7 +330,7 @@ class GameState:
         """Append a timestamped entry to the persistent event log.
 
         Args:
-            category: One of TRADE, LICENSE, LOAN, DONATION, FINANCE, RANK, COUNCIL, SYSTEM.
+            category: One of TRADE, LICENSE, LOAN, DONATION, FINANCE, RANK, COUNCIL, QUEST, SYSTEM.
             text: Human-readable description of the event.
         """
         self.event_log.append({"timestamp": self.date, "category": category, "text": text})

@@ -6,7 +6,8 @@ interaction range of the player gets the same hover glow as a house, and
 clicking it opens a FigurineMenu, a small speech bubble pointing at the
 figurine that is deliberately lighter than the framed HouseMenu. The bubbles
 themselves are in figurine_bubbles.py, the scripted talks some NPCs give (a
-minigame's introduction, a thanks with a gift) in figurine_talks.py.
+minigame's introduction, a thanks with a gift) in figurine_talks.py, the quest
+for the shepherdess's black sheep in lost_sheep_talks.py.
 """
 
 import random
@@ -24,6 +25,9 @@ from .figurine_talks import (
     introduction_of, lend_a_hand, minigame_introduced, open_introduction, open_thanks, waiting_thanks,
 )
 from .house_click_menu import get_hovered_house, is_player_near
+from .lost_sheep_talks import (
+    COAX_OPTION, TALK_OPTION, can_coax, coax_flip, open_shepherdess_talk, shepherdess_talk,
+)
 
 if TYPE_CHECKING:
     from ...models.figurines.figurine import Figurine
@@ -144,6 +148,12 @@ def show_figurine_menu(
         options.append(introduction.lend_option if introduced else introduction.talk_option)
     if thanks is not None:
         options.append(thanks.talk_option)
+    # The quest for the shepherdess's black sheep (lost_sheep_talks.py)
+    quest_talk = shepherdess_talk(game_state, figurine)
+    if quest_talk is not None:
+        options.append(TALK_OPTION)
+    if isinstance(figurine, Sheep) and can_coax(game_state, figurine):
+        options.append(COAX_OPTION)
     if isinstance(figurine, NPC):
         options.append("Chat")
         # Only the town's poor are offered a coin; the rest would take it ill
@@ -176,6 +186,12 @@ def show_figurine_menu(
             game_state.info_window = FigurineSpeech(game_state.screen, figurine, figurine.chat_line(),
                                                     game_state, map_content_rect)
             game_state.active_house_menu = None
+            return
+        if quest_talk is not None and option_text == TALK_OPTION:
+            open_shepherdess_talk(game_state, figurine, quest_talk, map_content_rect)
+            return
+        if option_text == COAX_OPTION and isinstance(figurine, Sheep):
+            coax_flip(game_state, figurine, map_content_rect)
             return
         if thanks is not None and option_text == thanks.talk_option:
             open_thanks(game_state, figurine, thanks, thanks.first, map_content_rect)

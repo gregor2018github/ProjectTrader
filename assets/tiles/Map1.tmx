@@ -10878,9 +10878,14 @@
   <object id="308" name="Sheep" x="4416" y="5600" width="480" height="31.9961"/>
   <object id="1082" name="Sheep" x="4400" y="5520" width="464" height="32">
    <properties>
+    <property name="Name" value="Flip"/>
     <property name="Wool" value="dark"/>
    </properties>
   </object>
+  <object id="1641" name="Sheep_Fold" x="4400" y="5400" width="504" height="528"/>
+  <object id="1642" name="Flip_Island" x="380" y="7580" width="480" height="32"/>
+  <object id="1643" name="Shepherdess_Fold" x="4448" y="5456">
+   <polygon points="0,0 256,0 256,176 0,176"/>
   </object>
   <object id="369" name="Butcher_Homeway_Path" x="5376" y="4256">
    <polygon points="0,0 -64,0 -64,288 -96,288 -96,-32 0,-32"/>

@@ -1,9 +1,17 @@
-"""Sheep NPC that wanders left and right within a defined zone on the map."""
+"""Sheep NPC that wanders left and right within a defined zone on the map.
 
+Mostly a sheep grazes: it walks its zone, a strip of a Tiled rectangle, left
+and right, stopping to rest and to eat. A sheep can also be taken elsewhere:
+put in another zone (``set_zone``), sent walking back to its own
+(``walk_home``), or led on a leash (``lead`` / ``update_led``, the way worked
+out by leash.py), as Flip is in the quest for him (lost_sheep.py).
+"""
+
+import math
 import os
 import random
 import pygame
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .animal import Animal, ANIMAL_SPRITE_ROOT
 
@@ -19,6 +27,7 @@ EAT_MAX_DURATION = 8.0      # maximum eating duration in seconds
 EAT_FRAME_DURATIONS = (0.55, 0.22)  # seconds each eat frame is shown (eat1, eat2)
 EAT_RETURN_PAUSE = 0.6      # static pause after eating before sheep can walk again
 HEART_DURATION = 1.4        # seconds the heart floats up after petting
+WALK_HOME_SPEED = 48.0      # pixels per second at tile_size 32, back to its zone off the leash
 
 # Wool colour -> sprite folder (and file prefix) under ANIMAL_SPRITE_ROOT
 WOOLS = {"brown": "sheep", "white": "white_sheep", "dark": "dark_sheep"}
@@ -26,8 +35,6 @@ WOOLS = {"brown": "sheep", "white": "white_sheep", "dark": "dark_sheep"}
 
 class Sheep(Animal):
     """An animal that walks left and right within a rectangular zone."""
-
-    display_name = "Sheep"
 
     def __init__(
         self,
@@ -37,8 +44,19 @@ class Sheep(Animal):
         zone_height: float,
         tile_size: int,
         wool: str = "brown",
+        name: str = "",
     ) -> None:
         super().__init__(zone_x, zone_y, tile_size)
+        #: Its own name (the Tiled "Name" property), "" for one of the flock
+        self.name: str = name
+        #: Whether the player knows it by its name, shown then as its title
+        self.name_known: bool = False
+        #: The zone it belongs in, as the Tiled rectangle (x, y, width, height)
+        self.home_zone: Tuple[float, float, float, float] = (zone_x, zone_y, zone_width, zone_height)
+        #: Where it is walking to, back in its zone, before it grazes again (walk_home); else None
+        self.walk_target: Optional[Tuple[float, float]] = None
+        #: Led on a leash: it follows whoever holds it and takes no notice of them in its way
+        self.leashed: bool = False
         self.sprite_width = int(1.5 * tile_size)  # 48 px at base zoom
 
         # Each wool has its own sprite folder, the files named after it
@@ -115,16 +133,8 @@ class Sheep(Animal):
 
         # Collision box: 1 tile wide, 0.5 tile tall (sized by Animal)
 
-        # Zone bounds (in sprite x coordinates)
-        self.zone_left: float = float(zone_x)
-        self.zone_right: float = float(zone_x + zone_width - self.sprite_width)
-
-        # Foot level = bottom edge of the zone strip
-        foot_y: float = zone_y + zone_height
-
-        # self.x, self.y = top-left of the sprite in world coordinates
-        self.x: float = float(random.uniform(self.zone_left, max(self.zone_left, self.zone_right)))
-        self.y: float = foot_y - self.sprite_height
+        # Zone bounds (in sprite x coordinates), its foot level, and a random spot in it
+        self.set_zone(zone_x, zone_y, zone_width, zone_height)
 
         # Behaviour state
         self.direction = random.choice(["left", "right"])
@@ -139,6 +149,68 @@ class Sheep(Animal):
 
         # Seconds since the last petting while its heart is floating up, else None
         self.heart_age: Optional[float] = None
+
+    # ------------------------------------------------------------------
+    # Where it is
+    # ------------------------------------------------------------------
+
+    @property
+    def display_name(self) -> str:
+        """Its title: its name once the player knows it, else just a sheep."""
+        return self.name if (self.name and self.name_known) else "Sheep"
+
+    @property
+    def feet(self) -> Tuple[float, float]:
+        """Where it stands: the bottom centre of its sprite."""
+        return (self.x + self.sprite_width / 2.0, self.y + self.sprite_height)
+
+    def place_feet(self, x: float, y: float) -> None:
+        self.x = x - self.sprite_width / 2.0
+        self.y = y - self.sprite_height
+
+    def set_zone(self, zone_x: float, zone_y: float, zone_width: float, zone_height: float,
+                 place: bool = True) -> None:
+        """Make a Tiled rectangle its zone: it walks the strip along the rectangle's bottom edge.
+
+        Args:
+            zone_x, zone_y, zone_width, zone_height: The rectangle, world pixels.
+            place: Put it at a random spot in the zone at once (else it stays where it is).
+        """
+        self.zone_left = float(zone_x)
+        self.zone_right = float(zone_x + zone_width - self.sprite_width)
+        self.zone_foot_y = float(zone_y + zone_height)
+        if place:
+            self.walk_target = None
+            self.x = float(random.uniform(self.zone_left, max(self.zone_left, self.zone_right)))
+            self.y = self.zone_foot_y - self.sprite_height
+
+    @property
+    def in_home_zone(self) -> bool:
+        """Whether its zone is the one it belongs in."""
+        x, y, width, height = self.home_zone
+        return self.zone_left == float(x) and self.zone_foot_y == float(y + height)
+
+    def go_home(self) -> None:
+        """Put it straight back in its own zone, at a random spot."""
+        self.leashed = False
+        self.set_zone(*self.home_zone)
+
+    def walk_home(self) -> None:
+        """Make its own zone its zone again, and send it walking to the nearest spot of it."""
+        self.leashed = False
+        self.set_zone(*self.home_zone, place=False)
+        x = min(max(self.x, self.zone_left), max(self.zone_left, self.zone_right))
+        self.walk_target = (x + self.sprite_width / 2.0, self.zone_foot_y)
+        self.eating = False
+        self.is_blocked = False
+
+    def lead(self) -> None:
+        """Put it on the leash: it stops grazing and follows (update_led)."""
+        self.leashed = True
+        self.walk_target = None
+        self.eating = False
+        self.is_blocked = False
+        self.is_moving = False
 
     # ------------------------------------------------------------------
     # Interaction
@@ -166,7 +238,11 @@ class Sheep(Animal):
 
     def inspect_lines(self, observer=None) -> List[str]:
         """Debug lines for the "Inspect" window, plus the grazing behaviour."""
-        if self.is_blocked:
+        if self.leashed:
+            state = "on the leash"
+        elif self.walk_target is not None:
+            state = "walking back to its zone"
+        elif self.is_blocked:
             state = "blocked by you"
         elif self.is_moving:
             state = f"walking {self.direction}"
@@ -176,6 +252,7 @@ class Sheep(Animal):
             state = f"resting, {self.stop_timer:.1f} s left"
         return super().inspect_lines(observer) + [
             "**Behaviour**",
+            f"Name: {self.name or 'none'}",
             f"Wool: {self.wool}",
             f"State: {state}",
             f"Zone: X={round(self.zone_left, 1)} to {round(self.zone_right, 1)}",
@@ -185,6 +262,36 @@ class Sheep(Animal):
     # ------------------------------------------------------------------
     # Update
     # ------------------------------------------------------------------
+
+    def move_led(self, feet: Tuple[float, float], walked: bool) -> None:
+        """On the leash: stand at `feet` now (leash.Leash.step), facing the way it went.
+
+        Args:
+            feet: Where its feet are to be, world pixels.
+            walked: Whether it walked this frame (else it stands, its walk not animated).
+        """
+        old_x = self.feet[0]
+        self.place_feet(*feet)
+        if abs(feet[0] - old_x) > 0.05:
+            self.direction = "right" if feet[0] > old_x else "left"
+        self.is_moving = walked
+
+    def _walk_to_target(self, dt: float) -> None:
+        """Walking back to its zone (walk_home): straight there, then a rest before it grazes."""
+        speed = WALK_HOME_SPEED * self.tile_size / 32.0
+        fx, fy = self.feet
+        tx, ty = self.walk_target
+        gap = math.hypot(tx - fx, ty - fy)
+        if gap <= speed * dt or gap < 0.5:
+            self.place_feet(tx, ty)
+            self.walk_target = None
+            self.is_moving = False
+            self.stop_timer = random.uniform(STOP_MIN_DURATION / 2, STOP_MIN_DURATION)
+            return
+        if abs(tx - fx) > 0.5:
+            self.direction = "right" if tx > fx else "left"
+        self.place_feet(fx + (tx - fx) * speed * dt / gap, fy + (ty - fy) * speed * dt / gap)
+        self.is_moving = True
 
     def _would_collide_with_player(self, new_x: float, player_rect: pygame.Rect) -> bool:
         """Check whether moving to new_x would overlap the player collision rect."""
@@ -205,7 +312,11 @@ class Sheep(Animal):
             if self.heart_age >= HEART_DURATION:
                 self.heart_age = None
 
-        if self.is_moving:
+        if self.leashed:
+            pass                                   # moved by move_led; only animated here
+        elif self.walk_target is not None:
+            self._walk_to_target(dt)
+        elif self.is_moving:
             # Random chance to stop for a rest
             if random.random() < STOP_CHANCE_PER_SEC * dt:
                 self.is_moving = False

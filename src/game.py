@@ -40,6 +40,8 @@ from .ui.view_transition import ViewTransition
 from .models.weather import Weather
 from .models.intro import Intro, SCENES, find_shop_spot
 from .models.rest import Tiredness
+from .models.lost_sheep import LEASH_SLOWDOWN, SAY_HOME_DAY, SAY_HOME_NIGHT, LostSheep
+from .models.lost_sheep_map import HOME_NOW, LostSheepOnMap
 from .ui.helper_modules.address_note import AddressNote
 from .models.sound_gain import SOUND_GAIN, amplified
 from .config.constants import STROLL_RAIN_FROM
@@ -191,6 +193,10 @@ class Game:
         self.intro: Intro = Intro(shop_spot=find_shop_spot(self.game_map.tmx_map.doors))
         # Its address, folded at the top of the map until clicked (address_note.py)
         self.address_note: AddressNote = AddressNote(on_sound=self.play_sound)
+        # The shepherdess's black sheep, Flip, who runs off if the fold's gate is left open
+        # (models/lost_sheep.py), and the quest's figures and places on the map (lost_sheep_map.py)
+        self.lost_sheep: LostSheep = LostSheep()
+        self.lost_sheep_map: LostSheepOnMap = LostSheepOnMap(self.lost_sheep, self.game_map.tmx_map)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -301,6 +307,8 @@ class Game:
         self.council.load(save_data.get("council"), self.state.date, seed=self.sim.seed)
         self.depot.fee_discount = self.council.fee_discount()
         self.intro.load(save_data.get("intro"))
+        self.lost_sheep.load(save_data.get("lost_sheep"))
+        self.lost_sheep_map.sync(self.game_map.map_player.feet)
         self.tiredness.restart(self.state.date)
         self.address_note.reset()
         self.restore_owned_buildings()
@@ -601,6 +609,26 @@ class Game:
         state.time_level = 1
         state.info_window = window
 
+    def _update_lost_sheep(self) -> None:
+        """Tell the quest for Flip what happened on the map (models/lost_sheep_map.py); once he is
+        led back into the fold, the player says so."""
+        state = self.state
+        camera = self.game_map.camera
+        view = None
+        if state.left_side_mode == "map" or state.right_side_mode == "map":
+            # The world shown, and a couple of tiles round it: Flip does not vanish in sight
+            margin = 2 * self.game_map.tmx_map.tile_size
+            view = pygame.Rect(round(camera.x) - margin, round(camera.y) - margin,
+                               round(camera.screen_width / camera.zoom) + 2 * margin,
+                               round(camera.screen_height / camera.zoom) + 2 * margin)
+        event = self.lost_sheep_map.update(state.date, self.game_map.map_player.feet, view)
+        if event == HOME_NOW:
+            night = self.lost_sheep.at_night
+            state.log_event("QUEST", "Brought Flip back to the fold" + (" by night" if night else ""))
+            if view is not None and not state.info_window and not state.minigame:
+                from .ui.helper_modules.lost_sheep_talks import player_says
+                player_says(state, SAY_HOME_NIGHT if night else SAY_HOME_DAY)
+
     def _update_intro(self) -> None:
         """Open the intro's next scene once it is due (the harbour's at the start,
         the shop's at its door) and nothing else has the player's attention."""
@@ -662,7 +690,9 @@ class Game:
                     self.game_map.map_player.speed_factor = (
                         (1.0 - self.weather.walking_slowdown())
                         * (1.0 - player_penalty(self.player))
-                        * (1.0 + meal_effects.bonus(self.player, meal_effects.LIGHT_STEP, self.state.date)))
+                        * (1.0 + meal_effects.bonus(self.player, meal_effects.LIGHT_STEP, self.state.date))
+                        * (1.0 - (LEASH_SLOWDOWN if self.lost_sheep.leading else 0.0)))
+                    self._update_lost_sheep()
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
                     self._advance_harvest()
                     self.game_map.puddles.update(self.weather.puddle_level)
@@ -832,6 +862,10 @@ class Game:
                         # rest walk on (see figurine_click_menu)
                         release_ended_conversations(self.state, self.game_map)
                         self.game_map.update(delta_time, self.state.date)
+                        # Flip on the leash follows the player's trail (models/leash.py)
+                        map_player = self.game_map.map_player
+                        self.lost_sheep_map.step_leash(delta_time, map_player.feet,
+                                                       map_player.speed * map_player.speed_factor)
                         self.game_map.rain.update(delta_time, self.weather.rain, self.weather.wind,
                                                   self.game_map.camera, self.game_map.tmx_map,
                                                   self.game_map.puddles, iter_figurines(self.game_map))
@@ -1127,7 +1161,7 @@ class Game:
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
-                  harvest=self.game_map.tmx_map.harvest, background=background)
+                  harvest=self.game_map.tmx_map.harvest, lost_sheep=self.lost_sheep, background=background)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

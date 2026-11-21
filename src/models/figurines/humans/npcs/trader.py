@@ -74,7 +74,9 @@ class StallRota:
     The turn is drawn per calendar day, which is the shape of a trader's
     working day: he sets off in the small hours of the morning and is back
     indoors before midnight. The draw therefore always falls in the dead of
-    night, with yesterday's trader home and nobody out yet.
+    night, with yesterday's trader home and nobody out yet. A trader kept from
+    the stall that day (``Trader.kept_away``: the shepherdess at the fold, in
+    lost_sheep.py) is passed over.
     """
 
     def __init__(self, traders: List['Trader']) -> None:
@@ -96,9 +98,11 @@ class StallRota:
             current_time: The current in-game time.
         """
         today = current_time.strftime("%Y-%m-%d")
-        if self.last_draw_date != today:
+        free = [trader for trader in self.traders if not trader.kept_away(current_time)]
+        # Drawn anew on a new day, or once whoever was drawn is kept from the stall after all
+        if self.last_draw_date != today or (free and self.on_duty not in free):
             self.last_draw_date = today
-            self.on_duty = random.choice(self.traders)
+            self.on_duty = random.choice(free or self.traders)
         return self.on_duty
 
 
@@ -159,6 +163,14 @@ class Trader(NPC):
         #: The rota he shares his stall on, if he shares it. None if the stall
         #: is his alone, which is the usual case.
         self.rota: Optional[StallRota] = None
+
+    #: Whether he opens and shuts the gates on his way (gate_passing.py); no trader's drawn ways have
+    #: one on them, but the shepherdess's way to the fold does
+    passes_gates: bool = False
+
+    def kept_away(self, current_time: datetime.datetime) -> bool:
+        """Whether something keeps him from his stall today, so a rota he shares it on passes him over."""
+        return False
 
     def set_workplace(self, stall_path: PatrolPath, market: Optional['Market']) -> None:
         """Put the trader to work at his stall.
@@ -274,6 +286,7 @@ class Trader(NPC):
         Args:
             current_time: The current in-game time.
         """
+        self._leave_gate()
         self.stop()
         self.idle_until = None
         if self._off_duty(current_time):
@@ -365,6 +378,8 @@ class Trader(NPC):
             elif current_time >= self.idle_until:
                 self._pick_new_spot()
 
+        if self.passes_gates and self._pass_gates(dt):
+            return                       # at a gate on his way: opening, passing or shutting it
         is_moving = self._follow_path(dt)
         if self.state == WORKING:
             if not is_moving and self.was_moving:

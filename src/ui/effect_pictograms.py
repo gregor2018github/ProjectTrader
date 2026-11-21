@@ -11,6 +11,7 @@ other small icons:
 - Light Step: a winged boot with speed lines
 - the weather: a rain cloud, a snowflake, or a boot sunk in mud
 - Tired: a drooping, half-shut eye with a Z rising off it
+- Leading Flip: a coiled hemp rope, its loose end running off with a noose
 
 They are toned down `MUTED` of the way towards grey, so they sit with the game's
 parchment and ink rather than standing out from it.
@@ -274,7 +275,27 @@ def _tired_eye(pen: _Pen) -> None:
         pen.polyline(FLOAT_WHITE, z, 3)
 
 
+HEMP = (176, 132, 78)
+HEMP_LIGHT = (214, 178, 120)
+
+
+def _leash(pen: _Pen) -> None:
+    """Leading a sheep: a coil of hemp rope, its end running off to a noose."""
+    for (cx, cy, rx, ry) in ((40, 46, 30, 20), (40, 50, 24, 15), (40, 54, 17, 10)):
+        ring = _arc((cx, cy), rx, ry, 0, 360, 36)
+        pen.polyline(INK, ring, 11)
+        pen.polyline(HEMP, ring, 6)
+        pen.polyline(HEMP_LIGHT, _arc((cx, cy), rx, ry, 200, 330, 12), 2)
+    tail = [(66, 58), (76, 66), (80, 78), (74, 88)]
+    pen.polyline(INK, tail, 11)
+    pen.polyline(HEMP, tail, 6)
+    pen.circle(INK, (70, 90), 9, outline=0)
+    pen.circle(HEMP, (70, 90), 6, outline=0)
+    pen.circle(INK, (70, 90), 3, outline=0)
+
+
 PICTOGRAMS: Dict[str, Callable[[_Pen], None]] = {
+    "leash": _leash,
     "tired": _tired_eye,
     "strong_hand": _axe,
     "steady_hand": _hook,
