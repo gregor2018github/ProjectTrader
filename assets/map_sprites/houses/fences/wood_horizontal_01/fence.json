@@ -1,0 +1,17 @@
+{
+ "title": "Wood_horizontal_01",
+ "material": "wood",
+ "description": "typical wooden farmer fence around a meadow",
+ "posts_every": 2,
+ "height": 2,
+ "lengths": {
+  "h": [
+   10
+  ],
+  "v": [
+   2,
+   4,
+   6
+  ]
+ }
+}

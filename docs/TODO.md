@@ -16,6 +16,7 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 ## High Priority
 
 - [ ] design and add three houses that are horizontally oriented
+- [ ] have piers and proper floor tiles in the harbor
 - [ ] have cranes in the harbor area that can actually move
 - [ ] have an animation for farmers bringing in the harvest in autumn on the fields, also crates of products being dropped aside the field
   - [x] the harvest itself (models/harvest.py, harvest_crew.py): one of the Poor or Commons per field a day on the last three days of Autumn, out through any gate (opened and shut behind), cutting plant by plant, shocks standing up as they go, home in the evening, held up by heavy rain
