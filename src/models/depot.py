@@ -953,14 +953,14 @@ class Depot:
         return quantity
 
     def room_to_receive(self, good_name: str) -> int:
-        """How many units of a good given to the player fit: a purchase's room and the pack's."""
+        """How many units of a good given to the player fit: the pack's room and a purchase's."""
         return self.room_for(good_name) + self._room([(None, self.pack_slots, PACK_SLOT_SIZE, None)], good_name, True)
 
     def receive_goods(self, good_name: str, quantity: int, date: datetime.datetime) -> bool:
         """Take in goods given to the player, all of them or none.
 
-        They go where a purchase would, as the filters allow, and what does not fit
-        there into the pack. Booked as bought for nothing, so selling them is all
+        They go into the pack first, and what does not fit there where a purchase
+        would, as the filters allow. Booked as bought for nothing, so selling them is all
         profit; nothing is spent and no trade is recorded.
 
         Args:
@@ -973,8 +973,8 @@ class Depot:
         """
         if quantity <= 0 or self.room_to_receive(good_name) < quantity:
             return False
-        left = self._store_goods(good_name, quantity)
-        self._fill([(None, self.pack_slots, PACK_SLOT_SIZE, None)], good_name, left)
+        left = self._fill([(None, self.pack_slots, PACK_SLOT_SIZE, None)], good_name, quantity)
+        self._store_goods(good_name, left)
         self.good_stock[good_name] = self.good_stock.get(good_name, 0) + quantity
         self.purchase_history.setdefault(good_name, []).append(
             {"timestamp": date, "price": 0.0, "quantity": quantity, "total_cost": 0.0})
