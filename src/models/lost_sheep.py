@@ -104,21 +104,22 @@ PAGES: Dict[str, Page] = {
     "lie": Page(
         "Don't you look at me like that. The farmer saw you, plain as day: in through the gate and out "
         "again, and the gate left swinging behind you. He ran over to shut it, but it was too late. Flip "
-        "was already off over the fields, towards the river fork.",
+        "was already gone, and nobody saw which way.",
         (Answer("I'm sorry", "ask"),)),
     "confess": Page(
         "You? Well... at least you say it to my face, that's more than most would. The farmer saw the "
-        "gate swinging and ran over to shut it, but it was too late. Flip was already off over the "
-        "fields, towards the river fork.",
+        "gate swinging and ran over to shut it, but it was too late. Flip was already gone, "
+        "and nobody saw which way.",
         (Answer("I'll set it right", "ask"),)),
     "ask": Page(
-        "Then find him and bring him home to me. He'll be out on the island between the two rivers, over "
-        "the west bridge, where the grass is sweetest. He's shy of strangers, mind. Bring him back into "
-        "the fold, where he belongs.",
+        "Then find him and bring him home to me. I don't know where he's got to, and that's what frightens "
+        "me: he's forever wandering down to the water's edge after the green grass, and he can't swim, the "
+        "silly thing. If he slips into the river... Please, look for him. He's shy of strangers, mind. "
+        "Bring him back into the fold, where he belongs.",
         (Answer("I'll find Flip"),)),
     SEARCH: Page(
-        "Have you seen him? He'll be on the island between the two rivers, over the west bridge. Bring "
-        "him back into the fold, and shut the gate behind you this time.",
+        "Have you seen him? I keep thinking of the rivers, and him not able to swim. Bring him back into "
+        "the fold, and shut the gate behind you this time.",
         (Answer("I'm on my way"),)),
     BREAD: Page(
         "He won't come to you? No, he's shy, that one. Here, a heel of bread: he'd follow it to the end "
