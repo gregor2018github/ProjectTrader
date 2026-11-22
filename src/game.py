@@ -530,7 +530,7 @@ class Game:
         tmx_map = self.game_map.tmx_map
         crew = tmx_map.harvest_crew
         crew.heavy_rain = self.weather.rain >= HARVEST_RAIN_FROM
-        changed = tmx_map.harvest.update(self.state.date, crew.live_fields(), crew.heavy_rain)
+        changed = tmx_map.harvest.update(self.state.date, crew.live_fields(self.state.date), crew.heavy_rain)
         if changed:
             crew.refresh(self.state.date, changed)
 

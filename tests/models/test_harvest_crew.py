@@ -107,7 +107,7 @@ class World:
 
     def step(self, now, heavy_rain=False):
         self.crew.heavy_rain = heavy_rain
-        changed = self.harvest.update(now, self.crew.live_fields(), heavy_rain)
+        changed = self.harvest.update(now, self.crew.live_fields(now), heavy_rain)
         self.crew.refresh(now, changed)
         self.crew.update(now)
         was_open = self.gate.is_open
@@ -206,6 +206,33 @@ def test_after_a_jump_of_the_clock_he_is_at_the_next_plant_or_indoors_after_his_
     assert world.job.state == CUTTING and world.person.feet == pytest.approx((x, y + crew_module.STAND_BELOW_PX))
     world.step(day(18, 9.0))
     assert world.person.state == AT_HOME and world.job.state in (WAITING, DONE)
+
+
+def test_with_the_map_hidden_the_field_is_cut_by_the_clock_and_he_is_put_at_the_next_plant():
+    # Another view open: the clock runs on in small steps, as the game's, but the map runs no workers
+    world = World([(240.0 + 32 * i, 448.0) for i in range(6)] + [(240.0 + 32 * i, 416.0) for i in range(6)])
+    now = world.run(day(18, 5.9), 45, until=lambda w: w.job.state == CUTTING)
+    before = world.harvest.fields[1].cut
+    for _ in range(int(45 / MINUTES_PER_FRAME)):
+        now += datetime.timedelta(minutes=MINUTES_PER_FRAME)
+        world.harvest.update(now, world.crew.live_fields(now))
+    field = world.harvest.fields[1]
+    assert field.cut >= before + 8                                 # cut by the clock meanwhile
+    world.step(now + datetime.timedelta(minutes=MINUTES_PER_FRAME))  # the map shown again
+    x, y, _, _ = world.field.plants[field.next_plant()]
+    assert world.job.state == CUTTING and world.person.feet == pytest.approx((x, y + crew_module.STAND_BELOW_PX))
+
+
+def test_with_the_map_hidden_over_the_night_the_next_days_fields_are_cut_all_the_same():
+    # 40 plants, some 3 hours of work: more than one day's 2 hours
+    world = World([(208.0 + 32 * i, 448.0 - 32 * row) for row in range(5) for i in range(8)])
+    now = world.run(day(18, 5.9), 30, until=lambda w: w.job.state == CUTTING)
+    cut_on_the_map = world.harvest.fields[1].cut
+    end = day(19, 8.0)
+    while now < end:
+        now += datetime.timedelta(minutes=1.0)
+        world.harvest.update(now, world.crew.live_fields(now))
+    assert world.harvest.fields[1].done and cut_on_the_map < world.harvest.fields[1].total
 
 
 def test_the_crew_sends_the_poor_and_commons_and_street_life_leaves_them_be():

@@ -49,6 +49,9 @@ STAND_BELOW_PX = 6.0
 ROUTE_BUDGET_S = 0.002
 #: How long the fade at his door takes, in real seconds (as a townsperson's)
 DOORWAY_FADE_SECONDS = 0.9
+#: Game minutes the crew may go without an update (the map hidden: another view, a menu) before
+#: its workers stop counting as on the map, and their fields are cut by the clock instead
+UNSEEN_MINUTES = 5.0
 
 # Where he is in his day; the person's state shows the same words in "Inspect"
 WAITING = "Waiting to go to the harvest"
@@ -354,18 +357,38 @@ class HarvestCrew:
         #: Set by the game from the weather: too wet to work
         self.heavy_rain = False
         self.deadline = 0.0
+        #: The game time of the last update, i.e. the last time the map ran its workers
+        self.last_seen: Optional[datetime.datetime] = None
 
-    def live_fields(self) -> List[int]:
-        """The fields a worker on the map is at or bound for today (cut by him, not by the clock)."""
+    def _unseen(self, now: datetime.datetime) -> bool:
+        """Whether the map has not run the workers for over UNSEEN_MINUTES (or ever)."""
+        return self.last_seen is None or now - self.last_seen > datetime.timedelta(minutes=UNSEEN_MINUTES)
+
+    def live_fields(self, now: Optional[datetime.datetime] = None) -> List[int]:
+        """The fields a worker on the map is at or bound for today (cut by him, not by the clock).
+
+        None while the map is not running the workers (`now` past `last_seen` by UNSEEN_MINUTES):
+        the time then goes by unseen, and Harvest.update cuts every field by the clock.
+        """
+        if now is not None and self._unseen(now):
+            return []
         return [field_id for field_id, job in self.jobs.items() if not job.is_over]
 
     def update(self, now: datetime.datetime) -> None:
         """While the map is shown: a new day's crew, and the workers' way-finding budget for the frame."""
         self.deadline = time.perf_counter() + ROUTE_BUDGET_S
+        unseen = self.last_seen is not None and self._unseen(now)
+        self.last_seen = now
         day = day_number(now)
         if day != self.day:
             self._new_day(now)
             self.day = day
+        elif unseen:
+            # The map was hidden while the clock ran on and the fields were cut by it: each
+            # worker is put where his day has got to, his own count of the time not added on top
+            for job in self.jobs.values():
+                job._catch_up(now)
+                job.last_now = now
         for job in self.jobs.values():
             if job.is_over and job.person.job is job:
                 job.person.job = None
