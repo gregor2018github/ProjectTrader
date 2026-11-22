@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="86" nextobjectid="1661">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="86" nextobjectid="1673">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -13472,16 +13472,13 @@
    <polygon points="0,0 6,-1 108,138 96,139"/>
   </object>
   <object id="1061" name="House_20" x="5382" y="3363">
-   <polygon points="0,0 222,0 228,34 207,102 77,104 70,81 0,81"/>
+   <polygon points="0,0 222,0 222,13 225,13 225,57 207,103 69,103 76,121 -9,121 0,81"/>
   </object>
-  <object id="1062" name="House_20" x="5374" y="3483">
-   <polygon points="0,0 10,-40 68,-40 84,0"/>
+  <object id="1063" name="House_20" x="5365" y="3401">
+   <polygon points="0,0 2,-12 4,-9 4,-1 19,34 16,81 -5,82 -17,82 -15,75 -44,75 -33,63"/>
   </object>
-  <object id="1063" name="House_20" x="5367" y="3389">
-   <polygon points="0,0 17,56 15,88 -43,88"/>
-  </object>
-  <object id="1064" name="House_20" x="5615" y="3392">
-   <polygon points="0,0 37,75 -31,75 -15,45"/>
+  <object id="1064" name="House_20" x="5617" y="3385">
+   <polygon points="0,0 3,0 4,14 29,70 38,82 -33,82 -17,52 -3,14"/>
   </object>
   <object id="1065" name="House_21" x="3487" y="4016">
    <polygon points="0,0 4,-1 -2,-8 -20,-31 -33,-52 -45,-71 -45,-79 -41,-75 -41,-71 -36,-65 -35,-61 -19,-37 -9,-37 3,-36 28,-36 68,-36 68,-18 64,-15 64,22 96,22 96,-15 92,-17 92,-37 108,-37 141,-38 142,-30 139,-29 139,28 141,29 141,56 142,56 143,66 144,71 141,72 131,72 95,72 -3,72 -3,68 -4,66 -4,-3"/>
@@ -13588,11 +13585,11 @@
   <object id="1259" name="House_30" x="4871.04" y="3557.68">
    <polygon points="0,0 69.56,125.8 60.68,134.68 0,19.24"/>
   </object>
-  <object id="1260" name="House_30" x="5177.4" y="3557.68">
-   <polygon points="0,0 -68.08,125.8 -59.2,134.68 0,19.24"/>
+  <object id="1260" name="House_30" x="5180" y="3554">
+   <polygon points="0,0 -4,2 -6,10 -70.68,129.48 -65,135 -1,16"/>
   </object>
-  <object id="1261" name="House_30" x="5177.4" y="3557.68">
-   <polygon points="0,0 69.56,125.8 60.68,134.68 0,19.24"/>
+  <object id="1261" name="House_30" x="5180" y="3554">
+   <polygon points="0,0 5,3 6,9 69.96,128.48 68,133 58,127 -1,16"/>
   </object>
   <object id="1262" name="House_30" x="4901" y="3609">
    <polygon points="0,0 112,0 112,27 136,27 136,0 249,0 217.2,83.36 217,112 30,114 30,75"/>
@@ -13720,11 +13717,11 @@
   <object id="1638" name="Harbour_Crane_West" x="4084" y="1739">
    <polygon points="0,0 111,0 111,7 163,61 163,64 161,67 119,67 119,64 96,64 96,65 75,65 75,67 53,67 53,68 32,68 31,67 14,67 14,65 -6,65 -7,63 -28,63 -28,66 -51,66 -51,58 0,7"/>
   </object>
-  <object id="1639" name="Harbour_Crane_East" x="5665.8" y="2195.9">
-   <polygon points="0,0 391.5,36.9 391.5,55.8 0,17.1"/>
+  <object id="1639" name="Harbour_Crane_East" x="5665" y="2195">
+   <polygon points="0,0 394,37 392,44 392.3,56.7 0,16"/>
   </object>
   <object id="1640" name="Harbour_Crane_East" x="5945.7" y="2370.5">
-   <polygon points="0,0 87.3,0 144.9,82.8 -56.7,82.8"/>
+   <polygon points="0,0 87.3,0 144.3,77.5 145.3,80.5 139.3,82.5 136.3,81.5 128.3,82.5 125.3,80.5 103.3,80.5 102.3,77.5 70.3,77.5 71.3,82.5 52.3,82.5 51.3,76.5 31.3,76.5 29.3,79.5 12.3,79.5 11.3,83.5 -8.7,83.5 -6.7,79.5 -38.7,79.5 -41.7,82.5 -54.7,82.5 -58.7,80.5"/>
   </object>
   <object id="1644" name="House_25" type="Hole" x="2386" y="2727">
    <polygon points="0,0 0,-36 -5,-37 22,-65 25,-65 51,-37 48,-35 47,-33 47,0 41,0 40,-1 40,-1 5,-1 5,0"/>
@@ -13766,13 +13763,49 @@
    <polygon points="0,0 0,22 3,26 30,26 30,0 17,-16 14,-16"/>
   </object>
   <object id="1658" name="Great_Crane" x="4030" y="2220.4">
-   <polygon points="0,0 226,0 272,46 242,104 -96,104"/>
+   <polygon points="0,0 226,0 272,46 247,45.6 238,103.6 -100,102.6"/>
   </object>
   <object id="1659" name="Great_Crane" x="3996" y="2329.2">
    <polygon points="0,0 88,127.2 -90,127.2"/>
   </object>
-  <object id="1660" name="Great_Crane" x="4088" y="2496.4">
-   <polygon points="0,0 80,0 64,60 -14,60"/>
+  <object id="1660" name="Great_Crane" x="4086" y="2505">
+   <polygon points="0,0 9,1 15,-9 82,-8.6 66,51.4 -12,51.4 -13,39"/>
+  </object>
+  <object id="1661" name="House_28" type="Hole" x="4170" y="3832">
+   <polygon points="0,0 65,0 34,-32 31,-32"/>
+  </object>
+  <object id="1662" name="House_34" type="Hole" x="4160" y="3651">
+   <polygon points="0,0 0,32 33,32 33,0 17,-18"/>
+  </object>
+  <object id="1663" name="House_30" type="Hole" x="4966" y="3665">
+   <polygon points="0,0 0,36 44,36 44,0 22,-25"/>
+  </object>
+  <object id="1664" name="House_30" type="Hole" x="5042" y="3665">
+   <polygon points="0,0 0,37 45,37 45,0 22,-24"/>
+  </object>
+  <object id="1665" name="House_11" type="Hole" x="5553" y="4125">
+   <polygon points="0,0 18,-21 36,0 36,29 0,29"/>
+  </object>
+  <object id="1666" name="House_11" type="Hole" x="5439" y="4126">
+   <polygon points="0,0 0,20 3,26 35,26 35,0 18,-23"/>
+  </object>
+  <object id="1667" name="House_31" type="Hole" x="4419" y="3530">
+   <polygon points="0,0 0,35 36,35 36,2 17,-22"/>
+  </object>
+  <object id="1668" name="House_31" type="Hole" x="4493" y="3529">
+   <polygon points="0,0 0,34 35,34 35,1 18,-21"/>
+  </object>
+  <object id="1669" name="House_26" x="1851" y="2548">
+   <polygon points="0,0 173,-2 173,-64 205,-64 211,-63 229,-90 250,-129 250,-129 278,-81 292,-63 288,-61 289,-47 359,-47 359,-4 445,-3 441,-24 438,-34 436,-48 433,-64 431,-75 429,-90 429,-90 433,-90 431,-102 423,-100 415,-97 384,-95 349,-95 346,-108 343,-120 327,-119 295,-117 265,-118 265,-118 255,-136 247,-136 245,-130 239,-119 223,-118 196,-119 179,-119 176,-107 173,-92 -3,-88 1,-79 19,-66 17,-62 11,-39 5,-13"/>
+  </object>
+  <object id="1670" name="House_26" type="Hole" x="2222" y="2499">
+   <polygon points="0,0 0,30 37,30 37,2 20,-23 17,-23"/>
+  </object>
+  <object id="1671" name="House_26" type="Hole" x="1931" y="2504">
+   <polygon points="0,0 0,28 7,28 10,30 33,30 34,26 39,25 39,1 21,-23 16,-22"/>
+  </object>
+  <object id="1672" name="Wood Chopper" x="2485" y="5459">
+   <polygon points="0,0 -17,7 -16,10 11,11 68,10 73,11 104,10 104,6 90,0 81,0 77,-1 66,-1 66,-1 60,0 36,0 36,0 18,0"/>
   </object>
  </objectgroup>
  <objectgroup id="14" name="Lights">
