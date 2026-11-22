@@ -456,6 +456,10 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.name == "Stomp":
         options.insert(0, "Chop Wood")
 
+    # A boat moored at a fishing spot is where that spot is fished from (models/fishing_spot.py)
+    if house.fishing_spot:
+        options.insert(0, "Go Fishing")
+
     if house.epitaph:
         options.insert(0, "Read")
 
@@ -501,6 +505,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
                                         f"Ask him first; he is about the wood shed by day.")
                 return
             open_woodhacking(game_state)
+            return
+
+        if option_text == "Go Fishing" and house.fishing_spot:
+            from .water_click_menu import open_fishing
+            open_fishing(game_state)
             return
 
         if option_text == "Read" and house.epitaph:

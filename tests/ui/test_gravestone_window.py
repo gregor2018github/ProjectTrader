@@ -42,7 +42,7 @@ def _state():
 
 
 def _grave(key='knight'):
-    return SimpleNamespace(name='Deco_21', display_name='Gravestone', epitaph=key, tavern_class='', doors=[])
+    return SimpleNamespace(name='Deco_21', display_name='Gravestone', epitaph=key, tavern_class='', fishing_spot='', doors=[])
 
 
 def test_read_is_offered_only_on_a_gravestone(monkeypatch):

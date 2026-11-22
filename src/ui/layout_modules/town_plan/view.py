@@ -337,7 +337,7 @@ class TownPlan:
             x, y = self.world_to_screen(spot.x, spot.y)
             if abs(pos[0] - x) <= FISH_MARK_LENGTH / 2 + 2 and abs(pos[1] - y) <= FISH_MARK_LENGTH / 3 \
                     and self._explored((spot.x, spot.y)):
-                return spot.name, "Fishing spot"
+                return spot.name, "Fishing spot" if spot.boat is None else "Fishing spot, from the boat"
         stump_mark = self._stump_mark()
         if stump_mark is not None and stump_mark.collidepoint(pos):
             return "Chopping Stump", "Chop wood here, once a day"

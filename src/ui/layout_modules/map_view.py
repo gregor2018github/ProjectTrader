@@ -144,6 +144,11 @@ def draw_map_view(
             glowing = minigame_host(game_state, WOODHACKING)
         if glowing is not None and glowing is not hovered:
             inject_available_glow_into_queue(render_queue, glowing, game_map.camera)
+    # A fishing spot's boat glows, as the other spots' rings spread, while today's fishing is to be done
+    if fishing_available(game_state):
+        for spot in game_map.tmx_map.fishing_spots:
+            if spot.boat is not None and spot.boat is not hovered:
+                inject_available_glow_into_queue(render_queue, spot.boat, game_map.camera)
     # So does whoever has a thanks waiting for the player (figurine_talks.py)
     for npc in game_map.tmx_map.npcs:
         if npc is not hovered and not npc.is_hidden and waiting_thanks(game_state, npc) is not None:

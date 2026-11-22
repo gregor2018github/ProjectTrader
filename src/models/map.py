@@ -379,10 +379,24 @@ class TMXMap:
                         self.fishing_spots.append(FishingSpot(obj.name or "Fishing Spot", obj.x, obj.y))
                     else:
                         print(f"Fishing spot '{obj.name}' is not in the water - left out")
+        # A boat moored at a spot is the way to fish there (its Fishing_spot property)
+        spots = {spot.name: spot for spot in self.fishing_spots}
+        for house in self.houses:
+            if house.fishing_spot:
+                spot = spots.get(house.fishing_spot)
+                if spot is None:
+                    print(f"'{house.name}' names the fishing spot '{house.fishing_spot}', which is not on the map")
+                else:
+                    spot.boat = house
 
     def fishing_spot_near(self, x: float, y: float) -> Optional[FishingSpot]:
-        """The fishing spot within reach of a world point, if any."""
-        return next((spot for spot in self.fishing_spots if spot.in_reach(x, y)), None)
+        """The fishing spot within reach of a world point that is fished from the bank, if any;
+        a spot with a boat is fished from the boat (its house menu) instead."""
+        return next((spot for spot in self.fishing_spots if spot.boat is None and spot.in_reach(x, y)), None)
+
+    def fishing_boat_spot(self, house: Any) -> Optional[FishingSpot]:
+        """The fishing spot this building is the boat of, if any."""
+        return next((spot for spot in self.fishing_spots if spot.boat is house), None)
 
     def bridge_at(self, x: float, y: float) -> Optional[Bridge]:
         """The bridge over a world point, if any."""
@@ -784,6 +798,7 @@ class TMXMap:
                     house.epitaph = str(obj.properties.get('Epitaph', '')).strip()
                     if house.epitaph and not house.display_name:
                         house.display_name = 'Gravestone'
+                    house.fishing_spot = str(obj.properties.get('Fishing_spot', '')).strip()
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

@@ -66,6 +66,7 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 
 ## Finished Features
 
+- [x] have a little fisher boat parked in the harbor where you can fish... instead of just clicking on the water (the Fishing Boat, Deco_30, moored off the pier's end: "Go Fishing" in its menu, glowing while the day's fishing is to be done)
 - [x] make wooden fence round the ploughed field below the farm (a one-tile strip of grass is left free all round, also a gate towards the farmhouse)
 - [x] have sprite manager routines for fences
 - [x] have a big warehouse close to the market area, that one will be expensive and needs higher stage to be unlocked

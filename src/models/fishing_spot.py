@@ -6,9 +6,15 @@ stands on, named as the player is to read it. Standing within
 (``water_click_menu.py``). While the day's fishing is still to be done, golden
 rings spread on the water there (``FishingSpot.draw``), as the chopping stump
 glows; the Town Plan marks explored spots at all times.
+
+A spot may have a boat moored at it: a building on the "Houses" layer whose
+``Fishing_spot`` property names the spot (``FishingSpot.boat``, set by
+``TMXMap._load_fishing_spots``), as the fishing boat at the harbour's pier.
+There the fishing starts from the boat's own menu, "Go Fishing", not from a
+click on the water, and the boat glows instead of the rings.
 """
 
-from typing import Dict, List, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import pygame
 
@@ -50,6 +56,8 @@ class FishingSpot:
         self.name = name
         self.x = x
         self.y = y
+        #: The boat the spot is fished from, a House; None if it is fished from the bank
+        self.boat: Optional[Any] = None
 
     def in_reach(self, px: float, py: float) -> bool:
         """Whether someone at this world point can fish here."""
@@ -65,7 +73,9 @@ class FishingSpot:
         return out
 
     def draw(self, screen: pygame.Surface, camera: 'Camera', offset_x: int, offset_y: int, seconds: float) -> None:
-        """The golden rings, flat on the water, if they are in view."""
+        """The golden rings, flat on the water, if they are in view; a boat glows instead."""
+        if self.boat is not None:
+            return
         draw_rings(screen, camera, self.x, self.y, offset_x, offset_y, seconds)
 
 

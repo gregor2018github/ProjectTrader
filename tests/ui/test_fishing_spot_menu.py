@@ -27,7 +27,7 @@ class FakeMap:
     fishing_spots = [SPOT]
 
     def fishing_spot_near(self, x, y):
-        return SPOT if SPOT.in_reach(x, y) else None
+        return SPOT if SPOT.boat is None and SPOT.in_reach(x, y) else None
 
 
 @pytest.fixture
@@ -67,6 +67,28 @@ def test_out_of_reach_it_is_only_water(state):
     menu = open_menu(state)
     assert menu.options == ["Throw Stone"]
     assert menu.title == "Water"
+
+
+def test_at_a_spot_with_a_boat_the_water_offers_no_fishing(state):
+    SPOT.boat = object()
+    try:
+        assert open_menu(state).options == ["Throw Stone"]
+    finally:
+        SPOT.boat = None
+
+
+def test_the_boats_menu_offers_the_fishing_and_starts_it(state):
+    from src.ui.helper_modules.house_click_menu import show_house_menu
+    boat = SimpleNamespace(name="Fishing_Boat", display_name="Fishing Boat", tavern_class="", epitaph="",
+                           fishing_spot="Wide River")
+    state.game.intro = None
+    state.game.player = None
+    show_house_menu(state, boat, (100, 100))
+    menu = state.info_window
+    assert "Go Fishing" in menu.options
+    press(menu, "Go Fishing")
+    assert isinstance(state.minigame, FishingMinigame)
+    assert state.game.depot.stats.last_fishing_day == TODAY.date().isoformat()
 
 
 def test_go_fishing_starts_the_minigame_and_uses_the_day_up(state):

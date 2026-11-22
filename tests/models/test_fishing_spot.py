@@ -86,3 +86,24 @@ def test_the_rings_show_in_view_and_are_skipped_out_of_it():
     far = pygame.Surface((200, 200), pygame.SRCALPHA)
     spot.draw(far, camera(1000, 100), 0, 0, seconds)
     assert painted(far) == 0
+
+
+def test_the_harbour_pier_is_fished_from_its_boat():
+    """The fishing boat's Fishing_spot names the Harbor Pier, and the boat lies within the spot's reach."""
+    root = ElementTree.parse(os.path.join("assets", "tiles", "Map1.tmx")).getroot()
+    boats = [o for group in root.findall("objectgroup") if group.get("name") == "Houses" for o in group
+             if any(p.get("name") == "Fishing_spot" for p in o.iter("property"))]
+    assert [o.get("name") for o in boats] == ["Fishing_Boat"]
+    spot_names = {o.get("name") for o in layer(root, "Fishing")}
+    for boat in boats:
+        named = next(p.get("value") for p in boat.iter("property") if p.get("name") == "Fishing_spot")
+        assert named == "Harbor Pier" and named in spot_names
+
+
+def test_a_spot_with_a_boat_has_no_rings():
+    pygame.init()
+    spot = FishingSpot("Here", 0, 0)
+    spot.boat = object()
+    screen = pygame.Surface((200, 200), pygame.SRCALPHA)
+    spot.draw(screen, camera(100, 100), 0, 0, 0.5 * fishing_spot._RING_PERIOD_S)
+    assert painted(screen) == 0
