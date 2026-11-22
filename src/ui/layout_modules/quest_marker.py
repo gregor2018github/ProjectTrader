@@ -3,8 +3,10 @@
 It bobs gently over their head and breathes a soft glow, drawn after the
 lighting (like the petted sheep's hearts) so it shows at night as well. Drawn
 with pygame's shapes at four times the size and smoothed down, made once per
-size. So far the shepherdess wears it while her sheep is lost
-(models/lost_sheep.py) and she has something to tell.
+size. Everyone who glows for having something for the player wears one
+(map_view.py): the shepherdess while her sheep is lost (models/lost_sheep.py)
+and she has something to tell, a minigame's host until he has introduced it
+(the old woodcutter), and whoever has a thanks waiting (models/thanks.py).
 """
 
 import math

@@ -142,11 +142,15 @@ def draw_map_view(
 
     # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse);
     # until the old woodcutter has asked the player for a hand, he glows instead
+    # Everyone with something for the player (a quest, a talk, a thanks) also wears a marker over their head
+    marked = []
     if woodhacking_available(game_state):
         if minigame_introduced(game_state, WOODHACKING):
             glowing = game_map.tmx_map.chopping_stump
         else:
             glowing = minigame_host(game_state, WOODHACKING)
+            if glowing is not None and not glowing.is_hidden:
+                marked.append(glowing)
         if glowing is not None and glowing is not hovered:
             inject_available_glow_into_queue(render_queue, glowing, game_map.camera)
     # A fishing spot's boat glows, as the other spots' rings spread, while today's fishing is to be done
@@ -156,16 +160,17 @@ def draw_map_view(
                 inject_available_glow_into_queue(render_queue, spot.boat, game_map.camera)
     # So does whoever has a thanks waiting for the player (figurine_talks.py)
     for npc in game_map.tmx_map.npcs:
-        if npc is not hovered and not npc.is_hidden and waiting_thanks(game_state, npc) is not None:
-            inject_available_glow_into_queue(render_queue, npc, game_map.camera)
+        if not npc.is_hidden and waiting_thanks(game_state, npc) is not None:
+            marked.append(npc)
+            if npc is not hovered:
+                inject_available_glow_into_queue(render_queue, npc, game_map.camera)
     # And in the quest for her black sheep (models/lost_sheep.py): the shepherdess while she has news,
     # Flip while he is to be coaxed home; the rope while he is led
     quest_map = getattr(game_state.game, "lost_sheep_map", None)
-    marked = None
     if quest_map is not None and quest_map.ready:
         her = quest_map.shepherdess
         if her is not None and not her.is_hidden and has_news(game_state, her):
-            marked = her
+            marked.append(her)
             if her is not hovered:
                 inject_available_glow_into_queue(render_queue, her, game_map.camera)
         if quest_map.flip is not hovered and can_coax(game_state, quest_map.flip):
@@ -238,10 +243,10 @@ def draw_map_view(
 
     # Hearts float above everything and stay visible at night
     _draw_pet_hearts(screen, game_map, offset_x, offset_y)
-    # So does the marker over someone with news for the player (quest_marker.py)
-    if marked is not None:
-        head = figurine_screen_pos(marked, game_map.camera)
-        width = marked._get_scaled_sprite(game_map.camera.zoom).get_width()
+    # So do the markers over whoever has something for the player (quest_marker.py)
+    for figurine in marked:
+        head = figurine_screen_pos(figurine, game_map.camera)
+        width = figurine._get_scaled_sprite(game_map.camera.zoom).get_width()
         draw_quest_marker(screen, (head[0] + width // 2 + offset_x, head[1] + offset_y),
                           game_map.camera.zoom, pygame.time.get_ticks() / 1000.0)
 
