@@ -1620,7 +1620,8 @@
     "Collision_up": 4,
     "Col_margin_left_pixel": -255,
     "Col_margin_right_pixel": 0
-   }
+   },
+   "resolution": 2.0
   },
   "houses/House_55.png": {
    "kind": "public",
@@ -1641,6 +1642,90 @@
     "Collision_up": 11,
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -217
+   }
+  },
+  "houses/Deco_30.png": {
+   "kind": "decoration",
+   "subcategory": "small moored fishing boat",
+   "atlas": "houses",
+   "rect": [
+    32,
+    777,
+    138,
+    87
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_30.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 3,
+    "Collision_to_right": 5,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -22
+   }
+  },
+  "houses/Deco_31.png": {
+   "kind": "decoration",
+   "subcategory": "small trading cog",
+   "atlas": "houses",
+   "rect": [
+    2208,
+    1525,
+    405,
+    267
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_31.png",
+    "Tiles_to_right": 13,
+    "Tiles_up": 9,
+    "Collision_to_right": 13,
+    "Collision_up": 4,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -13
+   }
+  },
+  "houses/Deco_32.png": {
+   "kind": "decoration",
+   "subcategory": "small rowing skiff",
+   "atlas": "houses",
+   "rect": [
+    288,
+    391,
+    134,
+    57
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_32.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 2,
+    "Collision_to_right": 5,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -26
+   }
+  },
+  "houses/Deco_33.png": {
+   "kind": "decoration",
+   "subcategory": "small sailing fishing boat",
+   "atlas": "houses",
+   "rect": [
+    32,
+    1239,
+    136,
+    105
+   ],
+   "tiled": {
+    "class": "Deco",
+    "File_name": "Deco_33.png",
+    "Tiles_to_right": 5,
+    "Tiles_up": 4,
+    "Collision_to_right": 5,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": 0,
+    "Col_margin_right_pixel": -24
    }
   }
  },

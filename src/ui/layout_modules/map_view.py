@@ -592,7 +592,8 @@ def _build_render_queue(
             draw_y = screen_y - sprite.get_height() + offset_y
             if house.afloat:
                 # A boat bobs and rocks on the water (models/afloat.py); the glows go with the picture drawn
-                bob, roll = afloat_motion(pygame.time.get_ticks() / 1000.0, house.x)
+                bob, roll = afloat_motion(pygame.time.get_ticks() / 1000.0, house.x,
+                                          house.collision_rect.width)
                 sprite, (draw_x, draw_y) = afloat_pose(sprite, draw_x, draw_y, bob * camera.zoom, roll)
             
             # Culling - check if sprite frame intersects with screen area
