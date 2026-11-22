@@ -81,3 +81,12 @@ def test_it_draws(page):
     page.draw(screen, page.die.center)
     page.selected = False
     page.draw(screen, (0, 0))
+
+
+def test_the_player_stands_under_the_name_above_the_buttons(page):
+    from src.ui.new_game_page import PREVIEW_H
+    assert page.preview is not None
+    assert page.preview.get_height() == PREVIEW_H
+    assert page.field.bottom < page.preview_rect.top
+    assert page.preview_rect.bottom < page.start_button.top
+    assert page.panel.contains(page.preview_rect) and page.panel.contains(page.back_button)

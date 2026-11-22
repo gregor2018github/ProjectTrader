@@ -2,11 +2,13 @@
 
 ``NewGamePage`` opens with a random name (``player_names.random_name``) in its
 field, already chosen, so typing replaces it and Enter starts at once. The die
-beside the field rolls another. "Start" (or Enter) starts the game with the
+beside the field rolls another. Under the field the player's figure stands as
+he will look in the game (``preview``). "Start" (or Enter) starts the game with the
 name, "Back" (or Escape) goes back to the menu. A field left empty starts with
 a rolled name all the same.
 """
 
+import os
 from typing import Optional, Tuple
 
 import pygame
@@ -21,11 +23,14 @@ BACK = "back"
 DIE_TOOLTIP = "Roll a random name"
 
 PANEL_W = 560
-PANEL_H = 330
+PANEL_H = 540
 FIELD_H = 52
 DIE_SIZE = 52
 BUTTON_W = 180
 BUTTON_H = 52
+PREVIEW_H = 190   # the figure's height on the page
+PREVIEW_FILE = os.path.join('assets', 'map_sprites', 'figurines', 'humans', 'player',
+                            'player_front_static.png')
 
 #: Where the pips sit on each face of the die, in thirds of its inner square
 PIPS = {
@@ -53,7 +58,10 @@ class NewGamePage:
         field_w = PANEL_W - 60 - DIE_SIZE - 12
         self.field = pygame.Rect(self.panel.left + 30, self.panel.top + 140, field_w, FIELD_H)
         self.die = pygame.Rect(self.field.right + 12, self.field.top, DIE_SIZE, DIE_SIZE)
-        buttons_top = self.field.bottom + 52
+        self.preview_rect = pygame.Rect(0, 0, PANEL_W - 60, PREVIEW_H)
+        self.preview_rect.midtop = (cx, self.field.bottom + 40)
+        self.preview: Optional[pygame.Surface] = _load_preview()
+        buttons_top = self.preview_rect.bottom + 34
         self.start_button = pygame.Rect(cx - BUTTON_W - 10, buttons_top, BUTTON_W, BUTTON_H)
         self.back_button = pygame.Rect(cx + 10, buttons_top, BUTTON_W, BUTTON_H)
 
@@ -125,6 +133,8 @@ class NewGamePage:
         counter = self.small_font.render(f"{len(self.text)}/{MAX_NAME_LENGTH}", True, DARK_GRAY)
         screen.blit(counter, counter.get_rect(right=self.field.right, top=self.field.bottom + 4))
 
+        self._draw_preview(screen)
+
         for rect, label in ((self.start_button, "Start"), (self.back_button, "Back")):
             hovered = rect.collidepoint(mouse_pos)
             pygame.draw.rect(screen, PALE_BROWN if hovered else TAN, rect, border_radius=4)
@@ -149,6 +159,17 @@ class NewGamePage:
             caret_x = x + text.get_width() + 2
             pygame.draw.line(screen, BLACK, (caret_x, self.field.top + 10), (caret_x, self.field.bottom - 10), 2)
 
+    def _draw_preview(self, screen: pygame.Surface) -> None:
+        """The player's figure standing on a soft shadow under the name."""
+        if self.preview is None:
+            return
+        feet_y = self.preview_rect.bottom - 6
+        shadow_w = int(self.preview.get_width() * 0.75)
+        shadow = pygame.Surface((shadow_w, 18), pygame.SRCALPHA)
+        pygame.draw.ellipse(shadow, (60, 35, 15, 70), shadow.get_rect())
+        screen.blit(shadow, shadow.get_rect(center=(self.preview_rect.centerx, feet_y)))
+        screen.blit(self.preview, self.preview.get_rect(midbottom=(self.preview_rect.centerx, feet_y + 2)))
+
     def _draw_die(self, screen: pygame.Surface, hovered: bool) -> None:
         pygame.draw.rect(screen, PALE_BROWN if hovered else TAN, self.die, border_radius=8)
         pygame.draw.rect(screen, DARK_BROWN, self.die, 2, border_radius=8)
@@ -160,3 +181,17 @@ class NewGamePage:
         for col, row in PIPS[self.face]:
             centre = (round(inner.left + col * step), round(inner.top + row * step))
             pygame.draw.circle(screen, DARK_BROWN, centre, 3)
+
+
+def _load_preview() -> Optional[pygame.Surface]:
+    """The player's front standing sprite, cut to what is drawn and scaled to PREVIEW_H.
+
+    None if it cannot be loaded, so the page still works without it.
+    """
+    try:
+        image = pygame.image.load(PREVIEW_FILE).convert_alpha()
+    except (pygame.error, FileNotFoundError):
+        return None
+    image = image.subsurface(image.get_bounding_rect()).copy()
+    w, h = image.get_size()
+    return pygame.transform.smoothscale(image, (max(1, round(w * PREVIEW_H / h)), PREVIEW_H))
