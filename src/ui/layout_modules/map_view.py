@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Sequence, Tuple, TYPE_CHECKING
 from .effect_circles import draw_effect_circles
 from .drowsy_view import draw_drowsy_view, player_centre
 from .leash_view import leash_entry
+from .crane_view import crane_entries
 from .quest_marker import draw_quest_marker
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
@@ -134,6 +135,8 @@ def draw_map_view(
     render_queue = _build_render_queue(game_map, offset_x, offset_y, game_state.date,
                                        halos=bool(weather) and halos_show(weather.fog),
                                        roof_snow=roof_snow_level(weather.snow_cover) if weather else 0.0)
+    # The harbour cranes' ropes, hooks, loads and barges (crane_view.py)
+    render_queue.extend(crane_entries(game_map, offset_x, offset_y))
 
     # The chopping stump glows softly while today's wood is still to be chopped (not under the mouse);
     # until the old woodcutter has asked the player for a hand, he glows instead

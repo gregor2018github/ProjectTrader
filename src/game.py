@@ -862,6 +862,9 @@ class Game:
                         # rest walk on (see figurine_click_menu)
                         release_ended_conversations(self.state, self.game_map)
                         self.game_map.update(delta_time, self.state.date)
+                        # The harbour cranes hoist their loads (models/crane_hoist.py)
+                        self.game_map.tmx_map.update_hoists(delta_time, self.game_map.world_view(), self.state.date,
+                                                            self.weather.wind, self.weather.storm, self.weather.rain)
                         # Flip on the leash follows the player's trail (models/leash.py)
                         map_player = self.game_map.map_player
                         self.lost_sheep_map.step_leash(delta_time, map_player.feet,

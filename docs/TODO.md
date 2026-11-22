@@ -18,6 +18,10 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] design and add three houses that are horizontally oriented
 - [ ] have piers and proper floor tiles in the harbor
 - [ ] have cranes in the harbor area that can actually move
+  - [x] rope, hook and loads (crate, sacks in a net, barrel, bale) on all three cranes, a barge moored under them, trips up and down, the swing in the wind, scenes that change only unseen (models/crane_hoist.py, crane_view.py)
+  - [ ] sounds: the treadwheel's creak and the rope over the pulley while it winds, a thud as a load is set down
+  - [ ] workers: a docker in the barge hooking the loads on, someone in the treadwheel
+  - [ ] the barge rowed in and out rather than there or not; the jibs turning (would need pictures of each jib turned)
 - [ ] have an animation for farmers bringing in the harvest in autumn on the fields, also crates of products being dropped aside the field
   - [x] the harvest itself (models/harvest.py, harvest_crew.py): one of the Poor or Commons per field a day on the last three days of Autumn, out through any gate (opened and shut behind), cutting plant by plant, shocks standing up as they go, home in the evening, held up by heavy rain
   - [ ] a reaping animation for the worker while he cuts (he only stands so far), and a sound for the field gate (`gate_open` / `gate_close`, see gate.py)

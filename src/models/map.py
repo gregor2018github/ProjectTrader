@@ -14,6 +14,8 @@ from typing import List, Dict, Set, Tuple, Any, Optional, Union
 from ..config.constants import SLOT_SIZE, TILE_SIZE, MAP_START_ZOOM, START_X_POSITION, START_Y_POSITION
 from .house import House
 from .gate import Gate, feet_box
+from .crane_hoist import HOISTS, Hoist, working_hours, WORK_FROM, WORK_TO
+from .daylight import sun_hour
 from .gate_passing import GateKeeper
 from .gate_ways import GateWays
 from .harvest import Harvest, shock_thresholds
@@ -213,6 +215,11 @@ class TMXMap:
         self._load_houses()
         #: Where the woodhacking is played: the house object named "Stomp"
         self.chopping_stump: Optional[House] = next((h for h in self.houses if h.name == "Stomp"), None)
+        #: The harbour cranes' ropes, hooks and loads (crane_hoist.py), one per building whose sprite is a crane
+        self.hoists: List[Hoist] = [
+            Hoist.on_building(house.name, house.x, house.y, (house.source_image or house.image).get_height(),
+                              house.scale if house.source_image is not None else 1.0, HOISTS[house.file_name])
+            for house in self.houses if house.file_name in HOISTS and house.image is not None]
         self._load_special_points()
         self._load_trees()
         self._load_fields()
@@ -1073,6 +1080,17 @@ class TMXMap:
                 house.doors.append(door)
                 return
 
+    def update_hoists(self, dt: float, view: pygame.Rect, moment: datetime.datetime, wind: float,
+                      storm: float, rain: float) -> None:
+        """Move the cranes' hoists on (each frame the map runs); view is the world part in sight."""
+        sun = sun_hour(moment)
+        working = working_hours(sun, storm, rain)
+        day = WORK_FROM <= sun < WORK_TO
+        for hoist in self.hoists:
+            left, top, right, bottom = hoist.area()
+            seen = view.colliderect(pygame.Rect(left, top, right - left, bottom - top))
+            hoist.update(dt, seen, working, day, wind)
+
     def update_mills(self, dt: float) -> None:
         """Advance blade rotation for all mills (call once per frame when not paused)."""
         for mill in self.mills:
@@ -1581,6 +1599,14 @@ class GameMap:
             self.tmx_map.height * self.tmx_map.tile_size
         )
     
+    def world_view(self) -> pygame.Rect:
+        """The part of the world on screen, in world pixels."""
+        camera = self.camera
+        tile = self.tmx_map.tile_size
+        scale = round(tile * camera.zoom) / tile
+        return pygame.Rect(int(camera.x), int(camera.y), int(camera.screen_width / scale) + 1,
+                           int(camera.screen_height / scale) + 1)
+
     def resize_view(self, width: int, height: int) -> None:
         """Update the viewport size when the map view area changes.
         
