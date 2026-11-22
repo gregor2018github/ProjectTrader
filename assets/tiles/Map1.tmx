@@ -13281,6 +13281,7 @@
   </object>
   <object id="1673" name="Fishing_Boat" type="Deco" x="5024" y="2496">
    <properties>
+    <property name="Afloat" type="bool" value="true"/>
     <property name="Col_margin_left_pixel" type="int" value="0"/>
     <property name="Col_margin_right_pixel" type="int" value="-22"/>
     <property name="Collision_to_right" type="int" value="5"/>

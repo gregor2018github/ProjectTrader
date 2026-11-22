@@ -806,6 +806,7 @@ class TMXMap:
                     if house.epitaph and not house.display_name:
                         house.display_name = 'Gravestone'
                     house.fishing_spot = str(obj.properties.get('Fishing_spot', '')).strip()
+                    house.afloat = bool(obj.properties.get('Afloat', False))
                     self.houses.append(house)
 
     def _load_trees(self) -> None:

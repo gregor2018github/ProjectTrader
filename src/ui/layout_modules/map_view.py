@@ -13,6 +13,8 @@ from .effect_circles import draw_effect_circles
 from .drowsy_view import draw_drowsy_view, player_centre
 from .leash_view import leash_entry
 from .crane_view import crane_entries
+from .afloat_view import afloat_pose
+from ...models.afloat import motion as afloat_motion
 from .quest_marker import draw_quest_marker
 from ...config.colors import *
 from ...config.constants import SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH
@@ -588,6 +590,10 @@ def _build_render_queue(
             # screen_y is the bottom of the sprite because house.x, house.y is bottom-left
             draw_x = screen_x + offset_x
             draw_y = screen_y - sprite.get_height() + offset_y
+            if house.afloat:
+                # A boat bobs and rocks on the water (models/afloat.py); the glows go with the picture drawn
+                bob, roll = afloat_motion(pygame.time.get_ticks() / 1000.0, house.x)
+                sprite, (draw_x, draw_y) = afloat_pose(sprite, draw_x, draw_y, bob * camera.zoom, roll)
             
             # Culling - check if sprite frame intersects with screen area
             if (draw_x + sprite.get_width() >= offset_x and draw_x < camera.screen_width + offset_x and

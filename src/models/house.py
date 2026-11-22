@@ -62,6 +62,9 @@ class House:
         #: A boat's fishing spot, the name of a point on the "Fishing" layer (its `Fishing_spot` property in
         #: Tiled), else "": that spot is then fished from the boat (models/fishing_spot.py)
         self.fishing_spot: str = ""
+        #: Whether it lies on the water and bobs and rocks there (its `Afloat` property in Tiled,
+        #: models/afloat.py), as a boat does
+        self.afloat: bool = False
         self.house_class = house_class
         self.max_inhabitants = max(0, int(max_inhabitants))
         self.has_max_inhabitants_property = bool(has_max_inhabitants_property)
