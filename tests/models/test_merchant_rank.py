@@ -155,6 +155,23 @@ def test_falls_back_only_after_the_grace_period(rank, depot, player):
     assert rank.grace_since is None
 
 
+def test_the_first_rank_cannot_slip(rank, player):
+    player.reputation = -0.1                          # below the first rank's 0
+    for day in range(GRACE_DAYS + 2):
+        assert rank.daily_check(later(day)) is None
+    assert rank.rank.name == "First" and rank.level == 0
+    assert rank.grace_since is None
+
+
+def test_falling_to_the_first_rank_starts_no_grace(rank, depot, player):
+    meet_second(depot, player)
+    rank.check_rise()
+    player.reputation = -1                            # the first rank's 0 unmet too
+    rank.daily_check(later(1))
+    rank.daily_check(later(GRACE_DAYS + 1))
+    assert rank.rank.name == "First" and rank.grace_since is None
+
+
 def test_putting_it_right_in_time_ends_the_grace_period(rank, depot, player):
     meet_second(depot, player)
     rank.check_rise()

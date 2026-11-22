@@ -143,6 +143,10 @@ class MerchantRank:
 
     def daily_check(self, today: datetime.date) -> Optional[Tuple[str, str]]:
         """Warn or demote; returns (ledger line, message to show) when something happened."""
+        if self.level == 0:
+            # The first rank cannot be lost: there is nothing below it to fall to
+            self.grace_since = None
+            return None
         standing = self.standing()
         unmet = self.rank.unmet(standing)
         if not unmet:
@@ -162,7 +166,7 @@ class MerchantRank:
         fallen_from = self.rank.name
         self.level -= 1
         # Falling further takes another grace period of its own
-        self.grace_since = today if self.rank.unmet(standing) else None
+        self.grace_since = today if self.level > 0 and self.rank.unmet(standing) else None
         return (f"Fallen from {fallen_from} to {self.rank.name}",
                 f"You are no longer counted a {fallen_from}.\n"
                 f"The town now speaks of you as a **{self.rank.name}**.")
@@ -224,5 +228,6 @@ class MerchantRank:
         self.level = min(max(int(saved.get("level", 0)), 0), top)
         self.highest = min(max(int(saved.get("highest", self.level)), self.level), top)
         grace = saved.get("grace_since")
-        self.grace_since = datetime.date.fromisoformat(grace) if grace else None
+        # The first rank has no grace period (an older save may have started one)
+        self.grace_since = datetime.date.fromisoformat(grace) if grace and self.level > 0 else None
         self.given_this_season = float(saved.get("given_this_season", saved.get("given_this_month", 0.0)))
