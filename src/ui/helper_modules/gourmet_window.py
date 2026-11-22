@@ -37,7 +37,8 @@ from ...models import meal_effects
 from ...models.minigames.tutorial_sheet import (
     BRASS, BRASS_DARK, BRASS_LIGHT, INK, WEAVE, SheetTheme, framed_sheet, title_tablet,
 )
-from ...models.tavern_menu import COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, all_dishes, dish_key, dish_picture_path
+from ...models.tavern_menu import COURSES, DISH_TYPES, TAVERN_CLASSES, Dish, all_dishes, dish_key, dish_picture_path, \
+    times_had_text
 
 if TYPE_CHECKING:
     from ...game_state import GameState
@@ -82,10 +83,10 @@ def times_eaten(stats, dish: Dish) -> int:
     return stats.dishes_tried.get(dish_key(dish), 0)
 
 
-def eaten_text(times: int) -> str:
+def eaten_text(times: int, dish_type: str = "plate") -> str:
     if times == 0:
         return "Not yet tasted"
-    return "Eaten once" if times == 1 else f"Eaten {times} times"
+    return times_had_text(times, dish_type)
 
 
 def _wrap(text: str, font: pygame.font.Font, width: int) -> List[str]:
@@ -257,7 +258,7 @@ class GourmetWindow(_BaseDialog):
             sheet.blit(mark, mark.get_rect(midtop=(card.centerx, y - 6)))
         pygame.draw.line(sheet, BRASS if tasted else _FAINT_RULE,
                          (card.left + 14, card.bottom - 26), (card.right - 14, card.bottom - 26), 1)
-        count = self.small_font.render(eaten_text(times_eaten(self._stats, dish)), True, INK if tasted else _FAINT_INK)
+        count = self.small_font.render(eaten_text(times_eaten(self._stats, dish), dish.type), True, INK if tasted else _FAINT_INK)
         sheet.blit(count, count.get_rect(midbottom=(card.centerx, card.bottom - 7)))
 
     @staticmethod
@@ -296,7 +297,7 @@ class GourmetWindow(_BaseDialog):
                                                          self.TOOLTIP_W - 2 * self.TOOLTIP_PAD)]
                 + [(f"{served}, {dish.price:.2f} coins", INK),
                    (f"{effect}, {hours}", (40, 96, 40)),
-                   (eaten_text(times_eaten(self._stats, dish)), INK)]
+                   (eaten_text(times_eaten(self._stats, dish), dish.type), INK)]
                 + ([("Click to see it larger", _FAINT_INK)] if os.path.exists(dish_picture_path(dish)) else []))
 
     def _draw_tooltip(self, surf: pygame.Surface, dish: Dish, mouse: Tuple[int, int], off: Tuple[int, int]) -> None:

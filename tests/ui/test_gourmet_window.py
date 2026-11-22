@@ -74,6 +74,9 @@ def test_how_often_it_was_eaten():
     assert eaten_text(0) == "Not yet tasted"
     assert eaten_text(1) == "Eaten once"
     assert eaten_text(4) == "Eaten 4 times"
+    assert eaten_text(1, "drink") == "Drunk once"
+    assert eaten_text(4, "drink") == "Drunk 4 times"
+    assert eaten_text(4, "bowl") == "Eaten 4 times"
 
 
 def test_the_tabs_change_the_page(window):

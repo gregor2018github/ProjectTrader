@@ -99,6 +99,12 @@ def dish_key(dish: Dish) -> str:
     return re.sub(r"[^a-z0-9]+", "_", dish.name.lower()).strip("_")
 
 
+def times_had_text(times: int, dish_type: str) -> str:
+    """"Eaten 3 times", or "Drunk 3 times" for a drink (times at least 1)."""
+    verb = "Drunk" if dish_type == "drink" else "Eaten"
+    return f"{verb} once" if times == 1 else f"{verb} {times} times"
+
+
 def dish_picture_path(dish: Dish) -> str:
     """Where the dish's picture would be; it need not exist."""
     return os.path.join(PICTURES_PATH, f"dish_{dish_key(dish)}.png")

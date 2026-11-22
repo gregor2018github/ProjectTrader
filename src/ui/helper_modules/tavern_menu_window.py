@@ -19,7 +19,7 @@ from ..transaction_feedback import on_money_spent
 from ...config.colors import BLACK, DARK_BROWN, DARK_GREEN, DARK_RED
 from ...config.constants import FONTS_PATH, FOOD_CATEGORY, SCREEN_HEIGHT
 from ...sim.calendar import format_long, is_fast_day, is_lent
-from ...models.tavern_menu import Dish, daily_menu, dish_key, dish_picture_path
+from ...models.tavern_menu import Dish, daily_menu, dish_key, dish_picture_path, times_had_text
 from ...models import meal_effects
 
 if TYPE_CHECKING:
@@ -198,7 +198,7 @@ class TavernMenuWindow(_BaseDialog):
         times = self.game_state.game.depot.stats.dishes_tried.get(dish_key(dish), 0)
         if times == 0:
             return self.small_font.render("Not tried yet", True, DARK_GREEN)
-        return self.small_font.render("Eaten once" if times == 1 else f"Eaten {times} times", True, DESCRIPTION_COLOR)
+        return self.small_font.render(times_had_text(times, dish.type), True, DESCRIPTION_COLOR)
 
     def draw(self, alpha_scale: float = 1.0) -> None:
         if alpha_scale <= 0:
