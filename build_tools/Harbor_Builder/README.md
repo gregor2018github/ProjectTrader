@@ -1,7 +1,8 @@
 # Harbor Builder
 
-Lays the harbour's piers onto `assets/tiles/Map1.tmx` as ground tiles, painted by code:
-a timber jetty (A) and two paved stone piers (B, C).
+Lays the harbour's piers and quay onto `assets/tiles/Map1.tmx` as ground tiles, painted
+by code: a timber jetty (A) off the west shore, and the stone south quay with the two
+stone piers (B, C) running out from it, paved as one surface.
 
 ```bash
 python build_tools/Harbor_Builder/lay_piers.py --sheet     # the pieces and a sample pier of each material
@@ -10,8 +11,11 @@ python build_tools/Harbor_Builder/lay_piers.py             # write (close Tiled 
 ```
 
 Pictures go to `build_tools/output/piers/`. Every run rebuilds the `harbor_piers`
-tileset from nothing and lays every pier again, so it can be run any number of
-times; two runs write the same bytes.
+tileset from nothing and lays everything again, so it can be run any number of
+times; two runs write the same bytes. What it changes on the map it first notes
+in `underlay.json` (each touched cell's tile per layer, as it was before the tool
+ever ran) and puts back at the start of every run, so the ground under the paving
+(a road's ragged edge) is never lost. Commit `underlay.json` with the map.
 
 ## How it works
 
@@ -36,9 +40,23 @@ times; two runs write the same bytes.
   the animated water, and the Placing Helper shows it as is. The grass fringe
   tiles that hung over the water round a pier are taken off that layer.
 
+## The quay
+
+`stone_paving.py`: a `Paving` (`PAVINGS`) is the land within `depth` tiles (3) of the
+water inside its `quay` box, plus its `piers`, paved whole. Each cell's piece comes
+from where the water is round it: a kerb with its outer side to the water, an outer
+corner (a pier's tip), an inner corner where the kerb turns in (a pier meeting the
+quay), cobbles elsewhere. Away from the water it frays into the grass stone by
+stone; a kerb running out of the paving ends on a joint. The water cells beside it
+lose the shore's grass: their fringe tiles on `Ground_High` come off and their bank
+tiles in `Ground_Mid` become open water (still water to the game). The piers' cart
+tracks (`tracks`) fade out on the quay. The stone is kept quiet on purpose: it is
+ground, not a building.
+
 ## A new pier
 
-Add a `Pier` to `PIERS`:
+A stone pier off the quay: add its box to the paving's `piers` (and a track if you
+like). A wooden one, or a stone one standing alone, is a `Pier` in `PIERS`:
 
 ```python
 Pier("D_timber_landing", "wood", (x0, y0, x1, y1), root="N", seed=41)

@@ -378,12 +378,13 @@ def wood_corner(variant: int) -> Piece:
 class StonePalette:
     """Grey and brown stone, a little of the town's brick red among it."""
 
-    cobbles: Tuple[RGB, ...] = ((140, 134, 124), (128, 121, 111), (148, 139, 123), (133, 124, 114),
-                                (120, 116, 108), (142, 128, 110), (114, 110, 103))
-    brick: RGB = (150, 90, 70)
-    kerb: RGB = (142, 136, 122)              # dressed flagstones, a little paler than the cobbles
-    kerb_red: RGB = (146, 124, 110)
-    joint: RGB = (72, 67, 60)                # the grime in the joints
+    # Close together on purpose: paving is background, it must not read as a built structure
+    cobbles: Tuple[RGB, ...] = ((136, 130, 120), (130, 124, 114), (140, 133, 120), (132, 125, 116),
+                                (127, 123, 115), (137, 128, 116))
+    brick: RGB = (140, 108, 92)
+    kerb: RGB = (140, 135, 123)              # dressed flagstones, barely paler than the cobbles
+    kerb_red: RGB = (142, 126, 114)
+    joint: RGB = (98, 93, 85)                # the grime in the joints, soft
     face: RGB = (140, 131, 116)              # the front wall's blocks
     mortar: RGB = (78, 72, 63)
     algae: RGB = (64, 96, 56)
@@ -405,20 +406,20 @@ COBBLE_EDGE_JITTER = 1.6
 COBBLE_INNER_MARGIN = 7.0
 COBBLE_INNER_GAP = 6.5            # px between inner points
 COBBLE_INNER_TRIES = 60
-COBBLE_DOME = 1.6                 # px a cobble's middle stands above its joint
+COBBLE_DOME = 0.9                 # px a cobble's middle stands above its joint
 COBBLE_ROUND = 2.6                # px from its edge to where it is full height
 JOINT_HALF = 0.7                  # half a joint's width, px
-STONE_TEXTURE = 0.08              # the grain within a stone
+STONE_TEXTURE = 0.05              # the grain within a stone
 
 #: Kerb flagstones: the joints along a kerb tile, per variant. There is none at
 #: the tile's edges, so stones run on into the next tile: about two tiles long
 KERB_JOINTS = ((16,), (), (24,), ())
-KERB_TOP = 2.0
+KERB_TOP = 1.3
 KERB_BEVEL = 2.2                  # px over which a flagstone's edge rounds off
 KERB_OUTER_BEVEL = 3.2            # its outer edge, to the water, worn more
 KERB_CORNER_RADIUS = 3.0
 CORNER_STONE_RADIUS = 7.0         # the pier's own corner, rounded off
-KERB_CRACK_CHANCE = 0.12
+KERB_CRACK_CHANCE = 0.05
 
 
 def _cobble_edge_points() -> np.ndarray:
@@ -525,6 +526,21 @@ def stone_kerb(variant: int) -> Piece:
     bounds = [-TILE - 1] + list(KERB_JOINTS[variant]) + [2 * TILE]
     for a, b in zip(bounds, bounds[1:]):
         _flagstone(piece, rng, (a + 1, 0, b, TILE - 1), outer_y=0)
+    return piece
+
+
+def stone_inner_corner(variant: int) -> Piece:
+    """Where a kerb turns inwards (a pier meeting the quay): water only at the top left corner point.
+
+    The kerb along the water to the left runs in from the left, the one along
+    the water above from the top; each stops at a joint, and one square stone
+    fills the rest.
+    """
+    piece = _blank()
+    rng = rng_for("stone", "inner-corner", variant)
+    _flagstone(piece, rng, (-TILE, 0, 1, TILE - 1))                 # the left kerb's tail
+    _flagstone(piece, rng, (2, -TILE, TILE - 1, 1))                 # the upper kerb's tail
+    _flagstone(piece, rng, (2, 2, TILE - 1, TILE - 1))
     return piece
 
 

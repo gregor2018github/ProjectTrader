@@ -15,18 +15,25 @@ fading into the grass. Then it is lit (``pier_materials.shade``) and, round
 it on the water, given its front face where the camera sees one (a south
 edge), a thin dark lip on its other sides and a band of shadow on the water.
 
+Whatever the tool changes on the map (a cell's tile on any layer) it first
+writes down as it was in ``underlay.json``, and every run puts those tiles
+back before laying anything; so a cell that had something of its own under
+the paving (a road's ragged edge) keeps it however often the tool runs.
+
 It is painted like the churchyard's ground (``paint_ground.py``): the canvas
 is cut into tiles of a tileset of its own, ``harbor_piers``, by
 ``floor_painter.FloorPainter``, onto ``Ground_High``, which the game draws
 over the animated water and the Placing Helper shows as it is. The grass
 fringe tiles the piers had on the water round them are taken off that layer.
-Every run starts the tileset afresh and lays every pier again, so it can be
-run as often as wanted; two runs write the same bytes.
+Every run starts the tileset afresh and lays every pier and paving again,
+from the tiles as they were before the tool ever ran, so it can be run as
+often as wanted; two runs write the same bytes.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from dataclasses import dataclass
@@ -44,7 +51,10 @@ import grow_forest as forest_tool  # noqa: E402  (sets up pygame and the game's 
 from floor_baker import FloorBaker  # noqa: E402
 from floor_painter import FloorPainter, _over  # noqa: E402
 import pier_materials as pm  # noqa: E402
-from pier_materials import BEAM, BOARD, COBBLE, FLAGSTONE, TILE, Piece, colour, jitter, rng_for, smoothstep, value_noise  # noqa: E402,E501
+from parts import Parts, colour_parts, find_parts  # noqa: E402
+import stone_paving  # noqa: E402
+from stone_paving import PAVINGS, Paving  # noqa: E402
+from pier_materials import BEAM, FLAGSTONE, TILE, Piece, colour, rng_for, smoothstep, value_noise  # noqa: E402
 
 TMX = forest_tool.TMX
 PREVIEW_TMX = "assets/tiles/_piers_preview.tmx"
@@ -52,6 +62,8 @@ OUTPUT_DIR = "build_tools/output/piers"
 LAYER = "Ground_High"
 DECO_LAYER = "Ground_Flowers_Mushrooms"      # FloorPainter wants one; nothing goes on it
 TILESET = "harbor_piers"
+#: The tiles as they were before the tool changed them: {layer: {"x,y": gid}}
+UNDERLAY = os.path.join(HERE, "underlay.json")
 
 
 @dataclass(frozen=True)
@@ -77,13 +89,14 @@ class Pier:
     fender: bool = False
 
 
-#: The harbour basin's piers. A: the short jetty off the west shore; B and C: the
-#: two piers running out from the south quay, B the left one
+#: The harbour basin's piers standing on their own: A, the short timber jetty off the
+#: west shore. The stone piers B and C are part of the south quay's paving
+#: (``stone_paving.PAVINGS``), so they run into it without a seam.
 PIERS = [
     Pier("A_fishing_jetty", "wood", (133, 61, 140, 66), "W", seed=11),
-    Pier("B_cargo_pier_west", "stone", (146, 79, 150, 91), "S", seed=23),
-    Pier("C_cargo_pier_east", "stone", (158, 79, 162, 91), "S", seed=37),
 ]
+#: The layers drawn over LAYER: what they have on paved cells comes off
+ABOVE_LAYER = ("Ground_High_Plus", "Ground_Flowers_Mushrooms")
 
 # --- the pieces ---------------------------------------------------------------
 #: How many variants of each piece there are; the seed picks among them
@@ -112,15 +125,6 @@ ROOT_DIRT = (138, 114, 80)        # worn ground round its land end
 ROOT_DIRT_ALPHA = 0.42
 GRIME = 0.06                      # the surface a little uneven in tone, over tiles
 GRIME_CELL = 22.0
-# Each board and stone its own colour
-BOARD_TONES = (0.88, 1.08)
-BOARD_BLEACHED = 0.10             # share of boards worn pale
-BOARD_DARK = 0.08                 # and of boards gone dark
-BEAM_TONES = (0.93, 1.04)
-BRICK_SHARE = 0.07                # a cobble in fourteen is a brick bat, red
-KERB_RED_SHARE = 0.10
-WEATHERED = (1 / 7, 0.88)         # share of flagstones weathered darker, and how much
-COBBLE_SPREAD = 0.05
 # Wood
 WET_END_PX = 2 * TILE             # the boards darken and soak over this much of the water end
 WET_DARKEN = 0.32
@@ -197,83 +201,6 @@ def _compose(pier: Pier, rng: np.random.Generator) -> Tuple[np.ndarray, np.ndarr
             height[oy:oy + TILE, ox:ox + TILE] = p.height
             kind[oy:oy + TILE, ox:ox + TILE] = p.kind
     return albedo, height, kind
-
-
-def label(solid: np.ndarray) -> np.ndarray:
-    """Number the 4-connected parts of a mask: each pixel gets its part's lowest pixel index, -1 outside."""
-    h, w = solid.shape
-    n = h * w
-    flat = solid.ravel()
-    labels = np.append(np.where(flat, np.arange(n), n), n)       # n: outside, pointing at itself
-    index = np.arange(n).reshape(h, w)
-    across = solid[:, :-1] & solid[:, 1:]
-    down = solid[:-1] & solid[1:]
-    a = np.concatenate([index[:, :-1][across], index[:-1][down]])
-    b = np.concatenate([index[:, 1:][across], index[1:][down]])
-    while True:
-        low = np.minimum(labels[a], labels[b])
-        new = labels.copy()
-        np.minimum.at(new, a, low)
-        np.minimum.at(new, b, low)
-        new = new[new[new]]                                       # jump along the chains
-        if np.array_equal(new, labels):
-            break
-        labels = new
-    out = labels[:n].reshape(h, w)
-    out[~solid] = -1
-    return out
-
-
-@dataclass
-class Parts:
-    """The stones and boards of a laid surface: which part each pixel is, and where each part lies."""
-
-    labels: np.ndarray            # (h, w): the part's number (0..n-1), -1 for joints and gaps
-    centres: np.ndarray           # (n, 2): each part's middle, x and y
-    kinds: np.ndarray             # (n,): COBBLE, FLAGSTONE, BOARD or BEAM
-
-
-def find_parts(kind: np.ndarray) -> Parts:
-    raw = label(kind > 0)
-    solid = raw >= 0
-    _, inverse = np.unique(raw[solid], return_inverse=True)
-    inverse = inverse.ravel()
-    n = int(inverse.max()) + 1 if inverse.size else 0
-    labels = np.full(kind.shape, -1)
-    labels[solid] = inverse
-    ys, xs = np.nonzero(solid)
-    size = np.bincount(inverse, minlength=n)
-    centres = np.stack([np.bincount(inverse, xs + 0.5, n), np.bincount(inverse, ys + 0.5, n)], 1) / size[:, None]
-    kinds = np.zeros(n, np.uint8)
-    np.maximum.at(kinds, inverse, kind[solid])
-    return Parts(labels, centres, kinds)
-
-
-def _part_colour(kind: int, rng: np.random.Generator) -> np.ndarray:
-    """What a part's neutral colour is multiplied by: its own stone, brick, or board's tone."""
-    if kind == COBBLE:
-        stone = pm.STONE.brick if rng.random() < BRICK_SHARE else \
-            pm.STONE.cobbles[rng.integers(len(pm.STONE.cobbles))]
-        return jitter(colour(stone), rng, COBBLE_SPREAD) / colour(pm.COBBLE_NEUTRAL)
-    if kind == FLAGSTONE:
-        stone = pm.STONE.kerb_red if rng.random() < KERB_RED_SHARE else pm.STONE.kerb
-        k = WEATHERED[1] if rng.random() < WEATHERED[0] else 1.0
-        return jitter(colour(stone), rng, 0.04) * k / colour(pm.KERB_NEUTRAL)
-    if kind == BOARD:
-        roll = rng.random()
-        if roll < BOARD_BLEACHED:
-            return colour(pm.WOOD.oak_bleached) / colour(pm.WOOD.oak)
-        tone = rng.uniform(*BOARD_TONES) * (0.85 if roll > 1 - BOARD_DARK else 1.0)
-        return np.full(3, tone)
-    return np.full(3, rng.uniform(*BEAM_TONES))
-
-
-def colour_parts(albedo: np.ndarray, parts: Parts, key: str) -> None:
-    """Give every stone and board its own colour, the same wherever it is cut across tiles."""
-    factors = np.array([_part_colour(k, rng_for(key, round(x, 1), round(y, 1)))
-                        for (x, y), k in zip(parts.centres, parts.kinds)]).reshape(-1, 3)
-    solid = parts.labels >= 0
-    albedo[solid] *= factors[parts.labels[solid]]
 
 
 def _fray_root(pier: Pier, kind: np.ndarray, parts: Parts, rng: np.random.Generator) -> Tuple[np.ndarray, np.ndarray]:
@@ -479,8 +406,40 @@ def _ring(pier: Pier) -> Iterable[Tuple[int, int]]:
                 yield x, y
 
 
-def lay(piers: List[Pier], tmx: forest_tool.Map, water: Set[Tuple[int, int]]) -> FloorPainter:
-    """Lay piers into the map's ground layer through a fresh ``harbor_piers`` tileset."""
+class Underlay:
+    """The map's tiles as they were before the tool touched them, kept in UNDERLAY."""
+
+    def __init__(self, tmx: forest_tool.Map) -> None:
+        self.tmx = tmx
+        self.tiles: Dict[str, Dict[str, int]] = {}
+        if os.path.exists(UNDERLAY):
+            with open(UNDERLAY, encoding="utf-8") as f:
+                self.tiles = json.load(f)
+
+    def restore(self) -> None:
+        """Put every tile the tool ever changed back as it was."""
+        for layer, cells in self.tiles.items():
+            for key, gid in cells.items():
+                x, y = map(int, key.split(","))
+                self.tmx.layers[layer][y * self.tmx.width + x] = gid
+
+    def touch(self, layer: str, x: int, y: int) -> None:
+        """Note a tile before it is changed, the first time only."""
+        cells = self.tiles.setdefault(layer, {})
+        cells.setdefault(f"{x},{y}", self.tmx.layers[layer][y * self.tmx.width + x])
+
+    def save(self) -> None:
+        ordered = {layer: dict(sorted(cells.items(), key=lambda kv: tuple(map(int, kv[0].split(",")))))
+                   for layer, cells in sorted(self.tiles.items())}
+        with open(UNDERLAY, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(ordered, f, indent=0, separators=(",", ":"))
+            f.write("\n")
+
+
+def lay(piers: List[Pier], pavings: List[Paving], tmx: forest_tool.Map, water: Set[Tuple[int, int]],
+        underlay: Underlay) -> FloorPainter:
+    """Lay piers and pavings into the map's ground layer through a fresh ``harbor_piers`` tileset."""
+    underlay.restore()
     painter = FloorPainter(tmx, LAYER, DECO_LAYER, TILESET, FloorBaker(tmx, LAYER))
     data = tmx.layers[LAYER]
     # Start afresh: whatever an earlier run laid comes off, and the tileset is made anew
@@ -494,11 +453,18 @@ def lay(piers: List[Pier], tmx: forest_tool.Map, water: Set[Tuple[int, int]]) ->
         # The grass fringe hanging over the water round it goes; the pier brings its own edge
         for x, y in _ring(pier):
             if (x, y) in water:
+                underlay.touch(LAYER, x, y)
                 data[y * tmx.width + x] = 0
         canvas, rx0, ry0 = paint_pier(pier, water)
+        for ty in range(canvas.shape[0] // TILE):
+            for tx in range(canvas.shape[1] // TILE):
+                underlay.touch(LAYER, rx0 + tx, ry0 + ty)
         covered = painter._cut(canvas, LAYER, rx0, ry0)
         print(f"{pier.name}: {pier.material}, tiles {pier.box[:2]} to {(pier.box[2] - 1, pier.box[3] - 1)}, "
               f"{covered} tiles laid")
+    for paving in pavings:
+        covered = stone_paving.lay_paving(paving, tmx, water, painter, LAYER, ABOVE_LAYER, underlay.touch)
+        print(f"{paving.name}: {stone_paving.describe(paving, water)}, {covered} tiles laid")
     painter.added = max(painter.added, len(painter.tiles))      # always written, even if the same
     return painter
 
@@ -583,15 +549,20 @@ def main() -> None:
     tmx = forest_tool.Map(TMX)
     painter = FloorPainter(tmx, LAYER, DECO_LAYER, TILESET, FloorBaker(tmx, LAYER))
     saved = {path: open(path, "rb").read() if os.path.exists(path) else None for path in painter.files()}
-    painter = lay(PIERS, tmx, water)
+    underlay = Underlay(tmx)
+    painter = lay(PIERS, PAVINGS, tmx, water, underlay)
     painter.save()
     print(f"{len(painter.tiles)} tiles in {TILESET}.png")
     target = PREVIEW_TMX if args.preview else TMX
     tmx.save(target, [])
-    for pier in PIERS:
-        x0, y0, x1, y1 = pier.box
-        forest_tool.render(target, OUTPUT_DIR, (x0 - 3, y0 - 3, x1 + 3, y1 + 3), scale=1.0)
-        os.replace(os.path.join(OUTPUT_DIR, "forest_game.png"), os.path.join(OUTPUT_DIR, f"{pier.name}.png"))
+    if not args.preview:
+        underlay.save()
+    shown = [(p.name, (p.box[0] - 3, p.box[1] - 3, p.box[2] + 3, p.box[3] + 3)) for p in PIERS]
+    shown += [(p.name, (p.quay[0] - 2, min(b[1] for b in p.piers) - 3, p.quay[2] + 2, p.quay[3] + 3))
+              for p in PAVINGS]
+    for name, region in shown:
+        forest_tool.render(target, OUTPUT_DIR, region, scale=1.0)
+        os.replace(os.path.join(OUTPUT_DIR, "forest_game.png"), os.path.join(OUTPUT_DIR, f"{name}.png"))
         os.remove(os.path.join(OUTPUT_DIR, "forest_tiled.png"))
     print(f"Pictures in {OUTPUT_DIR}/")
     if args.preview:
