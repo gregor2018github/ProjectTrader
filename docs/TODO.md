@@ -27,10 +27,21 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
   - [ ] a reaping animation for the worker while he cuts (he only stands so far), and a sound for the field gate (`gate_open` / `gate_close`, see gate.py)
   - [ ] the shocks are carted off rather than gone at once three days into Winter; the crates of products set down beside the field
   - [ ] future idea: let the harvest feed the economy (a field cut brings its wheat to the market, the town's grain in the sim; the workers paid a wage); marked TODO (economy) in models/harvest.py
+- [ ] have different surroundings and backgrounds for the different fishing spots
+- [ ] add a high-class tavern (`Tavern` = `high`): its dishes are in dishes.csv already, the only class of tavern without a building
+- [ ] give every workshop type of buildings.json a building on the map, so the player sees where the town's goods come from (only the mill, smithy, woodcutter's shed, wheat field and sheep fold have one so far); first ones:
+  - [ ] charcoal burner in the forest: his hut, two wood stacks and a smoking charcoal kiln (an earth-covered mound)
+  - [ ] bakery in town: an oven with chimney smoke, flour sacks, a bread rack by the door
+  - [ ] brewery by a stream: a copper kettle in an open shed, barrels, a malt-drying loft
+  - [ ] butchery (shambles) at the edge of town by the water: open front, hooks, a cart; the chandler next to it for the tallow
 
 ## Medium Priority
 
-- [ ] add effects for tiredness
+- [ ] have a quest with osric that you can bet on your score
+- [ ] the doors must close easier, currently really hard to hit, especially south of the sheep pasture
+- [ ] add sound effects for tiredness 
+- [ ] llet tiredness blind in more smoothly, currently it just pops in
+- [ ] have a quest log where you can see your active and completed quests with little notes
 - [ ] also create the player running animations with the sprite manager and gemini (currently still legacy sprites)
 - [ ] make new contract for the new products
 - [ ] have an actual boat visual for the one where the player arrives with
@@ -45,6 +56,13 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
 - [ ] more sources of reputation (quests, guild duties, feasts), for and against
 - [ ] add linden trees as a new type of tree
 - [ ] give an additional option in the bank menu to invest money (from 5k onwards, only available in 5K steps) whereby there are different risk levels with different possible returns and durations (e.g., 1 month, 3 months, 6 months, 12 months) 
+- [ ] more production buildings for the town's crafts: weaver (a loom seen through a wide window, by the Cloth Hall), linen weaver (lengths bleaching on the grass), tailor, cobbler, joiner (planks and a sawhorse, by the wood market), potter (a round smoking kiln, jugs drying on shelves)
+- [ ] more production buildings outside town: tannery downstream of town (pits, hides on stretching frames), salt works on the coast (a boiling house or salt pans), fish smokery and drying racks at the harbour (Salted Fish), fishermen's huts with nets on poles, quarry (a rock face, a hoist, blocks, a cart track), clay pit on the river bank, cattle farm with a byre and a fenced meadow
+- [ ] flax as a second crop on its own field (blue flowers in summer), with a retting pond beside it
+- [ ] small production scenery: haystacks, beehives, firewood piles, cloth on tenter frames, barrel stacks, millstones, carts
+- [ ] a weigh house (the town scales) on the market square: where the market fee is taken, a place for price checks and later features
+- [ ] a customs house / harbour master at the harbour, where the imports and exports cross the town's border (later trade routes and ships)
+- [ ] a building that hires the middling sort (notary, money changer or apothecary), for the loose end that no workshop hires them
 
 ## Planned Features
 
@@ -62,6 +80,19 @@ See docs/p1_living_market.md and docs/roadmap.md ("Known issues and loose ends")
     - [ ] The support trader works with target prices; they can fire a show_warning() or trading action when crossed
     - [ ] Support Trader can also create alarms based on highest/lowest price in N days
     - [ ] Support Trader starts as sole market spotter, can be upgraded to a full trader with own license and own trading capacity
+- [ ] guild houses for the guilds whose licences are sold (the Cloth Hall is one): a Smiths', Butchers', Bakers' guild house, where their licences could be bought
+- [ ] a shipyard with a hull on its slipway (scenery first, ships later)
+- [ ] a bathhouse: rest and tiredness, gossip and rumours
+- [ ] a hospital / almshouse: a place for the alms and the church's meals for the poor, and a source of reputation
+- [ ] a monastery or chapter house with its herb garden (Herbs), a scriptorium and a school; an apothecary buying the herbs
+- [ ] a granary, the town's store against famine (ties to the treasury and the sim's shortages)
+- [ ] a town gate with a watch house and a toll, marking where the town ends
+- [ ] a prison and pillory, for the council's fines and the feuds' inspections
+- [ ] a notice board or the town crier's spot, where the news from outside (`OutsideNews`) is read out
+- [ ] the lord's manor or castle at the map's edge, where the town's tribute goes
+- [ ] a lighthouse or beacon at the harbour mouth
+- [ ] tenement houses, so the town can grow (it is always full now)
+- [ ] a vineyard with a wine press on a slope (Wine is only imported so far) and an iron mine or bloomery (Iron likewise), once the sim makes them
       
 
 ## Bug Fixes
