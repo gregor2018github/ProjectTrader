@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional
 
 from ..models.meal_effects import MealEffect
 from ..models import inn_rooms
+from ..models.player_names import name_of_save
 from ..models.statistics import Statistics
 
 from ..config.constants import MARKET_FEE_RATE, PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
@@ -382,6 +383,7 @@ def get_save_slots() -> List[Dict[str, Any]]:
                 "wealth": wealth_history[-1] if wealth_history else data["depot"]["money"],
                 "playtime_seconds": data.get("playtime_seconds", 0.0),
                 "save_name": data.get("save_name", ""),
+                "player_name": name_of_save(data),
                 "thumbnail_path": thumb_path if os.path.exists(thumb_path) else None,
             })
         except Exception:
@@ -555,7 +557,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
     game_state.sync_time_trackers()
 
     p = data["player"]
-    player.name = p["name"]
+    player.name = name_of_save(data)   # a save from before names were chosen gets one of its own
     player.score = p["score"]
     player.reputation = float(p["reputation"])
     player.tiredness = float(p.get("tiredness", 0.0))   # a save from before tiredness: rested

@@ -301,7 +301,7 @@ class _BaseSlotDialog:
                 f"   |   {slot_info.get('wealth', slot_info['money']):.1f} G wealth"
                 f"   |   {slot_info['money']:.1f} G cash"
             )
-            row3 = f"{h:02d}h {m:02d}m played   |   Saved {_format_saved_at(slot_info['saved_at'])}"
+            row3 = f"{slot_info.get('player_name', '')}   |   {h:02d}h {m:02d}m played   |   Saved {_format_saved_at(slot_info['saved_at'])}"
             _blit_row(row2, BLACK, rect.top + 34)
             _blit_row(row3, BLACK, rect.top + 58)
         else:

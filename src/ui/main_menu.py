@@ -13,6 +13,7 @@ from ..persistence.save_manager import delete_save, get_save_slots, load_game as
 from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
 from .controls_overview import ControlsOverview
+from .new_game_page import BACK, START, NewGamePage
 from . import cursor
 from ..sim.calendar import format_with_time
 from .slot_list import (
@@ -88,7 +89,7 @@ class MainMenu:
         self._build_main_buttons()
 
         # Load-game slot selection state
-        self._view: str = "main"  # "main", "load_slots", "settings" or "controls"
+        self._view: str = "main"  # "main", "new_game", "load_slots", "settings" or "controls"
         self._slots: List[Dict[str, Any]] = []
         self._slot_list: Optional[SlotList] = None
         self._back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
@@ -113,6 +114,10 @@ class MainMenu:
         self._settings_back_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._settings_controls_rect: pygame.Rect = pygame.Rect(0, 0, 0, 0)
         self._controls: Optional[ControlsOverview] = None
+        # The page naming the player before a new game (new_game_page.py)
+        self._new_game: Optional[NewGamePage] = None
+        #: The name chosen there, read by main.py for "new_game"
+        self.player_name: str = ""
 
     # ------------------------------------------------------------------
     # Public API
@@ -136,6 +141,15 @@ class MainMenu:
                         and self._controls.handle_key(event)):
                     self._view = "settings"
 
+                if self._view == "new_game" and event.type in (pygame.KEYDOWN, pygame.TEXTINPUT):
+                    choice = self._new_game.handle_event(event)
+                    if choice == START:
+                        self.player_name = self._new_game.name
+                        return ("new_game", None)
+                    if choice == BACK:
+                        self._view = "main"
+                    continue
+
                 if (event.type == pygame.MOUSEWHEEL and self._view == "load_slots"
                         and not self._delete_confirm):
                     self._slot_list.handle_wheel(event)
@@ -154,6 +168,10 @@ class MainMenu:
                                 elif action == "load_game":
                                     self._reload_slots()
                                     self._view = "load_slots"
+                                elif action == "new_game":
+                                    self._new_game = NewGamePage(self.title_font, self.button_font,
+                                                                 self.subtitle_font)
+                                    self._view = "new_game"
                                 elif action == "settings":
                                     self._settings_pending = settings_store.get_all()
                                     self._settings_res_open = False
@@ -179,6 +197,14 @@ class MainMenu:
                                 except Exception:
                                     pass  # Slot corrupted — stay on screen
 
+                    elif self._view == "new_game":
+                        choice = self._new_game.handle_click(mouse_pos)
+                        if choice == START:
+                            self.player_name = self._new_game.name
+                            return ("new_game", None)
+                        if choice == BACK:
+                            self._view = "main"
+
                     elif self._view == "settings":
                         self._handle_settings_click(mouse_pos)
 
@@ -190,6 +216,9 @@ class MainMenu:
                 self._draw(mouse_pos)
             elif self._view == "load_slots":
                 self._draw_load_slots(mouse_pos)
+            elif self._view == "new_game":
+                self.screen.fill(BEIGE)
+                self._new_game.draw(self.screen, mouse_pos)
             elif self._view == "controls":
                 self.screen.fill(BEIGE)
                 self._controls.draw(self.screen, mouse_pos, dim=False)
@@ -429,7 +458,7 @@ class MainMenu:
                     f"   |   {slot_info.get('wealth', slot_info['money']):.1f} G wealth"
                     f"   |   {slot_info['money']:.1f} G cash"
                 )
-                row3 = f"{h:02d}h {m:02d}m played   |   Saved {saved_str}"
+                row3 = f"{slot_info.get('player_name', '')}   |   {h:02d}h {m:02d}m played   |   Saved {saved_str}"
                 _blit_row(row2, DARK_BROWN, rect.top + 34)
                 _blit_row(row3, DARK_BROWN, rect.top + 58)
             else:

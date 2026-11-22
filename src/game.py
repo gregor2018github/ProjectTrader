@@ -16,6 +16,7 @@ from .ui.layout_modules.town_plan import TownPlan
 from .ui import cursor
 from .models.good import Good
 from .models.depot import Depot
+from .models.player_names import clean_name, random_name
 from .models.player import Player
 from .models import meal_effects
 from .models.merchant_rank import MerchantRank, RankRise
@@ -76,7 +77,7 @@ class Game:
     """
 
     def __init__(self, save_data: Optional[Dict[str, Any]] = None,
-                 screen: Optional[pygame.Surface] = None) -> None:
+                 screen: Optional[pygame.Surface] = None, player_name: str = "") -> None:
         """Initialize the game engine, UI, assets, and game objects.
 
         Args:
@@ -85,6 +86,8 @@ class Game:
                        normal initialization completes.
             screen: Optional pre-created display surface. When provided the display
                     mode is not changed.
+            player_name: The name chosen in the main menu for a new game; a random one
+                         if empty (a save brings its own).
         """
         self.init_pygame()
 
@@ -145,7 +148,7 @@ class Game:
                                                             if l.starting_seasons > 0])
 
         # Initialize player
-        self.player: Player = Player(name="New Player", cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        self.player: Player = Player(name=clean_name(player_name) or random_name(), cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
         # The player tires with the hours up and rests it off at the uncle's shop (models/rest.py)
         self.tiredness: Tiredness = Tiredness(self.player, self.state.date)
         self.merchant_rank: MerchantRank = MerchantRank(self.depot, self.player, self.goods)

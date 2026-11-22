@@ -263,11 +263,13 @@ def main() -> None:
     while True:
         _setup_display()
 
+        player_name = ""   # chosen in the main menu for a new game; empty rolls one
         if SMOKE_TEST_SECONDS:
             choice, save_data = "new_game", None
         else:
             menu = MainMenu()
             choice, save_data = menu.run()
+            player_name = menu.player_name
 
         if choice == "exit":
             break
@@ -281,7 +283,7 @@ def main() -> None:
         # The game is built behind the loading screen, which keeps moving meanwhile
         Game.init_pygame()
         game, last_frame = run_loading_screen(
-            screen, work=lambda: Game(save_data=save_data, screen=screen), duration=1.5)
+            screen, work=lambda: Game(save_data=save_data, screen=screen, player_name=player_name), duration=1.5)
         game.fade_in_from(last_frame)
         # The loaded game is a quarter of a million objects that live as long
         # as it does: kept out of the garbage collector's way, a full collection
