@@ -14,6 +14,7 @@ from ..config import settings_store
 from .ui_utils import draw_mouse_tooltip
 from .controls_overview import ControlsOverview
 from .new_game_page import BACK, START, NewGamePage
+from ..models.figurines.humans.hair import DEFAULT_HAIR
 from . import cursor
 from ..sim.calendar import format_with_time
 from .slot_list import (
@@ -118,6 +119,7 @@ class MainMenu:
         self._new_game: Optional[NewGamePage] = None
         #: The name chosen there, read by main.py for "new_game"
         self.player_name: str = ""
+        self.player_hair: str = DEFAULT_HAIR   # chosen with the name
 
     # ------------------------------------------------------------------
     # Public API
@@ -145,6 +147,7 @@ class MainMenu:
                     choice = self._new_game.handle_event(event)
                     if choice == START:
                         self.player_name = self._new_game.name
+                        self.player_hair = self._new_game.hair
                         return ("new_game", None)
                     if choice == BACK:
                         self._view = "main"
@@ -201,6 +204,7 @@ class MainMenu:
                         choice = self._new_game.handle_click(mouse_pos)
                         if choice == START:
                             self.player_name = self._new_game.name
+                            self.player_hair = self._new_game.hair
                             return ("new_game", None)
                         if choice == BACK:
                             self._view = "main"

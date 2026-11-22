@@ -17,6 +17,7 @@ from .ui import cursor
 from .models.good import Good
 from .models.depot import Depot
 from .models.player_names import clean_name, random_name
+from .models.figurines.humans.hair import DEFAULT_HAIR, hair_key
 from .models.player import Player
 from .models import meal_effects
 from .models.merchant_rank import MerchantRank, RankRise
@@ -77,7 +78,8 @@ class Game:
     """
 
     def __init__(self, save_data: Optional[Dict[str, Any]] = None,
-                 screen: Optional[pygame.Surface] = None, player_name: str = "") -> None:
+                 screen: Optional[pygame.Surface] = None, player_name: str = "",
+                 hair: Optional[str] = DEFAULT_HAIR) -> None:
         """Initialize the game engine, UI, assets, and game objects.
 
         Args:
@@ -88,6 +90,8 @@ class Game:
                     mode is not changed.
             player_name: The name chosen in the main menu for a new game; a random one
                          if empty (a save brings its own).
+            hair: The hair colour chosen with the name (``figurines/humans/hair.py``);
+                  a save brings its own.
         """
         self.init_pygame()
 
@@ -149,6 +153,8 @@ class Game:
 
         # Initialize player
         self.player: Player = Player(name=clean_name(player_name) or random_name(), cost_of_living=INITIAL_DAILY_COST_OF_LIVING)
+        # A save's hair is known now, so the map's figure is loaded once in its colour
+        self.player.hair = hair_key(save_data.get("player", {}).get("hair") if save_data else hair)
         # The player tires with the hours up and rests it off at the uncle's shop (models/rest.py)
         self.tiredness: Tiredness = Tiredness(self.player, self.state.date)
         self.merchant_rank: MerchantRank = MerchantRank(self.depot, self.player, self.goods)
@@ -160,7 +166,7 @@ class Game:
         # Map viewport is the left half of the screen minus borders
         map_view_width = SCREEN_WIDTH // 2 - 10
         map_view_height = SCREEN_HEIGHT - 130  # Account for top and bottom bars
-        self.game_map: GameMap = GameMap(map_view_width, map_view_height)
+        self.game_map: GameMap = GameMap(map_view_width, map_view_height, hair=self.player.hair)
         # The crops on the fields, as far grown as the season has them
         self.game_map.tmx_map.update_crops(self.state.date)
         # The paper plan of the town shown in the "building" view
@@ -298,6 +304,7 @@ class Game:
         on the map that follows from it. Used both when the game starts from a
         save and when one is loaded while playing."""
         apply_save_data(save_data, self.state, self.player, self.depot, self.goods, sim=self.sim)
+        self.game_map.map_player.set_hair(self.player.hair)
         self.game_map.map_player.x = self.player.position[0]
         self.game_map.map_player.y = self.player.position[1]
         self.game_map.restore_map_fog(save_data.get("fog"))

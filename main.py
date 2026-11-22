@@ -264,12 +264,14 @@ def main() -> None:
         _setup_display()
 
         player_name = ""   # chosen in the main menu for a new game; empty rolls one
+        player_hair = None   # chosen with it; None is the artwork's own
         if SMOKE_TEST_SECONDS:
             choice, save_data = "new_game", None
         else:
             menu = MainMenu()
             choice, save_data = menu.run()
             player_name = menu.player_name
+            player_hair = menu.player_hair
 
         if choice == "exit":
             break
@@ -284,8 +286,9 @@ def main() -> None:
         # meanwhile; a new game's shows the player himself, setting out
         Game.init_pygame()
         game, last_frame = run_loading_screen(
-            screen, work=lambda: Game(save_data=save_data, screen=screen, player_name=player_name),
-            duration=1.5, player_walks=choice == "new_game")
+            screen, work=lambda: Game(save_data=save_data, screen=screen, player_name=player_name,
+                                      hair=player_hair),
+            duration=1.5, player_walks=choice == "new_game", hair=player_hair)
         game.fade_in_from(last_frame)
         # The loaded game is a quarter of a million objects that live as long
         # as it does: kept out of the garbage collector's way, a full collection

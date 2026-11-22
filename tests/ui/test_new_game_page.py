@@ -90,3 +90,22 @@ def test_the_player_stands_under_the_name_above_the_buttons(page):
     assert page.field.bottom < page.preview_rect.top
     assert page.preview_rect.bottom < page.start_button.top
     assert page.panel.contains(page.preview_rect) and page.panel.contains(page.back_button)
+
+
+def test_it_opens_with_the_artworks_hair_and_a_swatch_for_each_colour(page):
+    from src.models.figurines.humans.hair import DEFAULT_HAIR, HAIR_COLOURS
+    assert page.hair == DEFAULT_HAIR
+    assert list(page.swatches) == [key for key, _n, _c in HAIR_COLOURS]
+    for rect in page.swatches.values():
+        assert page.panel.contains(rect)
+        assert page.preview_rect.bottom < rect.top and rect.bottom < page.start_button.top
+
+
+def test_a_click_on_a_swatch_picks_the_hair_and_repaints_the_figure(page):
+    before = page.preview
+    assert page.handle_click(page.swatches["red"].center) is None
+    assert page.hair == "red"
+    assert page.preview is not before
+    assert page.preview.get_height() == before.get_height()
+    page.handle_click(page.swatches["brown"].center)
+    assert page.hair == "brown"

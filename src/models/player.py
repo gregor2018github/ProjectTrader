@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 from ..config.constants import START_X_POSITION, START_Y_POSITION
+from .figurines.humans.hair import DEFAULT_HAIR
 
 class Player:
     """Represents the player in the game, managing their status, reputation, and finances.
@@ -16,6 +17,7 @@ class Player:
             cost_of_living: The initial daily cost of living.
         """
         self.name: str = name
+        self.hair: str = DEFAULT_HAIR   # the hair colour, chosen with the name (figurines/humans/hair.py)
         self.score: int = 0
         self.reputation: float = 0.0   # raised by gifts, fading each season; one of the merchant rank's conditions
         self.tiredness: float = 0.0    # 0 rested to 1 worn out: rises with the hours up, falls by resting (models/rest.py)

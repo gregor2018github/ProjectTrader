@@ -414,7 +414,8 @@ class WoodhackingMinigame(MinigameOverlay):
 
         # The scene is played at the hour and in the weather of the game (which stands still meanwhile)
         self.scene = ChoppingScene(self.font_hit, when=getattr(game.state, "date", None),
-                                   weather=Conditions.of(getattr(game, "weather", None)))
+                                   weather=Conditions.of(getattr(game, "weather", None)),
+                                   hair=getattr(getattr(game, "player", None), "hair", None))
         self._ring = _steel_ring()
         self.close_rect = pygame.Rect(0, 0, 160, 44)
         self.congrats_close_rect = pygame.Rect(0, 0, 160, 44)

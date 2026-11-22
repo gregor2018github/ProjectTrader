@@ -39,6 +39,7 @@ from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
+from .figurines.humans.hair import DEFAULT_HAIR
 from .figurines.humans.npcs.npc import NPC
 from .figurines.humans.npcs.trader import StallRota, Trader
 from .figurines.humans.npcs import (
@@ -1437,12 +1438,13 @@ class TMXMap:
 class GameMap:
     """High-level map manager that coordinates all map-related objects."""
     
-    def __init__(self, view_width: int, view_height: int) -> None:
+    def __init__(self, view_width: int, view_height: int, hair: Optional[str] = None) -> None:
         """Initialize the game map system.
         
         Args:
             view_width: Width of the map viewport in pixels.
             view_height: Height of the map viewport in pixels.
+            hair: The player's hair colour (``figurines/humans/hair.py``), else the artwork's.
         """
         self.view_width = view_width
         self.view_height = view_height
@@ -1469,7 +1471,8 @@ class GameMap:
         self.map_player: MapPlayer = MapPlayer(
             START_X_POSITION,
             START_Y_POSITION,
-            self.tmx_map.tile_size
+            self.tmx_map.tile_size,
+            hair=hair or DEFAULT_HAIR,
         )
         # A new game starts with the player's feet on the docks (a save puts them back where they were)
         self.map_player.place_feet(START_X_POSITION, START_Y_POSITION)

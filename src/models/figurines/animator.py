@@ -7,7 +7,7 @@ without importing the map module, which would be circular.
 import math
 import os
 import pygame
-from typing import Dict, List, Optional, Set, Tuple, Any
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 from ...config.constants import MAX_RECULCULATIONS_PER_SEC
 
@@ -62,6 +62,7 @@ class DirectionalAnimator:
         normalize: bool = False,
         target_height: Optional[int] = None,
         scale_overrides: Optional[Dict[Tuple[str, str], float]] = None,
+        image_filter: Optional[Callable[[pygame.Surface], pygame.Surface]] = None,
     ) -> None:
         """Initialize the animator.
         
@@ -81,7 +82,10 @@ class DirectionalAnimator:
             scale_overrides: Extra size multiplier per (direction, "static"/"move")
                 group, applied on top of the shared normalized scale. Frames stay
                 bottom-centred and keep their aspect ratio. Normalized mode only.
+            image_filter: Applied to every image as it is loaded, before any
+                scaling (the player's hair colour, ``humans/hair.py``).
         """
+        self.image_filter = image_filter
         self.base_path: str = base_path
         self.sprite_definitions: Dict[str, Dict[str, Any]] = sprite_definitions
         self.target_width: int = target_width
@@ -252,9 +256,10 @@ class DirectionalAnimator:
             return None
 
         try:
-            return pygame.image.load(path).convert_alpha()
+            image = pygame.image.load(path).convert_alpha()
         except pygame.error:
             return None
+        return self.image_filter(image) if self.image_filter else image
 
     def _scale_to_target(self, image: Optional[pygame.Surface]) -> Optional[pygame.Surface]:
         """Scale an image to the target width while preserving aspect ratio.

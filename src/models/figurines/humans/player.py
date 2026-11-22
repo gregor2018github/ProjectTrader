@@ -15,6 +15,7 @@ from ....config.constants import (
     PLAYER_DIAGONAL_SPEED_FACTOR,
     FOOT_STEP_VOLUME,
 )
+from .hair import DEFAULT_HAIR, hair_key, recolour_hair
 from .human import Human, HUMAN_SPRITE_ROOT
 
 if TYPE_CHECKING:
@@ -48,19 +49,44 @@ class MapPlayer(Human):
         ("front_right", "move"): 1.05,
     }
 
-    def __init__(self, x: float, y: float, tile_size: int = TILE_SIZE) -> None:
+    def __init__(self, x: float, y: float, tile_size: int = TILE_SIZE, hair: str = DEFAULT_HAIR) -> None:
         """Initialize the player.
-        
+
         Args:
             x: Initial world X.
             y: Initial world Y.
             tile_size: Base tile size for scaling.
+            hair: The hair colour, a key of ``hair.HAIR_COLOURS``.
         """
         super().__init__(x, y, tile_size)
         self.speed: float = PLAYER_SPEED * TILE_SIZE / 32.0  # pixels per second
         # Times the speed: slower in bad weather, faster after a sweet (set by Game each update)
         self.speed_factor: float = 1.0
+        self.hair: str = hair_key(hair)
+        self._load_sprites()
 
+        # Movement state
+        self.frame_distance_px: float = 0.0  # pixels actually moved this frame, read and reset by Game
+        self.footstep_sounds: List[pygame.mixer.Sound] = []
+        self.last_sound_index: int = -1
+        self.current_sound: Optional[pygame.mixer.Sound] = None
+        # Channel 0 is reserved exclusively for footsteps (see game.py mixer init).
+        self.footstep_channel: pygame.mixer.Channel = pygame.mixer.Channel(0)
+
+    def set_hair(self, hair: str) -> None:
+        """Change the hair colour, loading the frames again (a loaded save's)."""
+        hair = hair_key(hair)
+        if hair == self.hair:
+            return
+        self.hair = hair
+        direction = self.animator.current_direction
+        self._load_sprites()
+        self.animator.current_direction = direction
+        self.sprite = self.animator.get_current_frame()
+        self.source_sprite = self.animator.get_current_source_frame()
+
+    def _load_sprites(self) -> None:
+        """Load the frames, the hair painted in ``self.hair`` (``hair.py``)."""
         sprite_dir = os.path.join(HUMAN_SPRITE_ROOT, 'player')
         sprite_definitions: Dict[str, Dict[str, Any]] = {
             "front": {
@@ -110,16 +136,9 @@ class MapPlayer(Human):
             # time preserves both aspect ratio and relative size, so nothing is
             # squashed and a taller pose really does render taller.
             normalize=True,
+            image_filter=lambda image: recolour_hair(image, self.hair),
         )
 
-        # Movement state
-        self.frame_distance_px: float = 0.0  # pixels actually moved this frame, read and reset by Game
-        self.footstep_sounds: List[pygame.mixer.Sound] = []
-        self.last_sound_index: int = -1
-        self.current_sound: Optional[pygame.mixer.Sound] = None
-        # Channel 0 is reserved exclusively for footsteps (see game.py mixer init).
-        self.footstep_channel: pygame.mixer.Channel = pygame.mixer.Channel(0)
-    
     def set_footstep_sounds(self, sounds: List[pygame.mixer.Sound]) -> None:
         """Assign footstep sounds to the player.
         

@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 from ..models.meal_effects import MealEffect
 from ..models import inn_rooms
 from ..models.player_names import name_of_save
+from ..models.figurines.humans.hair import DEFAULT_HAIR, hair_key
 from ..models.statistics import Statistics
 
 from ..config.constants import MARKET_FEE_RATE, PRICE_TICK_MINUTES, DEFAULT_QUICKTRADE_SLOTS, TOP_BAR_DEFAULT_PINS, SAVES_PATH, SAVE_SECRET_KEY, STARTING_STORAGE_SLOTS, PACK_SLOTS
@@ -163,6 +164,7 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         },
         "player": {
             "name": player.name,
+            "hair": getattr(player, "hair", DEFAULT_HAIR),
             "score": player.score,
             "reputation": player.reputation,
             "tiredness": player.tiredness,
@@ -558,6 +560,7 @@ def apply_save_data(data: Dict[str, Any], game_state: Any, player: Any, depot: A
 
     p = data["player"]
     player.name = name_of_save(data)   # a save from before names were chosen gets one of its own
+    player.hair = hair_key(p.get("hair"))   # a save from before hair colours: the artwork's brown
     player.score = p["score"]
     player.reputation = float(p["reputation"])
     player.tiredness = float(p.get("tiredness", 0.0))   # a save from before tiredness: rested

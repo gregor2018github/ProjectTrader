@@ -56,6 +56,7 @@ from typing import List, Optional, Tuple
 import pygame
 
 from .outdoors import Conditions, Outdoors, radial
+from ..figurines.humans.hair import recolour_hair
 from ..figurines.humans.human import HUMAN_SPRITE_ROOT
 
 SPLIT, BITE, WHIFF, SHORT = "split", "bite", "whiff", "short"
@@ -280,8 +281,10 @@ class ChoppingScene:
     """The player at the chopping block, animated by the minigame's swings."""
 
     def __init__(self, font: pygame.font.Font, rng: Optional[random.Random] = None,
-                 when: Optional[datetime.datetime] = None, weather: Optional[Conditions] = None) -> None:
+                 when: Optional[datetime.datetime] = None, weather: Optional[Conditions] = None,
+                 hair: Optional[str] = None) -> None:
         self.font = font
+        self.hair = hair   # the player's hair colour (figurines/humans/hair.py); None: the artwork's
         self.rng = rng or random.Random()
         self.surface = pygame.Surface((SCENE_W, SCENE_H))                    # the picture handed out
         self._world = pygame.Surface((SCENE_W, SCENE_H), pygame.SRCALPHA)    # all but the sky, to be lit
@@ -337,7 +340,7 @@ class ChoppingScene:
 
     def _build_player(self) -> None:
         """Scale the sprite once, then cut it into its parts (cut in scaled pixels, so the parts meet exactly)."""
-        sprite = _load_alpha(_PLAYER_FILE)
+        sprite = recolour_hair(_load_alpha(_PLAYER_FILE), self.hair)
         scale = _PLAYER_H / sprite.get_height()
         self._scale = scale
         full = pygame.transform.smoothscale(sprite, (round(sprite.get_width() * scale), _PLAYER_H))

@@ -3,7 +3,8 @@
 ``NewGamePage`` opens with a random name (``player_names.random_name``) in its
 field, already chosen, so typing replaces it and Enter starts at once. The die
 beside the field rolls another. Under the field the player's figure stands as
-he will look in the game (``preview``). "Start" (or Enter) starts the game with the
+he will look in the game (``preview``), and under him a row of swatches picks
+his hair colour (``hair``, from ``figurines/humans/hair.py``). "Start" (or Enter) starts the game with the
 name, "Back" (or Escape) goes back to the menu. A field left empty starts with
 a rolled name all the same.
 """
@@ -15,6 +16,7 @@ import pygame
 
 from ..config.colors import BLACK, DARK_BROWN, DARK_GRAY, PALE_BROWN, SANDY_BROWN, TAN, WHITE
 from ..config.constants import SCREEN_HEIGHT, SCREEN_WIDTH, SIDEBAR_WIDTH
+from ..models.figurines.humans.hair import DEFAULT_HAIR, HAIR_COLOURS, HAIR_NAMES, SWATCHES, recolour_hair
 from ..models.player_names import MAX_NAME_LENGTH, clean_name, random_name
 from .ui_utils import draw_mouse_tooltip
 
@@ -23,7 +25,7 @@ BACK = "back"
 DIE_TOOLTIP = "Roll a random name"
 
 PANEL_W = 560
-PANEL_H = 540
+PANEL_H = 620
 FIELD_H = 52
 DIE_SIZE = 52
 BUTTON_W = 180
@@ -31,6 +33,8 @@ BUTTON_H = 52
 PREVIEW_H = 190   # the figure's height on the page
 PREVIEW_FILE = os.path.join('assets', 'map_sprites', 'figurines', 'humans', 'player',
                             'player_front_static.png')
+SWATCH_R = 15       # a hair colour's disc
+SWATCH_GAP = 12
 
 #: Where the pips sit on each face of the die, in thirds of its inner square
 PIPS = {
@@ -60,8 +64,17 @@ class NewGamePage:
         self.die = pygame.Rect(self.field.right + 12, self.field.top, DIE_SIZE, DIE_SIZE)
         self.preview_rect = pygame.Rect(0, 0, PANEL_W - 60, PREVIEW_H)
         self.preview_rect.midtop = (cx, self.field.bottom + 40)
-        self.preview: Optional[pygame.Surface] = _load_preview()
-        buttons_top = self.preview_rect.bottom + 34
+        self.hair: str = DEFAULT_HAIR
+        self._artwork: Optional[pygame.Surface] = _load_artwork()
+        self.preview: Optional[pygame.Surface] = _preview(self._artwork, self.hair)
+        # The hair colours' swatches in a row under the figure
+        self.swatches: dict = {}
+        step = 2 * SWATCH_R + SWATCH_GAP
+        left = cx - (len(HAIR_COLOURS) * step - SWATCH_GAP) // 2
+        swatch_y = self.preview_rect.bottom + 56
+        for i, (key, _name, _colour) in enumerate(HAIR_COLOURS):
+            self.swatches[key] = pygame.Rect(left + i * step, swatch_y - SWATCH_R, 2 * SWATCH_R, 2 * SWATCH_R)
+        buttons_top = swatch_y + SWATCH_R + 34
         self.start_button = pygame.Rect(cx - BUTTON_W - 10, buttons_top, BUTTON_W, BUTTON_H)
         self.back_button = pygame.Rect(cx + 10, buttons_top, BUTTON_W, BUTTON_H)
 
@@ -69,6 +82,19 @@ class NewGamePage:
     def name(self) -> str:
         """The name to start with: the one typed, or a rolled one if the field is empty."""
         return clean_name(self.text) or random_name()
+
+    def choose_hair(self, key: str) -> None:
+        """Give the figure the hair colour *key* (one of HAIR_COLOURS)."""
+        if key in SWATCHES and key != self.hair:
+            self.hair = key
+            self.preview = _preview(self._artwork, key)
+
+    def swatch_at(self, pos: Tuple[int, int]) -> Optional[str]:
+        """The hair colour whose swatch is at *pos*, or None."""
+        for key, rect in self.swatches.items():
+            if rect.collidepoint(pos):
+                return key
+        return None
 
     def roll(self) -> None:
         """Put another random name in the field, chosen as a whole."""
@@ -84,6 +110,8 @@ class NewGamePage:
         """START, BACK or None for a left click at *pos*."""
         if self.die.collidepoint(pos):
             self.roll()
+        elif self.swatch_at(pos):
+            self.choose_hair(self.swatch_at(pos))
         elif self.field.collidepoint(pos):
             self.selected = False   # a click in the field puts the caret after the name
         elif self.start_button.collidepoint(pos):
@@ -134,6 +162,7 @@ class NewGamePage:
         screen.blit(counter, counter.get_rect(right=self.field.right, top=self.field.bottom + 4))
 
         self._draw_preview(screen)
+        self._draw_swatches(screen, mouse_pos)
 
         for rect, label in ((self.start_button, "Start"), (self.back_button, "Back")):
             hovered = rect.collidepoint(mouse_pos)
@@ -144,6 +173,8 @@ class NewGamePage:
 
         if self.die.collidepoint(mouse_pos):
             draw_mouse_tooltip(screen, self.small_font, DIE_TOOLTIP, mouse_pos)
+        elif self.swatch_at(mouse_pos):
+            draw_mouse_tooltip(screen, self.small_font, HAIR_NAMES[self.swatch_at(mouse_pos)], mouse_pos)
 
     def _draw_field(self, screen: pygame.Surface) -> None:
         pygame.draw.rect(screen, WHITE, self.field, border_radius=4)
@@ -170,6 +201,19 @@ class NewGamePage:
         screen.blit(shadow, shadow.get_rect(center=(self.preview_rect.centerx, feet_y)))
         screen.blit(self.preview, self.preview.get_rect(midbottom=(self.preview_rect.centerx, feet_y + 2)))
 
+    def _draw_swatches(self, screen: pygame.Surface, mouse_pos: Tuple[int, int]) -> None:
+        """The hair colours as discs, the chosen one ringed."""
+        first = next(iter(self.swatches.values()))
+        label = self.small_font.render("Hair", True, DARK_BROWN)
+        screen.blit(label, label.get_rect(centerx=self.panel.centerx, bottom=first.top - 8))
+        for key, rect in self.swatches.items():
+            if key == self.hair:
+                pygame.draw.circle(screen, DARK_BROWN, rect.center, SWATCH_R + 5, 2)
+            elif rect.collidepoint(mouse_pos):
+                pygame.draw.circle(screen, PALE_BROWN, rect.center, SWATCH_R + 4, 2)
+            pygame.draw.circle(screen, SWATCHES[key], rect.center, SWATCH_R)
+            pygame.draw.circle(screen, DARK_BROWN, rect.center, SWATCH_R, 1)
+
     def _draw_die(self, screen: pygame.Surface, hovered: bool) -> None:
         pygame.draw.rect(screen, PALE_BROWN if hovered else TAN, self.die, border_radius=8)
         pygame.draw.rect(screen, DARK_BROWN, self.die, 2, border_radius=8)
@@ -183,15 +227,19 @@ class NewGamePage:
             pygame.draw.circle(screen, DARK_BROWN, centre, 3)
 
 
-def _load_preview() -> Optional[pygame.Surface]:
-    """The player's front standing sprite, cut to what is drawn and scaled to PREVIEW_H.
-
-    None if it cannot be loaded, so the page still works without it.
-    """
+def _load_artwork() -> Optional[pygame.Surface]:
+    """The player's front standing sprite, or None if it cannot be loaded (the page works without it)."""
     try:
-        image = pygame.image.load(PREVIEW_FILE).convert_alpha()
+        return pygame.image.load(PREVIEW_FILE).convert_alpha()
     except (pygame.error, FileNotFoundError):
         return None
+
+
+def _preview(artwork: Optional[pygame.Surface], hair: str) -> Optional[pygame.Surface]:
+    """*artwork* with the hair in *hair*, cut to what is drawn and scaled to PREVIEW_H."""
+    if artwork is None:
+        return None
+    image = recolour_hair(artwork, hair)
     image = image.subsurface(image.get_bounding_rect()).copy()
     w, h = image.get_size()
     return pygame.transform.smoothscale(image, (max(1, round(w * PREVIEW_H / h)), PREVIEW_H))

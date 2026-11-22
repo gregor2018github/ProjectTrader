@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional
 import pygame
 from ..config.constants import FONTS_PATH
 from . import cursor
+from ..models.figurines.humans.hair import recolour_hair
 from .paper import draw_paper
 from .layout_modules.town_plan.style import INK, INK_FADED
 
@@ -130,7 +131,8 @@ def _background(size: tuple[int, int], flourish_y: int) -> pygame.Surface:
 
 def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]] = None,
                        duration: float = 3.0,
-                       player_walks: bool = False) -> tuple[Any, pygame.Surface]:
+                       player_walks: bool = False,
+                       hair: Optional[str] = None) -> tuple[Any, pygame.Surface]:
     """Show the animated loading screen while *work* runs on a worker thread.
 
     Args:
@@ -140,6 +142,8 @@ def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]]
         duration: Minimum number of seconds to display the animation.
         player_walks: Show the player running rather than a walker drawn at
             random (the player, a sheep or an NPC), as a new game does.
+        hair: The player's hair colour (``figurines/humans/hair.py``), for when
+            he is the one shown.
 
     Returns:
         tuple: What *work* returned, and the last frame shown, to fade the
@@ -169,6 +173,8 @@ def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]]
         path = os.path.join(sprite_dir, name)
         try:
             img = pygame.image.load(path).convert_alpha()
+            if hair and sprite_dir == _PLAYER_DIR:
+                img = recolour_hair(img, hair)
             w, h = img.get_size()
             new_w = max(1, int(w * target_height / h))
             sprites.append(pygame.transform.scale(img, (new_w, target_height)))
