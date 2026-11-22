@@ -79,6 +79,9 @@ class Pier:
             Its water end is the opposite side.
         seed: Picks the variants and everything else left to chance.
         fender: A stone pier's front face gets a timber fender beam.
+        abuts_quay: Its land end meets a paved quay (``PAVINGS``) instead of
+            grass: it does not fray out but ends on a sill beam against the
+            quay's kerb, and the quay treats it as water for its kerb.
     """
 
     name: str
@@ -87,13 +90,14 @@ class Pier:
     root: str
     seed: int
     fender: bool = False
+    abuts_quay: bool = False
 
 
 #: The harbour basin's piers standing on their own: A, the short timber jetty off the
 #: west shore. The stone piers B and C are part of the south quay's paving
 #: (``stone_paving.PAVINGS``), so they run into it without a seam.
 PIERS = [
-    Pier("A_fishing_jetty", "wood", (133, 61, 140, 66), "W", seed=11),
+    Pier("A_fishing_jetty", "wood", (133, 61, 140, 66), "W", seed=11, abuts_quay=True),
 ]
 #: The layers drawn over LAYER: what they have on paved cells comes off
 ABOVE_LAYER = ("Ground_High_Plus", "Ground_Flowers_Mushrooms")
@@ -170,9 +174,20 @@ def piece(material: str, kind: str, variant: int) -> Piece:
     return PAINTERS[material][kind](variant)
 
 
-def _choose(material: str, i: int, j: int, length: int, width: int, rng: np.random.Generator) -> Piece:
-    """The piece for cell (i along, j across) of a pier in the pieces' orientation."""
+def _choose(material: str, i: int, j: int, length: int, width: int, rng: np.random.Generator,
+            sill: bool = False) -> Piece:
+    """The piece for cell (i along, j across) of a pier in the pieces' orientation.
+
+    With ``sill``, the first column on the pier (i = 0) is the end's pieces
+    mirrored: a header beam across the land end, against a quay.
+    """
     top, bottom, end = j == 0, j == width - 1, i == length - 1
+    if sill and i == 0:
+        kind = "corner" if (top or bottom) else "end"
+        weights = np.asarray(VARIANT_WEIGHTS.get((material, kind), [1] * VARIANTS[material][kind]), float)
+        variant = int(rng.choice(len(weights), p=weights / weights.sum()))
+        # Mirrored left to right: top to bottom, then half a turn
+        return piece(material, kind, variant).turned(2, flip_v=not bottom)
     kind = "corner" if end and (top or bottom) else "end" if end else "edge" if (top or bottom) else "middle"
     if i < 0:                     # the land end, fraying out
         kind = "edge" if (top or bottom) else "middle"
@@ -195,7 +210,7 @@ def _compose(pier: Pier, rng: np.random.Generator) -> Tuple[np.ndarray, np.ndarr
     albedo, height, kind = np.zeros((h, w, 3)), np.zeros((h, w)), np.zeros((h, w), np.uint8)
     for i in range(-1, length):
         for j in range(width):
-            p = _choose(pier.material, i, j, length, width, rng)
+            p = _choose(pier.material, i, j, length, width, rng, sill=pier.abuts_quay)
             ox, oy = (i + 1) * TILE, j * TILE
             albedo[oy:oy + TILE, ox:ox + TILE] = p.albedo
             height[oy:oy + TILE, ox:ox + TILE] = p.height
@@ -211,6 +226,9 @@ def _fray_root(pier: Pier, kind: np.ndarray, parts: Parts, rng: np.random.Genera
     """
     h, w = kind.shape
     alpha = np.ones((h, w))
+    if pier.abuts_quay:                       # nothing on the land: the quay is there
+        alpha[:, :TILE] = 0
+        return alpha, np.zeros((h, w))
     xs = np.arange(w) + 0.5
     onto_land = np.clip(TILE - xs, 0, None)[None, :].repeat(h, 0)        # px past the shore line
     if pier.material == "wood":
@@ -462,9 +480,12 @@ def lay(piers: List[Pier], pavings: List[Paving], tmx: forest_tool.Map, water: S
         covered = painter._cut(canvas, LAYER, rx0, ry0)
         print(f"{pier.name}: {pier.material}, tiles {pier.box[:2]} to {(pier.box[2] - 1, pier.box[3] - 1)}, "
               f"{covered} tiles laid")
+    against = {(x, y) for p in piers if p.abuts_quay
+               for x in range(p.box[0], p.box[2]) for y in range(p.box[1], p.box[3])}
     for paving in pavings:
-        covered = stone_paving.lay_paving(paving, tmx, water, painter, LAYER, ABOVE_LAYER, underlay.touch)
-        print(f"{paving.name}: {stone_paving.describe(paving, water)}, {covered} tiles laid")
+        covered = stone_paving.lay_paving(paving, tmx, water, painter, LAYER, ABOVE_LAYER, underlay.touch,
+                                          against)
+        print(f"{paving.name}: {stone_paving.describe(paving, water, against)}, {covered} tiles laid")
     painter.added = max(painter.added, len(painter.tiles))      # always written, even if the same
     return painter
 
@@ -558,8 +579,8 @@ def main() -> None:
     if not args.preview:
         underlay.save()
     shown = [(p.name, (p.box[0] - 3, p.box[1] - 3, p.box[2] + 3, p.box[3] + 3)) for p in PIERS]
-    shown += [(p.name, (p.quay[0] - 2, min(b[1] for b in p.piers) - 3, p.quay[2] + 2, p.quay[3] + 3))
-              for p in PAVINGS]
+    shown += [(p.name, (min(q[0] for q in p.quays) - 2, min(q[1] for q in p.quays) - 3,
+                        max(q[2] for q in p.quays) + 2, max(q[3] for q in p.quays) + 3)) for p in PAVINGS]
     for name, region in shown:
         forest_tool.render(target, OUTPUT_DIR, region, scale=1.0)
         os.replace(os.path.join(OUTPUT_DIR, "forest_game.png"), os.path.join(OUTPUT_DIR, f"{name}.png"))

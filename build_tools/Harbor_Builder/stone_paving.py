@@ -1,7 +1,9 @@
 """The harbour's stone paving: the quay along the water and the stone piers off it, one surface.
 
 A ``Paving`` is a set of cells paved alike: the land within ``depth`` tiles of
-the water inside its ``quay`` box, and its ``piers``, paved whole. It is laid
+the water inside its ``quays`` boxes, and its ``piers``, paved whole. A wooden
+pier standing against it (``blocked``) is not paved over; its kerb runs along
+the pier's root as if it were water, and the pier's sill beam lies against it. It is laid
 in the map's own orientation, each cell's piece chosen by its neighbours,
 like an autotile set:
 
@@ -47,7 +49,7 @@ class Paving:
 
     Attributes:
         name: What it is called here; also keys its stones' colours.
-        quay: Box in tiles, x0, y0, x1, y1 (exclusive), in which the land
+        quays: Boxes in tiles, x0, y0, x1, y1 (exclusive), in which the land
             within ``depth`` tiles of the water is paved.
         depth: How far from the water the quay reaches, in tiles (the kerb's
             row counts as the first).
@@ -58,17 +60,20 @@ class Paving:
     """
 
     name: str
-    quay: Tuple[int, int, int, int]
+    quays: Tuple[Tuple[int, int, int, int], ...]
     depth: int
     piers: Tuple[Tuple[int, int, int, int], ...]
     tracks: Tuple[Tuple[Tuple[float, float], Tuple[float, float]], ...]
     seed: int
 
 
-#: The south quay of the harbour basin, from the south-west corner to the crane's
-#: tongue in the east, and piers B (west) and C (east) off it
+#: The harbour basin's quay and piers B (west) and C (east) off it. The quay runs
+#: up the west shore from under the northern crane (row 54; above it the coast turns
+#: diagonal) past jetty A to the south-west corner, along the south shore, round the
+#: eastern crane's tongue (its north edge at row 85, the step at x 183) and along the
+#: north shore east of it to x 205, where the coast turns diagonal again
 PAVINGS = [
-    Paving("harbour_quay", quay=(128, 85, 172, 94), depth=3,
+    Paving("harbour_quay", quays=((126, 54, 134, 94), (126, 85, 184, 94), (168, 74, 206, 94)), depth=3,
            piers=((146, 79, 150, 91), (158, 79, 162, 91)),
            tracks=(((4736, 2575), (4736, 2995)), ((5120, 2575), (5120, 2995))),
            seed=23),
@@ -119,12 +124,14 @@ LIP_COLOUR = (52, 50, 46)
 
 
 # ============================================================================
-def paved_cells(paving: Paving, water: Set[Cell]) -> Set[Cell]:
-    """The quay's land within ``depth`` tiles of the water, and the piers."""
-    x0, y0, x1, y1 = paving.quay
+def paved_cells(paving: Paving, water: Set[Cell], blocked: Set[Cell] = frozenset()) -> Set[Cell]:
+    """The quay's land within ``depth`` tiles of the water, and the piers; never ``blocked`` cells."""
     reach = range(-paving.depth, paving.depth + 1)
-    cells = {(x, y) for x in range(x0, x1) for y in range(y0, y1) if (x, y) not in water
-             and any((x + dx, y + dy) in water for dx in reach for dy in reach)}
+    cells: Set[Cell] = set()
+    for x0, y0, x1, y1 in paving.quays:
+        cells |= {(x, y) for x in range(x0, x1) for y in range(y0, y1)
+                  if (x, y) not in water and (x, y) not in blocked
+                  and any((x + dx, y + dy) in water for dx in reach for dy in reach)}
     for px0, py0, px1, py1 in paving.piers:
         cells |= {(x, y) for x in range(px0, px1) for y in range(py0, py1)}
     return cells
@@ -226,15 +233,23 @@ def _near(mask: np.ndarray, radius: float) -> np.ndarray:
     return best
 
 
-def paint_paving(paving: Paving, water: Set[Cell]) -> Tuple[np.ndarray, int, int, Set[Cell]]:
+def paint_paving(paving: Paving, water: Set[Cell],
+                 blocked: Set[Cell] = frozenset()) -> Tuple[np.ndarray, int, int, Set[Cell]]:
     """Paint a paving and its edges on the water.
+
+    Args:
+        paving: What to paint.
+        water: The map's water cells.
+        blocked: Cells of wooden piers against the quay: kerbed like water,
+            but neither paved nor shaded.
 
     Returns:
         The RGBA canvas (0..1), the tile it starts at, and the paved cells.
     """
-    paved = paved_cells(paving, water)
+    paved = paved_cells(paving, water, blocked)
+    edge_of = water | blocked                     # what the kerb faces
     ring = {(x + dx, y + dy) for x, y in paved for dx in (-1, 0, 1) for dy in (-1, 0, 1)} - paved
-    grass = {c for c in ring if c not in water}
+    grass = {c for c in ring if c not in edge_of}
     cells = paved | ring
     rx0, ry0 = min(x for x, _ in cells), min(y for _, y in cells)
     tw, th = max(x for x, _ in cells) - rx0 + 1, max(y for _, y in cells) - ry0 + 1
@@ -245,7 +260,7 @@ def paint_paving(paving: Paving, water: Set[Cell]) -> Tuple[np.ndarray, int, int
     ends = []
     for cell in sorted(paved | grass):
         x, y = cell
-        piece_kind, turns = classify(cell, water) if cell in paved else ("middle", 0)
+        piece_kind, turns = classify(cell, edge_of) if cell in paved else ("middle", 0)
         count = PIECES[piece_kind][1]
         variant = int(rng_for(paving.name, "variant", x, y).integers(count))
         p = _piece(piece_kind, variant, turns)
@@ -255,19 +270,19 @@ def paint_paving(paving: Paving, water: Set[Cell]) -> Tuple[np.ndarray, int, int
         painted[block] = True
         if piece_kind == "edge":
             wet_side = next(s for s, t in EDGE_TURNS.items() if t == turns)
-            ends += [(ox, oy, side) for side in _kerb_ends(cell, wet_side, paved, water)]
+            ends += [(ox, oy, side) for side in _kerb_ends(cell, wet_side, paved, edge_of)]
     for ox, oy, side in ends:
         _end_kerb(height, kind, albedo, ox, oy, side)
 
     rng = np.random.default_rng(paving.seed)
     parts = find_parts(kind)
-    colour_parts(albedo, parts, paving.name)
+    colour_parts(albedo, parts, paving.name, (rx0 * TILE, ry0 * TILE))
     albedo *= (1 + GRIME * (value_noise(rng, (h, w), GRIME_CELL) - 0.5) * 2)[..., None]
     for start, end in paving.tracks:
         _track(albedo, height, start, end, (rx0 * TILE, ry0 * TILE), rng)
 
     # Where the quay meets the grass: how much paving each spot is, eased from cell to cell
-    weights = np.array([[1.0 if (rx0 + i, ry0 + j) in paved or (rx0 + i, ry0 + j) in water else 0.0
+    weights = np.array([[1.0 if (rx0 + i, ry0 + j) in paved or (rx0 + i, ry0 + j) in edge_of else 0.0
                          for i in range(tw)] for j in range(th)])
     gy = (np.arange(h) + 0.5) / TILE - 0.5
     gx = (np.arange(w) + 0.5) / TILE - 0.5
@@ -277,7 +292,8 @@ def paint_paving(paving: Paving, water: Set[Cell]) -> Tuple[np.ndarray, int, int
     weight = (weights[iy][:, ix] * (1 - fy) * (1 - fx) + weights[iy + 1][:, ix] * fy * (1 - fx)
               + weights[iy][:, ix + 1] * (1 - fy) * fx + weights[iy + 1][:, ix + 1] * fy * fx)
     alpha = smoothstep(*JOINT_FADE, weight) * painted
-    keep = np.array([k == FLAGSTONE or rng_for(paving.name, "fray", round(cx, 1), round(cy, 1)).random()
+    keep = np.array([k == FLAGSTONE or rng_for(paving.name, "fray", round(cx + rx0 * TILE, 1),
+                                                round(cy + ry0 * TILE, 1)).random()
                      < weight[min(int(cy), h - 1), min(int(cx), w - 1)] ** FRAY_POWER
                      for (cx, cy), k in zip(parts.centres, parts.kinds)], bool)
     solid = parts.labels >= 0
@@ -319,7 +335,8 @@ def plain_water_gid(tmx, water: Set[Cell]) -> int:
 
 
 def lay_paving(paving: Paving, tmx, water: Set[Cell], painter: FloorPainter, layer: str,
-               cleared_layers: Iterable[str], touch: Callable[[str, int, int], None]) -> int:
+               cleared_layers: Iterable[str], touch: Callable[[str, int, int], None],
+               blocked: Set[Cell] = frozenset()) -> int:
     """Lay a paving onto the map through ``painter``.
 
     The water round it loses the shore's grass: its fringe tiles on ``layer``
@@ -331,7 +348,7 @@ def lay_paving(paving: Paving, tmx, water: Set[Cell], painter: FloorPainter, lay
     Returns:
         The tiles laid.
     """
-    canvas, rx0, ry0, paved = paint_paving(paving, water)
+    canvas, rx0, ry0, paved = paint_paving(paving, water, blocked)
     plain = plain_water_gid(tmx, water)
     shore = {(x + dx, y + dy) for x, y in paved for dx in (-1, 0, 1) for dy in (-1, 0, 1)} & water
     for x, y in shore:
@@ -350,7 +367,7 @@ def lay_paving(paving: Paving, tmx, water: Set[Cell], painter: FloorPainter, lay
     return painter._cut(canvas, layer, rx0, ry0)
 
 
-def describe(paving: Paving, water: Set[Cell]) -> Dict[str, int]:
+def describe(paving: Paving, water: Set[Cell], blocked: Set[Cell] = frozenset()) -> Dict[str, int]:
     """How many cells of each piece a paving has, for the log."""
-    paved = paved_cells(paving, water)
-    return dict(Counter(classify(c, water)[0] for c in paved))
+    paved = paved_cells(paving, water, blocked)
+    return dict(Counter(classify(c, water | blocked)[0] for c in paved))

@@ -1,8 +1,10 @@
 # Harbor Builder
 
 Lays the harbour's piers and quay onto `assets/tiles/Map1.tmx` as ground tiles, painted
-by code: a timber jetty (A) off the west shore, and the stone south quay with the two
-stone piers (B, C) running out from it, paved as one surface.
+by code: the stone quay round the harbour basin (up the west shore from under the
+northern crane, along the south shore, round the eastern crane's tongue and along the
+north shore to where the coast turns diagonal), the two stone piers (B, C) running out
+from it, paved as one surface with it, and the timber jetty (A) standing against it.
 
 ```bash
 python build_tools/Harbor_Builder/lay_piers.py --sheet     # the pieces and a sample pier of each material
@@ -43,7 +45,9 @@ ever ran) and puts back at the start of every run, so the ground under the pavin
 ## The quay
 
 `stone_paving.py`: a `Paving` (`PAVINGS`) is the land within `depth` tiles (3) of the
-water inside its `quay` box, plus its `piers`, paved whole. Each cell's piece comes
+water inside its `quays` boxes, plus its `piers`, paved whole. A wooden pier with
+`abuts_quay` is not paved over: the quay's kerb runs along its root as if it were
+water, and the pier ends on a sill beam (its end's header, mirrored) against it. Each cell's piece comes
 from where the water is round it: a kerb with its outer side to the water, an outer
 corner (a pier's tip), an inner corner where the kerb turns in (a pier meeting the
 quay), cobbles elsewhere. Away from the water it frays into the grass stone by

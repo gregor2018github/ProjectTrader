@@ -96,9 +96,18 @@ def _part_colour(kind: int, rng: np.random.Generator) -> np.ndarray:
     return np.full(3, rng.uniform(*BEAM_TONES))
 
 
-def colour_parts(albedo: np.ndarray, parts: Parts, key: str) -> None:
-    """Give every stone and board its own colour, the same wherever it is cut across tiles."""
-    factors = np.array([_part_colour(k, rng_for(key, round(x, 1), round(y, 1)))
+def colour_parts(albedo: np.ndarray, parts: Parts, key: str, origin: tuple = (0, 0)) -> None:
+    """Give every stone and board its own colour, the same wherever it is cut across tiles.
+
+    Args:
+        albedo: Coloured in place.
+        parts: Its stones and boards.
+        key: Names the surface.
+        origin: Where the canvas lies in the world, px; the colours are keyed
+            by world position, so a surface laid larger keeps its stones' colours.
+    """
+    ox, oy = origin
+    factors = np.array([_part_colour(k, rng_for(key, round(x + ox, 1), round(y + oy, 1)))
                         for (x, y), k in zip(parts.centres, parts.kinds)]).reshape(-1, 3)
     solid = parts.labels >= 0
     albedo[solid] *= factors[parts.labels[solid]]
