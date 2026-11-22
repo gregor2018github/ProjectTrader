@@ -280,10 +280,12 @@ def main() -> None:
 
         # Re-apply resolution in case settings were changed during the menu session
         screen = _setup_display()
-        # The game is built behind the loading screen, which keeps moving meanwhile
+        # The game is built behind the loading screen, which keeps moving
+        # meanwhile; a new game's shows the player himself, setting out
         Game.init_pygame()
         game, last_frame = run_loading_screen(
-            screen, work=lambda: Game(save_data=save_data, screen=screen, player_name=player_name), duration=1.5)
+            screen, work=lambda: Game(save_data=save_data, screen=screen, player_name=player_name),
+            duration=1.5, player_walks=choice == "new_game")
         game.fade_in_from(last_frame)
         # The loaded game is a quarter of a million objects that live as long
         # as it does: kept out of the garbage collector's way, a full collection

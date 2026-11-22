@@ -129,7 +129,8 @@ def _background(size: tuple[int, int], flourish_y: int) -> pygame.Surface:
 
 
 def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]] = None,
-                       duration: float = 3.0) -> tuple[Any, pygame.Surface]:
+                       duration: float = 3.0,
+                       player_walks: bool = False) -> tuple[Any, pygame.Surface]:
     """Show the animated loading screen while *work* runs on a worker thread.
 
     Args:
@@ -137,6 +138,8 @@ def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]]
         work: What to load; it must not touch the window (caption, icon,
             cursor), only build things. None just shows the screen.
         duration: Minimum number of seconds to display the animation.
+        player_walks: Show the player running rather than a walker drawn at
+            random (the player, a sheep or an NPC), as a new game does.
 
     Returns:
         tuple: What *work* returned, and the last frame shown, to fade the
@@ -153,9 +156,12 @@ def run_loading_screen(screen: pygame.Surface, work: Optional[Callable[[], Any]]
     except Exception:
         font = pygame.font.SysFont("serif", 36)
 
-    candidates = [(_PLAYER_DIR, _PLAYER_SPRITES), (_SHEEP_DIR, _SHEEP_SPRITES)]
-    candidates += _npc_walk_cycles()
-    sprite_dir, sprite_names = random.choice(candidates)
+    if player_walks:
+        sprite_dir, sprite_names = _PLAYER_DIR, _PLAYER_SPRITES
+    else:
+        candidates = [(_PLAYER_DIR, _PLAYER_SPRITES), (_SHEEP_DIR, _SHEEP_SPRITES)]
+        candidates += _npc_walk_cycles()
+        sprite_dir, sprite_names = random.choice(candidates)
 
     target_height = 128
     sprites: list[pygame.Surface] = []
