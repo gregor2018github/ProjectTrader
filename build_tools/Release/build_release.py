@@ -13,7 +13,10 @@ Only the assets git tracks go in (so a build here and on GitHub's runner are
 the same), without what the game never loads: the GIMP sources (.xcf), the
 sketches, the raw sound recordings, the old pictures and the readme gif.
 Saves and settings.json are not shipped; the game makes them in _internal/
-when played, so unzipping a newer release over an old one keeps them.
+when played, so unzipping a newer release over an old one keeps them. Only
+the example save (the repo's saves/slot_1.sav and its thumbnail, as git has
+it) goes along in _internal/example_save, which main.py copies into slot 1 on
+the first start if that slot is empty.
 
 The build runs in its own venv, build_tools/Release/.venv, made on first use
 from requirements.txt here (the game's packages plus PyInstaller), so nothing
@@ -49,6 +52,9 @@ EXCLUDED_SUFFIXES = (".xcf", ".gif")
 EXCLUDED_FOLDERS = frozenset({"sketches", "raw materials", "old"})  # lower case
 EXCLUDED_FOLDER_PREFIXES = ("sketch",)  # houses/Sketches/Sketch...
 
+# The example save, put into slot 1 on the first start (main.py)
+EXAMPLE_SAVE = ("saves/slot_1.sav", "saves/slot_1_thumb.png")
+
 SMOKE_TEST_PLAY_SECONDS = 8
 SMOKE_TEST_TIMEOUT_S = 180.0
 
@@ -63,6 +69,9 @@ is not signed: click "More info", then "Run anyway".
 Keep MerchantsRise.exe and the _internal folder together; the game needs
 both. Your saves are kept in _internal/saves. To update, unzip a newer
 release over this folder: your saves stay.
+
+Slot 1 holds an example save to look around in, unless you already had a
+game in slot 1.
 
 If the game closes with an error, a crash.log appears next to the exe.
 Please send it along.
@@ -118,6 +127,17 @@ def stage_assets(target: Path) -> int:
     return copied
 
 
+def stage_example_save(target: Path) -> Path:
+    """Copies the example save, as git has it, into ``target``/example_save."""
+    folder = target / "example_save"
+    folder.mkdir(parents=True, exist_ok=True)
+    for path in EXAMPLE_SAVE:
+        blob = subprocess.run(["git", "show", f"HEAD:{path}"], cwd=ROOT, check=True,
+                              capture_output=True).stdout
+        (folder / Path(path).name).write_bytes(blob)
+    return folder
+
+
 def build_exe(assets: Path, work: Path) -> Path:
     """Builds MerchantsRise.exe with PyInstaller: one folder, no console.
 
@@ -135,6 +155,7 @@ def build_exe(assets: Path, work: Path) -> Path:
          "--paths", str(ROOT),
          "--collect-submodules", "src",
          "--add-data", f"{assets}{os.pathsep}assets",
+         "--add-data", f"{work / 'example_save'}{os.pathsep}example_save",
          str(ROOT / "main.py")])
     return work / "dist" / NAME
 
@@ -185,6 +206,7 @@ def main() -> int:
         work = args.work.resolve() if args.work else Path(tmp)
         print("Staging the assets ...", flush=True)
         print(f"{stage_assets(work)} files.")
+        stage_example_save(work)
         folder = build_exe(work / "assets", work)
         # Listed before the smoke test, so the saves and settings it writes stay out
         entries = [(path, f"{NAME}/{path.relative_to(folder).as_posix()}")

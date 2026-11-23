@@ -9,6 +9,34 @@ import traceback
 FROZEN = getattr(sys, "frozen", False)
 os.chdir(sys._MEIPASS if FROZEN else os.path.dirname(os.path.abspath(__file__)))
 
+def _offer_example_save() -> None:
+    """In the release build, puts the example save it ships with into slot 1, once.
+
+    build_tools/Release packs the repo's saves/slot_1.sav (and its thumbnail)
+    into _internal/example_save. It is copied into saves/ only if slot 1 is
+    empty there, and only the first time (a marker file remembers it), so an
+    update unzipped over an old folder never overwrites the player's slot 1,
+    and a player who deleted it does not get it back.
+    """
+    import shutil
+    source, saves = "example_save", "saves"
+    marker = os.path.join(saves, ".example_save_offered")
+    if not os.path.isdir(source) or os.path.exists(marker):
+        return
+    try:
+        os.makedirs(saves, exist_ok=True)
+        if not os.path.exists(os.path.join(saves, "slot_1.sav")):
+            for name in os.listdir(source):
+                shutil.copy2(os.path.join(source, name), os.path.join(saves, name))
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write("The example save was put into slot 1 (if it was empty) on first start.\n")
+    except OSError:
+        pass   # a read-only folder: play on without it
+
+
+if FROZEN:
+    _offer_example_save()
+
 # Set by build_tools/Release to the seconds to play: skips the main menu,
 # starts a new game, quits after that long and exits 1 on any error
 SMOKE_TEST_SECONDS = os.environ.get("MERCHANTS_RISE_SMOKE_TEST")
