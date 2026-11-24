@@ -140,7 +140,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None, lost_sheep: Any = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None, lost_sheep: Any = None, chickens: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -264,6 +264,8 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "council": council.to_save() if council is not None else None,
         # The quest for the shepherdess's black sheep (models/lost_sheep.py); a save without it has not begun it
         "lost_sheep": lost_sheep.to_save() if lost_sheep is not None else None,
+        # The pen's chickens' looks (models/chickens.py); a save without them gets a flock drawn from its seed
+        "chickens": chickens.to_save() if chickens is not None else None,
     }
 
 
@@ -311,7 +313,7 @@ def _write_frozen(slot: int, frozen: bytes) -> None:
 
 
 def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None,
-              lost_sheep: Any = None, background: bool = False) -> None:
+              lost_sheep: Any = None, chickens: Any = None, background: bool = False) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT).
 
@@ -323,7 +325,7 @@ def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[A
     wait_for_save()
     os.makedirs(SAVES_PATH, exist_ok=True)
     data = _serialize_game(game_state, player, depot, goods, save_name, sim, fog, weather, merchant_rank, intro, council,
-                           harvest, lost_sheep)
+                           harvest, lost_sheep, chickens)
     if background:
         try:
             # A deep copy of plain data in a few ms, so the game may go on changing its own

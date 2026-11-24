@@ -45,7 +45,8 @@ PET_SHEEP_OPTION = "Pet Sheep"
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
     """Yield every figurine in sight on the map, in render-queue order (player last)."""
-    for figurine in (*game_map.tmx_map.sheep, *game_map.tmx_map.npcs, game_map.map_player):
+    for figurine in (*game_map.tmx_map.sheep, *game_map.tmx_map.chickens, *game_map.tmx_map.npcs,
+                     game_map.map_player):
         if not figurine.is_hidden:
             yield figurine
 

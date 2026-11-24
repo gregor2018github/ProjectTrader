@@ -1,5 +1,6 @@
 import pygame
 import os
+import math
 import random
 import datetime
 import time
@@ -15,6 +16,7 @@ from .ui.layout_modules.ledger_style import draw_depot_sheet
 from .ui.layout_modules.town_plan import TownPlan
 from .ui import cursor
 from .models.good import Good
+from .models.chickens import Flock
 from .models.depot import Depot
 from .models.player_names import clean_name, random_name
 from .models.figurines.humans.hair import DEFAULT_HAIR, hair_key
@@ -59,7 +61,7 @@ from .ui.helper_modules.session_window import SessionWindow
 from .ui.helper_modules.save_indicator import SaveIndicator
 from .ui.helper_modules.figurine_click_menu import iter_figurines, release_ended_conversations
 from .config.constants import PICTURES_PATH, FONTS_PATH, MAX_RECULCULATIONS_PER_SEC, SCREEN_WIDTH, SCREEN_HEIGHT, SIDEBAR_WIDTH, MODULE_WIDTH
-from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, MARKET_FEE_RATE, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
+from .config.constants import INITIAL_DAILY_COST_OF_LIVING, TOP_BAR_DEFAULT_PINS, STARTING_MONEY, MARKET_FEE_RATE, INITIAL_STORAGE_CAPACITY, CHURCH_BELL_VOLUME, SHEEP_VOLUME, SHEEP_SOUND_MAX_DISTANCE, CHICKEN_VOLUME, CHICKEN_SOUND_MAX_DISTANCE, DOOR_VOLUME, DOOR_SOUND_MAX_DISTANCE, MARKET_PRESIMULATION_DAYS, OVERDRAFT_DAILY_RATE
 from .config import settings_store
 from .persistence.save_manager import (
     AUTOSAVE_NAME, AUTOSAVE_SLOT, apply_save_data, save_game, take_save_error, thumbnail_path,
@@ -206,6 +208,9 @@ class Game:
         # (models/lost_sheep.py), and the quest's figures and places on the map (lost_sheep_map.py)
         self.lost_sheep: LostSheep = LostSheep()
         self.lost_sheep_map: LostSheepOnMap = LostSheepOnMap(self.lost_sheep, self.game_map.tmx_map)
+        # The pen's chickens: a new game's flock drawn from its seed (models/chickens.py), a save's loaded
+        self.flock: Flock = Flock.new(self.sim.seed)
+        self.game_map.tmx_map.dress_chickens(self.flock.looks)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -236,6 +241,9 @@ class Game:
         self.church_bell_sound: Optional[pygame.mixer.Sound] = None
         self.church_bell_audible: bool = False  # True once the bell has been heard
         self.sheep_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('sheep_')]
+        self.chicken_sounds: dict = {
+            kind: [s for k, s in self.sounds.items() if k.lower().startswith(f'chicken_{kind}')]
+            for kind in ('cluck', 'alarm')}
         self.door_sounds: list = [s for k, s in self.sounds.items() if k.lower().startswith('door_')]
         # The map's ambient loops (mill, birds in the woods), on channels 1 and on, see init_pygame()
         self.ambience: Ambience = Ambience(self.sounds, AMBIENCE_FIRST_CHANNEL, self.game_map.tmx_map)
@@ -318,6 +326,9 @@ class Game:
         self.depot.fee_discount = self.council.fee_discount()
         self.intro.load(save_data.get("intro"))
         self.lost_sheep.load(save_data.get("lost_sheep"))
+        # A save from before the chickens gets its flock drawn from its seed, as a new game would
+        self.flock.load(save_data.get("chickens"), seed=self.sim.seed)
+        self.game_map.tmx_map.dress_chickens(self.flock.looks)
         self.lost_sheep_map.sync(self.game_map.map_player.feet)
         self.tiredness.restart(self.state.date)
         self.address_note.reset()
@@ -543,6 +554,20 @@ class Game:
         changed = tmx_map.harvest.update(self.state.date, crew.live_fields(self.state.date), crew.heavy_rain)
         if changed:
             crew.refresh(self.state.date, changed)
+
+    def _play_chicken_sounds(self) -> None:
+        """A cluck or an alarm from each chicken that wants one, softer the farther it is from the player."""
+        px, py = self.game_map.map_player.feet
+        for chicken in self.game_map.tmx_map.chickens:
+            takes = self.chicken_sounds.get(chicken.wants_sound or "")
+            if not takes:
+                continue
+            dist = math.dist((px, py), chicken.feet)
+            if dist < CHICKEN_SOUND_MAX_DISTANCE:
+                channel = pygame.mixer.find_channel()
+                if channel:
+                    channel.set_volume(CHICKEN_VOLUME * (1.0 - dist / CHICKEN_SOUND_MAX_DISTANCE))
+                    channel.play(random.choice(takes))
 
     def _play_door_sounds(self) -> None:
         """Play a door for every NPC that went in or out of a house this frame.
@@ -903,6 +928,7 @@ class Game:
                                         if channel:
                                             channel.set_volume(volume)
                                             channel.play(sound)
+                        self._play_chicken_sounds()
                         self._play_door_sounds()
                     else:
                         self.game_map.map_player.stop_footstep_sound()
@@ -1174,7 +1200,8 @@ class Game:
                   save_name=save_name, sim=self.sim,
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
-                  harvest=self.game_map.tmx_map.harvest, lost_sheep=self.lost_sheep, background=background)
+                  harvest=self.game_map.tmx_map.harvest, lost_sheep=self.lost_sheep, chickens=self.flock,
+                  background=background)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

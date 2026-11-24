@@ -37,6 +37,7 @@ from .spatial_index import SpatialIndex
 from .field import Field, _inside
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
+from .figurines.animals.chicken import Chicken
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
 from .figurines.humans.hair import DEFAULT_HAIR
@@ -192,6 +193,10 @@ class TMXMap:
         self.smoke_emitters: List[SmokeEmitter] = []
         self.fields: List[Field] = []
         self.sheep: List[Sheep] = []
+        #: The pen's chickens, made for the flock's looks by dress_chickens; none until then
+        self.chickens: List[Chicken] = []
+        #: Where the chickens' feet may go: the "Chickens" rectangle on the Movements layer, if there is one
+        self.chicken_zone: Optional[pygame.Rect] = None
         self.npcs: List[NPC] = []
         self.waters: List[Water] = []
         #: Decks over the water, from the "Bridges" object layer.
@@ -1143,6 +1148,10 @@ class TMXMap:
                         self.sheep.append(
                             Sheep(obj.x, obj.y, obj.width, obj.height, self.tile_size, wool, name)
                         )
+                    elif obj.name == "Chickens":
+                        # The pen the chickens wander about in, freely (chicken.py)
+                        self.chicken_zone = pygame.Rect(round(obj.x), round(obj.y),
+                                                        round(obj.width), round(obj.height))
                     elif obj.name:
                         objects_by_name[obj.name] = obj
         self._movement_objects = objects_by_name
@@ -1235,6 +1244,18 @@ class TMXMap:
         """Advance all sheep NPCs (call once per frame when not paused)."""
         for sheep in self.sheep:
             sheep.update(dt, player_rect)
+
+    def dress_chickens(self, looks) -> None:
+        """Put a chicken of each look (models/chickens.py) at a random spot of the pen; none without a pen."""
+        if self.chicken_zone is None:
+            self.chickens = []
+            return
+        self.chickens = [Chicken(self.chicken_zone, self.tile_size, look) for look in looks]
+
+    def update_chickens(self, dt: float, player_feet=None) -> None:
+        """Advance the chickens (once per frame when not paused); they run from the player's feet."""
+        for chicken in self.chickens:
+            chicken.update(dt, player_feet)
 
     def update_npcs(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all human NPCs (call once per frame when not paused)."""
@@ -1548,8 +1569,8 @@ class GameMap:
         
         self.camera.set_zoom(self.zoom_levels[self.zoom_index])
         self.map_player.on_zoom_change()
-        for sheep in self.tmx_map.sheep:
-            sheep.on_zoom_change()
+        for animal in (*self.tmx_map.sheep, *self.tmx_map.chickens):
+            animal.on_zoom_change()
         for npc in self.tmx_map.npcs:
             npc.on_zoom_change()
     
@@ -1590,6 +1611,7 @@ class GameMap:
             int(collision_height),
         )
         self.tmx_map.update_sheep(dt, player_rect)
+        self.tmx_map.update_chickens(dt, self.map_player.feet)
         self.tmx_map.update_npcs(dt, current_time)
         self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)

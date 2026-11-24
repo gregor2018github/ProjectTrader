@@ -275,6 +275,8 @@ WELL_WISH_PROBABILITY = 0.05          # Probability of triggering a wish when th
 WELL_WISH_SHOCK_FACTOR = 0.4          # Price shock magnitude from a well wish (40%)
 WELL_WISH_DURATION_DAYS = 5           # Number of days the well price shock lasts
 SHEEP_SOUND_MAX_DISTANCE = 900.0     # World pixels beyond which sheep are completely silent
+CHICKEN_VOLUME = 0.45                 # Maximum volume of a chicken's cluck or alarm
+CHICKEN_SOUND_MAX_DISTANCE = 600.0   # World pixels beyond which the chickens are silent
 DOOR_SOUND_MAX_DISTANCE = 700.0      # World pixels beyond which NPC doors are completely silent
 # Someone out in town coughing now and then (models/coughs.py): game hours on the map
 # between two coughs (1 to 2 a day), and when nobody is near, how long until it tries again
