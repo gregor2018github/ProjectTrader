@@ -22,7 +22,7 @@ import pygame  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.models.figurines.animals.chicken_look import (  # noqa: E402,F401
-    COLOUR, COLOUR_ODDS, COLOURS, FRAME, HEAD, HEADS, PALETTE, TAIL, TAILS, Part, compose, frames,
+    COLOUR, COLOUR_ODDS, COLOURS, FRAME_H, FRAME_W, HEAD, HEADS, PALETTE, TAIL, TAILS, Part, compose, frames,
     mirrored, random_chicken, standing)
 
 
@@ -33,22 +33,22 @@ def preview(path, what="heads", scale=14, per_row=6):
     if what == "frames":
         poses = frames()
         shown = [("stand", poses["stand"])] + [(f"walk {i + 1}", f) for i, f in enumerate(poses["walk"])]
-        shown += [("peck down", poses["peck"][0]), ("peck up", poses["peck"][1])]
+        shown += [(f"peck {n}", f) for n, f in zip(("down", "up", "step"), poses["peck"])]
     else:
         shown = [(name, standing(**{what[:-1]: name}))
                  for name in {"heads": HEADS, "tails": TAILS, "colours": COLOURS}[what]]
     names = [name for name, _ in shown]
-    cell = FRAME * scale
+    cell_w, cell = FRAME_W * scale, FRAME_H * scale
     columns = min(per_row, len(names))
     rows = (len(names) + per_row - 1) // per_row
-    sheet = pygame.Surface((columns * (cell + scale) + scale,
+    sheet = pygame.Surface((columns * (cell_w + scale) + scale,
                             rows * (cell + 2 * scale) + scale))
     sheet.fill((150, 190, 110))
     font = pygame.font.SysFont(None, 40)
     for i, (name, frame) in enumerate(shown):
-        x = scale + (i % per_row) * (cell + scale)
+        x = scale + (i % per_row) * (cell_w + scale)
         y = scale + (i // per_row) * (cell + 2 * scale)
-        sheet.blit(pygame.transform.scale(frame, (cell, cell)), (x, y + scale))
+        sheet.blit(pygame.transform.scale(frame, (cell_w, cell)), (x, y + scale))
         sheet.blit(font.render(name, True, (0, 0, 0)), (x + 4, y))
     pygame.image.save(sheet, path)
 

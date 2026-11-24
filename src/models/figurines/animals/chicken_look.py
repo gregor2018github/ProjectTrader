@@ -1,10 +1,12 @@
 """How a chicken looks: painted pixel by pixel from modular parts, in one of its colours.
 
 A frame is put together from parts (the body, a tail, the legs, a head), each a
-small grid of characters, one per pixel, laid onto a FRAME x FRAME canvas at an
-offset. Later parts are painted over earlier ones; '.' is see-through. A walk
+small grid of characters, one per pixel, drawn on a FRAME x FRAME grid and
+laid onto a FRAME_W x FRAME_H canvas at an offset, LEFT_ROOM in from its left
+edge, so a pecking head can reach down to the ground in front of the body. Later parts are painted over earlier ones; '.' is see-through. A walk
 frame is the same head and body with other legs and the head a pixel forward,
-a pecking frame has the head lowered to the ground.
+a pecking frame has the whole chicken but its legs tipped forward, the beak to
+the ground.
 
 Frames face left; the right-facing ones are mirrored. A chicken's look is a
 head, a tail and a colour (random_chicken, the colours by COLOUR_ODDS). The
@@ -17,7 +19,9 @@ Only compose() and the frames need pygame.
 import colorsys
 import zlib
 
-FRAME = 16  # the frame's width and height in pixels
+FRAME = 16  # the grid the parts are drawn on, pixels each way
+LEFT_ROOM = 4  # the canvas's room in front of the grid, for the head bent down to peck
+FRAME_W, FRAME_H = FRAME + LEFT_ROOM + 2, FRAME  # the frame's size; its feet in the middle
 
 PALETTE = {
     "O": (92, 52, 30),     # outline, dark brown
@@ -340,19 +344,25 @@ def random_chicken(rng):
             rng.choices(colours, weights=[COLOUR_ODDS[c] for c in colours])[0])
 
 
+def palette_of(colour):
+    """PALETTE with a colour variant's own colours in."""
+    variant = COLOURS[colour]
+    return {**PALETTE, **{k: v for k, v in variant.items() if k in PALETTE}}
+
+
 def compose(parts, colour=COLOUR):
     """Lays the parts in order onto a see-through frame, facing left, in one
     of the COLOURS."""
     import pygame
     variant = COLOURS[colour]
-    palette = {**PALETTE, **{k: v for k, v in variant.items() if k in PALETTE}}
+    palette = palette_of(colour)
     pattern = PATTERNS[variant["pattern"]](variant) if "pattern" in variant else None
-    surface = pygame.Surface((FRAME, FRAME), pygame.SRCALPHA)
+    surface = pygame.Surface((FRAME_W, FRAME_H), pygame.SRCALPHA)
     for part in parts:
         for dy, row in enumerate(part.rows):
             for dx, c in enumerate(row):
-                x, y = part.x + dx, part.y + dy
-                if c != "." and 0 <= x < FRAME and 0 <= y < FRAME:
+                x, y = LEFT_ROOM + part.x + dx, part.y + dy
+                if c != "." and 0 <= x < FRAME_W and 0 <= y < FRAME_H:
                     colour_here = palette[c]
                     if pattern:
                         hx, hy = part.home
@@ -371,26 +381,81 @@ def mirrored(surface):
     return pygame.transform.flip(surface, True, False)
 
 
-def face(head):
-    """The head without its neck: its rows down to the beak's underside, where it was."""
+# Legs straightened, the body a pixel up: the walk's passing frames
+LEGS["long"] = Part([
+    "......F..F......",
+    "......F..F......",
+    ".....FF.FF......",
+], y=13)
+
+# Pecking: the whole chicken but its legs tipped forward about its hips (PIVOT, on the grid), head down
+PECK_DOWN = 40      # degrees, the beak at the ground
+PECK_UP = 22        # degrees, between pecks and stepping on
+PIVOT = (8.5, 13.0)
+TILT_SAMPLES = 4    # each pixel of a tipped frame is the most of this many squared samples
+# The walk, frame by frame: the legs, how far the head jerks forward, the bob (body up a pixel)
+WALK = (("long", 0, -1), ("front", -1, 0), ("long", 0, -1), ("back", -1, 0))
+
+
+def tipped_spot(spot, degrees, pivot=PIVOT):
+    """Where a pixel at `spot` (x, y on the canvas) lands once the frame is tipped `degrees`."""
+    import math
+    cos, sin = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
+    px, py = LEFT_ROOM + pivot[0], pivot[1]
+    dx, dy = spot[0] + 0.5 - px, spot[1] + 0.5 - py
+    return math.floor(cos * dx + sin * dy + px), math.floor(-sin * dx + cos * dy + py)
+
+
+def eye_spot(head):
+    """The eye's pixel on the canvas, as the head stands."""
     part = HEADS[head]
-    last = max(i for i, row in enumerate(part.rows) if "Y" in row or "y" in row)
-    return Part(part.rows[:last + 1], part.x, part.y, part.home)
+    row = next(i for i, r in enumerate(part.rows) if "E" in r)
+    return LEFT_ROOM + part.x + part.rows[row].index("E"), part.y + row
 
 
-# Where the face is put to peck, (dx, dy) from its place: the beak at the ground, then a little up
-PECK_DOWN = (0, 8)
-PECK_UP = (0, 6)
-# The walk: legs and how far the head jerks forward, frame by frame
-WALK = (("stand", 0), ("front", -1), ("stand", 0), ("back", -1))
+def tipped(surface, degrees, pivot=PIVOT):
+    """The frame turned `degrees` forward (head down) about `pivot` on the grid, as pixel art.
+
+    Each pixel is the colour most of its TILT_SAMPLES x TILT_SAMPLES samples fall on, taken from
+    the frame blown up without smoothing (no colours mixed, so it stays sharp), not one sample each,
+    which would break its outlines up."""
+    import math
+
+    import pygame
+    k = TILT_SAMPLES
+    width, height = surface.get_size()
+    big = pygame.transform.scale(surface, (width * k, height * k))
+    out = pygame.Surface((width, height), pygame.SRCALPHA)
+    cos, sin = math.cos(math.radians(degrees)), math.sin(math.radians(degrees))
+    px, py = (LEFT_ROOM + pivot[0]) * k, pivot[1] * k
+    for y in range(height):
+        for x in range(width):
+            votes = {}
+            for j in range(k):
+                for i in range(k):
+                    dx, dy = x * k + i + 0.5 - px, y * k + j + 0.5 - py
+                    sx, sy = math.floor(cos * dx - sin * dy + px), math.floor(sin * dx + cos * dy + py)
+                    colour = (tuple(big.get_at((sx, sy))) if 0 <= sx < width * k and 0 <= sy < height * k
+                              else (0, 0, 0, 0))
+                    votes[colour] = votes.get(colour, 0) + 1
+            colour = max(votes, key=votes.get)
+            if colour[3]:
+                out.set_at((x, y), colour)
+    return out
 
 
 def frames(head=HEAD, tail=TAIL, colour=COLOUR):
     """Every frame of a chicken, facing left: {"stand": surface, "walk": [4 surfaces],
-    "peck": [down, up]}."""
+    "peck": [head down, head up, a step forward with it up]}."""
     body, tail_part, head_part = BODY, TAILS[tail], HEADS[head]
-    walk = [compose([body, tail_part, LEGS[legs], head_part.at(dx)], colour) for legs, dx in WALK]
-    pecking = face(head)
-    peck = [compose([body, tail_part, LEGS["stand"], pecking.at(*at)], colour) for at in (PECK_DOWN, PECK_UP)]
+    walk = [compose([body.at(0, bob), tail_part.at(0, bob), LEGS[legs], head_part.at(dx, bob)], colour)
+            for legs, dx, bob in WALK]
+    upright = compose([body, tail_part, head_part], colour)
+    peck = []
+    for legs, degrees in (("stand", PECK_DOWN), ("stand", PECK_UP), ("front", PECK_UP)):
+        frame = compose([LEGS[legs]], colour)
+        frame.blit(tipped(upright, degrees), (0, 0))
+        # The eye is one pixel, which the feathers round it outvote when tipped: put it back
+        frame.set_at(tipped_spot(eye_spot(head), degrees), palette_of(colour)["E"])
+        peck.append(frame)
     return {"stand": standing(head, tail, colour), "walk": walk, "peck": peck}
-

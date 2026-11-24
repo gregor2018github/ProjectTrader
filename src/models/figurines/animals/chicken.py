@@ -18,9 +18,9 @@ from typing import Dict, List, Optional, Tuple
 import pygame
 
 from .animal import Animal
-from .chicken_look import FRAME, frames, mirrored
+from .chicken_look import FRAME, FRAME_H, FRAME_W, frames, mirrored
 
-SIZE_PX = 24                 # how big it is drawn at tile_size 32: its 16-px frame half as big again
+SIZE_PX = 24                 # how big it is drawn at tile_size 32: its 16-px grid half as big again
 CHICKEN_SPEED = 22.0         # px per second at tile_size 32, trotting about
 FLEE_SPEED = 58.0            # px per second, scurrying away from the player
 FLEE_TILES = 1.3             # the player this near makes it run
@@ -31,7 +31,10 @@ PECK_SECONDS = (1.2, 4.5)
 NEXT = (("walk", 0.5), ("peck", 0.3), ("idle", 0.2))   # what it does next, by chance
 WALK_FRAME_S = 0.11
 FLEE_FRAME_S = 0.06
-PECK_FRAME_S = (0.16, 0.30)  # head down, head up
+# Pecking, frame by frame: (frame of "peck": 0 down, 1 up, 2 a step on; seconds); it walks on
+# PECK_STEP_PX in the step, so it feeds its way forward
+PECK_SEQUENCE = ((0, 0.16), (1, 0.20), (0, 0.16), (1, 0.32), (2, 0.20))
+PECK_STEP_PX = 3.0           # at tile_size 32
 CLUCK_SECONDS = (25.0, 70.0)  # between one chicken's clucks
 ALARM_GAP_S = 6.0            # at least this long between one chicken's alarms
 
@@ -39,7 +42,7 @@ _frame_cache: Dict[Tuple[str, str, str], Dict[str, Dict[str, list]]] = {}
 
 
 def chicken_frames(look) -> Dict[str, Dict[str, list]]:
-    """{"left"/"right": {"stand": [s], "walk": [4], "peck": [2]}} for a look, made once."""
+    """{"left"/"right": {"stand": [s], "walk": [4], "peck": [down, up, step]}} for a look, made once."""
     key = (look.head, look.tail, look.colour)
     if key not in _frame_cache:
         left = frames(look.head, look.tail, look.colour)
@@ -63,7 +66,9 @@ class Chicken(Animal):
         self.rng = rng or random.Random()
         self.zone = pygame.Rect(zone)
         self.look = look
-        self.sprite_width = self.sprite_height = round(SIZE_PX * tile_size / 32)
+        scale = SIZE_PX / FRAME * tile_size / 32
+        self.sprite_width, self.sprite_height = round(FRAME_W * scale), round(FRAME_H * scale)
+        self._sized: Dict[int, pygame.Surface] = {}
         self.collision_width = self.sprite_width // 2
         self.collision_height = max(2, self.sprite_height // 4)
         self.poses = chicken_frames(look)
@@ -195,21 +200,34 @@ class Chicken(Animal):
                 self.frame_timer -= step
                 self.frame_index = (self.frame_index + 1) % len(self.poses[self.direction]["walk"])
         elif self.state == "peck":
-            step = PECK_FRAME_S[self.frame_index % 2]
-            if self.frame_timer >= step:
-                self.frame_timer -= step
-                self.frame_index = (self.frame_index + 1) % 2
+            frame, seconds = PECK_SEQUENCE[self.frame_index]
+            if frame == 2:
+                self._step_on(PECK_STEP_PX * self.tile_size / 32.0 * dt / seconds)
+            if self.frame_timer >= seconds:
+                self.frame_timer -= seconds
+                self.frame_index = (self.frame_index + 1) % len(PECK_SEQUENCE)
         self._set_frame()
+
+    def _step_on(self, px: float) -> None:
+        """A little way on the way it faces while feeding; at its pen's edge it turns about."""
+        ahead = -px if self.direction == "left" else px
+        fx, fy = self.feet
+        if not self.zone.left <= fx + ahead <= self.zone.right:
+            self.direction = "right" if self.direction == "left" else "left"
+            return
+        self.place_feet(fx + ahead, fy)
 
     def _set_frame(self) -> None:
         pose = {"walk": "walk", "peck": "peck"}.get(self.state, "stand")
         frames_ = self.poses[self.direction][pose]
-        frame = frames_[self.frame_index % len(frames_)]
-        self.source_sprite = frame
-        if frame.get_width() == self.sprite_width:
-            self.sprite = frame
+        if pose == "peck":
+            frame = frames_[PECK_SEQUENCE[self.frame_index % len(PECK_SEQUENCE)][0]]
         else:
-            self.sprite = pygame.transform.scale(frame, (self.sprite_width, self.sprite_height))
+            frame = frames_[self.frame_index % len(frames_)]
+        self.source_sprite = frame
+        if id(frame) not in self._sized:
+            self._sized[id(frame)] = pygame.transform.scale(frame, (self.sprite_width, self.sprite_height))
+        self.sprite = self._sized[id(frame)]
 
     def _get_scaled_sprite(self, zoom: float) -> pygame.Surface:
         """The frame at the camera's zoom, scaled without smoothing so the pixels stay sharp."""

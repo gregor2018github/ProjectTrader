@@ -9,7 +9,7 @@ import pytest
 from src.models.chickens import FLOCK_SIZE, ChickenLook, Flock, draw_flock
 from src.models.figurines.animals import chicken_look
 from src.models.figurines.animals.chicken import FLEE_TILES, SIZE_PX, Chicken
-from src.models.figurines.animals.chicken_look import COLOUR_ODDS, COLOURS, FRAME, HEADS, TAILS
+from src.models.figurines.animals.chicken_look import COLOUR_ODDS, COLOURS, FRAME_H, FRAME_W, HEADS, TAILS
 
 TILE = 32
 PEN = pygame.Rect(0, 0, 10 * TILE, 8 * TILE)
@@ -69,8 +69,8 @@ def test_a_saved_look_naming_a_part_no_longer_there_is_drawn_afresh_alone():
 def test_every_frame_is_the_frame_size():
     poses = chicken_look.frames("A", "plume", "calico")
     for frame in [poses["stand"], *poses["walk"], *poses["peck"]]:
-        assert frame.get_size() == (FRAME, FRAME)
-    assert len(poses["walk"]) == 4 and len(poses["peck"]) == 2
+        assert frame.get_size() == (FRAME_W, FRAME_H)
+    assert len(poses["walk"]) == 4 and len(poses["peck"]) == 3
 
 
 def _chicken(seed=1):
@@ -86,7 +86,7 @@ def test_a_chicken_wanders_all_over_its_pen_and_never_out_of_it():
         assert PEN.left <= x <= PEN.right and PEN.top <= y <= PEN.bottom
         seen.add((int(x // (2 * TILE)), int(y // (2 * TILE))))
     assert len(seen) >= 12                          # of 5 x 4 blocks of 2 tiles
-    assert chicken.sprite.get_size() == (SIZE_PX, SIZE_PX)
+    assert chicken.sprite.get_size() == (round(FRAME_W * SIZE_PX / 16), SIZE_PX)
 
 
 def test_it_runs_from_the_player_and_stays_in_its_pen_doing_so():
@@ -112,3 +112,29 @@ def test_it_faces_the_way_it_walks():
     chicken.target = (PEN.centerx - 3 * TILE, PEN.centery)
     chicken.update(1 / 60)
     assert chicken.direction == "left"
+
+
+def test_it_feeds_its_way_forward_and_turns_about_at_its_pens_edge():
+    chicken = _chicken()
+    chicken.place_feet(PEN.centerx, PEN.centery)
+    chicken.direction = "left"
+    chicken._start("peck")
+    chicken.timer = 100.0
+    x0 = chicken.feet[0]
+    for _ in range(300):                            # 5 seconds of pecking
+        chicken.update(1 / 60)
+    assert x0 - 4 * TILE < chicken.feet[0] < x0 - 8   # a few small steps on to the west
+    chicken.place_feet(PEN.left + 1, PEN.centery)
+    for _ in range(300):
+        chicken.update(1 / 60)
+    assert chicken.direction == "right" and PEN.collidepoint(chicken.feet)
+
+
+def test_the_eye_shows_when_it_pecks():
+    for head in HEADS:
+        for colour in ("buff", "black", "ghost"):
+            eye = chicken_look.palette_of(colour)["E"]
+            for frame in chicken_look.frames(head, "short", colour)["peck"]:
+                pixels = [frame.get_at((x, y))[:3] for x in range(FRAME_W) for y in range(FRAME_H)
+                          if frame.get_at((x, y)).a]
+                assert tuple(eye) in pixels, (head, colour)
