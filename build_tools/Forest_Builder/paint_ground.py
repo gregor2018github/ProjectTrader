@@ -50,7 +50,7 @@ DECO_LAYER = "Ground_Flowers_Mushrooms"
 #: follows it straight on, and its new tiles would take the river banks' gids
 TILESET = "painted_ground"
 
-#: Where ground has been painted, and how. Painted so far: the churchyard (seed 3).
+#: Where ground has been painted, and how. Painted so far: the churchyard (seed 3), the chicken pen (seed 5).
 GROUNDS = [
     dict(
         name="churchyard",
@@ -76,6 +76,31 @@ GROUNDS = [
               ("moss", ["moss"], 8), ("flowers", ["daisies"], 5), ("flowers", ["dandelions"], 4)],
         seed=3,
     ),
+    dict(
+        name="chicken_pen",
+        box=(186, 179, 209, 197),                   # tiles: the pen and a little outside its two gates
+        inside=(6066, 5812, 6638, 6254),            # world px: within the fence
+        # The two ways in, trodden from the north gate and the west side gate to where the grain is thrown,
+        # a little way out of each gate, and a fainter one on into the pen
+        paths=[
+            ([(6384, 5730), (6384, 5800), (6380, 5870), (6356, 5950), (6318, 6020)], 18, 1.0),
+            ([(5975, 6032), (6064, 6032), (6140, 6038), (6230, 6044), (6318, 6020)], 17, 0.95),
+            ([(6318, 6020), (6400, 6080), (6480, 6110)], 10, 0.55),
+        ],
+        # Greener along the fence, where the chickens do not get at the grass
+        walls=[((6066, 5814), (6638, 5814)), ((6636, 5814), (6636, 6252)), ((6066, 6252), (6636, 6252)),
+               ((6068, 5814), (6068, 6252))],
+        deco=[("grass_herbs", ["grass"], 22), ("grass_herbs", ["clover"], 5), ("flowers", ["dandelions"], 2)],
+        # What the chickens make of it: scratched-up bare earth, worst where they are fed
+        bare=[(6318, 6034, 100, 62, 1.0), (6200, 5896, 40, 26, 0.55), (6524, 6170, 52, 32, 0.6),
+              (6150, 6196, 34, 22, 0.5), (6560, 5896, 30, 22, 0.45)],
+        scratched=0.45,          # bare patches all over, by noise, this strong
+        trampled=0.22,           # the rest of the grass worn paler
+        scratches=260,           # short furrows scratched into the bare earth
+        droppings=70,
+        feathers=18,
+        seed=5,
+    ),
 ]
 
 #: The look
@@ -85,6 +110,10 @@ DUST = (172, 150, 104)         # its paler, drier stretches
 LUSH = (64, 104, 38)           # darker grass in patches, and over the graves
 DRY = (168, 164, 86)           # paler, drier grass
 WALL_MOSS = (70, 92, 46)       # at the foot of a wall
+SCRATCHED = (128, 102, 68)     # earth the chickens have scratched bare
+FURROW = (96, 74, 48)          # a scratch in it
+DROPPINGS = ((226, 222, 206), (120, 106, 80))   # its white cap, its dark rest
+FEATHERS = ((246, 240, 226), (196, 150, 96), (150, 96, 56))
 
 
 def _segment_distance(xs: np.ndarray, ys: np.ndarray, points: Sequence[Tuple[float, float]]) -> np.ndarray:
@@ -103,6 +132,55 @@ def _layer(colour, alpha: np.ndarray) -> np.ndarray:
     out[..., :3] = np.array(colour, np.float32) / 255
     out[..., 3] = np.clip(alpha, 0, 1)
     return out
+
+
+def _marks(prng: random.Random, ground: dict, bare: np.ndarray, worn: np.ndarray,
+           inside: np.ndarray) -> np.ndarray:
+    """What animals leave on the ground, as a layer: furrows scratched into the bare earth (each a few
+    short strokes fanning back from where the foot dug), droppings and dropped feathers."""
+    h, w = bare.shape
+    marks = pygame.Surface((w, h), pygame.SRCALPHA)
+
+    def spot(test, tries=400):
+        for _ in range(tries):
+            x, y = prng.randrange(2, w - 4), prng.randrange(2, h - 4)
+            if inside[y, x] > 0.99 and test(x, y):
+                return x, y
+        return None
+
+    for _ in range(ground.get("scratches", 0)):
+        at = spot(lambda x, y: bare[y, x] > 0.35 + prng.random() * 0.3)
+        if at is None:
+            continue
+        x, y = at
+        back = prng.choice((-1, 1))
+        for i in range(prng.randint(2, 3)):         # a chicken scratches with both feet, backwards
+            length = prng.randint(3, 6)
+            dy = prng.randint(-1, 1) + i - 1
+            colour = (*FURROW, prng.randint(120, 200))
+            pygame.draw.line(marks, colour, (x, y + i), (x + back * length, y + i + dy))
+    for _ in range(ground.get("droppings", 0)):
+        at = spot(lambda x, y: worn[y, x] < 0.5)
+        if at is None:
+            continue
+        x, y = at
+        dark = (*DROPPINGS[1], 230)
+        for dx, dy in prng.choice(([(0, 0), (1, 0), (0, 1)], [(0, 0), (1, 0)], [(0, 0)])):
+            marks.set_at((x + dx, y + dy), dark)
+        marks.set_at((x + prng.randint(0, 1), y), (*DROPPINGS[0], 240))
+    for _ in range(ground.get("feathers", 0)):
+        at = spot(lambda x, y: True)
+        if at is None:
+            continue
+        x, y = at
+        colour = prng.choice(FEATHERS)
+        length = prng.randint(3, 5)
+        slope = prng.choice((-1, 0, 1))
+        for i in range(length):
+            marks.set_at((x + i, y + (i * slope) // 3), (*colour, 230 if i else 160))
+        marks.set_at((x, y + 1), (*colour, 120))
+    return np.dstack([pygame.surfarray.array3d(marks).transpose(1, 0, 2).astype(np.float32) / 255,
+                      pygame.surfarray.pixels_alpha(marks).T.astype(np.float32) / 255])
 
 
 def paint(painter: FloorPainter, game_map: TMXMap, ground: dict) -> Tuple[int, int]:
@@ -148,15 +226,28 @@ def paint(painter: FloorPainter, game_map: TMXMap, ground: dict) -> Tuple[int, i
     wall = np.zeros((h, w), np.float32)
     for a, b in ground["walls"]:
         wall = np.maximum(wall, _smoothstep(14, 2, _segment_distance(xs, ys, [a, b]) + (rough - 0.5) * 10))
+    # Where animals are kept: earth scratched bare in patches, the grass between trampled paler
+    bare = np.zeros((h, w), np.float32)
+    if ground.get("bare") or ground.get("scratched"):
+        for cx, cy, rx, ry, strength in ground.get("bare", []):
+            d = np.hypot((xs - cx) / rx, (ys - cy) / ry) + (rough - 0.5) * 0.8
+            bare = np.maximum(bare, _smoothstep(1.0, 0.25, d) * strength)
+        spots = _noise(rng, (w, h), [ts * 1.4, ts * 0.5, 4.0])
+        bare = np.maximum(bare, _smoothstep(0.68, 0.84, spots) * ground.get("scratched", 0))
+        bare *= inside * (1 - wall * 0.8)
+        dry = dry + ground.get("trampled", 0) * (1 - bare)
     grass_alpha = (1 - worn) * inside
 
     canvas = np.zeros((h, w, 4), np.float32)
     for colour, alpha in ((DRY, dry * grass_alpha),
                           (LUSH, lush * grass_alpha),
                           (WALL_MOSS, wall * 0.45 * inside),
+                          (SCRATCHED, bare * np.where(blades, 0.55, 0.85) * (1 - worn)),
                           (DIRT, path_alpha * 0.82),
                           (DUST, path_alpha * dust * 0.45)):
         canvas = _over(canvas, _layer(colour, alpha))
+    if ground.get("scratches") or ground.get("droppings") or ground.get("feathers"):
+        canvas = _over(canvas, _marks(prng, ground, bare, worn, inside))
 
     # Tufts, clover, moss and flowers, off the paths and the stones
     deco = pygame.Surface((w, h), pygame.SRCALPHA)
