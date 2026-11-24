@@ -7,8 +7,10 @@ from the player when they come too close. It only faces left and right. Its
 frames are painted by code from its look (chicken_look.py), 16 pixels, drawn
 SIZE_PX big at base zoom and scaled without smoothing, so it stays pixel art.
 
-It does not block anyone and is not saved: only the flock's looks are
-(models/chickens.py).
+It is one Hen of the flock (models/chickens.py), which says how old it is:
+grow() sizes it (a chick half as big, a grown one by its own size) and pales
+it (a chick's down, its colour coming as it grows up). It does not block
+anyone and is not saved: only the flock is.
 """
 
 import math
@@ -17,10 +19,12 @@ from typing import Dict, List, Optional, Tuple
 
 import pygame
 
+from ....sim.calendar import format_date
 from .animal import Animal
 from .chicken_look import FRAME, FRAME_H, FRAME_W, frames, mirrored
 
-SIZE_PX = 24                 # how big it is drawn at tile_size 32: its 16-px grid half as big again
+SIZE_PX = 24                 # how big a chicken of size 1 is drawn at tile_size 32: its 16-px grid half as big again
+YOUTH_STEPS = 8              # a chick pales by so many steps, each its own frames
 CHICKEN_SPEED = 22.0         # px per second at tile_size 32, trotting about
 FLEE_SPEED = 58.0            # px per second, scurrying away from the player
 FLEE_TILES = 1.3             # the player this near makes it run
@@ -38,14 +42,15 @@ PECK_STEP_PX = 3.0           # at tile_size 32
 CLUCK_SECONDS = (25.0, 70.0)  # between one chicken's clucks
 ALARM_GAP_S = 6.0            # at least this long between one chicken's alarms
 
-_frame_cache: Dict[Tuple[str, str, str], Dict[str, Dict[str, list]]] = {}
+_frame_cache: Dict[Tuple[str, str, str, float], Dict[str, Dict[str, list]]] = {}
 
 
-def chicken_frames(look) -> Dict[str, Dict[str, list]]:
-    """{"left"/"right": {"stand": [s], "walk": [4], "peck": [down, up, step]}} for a look, made once."""
-    key = (look.head, look.tail, look.colour)
+def chicken_frames(look, youth: float = 0.0) -> Dict[str, Dict[str, list]]:
+    """{"left"/"right": {"stand": [s], "walk": [4], "peck": [down, up, step]}} for a look at a youth
+    (one of the YOUTH_STEPS), made once."""
+    key = (look.head, look.tail, look.colour, youth)
     if key not in _frame_cache:
-        left = frames(look.head, look.tail, look.colour)
+        left = frames(look.head, look.tail, look.colour, youth)
         left = {"stand": [left["stand"]], "walk": left["walk"], "peck": left["peck"]}
         right = {pose: [mirrored(f) for f in fs] for pose, fs in left.items()}
         _frame_cache[key] = {"left": left, "right": right}
@@ -55,23 +60,23 @@ def chicken_frames(look) -> Dict[str, Dict[str, list]]:
 class Chicken(Animal):
     """A chicken of the pen."""
 
-    def __init__(self, zone: pygame.Rect, tile_size: int, look, rng: Optional[random.Random] = None) -> None:
+    def __init__(self, zone: pygame.Rect, tile_size: int, hen, now=None,
+                 rng: Optional[random.Random] = None) -> None:
         """Args:
             zone: Where its feet may go, world pixels (the pen's inside).
             tile_size: Base tile size.
-            look: Its ChickenLook (head, tail, colour).
+            hen: Which chicken of the flock it is (models/chickens.py Hen).
+            now: The game's date, for its age; grown up and of size 1 without one.
             rng: Its random choices; the module's by default.
         """
         super().__init__(zone.x, zone.y, tile_size)
         self.rng = rng or random.Random()
         self.zone = pygame.Rect(zone)
-        self.look = look
-        scale = SIZE_PX / FRAME * tile_size / 32
-        self.sprite_width, self.sprite_height = round(FRAME_W * scale), round(FRAME_H * scale)
+        self.hen = hen
+        self.look = hen.look
+        self._grown: Optional[Tuple[float, int]] = None
         self._sized: Dict[int, pygame.Surface] = {}
-        self.collision_width = self.sprite_width // 2
-        self.collision_height = max(2, self.sprite_height // 4)
-        self.poses = chicken_frames(look)
+        self.grow(now)
         self.direction = self.rng.choice(("left", "right"))
         self.state = "idle"
         self.timer = self.rng.uniform(*IDLE_SECONDS)
@@ -86,6 +91,27 @@ class Chicken(Animal):
         self.place_feet(self.rng.uniform(self.zone.left, self.zone.right),
                         self.rng.uniform(self.zone.top, self.zone.bottom))
         self._set_frame()
+
+    def grow(self, now=None) -> None:
+        """Size and colour it for its age at `now`: new frames only when it has changed to be seen
+        (its paleness by YOUTH_STEPS, its size by whole pixels); its feet stay where they are."""
+        youth = round(self.hen.youth(now) * YOUTH_STEPS) / YOUTH_STEPS if now is not None else 0.0
+        size = self.hen.size(now) if now is not None else self.hen.adult_size
+        height = max(4, round(FRAME_H * SIZE_PX / FRAME * size * self.tile_size / 32))
+        if self._grown == (youth, height):
+            return
+        feet = self.feet if self._grown is not None else None
+        self._grown = (youth, height)
+        self.sprite_height = height
+        self.sprite_width = max(4, round(height * FRAME_W / FRAME_H))
+        self.collision_width = self.sprite_width // 2
+        self.collision_height = max(2, self.sprite_height // 4)
+        self.poses = chicken_frames(self.look, youth)
+        self._sized.clear()
+        self.scaled_sprite_cache.clear()
+        if feet is not None:
+            self.x, self.y = feet[0] - self.sprite_width / 2.0, feet[1] - self.sprite_height
+            self._set_frame()
 
     # ------------------------------------------------------------------
     # Where it is
@@ -240,9 +266,12 @@ class Chicken(Animal):
 
     def inspect_lines(self, observer=None) -> List[str]:
         state = "running off" if self.fleeing else {"walk": "walking", "peck": "pecking"}.get(self.state, "standing")
+        hen = self.hen
         return super().inspect_lines(observer) + [
             "**Behaviour**",
             f"Look: {self.look.head} head, {self.look.tail} tail, {self.look.colour}",
+            f"Hatched: {format_date(hen.hatched)}, lives {hen.lifespan_days:.0f} days",
+            f"Grows to size {hen.adult_size:.2f}; now {self.sprite_height} px tall, youth {self._grown[0]:.2f}",
             f"State: {state}",
             f"Zone: {self.zone.x},{self.zone.y} {self.zone.width}x{self.zone.height}",
         ]

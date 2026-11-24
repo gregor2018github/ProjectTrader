@@ -209,8 +209,8 @@ class Game:
         self.lost_sheep: LostSheep = LostSheep()
         self.lost_sheep_map: LostSheepOnMap = LostSheepOnMap(self.lost_sheep, self.game_map.tmx_map)
         # The pen's chickens: a new game's flock drawn from its seed (models/chickens.py), a save's loaded
-        self.flock: Flock = Flock.new(self.sim.seed)
-        self.game_map.tmx_map.dress_chickens(self.flock.looks)
+        self.flock: Flock = Flock.new(self.sim.seed, self.state.date)
+        self.game_map.tmx_map.dress_chickens(self.flock.hens, self.state.date)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -327,8 +327,9 @@ class Game:
         self.intro.load(save_data.get("intro"))
         self.lost_sheep.load(save_data.get("lost_sheep"))
         # A save from before the chickens gets its flock drawn from its seed, as a new game would
-        self.flock.load(save_data.get("chickens"), seed=self.sim.seed)
-        self.game_map.tmx_map.dress_chickens(self.flock.looks)
+        self.flock.load(save_data.get("chickens"), seed=self.sim.seed, now=self.state.date)
+        self.flock.update(self.state.date)
+        self.game_map.tmx_map.dress_chickens(self.flock.hens, self.state.date)
         self.lost_sheep_map.sync(self.game_map.map_player.feet)
         self.tiredness.restart(self.state.date)
         self.address_note.reset()
@@ -731,6 +732,9 @@ class Game:
                     self.game_map.tmx_map.street_life.raining = max(self.weather.rain, self.weather.snow) >= STROLL_RAIN_FROM
                     self._advance_harvest()
                     self.game_map.puddles.update(self.weather.puddle_level)
+                    # The pen's chickens age: one whose days are over is replaced by a chick (models/chickens.py)
+                    self.flock.update(self.state.date)
+                    self.game_map.tmx_map.sync_chickens(self.flock.hens, self.state.date)
 
                     # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
                     # happiness every hour, migration and the well shock every day (src/sim/)

@@ -9,7 +9,8 @@ a head, tail or colour there.
     python build_tools/Sprite_Manager/chicken_painter.py --preview out.png
 
 draws every head on the body (`--parts tails` the tails, `--parts colours` the
-colour variants, `--parts frames` the default chicken's walk and pecking).
+colour variants, `--parts frames` the default chicken's walk and pecking, `--parts ages`
+the default chicken growing up, from a pale chick).
 """
 
 import argparse
@@ -30,7 +31,9 @@ def preview(path, what="heads", scale=14, per_row=6):
     """Every head (on the chosen tail), every tail (under the chosen head) or
     every colour, enlarged and labelled."""
     pygame.init()
-    if what == "frames":
+    if what == "ages":
+        shown = [(f"youth {youth:.2f}", standing(youth=youth)) for youth in (1.0, 0.75, 0.5, 0.25, 0.0)]
+    elif what == "frames":
         poses = frames()
         shown = [("stand", poses["stand"])] + [(f"walk {i + 1}", f) for i, f in enumerate(poses["walk"])]
         shown += [(f"peck {n}", f) for n, f in zip(("down", "up", "step"), poses["peck"])]
@@ -56,7 +59,7 @@ def preview(path, what="heads", scale=14, per_row=6):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--preview", help="write the parts compared, enlarged, to this PNG")
-    parser.add_argument("--parts", choices=("heads", "tails", "colours", "frames"), default="heads",
+    parser.add_argument("--parts", choices=("heads", "tails", "colours", "frames", "ages"), default="heads",
                         help="which parts --preview compares")
     args = parser.parse_args()
     if args.preview:

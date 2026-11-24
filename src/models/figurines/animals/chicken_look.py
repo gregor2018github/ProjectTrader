@@ -350,9 +350,26 @@ def palette_of(colour):
     return {**PALETTE, **{k: v for k, v in variant.items() if k in PALETTE}}
 
 
-def compose(parts, colour=COLOUR):
+# A chick's down, and how far the young are drawn towards it by their youth (1 a chick, 0 grown up)
+CHICK_DOWN = (252, 246, 224)
+CHICK_COMB = (238, 178, 150)
+CHICK_OUTLINE = (150, 128, 100)
+YOUTH_PULL = {**{c: (CHICK_DOWN, 0.9) for c in FEATHERS}, "O": (CHICK_OUTLINE, 0.55),
+              "R": (CHICK_COMB, 0.7), "d": (CHICK_COMB, 0.6), "r": (CHICK_COMB, 0.6)}
+
+
+def _young(colour, letter, youth):
+    """A colour drawn towards the chick's by its youth."""
+    if not youth or letter not in YOUTH_PULL:
+        return colour
+    target, pull = YOUTH_PULL[letter]
+    k = youth * pull
+    return tuple(round(a + (b - a) * k) for a, b in zip(colour, target))
+
+
+def compose(parts, colour=COLOUR, youth=0.0):
     """Lays the parts in order onto a see-through frame, facing left, in one
-    of the COLOURS."""
+    of the COLOURS; a young one's (youth 1 a chick, 0 grown up) paler."""
     import pygame
     variant = COLOURS[colour]
     palette = palette_of(colour)
@@ -367,12 +384,12 @@ def compose(parts, colour=COLOUR):
                     if pattern:
                         hx, hy = part.home
                         colour_here = pattern(hx + dx, hy + dy, c, colour_here)
-                    surface.set_at((x, y), colour_here)
+                    surface.set_at((x, y), _young(colour_here, c, youth))
     return surface
 
 
-def standing(head=HEAD, tail=TAIL, colour=COLOUR):
-    return compose([BODY, TAILS[tail], LEGS["stand"], HEADS[head]], colour)
+def standing(head=HEAD, tail=TAIL, colour=COLOUR, youth=0.0):
+    return compose([BODY, TAILS[tail], LEGS["stand"], HEADS[head]], colour, youth)
 
 
 def mirrored(surface):
@@ -444,18 +461,18 @@ def tipped(surface, degrees, pivot=PIVOT):
     return out
 
 
-def frames(head=HEAD, tail=TAIL, colour=COLOUR):
+def frames(head=HEAD, tail=TAIL, colour=COLOUR, youth=0.0):
     """Every frame of a chicken, facing left: {"stand": surface, "walk": [4 surfaces],
     "peck": [head down, head up, a step forward with it up]}."""
     body, tail_part, head_part = BODY, TAILS[tail], HEADS[head]
-    walk = [compose([body.at(0, bob), tail_part.at(0, bob), LEGS[legs], head_part.at(dx, bob)], colour)
+    walk = [compose([body.at(0, bob), tail_part.at(0, bob), LEGS[legs], head_part.at(dx, bob)], colour, youth)
             for legs, dx, bob in WALK]
-    upright = compose([body, tail_part, head_part], colour)
+    upright = compose([body, tail_part, head_part], colour, youth)
     peck = []
     for legs, degrees in (("stand", PECK_DOWN), ("stand", PECK_UP), ("front", PECK_UP)):
-        frame = compose([LEGS[legs]], colour)
+        frame = compose([LEGS[legs]], colour, youth)
         frame.blit(tipped(upright, degrees), (0, 0))
         # The eye is one pixel, which the feathers round it outvote when tipped: put it back
-        frame.set_at(tipped_spot(eye_spot(head), degrees), palette_of(colour)["E"])
+        frame.set_at(tipped_spot(eye_spot(head), degrees), _young(palette_of(colour)["E"], "E", youth))
         peck.append(frame)
-    return {"stand": standing(head, tail, colour), "walk": walk, "peck": peck}
+    return {"stand": standing(head, tail, colour, youth), "walk": walk, "peck": peck}

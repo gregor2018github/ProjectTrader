@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 # Label of the alms option, used both to offer it and to recognise the choice
 GIVE_COIN_OPTION = "Give a Coin"
 PET_SHEEP_OPTION = "Pet Sheep"
+#: In a chicken's menu: its sheet, with its age, weight and look (chicken_window.py)
+OBSERVE_OPTION = "Observe"
 
 
 def iter_figurines(game_map: 'GameMap') -> Iterator['Figurine']:
@@ -136,6 +138,7 @@ def show_figurine_menu(
     Returns:
         True if a menu was opened.
     """
+    from ...models.figurines.animals.chicken import Chicken
     from ...models.figurines.animals.sheep import Sheep
     from ...models.figurines.humans.npcs.npc import NPC
 
@@ -163,6 +166,8 @@ def show_figurine_menu(
             options.append(GIVE_COIN_OPTION)
     if isinstance(figurine, Sheep):
         options.append(PET_SHEEP_OPTION)
+    if isinstance(figurine, Chicken):
+        options.append(OBSERVE_OPTION)
     # Inspect is a debugging aid, only offered with the debug overlay on
     if settings_store.get("show_map_debug"):
         options.append("Inspect")
@@ -203,6 +208,10 @@ def show_figurine_menu(
             return
         if introduction is not None and option_text == introduction.lend_option:
             lend_a_hand(game_state, figurine, map_content_rect)
+            return
+        if option_text == OBSERVE_OPTION and isinstance(figurine, Chicken):
+            from .chicken_window import open_chicken_window
+            open_chicken_window(game_state, figurine)
             return
         if option_text == PET_SHEEP_OPTION and isinstance(figurine, Sheep):
             _pet_sheep(game_state, figurine, map_content_rect)

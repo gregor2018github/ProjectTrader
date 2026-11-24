@@ -1245,12 +1245,27 @@ class TMXMap:
         for sheep in self.sheep:
             sheep.update(dt, player_rect)
 
-    def dress_chickens(self, looks) -> None:
-        """Put a chicken of each look (models/chickens.py) at a random spot of the pen; none without a pen."""
+    def dress_chickens(self, hens, now) -> None:
+        """Put a chicken for each hen of the flock (models/chickens.py) at a random spot of the pen,
+        grown as far as its age at `now`; none without a pen."""
         if self.chicken_zone is None:
             self.chickens = []
             return
-        self.chickens = [Chicken(self.chicken_zone, self.tile_size, look) for look in looks]
+        self.chickens = [Chicken(self.chicken_zone, self.tile_size, hen, now) for hen in hens]
+
+    def sync_chickens(self, hens, now) -> None:
+        """Keep the chickens with the flock: one whose hen was replaced gives way to the new chick (at a
+        random spot of the pen), the others grow to their age at `now`."""
+        if self.chicken_zone is None:
+            return
+        if len(self.chickens) != len(hens):
+            self.dress_chickens(hens, now)
+            return
+        for i, hen in enumerate(hens):
+            if self.chickens[i].hen is not hen:
+                self.chickens[i] = Chicken(self.chicken_zone, self.tile_size, hen, now)
+            else:
+                self.chickens[i].grow(now)
 
     def update_chickens(self, dt: float, player_feet=None) -> None:
         """Advance the chickens (once per frame when not paused); they run from the player's feet."""
