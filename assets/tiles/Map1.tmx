@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="88" nextobjectid="1677">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="88" nextobjectid="1685">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -13344,6 +13344,124 @@
     <property name="File_name" value="Deco_33.png"/>
     <property name="Scale" type="float" value="1.12"/>
     <property name="Tiles_to_right" type="int" value="5"/>
+    <property name="Tiles_up" type="int" value="4"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1677" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6032" y="6016">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="6"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_v6.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="8"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1678" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6032" y="6272">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="6"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_v6.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="8"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1679" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6048" y="6272">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="19"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_h18.png"/>
+    <property name="Tiles_to_right" type="int" value="19"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1680" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6608" y="6272">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-24"/>
+    <property name="Col_margin_right_pixel" type="int" value="8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="14"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_v14.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="16"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1681" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6048" y="5824">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="10"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_h9.png"/>
+    <property name="Tiles_to_right" type="int" value="10"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1682" name="Fence_Chicken_Pen" type="Fence_Frontal" x="6400" y="5824">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-8"/>
+    <property name="Col_margin_left_pixel" type="int" value="-6"/>
+    <property name="Col_margin_right_pixel" type="int" value="-7"/>
+    <property name="Col_margin_up_pixel" type="int" value="-8"/>
+    <property name="Collision_to_right" type="int" value="8"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="fences/chicken_fence/chicken_fence_h7.png"/>
+    <property name="Tiles_to_right" type="int" value="8"/>
+    <property name="Tiles_up" type="int" value="2"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1683" name="Gate_Chicken_Pen_North" type="Gate" x="6352" y="5840">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-24"/>
+    <property name="Col_margin_left_pixel" type="int" value="-9"/>
+    <property name="Col_margin_right_pixel" type="int" value="22"/>
+    <property name="Col_margin_up_pixel" type="int" value="8"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="File_name" value="gates/chicken_gate_closed.png"/>
+    <property name="Open_file_name" value="gates/chicken_gate_open_down.png"/>
+    <property name="Opens" value="down"/>
+    <property name="Sort_up_pixel" type="int" value="16"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="3"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1684" name="Gate_Chicken_Pen_West" type="Gate" x="6048" y="6080">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-16"/>
+    <property name="Col_margin_left_pixel" type="int" value="-8"/>
+    <property name="Col_margin_right_pixel" type="int" value="-8"/>
+    <property name="Col_margin_up_pixel" type="int" value="16"/>
+    <property name="Collision_to_right" type="int" value="1"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="File_name" value="gates/chicken_side_gate_closed.png"/>
+    <property name="Open_file_name" value="gates/chicken_side_gate_open.png"/>
+    <property name="Opens" value="up"/>
+    <property name="Sort_up_pixel" type="int" value="80"/>
+    <property name="Tiles_to_right" type="int" value="3"/>
     <property name="Tiles_up" type="int" value="4"/>
    </properties>
    <point/>

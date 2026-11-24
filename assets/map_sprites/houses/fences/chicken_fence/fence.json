@@ -1,0 +1,19 @@
+{
+ "title": "Chicken fence",
+ "material": "wood",
+ "description": "weak wooden fence for chicken pen: low thin posts and three thin rails, old greyed wood, sagging, painted by wood_fence_painter.py",
+ "posts_every": 2,
+ "height": 2,
+ "lengths": {
+  "h": [7, 9, 18],
+  "v": [6, 14]
+ },
+ "plan": [
+  ["v", 6, 0, 0],
+  ["v", 6, 0, 8],
+  ["h", 18, 0, 14],
+  ["v", 14, 18, 0],
+  ["h", 9, 0, 0],
+  ["h", 7, 11, 0]
+ ]
+}

@@ -10,11 +10,13 @@ A gap of GATE_TILES between two horizontal pieces of a row gets a Gate (src/mode
 when --gate names its pictures in houses/gates/ (<gate>_closed.png and
 <gate>_open_down.png / _open_up.png, as iron_gate_painter.py makes them):
 its leaves swing into the yard, down the picture in the top row, up it in the
-others. A gap in a vertical run is reported and left open: there is no gate
-seen from the side yet.
+others. A gap in a vertical run gets a one-leaf side gate when --side-gate names its
+pictures (<gate>_closed.png and <gate>_open.png, wood_fence_painter.py
+--side-gate), opening into the yard to the east; without it the gap is
+reported and left open.
 
 The objects are named Fence_<name> and Gate_<name>_North (the top row) or
-_South / _<n>. Running it again replaces the objects of that name, keeping
+_South / _<n>, a side gate Gate_<name>_West (it opens east, so it suits a west side only so far). Running it again replaces the objects of that name, keeping
 their ids and their place in the file, so re-laying an unchanged plan changes
 nothing. Close Tiled first. The map keeps its own line endings.
 
@@ -48,6 +50,15 @@ GATE_TILES = 2                     # a gate's picture spans two tiles, pillar ce
 GATE_PROPS = {'Tiles_to_right': 2, 'Tiles_up': 3, 'Collision_to_right': 1, 'Collision_up': 1,
               'Col_margin_left_pixel': -9, 'Col_margin_right_pixel': 22,
               'Col_margin_up_pixel': 8, 'Col_margin_down_pixel': -24, 'Sort_up_pixel': 16}
+# A side gate (wood_fence_painter.paint_side_gate, 3 x 4 tiles): its point SIDE_GATE_LEFT left of the run
+# and SIDE_GATE_BELOW below the north post's foot; its gateway the run's band between the two posts; drawn
+# in order at that post's foot, so whoever walks through the gap is drawn over the open leaf. It opens
+# into the yard, east; "up" only keeps the gate from being sorted lower when open.
+SIDE_GATE_LEFT, SIDE_GATE_BELOW = 16, 80
+SIDE_GATE_PROPS = {'Tiles_to_right': 3, 'Tiles_up': 4, 'Collision_to_right': 1, 'Collision_up': 2,
+                   'Col_margin_left_pixel': -8, 'Col_margin_right_pixel': -8,
+                   'Col_margin_up_pixel': 16, 'Col_margin_down_pixel': -16,
+                   'Sort_up_pixel': SIDE_GATE_BELOW, 'Opens': 'up'}
 
 
 def gate_gaps(plan):
@@ -70,7 +81,7 @@ def gate_gaps(plan):
     return gaps, side
 
 
-def objects(style, x0, y0, name, gate):
+def objects(style, x0, y0, name, gate, side_gate=None):
     """[(name, Tiled type, x, y, properties)] for the plan laid with its top-left post's foot at x0, y0."""
     out = []
     for o, n, px, py in style.plan:
@@ -83,8 +94,17 @@ def objects(style, x0, y0, name, gate):
         props['File_name'] = piece.file_name
         out.append((f'Fence_{name}', 'Fence_Frontal', x, y, props))
     gaps, side = gate_gaps(style.plan)
-    for x, y in side:
-        print(f'A gap of {GATE_TILES} in the vertical run at {x}, {y} left open: no side gate yet')
+    left = min((x for o, _, x, _ in style.plan if o != HORIZONTAL), default=0)
+    sides = []                                       # laid last, so the gates before keep their ids
+    for i, (x, y) in enumerate(side):
+        if not side_gate:
+            print(f'A gap of {GATE_TILES} in the vertical run at {x}, {y} left open: give --side-gate')
+            continue
+        label = 'West' if x == left else ('East' if len(side) == 2 else f'Side_{i + 1}')
+        props = dict(SIDE_GATE_PROPS, File_name=f'gates/{side_gate}_closed.png',
+                     Open_file_name=f'gates/{side_gate}_open.png')
+        sides.append((f'Gate_{name}_{label}', 'Gate', x0 + x * TILE - SIDE_GATE_LEFT,
+                    y0 + y * TILE + SIDE_GATE_BELOW, props))
     if gate:
         top = min((y for y, _ in gaps), default=0)
         rows = sorted({y for y, _ in gaps})
@@ -95,7 +115,7 @@ def objects(style, x0, y0, name, gate):
                          Open_file_name=f"gates/{gate}_open_{'down' if north else 'up'}.png",
                          Opens='down' if north else 'up')
             out.append((f'Gate_{name}_{label}', 'Gate', x0 + x * TILE, y0 + y * TILE + TILE, props))
-    return out
+    return out + sides
 
 
 def lay(text, placed, name):
@@ -133,6 +153,8 @@ def main(argv=None):
     parser.add_argument('y', type=float, help='its world y')
     parser.add_argument('--name', required=True, help='the objects are named Fence_<name> and Gate_<name>_...')
     parser.add_argument('--gate', help='the gate pictures in houses/gates/, e.g. churchyard_gate')
+    parser.add_argument('--side-gate', help='the pictures of a gate for a gap in a vertical run, '
+                        'e.g. chicken_side_gate (<name>_closed.png, <name>_open.png)')
     parser.add_argument('--dry-run', action='store_true', help='print the objects, write nothing')
     args = parser.parse_args(argv)
     pygame.init()
@@ -147,7 +169,11 @@ def main(argv=None):
         for suffix in ('closed', 'open_down', 'open_up'):
             if not (GATES_DIR / f'{args.gate}_{suffix}.png').is_file():
                 sys.exit(f'No gate picture gates/{args.gate}_{suffix}.png')
-    placed = objects(style, round(args.x), round(args.y), args.name, args.gate)
+    if args.side_gate:
+        for suffix in ('closed', 'open'):
+            if not (GATES_DIR / f'{args.side_gate}_{suffix}.png').is_file():
+                sys.exit(f'No gate picture gates/{args.side_gate}_{suffix}.png')
+    placed = objects(style, round(args.x), round(args.y), args.name, args.gate, args.side_gate)
     text, _ = pb.load_tmx()
     new = lay(text, placed, args.name)
     if args.dry_run:
