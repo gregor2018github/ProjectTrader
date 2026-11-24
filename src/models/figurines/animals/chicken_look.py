@@ -398,6 +398,113 @@ def mirrored(surface):
     return pygame.transform.flip(surface, True, False)
 
 
+# ---------------------------------------------------------------------------
+# Seen from the front and from behind, walking down or up the picture
+# ---------------------------------------------------------------------------
+# Drawn on the same grid, standing on the same feet (the side view's legs are at columns 6 and 9).
+# Seen from the front only the comb tells the heads apart (its height and shape); from behind the
+# tail rises over the body, one for each tail, and hides the back of the head.
+
+FRONT_COMBS = {"A": ["..RR..", ".RRRR."], "B": ["R.R.R.", "RRRRR."], "D": ["..RR..", ".RRRR."],
+               "E": [".RRR..", "RRRRR."], "F": [".R..R.", ".RRRR."]}
+FRONT_FACE = [
+    ".....OddddO.....",
+    "....OHHHHHHO....",
+    "....OHEHHEHO....",
+    "....OHHYYHHO....",
+    ".....OryyrO.....",
+    "......OrrO......",
+]
+FRONT_BODY = Part([
+    "....OWWWWWWO....",
+    "...OwWWHHWWwO...",
+    "..OwwWWHHWWwwO..",
+    "..OswWWWWWWwsO..",
+    "..OsswWWWWwssO..",
+    "...OssWWWWssO...",
+    "....OOssssOO....",
+], y=7)
+BACK_HEAD = [
+    ".....OddddO.....",
+    "....OWWWWWWO....",
+    "....OWWWWWWO....",
+    "....OsWWWWsO....",
+    ".....OsWWsO.....",
+]
+BACK_BODY = Part([
+    "....OWWWWWWO....",
+    "...OWwwWWwwWO...",
+    "..OWwwwWWwwwWO..",
+    "..OWwwwsswwwWO..",
+    "..OsWwwsswwWsO..",
+    "...OsWWWWWWsO...",
+    "....OOssssOO....",
+], y=7)
+def _centred(*rows):
+    """Rows of a part seen from the front or behind, each centred on the feet (the grid's middle)."""
+    return [row.center(FRAME, ".") if len(row) % 2 == 0 else (row + ".").center(FRAME, ".") for row in rows]
+
+
+# From behind, each tail rises from the rump over the body, nearer than the head, in the wing's
+# darker feathers and outlined all round, so it stands out from the body; a low swept tail, pointing
+# back at the viewer, is only a tuft on the rump
+BACK_TAILS = {
+    "short": Part(_centred("OOOOOO", "OWwwWO", "OwssWO", "OwsswO", "OOOO"), y=4),
+    "tall": Part(_centred("OO", "OWwO", "OwsO", "OwsO", "OWwswO", "OwsswO", "OwsswO", "OOOO"), y=1),
+    "fan": Part(_centred("OOOOOOOO", "OHwwwwHO", "OwwsswwO", "OwssssO", "OwsswO", "OOOO"), y=2),
+    "plume": Part(_centred("OOOOOOOO", "OHWwwwWHO", "OHwwsswwHO", "OwwssssswO", "OwwsssswO", "OwssswO",
+                           "OwsswO", "OOOO"), y=0),
+    "sickle": Part([
+        ".......OOO......",
+        "......OwwsO.....",
+        ".....OwO.OsO....",
+        ".....OwO..OO....",
+        "....OWwsO.......",
+        "....OwwssO......",
+        "....OwsssO......",
+        ".....OOOOO......",
+    ], y=1),
+    "swept": Part(_centred("OOOOOOOO", "OwwsswwO", "OwssswO", "OOOO"), y=8),
+}
+FRONT_LEGS = {
+    "stand": Part(["......F..F......", ".....FF..FF....."], y=14),
+    "long": Part(["......F..F......", "......F..F......", ".....FF..FF....."], y=13),
+    "left_up": Part([".....FF..F......", ".........FF....."], y=14),
+    "right_up": Part(["......F..FF.....", ".....FF........."], y=14),
+}
+# The walk seen from the front or behind: legs, and the bob (body up a pixel)
+WALK_UPRIGHT = (("long", -1), ("left_up", 0), ("long", -1), ("right_up", 0))
+
+
+def front_head(head):
+    """The head seen from the front: its comb over the face."""
+    comb = ["....." + row + "....." for row in FRONT_COMBS[head]]
+    return Part(comb + FRONT_FACE, y=1 if len(comb) == 2 else 0)
+
+
+def back_head():
+    return Part([".......RR.......", "......RRRR......"] + BACK_HEAD, y=0)
+
+
+def upright_frames(view, head=HEAD, tail=TAIL, colour=COLOUR, youth=0.0):
+    """A chicken seen from the front ("front") or from behind ("back"): {"stand": surface, "walk": [4],
+    "peck": [head down, head up, a step on]}."""
+    if view == "front":
+        body, top = FRONT_BODY, front_head(head)
+        def pose(legs, bob=0, peck=0):
+            # Pecking towards the viewer: the head bowed down over the breast
+            return compose([body.at(0, bob), FRONT_LEGS[legs], top.at(0, bob + peck)], colour, youth)
+    else:
+        body, top, rump = BACK_BODY, back_head(), BACK_TAILS[tail]
+        def pose(legs, bob=0, peck=0):
+            # Pecking away from the viewer: the head goes down behind the body, the tail tips up
+            return compose([top.at(0, bob + peck), body.at(0, bob), FRONT_LEGS[legs],
+                            rump.at(0, bob - (1 if peck else 0))], colour, youth)
+    walk = [pose(legs, bob) for legs, bob in WALK_UPRIGHT]
+    peck = [pose("stand", 0, 4), pose("stand", 0, 2), pose("left_up", 0, 2)]
+    return {"stand": pose("stand"), "walk": walk, "peck": peck}
+
+
 # Legs straightened, the body a pixel up: the walk's passing frames
 LEGS["long"] = Part([
     "......F..F......",

@@ -21,7 +21,7 @@ import pygame
 
 from ....sim.calendar import format_date
 from .animal import Animal
-from .chicken_look import FRAME, FRAME_H, FRAME_W, frames, mirrored
+from .chicken_look import FRAME, FRAME_H, FRAME_W, frames, mirrored, upright_frames
 
 SIZE_PX = 24                 # how big a chicken of size 1 is drawn at tile_size 32: its 16-px grid half as big again
 YOUTH_STEPS = 8              # a chick pales by so many steps, each its own frames
@@ -41,19 +41,27 @@ PECK_SEQUENCE = ((0, 0.16), (1, 0.20), (0, 0.16), (1, 0.32), (2, 0.20))
 PECK_STEP_PX = 3.0           # at tile_size 32
 CLUCK_SECONDS = (25.0, 70.0)  # between one chicken's clucks
 ALARM_GAP_S = 6.0            # at least this long between one chicken's alarms
+UPRIGHT_SHARE = 1.3          # it faces the front or back when its way runs this much more up or down than across
+#: Which way it steps on facing each way (x, y)
+AHEAD = {"left": (-1, 0), "right": (1, 0), "front": (0, 1), "back": (0, -1)}
+TURNED = {"left": "right", "right": "left", "front": "back", "back": "front"}
 
 _frame_cache: Dict[Tuple[str, str, str, float], Dict[str, Dict[str, list]]] = {}
 
 
 def chicken_frames(look, youth: float = 0.0) -> Dict[str, Dict[str, list]]:
-    """{"left"/"right": {"stand": [s], "walk": [4], "peck": [down, up, step]}} for a look at a youth
-    (one of the YOUTH_STEPS), made once."""
+    """{"left"/"right"/"front"/"back": {"stand": [s], "walk": [4], "peck": [down, up, step]}} for a look
+    at a youth (one of the YOUTH_STEPS), made once."""
     key = (look.head, look.tail, look.colour, youth)
     if key not in _frame_cache:
         left = frames(look.head, look.tail, look.colour, youth)
         left = {"stand": [left["stand"]], "walk": left["walk"], "peck": left["peck"]}
         right = {pose: [mirrored(f) for f in fs] for pose, fs in left.items()}
-        _frame_cache[key] = {"left": left, "right": right}
+        views = {"left": left, "right": right}
+        for view in ("front", "back"):
+            upright = upright_frames(view, look.head, look.tail, look.colour, youth)
+            views[view] = {"stand": [upright["stand"]], "walk": upright["walk"], "peck": upright["peck"]}
+        _frame_cache[key] = views
     return _frame_cache[key]
 
 
@@ -77,7 +85,7 @@ class Chicken(Animal):
         self._grown: Optional[Tuple[float, int]] = None
         self._sized: Dict[int, pygame.Surface] = {}
         self.grow(now)
-        self.direction = self.rng.choice(("left", "right"))
+        self.direction = self.rng.choice(("left", "right", "front", "back"))
         self.state = "idle"
         self.timer = self.rng.uniform(*IDLE_SECONDS)
         self.target: Optional[Tuple[float, float]] = None
@@ -209,14 +217,20 @@ class Chicken(Animal):
         fx, fy = self.feet
         tx, ty = self.target
         gap = math.hypot(tx - fx, ty - fy)
-        if abs(tx - fx) > 0.5:
-            self.direction = "right" if tx > fx else "left"
+        self._face(tx - fx, ty - fy)
         if gap <= speed * dt or gap < 0.5:
             self.place_feet(tx, ty)
             self.target = None
             self._start("idle" if self.fleeing else self.rng.choice(("idle", "peck")))
             return
         self.place_feet(fx + (tx - fx) * speed * dt / gap, fy + (ty - fy) * speed * dt / gap)
+
+    def _face(self, dx: float, dy: float) -> None:
+        """Face the way it goes: the front or back when that is mostly down or up the picture."""
+        if abs(dy) > UPRIGHT_SHARE * abs(dx) and abs(dy) > 0.5:
+            self.direction = "front" if dy > 0 else "back"
+        elif abs(dx) > 0.5:
+            self.direction = "right" if dx > 0 else "left"
 
     def _animate(self, dt: float) -> None:
         self.frame_timer += dt
@@ -236,12 +250,13 @@ class Chicken(Animal):
 
     def _step_on(self, px: float) -> None:
         """A little way on the way it faces while feeding; at its pen's edge it turns about."""
-        ahead = -px if self.direction == "left" else px
+        ax, ay = AHEAD[self.direction]
         fx, fy = self.feet
-        if not self.zone.left <= fx + ahead <= self.zone.right:
-            self.direction = "right" if self.direction == "left" else "left"
+        x, y = fx + ax * px, fy + ay * px
+        if not (self.zone.left <= x <= self.zone.right and self.zone.top <= y <= self.zone.bottom):
+            self.direction = TURNED[self.direction]
             return
-        self.place_feet(fx + ahead, fy)
+        self.place_feet(x, y)
 
     def _set_frame(self) -> None:
         pose = {"walk": "walk", "peck": "peck"}.get(self.state, "stand")

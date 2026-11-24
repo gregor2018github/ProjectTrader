@@ -241,3 +241,34 @@ def test_its_stage_of_life():
     hen = Hen(ChickenLook("F", "fan", "buff"), NOW, 100.0, 1.0)
     at = lambda days: hen.stage(NOW + datetime.timedelta(days=days))
     assert [at(1), at(ADULT_DAYS - 1), at(40), at(90)] == ["Chick", "Young hen", "Hen", "Old hen"]
+
+
+def test_walking_mostly_up_or_down_it_faces_the_back_or_the_front_and_feeds_its_way_on_so():
+    chicken = _chicken()
+    chicken.place_feet(PEN.centerx, PEN.centery)
+    chicken._start("walk")
+    chicken.target = (PEN.centerx + TILE, PEN.centery + 3 * TILE)       # mostly down the picture
+    chicken.update(1 / 60)
+    assert chicken.direction == "front"
+    chicken.target = (PEN.centerx - TILE, PEN.centery - 3 * TILE)       # mostly up it
+    chicken.update(1 / 60)
+    assert chicken.direction == "back"
+    assert chicken.sprite is chicken._sized[id(chicken.poses["back"]["walk"][chicken.frame_index])]
+    chicken.place_feet(PEN.centerx, PEN.centery)
+    chicken._start("peck")
+    chicken.timer = 100.0
+    y0 = chicken.feet[1]
+    for _ in range(300):
+        chicken.update(1 / 60)
+    assert chicken.feet[1] < y0 - 8 and chicken.feet[0] == pytest.approx(PEN.centerx)   # on up the picture
+
+
+def test_seen_from_the_front_and_behind_every_frame_is_the_frame_size_and_every_tail_its_own():
+    backs = set()
+    for tail in TAILS:
+        for view in ("front", "back"):
+            poses = chicken_look.upright_frames(view, "F", tail, "buff")
+            for frame in [poses["stand"], *poses["walk"], *poses["peck"]]:
+                assert frame.get_size() == (FRAME_W, FRAME_H)
+        backs.add(pygame.image.tobytes(chicken_look.upright_frames("back", "F", tail, "buff")["stand"], "RGBA"))
+    assert len(backs) == len(TAILS)

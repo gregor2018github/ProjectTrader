@@ -9,7 +9,7 @@ a head, tail or colour there.
     python build_tools/Sprite_Manager/chicken_painter.py --preview out.png
 
 draws every head on the body (`--parts tails` the tails, `--parts colours` the
-colour variants, `--parts frames` the default chicken's walk and pecking, `--parts ages`
+colour variants, `--parts frames` the default chicken's walk and pecking from the side, the front and behind, `--parts ages`
 the default chicken growing up, from a pale chick).
 """
 
@@ -24,7 +24,7 @@ import pygame  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from src.models.figurines.animals.chicken_look import (  # noqa: E402,F401
     COLOUR, COLOUR_ODDS, COLOURS, FRAME_H, FRAME_W, HEAD, HEADS, PALETTE, TAIL, TAILS, Part, compose, frames,
-    mirrored, random_chicken, standing)
+    mirrored, random_chicken, standing, upright_frames)
 
 
 def preview(path, what="heads", scale=14, per_row=6):
@@ -37,6 +37,11 @@ def preview(path, what="heads", scale=14, per_row=6):
         poses = frames()
         shown = [("stand", poses["stand"])] + [(f"walk {i + 1}", f) for i, f in enumerate(poses["walk"])]
         shown += [(f"peck {n}", f) for n, f in zip(("down", "up", "step"), poses["peck"])]
+        for view in ("front", "back"):
+            upright = upright_frames(view)
+            shown += [(f"{view}", upright["stand"])] + [(f"{view} walk {i + 1}", f)
+                                                         for i, f in enumerate(upright["walk"])]
+            shown += [(f"{view} peck", upright["peck"][0])]
     else:
         shown = [(name, standing(**{what[:-1]: name}))
                  for name in {"heads": HEADS, "tails": TAILS, "colours": COLOURS}[what]]
