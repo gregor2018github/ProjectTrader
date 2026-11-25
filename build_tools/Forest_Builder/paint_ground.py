@@ -50,7 +50,8 @@ DECO_LAYER = "Ground_Flowers_Mushrooms"
 #: follows it straight on, and its new tiles would take the river banks' gids
 TILESET = "painted_ground"
 
-#: Where ground has been painted, and how. Painted so far: the churchyard (seed 3), the chicken pen (seed 5).
+#: Where ground has been painted, and how. Painted so far: the churchyard (seed 3), the chicken pen (seed 5),
+#: the way from the pen's side gate to the big barn (seed 7).
 GROUNDS = [
     dict(
         name="churchyard",
@@ -100,6 +101,22 @@ GROUNDS = [
         droppings=70,
         feathers=18,
         seed=5,
+    ),
+    dict(
+        name="barn_way",
+        box=(178, 176, 189, 192),                   # tiles: from the pen's side gate to the big barn's doors
+        inside=(0, 0, 0, 0),                        # only a path: the grass round about is left as it is
+        # On from where the pen's way out of its side gate stops, bending north-west up to the barn's doors
+        paths=[
+            ([(5990, 6032), (5940, 6026), (5898, 6000), (5868, 5950), (5856, 5880), (5852, 5810),
+              (5838, 5752), (5812, 5726)], 21, 0.95),
+            # Worn in front of the doors, between the lavender and the hay
+            ([(5752, 5724), (5800, 5726), (5846, 5728)], 11, 0.7),
+        ],
+        joins="chicken_pen",                        # its dirt is already there: add only what it lacks
+        walls=[],
+        deco=[],
+        seed=7,
     ),
 ]
 
@@ -183,23 +200,11 @@ def _marks(prng: random.Random, ground: dict, bare: np.ndarray, worn: np.ndarray
                       pygame.surfarray.pixels_alpha(marks).T.astype(np.float32) / 255])
 
 
-def paint(painter: FloorPainter, game_map: TMXMap, ground: dict) -> Tuple[int, int]:
-    """Paint one entry of GROUNDS; returns the floor tiles and deco tiles it covers."""
-    ts = painter.ts
-    rng = np.random.default_rng(ground["seed"])
-    prng = random.Random(ground["seed"])
-    x0, y0, x1, y1 = ground["box"]
-    w, h = (x1 - x0) * ts, (y1 - y0) * ts
-    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
-    xs += x0 * ts
-    ys += y0 * ts
+def _paths(rng, ground: dict, xs: np.ndarray, ys: np.ndarray, ts: int):
+    """The paths: worn to dirt in the middle, ragged at the sides, the grass breaking through here and there.
 
-    # The yard itself, its edge faded over a few pixels
-    ix0, iy0, ix1, iy1 = ground["inside"]
-    edge = np.minimum.reduce([xs - ix0, ix1 - xs, ys - iy0, iy1 - ys])
-    inside = _smoothstep(0, 14, edge)
-
-    # The paths: worn to dirt in the middle, ragged at the sides, the grass breaking through here and there
+    Draws the first three noises of an entry from its rng, in the order paint() always has."""
+    h, w = xs.shape
     rough = _noise(rng, (w, h), [ts * 0.9, ts * 0.35])
     fine = _noise(rng, (w, h), [5.0, 2.5])
     worn = np.zeros((h, w), np.float32)
@@ -210,6 +215,50 @@ def paint(painter: FloorPainter, game_map: TMXMap, ground: dict) -> Tuple[int, i
     blades = fine > 0.66                     # grass standing up in the path
     path_alpha = worn * np.where(blades, 0.35, 1.0)
     dust = _smoothstep(0.45, 0.75, _noise(rng, (w, h), [ts * 3, ts * 1.2]))
+    return rough, blades, worn, path_alpha, dust
+
+
+def _grid(ground: dict, ts: int):
+    x0, y0, x1, y1 = ground["box"]
+    ys, xs = np.mgrid[0:(y1 - y0) * ts, 0:(x1 - x0) * ts].astype(np.float32)
+    return xs + x0 * ts, ys + y0 * ts
+
+
+def _dirt_alpha(ground: dict, ts: int) -> np.ndarray:
+    """How strongly an entry's paths laid their dirt, over its box, exactly as paint() laid it."""
+    xs, ys = _grid(ground, ts)
+    return _paths(np.random.default_rng(ground["seed"]), ground, xs, ys, ts)[3] * 0.82
+
+
+def paint(painter: FloorPainter, game_map: TMXMap, ground: dict) -> Tuple[int, int]:
+    """Paint one entry of GROUNDS; returns the floor tiles and deco tiles it covers."""
+    ts = painter.ts
+    rng = np.random.default_rng(ground["seed"])
+    prng = random.Random(ground["seed"])
+    x0, y0, x1, y1 = ground["box"]
+    w, h = (x1 - x0) * ts, (y1 - y0) * ts
+    xs, ys = _grid(ground, ts)
+
+    # The yard itself, its edge faded over a few pixels
+    ix0, iy0, ix1, iy1 = ground["inside"]
+    edge = np.minimum.reduce([xs - ix0, ix1 - xs, ys - iy0, iy1 - ys])
+    inside = _smoothstep(0, 14, edge)
+
+    rough, blades, worn, path_alpha, dust = _paths(rng, ground, xs, ys, ts)
+    if ground.get("joins"):
+        # The dirt another entry laid here already: add only what is missing, so the two meet without a
+        # darker seam (alpha over alpha: 1 - (1 - old)(1 - extra) = the more of the two)
+        joined = next(g for g in GROUNDS if g["name"] == ground["joins"])
+        old = _dirt_alpha(joined, ts)
+        gx0, gy0, gx1, gy1 = joined["box"]
+        here = np.zeros((h, w), np.float32)
+        ox0, oy0 = max(x0, gx0), max(y0, gy0)
+        ox1, oy1 = min(x1, gx1), min(y1, gy1)
+        if ox0 < ox1 and oy0 < oy1:
+            here[(oy0 - y0) * ts:(oy1 - y0) * ts, (ox0 - x0) * ts:(ox1 - x0) * ts] =                 old[(oy0 - gy0) * ts:(oy1 - gy0) * ts, (ox0 - gx0) * ts:(ox1 - gx0) * ts]
+        mine = path_alpha * 0.82
+        extra = np.clip((np.maximum(mine, here) - here) / np.maximum(1 - here, 1e-3), 0, 1)
+        path_alpha = np.where(mine > 0, path_alpha * extra / np.maximum(mine, 1e-6), 0)
 
     # The grass round about: lush and dry patches, greener over the graves, moss along the walls
     patches = _noise(rng, (w, h), [ts * 4, ts * 1.6, ts * 0.6])
