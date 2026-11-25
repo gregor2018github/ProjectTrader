@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="88" nextobjectid="1686">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="89" nextobjectid="1692">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -3199,6 +3199,9 @@
  </imagelayer>
  <imagelayer id="87" name="Preview Sailing_Boat" offsetx="4224" offsety="2058">
   <image source="previews/Deco_33_x1.12.png" width="152" height="118"/>
+ </imagelayer>
+ <imagelayer id="88" name="Preview Chicken_Coop" offsetx="6432" offsety="5741">
+  <image source="previews/House_58_x0.44.png" width="144" height="147"/>
  </imagelayer>
  <layer id="3" name="Houses 1" width="300" height="300">
   <data encoding="csv">
@@ -13467,6 +13470,20 @@
    </properties>
    <point/>
   </object>
+  <object id="1686" name="Chicken_Coop" type="House_Frontal" x="6432" y="5888">
+   <properties>
+    <property name="Col_margin_left_pixel" type="int" value="-66"/>
+    <property name="Col_margin_right_pixel" type="int" value="-50"/>
+    <property name="Collision_to_right" type="int" value="11"/>
+    <property name="Collision_up" type="int" value="2"/>
+    <property name="Display_name" value="Chicken Coop"/>
+    <property name="File_name" value="House_58.png"/>
+    <property name="Scale" type="float" value="0.44"/>
+    <property name="Tiles_to_right" type="int" value="11"/>
+    <property name="Tiles_up" type="int" value="11"/>
+   </properties>
+   <point/>
+  </object>
  </objectgroup>
  <objectgroup id="28" name="Special">
   <object id="318" name="Mill_Blades" x="4280.45" y="5246.36">
@@ -13995,6 +14012,12 @@
   </object>
   <object id="1672" name="Wood Chopper" x="2485" y="5459">
    <polygon points="0,0 -17,7 -16,10 11,11 68,10 73,11 104,10 104,6 90,0 81,0 77,-1 66,-1 66,-1 60,0 36,0 36,0 18,0"/>
+  </object>
+  <object id="1690" name="Chicken_Coop" x="6445.2" y="5796.92">
+   <polygon points="0,0 63.8,-56.32 130.68,0 130.68,5.28 118.8,5.28 63.8,-44.88 12.32,5.28 0,5.28"/>
+  </object>
+  <object id="1691" name="Chicken_Coop" x="6432" y="5825.96">
+   <polygon points="0,0 27.28,-16.72 27.28,-9.68 2.64,3.96"/>
   </object>
  </objectgroup>
  <objectgroup id="14" name="Lights">

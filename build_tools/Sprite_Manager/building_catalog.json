@@ -1727,6 +1727,69 @@
     "Col_margin_left_pixel": 0,
     "Col_margin_right_pixel": -24
    }
+  },
+  "houses/House_56.png": {
+   "kind": "farm",
+   "subcategory": "small raised hen house",
+   "atlas": "houses",
+   "rect": [
+    3776,
+    1443,
+    179,
+    253
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_56.png",
+    "Tiles_to_right": 6,
+    "Tiles_up": 8,
+    "Collision_to_right": 6,
+    "Collision_up": 2,
+    "Col_margin_left_pixel": -29,
+    "Col_margin_right_pixel": -42
+   }
+  },
+  "houses/House_57.png": {
+   "kind": "farm",
+   "subcategory": "timber-framed hen house",
+   "atlas": "houses",
+   "rect": [
+    2848,
+    1389,
+    212,
+    147
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_57.png",
+    "Tiles_to_right": 7,
+    "Tiles_up": 5,
+    "Collision_to_right": 7,
+    "Collision_up": 1,
+    "Col_margin_left_pixel": -6,
+    "Col_margin_right_pixel": -12
+   }
+  },
+  "houses/House_58.png": {
+   "kind": "farm",
+   "subcategory": "raised chicken coop with a nesting box",
+   "atlas": "houses",
+   "rect": [
+    1792,
+    3537,
+    327,
+    335
+   ],
+   "tiled": {
+    "class": "House_Frontal",
+    "File_name": "House_58.png",
+    "Tiles_to_right": 11,
+    "Tiles_up": 11,
+    "Collision_to_right": 11,
+    "Collision_up": 3,
+    "Col_margin_left_pixel": -8,
+    "Col_margin_right_pixel": -43
+   }
   }
  },
  "motifs": {}
