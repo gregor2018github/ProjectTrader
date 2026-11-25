@@ -13472,12 +13472,15 @@
   </object>
   <object id="1686" name="Chicken_Coop" type="House_Frontal" x="6432" y="5888">
    <properties>
+    <property name="Chicken_capacity" type="int" value="20"/>
     <property name="Col_margin_left_pixel" type="int" value="-66"/>
     <property name="Col_margin_right_pixel" type="int" value="-50"/>
     <property name="Collision_to_right" type="int" value="11"/>
     <property name="Collision_up" type="int" value="2"/>
     <property name="Display_name" value="Chicken Coop"/>
     <property name="File_name" value="House_58.png"/>
+    <property name="Ladder_foot" value="245,333"/>
+    <property name="Ladder_top" value="245,251"/>
     <property name="Scale" type="float" value="0.44"/>
     <property name="Tiles_to_right" type="int" value="11"/>
     <property name="Tiles_up" type="int" value="11"/>

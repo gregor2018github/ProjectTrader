@@ -7,6 +7,13 @@ from the player when they come too close. It only faces left and right. Its
 frames are painted by code from its look (chicken_look.py), 16 pixels, drawn
 SIZE_PX big at base zoom and scaled without smoothing, so it stays pixel art.
 
+At night it sleeps in the pen's coop (models/chicken_coop.py): at dusk it walks
+to the hen ladder's foot, climbs it (drawn in front of the coop) and goes in
+through the pop hole, out of sight; at dawn it comes out and down again. One
+without a place in the coop (more chickens than it holds) settles down near it
+instead and stands there till morning. After a jump of the clock, and when the
+game starts or is loaded, it is simply put where it would be by then.
+
 It is one Hen of the flock (models/chickens.py), which says how old it is:
 grow() sizes it (a chick half as big, a grown one by its own size) and pales
 it (a chick's down, its colour coming as it grows up). It does not block
@@ -20,6 +27,8 @@ from typing import Dict, List, Optional, Tuple
 import pygame
 
 from ....sim.calendar import format_date
+from ...chicken_coop import BED_SPREAD_HOURS, ROOST_TILES, is_bedtime
+from ...daylight import sun_hour
 from .animal import Animal
 from .chicken_look import FRAME, FRAME_H, FRAME_W, frames, mirrored, upright_frames
 
@@ -43,6 +52,15 @@ CLUCK_SECONDS = (25.0, 70.0)  # between one chicken's clucks
 ALARM_GAP_S = 6.0            # at least this long between one chicken's alarms
 UPRIGHT_SHARE = 1.3          # it faces the front or back when its way runs this much more up or down than across
 #: Which way it steps on facing each way (x, y)
+CLIMB_SPEED = 10.0           # px per second up or down the hen ladder, at tile_size 32
+CLIMB_FRAME_S = 0.16
+JUMP_MINUTES = 30            # a jump of the clock past this puts it where it would be by then
+#: What it does by day, the only states it leaves for the night
+DAY_STATES = ("idle", "walk", "peck")
+#: Walking somewhere (with a target), in its walk frames
+WALKING = ("walk", "to_coop", "to_roost")
+#: On the ladder, drawn in front of the coop
+CLIMBING = ("climb", "leave")
 AHEAD = {"left": (-1, 0), "right": (1, 0), "front": (0, 1), "back": (0, -1)}
 TURNED = {"left": "right", "right": "left", "front": "back", "back": "front"}
 
@@ -69,13 +87,15 @@ class Chicken(Animal):
     """A chicken of the pen."""
 
     def __init__(self, zone: pygame.Rect, tile_size: int, hen, now=None,
-                 rng: Optional[random.Random] = None) -> None:
+                 rng: Optional[random.Random] = None, coop=None, has_place: bool = True) -> None:
         """Args:
             zone: Where its feet may go, world pixels (the pen's inside).
             tile_size: Base tile size.
             hen: Which chicken of the flock it is (models/chickens.py Hen).
             now: The game's date, for its age; grown up and of size 1 without one.
             rng: Its random choices; the module's by default.
+            coop: The pen's coop (chicken_coop.Coop), or None: then it stays out at night.
+            has_place: Whether it has a place in the coop; without one it sleeps near it.
         """
         super().__init__(zone.x, zone.y, tile_size)
         self.rng = rng or random.Random()
@@ -96,9 +116,17 @@ class Chicken(Animal):
         self.wants_sound: Optional[str] = None
         self.cluck_timer = self.rng.uniform(*CLUCK_SECONDS)
         self.alarm_wait = 0.0
-        self.place_feet(self.rng.uniform(self.zone.left, self.zone.right),
-                        self.rng.uniform(self.zone.top, self.zone.bottom))
+        self.coop = coop
+        self.has_place = has_place and coop is not None
+        # Its own hours: each goes in and comes out a little after the others
+        self.bed_offset = self.rng.uniform(0.0, BED_SPREAD_HOURS)
+        self.wake_offset = self.rng.uniform(0.0, BED_SPREAD_HOURS)
+        self._last_now = None
+        self._after_flight: Optional[str] = None    # what it was on its way to when the player scared it
+        self.place_feet(*self._free_spot())
         self._set_frame()
+        if now is not None:
+            self._keep_hours(now)
 
     def grow(self, now=None) -> None:
         """Size and colour it for its age at `now`: new frames only when it has changed to be seen
@@ -139,12 +167,30 @@ class Chicken(Animal):
         self.x = x - self.sprite_width / 2.0
         self.y = y - self.sprite_height
 
-    def _spot_near(self, distance: float) -> Tuple[float, float]:
-        """A spot of its zone about `distance` px off in a random direction (nearer at its edges)."""
-        fx, fy = self.feet
-        angle = self.rng.uniform(0, 2 * math.pi)
-        x = min(max(fx + math.cos(angle) * distance, self.zone.left), self.zone.right)
-        y = min(max(fy + math.sin(angle) * distance, self.zone.top), self.zone.bottom)
+    def _clear(self, x: float, y: float) -> bool:
+        """Whether feet may stand at (x, y) by day: not in the coop."""
+        return self.coop is None or not self.coop.blocks(x, y)
+
+    def _in_zone(self, x: float, y: float) -> Tuple[float, float]:
+        return min(max(x, self.zone.left), self.zone.right), min(max(y, self.zone.top), self.zone.bottom)
+
+    def _free_spot(self) -> Tuple[float, float]:
+        """A random spot of its zone, out of the coop."""
+        for _ in range(20):
+            x, y = self.rng.uniform(self.zone.left, self.zone.right), self.rng.uniform(self.zone.top, self.zone.bottom)
+            if self._clear(x, y):
+                break
+        return x, y
+
+    def _spot_near(self, distance: float, around=None) -> Tuple[float, float]:
+        """A spot of its zone about `distance` px off `around` (its feet) in a random direction (nearer at its
+        edges), out of the coop."""
+        fx, fy = around or self.feet
+        for _ in range(12):
+            angle = self.rng.uniform(0, 2 * math.pi)
+            x, y = self._in_zone(fx + math.cos(angle) * distance, fy + math.sin(angle) * distance)
+            if self._clear(x, y):
+                break
         return x, y
 
     # ------------------------------------------------------------------
@@ -158,6 +204,19 @@ class Chicken(Animal):
         self.fleeing = False
         if state == "walk":
             self.target = self._spot_near(self.rng.uniform(1.0, WANDER_TILES) * self.tile_size)
+        elif state == "to_coop":
+            self.target = self.coop.foot
+        elif state == "to_roost":
+            self.target = self._roost_spot()
+        elif state == "climb":
+            self.target = self.coop.hole
+            self.direction = "back"
+        elif state == "leave":
+            self.place_feet(*self.coop.hole)
+            self.target = self.coop.foot
+            self.direction = "front"
+        elif state == "roost":
+            self.direction = self.rng.choice(("left", "right"))
         elif state == "peck":
             self.timer = self.rng.uniform(*PECK_SECONDS)
         else:
@@ -179,38 +238,121 @@ class Chicken(Animal):
         length = math.hypot(dx, dy) or 1.0
         run = self.rng.uniform(*FLEE_DISTANCE) * self.tile_size
         angle = math.atan2(dy / length, dx / length) + self.rng.uniform(-0.6, 0.6)
-        x = min(max(fx + math.cos(angle) * run, self.zone.left), self.zone.right)
-        y = min(max(fy + math.sin(angle) * run, self.zone.top), self.zone.bottom)
+        x, y = self._in_zone(fx + math.cos(angle) * run, fy + math.sin(angle) * run)
+        if not self._clear(x, y):
+            x, y = self._spot_near(run)
+        back = self.state if self.state in ("to_coop", "to_roost", "roost") else None
         self._start("walk")
         self.target = (x, y)
         self.fleeing = True
+        self._after_flight = back
         if self.alarm_wait <= 0:
             self.wants_sound = "alarm"
             self.alarm_wait = ALARM_GAP_S
 
-    def update(self, dt: float, player_feet: Optional[Tuple[float, float]] = None) -> None:
+    # ------------------------------------------------------------------
+    # Night and day
+    # ------------------------------------------------------------------
+
+    def bedtime(self, now) -> bool:
+        """Whether it is meant to be in for the night (or settled down, without a place) at `now`."""
+        return is_bedtime(sun_hour(now), self.bed_offset, self.wake_offset)
+
+    def _roost_spot(self) -> Tuple[float, float]:
+        """Where one without a place in the coop sleeps: near its ladder, or where it stands with no coop."""
+        if self.coop is None:
+            return self.feet
+        return self._spot_near(self.rng.uniform(0.8, ROOST_TILES) * self.tile_size, around=self.coop.foot)
+
+    def settle(self, night: bool) -> None:
+        """Put it where it would be by now: in the coop (or roosting by it) at night, out in the pen by day."""
+        self.fleeing = False
+        if night:
+            if self.has_place:
+                self.place_feet(*self.coop.hole)
+                self._start("inside")
+            else:
+                self.place_feet(*self._roost_spot())
+                self._start("roost")
+        elif self.state in ("inside", "roost", "to_coop", "to_roost") + CLIMBING:
+            self.place_feet(*self._free_spot())
+            self._start("idle")
+        self._set_frame()
+
+    def _keep_hours(self, now) -> None:
+        """Go in at its bedtime and out in the morning; after a jump of the clock, be where it would be."""
+        last, self._last_now = self._last_now, now
+        night = self.bedtime(now)
+        if last is None or abs((now - last).total_seconds()) > JUMP_MINUTES * 60:
+            self.settle(night)
+            return
+        if night:
+            if self.state in DAY_STATES and not self.fleeing:
+                self._start("to_coop" if self.has_place else "to_roost")
+        elif self.state == "inside":
+            self._start("leave")
+        elif self.state in ("roost", "to_roost", "to_coop") and not self.fleeing:
+            self._start("idle")
+
+    @property
+    def is_hidden(self) -> bool:
+        """In the coop: not drawn, not clicked."""
+        return self.state == "inside"
+
+    @property
+    def y_sort(self) -> float:
+        """On the ladder it is drawn in front of the coop, whose base is below its feet."""
+        if self.state in CLIMBING and self.coop is not None:
+            return max(self.feet[1], self.coop.base_y + 1)
+        return self.y + self.sprite_height
+
+    def update(self, dt: float, player_feet: Optional[Tuple[float, float]] = None, now=None) -> None:
         """Advance behaviour and animation by dt seconds.
 
         Args:
             dt: Seconds.
             player_feet: Where the player stands, to run from them; None to take no notice.
+            now: The game's date, for going in at night; None to take no notice of the hour.
         """
         self.wants_sound = None
         self.alarm_wait -= dt
-        if (player_feet is not None and not self.fleeing
+        if now is not None:
+            self._keep_hours(now)
+        if self.state == "inside":
+            return
+        if (player_feet is not None and not self.fleeing and self.state not in CLIMBING
                 and math.dist(self.feet, player_feet) < FLEE_TILES * self.tile_size):
             self._flee_from(player_feet)
-        if self.state == "walk":
+        if self.state in WALKING:
             self._walk(dt)
-        else:
+        elif self.state in CLIMBING:
+            self._climb(dt)
+        elif self.state != "roost":
             self.timer -= dt
             if self.timer <= 0:
                 self._next()
         self._animate(dt)
+        if self.state in ("roost", "inside"):
+            return                                   # asleep: no clucking
         self.cluck_timer -= dt
         if self.cluck_timer <= 0:
             self.cluck_timer = self.rng.uniform(*CLUCK_SECONDS)
             self.wants_sound = self.wants_sound or "cluck"
+
+    def _climb(self, dt: float) -> None:
+        """Up the ladder into the coop, or down it in the morning, facing the way it goes."""
+        speed = CLIMB_SPEED * self.tile_size / 32.0
+        fx, fy = self.feet
+        tx, ty = self.target
+        gap = math.hypot(tx - fx, ty - fy)
+        if gap <= speed * dt or gap < 0.5:
+            self.place_feet(tx, ty)
+            if self.state == "climb":
+                self._start("inside")
+            else:
+                self._start("walk")                  # off the ladder and away from the coop
+            return
+        self.place_feet(fx + (tx - fx) * speed * dt / gap, fy + (ty - fy) * speed * dt / gap)
 
     def _walk(self, dt: float) -> None:
         speed = (FLEE_SPEED if self.fleeing else CHICKEN_SPEED) * self.tile_size / 32.0
@@ -221,7 +363,14 @@ class Chicken(Animal):
         if gap <= speed * dt or gap < 0.5:
             self.place_feet(tx, ty)
             self.target = None
-            self._start("idle" if self.fleeing else self.rng.choice(("idle", "peck")))
+            if self.state == "to_coop":
+                self._start("climb")
+            elif self.state == "to_roost":
+                self._start("roost")
+            elif self.fleeing and self._after_flight:
+                self._start(self._after_flight)      # on its way to bed again
+            else:
+                self._start("idle" if self.fleeing else self.rng.choice(("idle", "peck")))
             return
         self.place_feet(fx + (tx - fx) * speed * dt / gap, fy + (ty - fy) * speed * dt / gap)
 
@@ -234,8 +383,9 @@ class Chicken(Animal):
 
     def _animate(self, dt: float) -> None:
         self.frame_timer += dt
-        if self.state == "walk":
-            step = FLEE_FRAME_S if self.fleeing else WALK_FRAME_S
+        if self.state in WALKING + CLIMBING:
+            step = (CLIMB_FRAME_S if self.state in CLIMBING else FLEE_FRAME_S if self.fleeing
+                    else WALK_FRAME_S)
             if self.frame_timer >= step:
                 self.frame_timer -= step
                 self.frame_index = (self.frame_index + 1) % len(self.poses[self.direction]["walk"])
@@ -259,7 +409,7 @@ class Chicken(Animal):
         self.place_feet(x, y)
 
     def _set_frame(self) -> None:
-        pose = {"walk": "walk", "peck": "peck"}.get(self.state, "stand")
+        pose = "walk" if self.state in WALKING + CLIMBING else "peck" if self.state == "peck" else "stand"
         frames_ = self.poses[self.direction][pose]
         if pose == "peck":
             frame = frames_[PECK_SEQUENCE[self.frame_index % len(PECK_SEQUENCE)][0]]
@@ -280,7 +430,10 @@ class Chicken(Animal):
         return cache[id(frame)]
 
     def inspect_lines(self, observer=None) -> List[str]:
-        state = "running off" if self.fleeing else {"walk": "walking", "peck": "pecking"}.get(self.state, "standing")
+        state = "running off" if self.fleeing else {
+            "walk": "walking", "peck": "pecking", "to_coop": "going to the coop", "climb": "climbing in",
+            "inside": "in the coop", "leave": "coming out", "to_roost": "going to sleep outside",
+            "roost": "asleep outside"}.get(self.state, "standing")
         hen = self.hen
         return super().inspect_lines(observer) + [
             "**Behaviour**",
@@ -288,5 +441,6 @@ class Chicken(Animal):
             f"Hatched: {format_date(hen.hatched)}, lives {hen.lifespan_days:.0f} days",
             f"Grows to size {hen.adult_size:.2f}; now {self.sprite_height} px tall, youth {self._grown[0]:.2f}",
             f"State: {state}",
+            f"Coop: {'a place in ' + self.coop.name if self.has_place else 'no place, sleeps outside'}",
             f"Zone: {self.zone.x},{self.zone.y} {self.zone.width}x{self.zone.height}",
         ]

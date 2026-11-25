@@ -37,6 +37,7 @@ from .spatial_index import SpatialIndex
 from .field import Field, _inside
 from .light import Light, BuildingLight, BuildingLightGroup
 from .smoke import SmokeEmitter
+from .chicken_coop import Coop
 from .figurines.animals.chicken import Chicken
 from .figurines.animals.sheep import Sheep
 from .figurines.humans.player import MapPlayer
@@ -197,6 +198,8 @@ class TMXMap:
         self.chickens: List[Chicken] = []
         #: Where the chickens' feet may go: the "Chickens" rectangle on the Movements layer, if there is one
         self.chicken_zone: Optional[pygame.Rect] = None
+        #: Where the chickens sleep: the building with a Chicken_capacity (chicken_coop.py), if there is one
+        self.chicken_coop: Optional[Coop] = None
         self.npcs: List[NPC] = []
         self.waters: List[Water] = []
         #: Decks over the water, from the "Bridges" object layer.
@@ -813,6 +816,9 @@ class TMXMap:
                         house.display_name = 'Gravestone'
                     house.fishing_spot = str(obj.properties.get('Fishing_spot', '')).strip()
                     house.afloat = bool(obj.properties.get('Afloat', False))
+                    coop = Coop.from_house(house, obj.properties)
+                    if coop is not None and self.chicken_coop is None:
+                        self.chicken_coop = coop
                     self.houses.append(house)
 
     def _load_trees(self) -> None:
@@ -1251,7 +1257,13 @@ class TMXMap:
         if self.chicken_zone is None:
             self.chickens = []
             return
-        self.chickens = [Chicken(self.chicken_zone, self.tile_size, hen, now) for hen in hens]
+        self.chickens = [self._chicken(i, hen, now) for i, hen in enumerate(hens)]
+
+    def _chicken(self, slot: int, hen, now) -> Chicken:
+        """The chicken of the flock's `slot`: the first ones as many as the coop holds have a place in it."""
+        coop = self.chicken_coop
+        return Chicken(self.chicken_zone, self.tile_size, hen, now, coop=coop,
+                       has_place=coop is not None and slot < coop.capacity)
 
     def sync_chickens(self, hens, now) -> None:
         """Keep the chickens with the flock: one whose hen was replaced gives way to the new chick (at a
@@ -1263,14 +1275,15 @@ class TMXMap:
             return
         for i, hen in enumerate(hens):
             if self.chickens[i].hen is not hen:
-                self.chickens[i] = Chicken(self.chicken_zone, self.tile_size, hen, now)
+                self.chickens[i] = self._chicken(i, hen, now)
             else:
                 self.chickens[i].grow(now)
 
-    def update_chickens(self, dt: float, player_feet=None) -> None:
-        """Advance the chickens (once per frame when not paused); they run from the player's feet."""
+    def update_chickens(self, dt: float, player_feet=None, now=None) -> None:
+        """Advance the chickens (once per frame when not paused); they run from the player's feet and go in
+        for the night by `now`."""
         for chicken in self.chickens:
-            chicken.update(dt, player_feet)
+            chicken.update(dt, player_feet, now)
 
     def update_npcs(self, dt: float, current_time: datetime.datetime) -> None:
         """Advance all human NPCs (call once per frame when not paused)."""
@@ -1626,7 +1639,7 @@ class GameMap:
             int(collision_height),
         )
         self.tmx_map.update_sheep(dt, player_rect)
-        self.tmx_map.update_chickens(dt, self.map_player.feet)
+        self.tmx_map.update_chickens(dt, self.map_player.feet, current_time)
         self.tmx_map.update_npcs(dt, current_time)
         self.tmx_map.update_fields(dt)
         self.tmx_map.update_smoke(dt, current_time)

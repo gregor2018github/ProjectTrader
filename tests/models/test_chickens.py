@@ -272,3 +272,117 @@ def test_seen_from_the_front_and_behind_every_frame_is_the_frame_size_and_every_
                 assert frame.get_size() == (FRAME_W, FRAME_H)
         backs.add(pygame.image.tobytes(chicken_look.upright_frames("back", "F", tail, "buff")["stand"], "RGBA"))
     assert len(backs) == len(TAILS)
+
+
+# ---------------------------------------------------------------------------
+# Nights in the coop
+
+from types import SimpleNamespace
+
+from src.models.chicken_coop import (BED_SPREAD_HOURS, COME_OUT_SUN_HOUR, GO_IN_SUN_HOUR, ROOST_TILES, Coop,
+                                     is_bedtime)
+from src.models.daylight import sun_hour
+
+COOP = Coop("Coop", 2, foot=(200.0, 120.0), hole=(200.0, 90.0), base_y=120.0, keep_out=(150, 95, 250, 126))
+DAY = datetime.datetime(1500, 3, 4, 12, 0)
+MIDNIGHT = datetime.datetime(1500, 3, 4, 23, 30)
+
+
+def _dusk():
+    """The first minute of the day by the clock whose sun hour is the chickens' bedtime."""
+    moment = DAY
+    while sun_hour(moment) < GO_IN_SUN_HOUR:
+        moment += datetime.timedelta(minutes=1)
+    return moment
+
+
+def _sleeper(has_place=True, seed=3, now=DAY):
+    hen = Hen(ChickenLook("F", "short", "buff"), NOW, 1000.0, 1.0)
+    chicken = Chicken(PEN, TILE, hen, now, rng=random.Random(seed), coop=COOP, has_place=has_place)
+    chicken.bed_offset = chicken.wake_offset = 0.0
+    return chicken
+
+
+def _run(chicken, start, minutes, step_s=1 / 30, game_minutes_per_s=3.0):
+    """Frames of the game at normal speed (a game day in 8 real minutes, 3 game minutes a second)."""
+    now = start
+    for _ in range(int(minutes / game_minutes_per_s / step_s)):
+        now += datetime.timedelta(minutes=game_minutes_per_s * step_s)
+        chicken.update(step_s, None, now)
+    return now
+
+
+def test_bedtime_is_by_the_daylight_from_dusk_to_dawn():
+    assert is_bedtime(GO_IN_SUN_HOUR) and is_bedtime(23.0) and is_bedtime(2.0)
+    assert not is_bedtime(GO_IN_SUN_HOUR - 0.1) and not is_bedtime(12.0)
+    assert not is_bedtime(COME_OUT_SUN_HOUR) and is_bedtime(COME_OUT_SUN_HOUR + 0.5, wake_offset=BED_SPREAD_HOURS)
+
+
+def test_a_coop_is_read_off_its_building_scaled_with_it():
+    house = SimpleNamespace(name="Chicken_Coop", x=1000.0, y=2000.0, scale=0.5,
+                            image=pygame.Surface((100, 150)), collision_rect=pygame.Rect(1010, 1970, 80, 30))
+    coop = Coop.from_house(house, {"Chicken_capacity": 20, "Ladder_foot": "120,290", "Ladder_top": "120,220"})
+    assert coop.capacity == 20
+    assert coop.foot == (1060.0, 1995.0) and coop.hole == (1060.0, 1960.0) and coop.base_y == 2000.0
+    assert coop.blocks(1050, 1980) and not coop.blocks(1050, 1900)
+    assert Coop.from_house(house, {"Ladder_foot": "1,2", "Ladder_top": "1,1"}) is None   # no capacity: no coop
+
+
+def test_at_dusk_it_walks_to_the_ladder_climbs_in_front_of_the_coop_and_goes_in_out_of_sight():
+    dusk = _dusk()
+    chicken = _sleeper(now=dusk - datetime.timedelta(minutes=10))
+    climbing = []
+    now = dusk - datetime.timedelta(minutes=10)
+    for _ in range(4000):
+        now += datetime.timedelta(seconds=6)
+        chicken.update(1 / 30, None, now)
+        if chicken.state == "climb":
+            climbing.append((chicken.direction, chicken.y_sort))
+        if chicken.state == "inside":
+            break
+    assert chicken.state == "inside" and chicken.is_hidden
+    assert climbing and all(direction == "back" and y_sort > COOP.base_y for direction, y_sort in climbing)
+    assert chicken.feet == pytest.approx(COOP.hole)
+
+
+def test_at_dawn_it_comes_down_the_ladder_facing_out_and_off_into_the_pen():
+    chicken = _sleeper(now=MIDNIGHT)
+    assert chicken.state == "inside"                 # put in for the night at once
+    dawn = datetime.datetime(1500, 3, 5, 3, 0)
+    while chicken.bedtime(dawn):
+        dawn += datetime.timedelta(minutes=1)
+    chicken._last_now = dawn - datetime.timedelta(minutes=1)
+    chicken.update(1 / 30, None, dawn)
+    assert chicken.state == "leave" and chicken.direction == "front" and not chicken.is_hidden
+    _run(chicken, dawn, 30)
+    assert chicken.state in ("idle", "walk", "peck") and not COOP.blocks(*chicken.feet)
+
+
+def test_one_without_a_place_settles_down_near_the_coop_and_stays_there_till_morning():
+    dusk = _dusk()
+    chicken = _sleeper(has_place=False, now=dusk - datetime.timedelta(minutes=5))
+    now = _run(chicken, dusk - datetime.timedelta(minutes=5), 120)
+    assert chicken.state == "roost" and not chicken.is_hidden
+    assert math.dist(chicken.feet, COOP.foot) <= ROOST_TILES * TILE + 1 and not COOP.blocks(*chicken.feet)
+    feet = chicken.feet
+    _run(chicken, now, 60)
+    assert chicken.feet == feet                      # asleep, it does not move
+
+
+def test_after_a_jump_of_the_clock_it_is_where_it_would_be_by_then():
+    chicken = _sleeper(now=DAY)
+    assert chicken.state not in ("inside", "roost")
+    chicken.update(1 / 30, None, MIDNIGHT)
+    assert chicken.state == "inside"
+    chicken.update(1 / 30, None, DAY + datetime.timedelta(days=1))
+    assert chicken.state == "idle" and not chicken.is_hidden and not COOP.blocks(*chicken.feet)
+    outside = _sleeper(has_place=False, now=DAY)
+    outside.update(1 / 30, None, MIDNIGHT)
+    assert outside.state == "roost"
+
+
+def test_by_day_it_keeps_out_of_the_coop():
+    chicken = _sleeper(now=DAY)
+    for _ in range(3000):
+        chicken._start("walk")
+        assert not COOP.blocks(*chicken.target)
