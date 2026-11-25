@@ -14,7 +14,8 @@ without a place in the coop (more chickens than it holds) settles down near it
 instead and stands there till morning. After a jump of the clock, and when the
 game starts or is loaded, it is simply put where it would be by then.
 
-It keeps out of the pen's troughs (models/trough.py), and by day now and then
+It keeps out of the pen's troughs (models/trough.py), walking round them by
+their corners when one is in its way (_route), and by day now and then
 (TROUGH_CHANCE of what it does next) goes to one with water or grain in it and
 pecks there for a while, in front of it with its back to the viewer.
 
@@ -60,6 +61,7 @@ UPRIGHT_SHARE = 1.3          # it faces the front or back when its way runs this
 #: Which way it steps on facing each way (x, y)
 CLIMB_SPEED = 10.0           # px per second up or down the hen ladder, at tile_size 32
 CLIMB_FRAME_S = 0.16
+DETOUR_PX = 2                # walking round a trough, it keeps this far off its keep-out's corners
 JUMP_MINUTES = 30            # a jump of the clock past this puts it where it would be by then
 #: What it does by day, the only states it leaves for the night
 DAY_STATES = ("idle", "walk", "peck")
@@ -117,6 +119,9 @@ class Chicken(Animal):
         self.state = "idle"
         self.timer = self.rng.uniform(*IDLE_SECONDS)
         self.target: Optional[Tuple[float, float]] = None
+        #: The corners it walks by on its way to the target, round the troughs (_route), and for which target
+        self._waypoints: List[Tuple[float, float]] = []
+        self._routed_for: Optional[Tuple[float, float]] = None
         self.fleeing = False
         self.frame_index = 0
         self.frame_timer = 0.0
@@ -206,6 +211,74 @@ class Chicken(Animal):
         return x, y
 
     # ------------------------------------------------------------------
+    # Its way round the troughs
+    # ------------------------------------------------------------------
+
+    def _crosses(self, a: Tuple[float, float], b: Tuple[float, float]) -> bool:
+        """Whether the straight way from a to b runs through a trough's keep-out (one it stands in is left out,
+        so it can always walk out of it)."""
+        for trough in self.troughs:
+            left, top, right, bottom = trough.keep_out
+            if trough.blocks(*a):
+                continue
+            # Liang-Barsky: the part of the segment inside the box, if any
+            t0, t1 = 0.0, 1.0
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            for p, q in ((-dx, a[0] - left), (dx, right - a[0]), (-dy, a[1] - top), (dy, bottom - a[1])):
+                if p == 0:
+                    if q < 0:
+                        break
+                    continue
+                t = q / p
+                if p < 0:
+                    t0 = max(t0, t)
+                else:
+                    t1 = min(t1, t)
+                if t0 > t1:
+                    break
+            else:
+                if t1 - t0 > 1e-6:
+                    return True
+        return False
+
+    def _route(self, start: Tuple[float, float], goal: Tuple[float, float]) -> List[Tuple[float, float]]:
+        """The corners to walk by from start to goal, round the troughs: none when the way is clear, else
+        the shortest way by the corners of their keep-outs (in its zone, a little off them)."""
+        if not self._crosses(start, goal):
+            return []
+        corners = []
+        for trough in self.troughs:
+            left, top, right, bottom = trough.keep_out
+            for x in (left - DETOUR_PX, right + DETOUR_PX):
+                for y in (top - DETOUR_PX, bottom + DETOUR_PX):
+                    if self.zone.collidepoint(x, y) and self._clear(x, y):
+                        corners.append((x, y))
+        nodes = [start] + corners + [goal]
+        best = {0: 0.0}
+        back: Dict[int, int] = {}
+        todo = {0}
+        while todo:                                  # Dijkstra over a handful of corners
+            i = min(todo, key=best.__getitem__)
+            todo.discard(i)
+            if i == len(nodes) - 1:
+                break
+            for j in range(1, len(nodes)):
+                if j == i or self._crosses(nodes[i], nodes[j]):
+                    continue
+                d = best[i] + math.dist(nodes[i], nodes[j])
+                if d < best.get(j, math.inf):
+                    best[j], back[j] = d, i
+                    todo.add(j)
+        last = len(nodes) - 1
+        if last not in back:
+            return []                                # no way round in its zone: it goes straight on
+        way, i = [], back[last]
+        while i != 0:
+            way.append(nodes[i])
+            i = back[i]
+        return way[::-1]
+
+    # ------------------------------------------------------------------
     # Behaviour
     # ------------------------------------------------------------------
 
@@ -215,6 +288,7 @@ class Chicken(Animal):
         self.frame_timer = 0.0
         self.fleeing = False
         self._to_trough = self.at_trough = False
+        self._routed_for, self._waypoints = None, []
         if state == "walk":
             self.target = self._spot_near(self.rng.uniform(1.0, WANDER_TILES) * self.tile_size)
         elif state == "to_coop":
@@ -385,6 +459,19 @@ class Chicken(Animal):
     def _walk(self, dt: float) -> None:
         speed = (FLEE_SPEED if self.fleeing else CHICKEN_SPEED) * self.tile_size / 32.0
         fx, fy = self.feet
+        if self._routed_for != self.target:
+            self._routed_for = self.target
+            self._waypoints = self._route(self.feet, self.target)
+        if self._waypoints:                          # round a trough first, corner by corner
+            wx, wy = self._waypoints[0]
+            gap = math.hypot(wx - fx, wy - fy)
+            self._face(wx - fx, wy - fy)
+            if gap <= speed * dt or gap < 0.5:
+                self.place_feet(wx, wy)
+                self._waypoints.pop(0)
+            else:
+                self.place_feet(fx + (wx - fx) * speed * dt / gap, fy + (wy - fy) * speed * dt / gap)
+            return
         tx, ty = self.target
         gap = math.hypot(tx - fx, ty - fy)
         self._face(tx - fx, ty - fy)

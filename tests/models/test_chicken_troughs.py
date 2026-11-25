@@ -203,6 +203,34 @@ def test_the_chickens_keep_out_of_it_and_peck_in_front_of_one_with_something_in_
     assert chicken.feet == feet                          # pecking at a trough it does not step on
 
 
+@pytest.mark.parametrize("start, goal", [
+    ((340.0, 380.0), (490.0, 386.0)),     # left of it to right of it, straight through its middle
+    ((420.0, 330.0), (430.0, 480.0)),     # above it to below it
+    ((350.0, 340.0), (480.0, 470.0)),     # corner to corner, across it
+])
+def test_a_chicken_walks_round_a_trough_in_its_way_not_through_it(display, start, goal):
+    trough = _trough()
+    hen = Hen(ChickenLook("B", "plume", "barred"), NOW - datetime.timedelta(days=60), 100.0, 1.0)
+    chicken = Chicken(pygame.Rect(300, 300, 200, 200), 32, hen, NOW, rng=random.Random(3), troughs=[trough])
+    assert not trough.blocks(*start) and not trough.blocks(*goal) and chicken._crosses(start, goal)
+    chicken.place_feet(*start)
+    chicken._start("walk")
+    chicken.target = goal
+    for _ in range(2000):
+        chicken.update(0.02, None)
+        assert not trough.blocks(*chicken.feet)
+        if chicken.state != "walk":
+            break
+    assert chicken.feet == goal
+
+
+def test_a_chicken_with_a_clear_way_walks_straight(display):
+    trough = _trough()
+    hen = Hen(ChickenLook("B", "plume", "barred"), NOW - datetime.timedelta(days=60), 100.0, 1.0)
+    chicken = Chicken(pygame.Rect(300, 300, 200, 200), 32, hen, NOW, rng=random.Random(3), troughs=[trough])
+    assert chicken._route((310.0, 310.0), (490.0, 320.0)) == []
+
+
 def test_the_map_has_two_troughs_in_the_chicken_pen_with_their_pictures():
     root = ET.parse(MAP).getroot()
     pen = next(o for o in root.iter("object") if o.get("name") == "Chickens")
