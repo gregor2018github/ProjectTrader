@@ -54,7 +54,7 @@ Only `tests/sim/test_run.py` is marked `slow` (it loads the real map). `docs/tes
 - `GameMap` — TMX-based tiled map, camera, collision
 - `EventHandler` — dispatches pygame events to keyboard/mouse handlers
 - `Simulation` (`sim`) — the headless economy, `src/sim/` (see below)
-- Lists of `Good` objects — the 30 tradeable goods of `goods.json`, views of the simulation's goods
+- Lists of `Good` objects — the 31 tradeable goods of `goods.json`, views of the simulation's goods. The last added is Eggs: sold at the farmer's booth (`sold_at` the Wheat Market) under a licence of its own (the poulterers', 15 a season, its text in `assets/texts/contracts/licenses.json`), outside price 1 (cheap in Spring, dear in Winter), wanted as a comfort by the Commons and above (less in Winter, Lent) and a luxury by the Poor, and laid in the town's poultry yard (`keep_hens`: 1 Wheat and 1.5 Commons worker-days make 5 Eggs); a save from before it gets the yard fresh (`Simulation._add_new_workshops`: any scenario workshop a save lacks). Its pictures are painted by code, `build_tools/Sprite_Manager/egg_painter.py --preview out.png` / `--write` (three eggs in a wicker basket, through the goods area's own `pictures_of`), its chart colour `EGG_BROWN`
 
 ### Simulation core
 

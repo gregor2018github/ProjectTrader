@@ -693,6 +693,33 @@
    "sold_at": [
     "Wood Market"
    ]
+  },
+  {
+   "name": "Eggs",
+   "color": "EGG_BROWN",
+   "chart_index": 30,
+   "show_in_charts": false,
+   "outside_price": 1.0,
+   "outside_reversion": 0.03,
+   "outside_volatility": 0.03,
+   "outside_seasons": {
+    "Spring": 0.8,
+    "Summer": 0.95,
+    "Winter": 1.3
+   },
+   "transport_cost": 0.3,
+   "import_limit": 50,
+   "export_limit": 50,
+   "target_stock_days": 10,
+   "min_target_stock": 100,
+   "noise_sigma": 0.03,
+   "news_chance": 0.22,
+   "news_size": 0.19,
+   "news_reversion": 0.3,
+   "license_fee": 15,
+   "sold_at": [
+    "Wheat Market"
+   ]
   }
  ]
 }

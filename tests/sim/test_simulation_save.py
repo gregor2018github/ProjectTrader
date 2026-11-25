@@ -119,4 +119,12 @@ def test_a_save_in_saves_still_loads_and_runs(name):
                 share = gd["market_quantity"] / gd["normal_quantity"] if gd.get("normal_quantity") else 1.0
                 assert good.stock == pytest.approx(good.target_stock * share)
             assert good.price_history_daily == gd["price_history_daily"]
+    # A workshop added to the scenario since (the poultry yard, with the Eggs) is set up fresh
+    saved_workshops = {w["id"] for w in (data.get("sim") or {}).get("state", {}).get("workshops") or []}
+
+    assert {w.id for w in scenario.workshops} <= set(sim.state.workshops)
+    if saved_workshops and "poultry_yard" not in saved_workshops:
+        yard = sim.state.workshops["poultry_yard"]
+        assert (yard.building, yard.capacity) == ("poultry_yard", 6)
     sim.advance(datetime.timedelta(days=1))
+

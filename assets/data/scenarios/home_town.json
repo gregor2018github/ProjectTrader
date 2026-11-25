@@ -192,6 +192,13 @@
    "building": "joiner",
    "capacity": 1,
    "cash": 60
+  },
+  {
+   "id": "poultry_yard",
+   "owner": "town",
+   "building": "poultry_yard",
+   "capacity": 6,
+   "cash": 60
   }
  ]
 }

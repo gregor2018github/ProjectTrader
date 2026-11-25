@@ -304,5 +304,26 @@
       "Witness Thereto:"
     ],
     "signature": "(Sign here to acknowledge that you are the one being fleeced in this arrangement.)"
+  },
+  "Eggs": {
+    "title": "License for the Trade of Hen's Eggs",
+    "body": [
+      "By the grace of the Town Council of Blackwater and the beady-eyed, ever-clucking oversight of the Honourable Guild of Poulterers and Egg-Wives, the bearer is hereby granted the delicate right to gather, carry and sell the humble egg, the most fragile treasure of our market. While we wish the bearer a steady hand and well-padded baskets, the bearer is strictly forbidden from passing off eggs of last Michaelmas as \"freshly laid this morning\", from dyeing pale eggs brown to fetch a better price, and from slipping a carved wooden egg into the bottom of the dozen. Furthermore, no egg shall be sold during Lent save to the sick, the infirm and those with a priest's written leave. Go forth and feed the town, provided you count your eggs only after they are hatched, bought or sold.",
+      "",
+      "• Term of Validity: [$$contract_term$$]",
+      "• Licensing Fee: [$$contract_cost$$] Gold Coins",
+      "",
+      "",
+      "Penalty for Breach: Should the merchant violate these sacred laws of the coop, they shall be fined three times the worth of every egg sold, rotten or sound. Additionally, the offender shall stand one market morning in the pillory, while the goodwives of the town return to them, one by one and at speed, every bad egg they ever sold.",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "Witness Thereto:"
+    ],
+    "signature": "(Sign here to put all your eggs in one basket, and mind you do not drop it.)"
   }
 }

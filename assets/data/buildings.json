@@ -225,6 +225,15 @@
    "max_capacity": 3,
    "growth_cost": 150,
    "working_capital": 60
+  },
+  {
+   "type": "poultry_yard",
+   "name": "Poultry yard",
+   "recipe": "keep_hens",
+   "workers_class": "Commons",
+   "max_capacity": 10,
+   "growth_cost": 100,
+   "working_capital": 60
   }
  ]
 }

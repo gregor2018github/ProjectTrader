@@ -275,6 +275,17 @@
     "Furniture": 1
    },
    "labour": 3
+  },
+  {
+   "id": "keep_hens",
+   "name": "Keep hens",
+   "inputs": {
+    "Wheat": 1
+   },
+   "outputs": {
+    "Eggs": 5
+   },
+   "labour": 1.5
   }
  ]
 }

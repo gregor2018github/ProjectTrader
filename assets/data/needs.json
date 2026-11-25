@@ -44,7 +44,8 @@
      }
     },
     "Linen": 0.02,
-    "Wine": 0.01
+    "Wine": 0.01,
+    "Eggs": 0.02
    }
   },
   {
@@ -85,6 +86,12 @@
      "seasons": {
       "Summer": 0.6,
       "Winter": 1.5
+     }
+    },
+    "Eggs": {
+     "units": 0.05,
+     "seasons": {
+      "Winter": 0.6
      }
     }
    },
@@ -135,6 +142,12 @@
       "Summer": 0.6,
       "Winter": 1.5
      }
+    },
+    "Eggs": {
+     "units": 0.08,
+     "seasons": {
+      "Winter": 0.6
+     }
     }
    },
    "luxury": {
@@ -183,6 +196,12 @@
      "seasons": {
       "Summer": 0.6,
       "Winter": 1.5
+     }
+    },
+    "Eggs": {
+     "units": 0.15,
+     "seasons": {
+      "Winter": 0.6
      }
     }
    },

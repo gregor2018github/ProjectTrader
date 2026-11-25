@@ -370,6 +370,20 @@ class Simulation:
         }
         self.state.money_mark = None                     # the town's money changed outside the books
 
+    def _add_new_workshops(self, scenario: ScenarioDef) -> None:
+        """Set up the scenario's workshops a save does not have, fresh (added to the scenario since it was
+        saved: the poultry yard with the Eggs); never one whose owner the save lacks."""
+        added = False
+        for w in sorted(scenario.workshops, key=lambda w: w.id):
+            if w.id in self.state.workshops or w.owner not in self.state.owners or w.building not in self.buildings:
+                continue
+            self.state.workshops[w.id] = WorkshopState(id=w.id, owner_id=w.owner, building=w.building,
+                                                       capacity=w.capacity, cash=w.cash)
+            added = True
+        if added:
+            self.state.workshops = dict(sorted(self.state.workshops.items()))
+            self.state.money_mark = None                 # the town's money changed outside the books
+
     def _settle_demand(self, stock_to_target: bool) -> None:
         """Plan the classes' day now and set each good's target stock from that demand at once."""
         demand = {name: 0.0 for name in self.state.goods}
@@ -455,7 +469,9 @@ class Simulation:
           goods defined but not in the save get a flat history as long as the
           saved ones'.
         - A block without workshops (sim_version 1, or saved before them) gets
-          the established scenario's owners and workshops, fresh.
+          the established scenario's owners and workshops, fresh; one with them
+          gets those of the scenario's it lacks (added since), fresh.
+
         - A block of sim_version 1 (P0, before the living market) keeps its
           histories and people, and each good's stock as a share of its new
           target (as scarce or glutted as it was); everything new starts from
@@ -498,6 +514,8 @@ class Simulation:
         self.state = saved
         if not saved.workshops and self.scenario is not None:
             self.establish(self.scenario)
+        elif self.scenario is not None:
+            self._add_new_workshops(self.scenario)
         pop = self.state.population
         if pop is not None:
             population.give_housing(pop)

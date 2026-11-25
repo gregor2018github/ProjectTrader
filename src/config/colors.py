@@ -30,6 +30,8 @@ DARK_BROWN = (101, 67, 33)
 LIGHT_BROWN = (210, 180, 140)
 SANDY_BROWN = (210, 184, 116)
 CHART_BROWN = (180, 154, 86)
+EGG_BROWN = (198, 128, 92)          # a russet eggshell: the chart colour of Eggs
+
 TAN = (210, 180, 140)
 BEIGE = (245, 245, 220)
 PALE_BROWN = (152, 118, 84)
