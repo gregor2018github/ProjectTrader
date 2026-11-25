@@ -42,7 +42,7 @@ import random
 import shutil
 import sys
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
@@ -229,14 +229,14 @@ def paint_horizontal(raster, rng, look):
     return canvas.surface
 
 
-def paint_vertical(raster, rng, look, end_posts=False):
+def paint_vertical(raster, rng, look):
     """The rails' band down the picture with the posts between its ends over it; no end posts of its own.
 
     Seen from above the two rails of a north-south run fall on one line, so they show as one narrow band,
     its top lit and a pixel of side face east of it. The posts are drawn over it, whole, so the run reads as
     posts and rails; it keeps off its corner posts' pixels at both ends (Canvas.skip) and shows from their
-    feet on, whichever of the pieces the game draws last. With end_posts (a piece the plan puts next to a
-    gap in a vertical run, where no corner post closes it off) it stands a post of its own at each end."""
+    feet on, whichever of the pieces the game draws last. Beside a gap in the run the side gate's
+    gateposts stand where its end posts would (paint_side_gate)."""
     pal = look.palette
     canvas = Canvas(raster.pixels)
     sx, sy = raster.start
@@ -278,9 +278,6 @@ def paint_vertical(raster, rng, look, end_posts=False):
     canvas.skip = None
     for foot in spots[1:-1]:
         paint_post(canvas, rng, look, cx, foot)
-    if end_posts:
-        for foot in (first, last):
-            paint_post(canvas, rng, look, cx, foot, end=True)
     return canvas.surface
 
 
@@ -288,26 +285,13 @@ def look_of(style_name):
     return LOOKS.get(style_name, FIELD)
 
 
-def at_side_gap(style, piece):
-    """Whether the style's plan puts this vertical piece next to a gap in a vertical run."""
-    columns = {}
-    for o, n, x, y in style.plan or ():
-        if o != HORIZONTAL:
-            columns.setdefault(x, []).append((y, n))
-    for pieces in columns.values():
-        pieces.sort()
-        for (ay, an), (by, bn) in itertools.pairwise(pieces):
-            if by > ay + an and piece.length in (an, bn):
-                return True
-    return False
-
-
 def paint(piece):
     look = look_of(piece.style.name)
     rng = random.Random(zlib.crc32(f'{piece.style.name}/{piece.key}'.encode()))
     if piece.orientation == HORIZONTAL:
         return paint_horizontal(piece.raster, rng, look)
-    return paint_vertical(piece.raster, rng, look, at_side_gap(piece.style, piece))
+    # Beside a gap in a vertical run the gate's own gateposts stand (paint_side_gate), not the run's
+    return paint_vertical(piece.raster, rng, look)
 
 
 # ---------------------------------------------------------------------------
@@ -402,6 +386,8 @@ SIDE_HINGE = (16, 48)                # the north post's foot on the canvas (the 
 SIDE_GAP = 2 * TILE                  # post foot to post foot
 SIDE_OPEN_ANGLE = 80                 # from shut (along the run) towards the east
 SIDE_STATES = ('closed', 'open')
+GATEPOST_RISE = 8                    # px a gatepost stands above the run's posts
+IRON, IRON_LIT = (52, 50, 54), (112, 110, 118)
 
 
 def side_leaf_length(look=FIELD):
@@ -409,8 +395,32 @@ def side_leaf_length(look=FIELD):
     return SIDE_GAP - 2 * (look.post_half + 1)
 
 
+def gatepost_look(look):
+    """A gatepost: stouter than the run's posts (the field fence's girth) and GATEPOST_RISE taller, of
+    wood less weathered, so from above the gap reads as a gateway even where the shut leaf is a band."""
+    pal = look.palette
+    return replace(look, post_across=FIELD.post_across, post_top=look.post_top - GATEPOST_RISE,
+                   split_chance=0.0, palette=replace(pal, post=shade(pal.post, 0.92)))
+
+
+def paint_gateposts(canvas, look):
+    """The gap's two posts, on the run's centre line at the hinge's foot and SIDE_GAP south of it."""
+    hx, hy = SIDE_HINGE
+    big = gatepost_look(look)
+    rng = random.Random(53)
+    for foot in (hy, hy + SIDE_GAP):
+        paint_post(canvas, rng, big, hx, foot, end=True)
+        top = foot + big.post_top
+        for dx in range(-big.post_half, big.post_half + 1):        # an iron band under the cut top
+            canvas.put(hx + dx, top + 4, IRON_LIT if dx < 0 else IRON)
+
+
 def paint_side_gate(state, look=FIELD):
-    """'closed' (a band down the gap, as the run's rails) or 'open' (its face, swung east)."""
+    """'closed' (a band down the gap) or 'open' (its face, swung east), between two gateposts.
+
+    Shut, the leaf seen from above falls on one line like the rails, so it is told from them otherwise:
+    a band a pixel wider than the rails, of fresher wood and outlined darker, with iron hinge straps on its
+    face at the north end and a latch at the south, between gateposts that stand out of the run."""
     pal = look.palette
     canvas = Canvas(SIDE_GATE_SIZE)
     hx, hy = SIDE_HINGE
@@ -419,28 +429,41 @@ def paint_side_gate(state, look=FIELD):
     px = gate_leaf(pal, 37, look, length)
     if state == 'closed':
         rng = random.Random(41)
-        base = _wood(pal, rng, pal.rail, look.grey_chance)
+        base = jitter(shade(pal.rail, 1.08), rng, 3)                    # fresher than the weathered run
+        left, face = hx + BAND[0] - 1, hx + BAND[1] + 1                 # outline, then the lit tops to face
+        right = face + 2                                                # a two-px side face, then outline
         y0, y1 = hy + start + GATE_TOP, hy + start + length + GATE_RAILS[-1]
         for y in range(hy + start + 3, hy + start + length - 2):      # its shadow, east of it
             for i, alpha in enumerate(GROUND_SHADOW):
-                canvas.put(hx + BAND[1] + SIDE_FACE + 2 + i, y, (20, 26, 12), alpha)
+                canvas.put(right + 1 + i, y, (20, 26, 12), alpha)
         for y in range(y0, y1):
-            for x in range(hx + BAND[0] - 1, hx + BAND[1] + SIDE_FACE + 2):
-                if x == hx + BAND[0] - 1:
-                    colour = pal.outline
-                elif x == hx + BAND[1] + SIDE_FACE + 1:
-                    colour = shade(pal.outline, 1.1)
-                elif x > hx + BAND[1]:
-                    colour = shade(base, 0.68)
+            for x in range(left, right + 1):
+                if x == left:
+                    colour = shade(pal.outline, 0.8)
+                elif x == right:
+                    colour = shade(pal.outline, 0.9)
+                elif x >= face:
+                    colour = shade(base, 0.74 if x == face else 0.62)
                 else:
-                    colour = _grain(shade(base, 1.16 if x == hx + BAND[0] else 1.0), rng)
+                    colour = _grain(shade(base, 1.2 if x == left + 1 else 1.04), rng)
                 canvas.put(x, y, colour)
-        # The stiles' tops at both ends, a little lighter, and the latch
+        # The stiles' cut tops at both ends, lighter, a dark joint under each
         for u in (0, length - 2):
-            for dx in (BAND[0], BAND[1]):
-                canvas.put(hx + dx, hy + start + u + GATE_TOP, shade(pal.end_grain, 0.95))
-            canvas.put(hx + BAND[1] + 1, hy + start + u + GATE_TOP + 1, shade(base, 0.6))
-        canvas.put(hx + BAND[1] + SIDE_FACE + 1, hy + start + length - 14, (96, 94, 100))
+            for x in range(left + 1, face):
+                canvas.put(x, hy + start + u + GATE_TOP, shade(pal.end_grain, 1.02))
+            for x in range(left + 1, right):
+                canvas.put(x, hy + start + u + GATE_TOP + 2, shade(base, 0.55))
+        # Iron hinge straps on its face at the top and bottom rails, from the hinge end, and the latch
+        for rail in (GATE_RAILS[0], GATE_RAILS[2]):
+            for u in range(6):
+                y = hy + start + u + rail + 1
+                canvas.put(face, y, IRON_LIT)
+                canvas.put(face + 1, y, IRON)
+        ly = hy + start + length - 15
+        for x, y, c in ((face, ly, IRON_LIT), (face + 1, ly, IRON_LIT), (right, ly, IRON_LIT),
+                        (right + 1, ly, IRON), (face + 1, ly + 1, IRON), (right, ly + 1, IRON)):
+            canvas.put(x, y, c)
+        paint_gateposts(canvas, look)
         return canvas.surface
     cos, sin = math.cos(math.radians(SIDE_OPEN_ANGLE)), math.sin(math.radians(SIDE_OPEN_ANGLE))
     for u in range(length):                          # nearer (farther south) columns last
@@ -450,6 +473,7 @@ def paint_side_gate(state, look=FIELD):
         for (cu, y), colour in px.items():
             if cu == u:
                 canvas.put(x, hy + dy + (y - GATE_FOOT), colour)
+    paint_gateposts(canvas, look)
     return canvas.surface
 
 
