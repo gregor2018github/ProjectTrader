@@ -93,12 +93,25 @@ class TimeControl:
                           indicator_y, indicator_width, indicator_height)
             )
         
-    def draw(self, screen: pygame.Surface, current_time_level: int) -> None:
+    # Shown only while the speed is not locked: on the map it is only paused or normal.
+    SPEED_BUTTONS = ("slower", "faster")
+
+    def _shown_buttons(self, speed_locked: bool) -> Dict[str, pygame.Rect]:
+        """The buttons on show: without slower and faster while the speed is locked."""
+        if not speed_locked:
+            return self.buttons
+        return {name: rect for name, rect in self.buttons.items()
+                if name not in self.SPEED_BUTTONS}
+
+    def draw(self, screen: pygame.Surface, current_time_level: int,
+             speed_locked: bool = False) -> None:
         """Draw the time control panel and interactive buttons.
         
         Args:
             screen: The pygame surface to draw on.
             current_time_level: Current speed index (1-5).
+            speed_locked: True while only pausing is allowed (the map is shown):
+                the slower and faster buttons and the speed lights are left out.
         """
         # Draw background panel
         pygame.draw.rect(screen, TAN, self.control_rect)
@@ -119,7 +132,7 @@ class TimeControl:
         mouse_pos = pygame.mouse.get_pos()
         
         # Draw buttons with hover effects
-        for button_name, button_rect in self.buttons.items():
+        for button_name, button_rect in self._shown_buttons(speed_locked).items():
             # Determine if button is being hovered over
             is_hovered = button_rect.collidepoint(mouse_pos)
             
@@ -137,22 +150,26 @@ class TimeControl:
                 pygame.draw.rect(screen, DARK_BROWN, button_rect, 1)
         
         # Draw time level indicators
+        if speed_locked:
+            return
         for i, rect in enumerate(self.level_rects):
             color = PALE_YELLOW if i < current_time_level else LIGHT_GRAY
             pygame.draw.rect(screen, color, rect)
             pygame.draw.rect(screen, DARK_BROWN, rect, 1)
     
-    def handle_click(self, pos: Tuple[int, int], current_time_level: int) -> Optional[int]:
+    def handle_click(self, pos: Tuple[int, int], current_time_level: int,
+                     speed_locked: bool = False) -> Optional[int]:
         """Handle mouse clicks on the speed control buttons.
         
         Args:
             pos: The (x, y) mouse position of the click.
             current_time_level: The current time level before the click.
+            speed_locked: True while the slower and faster buttons are hidden.
             
         Returns:
             Optional[int]: The new time level if a button was clicked, or None.
         """
-        for button_name, button_rect in self.buttons.items():
+        for button_name, button_rect in self._shown_buttons(speed_locked).items():
             if button_rect.collidepoint(pos):
                 if button_name == "start_stop":
                     return 1 if current_time_level > 1 else 3  # Toggle between pause and normal

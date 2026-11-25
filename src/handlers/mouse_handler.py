@@ -184,7 +184,8 @@ def handle_mouse_click(pos: Tuple[int, int],
         return
 
     # Handle time control clicks
-    time_level = game_state.game.time_control.handle_click(pos, game_state.time_level)
+    time_level = game_state.game.time_control.handle_click(
+        pos, game_state.time_level, speed_locked=game_state.is_map_visible)
     if time_level is not None:
         # Enforce map view time restriction: only paused (1) or normal (3) allowed
         if game_state.is_map_visible and time_level not in [1, 3]:

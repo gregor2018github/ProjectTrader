@@ -1121,7 +1121,8 @@ class Game:
                 self.menu.draw(self.screen)
                 
                 # Draw time controls in bottom bar
-                self.time_control.draw(self.screen, self.state.time_level)
+                self.time_control.draw(self.screen, self.state.time_level,
+                                       speed_locked=is_map_visible)
                 
                 # Draw sound control button
                 self.sound_control.draw(self.screen)
