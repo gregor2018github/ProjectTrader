@@ -280,6 +280,10 @@ class TMXMap:
             (homebody for homebody in self.homebodies if isinstance(homebody, PenKeeper)), None)
         if self.pen_keeper is not None:
             self.pen_keeper.tend(self.troughs)
+            # ...and fetches the eggs out of the coop's nesting box (chicken_eggs.py)
+            if self.chicken_coop is not None:
+                self.pen_keeper.fetch_eggs(self.chicken_coop.nest_spot)
+
         for npc in self.npcs:
             if hasattr(npc, "gate_passing"):
                 npc.gate_keeper = self.gate_keeper

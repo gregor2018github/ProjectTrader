@@ -140,7 +140,7 @@ def _unpack(blob: bytes) -> Dict[str, Any]:
 # Serialization
 # ---------------------------------------------------------------------------
 
-def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None, lost_sheep: Any = None, chickens: Any = None, troughs: Any = None) -> Dict[str, Any]:
+def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None, lost_sheep: Any = None, chickens: Any = None, troughs: Any = None, eggs: Any = None) -> Dict[str, Any]:
     return {
         "save_version": SAVE_VERSION,
         "saved_at": _dt_to_str(datetime.datetime.now()),
@@ -268,6 +268,9 @@ def _serialize_game(game_state: Any, player: Any, depot: Any, goods: List[Any], 
         "chickens": chickens.to_save() if chickens is not None else None,
         # What is in the pen's troughs (models/chicken_troughs.py); a save without it has them empty
         "troughs": troughs.to_save() if troughs is not None else None,
+        # The eggs in the coop's nesting box and what the keeper fetched (models/chicken_eggs.py); a save
+        # without it has an empty nest
+        "eggs": eggs.to_save() if eggs is not None else None,
     }
 
 
@@ -315,7 +318,8 @@ def _write_frozen(slot: int, frozen: bytes) -> None:
 
 
 def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[Any], save_name: str = "", sim: Any = None, fog: Any = None, weather: Any = None, merchant_rank: Any = None, intro: Any = None, council: Any = None, harvest: Any = None,
-              lost_sheep: Any = None, chickens: Any = None, troughs: Any = None, background: bool = False) -> None:
+              lost_sheep: Any = None, chickens: Any = None, troughs: Any = None, eggs: Any = None,
+              background: bool = False) -> None:
     """Serialize the full game state and write it to the given slot file
     (1-based, or AUTOSAVE_SLOT).
 
@@ -327,7 +331,8 @@ def save_game(slot: int, game_state: Any, player: Any, depot: Any, goods: List[A
     wait_for_save()
     os.makedirs(SAVES_PATH, exist_ok=True)
     data = _serialize_game(game_state, player, depot, goods, save_name, sim, fog, weather, merchant_rank, intro, council,
-                           harvest, lost_sheep, chickens, troughs)
+                           harvest, lost_sheep, chickens, troughs, eggs)
+
     if background:
         try:
             # A deep copy of plain data in a few ms, so the game may go on changing its own

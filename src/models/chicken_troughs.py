@@ -17,8 +17,9 @@ one; several troughs of the same share it evenly. A trough that runs dry is
 empty again and takes either.
 
 The chickens go to a trough with something in it now and then and peck at it
-(chicken.py). What they get from it does nothing yet: nothing goes hungry or
-lays more for it.
+(chicken.py). With no grain in any trough, or no water, the hens lay far fewer
+eggs (chicken_eggs.py); nothing goes hungry for it yet.
+
 
 Saved under "troughs" by Tiled name: [kind, amount]; a save without it has
 them empty. No pygame.
@@ -157,7 +158,12 @@ class Troughs:
 
     # -- what the pen's keeper does (npcs/pen_keeper.py) -------------------------
 
+    def holds(self, kind: str) -> bool:
+        """Whether any trough has some of `kind` in it (the hens lay less without, chicken_eggs.py)."""
+        return any(state.kind == kind and not state.empty for state in self.states.values())
+
     def empty_ones(self) -> List[str]:
+
         """The troughs with nothing in them, in name order: what the keeper sees to."""
         return sorted(name for name, state in self.states.items() if state.empty)
 

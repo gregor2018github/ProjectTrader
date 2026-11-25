@@ -17,7 +17,8 @@ from .ui.layout_modules.town_plan import TownPlan
 from .ui import cursor
 from .models.good import Good
 from .models.chickens import Flock
-from .models.chicken_troughs import Troughs, trough_title
+from .models.chicken_eggs import EGGS_PER_UNIT, Nest
+from .models.chicken_troughs import FEED, WATER, Troughs, trough_title
 from .models.depot import Depot
 from .models.player_names import clean_name, random_name
 from .models.figurines.humans.hair import DEFAULT_HAIR, hair_key
@@ -218,6 +219,11 @@ class Game:
         # ...which the pen's keeper fills when they run dry (npcs/pen_keeper.py)
         if self.game_map.tmx_map.pen_keeper is not None:
             self.game_map.tmx_map.pen_keeper.look_after(self.troughs, self.show_troughs)
+        # The hens lay into the coop's nesting box, and the keeper fetches the eggs once a day and sells
+        # them at market (models/chicken_eggs.py): an empty nest at first
+        self.nest: Nest = Nest()
+        if self.game_map.tmx_map.pen_keeper is not None:
+            self.game_map.tmx_map.pen_keeper.fetch_eggs(None, self.nest, self._sell_keepers_eggs)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -341,6 +347,8 @@ class Game:
         self.troughs.load(save_data.get("troughs"))
         self.troughs.add(trough.name for trough in self.game_map.tmx_map.troughs)
         self.show_troughs()
+        # A save from before the eggs has an empty nest
+        self.nest.load(save_data.get("eggs"))
         self.lost_sheep_map.sync(self.game_map.map_player.feet)
         self.tiredness.restart(self.state.date)
         self.address_note.reset()
@@ -567,7 +575,15 @@ class Game:
         if changed:
             crew.refresh(self.state.date, changed)
 
+    def _sell_keepers_eggs(self, eggs: int) -> None:
+        """The pen's keeper takes the eggs he fetched to market: sold to the merchants for his class
+        (models/chicken_eggs.py, EGGS_PER_UNIT to a unit of Eggs)."""
+        keeper = self.game_map.tmx_map.pen_keeper
+        if eggs > 0 and keeper is not None:
+            self.sim.sell_from_townsfolk("Eggs", eggs / EGGS_PER_UNIT, keeper.SOCIAL_CLASS)
+
     def show_troughs(self) -> None:
+
         """Let each trough on the map show what is in it, and be called by it (models/trough.py)."""
         for trough in self.game_map.tmx_map.troughs:
             state = self.troughs[trough.name]
@@ -756,6 +772,9 @@ class Game:
                     # ...and eat and drink from the troughs, which the rain tops up (models/chicken_troughs.py)
                     if self.troughs.update(self.state.date, len(self.flock.hens), self.weather.rain):
                         self.show_troughs()
+                    # ...and lay, the less for an empty trough (models/chicken_eggs.py)
+                    self.nest.update(self.state.date, [hen.stage(self.state.date) for hen in self.flock.hens],
+                                     fed=self.troughs.holds(FEED), watered=self.troughs.holds(WATER))
                     # ...and the keeper fills one that ran dry while he is at work out of sight
                     keeper = self.game_map.tmx_map.pen_keeper
                     if keeper is not None:
@@ -1231,7 +1250,7 @@ class Game:
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
                   harvest=self.game_map.tmx_map.harvest, lost_sheep=self.lost_sheep, chickens=self.flock,
-                  troughs=self.troughs, background=background)
+                  troughs=self.troughs, eggs=self.nest, background=background)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

@@ -471,6 +471,11 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             options.insert(0, "Refill")
         options.insert(0, "Look In")
 
+    # The coop's nesting box, which the hens lay into and the pen's keeper empties (models/chicken_eggs.py)
+    from .nest_window import OPTION as NEST_OPTION, is_nest_coop
+    if is_nest_coop(game_state, house):
+        options.insert(0, NEST_OPTION)
+
     # Uncle Gared's shop, once he has been found: the player's first place to rest (models/rest.py)
     from ...models.rest import can_rest_at
     if can_rest_at(house, getattr(game_state.game, 'intro', None)):
@@ -525,7 +530,13 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
             open_trough_window(game_state, house)
             return
 
+        if option_text == NEST_OPTION and is_nest_coop(game_state, house):
+            from .nest_window import open_nest_window
+            open_nest_window(game_state, house)
+            return
+
         if option_text == "Refill" and isinstance(house, Trough):
+
             from .trough_window import refill
             game_state.info_window = None
             game_state.active_house_menu = None

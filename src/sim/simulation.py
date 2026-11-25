@@ -450,7 +450,30 @@ class Simulation:
         market.show_current_price(good)
         return amount
 
+    def sell_from_townsfolk(self, name: str, units: float, class_name: str) -> float:
+        """Townsfolk of a class sell goods they made outside any workshop to the merchants (the pen's keeper
+        his eggs, chicken_eggs.py): into the market's stock as made in town, paid into the class's purse.
+        The money stays on the town's books (from_merchants, as a workshop's sale).
+
+        Returns:
+            What they were paid; 0 for nothing sold, an unknown good or class.
+        """
+        good = self.state.goods.get(name)
+        pop = self.state.population
+        holder = pop.classes.get(class_name) if pop is not None else None
+        if good is None or holder is None or units <= 0:
+            return 0.0
+        paid = market.quote(good, units, buying=False)
+        good.stock += units
+        good.today.produced += units
+        holder.purse += paid
+        self.state.merchants_today.purchases += paid
+        self.state.money_today.from_merchants += paid
+        market.show_current_price(good)
+        return paid
+
     # -- saving --------------------------------------------------------------
+
 
     def to_dict(self) -> Dict[str, Any]:
         """The save's ``"sim"`` block: plain JSON, the random generator's state as a list."""

@@ -4,7 +4,11 @@ A building on the Houses layer is a coop when its Tiled object has a
 `Chicken_capacity` (how many chickens sleep in it) and `Ladder_foot` /
 `Ladder_top` ("SX,SY", in its sprite's own pixels, scaled with its `Scale`
 like the rest of it): the foot of the hen ladder on the ground and its top at
-the pop hole. The Chicken_Coop in the pen holds 20.
+the pop hole. The Chicken_Coop in the pen holds 20. An optional `Nest_box`
+("SX,SY" likewise) is the bottom middle of its nesting box, where the hens'
+eggs are laid and the pen's keeper fetches them from (chicken_eggs.py,
+npcs/pen_keeper.py): he stands NEST_GAP_PX in front of the coop's base under
+it (`nest_spot`).
 
 At dusk (by the daylight, `sun_hour`, from GO_IN_SUN_HOUR, each chicken up to
 BED_SPREAD_HOURS later) a chicken walks to the ladder's foot, climbs it and goes
@@ -27,6 +31,8 @@ BED_SPREAD_HOURS = 1.0
 ROOST_TILES = 2.5
 #: Around the coop's collision box the chickens keep clear of by day, px
 KEEP_CLEAR_PX = 6
+#: How far in front of the coop's base the keeper stands to reach into the nesting box, px
+NEST_GAP_PX = 8
 
 Point = Tuple[float, float]
 
@@ -52,6 +58,14 @@ class Coop:
     hole: Point                                   # its top, at the pop hole
     base_y: float                                 # the building's base line, which it is drawn in order by
     keep_out: Tuple[float, float, float, float]   # (left, top, right, bottom) the chickens stay out of by day
+    nest: Optional[Point] = None                  # the nesting box's bottom middle, world px (Nest_box)
+
+    @property
+    def nest_spot(self) -> Optional[Point]:
+        """Where the keeper stands to fetch the eggs: under the nesting box, just in front of the base line."""
+        if self.nest is None:
+            return None
+        return self.nest[0], self.base_y + NEST_GAP_PX
 
     @classmethod
     def from_house(cls, house: Any, properties: Mapping[str, Any]) -> Optional["Coop"]:
@@ -75,9 +89,11 @@ class Coop:
             return house.x + point[0] * house.scale, house.y - height + point[1] * house.scale
 
         box = house.collision_rect
+        nest = _sprite_point(properties.get("Nest_box", ""))
         return cls(house.name, capacity, world(foot), world(top), float(house.y),
                    (box.left - KEEP_CLEAR_PX, box.top - KEEP_CLEAR_PX, box.right + KEEP_CLEAR_PX,
-                    box.bottom + KEEP_CLEAR_PX))
+                    box.bottom + KEEP_CLEAR_PX), world(nest) if nest is not None else None)
+
 
     def blocks(self, x: float, y: float) -> bool:
         """Whether a chicken's feet at (x, y) would stand in the coop."""
