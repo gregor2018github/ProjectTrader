@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="89" nextobjectid="1694">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="89" nextobjectid="1695">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -10885,6 +10885,9 @@
  </objectgroup>
  <objectgroup id="27" name="Movements">
   <object id="1685" name="Chickens" x="6080" y="5824" width="544" height="424"/>
+  <object id="1694" name="Edric_Yard" x="6110" y="5880">
+   <polygon points="0,0 220,-8 330,35 490,45 490,270 290,335 40,335 -10,160"/>
+  </object>
   <object id="306" name="Sheep" x="4448" y="5408" width="384.004" height="31.9961"/>
   <object id="308" name="Sheep" x="4416" y="5600" width="480" height="31.9961"/>
   <object id="1082" name="Sheep" x="4400" y="5520" width="464" height="32">
@@ -13497,6 +13500,7 @@
     <property name="Collision_up" type="int" value="1"/>
     <property name="Display_name" value="Trough"/>
     <property name="File_name" value="troughs/trough_empty.png"/>
+    <property name="Keeper_fills" value="feed"/>
     <property name="Tiles_to_right" type="int" value="2"/>
     <property name="Tiles_up" type="int" value="1"/>
    </properties>
@@ -13512,6 +13516,7 @@
     <property name="Collision_up" type="int" value="1"/>
     <property name="Display_name" value="Trough"/>
     <property name="File_name" value="troughs/trough_empty.png"/>
+    <property name="Keeper_fills" value="water"/>
     <property name="Tiles_to_right" type="int" value="2"/>
     <property name="Tiles_up" type="int" value="1"/>
    </properties>

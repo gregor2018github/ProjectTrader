@@ -1,4 +1,7 @@
 {
   "name": "Edric",
-  "gender": "male"
+  "gender": "male",
+  "home": "House_19",
+  "keeps": "chicken_pen",
+  "sentences": "sentences_edric.txt"
 }

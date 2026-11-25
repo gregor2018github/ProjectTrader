@@ -52,6 +52,8 @@ from .figurines.humans.npcs import (
 )
 from .figurines.humans.npcs.townsperson import discover_townsfolk
 from .figurines.humans.npcs.homebody import Homebody, discover_homebodies
+from .figurines.humans.npcs.pen_keeper import PenKeeper
+
 from .figurines.patrol_path import PatrolPath
 from .door import Door
 from .lost_sheep import SHEPHERDESS_ROUND
@@ -273,6 +275,11 @@ class TMXMap:
         self.gate_keeper: GateKeeper = GateKeeper([house for house in self.houses if isinstance(house, Gate)])
         #: The chicken pen's troughs (trough.py); what is in them is Game's troughs (chicken_troughs.py)
         self.troughs: List[Trough] = [house for house in self.houses if isinstance(house, Trough)]
+        #: Who sees to the pen's troughs (pen_keeper.py), or None
+        self.pen_keeper: Optional[PenKeeper] = next(
+            (homebody for homebody in self.homebodies if isinstance(homebody, PenKeeper)), None)
+        if self.pen_keeper is not None:
+            self.pen_keeper.tend(self.troughs)
         for npc in self.npcs:
             if hasattr(npc, "gate_passing"):
                 npc.gate_keeper = self.gate_keeper
@@ -641,6 +648,8 @@ class TMXMap:
                             house_class=obj_class,
                             scale=scale,
                         )
+                        # What the pen's keeper fills it with when it runs dry (npcs/pen_keeper.py)
+                        house.keeper_fills = obj.properties.get('Keeper_fills', house.keeper_fills)
                     elif obj_class == "Shock":
                         # A shock of sheaves, standing only from the harvest until it is cleared (shock.py)
                         house = Shock(

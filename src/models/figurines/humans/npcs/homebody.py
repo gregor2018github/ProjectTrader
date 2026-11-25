@@ -22,6 +22,10 @@ homebody (and keeps him out of :class:`~....town_life.StreetLife`):
   ``assets/texts/NPCs/``, said more often than his class's lines.
 * ``"introduces"`` -- optional: the minigame he shows the player (so far
   ``"woodhacking"``); the UI reads it.
+* ``"keeps"`` -- optional: what he looks after, which makes him a
+  :class:`~.pen_keeper.PenKeeper` (so far ``"chicken_pen"``: Edric, who fills
+  the pen's troughs when they run dry).
+
 
 On the "Movements" layer, named after his prefix (``Osric`` for Osric):
 
@@ -127,7 +131,8 @@ def discover_homebodies(tile_size: int) -> List['Homebody']:
     Returns:
         List: Every homebody the artwork tree knows about, in folder order.
     """
-    return [Homebody(folder, profile, tile_size)
+    from .pen_keeper import KEEPS_KEY, PenKeeper     # a homebody too; imports this module
+    return [(PenKeeper if profile.get(KEEPS_KEY) else Homebody)(folder, profile, tile_size)
             for folder, profile in read_profiles() if profile.get(HOME_KEY)]
 
 
@@ -479,8 +484,11 @@ class Homebody(NPC):
         if self.state == GOING_IN:
             self._doorway_fade(dt)
             return
-        facing = self._facing if (self.state == IN_YARD and not is_moving) else None
-        self._animate(dt, is_moving, facing)
+        self._animate(dt, is_moving, None if is_moving else self._standing_facing())
+
+    def _standing_facing(self) -> Optional[str]:
+        """Which way he looks while standing still: out from the house in the yard, else as he came."""
+        return self._facing if self.state == IN_YARD else None
 
     # ------------------------------------------------------------------
     # Inspection

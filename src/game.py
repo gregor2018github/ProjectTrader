@@ -215,6 +215,9 @@ class Game:
         # What is in the pen's troughs, water or grain, and how full (models/chicken_troughs.py): empty at first
         self.troughs: Troughs = Troughs(trough.name for trough in self.game_map.tmx_map.troughs)
         self.show_troughs()
+        # ...which the pen's keeper fills when they run dry (npcs/pen_keeper.py)
+        if self.game_map.tmx_map.pen_keeper is not None:
+            self.game_map.tmx_map.pen_keeper.look_after(self.troughs, self.show_troughs)
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -753,6 +756,11 @@ class Game:
                     # ...and eat and drink from the troughs, which the rain tops up (models/chicken_troughs.py)
                     if self.troughs.update(self.state.date, len(self.flock.hens), self.weather.rain):
                         self.show_troughs()
+                    # ...and the keeper fills one that ran dry while he is at work out of sight
+                    keeper = self.game_map.tmx_map.pen_keeper
+                    if keeper is not None:
+                        keeper.see_to_unseen(self.state.date)
+
 
                     # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
                     # happiness every hour, migration and the well shock every day (src/sim/)

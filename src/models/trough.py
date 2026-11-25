@@ -8,7 +8,8 @@ they swap in place. What is in it is models/chicken_troughs.py's, which Game
 keeps and shows here (show()).
 
 The chickens keep out of it (keep_out) and come to peck in front of it while
-it holds something (front_spot, chicken.py).
+it holds something (front_spot, chicken.py). The pen's keeper fills it when it
+runs dry, standing where keeper_spot says (npcs/pen_keeper.py).
 """
 
 import os
@@ -17,7 +18,7 @@ from typing import Dict, Optional, Tuple
 
 import pygame
 
-from .chicken_troughs import KINDS, LEVELS
+from .chicken_troughs import FEED, KINDS, LEVELS
 from .house import House
 
 #: Around its collision box the chickens keep clear of, px
@@ -27,6 +28,8 @@ FRONT_PX = 5
 FRONT_SPREAD_PX = 2
 #: ...and no nearer its ends than this
 END_CLEAR_PX = 8
+#: Where the keeper stands to fill it: this far in front of the chickens' keep-out, px
+KEEPER_FRONT_PX = 8
 
 
 class Trough(House):
@@ -49,6 +52,9 @@ class Trough(House):
         self.shown = "trough_empty"
         #: Whether it holds anything: what the chickens come to (set by show())
         self.has_contents = False
+        #: What the pen's keeper fills it with when it runs dry and the other kind is held too, or neither
+        #: (Tiled ``Keeper_fills``: "feed" or "water"; chicken_troughs.Troughs.keeper_kind)
+        self.keeper_fills: str = FEED
 
     def show(self, picture: str, has_contents: bool) -> None:
         """Show the picture of what is in it (chicken_troughs.TroughState.picture())."""
@@ -73,6 +79,12 @@ class Trough(House):
     def blocks(self, x: float, y: float) -> bool:
         left, top, right, bottom = self.keep_out
         return left <= x <= right and top <= y <= bottom
+
+    def keeper_spot(self) -> Tuple[float, float]:
+        """Where the keeper stands to fill it: in the middle of its front, a little farther out than the
+        chickens peck, facing it."""
+        box = self.collision_rect
+        return box.centerx, box.bottom + KEEP_CLEAR_PX + KEEPER_FRONT_PX
 
     def front_spot(self, rng: random.Random) -> Tuple[float, float]:
         """Where a chicken stands to peck at it: just in front of it, facing it."""

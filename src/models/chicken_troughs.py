@@ -155,6 +155,29 @@ class Troughs:
         state.kind, state.amount = None, 0.0
         return True
 
+    # -- what the pen's keeper does (npcs/pen_keeper.py) -------------------------
+
+    def empty_ones(self) -> List[str]:
+        """The troughs with nothing in them, in name order: what the keeper sees to."""
+        return sorted(name for name, state in self.states.items() if state.empty)
+
+    def keeper_kind(self, name: str, preferred: str = FEED) -> str:
+        """What the keeper puts into an empty trough: whichever of water and grain no trough holds,
+        or, with both held or neither, the trough's own (`preferred`, its Tiled ``Keeper_fills``)."""
+        held = {state.kind for other, state in self.states.items() if other != name and not state.empty}
+        missing = [kind for kind in KINDS if kind not in held]
+        return missing[0] if len(missing) == 1 else preferred
+
+    def keeper_fill(self, name: str, preferred: str = FEED) -> Optional[str]:
+        """The keeper fills an empty trough to the brim, from his own water and grain (no Wheat of
+        the player's); the kind he filled it with, or None if it was not empty."""
+        state = self[name]
+        if not state.empty:
+            return None
+        kind = self.keeper_kind(name, preferred)
+        state.kind, state.amount = kind, 1.0
+        return kind
+
     # -- the flock and the weather ------------------------------------------
 
     def days_left(self, name: str, hens: int) -> Optional[float]:
