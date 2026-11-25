@@ -463,6 +463,14 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
     if house.epitaph:
         options.insert(0, "Read")
 
+    # A trough in the chicken pen: looked into and filled (models/chicken_troughs.py, trough_window.py)
+    from ...models.trough import Trough
+    if isinstance(house, Trough):
+        state = game_state.game.troughs[house.name]
+        if not state.empty and not state.full:
+            options.insert(0, "Refill")
+        options.insert(0, "Look In")
+
     # Uncle Gared's shop, once he has been found: the player's first place to rest (models/rest.py)
     from ...models.rest import can_rest_at
     if can_rest_at(house, getattr(game_state.game, 'intro', None)):
@@ -510,6 +518,18 @@ def show_house_menu(game_state: 'GameState', house: 'House', click_pos: Tuple[in
         if option_text == "Go Fishing" and house.fishing_spot:
             from .water_click_menu import open_fishing
             open_fishing(game_state)
+            return
+
+        if option_text == "Look In" and isinstance(house, Trough):
+            from .trough_window import open_trough_window
+            open_trough_window(game_state, house)
+            return
+
+        if option_text == "Refill" and isinstance(house, Trough):
+            from .trough_window import refill
+            game_state.info_window = None
+            game_state.active_house_menu = None
+            refill(game_state, house)
             return
 
         if option_text == "Read" and house.epitaph:

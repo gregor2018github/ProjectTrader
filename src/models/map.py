@@ -21,6 +21,7 @@ from .gate_ways import GateWays
 from .harvest import Harvest, shock_thresholds
 from .harvest_crew import HarvestCrew
 from .shock import Shock
+from .trough import Trough
 from .institutions.church import Church
 from .institutions.town import Town
 from .institutions.market import Market
@@ -270,6 +271,8 @@ class TMXMap:
         # Every NPC opens the gates on their way and shuts them behind them (gate_passing.py); the
         # NavGrid takes no notice of gates, so their routes run through them
         self.gate_keeper: GateKeeper = GateKeeper([house for house in self.houses if isinstance(house, Gate)])
+        #: The chicken pen's troughs (trough.py); what is in them is Game's troughs (chicken_troughs.py)
+        self.troughs: List[Trough] = [house for house in self.houses if isinstance(house, Trough)]
         for npc in self.npcs:
             if hasattr(npc, "gate_passing"):
                 npc.gate_keeper = self.gate_keeper
@@ -617,6 +620,25 @@ class TMXMap:
                             open_file_name=obj.properties.get('Open_file_name', ''),
                             opens=obj.properties.get('Opens', 'down'),
                             sort_up_pixel=float(obj.properties.get('Sort_up_pixel', 0)),
+                            scale=scale,
+                        )
+                    elif obj_class == "Trough":
+                        # A trough in the chicken pen, its picture following what is in it (trough.py)
+                        house = Trough(
+                            x=obj.x,
+                            y=obj.y,
+                            file_name=file_name,
+                            tiles_to_right=tiles_to_right,
+                            tiles_up=tiles_up,
+                            collision_to_right=collision_to_right,
+                            collision_up=collision_up,
+                            tile_size=self.tile_size,
+                            col_margin_right_pixel=col_margin_right,
+                            col_margin_left_pixel=col_margin_left,
+                            col_margin_up_pixel=col_margin_up,
+                            col_margin_down_pixel=col_margin_down,
+                            name=obj.name,
+                            house_class=obj_class,
                             scale=scale,
                         )
                     elif obj_class == "Shock":
@@ -1263,7 +1285,7 @@ class TMXMap:
         """The chicken of the flock's `slot`: the first ones as many as the coop holds have a place in it."""
         coop = self.chicken_coop
         return Chicken(self.chicken_zone, self.tile_size, hen, now, coop=coop,
-                       has_place=coop is not None and slot < coop.capacity)
+                       has_place=coop is not None and slot < coop.capacity, troughs=self.troughs)
 
     def sync_chickens(self, hens, now) -> None:
         """Keep the chickens with the flock: one whose hen was replaced gives way to the new chick (at a

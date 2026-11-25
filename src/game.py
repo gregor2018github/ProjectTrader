@@ -17,6 +17,7 @@ from .ui.layout_modules.town_plan import TownPlan
 from .ui import cursor
 from .models.good import Good
 from .models.chickens import Flock
+from .models.chicken_troughs import Troughs, trough_title
 from .models.depot import Depot
 from .models.player_names import clean_name, random_name
 from .models.figurines.humans.hair import DEFAULT_HAIR, hair_key
@@ -211,6 +212,9 @@ class Game:
         # The pen's chickens: a new game's flock drawn from its seed (models/chickens.py), a save's loaded
         self.flock: Flock = Flock.new(self.sim.seed, self.state.date)
         self.game_map.tmx_map.dress_chickens(self.flock.hens, self.state.date)
+        # What is in the pen's troughs, water or grain, and how full (models/chicken_troughs.py): empty at first
+        self.troughs: Troughs = Troughs(trough.name for trough in self.game_map.tmx_map.troughs)
+        self.show_troughs()
 
         # Queue of notices (license expiry, rank changes) to be shown as info dialogs one at a time
         self._pending_notices: List[Union[str, RankRise, SessionReport]] = []
@@ -330,6 +334,10 @@ class Game:
         self.flock.load(save_data.get("chickens"), seed=self.sim.seed, now=self.state.date)
         self.flock.update(self.state.date)
         self.game_map.tmx_map.dress_chickens(self.flock.hens, self.state.date)
+        # A save from before the troughs has them empty
+        self.troughs.load(save_data.get("troughs"))
+        self.troughs.add(trough.name for trough in self.game_map.tmx_map.troughs)
+        self.show_troughs()
         self.lost_sheep_map.sync(self.game_map.map_player.feet)
         self.tiredness.restart(self.state.date)
         self.address_note.reset()
@@ -556,6 +564,13 @@ class Game:
         if changed:
             crew.refresh(self.state.date, changed)
 
+    def show_troughs(self) -> None:
+        """Let each trough on the map show what is in it, and be called by it (models/trough.py)."""
+        for trough in self.game_map.tmx_map.troughs:
+            state = self.troughs[trough.name]
+            trough.show(state.picture(), not state.empty)
+            trough.display_name = trough_title(state)
+
     def _play_chicken_sounds(self) -> None:
         """A cluck or an alarm from each chicken that wants one, softer the farther it is from the player."""
         px, py = self.game_map.map_player.feet
@@ -735,6 +750,9 @@ class Game:
                     # The pen's chickens age: one whose days are over is replaced by a chick (models/chickens.py)
                     self.flock.update(self.state.date)
                     self.game_map.tmx_map.sync_chickens(self.flock.hens, self.state.date)
+                    # ...and eat and drink from the troughs, which the rain tops up (models/chicken_troughs.py)
+                    if self.troughs.update(self.state.date, len(self.flock.hens), self.weather.rain):
+                        self.show_troughs()
 
                     # The economy catches up with the clock: prices every PRICE_TICK_MINUTES,
                     # happiness every hour, migration and the well shock every day (src/sim/)
@@ -1205,7 +1223,7 @@ class Game:
                   fog=self.game_map.map_fog, weather=self.weather,
                   merchant_rank=self.merchant_rank, intro=self.intro, council=self.council,
                   harvest=self.game_map.tmx_map.harvest, lost_sheep=self.lost_sheep, chickens=self.flock,
-                  background=background)
+                  troughs=self.troughs, background=background)
 
     def reset_autosave_timer(self) -> None:
         """Start a full autosave interval from now (e.g. after loading a save)."""

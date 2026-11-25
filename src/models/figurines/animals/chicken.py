@@ -14,6 +14,10 @@ without a place in the coop (more chickens than it holds) settles down near it
 instead and stands there till morning. After a jump of the clock, and when the
 game starts or is loaded, it is simply put where it would be by then.
 
+It keeps out of the pen's troughs (models/trough.py), and by day now and then
+(TROUGH_CHANCE of what it does next) goes to one with water or grain in it and
+pecks there for a while, in front of it with its back to the viewer.
+
 It is one Hen of the flock (models/chickens.py), which says how old it is:
 grow() sizes it (a chick half as big, a grown one by its own size) and pales
 it (a chick's down, its colour coming as it grows up). It does not block
@@ -42,6 +46,8 @@ WANDER_TILES = 4.0           # how far off the next spot may be
 IDLE_SECONDS = (0.8, 4.0)
 PECK_SECONDS = (1.2, 4.5)
 NEXT = (("walk", 0.5), ("peck", 0.3), ("idle", 0.2))   # what it does next, by chance
+TROUGH_CHANCE = 0.18         # ...or, now and then, to a trough with something in it to peck there
+TROUGH_PECK_SECONDS = (4.0, 9.0)
 WALK_FRAME_S = 0.11
 FLEE_FRAME_S = 0.06
 # Pecking, frame by frame: (frame of "peck": 0 down, 1 up, 2 a step on; seconds); it walks on
@@ -87,7 +93,8 @@ class Chicken(Animal):
     """A chicken of the pen."""
 
     def __init__(self, zone: pygame.Rect, tile_size: int, hen, now=None,
-                 rng: Optional[random.Random] = None, coop=None, has_place: bool = True) -> None:
+                 rng: Optional[random.Random] = None, coop=None, has_place: bool = True,
+                 troughs=()) -> None:
         """Args:
             zone: Where its feet may go, world pixels (the pen's inside).
             tile_size: Base tile size.
@@ -96,6 +103,7 @@ class Chicken(Animal):
             rng: Its random choices; the module's by default.
             coop: The pen's coop (chicken_coop.Coop), or None: then it stays out at night.
             has_place: Whether it has a place in the coop; without one it sleeps near it.
+            troughs: The pen's troughs (models/trough.py Trough): kept out of, pecked at while they hold something.
         """
         super().__init__(zone.x, zone.y, tile_size)
         self.rng = rng or random.Random()
@@ -118,6 +126,9 @@ class Chicken(Animal):
         self.alarm_wait = 0.0
         self.coop = coop
         self.has_place = has_place and coop is not None
+        self.troughs = list(troughs)
+        self._to_trough = False                     # on its way to peck at a trough
+        self.at_trough = False                      # pecking at one: it does not step on
         # Its own hours: each goes in and comes out a little after the others
         self.bed_offset = self.rng.uniform(0.0, BED_SPREAD_HOURS)
         self.wake_offset = self.rng.uniform(0.0, BED_SPREAD_HOURS)
@@ -168,8 +179,9 @@ class Chicken(Animal):
         self.y = y - self.sprite_height
 
     def _clear(self, x: float, y: float) -> bool:
-        """Whether feet may stand at (x, y) by day: not in the coop."""
-        return self.coop is None or not self.coop.blocks(x, y)
+        """Whether feet may stand at (x, y) by day: not in the coop or a trough."""
+        return ((self.coop is None or not self.coop.blocks(x, y))
+                and not any(trough.blocks(x, y) for trough in self.troughs))
 
     def _in_zone(self, x: float, y: float) -> Tuple[float, float]:
         return min(max(x, self.zone.left), self.zone.right), min(max(y, self.zone.top), self.zone.bottom)
@@ -202,6 +214,7 @@ class Chicken(Animal):
         self.frame_index = 0
         self.frame_timer = 0.0
         self.fleeing = False
+        self._to_trough = self.at_trough = False
         if state == "walk":
             self.target = self._spot_near(self.rng.uniform(1.0, WANDER_TILES) * self.tile_size)
         elif state == "to_coop":
@@ -223,6 +236,8 @@ class Chicken(Animal):
             self.timer = self.rng.uniform(*IDLE_SECONDS)
 
     def _next(self) -> None:
+        if self.rng.random() < TROUGH_CHANCE and self._go_to_trough():
+            return
         roll, total = self.rng.random(), 0.0
         for state, chance in NEXT:
             total += chance
@@ -230,6 +245,19 @@ class Chicken(Animal):
                 self._start(state)
                 return
         self._start("idle")
+
+    def _go_to_trough(self) -> bool:
+        """Off to a trough with something in it, to peck there; False if none has anything."""
+        filled = [trough for trough in self.troughs if trough.has_contents]
+        if not filled:
+            return False
+        x, y = self.rng.choice(filled).front_spot(self.rng)
+        if not (self.zone.left <= x <= self.zone.right and self.zone.top <= y <= self.zone.bottom):
+            return False
+        self._start("walk")
+        self.target = (x, y)
+        self._to_trough = True
+        return True
 
     def _flee_from(self, player_feet: Tuple[float, float]) -> None:
         """Run off away from the player, as far as the pen allows."""
@@ -369,6 +397,11 @@ class Chicken(Animal):
                 self._start("roost")
             elif self.fleeing and self._after_flight:
                 self._start(self._after_flight)      # on its way to bed again
+            elif self._to_trough:
+                self._start("peck")                  # at the trough, its back to the viewer, head in it
+                self.direction = "back"
+                self.at_trough = True
+                self.timer = self.rng.uniform(*TROUGH_PECK_SECONDS)
             else:
                 self._start("idle" if self.fleeing else self.rng.choice(("idle", "peck")))
             return
@@ -399,11 +432,16 @@ class Chicken(Animal):
         self._set_frame()
 
     def _step_on(self, px: float) -> None:
-        """A little way on the way it faces while feeding; at its pen's edge it turns about."""
+        """A little way on the way it faces while feeding; at its pen's edge or a trough it turns about.
+        Pecking at a trough it stays where it is."""
+        if self.at_trough:
+            return
         ax, ay = AHEAD[self.direction]
         fx, fy = self.feet
         x, y = fx + ax * px, fy + ay * px
-        if not (self.zone.left <= x <= self.zone.right and self.zone.top <= y <= self.zone.bottom):
+        if (not (self.zone.left <= x <= self.zone.right and self.zone.top <= y <= self.zone.bottom)
+                or not any(trough.blocks(fx, fy) for trough in self.troughs)
+                and any(trough.blocks(x, y) for trough in self.troughs)):
             self.direction = TURNED[self.direction]
             return
         self.place_feet(x, y)

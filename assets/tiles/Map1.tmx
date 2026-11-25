@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="89" nextobjectid="1692">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="300" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="89" nextobjectid="1694">
  <tileset firstgid="1" name="grass" tilewidth="32" tileheight="32" spacing="2" margin="2" tilecount="8836" columns="94">
   <image source="grass.png" width="3200" height="3200"/>
  </tileset>
@@ -13484,6 +13484,36 @@
     <property name="Scale" type="float" value="0.44"/>
     <property name="Tiles_to_right" type="int" value="11"/>
     <property name="Tiles_up" type="int" value="11"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1692" name="Trough_Feeding_Place" type="Trough" x="6336" y="6064">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-3"/>
+    <property name="Col_margin_left_pixel" type="int" value="-3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-2"/>
+    <property name="Col_margin_up_pixel" type="int" value="-12"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="Display_name" value="Trough"/>
+    <property name="File_name" value="troughs/trough_empty.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="1"/>
+   </properties>
+   <point/>
+  </object>
+  <object id="1693" name="Trough_By_The_Coop" type="Trough" x="6512" y="5984">
+   <properties>
+    <property name="Col_margin_down_pixel" type="int" value="-3"/>
+    <property name="Col_margin_left_pixel" type="int" value="-3"/>
+    <property name="Col_margin_right_pixel" type="int" value="-2"/>
+    <property name="Col_margin_up_pixel" type="int" value="-12"/>
+    <property name="Collision_to_right" type="int" value="2"/>
+    <property name="Collision_up" type="int" value="1"/>
+    <property name="Display_name" value="Trough"/>
+    <property name="File_name" value="troughs/trough_empty.png"/>
+    <property name="Tiles_to_right" type="int" value="2"/>
+    <property name="Tiles_up" type="int" value="1"/>
    </properties>
    <point/>
   </object>
